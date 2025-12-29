@@ -19,11 +19,14 @@ export function emitWizard(event: Record<string, unknown>) {
       : false;
 
     if (!ok) {
-      void fetch('/api/telemetry/wizard', {
+      fetch('/api/telemetry/wizard', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body,
         keepalive: true,
+      }).catch((fetchError) => {
+        // Log telemetry failures for observability but don't block user flow
+        logger.debug("wizard_telemetry_fetch_failed", { error: fetchError instanceof Error ? fetchError.message : String(fetchError) });
       });
     }
 

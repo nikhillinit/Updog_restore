@@ -5,10 +5,17 @@
 
 import { z } from 'zod';
 
+// Import canonical stage schema (single source of truth)
+import { CanonicalStageSchema, type CanonicalStage } from './stage';
+
 // Base Types
 export const MoneySchema = z.number().positive().finite();
 export const PercentageSchema = z.number().min(0).max(1);
-export const StageSchema = z.enum(['pre_seed', 'seed', 'series_a', 'series_b', 'series_c', 'series_d', 'growth', 'late_stage']);
+
+// Re-export canonical stage schema for reserve contexts
+export const StageSchema = CanonicalStageSchema;
+export type Stage = CanonicalStage;
+
 export const OutcomeSchema = z.enum(['failure', 'small_exit', 'medium_exit', 'large_exit', 'mega_exit']);
 
 // Company and Investment Types

@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { selectAllKPIs, calculateXIRR } from '@/core/selectors';
+ * import { selectAllKPIs, safeXIRR } from '@/core/selectors';
  * ```
  */
 
@@ -40,14 +40,17 @@ export {
   formatKPI,
 } from './fund-kpis';
 
-// XIRR utility exports
+// XIRR utility exports (from canonical implementation)
 export {
-  calculateXIRR,
-  calculateSimpleIRR,
-  verifyNPV,
-  formatIRR,
-  XIRRCalculationError,
-} from './xirr';
+  xirrNewtonBisection,
+  safeXIRR,
+  buildCashflowSchedule,
+  calculateIRRFromPeriods,
+  type CashFlow,
+  type CashFlowEvent as XIRRCashFlowEvent,
+  type XIRRResult,
+  type SafeXIRRResult,
+} from '@/lib/finance/xirr';
 
 // Type guards
 export { isFund, isFundData } from '../types/fund-domain';

@@ -8,7 +8,12 @@
  * @module server/services/variance-calculator
  */
 
-import type { ActualMetrics, ProjectedMetrics, TargetMetrics, VarianceMetrics } from '@shared/types/metrics';
+import type {
+  ActualMetrics,
+  ProjectedMetrics,
+  TargetMetrics,
+  VarianceMetrics,
+} from '@shared/types/metrics';
 
 export class VarianceCalculator {
   /**
@@ -82,6 +87,17 @@ export class VarianceCalculator {
   ): VarianceMetrics['performanceVariance'] {
     const actualIRR = actual.irr;
     const targetIRR = target.targetIRR;
+
+    // Handle case where IRR cannot be calculated
+    if (actualIRR === null) {
+      return {
+        actualIRR: null,
+        targetIRR,
+        variance: null,
+        status: 'insufficient-data',
+      };
+    }
+
     const variance = actualIRR - targetIRR;
 
     // Determine status (allow 2% tolerance for IRR)
@@ -141,9 +157,8 @@ export class VarianceCalculator {
     const investmentPeriodMonths = target.targetDeploymentYears * 12;
     const periodElapsedPercent = Math.min(100, (fundAgeMonths / investmentPeriodMonths) * 100);
 
-    const capitalDeployedPercent = target.targetFundSize > 0
-      ? (actual.totalDeployed / target.targetFundSize) * 100
-      : 0;
+    const capitalDeployedPercent =
+      target.targetFundSize > 0 ? (actual.totalDeployed / target.targetFundSize) * 100 : 0;
 
     // Calculate months deviation
     // If we've deployed 60% of capital but only 50% of time has elapsed, we're ahead
@@ -170,9 +185,8 @@ export class VarianceCalculator {
     const variance = actualCompanies - targetCompanies;
 
     // Determine if on track based on deployment progress
-    const deploymentProgress = target.targetFundSize > 0
-      ? actual.totalDeployed / target.targetFundSize
-      : 0;
+    const deploymentProgress =
+      target.targetFundSize > 0 ? actual.totalDeployed / target.targetFundSize : 0;
 
     const expectedCompanies = Math.round(targetCompanies * deploymentProgress);
     const onTrack = Math.abs(actualCompanies - expectedCompanies) <= 2; // Allow 2 company tolerance

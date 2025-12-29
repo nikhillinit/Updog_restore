@@ -10,8 +10,8 @@ export type StrategyStage = {
   id: string;
   name: string;
   graduate: number; // %
-  exit: number;     // %
-  months: number;   // int >= 1
+  exit: number; // %
+  months: number; // int >= 1
 };
 
 // LP and Capital types
@@ -45,9 +45,9 @@ export type WaterfallTier = {
 };
 
 // Fee and Expense types
-export type FeeBasis = 
+export type FeeBasis =
   | 'committed_capital'
-  | 'called_capital_period' 
+  | 'called_capital_period'
   | 'gross_cumulative_called'
   | 'net_cumulative_called'
   | 'cumulative_invested'
@@ -121,7 +121,22 @@ export type FundState = {
   fundExpenses: FundExpense[];
 
   // Fund Basics actions
-  updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'establishmentDate' | 'vintageYear' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'carriedInterest'>>) => void;
+  updateFundBasics: (
+    patch: Partial<
+      Pick<
+        FundState,
+        | 'fundName'
+        | 'establishmentDate'
+        | 'vintageYear'
+        | 'isEvergreen'
+        | 'fundLife'
+        | 'investmentPeriod'
+        | 'fundSize'
+        | 'managementFeeRate'
+        | 'carriedInterest'
+      >
+    >
+  ) => void;
 
   // Capital Structure actions
   updateCapitalStructure: (patch: Partial<Pick<FundState, 'gpCommitment'>>) => void;
@@ -136,10 +151,27 @@ export type FundState = {
   addStage: () => void;
   removeStage: (idx: number) => void;
   updateStageName: (idx: number, name: string) => void;
-  updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => void;
+  updateStageRate: (
+    idx: number,
+    patch: Partial<Pick<StrategyStage, 'graduate' | 'exit' | 'months'>>
+  ) => void;
 
   // Distributions actions
-  updateDistributions: (patch: Partial<Pick<FundState, 'waterfallType' | 'recyclingEnabled' | 'recyclingType' | 'recyclingCap' | 'recyclingPeriod' | 'exitRecyclingRate' | 'mgmtFeeRecyclingRate' | 'allowFutureRecycling'>>) => void;
+  updateDistributions: (
+    patch: Partial<
+      Pick<
+        FundState,
+        | 'waterfallType'
+        | 'recyclingEnabled'
+        | 'recyclingType'
+        | 'recyclingCap'
+        | 'recyclingPeriod'
+        | 'exitRecyclingRate'
+        | 'mgmtFeeRecyclingRate'
+        | 'allowFutureRecycling'
+      >
+    >
+  ) => void;
   addWaterfallTier: (tier: WaterfallTier) => void;
   updateWaterfallTier: (id: string, patch: Partial<WaterfallTier>) => void;
   removeWaterfallTier: (id: string) => void;
@@ -166,12 +198,12 @@ export type FundState = {
 };
 
 // Helper functions
-const enforceLast = (rows: StrategyStage[]) =>
-  rows.map((r: any, i: any) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
+const enforceLast = (rows: StrategyStage[]): StrategyStage[] =>
+  rows.map((r: StrategyStage, i: number) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
 const generateStableId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return (crypto as any).randomUUID();
+    return crypto.randomUUID();
   }
   return `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
@@ -183,33 +215,91 @@ type StrategySlices = {
   allocations: Allocation[];
 };
 
-// Normalize incoming payload into canonical internal shape with structural sharing
-function canonicalizeStrategyInput(
-  next: InvestmentStrategy,
-  prev: StrategySlices
-): StrategySlices {
-  // 1) Stages: clamp defaults, sort by id, and REUSE objects when unchanged
-  const prevById = new Map(prev.stages.map(s => [s.id, s]));
+// Flexible input types that accept both internal and external naming conventions
+// Stage can come from InvestmentStrategy (graduationRate/exitRate) or internal StrategyStage (graduate/exit)
+type FlexibleStageInput = {
+  id: string;
+  name?: string;
+  graduationRate?: number;
+  graduate?: number;
+  exitRate?: number;
+  exit?: number;
+  months?: number;
+};
 
-  const normStages = (next.stages ?? prev.stages).map(ns => {
+// Allocation can use either "percentage" or "percent" depending on the source
+type FlexibleAllocationInput = {
+  id?: string;
+  category?: string;
+  percentage?: number;
+  percent?: number;
+  description?: string;
+};
+
+// Patch types for cleaner action signatures
+type FundBasicsPatch = Partial<
+  Pick<
+    FundState,
+    | 'fundName'
+    | 'establishmentDate'
+    | 'vintageYear'
+    | 'isEvergreen'
+    | 'fundLife'
+    | 'investmentPeriod'
+    | 'fundSize'
+    | 'managementFeeRate'
+    | 'carriedInterest'
+  >
+>;
+type CapitalStructurePatch = Partial<Pick<FundState, 'gpCommitment'>>;
+type DistributionsPatch = Partial<
+  Pick<
+    FundState,
+    | 'waterfallType'
+    | 'recyclingEnabled'
+    | 'recyclingType'
+    | 'recyclingCap'
+    | 'recyclingPeriod'
+    | 'exitRecyclingRate'
+    | 'mgmtFeeRecyclingRate'
+    | 'allowFutureRecycling'
+  >
+>;
+
+// Normalize incoming payload into canonical internal shape with structural sharing
+function canonicalizeStrategyInput(next: InvestmentStrategy, prev: StrategySlices): StrategySlices {
+  // 1) Stages: clamp defaults, sort by id, and REUSE objects when unchanged
+  const prevById = new Map(prev.stages.map((s) => [s.id, s]));
+
+  const normStages = (next.stages ?? prev.stages).map((ns) => {
     const p = prevById['get'](ns.id);
+    // Cast to flexible type to handle both InvestmentStrategy.Stage and internal StrategyStage naming
+    const flexStage = ns as FlexibleStageInput;
     // normalize fields to internal model
-    const name = (ns.name?.trim() ?? p?.name ?? '');
-    const graduate = normalizeNumber((ns as any).graduationRate ?? (ns as any).graduate ?? p?.graduate ?? 0);
-    const exit = normalizeNumber((ns as any).exitRate ?? (ns as any).exit ?? p?.exit ?? 0);
-    const months = (ns as any).months ?? p?.months ?? 12; // Default months that was breaking tests
+    const name = ns.name?.trim() ?? p?.name ?? '';
+    const graduate = normalizeNumber(
+      flexStage.graduationRate ?? flexStage.graduate ?? p?.graduate ?? 0
+    );
+    const exit = normalizeNumber(flexStage.exitRate ?? flexStage.exit ?? p?.exit ?? 0);
+    const months = flexStage.months ?? p?.months ?? 12; // Default months that was breaking tests
 
     // if identical to prev, return the *same* object reference (structural sharing)
-    if (p && p.name === name && eq(p.graduate, graduate) && eq(p.exit, exit) && p.months === months) {
+    if (
+      p &&
+      p.name === name &&
+      eq(p.graduate, graduate) &&
+      eq(p.exit, exit) &&
+      p.months === months
+    ) {
       return p;
     }
 
-    return { 
-      id: ns.id, 
-      name, 
-      graduate: clampPct(graduate), 
-      exit: clampPct(exit), 
-      months: clampInt(months, 1, 120) 
+    return {
+      id: ns.id,
+      name,
+      graduate: clampPct(graduate),
+      exit: clampPct(exit),
+      months: clampInt(months, 1, 120),
     };
   });
 
@@ -217,47 +307,57 @@ function canonicalizeStrategyInput(
   const finalStages = enforceLast(normStages);
 
   // 2) Sector profiles: normalize and reuse when same (ID-based matching)
-  const prevSPById = new Map(prev.sectorProfiles.map(sp => [sp.id, sp]));
-  const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles)
-    .map(sp => {
-      const p = prevSPById['get'](sp.id);
-      const name = sp.name?.trim() ?? p?.name ?? '';
-      const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
-      const description = sp.description ?? p?.description ?? '';
-      
-      // reuse object if equal
-      if (p && p.name === name && eq(p.targetPercentage, targetPercentage) && p.description === description) {
-        return p;
-      }
-      return { id: sp.id, name, targetPercentage: clampPct(targetPercentage), description };
-    });
+  const prevSPById = new Map(prev.sectorProfiles.map((sp) => [sp.id, sp]));
+  const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles).map((sp) => {
+    const p = prevSPById['get'](sp.id);
+    const name = sp.name?.trim() ?? p?.name ?? '';
+    const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
+    const description = sp.description ?? p?.description ?? '';
+
+    // reuse object if equal
+    if (
+      p &&
+      p.name === name &&
+      eq(p.targetPercentage, targetPercentage) &&
+      p.description === description
+    ) {
+      return p;
+    }
+    return { id: sp.id, name, targetPercentage: clampPct(targetPercentage), description };
+  });
 
   // 3) Allocations: normalize % (handle both "percent" and "percentage"), reuse when same (ID-based matching)
-  const prevAllocById = new Map(prev.allocations.map(a => [a.id, a]));
-  const normAllocations = (next.allocations ?? prev.allocations)
-    .map(a => {
-      const p = prevAllocById['get'](a.id);
-      const category = a.category?.trim() ?? p?.category ?? '';
-      const percentage = normalizeNumber(
-        (a as any).percentage ?? (a as any).percent ?? p?.percentage ?? 0
-      );
-      const description = a.description ?? p?.description ?? '';
-      
-      if (p && p.category === category && eq(p.percentage, percentage) && p.description === description) {
-        return p;
-      }
-      return { 
-        id: a.id ?? p?.id ?? generateStableId(),
-        category, 
-        percentage: clampPct(percentage), // Always emit canonical "percentage" field
-        description 
-      };
-    });
+  const prevAllocById = new Map(prev.allocations.map((a) => [a.id, a]));
+  const normAllocations = (next.allocations ?? prev.allocations).map((a) => {
+    const p = prevAllocById['get'](a.id);
+    // Cast to flexible type to handle both "percentage" and "percent" naming conventions
+    const flexAlloc = a as FlexibleAllocationInput;
+    const category = a.category?.trim() ?? p?.category ?? '';
+    const percentage = normalizeNumber(
+      flexAlloc.percentage ?? flexAlloc.percent ?? p?.percentage ?? 0
+    );
+    const description = a.description ?? p?.description ?? '';
 
-  return { 
-    stages: finalStages, 
-    sectorProfiles: normSectorProfiles, 
-    allocations: normAllocations 
+    if (
+      p &&
+      p.category === category &&
+      eq(p.percentage, percentage) &&
+      p.description === description
+    ) {
+      return p;
+    }
+    return {
+      id: a.id ?? p?.id ?? generateStableId(),
+      category,
+      percentage: clampPct(percentage), // Always emit canonical "percentage" field
+      description,
+    };
+  });
+
+  return {
+    stages: finalStages,
+    sectorProfiles: normSectorProfiles,
+    allocations: normAllocations,
   };
 }
 
@@ -276,7 +376,7 @@ function createFundStore() {
       persist(
         (set, get): FundState => ({
           hydrated: false,
-          setHydrated: (v: any) => set({ hydrated: v }),
+          setHydrated: (v: boolean) => set({ hydrated: v }),
 
           // Fund Basics defaults
           // Note: undefined optional fields are omitted per exactOptionalPropertyTypes
@@ -290,17 +390,47 @@ function createFundStore() {
           stages: [
             { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
             { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
-            { id: generateStableId(), name: 'Series B+', graduate: 0, exit: 35, months: 30 }
+            { id: generateStableId(), name: 'Series B+', graduate: 0, exit: 35, months: 30 },
           ],
           sectorProfiles: [
-            { id: 'sector-1', name: 'FinTech', targetPercentage: 40, description: 'Financial technology companies' },
-            { id: 'sector-2', name: 'HealthTech', targetPercentage: 30, description: 'Healthcare technology companies' },
-            { id: 'sector-3', name: 'Enterprise SaaS', targetPercentage: 30, description: 'B2B software solutions' }
+            {
+              id: 'sector-1',
+              name: 'FinTech',
+              targetPercentage: 40,
+              description: 'Financial technology companies',
+            },
+            {
+              id: 'sector-2',
+              name: 'HealthTech',
+              targetPercentage: 30,
+              description: 'Healthcare technology companies',
+            },
+            {
+              id: 'sector-3',
+              name: 'Enterprise SaaS',
+              targetPercentage: 30,
+              description: 'B2B software solutions',
+            },
           ],
           allocations: [
-            { id: 'alloc-1', category: 'New Investments', percentage: 75, description: 'Fresh capital for new portfolio companies' },
-            { id: 'alloc-2', category: 'Reserves', percentage: 20, description: 'Follow-on investments for existing portfolio' },
-            { id: 'alloc-3', category: 'Operating Expenses', percentage: 5, description: 'Fund management and operations' }
+            {
+              id: 'alloc-1',
+              category: 'New Investments',
+              percentage: 75,
+              description: 'Fresh capital for new portfolio companies',
+            },
+            {
+              id: 'alloc-2',
+              category: 'Reserves',
+              percentage: 20,
+              description: 'Follow-on investments for existing portfolio',
+            },
+            {
+              id: 'alloc-3',
+              category: 'Operating Expenses',
+              percentage: 5,
+              description: 'Fund management and operations',
+            },
           ],
           followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
@@ -314,8 +444,8 @@ function createFundStore() {
               gpSplit: 20,
               preferredReturn: 8,
               catchUp: 100,
-              condition: 'none'
-            }
+              condition: 'none',
+            },
           ],
           recyclingEnabled: false,
           recyclingType: 'exits',
@@ -335,205 +465,244 @@ function createFundStore() {
                   percentage: 2.0,
                   feeBasis: 'committed_capital',
                   startMonth: 1,
-                  endMonth: 120 // 10 years
-                }
-              ]
-            }
+                  endMonth: 120, // 10 years
+                },
+              ],
+            },
           ],
           fundExpenses: [],
 
           // Fund Basics actions
-          updateFundBasics: (patch: any) => set((state: any) => ({ ...state, ...patch })),
+          updateFundBasics: (patch: FundBasicsPatch) => set((state) => ({ ...state, ...patch })),
 
           // Capital Structure actions
-          updateCapitalStructure: (patch: any) => set((state: any) => ({ ...state, ...patch })),
-          
-          addLPClass: (lpClass: any) => set((state: any) => ({
-            lpClasses: [...state.lpClasses, lpClass]
-          })),
-          
-          updateLPClass: (id: string, patch: Partial<LPClass>) => set((state: any) => ({
-            lpClasses: state.lpClasses.map((cls: LPClass) =>
-              cls.id === id ? { ...cls, ...patch } : cls
-            )
-          })),
-          
-          removeLPClass: (id: string) => set((state: any) => ({
-            lpClasses: state.lpClasses.filter((cls: LPClass) => cls.id !== id)
-          })),
-          
-          addLP: (lp: LP) => set((state: any) => ({
-            lps: [...state.lps, lp]
-          })),
-          
-          updateLP: (id: string, patch: Partial<LP>) => set((state: any) => ({
-            lps: state.lps.map((lp: LP) =>
-              lp.id === id ? { ...lp, ...patch } : lp
-            )
-          })),
-          
-          removeLP: (id: string) => set((state: any) => ({
-            lps: state.lps.filter((lp: LP) => lp.id !== id)
-          })),
+          updateCapitalStructure: (patch: CapitalStructurePatch) =>
+            set((state) => ({ ...state, ...patch })),
+
+          addLPClass: (lpClass: LPClass) =>
+            set((state) => ({
+              lpClasses: [...state.lpClasses, lpClass],
+            })),
+
+          updateLPClass: (id: string, patch: Partial<LPClass>) =>
+            set((state) => ({
+              lpClasses: state.lpClasses.map((cls: LPClass) =>
+                cls.id === id ? { ...cls, ...patch } : cls
+              ),
+            })),
+
+          removeLPClass: (id: string) =>
+            set((state) => ({
+              lpClasses: state.lpClasses.filter((cls: LPClass) => cls.id !== id),
+            })),
+
+          addLP: (lp: LP) =>
+            set((state) => ({
+              lps: [...state.lps, lp],
+            })),
+
+          updateLP: (id: string, patch: Partial<LP>) =>
+            set((state) => ({
+              lps: state.lps.map((existingLp: LP) =>
+                existingLp.id === id ? { ...existingLp, ...patch } : existingLp
+              ),
+            })),
+
+          removeLP: (id: string) =>
+            set((state) => ({
+              lps: state.lps.filter((existingLp: LP) => existingLp.id !== id),
+            })),
 
           // Distributions actions
-          updateDistributions: (patch: any) => set((state: any) => ({ ...state, ...patch })),
-          
-          addWaterfallTier: (tier: WaterfallTier) => set((state: any) => ({
-            waterfallTiers: [...state.waterfallTiers, tier]
-          })),
-          
-          updateWaterfallTier: (id: string, patch: Partial<WaterfallTier>) => set((state: any) => ({
-            waterfallTiers: state.waterfallTiers.map((tier: WaterfallTier) =>
-              tier.id === id ? { ...tier, ...patch } : tier
-            )
-          })),
-          
-          removeWaterfallTier: (id: string) => set((state: any) => ({
-            waterfallTiers: state.waterfallTiers.filter((tier: WaterfallTier) => tier.id !== id)
-          })),
+          updateDistributions: (patch: DistributionsPatch) =>
+            set((state) => ({ ...state, ...patch })),
+
+          addWaterfallTier: (tier: WaterfallTier) =>
+            set((state) => ({
+              waterfallTiers: [...state.waterfallTiers, tier],
+            })),
+
+          updateWaterfallTier: (id: string, patch: Partial<WaterfallTier>) =>
+            set((state) => ({
+              waterfallTiers: state.waterfallTiers.map((existingTier: WaterfallTier) =>
+                existingTier.id === id ? { ...existingTier, ...patch } : existingTier
+              ),
+            })),
+
+          removeWaterfallTier: (id: string) =>
+            set((state) => ({
+              waterfallTiers: state.waterfallTiers.filter(
+                (existingTier: WaterfallTier) => existingTier.id !== id
+              ),
+            })),
 
           // Fee Profile actions
-          addFeeProfile: (profile: FeeProfile) => set((state: any) => ({
-            feeProfiles: [...state.feeProfiles, profile]
-          })),
+          addFeeProfile: (profile: FeeProfile) =>
+            set((state) => ({
+              feeProfiles: [...state.feeProfiles, profile],
+            })),
 
-          updateFeeProfile: (id: string, patch: Partial<FeeProfile>) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
-              profile.id === id ? { ...profile, ...patch } : profile
-            )
-          })),
+          updateFeeProfile: (id: string, patch: Partial<FeeProfile>) =>
+            set((state) => ({
+              feeProfiles: state.feeProfiles.map((existingProfile: FeeProfile) =>
+                existingProfile.id === id ? { ...existingProfile, ...patch } : existingProfile
+              ),
+            })),
 
-          removeFeeProfile: (id: string) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.filter((profile: FeeProfile) => profile.id !== id)
-          })),
+          removeFeeProfile: (id: string) =>
+            set((state) => ({
+              feeProfiles: state.feeProfiles.filter(
+                (existingProfile: FeeProfile) => existingProfile.id !== id
+              ),
+            })),
 
-          addFeeTier: (profileId: string, tier: FeeTier) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
-              profile.id === profileId
-                ? { ...profile, feeTiers: [...profile.feeTiers, tier] }
-                : profile
-            )
-          })),
+          addFeeTier: (profileId: string, tier: FeeTier) =>
+            set((state) => ({
+              feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+                profile.id === profileId
+                  ? { ...profile, feeTiers: [...profile.feeTiers, tier] }
+                  : profile
+              ),
+            })),
 
-          updateFeeTier: (profileId: string, tierId: string, patch: Partial<FeeTier>) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
-              profile.id === profileId
-                ? {
-                    ...profile,
-                    feeTiers: profile.feeTiers.map((tier: FeeTier) =>
-                      tier.id === tierId ? { ...tier, ...patch } : tier
-                    )
-                  }
-                : profile
-            )
-          })),
+          updateFeeTier: (profileId: string, tierId: string, patch: Partial<FeeTier>) =>
+            set((state) => ({
+              feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+                profile.id === profileId
+                  ? {
+                      ...profile,
+                      feeTiers: profile.feeTiers.map((existingTier: FeeTier) =>
+                        existingTier.id === tierId ? { ...existingTier, ...patch } : existingTier
+                      ),
+                    }
+                  : profile
+              ),
+            })),
 
-          removeFeeTier: (profileId: string, tierId: string) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
-              profile.id === profileId
-                ? {
-                    ...profile,
-                    feeTiers: profile.feeTiers.filter((tier: FeeTier) => tier.id !== tierId)
-                  }
-                : profile
-            )
-          })),
+          removeFeeTier: (profileId: string, tierId: string) =>
+            set((state) => ({
+              feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+                profile.id === profileId
+                  ? {
+                      ...profile,
+                      feeTiers: profile.feeTiers.filter(
+                        (existingTier: FeeTier) => existingTier.id !== tierId
+                      ),
+                    }
+                  : profile
+              ),
+            })),
 
           // Fund Expense actions
-          addFundExpense: (expense: FundExpense) => set((state: any) => ({
-            fundExpenses: [...state.fundExpenses, expense]
-          })),
+          addFundExpense: (expense: FundExpense) =>
+            set((state) => ({
+              fundExpenses: [...state.fundExpenses, expense],
+            })),
 
-          updateFundExpense: (id: string, patch: Partial<FundExpense>) => set((state: any) => ({
-            fundExpenses: state.fundExpenses.map((expense: FundExpense) =>
-              expense.id === id ? { ...expense, ...patch } : expense
-            )
-          })),
+          updateFundExpense: (id: string, patch: Partial<FundExpense>) =>
+            set((state) => ({
+              fundExpenses: state.fundExpenses.map((existingExpense: FundExpense) =>
+                existingExpense.id === id ? { ...existingExpense, ...patch } : existingExpense
+              ),
+            })),
 
-          removeFundExpense: (id: string) => set((state: any) => ({
-            fundExpenses: state.fundExpenses.filter((expense: FundExpense) => expense.id !== id)
-          })),
+          removeFundExpense: (id: string) =>
+            set((state) => ({
+              fundExpenses: state.fundExpenses.filter(
+                (existingExpense: FundExpense) => existingExpense.id !== id
+              ),
+            })),
 
-          addStage: () => set((s: any) => {
-            // Invalidate cache when stages change
-            cachedStagesState = null;
-            cachedValidationResult = null;
-            
-            const id = generateStableId();
-            const next = [...s.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
-            return { stages: enforceLast(next) };
-          }),
+          addStage: () =>
+            set((state) => {
+              // Invalidate cache when stages change
+              cachedStagesState = null;
+              cachedValidationResult = null;
 
-          removeStage: (idx: number) => set((s: any) => {
-            // Invalidate cache when stages change
-            cachedStagesState = null;
-            cachedValidationResult = null;
-            
-            const next = s.stages.filter((_: any, i: any) => i !== idx);
-            return { stages: enforceLast(next) };
-          }),
+              const id = generateStableId();
+              const next = [...state.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
+              return { stages: enforceLast(next) };
+            }),
 
-          updateStageName: (idx: number, name: string) => set((s: any) => {
-            // Invalidate cache when stages change
-            cachedStagesState = null;
-            cachedValidationResult = null;
-            
-            const stages = [...s.stages];
-            if (stages[idx]) {
-              stages[idx] = { ...stages[idx], name };
-            }
-            return { stages };
-          }),
+          removeStage: (idx: number) =>
+            set((state) => {
+              // Invalidate cache when stages change
+              cachedStagesState = null;
+              cachedValidationResult = null;
 
-          updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => set((s: any) => {
-            // Invalidate cache when stages change
-            cachedStagesState = null;
-            cachedValidationResult = null;
-            
-            const stages: StrategyStage[] = [...s.stages];
-            const r = stages[idx];
-            if (!r) return s;
+              const next = state.stages.filter((_: StrategyStage, i: number) => i !== idx);
+              return { stages: enforceLast(next) };
+            }),
 
-            const isLast = idx === stages.length - 1;
-            const gradRaw = isLast ? 0 : clampPct(patch.graduate ?? r.graduate);
-            const exitRaw = clampPct(patch.exit ?? r.exit);
-            const months = clampInt(patch.months ?? r.months, 1, 120);
+          updateStageName: (idx: number, name: string) =>
+            set((state) => {
+              // Invalidate cache when stages change
+              cachedStagesState = null;
+              cachedValidationResult = null;
 
-            const [graduate, exit] = allocate100(gradRaw, exitRaw);
-            stages[idx] = { ...r, graduate, exit, months };
+              const stages = [...state.stages];
+              if (stages[idx]) {
+                stages[idx] = { ...stages[idx], name };
+              }
+              return { stages };
+            }),
 
-            // Re-enforce last rule in case stages changed earlier
-            const lastIdx = stages.length - 1;
-            if (lastIdx >= 0 && stages[lastIdx]?.graduate !== 0) {
-              stages[lastIdx] = { ...stages[lastIdx]!, graduate: 0 };
-            }
+          updateStageRate: (
+            idx: number,
+            patch: Partial<Pick<StrategyStage, 'graduate' | 'exit' | 'months'>>
+          ) =>
+            set((state) => {
+              // Invalidate cache when stages change
+              cachedStagesState = null;
+              cachedValidationResult = null;
 
-            return { stages };
-          }),
+              const stages: StrategyStage[] = [...state.stages];
+              const r = stages[idx];
+              if (!r) return state;
+
+              const isLast = idx === stages.length - 1;
+              const gradRaw = isLast ? 0 : clampPct(patch.graduate ?? r.graduate);
+              const exitRaw = clampPct(patch.exit ?? r.exit);
+              const months = clampInt(patch.months ?? r.months, 1, 120);
+
+              const [graduate, exit] = allocate100(gradRaw, exitRaw);
+              stages[idx] = { ...r, graduate, exit, months };
+
+              // Re-enforce last rule in case stages changed earlier
+              const lastIdx = stages.length - 1;
+              if (lastIdx >= 0 && stages[lastIdx]?.graduate !== 0) {
+                stages[lastIdx] = { ...stages[lastIdx]!, graduate: 0 };
+              }
+
+              return { stages };
+            }),
 
           stageValidation: (): { allValid: boolean; errorsByRow: (string | null)[] } => {
             const { stages } = get();
-            
+
             // Return cached result if stages haven't changed
             if (cachedStagesState === stages && cachedValidationResult) {
               return cachedValidationResult;
             }
-            
+
             // Compute new validation result
             const errors = stages.map((r: StrategyStage, i: number) => {
               if (!r.name?.trim()) return 'Stage name required';
               if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
-              if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
+              if (i === stages.length - 1 && r.graduate !== 0)
+                return 'Last stage must have 0% graduation';
               return null;
             });
-            
-            const result = { allValid: errors.every((e: string | null) => !e), errorsByRow: errors };
-            
+
+            const result = {
+              allValid: errors.every((e: string | null) => !e),
+              errorsByRow: errors,
+            };
+
             // Cache the result
             cachedStagesState = stages;
             cachedValidationResult = result;
-            
+
             return result;
           },
 
@@ -545,90 +714,110 @@ function createFundStore() {
                 id: s.id,
                 name: s.name,
                 graduationRate: s.graduate,
-                exitRate: s.exit
+                exitRate: s.exit,
               })),
               sectorProfiles,
-              allocations
+              allocations,
             };
           },
 
-          fromInvestmentStrategy: (strategy: InvestmentStrategy) => set((state: FundState) => {
-            const prevRaw = {
-              stages: state.stages,
-              sectorProfiles: state.sectorProfiles,
-              allocations: state.allocations,
-            };
+          fromInvestmentStrategy: (strategy: InvestmentStrategy) =>
+            set((state: FundState) => {
+              const prevRaw = {
+                stages: state.stages,
+                sectorProfiles: state.sectorProfiles,
+                allocations: state.allocations,
+              };
 
-            // Quick identity fast-path for trivial no-ops
-            if (
-              (strategy as any).stages === state.stages &&
-              (strategy as any).sectorProfiles === state.sectorProfiles &&
-              (strategy as any).allocations === state.allocations
-            ) {
-              return state; // no-op, no notify
-            }
+              // Quick identity fast-path for trivial no-ops
+              // Cast to unknown first for safe comparison of potentially different array element types
+              if (
+                (strategy.stages as unknown) === (state.stages as unknown) &&
+                strategy.sectorProfiles === state.sectorProfiles &&
+                strategy.allocations === state.allocations
+              ) {
+                return state; // no-op, no notify
+              }
 
-            // Canonicalize PREV through the same pipeline (cheap; mostly reuses refs)
-            const prevCanonical = canonicalizeStrategyInput(
-              { stages: prevRaw.stages, sectorProfiles: prevRaw.sectorProfiles, allocations: prevRaw.allocations } as any,
-              prevRaw
-            );
+              // Canonicalize PREV through the same pipeline (cheap; mostly reuses refs)
+              // Create InvestmentStrategy-compatible input from internal StrategyStage format
+              const prevAsStrategy: InvestmentStrategy = {
+                stages: prevRaw.stages.map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  graduationRate: s.graduate,
+                  exitRate: s.exit,
+                })),
+                sectorProfiles: prevRaw.sectorProfiles,
+                allocations: prevRaw.allocations,
+              };
+              const prevCanonical = canonicalizeStrategyInput(prevAsStrategy, prevRaw);
 
-            const nextCanonical = canonicalizeStrategyInput(strategy, prevRaw);
+              const nextCanonical = canonicalizeStrategyInput(strategy, prevRaw);
 
-            // If canonicalized slices are deeply equal, keep the *same* state object (no notify)
-            if (dequal(prevCanonical, nextCanonical)) return state;
+              // If canonicalized slices are deeply equal, keep the *same* state object (no notify)
+              if (dequal(prevCanonical, nextCanonical)) return state;
 
-            // Invalidate cache and publish update
-            cachedStagesState = null;
-            cachedValidationResult = null;
+              // Invalidate cache and publish update
+              cachedStagesState = null;
+              cachedValidationResult = null;
 
-            // Otherwise replace only changed slices, preserving others by reference
-            return {
-              ...state,
-              ...nextCanonical,
-            };
-          })
+              // Otherwise replace only changed slices, preserving others by reference
+              return {
+                ...state,
+                ...nextCanonical,
+              };
+            }),
         }),
         {
           name: 'investment-strategy',
           version: 2,
-          partialize: (s: any) => ({
+          partialize: (s: FundState) => ({
             // Only persist primitive inputs
             stages: s.stages.map((r: StrategyStage) => ({
-              id: r.id, name: r.name, graduate: r.graduate, exit: r.exit, months: r.months
+              id: r.id,
+              name: r.name,
+              graduate: r.graduate,
+              exit: r.exit,
+              months: r.months,
             })),
             sectorProfiles: s.sectorProfiles,
             allocations: s.allocations,
             followOnChecks: s.followOnChecks,
             modelVersion: 'reserves-ev1',
           }),
-          migrate: (state: any, from: number) => {
+          migrate: (persistedState: unknown, from: number) => {
+            // Type guard for persisted state shape
+            const state = persistedState as { stages?: Array<{ months?: number }> };
             if (from < 2) {
-              state.stages = (state.stages ?? []).map((r: any) => ({ months: 12, ...r }));
+              state.stages = (state.stages ?? []).map((r: { months?: number }) => ({
+                months: 12,
+                ...r,
+              }));
             }
             return state;
           },
-          onRehydrateStorage: () => (_state: any, err: any) => {
+          onRehydrateStorage: () => (_state: FundState | undefined, err: unknown) => {
             if (err) console.error('[fund-store] rehydrate error', err);
             // Flip on next microtask so subscribers see the final rehydrated values
             Promise.resolve().then(() => fundStore.getState().setHydrated(true));
-          }
+          },
         }
       ),
       {
-        name: 'fund-store'
+        name: 'fund-store',
       }
     )
   );
 }
 
 // HMR-safe store creation with Vite's hot data bucket
-const hotData = (import.meta as any).hot?.data as HotData | undefined;
+// Note: import.meta.hot is typed in vite/client, but we need to handle the optional chaining
+const hotData = import.meta.hot?.data as HotData | undefined;
 const store = hotData?.fundStore ?? createFundStore();
 
-if ((import.meta as any).hot) {
-  (import.meta as any).hot.dispose((data: HotData) => {
+if (import.meta.hot) {
+  import.meta.hot.dispose((data: HotData) => {
     data.fundStore = store;
   });
 }
@@ -641,7 +830,7 @@ export const __canonicalizeStrategyInput = canonicalizeStrategyInput;
 
 // Dev-only store tracer for debugging state updates
 if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1') {
-  const unsub = fundStore.subscribe((state: any, prev: any) => {
+  fundStore.subscribe((state: FundState, prev: FundState) => {
     const changed: string[] = [];
     if (state.hydrated !== prev.hydrated) changed.push('hydrated');
     if (state.stages !== prev.stages) changed.push('stages');
@@ -649,10 +838,10 @@ if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1') {
     if (state.allocations !== prev.allocations) changed.push('allocations');
     if (state.followOnChecks !== prev.followOnChecks) changed.push('followOnChecks');
     if (changed.length) {
-      console.debug('[fund-store publish]', changed.join(','), { 
+      console.debug('[fund-store publish]', changed.join(','), {
         changed,
         timestamp: new Date().toISOString(),
-        perf: Math.round(performance.now())
+        perf: Math.round(performance.now()),
       });
     }
   });

@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-17T01:58:55.814Z",
+  "generatedAt": "2025-12-29T11:11:02.425Z",
   "scoring": {
     "generic_terms": ["test", "error", "fix", "update", "change", "help"],
     "min_score": 2

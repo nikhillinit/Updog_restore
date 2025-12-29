@@ -33,6 +33,7 @@ import {
 } from './lp-api.schemas';
 import { db } from '../db';
 import { eq, desc, and } from 'drizzle-orm';
+import { enqueueReportGeneration, isReportQueueAvailable } from '../queues/report-generation-queue';
 import { lpReports, lpFundCommitments } from '@shared/schema-lp-reporting';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -765,8 +766,28 @@ router.post(
         idempotencyKey,
       });
 
-      // TODO: Queue report generation job with BullMQ
-      // await reportQueue.add('generate-lp-report', { reportId, lpId, config });
+      // Queue report generation job with BullMQ (if queue is available)
+      if (isReportQueueAvailable()) {
+        try {
+          const { jobId, estimatedWaitMs } = await enqueueReportGeneration({
+            reportId,
+            lpId,
+            reportType: config.reportType,
+            dateRange: config.dateRange,
+            format: config.format || 'pdf',
+            ...(config.fundIds && { fundIds: config.fundIds }),
+            ...(config.sections && { sections: config.sections }),
+            ...(config.templateId && { templateId: config.templateId }),
+            ...(config.metadata && { metadata: config.metadata }),
+          });
+          console.log(`[LP-API] Queued report ${reportId}, jobId: ${jobId}, wait: ${estimatedWaitMs}ms`);
+        } catch (queueError) {
+          console.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
+          // Report is still created in pending state, can be retried
+        }
+      } else {
+        console.log(`[LP-API] Report queue unavailable, report ${reportId} will remain pending`);
+      }
 
       res.setHeader('Content-Type', 'application/json');
 

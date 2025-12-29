@@ -3,8 +3,21 @@
  * These types provide a single source of truth for data flowing through the engine
  */
 
-// Re-export the stage type from shared schemas
+// Import canonical stage types from shared schemas
+import type { CanonicalStage } from '@shared/schemas/stage';
+import { normalizeStage, toNoSeparatorStage } from '@shared/schemas/stage';
+
+// Re-export canonical utilities
+export { normalizeStage, toNoSeparatorStage };
+
+/**
+ * @deprecated Use CanonicalStage from '@shared/schemas/stage' for new code.
+ * This type alias maintains backward compatibility with existing no-separator format.
+ */
 export type Stage = 'preseed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_dplus';
+
+// Export canonical type for new code
+export type { CanonicalStage };
 
 // Engine input types that match what ConstrainedReserveEngine expects
 export interface EngineCompany {
@@ -87,13 +100,12 @@ export function isRawStagePolicy(obj: any): obj is {
          obj.stage != null;
 }
 
-// Helper to normalize stage strings
-export function normalizeStage(stageStr: string): Stage {
-  const normalized = stageStr.toLowerCase().replace(/[-\s]/g, '_');
-  
-  if (!isValidStage(normalized)) {
-    throw new Error(`Invalid stage: ${stageStr}. Valid stages: preseed, seed, series_a, series_b, series_c, series_dplus`);
-  }
-  
-  return normalized;
-}
+/**
+ * @deprecated Use normalizeStage from '@shared/schemas/stage' (re-exported above).
+ * This local implementation is removed - use the canonical version instead.
+ *
+ * For Stage (legacy no-separator format), use:
+ *   import { normalizeStage, toNoSeparatorStage } from '@shared/schemas/stage';
+ *   const canonicalStage = normalizeStage(stageStr);
+ *   const legacyStage = toNoSeparatorStage(canonicalStage);
+ */

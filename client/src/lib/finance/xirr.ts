@@ -1,8 +1,18 @@
 import { brent } from './brent-solver';
+import type { PeriodResult } from '@shared/schemas/fund-model';
 
 export interface CashFlow {
   date: Date; // JS Date (will be normalized to UTC midnight internally)
   amount: number; // negative = contribution, positive = distribution
+}
+
+/**
+ * Cash flow event with string date (for compatibility with selector types)
+ */
+export interface CashFlowEvent {
+  date: string; // ISO date string
+  amount: number;
+  type?: string; // Optional type metadata
 }
 
 export interface XIRRResult {
@@ -10,6 +20,17 @@ export interface XIRRResult {
   converged: boolean;
   iterations: number;
   method: 'newton' | 'bisection' | 'brent' | 'none';
+}
+
+/**
+ * Safe XIRR result for UI consumption (never throws)
+ */
+export interface SafeXIRRResult {
+  irr: number | null;
+  converged: boolean;
+  iterations: number;
+  method: string;
+  error?: string;
 }
 
 type XIRRStrategy = 'hybrid' | 'newton' | 'bisection';
@@ -303,4 +324,105 @@ export function xirrNewtonBisection(
 
   // All methods failed; report Newton failure by default
   return newtonResult;
+}
+
+// ============================================================================
+// SAFE WRAPPERS (for UI use - never throw, return null on failure)
+// ============================================================================
+
+/**
+ * Safe XIRR calculation - never throws, returns null IRR on failure.
+ * Use this in React components and selectors to prevent UI crashes.
+ *
+ * @param cashFlows - Array of cash flow events (with string dates)
+ * @param guess - Initial guess (default 0.1 = 10%)
+ * @returns SafeXIRRResult with irr (null on failure), optional error message
+ */
+export function safeXIRR(cashFlows: CashFlowEvent[], guess = 0.1): SafeXIRRResult {
+  try {
+    // Convert string dates to Date objects
+    const flows: CashFlow[] = cashFlows.map((cf) => ({
+      date: new Date(cf.date),
+      amount: cf.amount,
+    }));
+
+    const result = xirrNewtonBisection(flows, guess);
+    return {
+      irr: result.irr,
+      converged: result.converged,
+      iterations: result.iterations,
+      method: result.method,
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown XIRR calculation error';
+    return {
+      irr: null,
+      converged: false,
+      iterations: 0,
+      method: 'none',
+      error: errorMessage,
+    };
+  }
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS (for fund model integration)
+// ============================================================================
+
+/**
+ * Build cashflow schedule from period results
+ *
+ * Uses period-end dates for deterministic Excel parity.
+ * Follows Policy A: Immediate distribution (distributions in period received).
+ *
+ * @param periodResults - Array of period results from fund model
+ * @returns Array of cashflows for XIRR calculation
+ */
+export function buildCashflowSchedule(periodResults: PeriodResult[]): CashFlow[] {
+  const cashflows: CashFlow[] = [];
+
+  periodResults.forEach((period) => {
+    const date = new Date(period.periodEnd); // Use period-end for Excel parity
+
+    // Contributions are negative (outflows from LP perspective)
+    if (period.contributions > 0) {
+      cashflows.push({
+        date,
+        amount: -period.contributions,
+      });
+    }
+
+    // Distributions are positive (inflows to LP)
+    if (period.distributions > 0) {
+      cashflows.push({
+        date,
+        amount: period.distributions,
+      });
+    }
+  });
+
+  // Add final NAV as terminal cashflow
+  const finalPeriod = periodResults[periodResults.length - 1];
+  if (finalPeriod && finalPeriod.nav > 0) {
+    cashflows.push({
+      date: new Date(finalPeriod.periodEnd),
+      amount: finalPeriod.nav,
+    });
+  }
+
+  return cashflows;
+}
+
+/**
+ * Calculate IRR from period results
+ *
+ * Convenience function that builds cashflow schedule and calculates XIRR.
+ *
+ * @param periodResults - Array of period results from fund model
+ * @returns Annualized IRR as decimal (e.g., 0.15 = 15%), or null if calculation fails
+ */
+export function calculateIRRFromPeriods(periodResults: PeriodResult[]): number | null {
+  const cashflows = buildCashflowSchedule(periodResults);
+  const result = xirrNewtonBisection(cashflows);
+  return result.irr;
 }

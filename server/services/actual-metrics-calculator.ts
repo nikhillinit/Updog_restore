@@ -97,7 +97,7 @@ export class ActualMetricsCalculator {
       currentNAV: currentNAV.toNumber(),
       totalDistributions: totalDistributions.toNumber(),
       totalValue: totalValue.toNumber(),
-      irr: irr.toNumber(),
+      irr: irr !== null ? irr.toNumber() : null, // null when XIRR cannot converge
       tvpi: tvpi.toNumber(),
       dpi: dpi !== null ? dpi.toNumber() : null, // null when no distributions
       rvpi: rvpi.toNumber(),
@@ -129,12 +129,13 @@ export class ActualMetricsCalculator {
    * Calculate Internal Rate of Return using XIRR algorithm
    *
    * XIRR calculates IRR for irregular cashflow intervals using Newton-Raphson method
+   * Returns null when calculation cannot converge
    */
   private async calculateIRR(
     investments: Array<{ date: Date; amount: number }>,
     distributions: Array<{ date: Date; amount: number }>,
     currentNAV: Decimal
-  ): Promise<Decimal> {
+  ): Promise<Decimal | null> {
     // Build cashflow series
     const cashflows: CashFlow[] = [
       ...investments.map((inv) => ({
@@ -168,11 +169,23 @@ export class ActualMetricsCalculator {
   /**
    * XIRR (Extended Internal Rate of Return) calculation
    *
+   * @deprecated TODO: Migrate to shared XIRR implementation.
+   * The canonical implementation at 'client/src/lib/finance/xirr.ts' provides:
+   * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
+   * - Proper null return on non-convergence (this version returns last estimate)
+   *
+   * Migration requires:
+   * 1. Create shared/lib/xirr.ts with canonical algorithm
+   * 2. Add Decimal.js precision mode support
+   * 3. Update both client and server imports
+   *
    * Uses Newton-Raphson method to find the rate that makes NPV = 0
+   * Returns null when calculation cannot converge (insufficient data, divergence)
    */
-  private xirr(cashflows: CashFlow[]): Decimal {
+  private xirr(cashflows: CashFlow[]): Decimal | null {
     if (cashflows.length < 2) {
-      return new Decimal(0);
+      console.debug('[XIRR] Insufficient cashflows for calculation:', cashflows.length);
+      return null; // Cannot calculate with < 2 cashflows
     }
 
     const baseDate = cashflows[0]!.date;
@@ -204,10 +217,13 @@ export class ActualMetricsCalculator {
 
       // Prevent infinite loops with unrealistic rates
       if (rate.lt(-0.99) || rate.gt(10)) {
-        return new Decimal(0);
+        console.debug('[XIRR] Rate diverged to unrealistic value:', rate.toString());
+        return null; // Cannot converge - rate is unrealistic
       }
     }
 
+    // Did not converge within max iterations - return last estimate with warning
+    console.debug('[XIRR] Did not converge within max iterations, returning estimate:', rate.toString());
     return rate;
   }
 

@@ -12,7 +12,9 @@ import {
   useCreateAlertRule,
   useAcknowledgeAlert,
   useResolveAlert,
-  usePerformVarianceAnalysis
+  usePerformVarianceAnalysis,
+  type Alert,
+  type Baseline
 } from '@/hooks/useVarianceData';
 import {
   Card,
@@ -61,7 +63,7 @@ export default function VarianceTrackingPage() {
   const [createBaselineDialogOpen, setCreateBaselineDialogOpen] = useState(false);
   const [createAlertDialogOpen, setCreateAlertDialogOpen] = useState(false);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] = useState(false);
-  const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [alertActionDialogOpen, setAlertActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'acknowledge' | 'resolve'>('acknowledge');
   const [actionNotes, setActionNotes] = useState('');
@@ -400,7 +402,7 @@ export default function VarianceTrackingPage() {
                   <Label>Report Name</Label>
                   <Input
                     value={reportForm.reportName}
-                    onChange={(e: any) => setReportForm(prev => ({ ...prev, reportName: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReportForm(prev => ({ ...prev, reportName: e.target.value }))}
                     placeholder="Enter report name..."
                   />
                 </div>
@@ -408,7 +410,7 @@ export default function VarianceTrackingPage() {
                   <Label>Report Type</Label>
                   <Select
                     value={reportForm.reportType}
-                    onValueChange={(value: any) => setReportForm(prev => ({ ...prev, reportType: value }))}
+                    onValueChange={(value: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered') => setReportForm(prev => ({ ...prev, reportType: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -425,13 +427,13 @@ export default function VarianceTrackingPage() {
                   <Label>Baseline</Label>
                   <Select
                     value={reportForm.baselineId}
-                    onValueChange={(value: any) => setReportForm(prev => ({ ...prev, baselineId: value }))}
+                    onValueChange={(value: string) => setReportForm(prev => ({ ...prev, baselineId: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select baseline..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {baselinesData?.data?.map((baseline: any) => (
+                      {baselinesData?.data?.map((baseline: Baseline) => (
                         <SelectItem key={baseline.id} value={baseline.id}>
                           {baseline.name} {baseline.isDefault ? '(Default)' : ''}
                         </SelectItem>
@@ -567,7 +569,7 @@ export default function VarianceTrackingPage() {
               <CardContent>
                 {alertsData?.data?.length ? (
                   <div className="space-y-3">
-                    {alertsData.data.slice(0, 5).map((alert: any) => (
+                    {alertsData.data.slice(0, 5).map((alert: Alert) => (
                       <div
                         key={alert.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -606,7 +608,7 @@ export default function VarianceTrackingPage() {
               <CardContent>
                 {baselinesData?.data?.length ? (
                   <div className="space-y-3">
-                    {baselinesData.data.slice(0, 5).map((baseline: any) => (
+                    {baselinesData.data.slice(0, 5).map((baseline: Baseline) => (
                       <div
                         key={baseline.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -665,7 +667,7 @@ export default function VarianceTrackingPage() {
                       <Label>Baseline Name</Label>
                       <Input
                         value={baselineForm.name}
-                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Enter baseline name..."
                       />
                     </div>
@@ -673,7 +675,7 @@ export default function VarianceTrackingPage() {
                       <Label>Baseline Type</Label>
                       <Select
                         value={baselineForm.baselineType}
-                        onValueChange={(value: any) => setBaselineForm(prev => ({ ...prev, baselineType: value }))}
+                        onValueChange={(value: 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom') => setBaselineForm(prev => ({ ...prev, baselineType: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -692,7 +694,7 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={baselineForm.description}
-                      onChange={(e: any) => setBaselineForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBaselineForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Enter baseline description..."
                     />
                   </div>
@@ -702,7 +704,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodStart}
-                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, periodStart: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, periodStart: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -710,7 +712,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodEnd}
-                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, periodEnd: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, periodEnd: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -736,7 +738,7 @@ export default function VarianceTrackingPage() {
               {baselinesLoading ? (
                 <div className="p-6">
                   <div className="space-y-4">
-                    {Array.from({ length: 3 }).map((_: any, i: any) => (
+                    {Array.from({ length: 3 }).map((_, i: number) => (
                       <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-2">
                           <div className="h-4 w-48 bg-gray-200 rounded" />
@@ -749,7 +751,7 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : baselinesData?.data?.length ? (
                 <div className="divide-y">
-                  {baselinesData.data.map((baseline: any) => (
+                  {baselinesData.data.map((baseline: Baseline) => (
                     <div key={baseline.id} className="p-6 flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -829,7 +831,7 @@ export default function VarianceTrackingPage() {
                       <Label>Rule Name</Label>
                       <Input
                         value={alertRuleForm.name}
-                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Enter rule name..."
                       />
                     </div>
@@ -837,7 +839,7 @@ export default function VarianceTrackingPage() {
                       <Label>Metric Name</Label>
                       <Input
                         value={alertRuleForm.metricName}
-                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, metricName: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, metricName: e.target.value }))}
                         placeholder="Enter metric name..."
                       />
                     </div>
@@ -846,7 +848,7 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={alertRuleForm.description}
-                      onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlertRuleForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Enter rule description..."
                     />
                   </div>
@@ -855,7 +857,7 @@ export default function VarianceTrackingPage() {
                       <Label>Rule Type</Label>
                       <Select
                         value={alertRuleForm.ruleType}
-                        onValueChange={(value: any) => setAlertRuleForm(prev => ({ ...prev, ruleType: value }))}
+                        onValueChange={(value: 'threshold' | 'trend' | 'deviation' | 'pattern') => setAlertRuleForm(prev => ({ ...prev, ruleType: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -872,7 +874,7 @@ export default function VarianceTrackingPage() {
                       <Label>Operator</Label>
                       <Select
                         value={alertRuleForm.operator}
-                        onValueChange={(value: any) => setAlertRuleForm(prev => ({ ...prev, operator: value }))}
+                        onValueChange={(value: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between') => setAlertRuleForm(prev => ({ ...prev, operator: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -892,7 +894,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="number"
                         value={alertRuleForm.thresholdValue}
-                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, thresholdValue: parseFloat(e.target.value) }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, thresholdValue: parseFloat(e.target.value) }))}
                         placeholder="0"
                       />
                     </div>
@@ -902,7 +904,7 @@ export default function VarianceTrackingPage() {
                       <Label>Severity</Label>
                       <Select
                         value={alertRuleForm.severity}
-                        onValueChange={(value: any) => setAlertRuleForm(prev => ({ ...prev, severity: value }))}
+                        onValueChange={(value: 'info' | 'warning' | 'critical' | 'urgent') => setAlertRuleForm(prev => ({ ...prev, severity: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -919,7 +921,7 @@ export default function VarianceTrackingPage() {
                       <Label>Category</Label>
                       <Select
                         value={alertRuleForm.category}
-                        onValueChange={(value: any) => setAlertRuleForm(prev => ({ ...prev, category: value }))}
+                        onValueChange={(value: 'performance' | 'risk' | 'operational' | 'compliance') => setAlertRuleForm(prev => ({ ...prev, category: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -936,7 +938,7 @@ export default function VarianceTrackingPage() {
                       <Label>Check Frequency</Label>
                       <Select
                         value={alertRuleForm.checkFrequency}
-                        onValueChange={(value: any) => setAlertRuleForm(prev => ({ ...prev, checkFrequency: value }))}
+                        onValueChange={(value: 'realtime' | 'hourly' | 'daily' | 'weekly') => setAlertRuleForm(prev => ({ ...prev, checkFrequency: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -975,7 +977,7 @@ export default function VarianceTrackingPage() {
             <CardContent>
               {alertsLoading ? (
                 <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_: any, i: any) => (
+                  {Array.from({ length: 3 }).map((_, i: number) => (
                     <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-2">
                         <div className="h-4 w-48 bg-gray-200 rounded" />
@@ -987,7 +989,7 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : alertsData?.data?.length ? (
                 <div className="space-y-4">
-                  {alertsData.data.map((alert: any) => (
+                  {alertsData.data.map((alert: Alert) => (
                     <div
                       key={alert.id}
                       className="flex items-center justify-between p-4 border rounded-lg"
@@ -1087,7 +1089,7 @@ export default function VarianceTrackingPage() {
                   <Label>Notes (Optional)</Label>
                   <Textarea
                     value={actionNotes}
-                    onChange={(e: any) => setActionNotes(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActionNotes(e.target.value)}
                     placeholder={`Add notes about ${actionType === 'acknowledge' ? 'acknowledging' : 'resolving'} this alert...`}
                   />
                 </div>

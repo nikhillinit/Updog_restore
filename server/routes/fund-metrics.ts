@@ -15,8 +15,7 @@ import type { Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber, NumberParseError } from '@shared/number';
-import { requireAuth } from '../lib/auth/jwt';
-import { requireFundAccess } from '../middleware/requireAuth';
+import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();

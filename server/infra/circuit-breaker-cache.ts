@@ -184,12 +184,16 @@ export class CircuitBreakerCache implements Cache {
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     // Always try to write to both stores to maintain consistency
     const promises = [];
-    
+
     if (this.state === 'closed') {
-      promises.push(this.backingStore['set'](key, value, ttl).catch(() => {}));
+      promises.push(this.backingStore['set'](key, value, ttl).catch((err) => {
+        console.debug('[circuit-breaker-cache] Primary store set failed (non-blocking):', err instanceof Error ? err.message : String(err));
+      }));
     }
-    promises.push(this.fallbackStore['set'](key, value, ttl).catch(() => {}));
-    
+    promises.push(this.fallbackStore['set'](key, value, ttl).catch((err) => {
+      console.debug('[circuit-breaker-cache] Fallback store set failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+
     await Promise.all(promises);
   }
   
@@ -239,10 +243,14 @@ export class CircuitBreakerCache implements Cache {
   async clear(): Promise<void> {
     // Clear both stores regardless of circuit state
     const promises = [];
-    
-    promises.push(this.backingStore.clear().catch(() => {}));
-    promises.push(this.fallbackStore.clear().catch(() => {}));
-    
+
+    promises.push(this.backingStore.clear().catch((err) => {
+      console.debug('[circuit-breaker-cache] Primary store clear failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+    promises.push(this.fallbackStore.clear().catch((err) => {
+      console.debug('[circuit-breaker-cache] Fallback store clear failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+
     await Promise.all(promises);
   }
   

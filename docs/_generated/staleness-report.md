@@ -1,21 +1,23 @@
 # Staleness Report
 
-_Generated: 2025-12-17T01:58:55.814Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2025-12-29T11:11:02.425Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 616   |
-| Stale Documents     | 609   |
-| Missing Frontmatter | 558   |
+| Total Documents     | 719   |
+| Stale Documents     | 707   |
+| Missing Frontmatter | 639   |
 
 ### By Status
 
 | Status  | Count |
 | ------- | ----- |
-| UNKNOWN | 609   |
-| ACTIVE  | 7     |
+| UNKNOWN | 703   |
+| ACTIVE  | 11    |
+| ready   | 3     |
+| active  | 2     |
 
 ## Stale Documents
 
@@ -74,7 +76,7 @@ Documents that need review (older than their cadence threshold):
 | `PHASE2_HANDOFF_MEMO.md`                                 | Never        | 999      | No                   | Unassigned |
 | `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md`            | Never        | 999      | No                   | Unassigned |
 
-_...and 559 more stale documents._
+_...and 657 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -127,6 +129,8 @@ be verified:
 - [ ] **docs\archive\phoenix\PHOENIX-EXECUTION-PLAN-v2.18.md** (999 days old)
 - [ ] **docs\archive\phoenix\v3.0\KICKOFF-PHOENIX-PHASE1-2025-11-30.md** (999
       days old)
+- [ ] **docs\archive\planning\IMPLEMENTATION_PLAN.md** (999 days old)
+- [ ] **docs\archive\planning\PLAN_CRITIQUE.md** (999 days old)
 - [ ] **docs\behavioral-specs\time-travel-analytics-service-specs.md** (999 days
       old)
 - [ ] **docs\CA-IMPLEMENTATION-PLAN.md** (999 days old)
@@ -146,6 +150,10 @@ be verified:
 - [ ] **docs\DEVELOPMENT_STRATEGY.md** (999 days old)
 - [ ] **docs\failure-triage.md** (999 days old)
 - [ ] **docs\forecasting\power-law-implementation.md** (999 days old)
+- [ ] **docs\foundation\PHASE2-ROADMAP-IMPROVEMENTS.md** (999 days old)
+- [ ] **docs\foundation\PHASE2-ROADMAP.md** (999 days old)
+- [ ] **docs\foundation\PHASE3-KICKOFF.md** (999 days old)
+- [ ] **docs\foundation\PHASE4-KICKOFF.md** (999 days old)
 - [ ] **docs\Handoff-Memo-Phase-1-Validation.md** (999 days old)
 - [ ] **docs\INFRASTRUCTURE_REMEDIATION.md** (999 days old)
 - [ ] **docs\integration\upstash-setup.md** (999 days old)
@@ -174,10 +182,18 @@ be verified:
 - [ ] **docs\phase1b-waterfall-evaluator-hardening.md** (999 days old)
 - [ ] **docs\phase2 docs\CHECKLIST-Phase2.md** (999 days old)
 - [ ] **docs\phase2 docs\STRATEGY-Phase2-CapitalAllocation.md** (999 days old)
+- [ ] **docs\plans\2025-12-28-backend-testing-improvements.md** (999 days old)
 - [ ] **docs\plans\COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md** (999 days old)
 - [ ] **docs\plans\FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md** (999 days old)
+- [ ] **docs\plans\FOUNDATION-HARDENING-STRATEGY.md** (999 days old)
 - [ ] **docs\plans\IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days
       old)
+- [ ] **docs\plans\WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md** (999 days old)
+- [ ] **docs\plans\WEEK2.5-PHASE2-AGENT-STRATEGY.md** (999 days old)
+- [ ] **docs\plans\WEEK2.5-PHASE2-COMPLETE-GUIDE.md** (999 days old)
+- [ ] **docs\plans\WEEK2.5-PHASE2-JSDOM-RTL-KICKOFF.md** (999 days old)
+- [ ] **docs\plans\WEEK2.5-PHASE2-SUCCESS.md** (999 days old)
+- [ ] **docs\plans\WEEK2.5-PHASE3-PR-SUMMARY.md** (999 days old)
 - [ ] **docs\plans\xstate-persistence-implementation.md** (999 days old)
 - [ ] **docs\processes\code-review-checklist.md** (999 days old)
 - [ ] **docs\processes\CONTRIBUTING.md** (999 days old)
@@ -204,7 +220,6 @@ be verified:
 - [ ] **docs\staging\phase2.1\seams\redis-webhook-contract.md** (999 days old)
 - [ ] **docs\VERIFICATION_CHECKLIST.md** (999 days old)
 - [ ] **docs\WEEK1_VALIDATION_HANDOFF_MEMO.md** (999 days old)
-- [ ] **docs\workflows\CONSOLIDATION_FINAL_VALIDATED.md** (999 days old)
 - [ ] **docs\xirr-excel-validation.md** (999 days old)
 - [ ] **docs_generated\staleness-report.md** (999 days old)
 - [ ] **cheatsheets\baseline-governance.md** (999 days old)
@@ -216,11 +231,37 @@ be verified:
 - [ ] **.claude\ANTI-DRIFT-CHECKLIST.md** (999 days old)
 - [ ] **.claude\commands\deploy-check.md** (999 days old)
 - [ ] **.claude\commands\fix-auto.md** (999 days old)
+- [ ] **.claude\commands\pre-commit-check.md** (999 days old)
 - [ ] **.claude\commands\workflows.md** (999 days old)
+- [ ] **.claude\commands\wshobson\deps-audit.md** (999 days old)
+- [ ] **.claude\integration-test-execution-summary.md** (999 days old)
+- [ ] **.claude\integration-test-final-report.md** (999 days old)
+- [ ] **.claude\integration-test-reenable-plan-v2.md** (999 days old)
+- [ ] **.claude\prompts\integration-test-continuation-prompt.md** (999 days old)
+- [ ] **.claude\prompts\portfolio-intelligence-timeout-fix.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-next-session-kickoff.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation-v10.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation-v2.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation-v3.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation-v6.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation-v9.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase3-continuation.md** (999 days old)
+- [ ] **.claude\prompts\week2.5-phase4-next-steps.md** (999 days old)
+- [ ] **.claude\session-summary-portfolio-intelligence-implementation.md** (999
+      days old)
+- [ ] **.claude\sessions\PHASE4-CONTINUATION-KICKOFF.md** (999 days old)
 - [ ] **.claude\skills\dispatching-parallel-agents.md** (999 days old)
 - [ ] **.claude\skills\iterative-improvement.md** (999 days old)
 - [ ] **.claude\skills\README.md** (999 days old)
 - [ ] **.claude\skills\task-decomposition.md** (999 days old)
+- [ ] **.claude\testing\HANDOFF-MEMO-v2.md** (999 days old)
+- [ ] **.claude\testing\HANDOFF-MEMO.md** (999 days old)
+- [ ] **.claude\testing\rubric-calculation-engines.md** (999 days old)
+- [ ] **.claude\testing\scenario-comparison-manual-test-rubric.md** (999 days
+      old)
+- [ ] **.claude\testing\seed-script-remaining-fixes.md** (999 days old)
+- [ ] **.claude\testing\test-baseline-report-2025-12-23.md** (999 days old)
+- [ ] **.claude\testing\week2-execution-report.md** (999 days old)
 
 ## Missing Frontmatter
 
@@ -305,10 +346,14 @@ Documents without proper YAML frontmatter:
 - [ ] `SESSION-HANDOFF-2025-11-17-PHASE0A-REVIEW.md`
 - [ ] `SESSION-HANDOFF-PHASE0-PORTFOLIO-2025-11-10.md`
 - [ ] `SESSION-HANDOFF-PORTFOLIO-PARALLEL-2025-11-10.md`
+- [ ] `SESSION_V5_COMPLETE_SUMMARY.md`
 - [ ] `SIDECAR_GUIDE.md`
 - [ ] `STABILIZATION-BUNDLE.md`
 - [ ] `STEP_2_AND_4_IMPROVEMENTS.md`
 - [ ] `SUPERPOWERS-INTEGRATION-SUMMARY.md`
+- [ ] `TEST_FIX_SUMMARY.md`
+- [ ] `TEST_REPAIR_SESSION_SUMMARY.md`
+- [ ] `TEST_REPAIR_SUMMARY.md`
 - [ ] `triage-interleaved-thinking-failures.md`
 - [ ] `TYPESCRIPT_ERRORS_REVIEW.md`
 - [ ] `ULTRA_COMPRESSED_PLAYBOOK.md`
@@ -333,6 +378,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\adr\ADR-010-monte-carlo-validation-strategy.md`
 - [ ] `docs\adr\ADR-011-stage-normalization-v2.md`
 - [ ] `docs\adr\ADR-012-mem0-integration.md`
+- [ ] `docs\adr\ADR-013-scenario-comparison-activation.md`
 - [ ] `docs\adr\README.md`
 - [ ] `docs\ADR-00X-resilience-circuit-breaker.md`
 - [ ] `docs\ADR-015-XIRR-BOUNDED-RATES.md`
@@ -375,6 +421,8 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\archive\phoenix\v3.0\KICKOFF-PHOENIX-PHASE1-2025-11-30.md`
 - [ ] `docs\archive\phoenix\v3.0\PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
 - [ ] `docs\archive\phoenix\v3.0\README.md`
+- [ ] `docs\archive\planning\IMPLEMENTATION_PLAN.md`
+- [ ] `docs\archive\planning\PLAN_CRITIQUE.md`
 - [ ] `docs\archive\README.md`
 - [ ] `docs\archive\remediation\QUICK_START.md`
 - [ ] `docs\archive\remediation\REMEDIATION_FALLBACK.md`
@@ -429,7 +477,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\deployment-audit.md`
 - [ ] `docs\DEPLOYMENT.md`
 - [ ] `docs\DEPLOYMENT_RUNBOOK.md`
-- [ ] `docs\dev\async-iteration.md`
 - [ ] `docs\dev\foreach-fix-improved.md`
 - [ ] `docs\dev\foreach-fix.md`
 - [ ] `docs\dev\wsl2-quickstart.md`
@@ -448,6 +495,12 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\forecasting\CALIBRATION_GUIDE.md`
 - [ ] `docs\forecasting\power-law-implementation.md`
 - [ ] `docs\forecasting\streaming-monte-carlo-migration.md`
+- [ ] `docs\foundation\PHASE0.5-TEST-DATA-INFRASTRUCTURE.md`
+- [ ] `docs\foundation\PHASE2-ROADMAP-IMPROVEMENTS.md`
+- [ ] `docs\foundation\PHASE2-ROADMAP.md`
+- [ ] `docs\foundation\PHASE3-KICKOFF.md`
+- [ ] `docs\foundation\PHASE4-KICKOFF.md`
+- [ ] `docs\foundation\PHASE4-SESSION1-SUMMARY.md`
 - [ ] `docs\fund-allocation-phase1b.md`
 - [ ] `docs\gates\GATE_TRACKING.md`
 - [ ] `docs\gates\RACI_MATRIX.md`
@@ -484,6 +537,9 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\iterations\PRE-TEST-HARDENING.md`
 - [ ] `docs\iterations\REVIEW-ACTION-PLAN.md`
 - [ ] `docs\iterations\STRATEGY-SUMMARY.md`
+- [ ] `docs\lp-deployment-checklist.md`
+- [ ] `docs\lp-observability-implementation.md`
+- [ ] `docs\lp-slo-definitions.md`
 - [ ] `docs\metrics-meanings.md`
 - [ ] `docs\METRICS_LIMITATIONS_MVP.md`
 - [ ] `docs\METRICS_OPERATOR_RUNBOOK.md`
@@ -563,9 +619,23 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\PHOENIX-SOT\prompt-templates.md`
 - [ ] `docs\PHOENIX-SOT\skills-overview.md`
 - [ ] `docs\phoenix-v2.32-command-enhancements.md`
+- [ ] `docs\plans\2025-12-28-backend-testing-improvements.md`
 - [ ] `docs\plans\COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md`
 - [ ] `docs\plans\FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md`
+- [ ] `docs\plans\FOUNDATION-HARDENING-STRATEGY.md`
+- [ ] `docs\plans\HANDOFF-SUMMARY.md`
 - [ ] `docs\plans\IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md`
+- [ ] `docs\plans\WEEK1-TOOL-ROUTING-EXECUTION.md`
+- [ ] `docs\plans\WEEK2-TOOL-ROUTING-EXECUTION.md`
+- [ ] `docs\plans\WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md`
+- [ ] `docs\plans\WEEK2.5-FOUNDATION-HARDENING-RESULTS.md`
+- [ ] `docs\plans\WEEK2.5-INDEX.md`
+- [ ] `docs\plans\WEEK2.5-PHASE2-AGENT-STRATEGY.md`
+- [ ] `docs\plans\WEEK2.5-PHASE2-COMPLETE-GUIDE.md`
+- [ ] `docs\plans\WEEK2.5-PHASE2-JSDOM-RTL-KICKOFF.md`
+- [ ] `docs\plans\WEEK2.5-PHASE2-SUCCESS.md`
+- [ ] `docs\plans\WEEK2.5-PHASE3-PR-SUMMARY.md`
+- [ ] `docs\plans\WORKFLOW-ENGINE-INTEGRATION-PLAN.md`
 - [ ] `docs\plans\xstate-persistence-implementation.md`
 - [ ] `docs\policies\feasibility-constraints.md`
 - [ ] `docs\portfolio-construction-modeling.md`
@@ -697,8 +767,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\wizard\WIZARD_INTEGRATION.md`
 - [ ] `docs\wizard-calculations-integration.md`
 - [ ] `docs\WIZARD_RESERVE_BRIDGE_IMPLEMENTATION.md`
-- [ ] `docs\workflows\CONSOLIDATION_FINAL_VALIDATED.md`
-- [ ] `docs\workflows\CONSOLIDATION_PLAN_FINAL.md`
 - [ ] `docs\workflows\CONSOLIDATION_PLAN_V2.md`
 - [ ] `docs\workflows\CONSOLIDATION_PLAN_V3_FINAL.md`
 - [ ] `docs\workflows\PAIRED-AGENT-VALIDATION.md`
@@ -735,6 +803,7 @@ Documents without proper YAML frontmatter:
 - [ ] `cheatsheets\extended-thinking.md`
 - [ ] `cheatsheets\INDEX.md`
 - [ ] `cheatsheets\init-vs-update.md`
+- [ ] `cheatsheets\lp-deployment-quick-reference.md`
 - [ ] `cheatsheets\memory-commands.md`
 - [ ] `cheatsheets\memory-commit-strategy.md`
 - [ ] `cheatsheets\memory-patterns.md`
@@ -746,15 +815,42 @@ Documents without proper YAML frontmatter:
 - [ ] `cheatsheets\schema-alignment.md`
 - [ ] `cheatsheets\service-testing-patterns.md`
 - [ ] `cheatsheets\test-pyramid.md`
+- [ ] `cheatsheets\testcontainers-guide.md`
 - [ ] `cheatsheets\testing.md`
 - [ ] `.claude\agents\PHOENIX-AGENTS.md`
+- [ ] `.claude\agents\workflow-engine\code-reviewer.md`
+- [ ] `.claude\agents\workflow-engine\security-engineer.md`
+- [ ] `.claude\agents\workflow-engine\test-automator.md`
+- [ ] `.claude\agents\workflow-engine\typescript-pro.md`
 - [ ] `.claude\ANTI-DRIFT-CHECKLIST.md`
 - [ ] `.claude\commands\catalog-tooling.md`
 - [ ] `.claude\commands\enable-agent-memory.md`
 - [ ] `.claude\commands\evaluate-tools.md`
 - [ ] `.claude\commands\session-start.md`
+- [ ] `.claude\commands\wshobson\deps-audit.md`
+- [ ] `.claude\commands\wshobson\tech-debt.md`
+- [ ] `.claude\DELIVERY-SUMMARY.md`
+- [ ] `.claude\integration-test-execution-summary.md`
+- [ ] `.claude\integration-test-final-report.md`
+- [ ] `.claude\integration-test-plan-comparison.md`
+- [ ] `.claude\integration-test-reenable-plan-v2.md`
+- [ ] `.claude\integration-test-reenable-plan.md`
 - [ ] `.claude\PHOENIX-TOOL-ROUTING.md`
 - [ ] `.claude\PROJECT-UNDERSTANDING.md`
+- [ ] `.claude\prompts\integration-test-continuation-prompt.md`
+- [ ] `.claude\prompts\portfolio-intelligence-timeout-fix.md`
+- [ ] `.claude\prompts\week2.5-next-session-kickoff.md`
+- [ ] `.claude\prompts\week2.5-phase2-quickstart.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation-v10.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation-v2.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation-v3.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation-v4.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation-v5.md`
+- [ ] `.claude\prompts\week2.5-phase3-continuation.md`
+- [ ] `.claude\prompts\week2.5-phase4-next-steps.md`
+- [ ] `.claude\security-fixes-lp-reporting.md`
+- [ ] `.claude\session-summary-portfolio-intelligence-implementation.md`
+- [ ] `.claude\sessions\PHASE4-CONTINUATION-KICKOFF.md`
 - [ ] `.claude\skills\ai-model-selection.md`
 - [ ] `.claude\skills\analogical-thinking.md`
 - [ ] `.claude\skills\api-design-principles.md`
@@ -780,9 +876,35 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude\skills\statistical-testing\SKILL.md`
 - [ ] `.claude\skills\systematic-debugging.md`
 - [ ] `.claude\skills\task-decomposition.md`
+- [ ] `.claude\skills\test-fixture-generator\SKILL.md`
 - [ ] `.claude\skills\test-pyramid\SKILL.md`
+- [ ] `.claude\skills\workflow-engine\code-formatter\examples\usage.md`
+- [ ] `.claude\skills\workflow-engine\code-formatter\references\style-guides.md`
+- [ ] `.claude\skills\workflow-engine\dependency-guardian\examples\usage.md`
+- [ ] `.claude\skills\workflow-engine\dependency-guardian\references\vulnerability-databases.md`
+- [ ] `.claude\skills\workflow-engine\documentation-sync\examples\usage.md`
+- [ ] `.claude\skills\workflow-engine\security-scanner\examples\usage.md`
+- [ ] `.claude\skills\workflow-engine\tech-debt-tracker\examples\usage.md`
 - [ ] `.claude\skills\writing-plans.md`
 - [ ] `.claude\skills\xlsx.md`
+- [ ] `.claude\testing\HANDOFF-MEMO-v2.md`
+- [ ] `.claude\testing\HANDOFF-MEMO.md`
+- [ ] `.claude\testing\immediate-actions-summary.md`
+- [ ] `.claude\testing\lp-test-status-report.md`
+- [ ] `.claude\testing\platform-test-checklist.md`
+- [ ] `.claude\testing\platform-testing-rubric-index.md`
+- [ ] `.claude\testing\rubric-analytics-reporting.md`
+- [ ] `.claude\testing\rubric-api-integration.md`
+- [ ] `.claude\testing\rubric-calculation-engines.md`
+- [ ] `.claude\testing\rubric-cross-cutting.md`
+- [ ] `.claude\testing\rubric-fund-setup.md`
+- [ ] `.claude\testing\rubric-lp-portal.md`
+- [ ] `.claude\testing\rubric-portfolio-management.md`
+- [ ] `.claude\testing\scenario-comparison-manual-test-rubric.md`
+- [ ] `.claude\testing\seed-script-remaining-fixes.md`
+- [ ] `.claude\testing\test-baseline-report-2025-12-23.md`
+- [ ] `.claude\testing\test-remediation-summary.md`
+- [ ] `.claude\testing\week2-execution-report.md`
 - [ ] `.claude\WORKFLOW.md`
 
 ---

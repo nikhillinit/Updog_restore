@@ -140,20 +140,48 @@ describe('Critical Middleware Tests', () => {
   });
 
   describe('C. Shutdown Guard', () => {
-    it('should return 503 when not ready', async () => {
+    it('should reject during shutdown without executing route handler', async () => {
       setReady(false);
 
       const testApp = express();
       testApp.use(requestId());
       testApp.use(shutdownGuard());
-      testApp.get('/test', (req, res) => res.json({ ok: true }));
 
-      const res = await request(testApp).get('/test');
+      // Flag to prove route handler never executes
+      let routeHandlerRan = false;
 
+      testApp.post('/api/test', (req, res) => {
+        routeHandlerRan = true;
+        res.json({ received: true });
+      });
+
+      const res = await request(testApp)
+        .post('/api/test')
+        .set('Content-Type', 'application/json')
+        .send({ test: 'small-payload' });
+
+      // Status & Headers - The Contract
       expect(res.status).toBe(503);
       expect(res.headers['connection']).toBe('close');
-      expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
+      expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['retry-after']).toBe('30'); // Hardcoded default
+
+      // Body - The Contract
       expect(res.body.error).toBe('Service Unavailable');
+      expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
+
+      // RequestId validation - strict type checking
+      expect(typeof res.body.requestId).toBe('string');
+      expect(res.body.requestId.length).toBeGreaterThan(0);
+      expect(res.body.requestId).toMatch(
+        /^req_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
+
+      // Invariant: Handler must not execute during shutdown
+      expect(routeHandlerRan).toBe(false);
+
+      setReady(true);
     });
 
     it('should pass through when ready', async () => {
@@ -167,7 +195,32 @@ describe('Critical Middleware Tests', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
+
+      // Verify shutdown-specific retry-after header NOT present when ready
+      expect(res.headers['retry-after']).toBeUndefined();
     });
+
+    it.each(['/healthz', '/readyz', '/metrics', '/health/live', '/health/detailed'])(
+      'should allow %s during shutdown',
+      async (path) => {
+        setReady(false);
+
+        const testApp = express();
+        testApp.use(shutdownGuard());
+
+        testApp.get(path, (req, res) => res.json({ status: 'ok' }));
+
+        const res = await request(testApp).get(path);
+
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('ok');
+
+        // Critical: Verify shutdown-specific retry-after header NOT leaked to allowlisted paths
+        expect(res.headers['retry-after']).toBeUndefined();
+
+        setReady(true);
+      }
+    );
   });
 
   describe('D. Error Codes', () => {

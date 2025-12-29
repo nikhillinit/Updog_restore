@@ -11,8 +11,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { requireAuth } from '../lib/auth/jwt';
-import { requireFundAccess } from '../middleware/requireAuth';
+import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { toNumber, NumberParseError } from '@shared/number';

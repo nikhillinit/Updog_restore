@@ -9,7 +9,7 @@ export {
   createPortfolioStrategy,
   validatePortfolioStrategy,
   updatePortfolioStrategy,
-  migrateLegacyStrategy
+  migrateLegacyStrategy,
 } from './portfolio-strategy-schema';
 
 // Re-export types (type-only exports)
@@ -18,7 +18,7 @@ export type {
   PortfolioState,
   CheckSizeConfig,
   AllocationConfig,
-  ScenarioConfig
+  ScenarioConfig,
 } from './portfolio-strategy-schema';
 
 // =============================================================================
@@ -37,7 +37,12 @@ export interface SimulationInputs {
   distributionVolatility?: number;
   moicVolatility?: number;
   irrVolatility?: number;
-  [key: string]: any; // Allow additional fund data
+  /**
+   * Container for additional fund-specific data
+   * Use this instead of spreading arbitrary properties
+   * @example { fundName: 'Acme I', vintage: 2024 }
+   */
+  metadata?: Record<string, unknown>;
 }
 
 export interface SimulationResult {
@@ -85,14 +90,18 @@ export interface SimulationResult {
 // CORE ENGINE TYPES
 // =============================================================================
 
-// Reserve Engine Types
-export const ReserveInputSchema = z.object({
+// Reserve Engine Types - Company-level input for reserve calculations
+// NOTE: This is distinct from ReserveInputSchema in schemas.ts which is engine-level input
+export const ReserveCompanyInputSchema = z.object({
   id: z.number().int().positive(),
   invested: z.number().min(0),
   ownership: z.number().min(0).max(1),
   stage: z.string().min(1),
   sector: z.string().min(1),
 });
+
+/** @deprecated Use ReserveCompanyInputSchema - kept for backward compatibility */
+export const ReserveInputSchema = ReserveCompanyInputSchema;
 
 export const ReserveOutputSchema = z.object({
   allocation: z.number().min(0),
@@ -109,7 +118,7 @@ export const ReserveSummarySchema = z.object({
   generatedAt: z.date(),
 });
 
-// Pacing Engine Types  
+// Pacing Engine Types
 export const PacingInputSchema = z.object({
   fundSize: z.number().min(0),
   deploymentQuarter: z.number().int().min(1),
@@ -146,12 +155,14 @@ export const CohortOutputSchema = z.object({
     multiple: z.number().min(0),
     dpi: z.number().min(0),
   }),
-  companies: z.array(z.object({
-    id: z.number().int().positive(),
-    name: z.string(),
-    stage: z.string(),
-    valuation: z.number().min(0),
-  })),
+  companies: z.array(
+    z.object({
+      id: z.number().int().positive(),
+      name: z.string(),
+      stage: z.string(),
+      valuation: z.number().min(0),
+    })
+  ),
 });
 
 export const CohortSummarySchema = z.object({
@@ -165,25 +176,31 @@ export const CohortSummarySchema = z.object({
   }),
   avgValuation: z.number().min(0),
   stageDistribution: z.record(z.string(), z.number().int().min(0)),
-  companies: z.array(z.object({
-    id: z.number().int().positive(),
-    name: z.string(),
-    stage: z.string(),
-    valuation: z.number().min(0),
-  })),
+  companies: z.array(
+    z.object({
+      id: z.number().int().positive(),
+      name: z.string(),
+      stage: z.string(),
+      valuation: z.number().min(0),
+    })
+  ),
   generatedAt: z.date(),
-  metadata: z.object({
-    algorithmMode: z.enum(['rule-based', 'ml-enhanced']),
-    yearsActive: z.number().int().min(0),
-    maturityLevel: z.number().min(0).max(1),
-  }).optional(),
+  metadata: z
+    .object({
+      algorithmMode: z.enum(['rule-based', 'ml-enhanced']),
+      yearsActive: z.number().int().min(0),
+      maturityLevel: z.number().min(0).max(1),
+    })
+    .optional(),
 });
 
 // =============================================================================
 // INFERRED TYPESCRIPT TYPES
 // =============================================================================
 
-export type ReserveInput = z.infer<typeof ReserveInputSchema>;
+export type ReserveCompanyInput = z.infer<typeof ReserveCompanyInputSchema>;
+/** @deprecated Use ReserveCompanyInput - kept for backward compatibility */
+export type ReserveInput = ReserveCompanyInput;
 export type ReserveOutput = z.infer<typeof ReserveOutputSchema>;
 export type ReserveSummary = z.infer<typeof ReserveSummarySchema>;
 
@@ -266,7 +283,7 @@ export const ConfidenceLevel = {
   ML_ENHANCED: 0.95,
 } as const;
 
-export type ConfidenceLevelType = typeof ConfidenceLevel[keyof typeof ConfidenceLevel];
+export type ConfidenceLevelType = (typeof ConfidenceLevel)[keyof typeof ConfidenceLevel];
 
 // =============================================================================
 // FUND SETUP TYPES (Investment Strategy, Exit Recycling, Waterfall)
@@ -316,10 +333,12 @@ const CarryVestingSchema = z.object({
   vestingYears: z.number().int().min(1).max(10).default(4),
 });
 
-export const WaterfallSchema = z.object({
-  type: z.literal('AMERICAN'),
-  carryVesting: CarryVestingSchema,
-}).strict();
+export const WaterfallSchema = z
+  .object({
+    type: z.literal('AMERICAN'),
+    carryVesting: CarryVestingSchema,
+  })
+  .strict();
 
 // Complete Fund Setup Types (extending existing)
 export const CompleteFundSetupSchema = z.object({
@@ -330,12 +349,12 @@ export const CompleteFundSetupSchema = z.object({
   managementFee: z.number().min(0).max(1),
   carryPercentage: z.number().min(0).max(1),
   vintageYear: z.number().int().min(2000).max(2030),
-  
+
   // Evergreen and fund life fields
   isEvergreen: z.boolean().default(false),
   lifeYears: z.number().int().min(3).max(20).optional(),
   investmentHorizonYears: z.number().int().min(1).max(30),
-  
+
   // New strategy/recycling/waterfall
   investmentStrategy: InvestmentStrategySchema,
   exitRecycling: ExitRecyclingSchema,

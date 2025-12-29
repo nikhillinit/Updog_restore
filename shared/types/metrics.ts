@@ -54,8 +54,11 @@ export interface ActualMetrics {
 
   // === Performance Metrics ===
 
-  /** Internal Rate of Return - Calculated: XIRR(cashflows, currentNAV) */
-  irr: number;
+  /** Internal Rate of Return - Calculated: XIRR(cashflows, currentNAV)
+   * NOTE: null when XIRR cannot converge (insufficient cashflows, divergence)
+   * Display as "N/A" in UI to avoid misleading 0.00%
+   */
+  irr: number | null;
 
   /** Total Value to Paid-In - Calculated: totalValue / totalCalled */
   tvpi: number;
@@ -232,14 +235,14 @@ export interface VarianceMetrics {
 
   /** Performance vs target variance */
   performanceVariance: {
-    /** Actual IRR */
-    actualIRR: number;
+    /** Actual IRR (null if XIRR could not converge) */
+    actualIRR: number | null;
     /** Target IRR */
     targetIRR: number;
-    /** Variance in percentage points (actualIRR - targetIRR) */
-    variance: number;
-    /** Status indicator */
-    status: 'above' | 'on-track' | 'below';
+    /** Variance in percentage points (actualIRR - targetIRR), null if IRR unavailable */
+    variance: number | null;
+    /** Status indicator ('insufficient-data' when IRR cannot be calculated) */
+    status: 'above' | 'on-track' | 'below' | 'insufficient-data';
   };
 
   /** TVPI vs target variance */
@@ -385,11 +388,11 @@ export interface MetricsSource {
  * Used for UI transparency and source badges
  */
 export type MetricSource =
-  | 'actual'                // Real portfolio data from database
-  | 'model'                 // Monte Carlo / projection from current state
+  | 'actual' // Real portfolio data from database
+  | 'model' // Monte Carlo / projection from current state
   | 'construction_forecast' // J-curve forecast (no investments yet)
-  | 'forecast'              // Generic forecast
-  | 'N/A';                  // No data available
+  | 'forecast' // Generic forecast
+  | 'N/A'; // No data available
 
 /**
  * MetricValue - Wrapped metric with source tracking

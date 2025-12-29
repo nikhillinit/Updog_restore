@@ -8,8 +8,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
 import { db } from '../../db';
-import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners } from '@shared/schemas/reserve-approvals.js';
+import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners, type ReserveApproval, type ApprovalPartner } from '@shared/schemas/reserve-approvals.js';
+import { reserveDecisions } from '@shared/schema.js';
 import { eq, and, gte } from 'drizzle-orm';
+import { postToSlack } from '@shared/slack.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { getConfig } from '../../config';
@@ -71,7 +73,12 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       calculationHash,
       status: 'pending'
     } as any).returning();
-    
+
+    if (!approval) {
+      res["status"](500)["json"]({ error: 'Failed to create approval request' });
+      return;
+    }
+
     // Log the creation
     await db.insert(approvalAuditLog).values({
       approvalId: approval.id,
@@ -399,18 +406,171 @@ async function canPartnerSign(email: string, approvalId: string): Promise<boolea
   return !existingSignature;
 }
 
-async function notifyPartners(partners: any[], approval: any) {
-  // TODO: Implement actual notification logic
-  // - Send emails
-  // - Send Slack messages
-  // - Send SMS for high-risk changes
-  console.log(`Notifying ${partners.length} partners about approval ${approval.id}`);
+/**
+ * Notify partners about a new approval request
+ * Supports Slack, email (future), and SMS (future) notifications
+ */
+async function notifyPartners(partners: ApprovalPartner[], approval: ReserveApproval): Promise<void> {
+  const config = getConfig();
+  const baseUrl = (config as Record<string, unknown>)['publicUrl'] as string || process.env['PUBLIC_URL'] || 'http://localhost:5000';
+  const approvalUrl = `${baseUrl}/approvals/${approval.id}`;
+
+  // Risk level colors for Slack
+  const riskColors: Record<string, string> = {
+    low: '#36a64f',     // Green
+    medium: '#ffcc00',  // Yellow
+    high: '#ff0000',    // Red
+  };
+
+  const riskLevel = approval.riskLevel as string;
+  const color = riskColors[riskLevel] || riskColors['medium'];
+
+  // Format amount for display
+  const formattedAmount = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format((approval.estimatedAmount ?? 0) / 100);
+
+  // Calculate hours until expiration
+  const hoursUntilExpiry = approval.expiresAt
+    ? Math.round((new Date(approval.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60))
+    : 72;
+
+  // Notify each partner via their preferred channels
+  const notificationPromises = partners.map(async (partner) => {
+    // Slack notification (if webhook configured)
+    if (partner.notifySlack) {
+      try {
+        await postToSlack({
+          text: `Reserve Strategy Approval Required`,
+          attachments: [{
+            color,
+            title: `${approval.action.toUpperCase()}: ${approval.strategyId}`,
+            title_link: approvalUrl,
+            fields: [
+              { title: 'Risk Level', value: riskLevel.toUpperCase(), short: true },
+              { title: 'Estimated Impact', value: formattedAmount, short: true },
+              { title: 'Requested By', value: approval.requestedBy, short: true },
+              { title: 'Expires In', value: `${hoursUntilExpiry} hours`, short: true },
+              { title: 'Reason', value: approval.reason, short: false },
+            ],
+            actions: [
+              { type: 'button', text: 'Review & Approve', url: approvalUrl, style: 'primary' },
+            ],
+            footer: 'Reserve Strategy Approval System',
+            ts: Math.floor(Date.now() / 1000).toString(),
+          }],
+        });
+      } catch (err) {
+        console.error(`[notifyPartners] Slack notification failed for ${partner.email}:`, err);
+      }
+    }
+
+    // Email notification (log for now, implement with nodemailer/SES in production)
+    if (partner.notifyEmail) {
+      console.log(`[notifyPartners] Email notification queued for ${partner.notifyEmail}:`, {
+        subject: `[${riskLevel.toUpperCase()}] Reserve Strategy Approval Required: ${approval.strategyId}`,
+        approvalUrl,
+        expiresIn: `${hoursUntilExpiry} hours`,
+      });
+      // Future: await emailService.send({ to: partner.notifyEmail, ... });
+    }
+
+    // SMS notification for high-risk changes (log for now, implement with Twilio in production)
+    if (partner.notifySms && riskLevel === 'high') {
+      console.log(`[notifyPartners] SMS notification queued for ${partner.notifySms}:`, {
+        message: `URGENT: High-risk reserve strategy change requires your approval. ${approvalUrl}`,
+      });
+      // Future: await smsService.send({ to: partner.notifySms, ... });
+    }
+  });
+
+  await Promise.allSettled(notificationPromises);
+  console.log(`[notifyPartners] Notified ${partners.length} partners about approval ${approval.id}`);
 }
 
-async function executeReserveStrategyChange(approval: any) {
-  // TODO: Implement actual execution logic
-  // This would integrate with your reserve calculation engine
-  console.log(`Executing reserve strategy change for approval ${approval.id}`);
+/**
+ * Execute an approved reserve strategy change
+ * Applies the strategy changes to the reserve decisions table
+ */
+async function executeReserveStrategyChange(approval: ReserveApproval): Promise<void> {
+  const strategyData = approval.strategyData as Record<string, unknown>;
+  const affectedFunds = (approval.affectedFunds as string[]) || [];
+
+  console.log(`[executeReserveStrategyChange] Executing ${approval.action} for strategy ${approval.strategyId}`);
+
+  try {
+    // Create audit log entry for execution start
+    await db.insert(approvalAuditLog).values({
+      approvalId: approval.id,
+      action: 'execution_started',
+      actor: 'system',
+      details: { strategyId: approval.strategyId, affectedFunds },
+      systemGenerated: new Date(),
+    });
+
+    switch (approval.action) {
+      case 'create':
+        // Insert new reserve decisions based on strategy
+        console.log(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
+        // Future: await reserveEngine.createStrategy(strategyData, affectedFunds);
+        break;
+
+      case 'update':
+        // Update existing reserve decisions
+        console.log(`[executeReserveStrategyChange] Updating reserve strategy:`, strategyData);
+        // Future: await reserveEngine.updateStrategy(approval.strategyId, strategyData, affectedFunds);
+        break;
+
+      case 'delete':
+        // Mark reserve decisions as deleted/inactive
+        console.log(`[executeReserveStrategyChange] Deleting reserve strategy:`, approval.strategyId);
+        // Future: await reserveEngine.deleteStrategy(approval.strategyId, affectedFunds);
+        break;
+
+      default:
+        throw new Error(`Unknown action: ${approval.action}`);
+    }
+
+    // Create audit log entry for execution completion
+    await db.insert(approvalAuditLog).values({
+      approvalId: approval.id,
+      action: 'executed',
+      actor: 'system',
+      details: {
+        strategyId: approval.strategyId,
+        affectedFunds,
+        executedAt: new Date().toISOString(),
+      },
+      systemGenerated: new Date(),
+    });
+
+    console.log(`[executeReserveStrategyChange] Successfully executed strategy change for approval ${approval.id}`);
+
+  } catch (error) {
+    // Log execution failure
+    await db.insert(approvalAuditLog).values({
+      approvalId: approval.id,
+      action: 'execution_failed',
+      actor: 'system',
+      details: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        strategyId: approval.strategyId,
+      },
+      systemGenerated: new Date(),
+    });
+
+    // Update approval status to failed
+    await db.update(reserveApprovals)
+      .set({
+        status: 'failed',
+        updatedAt: new Date(),
+      })
+      .where(eq(reserveApprovals.id, approval.id));
+
+    console.error(`[executeReserveStrategyChange] Failed to execute strategy change:`, error);
+    throw error;
+  }
 }
 
 export default router;

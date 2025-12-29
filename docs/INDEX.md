@@ -182,12 +182,11 @@ different content. When referencing, specify the file path explicitly:
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                 | Description                             | When to Use                              |
-| ---------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- |
-| [workflows/README.md](workflows/README.md)                                               | 55 GitHub Actions workflows inventory   | Understanding CI/CD pipelines            |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                       | Deployment system (progressive rollout) | Production deployments                   |
-| [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md)             | Paired-agent quality workflow           | Deletions, structural changes, bulk mods |
-| [workflows/CONSOLIDATION_FINAL_VALIDATED.md](workflows/CONSOLIDATION_FINAL_VALIDATED.md) | Workflow consolidation strategy         | Reducing 55 → 18 workflows               |
+| Document                                                                     | Description                             | When to Use                              |
+| ---------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- |
+| [workflows/README.md](workflows/README.md)                                   | 55 GitHub Actions workflows inventory   | Understanding CI/CD pipelines            |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Deployment system (progressive rollout) | Production deployments                   |
+| [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md) | Paired-agent quality workflow           | Deletions, structural changes, bulk mods |
 
 **Key Stats**:
 
