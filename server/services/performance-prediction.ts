@@ -184,7 +184,9 @@ export class PerformancePredictionEngine {
       trendDirection,
       trendStrength,
       trendVelocity: trendCoefficient,
-      inflectionPoints: inflectionPoints.map((idx) => timeSeries[idx].timestamp),
+      inflectionPoints: inflectionPoints
+        .filter((idx) => idx < timeSeries.length && timeSeries[idx])
+        .map((idx) => timeSeries[idx]!.timestamp),
       seasonalityDetected: seasonality.detected,
       cyclePeriod: seasonality.period,
     };
@@ -247,7 +249,8 @@ export class PerformancePredictionEngine {
       throw new Error(`Fund ${fundId} not found`);
     }
 
-    const vintageYear = new Date(fund.createdAt).getFullYear();
+    const fundCreatedAt = fund.createdAt ? new Date(fund.createdAt) : new Date();
+    const vintageYear = fundCreatedAt.getFullYear();
 
     // Get cohort funds (same vintage year)
     const cohortFunds = await db.query.funds.findMany({
@@ -262,7 +265,7 @@ export class PerformancePredictionEngine {
 
     // Determine current stage based on fund age and performance
     const fundAgeYears =
-      (Date.now() - new Date(fund.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 365);
+      (Date.now() - fundCreatedAt.getTime()) / (1000 * 60 * 60 * 24 * 365);
     const currentStage = this.determineFundStage(fundAgeYears, monthlyPerformance);
 
     // Calculate comparative metrics

@@ -73,7 +73,12 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       calculationHash,
       status: 'pending'
     } as any).returning();
-    
+
+    if (!approval) {
+      res["status"](500)["json"]({ error: 'Failed to create approval request' });
+      return;
+    }
+
     // Log the creation
     await db.insert(approvalAuditLog).values({
       approvalId: approval.id,
