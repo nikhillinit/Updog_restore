@@ -138,46 +138,46 @@ git status
 ## Deployment Readiness Report
 
 ```
-╔══════════════════════════════════════════════════════════╗
-║           DEPLOYMENT READINESS REPORT                    ║
-╠══════════════════════════════════════════════════════════╣
-║                                                          ║
-║ 🟢 Phase 1: Code Quality                    PASS        ║
-║    ├─ TypeScript: 0 errors                              ║
-║    ├─ Linting: 0 errors                                 ║
-║    └─ Tests: 127 passed                                 ║
-║                                                          ║
-║ 🟢 Phase 2: Build Validation                PASS        ║
-║    └─ Build completed in 24.3s                          ║
-║                                                          ║
-║ 🟢 Phase 3: Bundle Analysis                 PASS        ║
-║    ├─ Total: 412 KB (baseline: 398 KB, +3.5%)           ║
-║    ├─ Vendor: 285 KB                                    ║
-║    └─ App: 127 KB                                       ║
-║                                                          ║
-║ 🟢 Phase 4: Smoke Tests                     PASS        ║
-║    ├─ API health: 200 OK                                ║
-║    └─ Frontend serves: 200 OK                           ║
-║                                                          ║
-║ 🟢 Phase 5: Database Schema                 PASS        ║
-║    └─ Schema in sync                                    ║
-║                                                          ║
-║ 🟢 Phase 6: Environment Check               PASS        ║
-║    └─ All env vars documented                           ║
-║                                                          ║
-║ 🟡 Phase 7: Dependency Audit                WARN        ║
-║    ├─ 2 moderate vulnerabilities (non-blocking)         ║
-║    └─ 1 package 2 major versions behind                 ║
-║                                                          ║
-║ 🟢 Phase 8: Git Status                      PASS        ║
-║    └─ Clean working tree, synced with origin            ║
-║                                                          ║
-╠══════════════════════════════════════════════════════════╣
-║ ✅ DEPLOYMENT READY                                      ║
-║                                                          ║
-║ Minor warnings present but non-blocking.                 ║
-║ Safe to proceed with deployment.                         ║
-╚══════════════════════════════════════════════════════════╝
++----------------------------------------------------------+
+|           DEPLOYMENT READINESS REPORT                    |
++----------------------------------------------------------+
+|                                                          |
+| [PASS] Phase 1: Code Quality                             |
+|    +-- TypeScript: 0 errors                              |
+|    +-- Linting: 0 errors                                 |
+|    +-- Tests: 127 passed                                 |
+|                                                          |
+| [PASS] Phase 2: Build Validation                         |
+|    +-- Build completed in 24.3s                          |
+|                                                          |
+| [PASS] Phase 3: Bundle Analysis                          |
+|    +-- Total: 412 KB (baseline: 398 KB, +3.5%)           |
+|    +-- Vendor: 285 KB                                    |
+|    +-- App: 127 KB                                       |
+|                                                          |
+| [PASS] Phase 4: Smoke Tests                              |
+|    +-- API health: 200 OK                                |
+|    +-- Frontend serves: 200 OK                           |
+|                                                          |
+| [PASS] Phase 5: Database Schema                          |
+|    +-- Schema in sync                                    |
+|                                                          |
+| [PASS] Phase 6: Environment Check                        |
+|    +-- All env vars documented                           |
+|                                                          |
+| [WARN] Phase 7: Dependency Audit                         |
+|    +-- 2 moderate vulnerabilities (non-blocking)         |
+|    +-- 1 package 2 major versions behind                 |
+|                                                          |
+| [PASS] Phase 8: Git Status                               |
+|    +-- Clean working tree, synced with origin            |
+|                                                          |
++----------------------------------------------------------+
+| DEPLOYMENT READY                                         |
+|                                                          |
+| Minor warnings present but non-blocking.                 |
+| Safe to proceed with deployment.                         |
++----------------------------------------------------------+
 ```
 
 ## Fast Mode

@@ -1,3 +1,9 @@
+---
+description: "Guide for enabling native memory capabilities in agents"
+argument-hint: "[agent-name]"
+allowed-tools: Read, Write, Edit, Grep, Glob
+---
+
 You are an interactive assistant helping developers add native memory
 capabilities to their agents.
 
