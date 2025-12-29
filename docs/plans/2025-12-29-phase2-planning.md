@@ -337,7 +337,7 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
        tests)
 5. [x] Task 2.5: Monte Carlo Orchestrator (COMPLETE - 16 unit tests, 13
        integration skipped)
-6. [ ] Task 2.6: Expectation Mode Validation
+6. [x] Task 2.6: Expectation Mode Validation (COMPLETE - 22 determinism tests)
 
 ### Phase 2C: Validation (Day 5)
 
@@ -357,7 +357,8 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 - [x] Monte Carlo orchestrator preserves Phase 1 accuracy - COMPLETE
       (expectation mode implemented)
 - [ ] Distribution validation passes
-- [ ] Reproducibility confirmed (same seed = same results)
+- [x] Reproducibility confirmed (same seed = same results) - COMPLETE (22
+      determinism tests)
 
 ---
 
