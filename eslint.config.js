@@ -334,4 +334,18 @@ export default [
       'povc-security/no-floating-point-in-core': 'error',
     },
   },
+  // Worker/Queue files - BullMQ anti-pattern prevention (AP-QUEUE-01, AP-QUEUE-02)
+  {
+    files: ['server/workers/**/*.ts', 'server/queues/**/*.ts'],
+    rules: {
+      'povc-security/require-bullmq-config': 'warn',
+    },
+  },
+  // Route files - SQL injection prevention (AP-CURSOR-06)
+  {
+    files: ['server/routes/**/*.ts'],
+    rules: {
+      'povc-security/no-sql-raw-in-routes': 'error',
+    },
+  },
 ];
