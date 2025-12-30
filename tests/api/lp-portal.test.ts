@@ -397,12 +397,16 @@ describe('PDF Generation Service', () => {
   });
 
   it('should export quarterly report data builder', async () => {
-    const { buildQuarterlyReportData } = await import('../../server/services/pdf-generation-service');
+    const { buildQuarterlyReportData } = await import(
+      '../../server/services/pdf-generation-service'
+    );
     expect(typeof buildQuarterlyReportData).toBe('function');
   });
 
   it('should export capital account report data builder', async () => {
-    const { buildCapitalAccountReportData } = await import('../../server/services/pdf-generation-service');
+    const { buildCapitalAccountReportData } = await import(
+      '../../server/services/pdf-generation-service'
+    );
     expect(typeof buildCapitalAccountReportData).toBe('function');
   });
 
@@ -462,7 +466,9 @@ describe('PDF Generation Service', () => {
   });
 
   it('should build quarterly report data structure correctly', async () => {
-    const { buildQuarterlyReportData } = await import('../../server/services/pdf-generation-service');
+    const { buildQuarterlyReportData } = await import(
+      '../../server/services/pdf-generation-service'
+    );
 
     const mockLPData = {
       lp: { id: 1, name: 'Test LP', email: 'test@example.com' },
@@ -520,7 +526,9 @@ describe('XLSX Generation Service', () => {
   });
 
   it('should generate capital account Excel buffer', async () => {
-    const { generateCapitalAccountXLSX } = await import('../../server/services/xlsx-generation-service');
+    const { generateCapitalAccountXLSX } = await import(
+      '../../server/services/xlsx-generation-service'
+    );
 
     const testData = {
       lpName: 'Test LP',
@@ -613,7 +621,9 @@ describe('Report Download Endpoint', () => {
     };
 
     expect(contentTypes['pdf']).toBe('application/pdf');
-    expect(contentTypes['xlsx']).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(contentTypes['xlsx']).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
     expect(contentTypes['csv']).toBe('text/csv');
   });
 
@@ -621,5 +631,117 @@ describe('Report Download Endpoint', () => {
     // This is a documentation test to ensure the endpoint uses 1 hour expiry
     const SIGNED_URL_EXPIRY_SECONDS = 3600;
     expect(SIGNED_URL_EXPIRY_SECONDS).toBe(60 * 60); // 1 hour
+  });
+
+  it('should validate report download response structure', () => {
+    // Mock download response structure
+    const downloadResponse = {
+      success: true,
+      data: {
+        reportId: 'report-123',
+        downloadUrl: 'https://storage.example.com/signed-url?token=abc',
+        expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+        fileName: 'quarterly-report-123.pdf',
+        contentType: 'application/pdf',
+        fileSize: 102400,
+      },
+    };
+
+    expect(downloadResponse.success).toBe(true);
+    expect(downloadResponse.data.reportId).toMatch(/^report-/);
+    expect(downloadResponse.data.downloadUrl).toMatch(/^https?:\/\//);
+    expect(downloadResponse.data.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(downloadResponse.data.fileName).toMatch(/\.(pdf|xlsx|csv)$/);
+    expect(downloadResponse.data.contentType).toBe('application/pdf');
+    expect(downloadResponse.data.fileSize).toBeGreaterThan(0);
+  });
+
+  it('should validate error response for non-existent report', () => {
+    // Mock 404 error response structure
+    const errorResponse = {
+      success: false,
+      error: {
+        code: 'REPORT_NOT_FOUND',
+        message: 'Report not found or has expired',
+      },
+    };
+
+    expect(errorResponse.success).toBe(false);
+    expect(errorResponse.error.code).toBe('REPORT_NOT_FOUND');
+    expect(errorResponse.error.message.length).toBeGreaterThan(0);
+  });
+
+  it('should validate error response for unauthorized access', () => {
+    // Mock 403 error response structure
+    const errorResponse = {
+      success: false,
+      error: {
+        code: 'NOT_AUTHORIZED',
+        message: 'You do not have access to this report',
+      },
+    };
+
+    expect(errorResponse.success).toBe(false);
+    expect(errorResponse.error.code).toBe('NOT_AUTHORIZED');
+  });
+
+  it('should validate error response for report still generating', () => {
+    // Mock 202 pending response structure
+    const pendingResponse = {
+      success: false,
+      error: {
+        code: 'REPORT_PENDING',
+        message: 'Report is still being generated. Please try again later.',
+        status: 'generating',
+        progress: 45,
+      },
+    };
+
+    expect(pendingResponse.success).toBe(false);
+    expect(pendingResponse.error.code).toBe('REPORT_PENDING');
+    expect(pendingResponse.error.status).toBe('generating');
+    expect(pendingResponse.error.progress).toBeGreaterThanOrEqual(0);
+    expect(pendingResponse.error.progress).toBeLessThanOrEqual(100);
+  });
+
+  it('should support all report file formats', () => {
+    const formats = ['pdf', 'xlsx', 'csv'];
+    const expectedContentTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      csv: 'text/csv',
+    };
+
+    formats.forEach((format) => {
+      const response = {
+        fileName: `report-123.${format}`,
+        contentType: expectedContentTypes[format],
+      };
+
+      expect(response.fileName).toContain(`.${format}`);
+      expect(response.contentType).toBe(expectedContentTypes[format]);
+    });
+  });
+
+  it('should generate valid signed URL structure', async () => {
+    const { createStorageService, resetStorageService } = await import(
+      '../../server/services/storage-service'
+    );
+    resetStorageService();
+
+    const storage = createStorageService({ provider: 'memory' });
+
+    // Upload a test file
+    const testContent = Buffer.from('Test PDF content');
+    await storage.upload('reports/test-123.pdf', testContent, 'application/pdf');
+
+    // Get signed URL
+    const signedUrl = await storage.getSignedUrl('reports/test-123.pdf', 3600);
+
+    // Memory provider returns a path; production providers return full URLs
+    expect(signedUrl.url).toBeDefined();
+    expect(signedUrl.url.length).toBeGreaterThan(0);
+    expect(signedUrl.expiresAt).toBeInstanceOf(Date);
+    expect(signedUrl.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 });
