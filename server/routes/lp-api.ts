@@ -268,7 +268,7 @@ router.get(
         try {
           const cursorPayload = verifyCursor<{ offset: number; limit: number }>(query.cursor);
           startOffset = cursorPayload.offset;
-        } catch (error) {
+        } catch (_error) {
           const duration = endTimer();
           recordLPRequest(endpoint, 'GET', 400, duration, lpId);
           recordError(endpoint, 'INVALID_CURSOR', 400);
@@ -1010,9 +1010,57 @@ router.get(
       // SECURITY: Log LP data access for compliance (SOC2, GDPR)
       await lpAuditLogger.logReportDownload(lpId, reportId, req.user?.id, req);
 
-      // TODO: Implement actual file download logic
-      // For now, return a redirect to the file URL
-      res.redirect(reportData.fileUrl);
+      // Generate signed URL for secure download
+      const { getStorageService } = await import('../services/storage-service.js');
+      const storage = getStorageService();
+
+      // Extract the storage key from the file URL (remove base path)
+      const fileKey = reportData.fileUrl.replace(/^\/api\/files\//, '');
+
+      try {
+        // Check if file exists
+        const exists = await storage.exists(fileKey);
+        if (!exists) {
+          // File may have been uploaded with full path
+          const existsWithPath = await storage.exists(reportData.fileUrl);
+          if (!existsWithPath) {
+            return res.status(404).json(
+              createErrorResponse('FILE_NOT_FOUND', 'Report file not found in storage')
+            );
+          }
+        }
+
+        // Generate signed URL (expires in 1 hour for security)
+        const signedUrl = await storage.getSignedUrl(fileKey, 3600);
+
+        // Return download information with signed URL
+        res.json({
+          success: true,
+          data: {
+            reportId,
+            downloadUrl: signedUrl.url,
+            expiresAt: signedUrl.expiresAt.toISOString(),
+            fileName: `${reportData.reportType}-${reportId}.${reportData.format}`,
+            contentType: getContentType(reportData.format),
+            fileSize: reportData.fileSize,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (storageError) {
+        // If storage service fails, fall back to direct URL
+        console.warn('Storage signed URL generation failed, falling back to direct URL:', sanitizeForLogging(storageError));
+        res.json({
+          success: true,
+          data: {
+            reportId,
+            downloadUrl: reportData.fileUrl,
+            fileName: `${reportData.reportType}-${reportId}.${reportData.format}`,
+            contentType: getContentType(reportData.format),
+            fileSize: reportData.fileSize,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       console.error('Report download API error:', sanitizeForLogging(error));
       return res.status(500).json(
@@ -1021,6 +1069,18 @@ router.get(
     }
   }
 );
+
+/**
+ * Helper to get content type for report format
+ */
+function getContentType(format: string): string {
+  const contentTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    csv: 'text/csv',
+  };
+  return contentTypes[format] || 'application/octet-stream';
+}
 
 // ============================================================================
 // SETTINGS ENDPOINTS

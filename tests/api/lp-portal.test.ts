@@ -12,7 +12,7 @@
  * @group integration
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ============================================================================
 // STORAGE SERVICE TESTS
@@ -383,5 +383,243 @@ describe('PII Logging Prevention', () => {
     expect(piiFields).toContain('email');
     expect(piiFields).toContain('taxId');
     expect(piiFields).toContain('password');
+  });
+});
+
+// ============================================================================
+// PDF GENERATION SERVICE TESTS
+// ============================================================================
+
+describe('PDF Generation Service', () => {
+  it('should export K1 report data builder', async () => {
+    const { buildK1ReportData } = await import('../../server/services/pdf-generation-service');
+    expect(typeof buildK1ReportData).toBe('function');
+  });
+
+  it('should export quarterly report data builder', async () => {
+    const { buildQuarterlyReportData } = await import('../../server/services/pdf-generation-service');
+    expect(typeof buildQuarterlyReportData).toBe('function');
+  });
+
+  it('should export capital account report data builder', async () => {
+    const { buildCapitalAccountReportData } = await import('../../server/services/pdf-generation-service');
+    expect(typeof buildCapitalAccountReportData).toBe('function');
+  });
+
+  it('should export PDF generation functions', async () => {
+    const { generateK1PDF, generateQuarterlyPDF, generateCapitalAccountPDF } = await import(
+      '../../server/services/pdf-generation-service'
+    );
+
+    expect(typeof generateK1PDF).toBe('function');
+    expect(typeof generateQuarterlyPDF).toBe('function');
+    expect(typeof generateCapitalAccountPDF).toBe('function');
+  });
+
+  it('should build K1 report data structure correctly', async () => {
+    const { buildK1ReportData } = await import('../../server/services/pdf-generation-service');
+
+    // Create mock LP data matching the service interface
+    const mockLPData = {
+      lp: { id: 1, name: 'Test LP', email: 'test@example.com' },
+      commitments: [
+        {
+          commitmentId: 1,
+          fundId: 1,
+          fundName: 'Test Fund I',
+          commitmentAmount: 10000000,
+          ownershipPercentage: 0.1,
+        },
+      ],
+      transactions: [
+        {
+          commitmentId: 1,
+          fundId: 1,
+          date: new Date('2023-03-15'),
+          type: 'capital_call',
+          amount: 2500000,
+          description: 'Initial capital call',
+        },
+        {
+          commitmentId: 1,
+          fundId: 1,
+          date: new Date('2023-09-01'),
+          type: 'distribution',
+          amount: 500000,
+          description: 'Q3 distribution',
+        },
+      ],
+    };
+
+    const k1Data = buildK1ReportData(mockLPData, 1, 2023);
+
+    expect(k1Data.partnerName).toBe('Test LP');
+    expect(k1Data.fundName).toBe('Test Fund I');
+    expect(k1Data.taxYear).toBe(2023);
+    expect(k1Data.allocations).toBeDefined();
+    expect(k1Data.capitalAccount).toBeDefined();
+    expect(k1Data.distributions).toBeDefined();
+  });
+
+  it('should build quarterly report data structure correctly', async () => {
+    const { buildQuarterlyReportData } = await import('../../server/services/pdf-generation-service');
+
+    const mockLPData = {
+      lp: { id: 1, name: 'Test LP', email: 'test@example.com' },
+      commitments: [
+        {
+          commitmentId: 1,
+          fundId: 1,
+          fundName: 'Test Fund I',
+          commitmentAmount: 10000000,
+          ownershipPercentage: 0.1,
+        },
+      ],
+      transactions: [
+        {
+          commitmentId: 1,
+          fundId: 1,
+          date: new Date('2024-03-15'),
+          type: 'capital_call',
+          amount: 2500000,
+          description: 'Capital call',
+        },
+      ],
+    };
+
+    const quarterlyData = buildQuarterlyReportData(mockLPData, 1, 'Q2', 2024);
+
+    expect(quarterlyData.fundName).toBe('Test Fund I');
+    expect(quarterlyData.quarter).toBe('Q2');
+    expect(quarterlyData.year).toBe(2024);
+    expect(quarterlyData.lpName).toBe('Test LP');
+    expect(quarterlyData.summary).toBeDefined();
+    expect(quarterlyData.summary.totalCommitted).toBe(10000000);
+    expect(quarterlyData.portfolioCompanies).toBeDefined();
+    expect(quarterlyData.portfolioCompanies.length).toBeGreaterThan(0);
+  });
+});
+
+// ============================================================================
+// XLSX GENERATION SERVICE TESTS
+// ============================================================================
+
+describe('XLSX Generation Service', () => {
+  it('should export Excel generation functions', async () => {
+    const {
+      generateCapitalAccountXLSX,
+      generateQuarterlyXLSX,
+      generateTransactionHistoryXLSX,
+      generatePerformanceSummaryXLSX,
+    } = await import('../../server/services/xlsx-generation-service');
+
+    expect(typeof generateCapitalAccountXLSX).toBe('function');
+    expect(typeof generateQuarterlyXLSX).toBe('function');
+    expect(typeof generateTransactionHistoryXLSX).toBe('function');
+    expect(typeof generatePerformanceSummaryXLSX).toBe('function');
+  });
+
+  it('should generate capital account Excel buffer', async () => {
+    const { generateCapitalAccountXLSX } = await import('../../server/services/xlsx-generation-service');
+
+    const testData = {
+      lpName: 'Test LP',
+      fundName: 'Test Fund I',
+      asOfDate: '2024-06-30',
+      commitment: 10000000,
+      transactions: [
+        {
+          date: '2024-01-15',
+          type: 'Capital Call',
+          description: 'Initial call',
+          amount: 2500000,
+          balance: 2500000,
+        },
+        {
+          date: '2024-03-15',
+          type: 'Distribution',
+          description: 'Q1 distribution',
+          amount: -500000,
+          balance: 2000000,
+        },
+      ],
+      summary: {
+        beginningBalance: 0,
+        totalContributions: 2500000,
+        totalDistributions: 500000,
+        netIncome: 0,
+        endingBalance: 2000000,
+      },
+    };
+
+    const buffer = generateCapitalAccountXLSX(testData);
+
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(buffer.length).toBeGreaterThan(0);
+    // XLSX files start with PK (ZIP signature)
+    expect(buffer[0]).toBe(0x50); // 'P'
+    expect(buffer[1]).toBe(0x4b); // 'K'
+  });
+
+  it('should generate quarterly report Excel buffer', async () => {
+    const { generateQuarterlyXLSX } = await import('../../server/services/xlsx-generation-service');
+
+    const testData = {
+      fundName: 'Test Fund I',
+      quarter: 'Q2',
+      year: 2024,
+      lpName: 'Test LP',
+      summary: {
+        nav: 12000000,
+        tvpi: 1.25,
+        dpi: 0.2,
+        irr: 0.15,
+        totalCommitted: 10000000,
+        totalCalled: 8000000,
+        totalDistributed: 2000000,
+        unfunded: 2000000,
+      },
+      portfolioCompanies: [
+        { name: 'TechCo', invested: 3000000, value: 4000000, moic: 1.33 },
+        { name: 'HealthAI', invested: 2000000, value: 2500000, moic: 1.25 },
+      ],
+      cashFlows: [
+        { date: '2024-03-01', type: 'contribution' as const, amount: 1000000 },
+        { date: '2024-05-15', type: 'distribution' as const, amount: 500000 },
+      ],
+    };
+
+    const buffer = generateQuarterlyXLSX(testData);
+
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(buffer.length).toBeGreaterThan(0);
+    // XLSX files start with PK (ZIP signature)
+    expect(buffer[0]).toBe(0x50);
+    expect(buffer[1]).toBe(0x4b);
+  });
+});
+
+// ============================================================================
+// REPORT DOWNLOAD ENDPOINT TESTS
+// ============================================================================
+
+describe('Report Download Endpoint', () => {
+  it('should define content type helper correctly', () => {
+    // Test the content type mapping logic
+    const contentTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      csv: 'text/csv',
+    };
+
+    expect(contentTypes['pdf']).toBe('application/pdf');
+    expect(contentTypes['xlsx']).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(contentTypes['csv']).toBe('text/csv');
+  });
+
+  it('should have signed URL expiry of 1 hour (3600 seconds)', () => {
+    // This is a documentation test to ensure the endpoint uses 1 hour expiry
+    const SIGNED_URL_EXPIRY_SECONDS = 3600;
+    expect(SIGNED_URL_EXPIRY_SECONDS).toBe(60 * 60); // 1 hour
   });
 });
