@@ -933,6 +933,48 @@ tests:
 **See:** [cheatsheets/agent-architecture.md](cheatsheets/agent-architecture.md)
 for detailed cookbook workflow documentation
 
+## Application Features & API Capabilities
+
+### Deal Pipeline Management System (Sprint 1)
+
+**Status**: Active (2025-12-30) **Route**: `/api/deals/*`
+
+Complete REST API for venture capital deal tracking and pipeline management:
+
+**Deal CRUD Operations:**
+
+- `POST /api/deals/opportunities` - Create deal (idempotency-enabled)
+- `GET /api/deals/opportunities` - List deals with cursor pagination
+- `GET /api/deals/opportunities/:id` - Get deal with full related data
+- `PUT /api/deals/opportunities/:id` - Update deal (idempotency-enabled,
+  optimistic locking)
+- `DELETE /api/deals/opportunities/:id` - Archive deal (soft delete)
+
+**Pipeline Management:**
+
+- `POST /api/deals/:id/stage` - Move deal through pipeline stages
+- `GET /api/deals/pipeline` - Kanban-style pipeline view
+- `GET /api/deals/stages` - List available pipeline stages
+
+**Due Diligence:**
+
+- `POST /api/deals/:id/diligence` - Add due diligence item
+- `GET /api/deals/:id/diligence` - Get due diligence items by category
+
+**Technical Features:**
+
+- Cursor pagination with compound keys (createdAt + id)
+- Idempotency middleware for create/update operations
+- Base64url-encoded cursors
+- Zod validation schemas
+- Comprehensive anti-pattern compliance (all 24 patterns)
+- 12 database indexes for optimal query performance
+- 16 integration tests
+
+**Implementation**:
+[server/routes/deal-pipeline.ts](server/routes/deal-pipeline.ts),
+[tests/api/deal-pipeline.test.ts](tests/api/deal-pipeline.test.ts)
+
 ## Quick Reference Questions
 
 Before any task, ask yourself:
