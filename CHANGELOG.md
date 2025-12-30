@@ -10,6 +10,37 @@ and this project adheres to
 
 ### Added
 
+- **Sprint 1: Deal Pipeline Management System MVP** (2025-12-30)
+  - Complete REST API with 10 endpoints at `/api/deals/*`:
+    - `POST /api/deals/opportunities` - Create deal (idempotency-enabled)
+    - `GET /api/deals/opportunities` - List deals (cursor pagination)
+    - `GET /api/deals/opportunities/:id` - Get deal with full related data
+    - `PUT /api/deals/opportunities/:id` - Update deal (idempotency-enabled)
+    - `DELETE /api/deals/opportunities/:id` - Archive deal (soft delete)
+    - `POST /api/deals/:id/stage` - Move deal through pipeline stages
+    - `GET /api/deals/pipeline` - Kanban-style pipeline view
+    - `GET /api/deals/stages` - List available pipeline stages
+    - `POST /api/deals/:id/diligence` - Add due diligence item
+    - `GET /api/deals/:id/diligence` - Get due diligence items by category
+  - Pre-Sprint Foundation Work:
+    - Schema drift fix: Added missing `approvalSchema` to `server/db.ts`
+      (critical bug fix)
+    - Database indexes: 12 cursor pagination indexes across deal pipeline tables
+      (migration 0006)
+    - Security ESLint rules: 3 new anti-pattern detection rules
+      - `require-bullmq-config` - Enforces timeout/retry on BullMQ workers
+        (AP-QUEUE-01, AP-QUEUE-02)
+      - `no-sql-raw-in-routes` - Prevents SQL injection via sql.raw() in routes
+        (AP-CURSOR-06)
+      - `require-optimistic-locking` - Ensures version checks on updates
+        (AP-LOCK-03)
+  - Anti-Pattern Compliance: Implements all 24 patterns from
+    `cheatsheets/anti-pattern-prevention.md`
+  - Integration tests: 16 test cases covering CRUD, idempotency, pagination,
+    optimistic locking
+  - Files: `server/routes/deal-pipeline.ts` (806 lines),
+    `tests/api/deal-pipeline.test.ts` (445 lines)
+
 - **Phoenix Phase 3C: Chart Theme Infrastructure Complete** (2025-12-29)
   - Wired `BrandChartThemeProvider` to App.tsx for global chart theming
   - Added `npm run phoenix:truth` scripts for running truth case tests
@@ -31,7 +62,8 @@ and this project adheres to
   - Module breakdown: XIRR (50), Waterfall-tier (15), Waterfall-ledger (14),
     Fees (10), Capital Allocation (20), Exit Recycling (20)
   - Updated `docs/phase0-validation-report.md` with complete results
-  - Implementation plan: `docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md`
+  - Implementation plan:
+    `docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md`
 
 - **Portfolio Intelligence API Routes** (Feature-flagged)
   - 17 endpoints at `/api/portfolio/*` for portfolio modeling and strategy
