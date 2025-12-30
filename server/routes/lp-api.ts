@@ -1022,4 +1022,161 @@ router.get(
   }
 );
 
+// ============================================================================
+// SETTINGS ENDPOINTS
+// ============================================================================
+
+/**
+ * Settings validation schemas
+ */
+const LPNotificationPreferencesSchema = z.object({
+  emailCapitalCalls: z.boolean().optional(),
+  emailDistributions: z.boolean().optional(),
+  emailQuarterlyReports: z.boolean().optional(),
+  emailAnnualReports: z.boolean().optional(),
+  emailMarketUpdates: z.boolean().optional(),
+});
+
+const LPDisplayPreferencesSchema = z.object({
+  currency: z.enum(['USD', 'EUR', 'GBP']).optional(),
+  numberFormat: z.enum(['US', 'EU']).optional(),
+  timezone: z.string().optional(),
+  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).optional(),
+});
+
+const LPSettingsSchema = z.object({
+  notifications: LPNotificationPreferencesSchema.optional(),
+  display: LPDisplayPreferencesSchema.optional(),
+});
+
+/**
+ * GET /api/lp/settings
+ *
+ * Get LP notification and display preferences
+ */
+router.get(
+  '/api/lp/settings',
+  requireAuth(),
+  requireLPAccess,
+  lpLimiter,
+  async (req: Request, res: Response) => {
+    const endTimer = startTimer();
+    const endpoint = '/api/lp/settings';
+
+    try {
+      const lpId = req.lpProfile?.id;
+
+      if (!lpId) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'GET', 404, duration);
+        return res.status(404).json(
+          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
+        );
+      }
+
+      // Fetch LP settings from database
+      // For now, return default settings (settings table not yet implemented)
+      const defaultSettings = {
+        notifications: {
+          emailCapitalCalls: true,
+          emailDistributions: true,
+          emailQuarterlyReports: true,
+          emailAnnualReports: true,
+          emailMarketUpdates: false,
+        },
+        display: {
+          currency: 'USD',
+          numberFormat: 'US',
+          timezone: 'America/New_York',
+          dateFormat: 'MM/DD/YYYY',
+        },
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'private, max-age=300');
+
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'GET', 200, duration, lpId);
+
+      return res.json(defaultSettings);
+    } catch (error) {
+      console.error('Settings GET API error:', sanitizeForLogging(error));
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'GET', 500, duration);
+      return res.status(500).json(
+        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch settings')
+      );
+    }
+  }
+);
+
+/**
+ * PUT /api/lp/settings
+ *
+ * Update LP notification and display preferences
+ */
+router.put(
+  '/api/lp/settings',
+  requireAuth(),
+  requireLPAccess,
+  lpLimiter,
+  async (req: Request, res: Response) => {
+    const endTimer = startTimer();
+    const endpoint = '/api/lp/settings';
+
+    try {
+      const lpId = req.lpProfile?.id;
+
+      if (!lpId) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'PUT', 404, duration);
+        return res.status(404).json(
+          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
+        );
+      }
+
+      // Validate request body
+      const settings = LPSettingsSchema.parse(req.body);
+
+      // TODO: Persist settings to database
+      // For now, just validate and echo back
+      console.log(`[LP-API] Settings update for LP ${lpId}:`, sanitizeForLogging(settings));
+
+      // SECURITY: Log settings change for audit
+      await lpAuditLogger.logSettingsUpdate(lpId, req.user?.id, req);
+
+      res.setHeader('Content-Type', 'application/json');
+
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'PUT', 200, duration, lpId);
+
+      return res.json({
+        success: true,
+        message: 'Settings updated successfully',
+        settings,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'PUT', 400, duration);
+        return res.status(400).json(
+          createErrorResponse(
+            'VALIDATION_ERROR',
+            firstError?.message || 'Invalid settings',
+            firstError?.path.join('.')
+          )
+        );
+      }
+
+      console.error('Settings PUT API error:', sanitizeForLogging(error));
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'PUT', 500, duration);
+      return res.status(500).json(
+        createErrorResponse('INTERNAL_ERROR', 'Failed to update settings')
+      );
+    }
+  }
+);
+
 export default router;
