@@ -3,15 +3,6 @@
  * Handles conversion, validation, and backwards compatibility
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-// NOTE: This adapter handles legacy data structures with dynamic shapes.
-// The `any` types are intentional for backwards compatibility with untyped data.
-// TODO: Define strict types for legacy data structures (Issue #TBD)
-
 import type { Company, ReservesInput, ReservesConfig } from '@shared/types/reserves-v11';
 import { getCurrentQuarterIndex } from '@/lib/quarter-time';
 import { dollarsToCents, centsToDollars, moicToBps, percentToBps } from '@/lib/units';
@@ -29,7 +20,7 @@ interface ExistingCompany {
   sector?: string;
   ownershipPercentage?: number;
   ownership?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ExistingFund {
@@ -148,8 +139,30 @@ export interface AdaptedReservesResult {
   warnings?: string[];
 }
 
+interface ReservesAllocation {
+  company_id: string;
+  planned_cents: number;
+  reason: string;
+}
+
+interface ReservesResultData {
+  allocations: ReservesAllocation[];
+  remaining_cents: number;
+  metadata: {
+    total_available_cents: number;
+    companies_funded: number;
+  };
+}
+
+interface ReservesResult {
+  ok: boolean;
+  data?: ReservesResultData;
+  error?: string;
+  warnings?: string[];
+}
+
 export function adaptReservesResult(
-  result: any,
+  result: ReservesResult,
   companiesMap?: Map<string, ExistingCompany>
 ): AdaptedReservesResult {
   if (!result.ok || !result.data) {
@@ -160,26 +173,28 @@ export function adaptReservesResult(
       companiesFunded: 0,
       success: false,
       errors: [result.error || 'Calculation failed'],
-      warnings: result.warnings,
+      warnings: result.warnings ?? undefined,
     };
   }
 
   const { allocations, remaining_cents, metadata } = result.data;
 
   // Convert allocations back to dollars
-  const adaptedAllocations = allocations.map((alloc: any) => {
-    const company = companiesMap?.get(alloc.company_id);
-    const plannedDollars = centsToDollars(alloc.planned_cents);
-    const initialInvestment = company ? company.investedAmount || company.invested || 0 : 0;
+  const adaptedAllocations = allocations.map(
+    (alloc): AdaptedReservesResult['allocations'][number] => {
+      const company = companiesMap?.get(alloc.company_id);
+      const plannedDollars = centsToDollars(alloc.planned_cents);
+      const initialInvestment = company ? company.investedAmount || company.invested || 0 : 0;
 
-    return {
-      companyId: alloc.company_id,
-      companyName: company?.name || company?.companyName,
-      plannedReserve: plannedDollars,
-      reservePercent: initialInvestment > 0 ? (plannedDollars / initialInvestment) * 100 : 0,
-      reason: alloc.reason,
-    };
-  });
+      return {
+        companyId: alloc.company_id,
+        companyName: company?.name || company?.companyName || undefined,
+        plannedReserve: plannedDollars,
+        reservePercent: initialInvestment > 0 ? (plannedDollars / initialInvestment) * 100 : 0,
+        reason: alloc.reason,
+      };
+    }
+  );
 
   return {
     allocations: adaptedAllocations,
@@ -187,7 +202,7 @@ export function adaptReservesResult(
     totalReserve: centsToDollars(metadata.total_available_cents),
     companiesFunded: metadata.companies_funded,
     success: true,
-    warnings: result.warnings,
+    warnings: result.warnings ?? undefined,
   };
 }
 
@@ -226,7 +241,7 @@ export function validateFundData(fund: ExistingFund): string[] {
   }
 
   // Validate each company
-  companies?.forEach((company: any, index: any) => {
+  companies?.forEach((company, index) => {
     const companyErrors = validateCompanyData(company);
     companyErrors.forEach((error) => {
       errors.push(`Company ${index + 1}: ${error}`);
