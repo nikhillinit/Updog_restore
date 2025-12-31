@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-29T11:11:02.419Z",
+  "generatedAt": "2025-12-31T02:22:12.441Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -692,7 +692,7 @@
         "review_cadence": "'P90D'"
       },
       "isStale": false,
-      "staleDays": 17,
+      "staleDays": 19,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -843,7 +843,7 @@
         "related_prs": ["282"]
       },
       "isStale": false,
-      "staleDays": 13,
+      "staleDays": 15,
       "hasExecutionClaims": true,
       "lastUpdated": "2025-12-16",
       "status": "ACTIVE",
@@ -3291,7 +3291,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 17,
+      "staleDays": 19,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -3675,7 +3675,7 @@
         "review_cadence": "'P90D'"
       },
       "isStale": false,
-      "staleDays": 13,
+      "staleDays": 15,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-16",
       "status": "ACTIVE",
@@ -4004,7 +4004,7 @@
         "categories": ["database", "performance", "architecture"]
       },
       "isStale": false,
-      "staleDays": 6,
+      "staleDays": 8,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-23",
       "status": "active",
@@ -4899,6 +4899,18 @@
       "owner": null
     },
     {
+      "path": "docs\\PHOENIX-SOT\\brand-bridge.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs\\PHOENIX-SOT\\deferred-vesting-plan.md",
       "exists": true,
       "docType": "doc",
@@ -4912,6 +4924,18 @@
     },
     {
       "path": "docs\\PHOENIX-SOT\\execution-plan-v2.34.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\PHOENIX-SOT\\execution-plan-v3.0-phase3-addendum.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -4974,7 +4998,7 @@
         "review_cadence": "P30D"
       },
       "isStale": false,
-      "staleDays": 15,
+      "staleDays": 17,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-14",
       "status": "ACTIVE",
@@ -5006,6 +5030,90 @@
     },
     {
       "path": "docs\\plans\\2025-12-28-backend-testing-improvements.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-phase2-planning-REVIEW.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-phase2-planning.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-phase3c-solo-execution.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-phoenix-phase3-planning.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-phoenix-phases-1.4-1.7-completion.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-plan-review-and-refinements.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs\\plans\\2025-12-29-pr-318-merge-validation-plan.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -5092,7 +5200,7 @@
         "review_cadence": "'P30D'"
       },
       "isStale": false,
-      "staleDays": 13,
+      "staleDays": 15,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-16",
       "status": "ACTIVE",
@@ -6547,7 +6655,7 @@
         "use_cases": ["task_execution"]
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 2,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
@@ -6924,7 +7032,7 @@
         "action": "'Update status to REFERENCE'"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 2,
       "hasExecutionClaims": true,
       "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
@@ -6946,7 +7054,7 @@
         "use_cases": ["capability_discovery"]
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 2,
       "hasExecutionClaims": true,
       "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
@@ -7494,6 +7602,55 @@
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
+    },
+    {
+      "path": ".claude\\AGENT-DIRECTORY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P30D",
+        "categories": ["agents", "routing", "discovery"],
+        "keywords": [
+          "agent-directory",
+          "agent-selection",
+          "canonical-locations"
+        ]
+      },
+      "isStale": false,
+      "staleDays": 2,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
+    },
+    {
+      "path": ".claude\\AGENT-METRICS.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P7D",
+        "categories": ["agents", "metrics", "performance"],
+        "keywords": [
+          "agent-metrics",
+          "usage-tracking",
+          "performance",
+          "success-rate"
+        ]
+      },
+      "isStale": false,
+      "staleDays": 2,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
     },
     {
       "path": ".claude\\agents\\baseline-regression-explainer.md",
@@ -8119,113 +8276,17 @@
       "owner": null
     },
     {
-      "path": ".claude\\agents\\workflow-engine\\code-reviewer.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\workflow-engine\\security-engineer.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\workflow-engine\\test-automator.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\workflow-engine\\typescript-pro.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\wshobson\\code-reviewer.md",
+      "path": ".claude\\agents\\workflow-orchestrator.md",
       "exists": true,
       "docType": "agent",
       "frontmatter": {
-        "name": "code-reviewer",
-        "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance.",
-        "model": "opus"
-      },
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\wshobson\\legacy-modernizer.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {
-        "name": "legacy-modernizer",
-        "description": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization. Handles technical debt, dependency updates, and backward compatibility. Use PROACTIVELY for legacy system updates, framework migrations, or technical debt reduction.",
+        "name": "workflow-orchestrator",
+        "description": "Auto-chain related agents based on code changes. Analyzes what files changed and automatically invokes the appropriate sequence of validation agents. Use when you want comprehensive validation without manually invoking each agent.",
         "model": "sonnet"
       },
       "isStale": true,
       "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\wshobson\\test-automator.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {
-        "name": "test-automator",
-        "description": "Master AI-powered test automation with modern frameworks, self-healing tests, and comprehensive quality engineering. Build scalable testing strategies with advanced CI/CD integration. Use PROACTIVELY for testing automation or quality assurance.",
-        "model": "sonnet"
-      },
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": ".claude\\agents\\wshobson\\typescript-pro.md",
-      "exists": true,
-      "docType": "agent",
-      "frontmatter": {
-        "name": "typescript-pro",
-        "description": "Master TypeScript with advanced types, generics, and strict type safety. Handles complex type systems, decorators, and enterprise-grade patterns. Use PROACTIVELY for TypeScript architecture, type inference optimization, or advanced typing patterns.",
-        "model": "opus"
-      },
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
+      "hasExecutionClaims": true,
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
@@ -8265,7 +8326,25 @@
       "path": ".claude\\commands\\catalog-tooling.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Comprehensive catalog of all development tooling and assets",
+        "allowed-tools": "Read, Grep, Glob"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude\\commands\\db-validate.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Pre-deployment database schema validation",
+        "allowed-tools": "Read, Bash, Grep, Glob"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -8291,7 +8370,11 @@
       "path": ".claude\\commands\\enable-agent-memory.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Guide for enabling native memory capabilities in agents",
+        "argument-hint": "[agent-name]",
+        "allowed-tools": "Read, Write, Edit, Grep, Glob"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -8321,6 +8404,38 @@
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude\\commands\\log-change.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Guided changelog entry for CHANGELOG.md",
+        "argument-hint": "[type=feat|fix|chore|refactor|docs|test] [description]",
+        "allowed-tools": "Read, Write, Edit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude\\commands\\log-decision.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Guided ADR (Architecture Decision Record) entry for DECISIONS.md",
+        "argument-hint": "[title]",
+        "allowed-tools": "Read, Write, Edit, Grep"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
@@ -8375,6 +8490,21 @@
       "owner": null
     },
     {
+      "path": ".claude\\commands\\pr-ready.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Single command for full pre-PR validation workflow",
+        "allowed-tools": "Read, Write, Edit, Bash, Grep, Glob"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude\\commands\\pre-commit-check.md",
       "exists": true,
       "docType": "command",
@@ -8392,7 +8522,10 @@
       "path": ".claude\\commands\\session-start.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Initialize session context with Memory Manager integration",
+        "allowed-tools": "Read, Bash"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -8471,7 +8604,7 @@
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "agents",
-        "last_updated": "2025-12-14",
+        "last_updated": "2025-12-29",
         "owner": "'Platform Team'",
         "review_cadence": "P30D",
         "categories": ["discovery", "agents", "routing"],
@@ -8483,9 +8616,29 @@
         ]
       },
       "isStale": false,
-      "staleDays": 15,
+      "staleDays": 2,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-14",
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
+    },
+    {
+      "path": ".claude\\docs\\TEST-STRATEGY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P30D",
+        "categories": ["testing", "agents", "routing"],
+        "keywords": ["test-strategy", "test-agents", "test-selection"]
+      },
+      "isStale": false,
+      "staleDays": 2,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
       "owner": "'Platform Team'"
     },
@@ -8576,7 +8729,7 @@
         "use_cases": ["task_execution", "capability_discovery"]
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 2,
       "hasExecutionClaims": true,
       "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
@@ -8865,6 +9018,18 @@
       "owner": null
     },
     {
+      "path": ".claude\\skills\\async-error-resilience.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude\\skills\\baseline-governance\\SKILL.md",
       "exists": true,
       "docType": "skill",
@@ -8902,6 +9067,18 @@
     },
     {
       "path": ".claude\\skills\\continuous-improvement.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude\\skills\\database-schema-evolution.md",
       "exists": true,
       "docType": "skill",
       "frontmatter": {},
@@ -9146,6 +9323,18 @@
       "owner": null
     },
     {
+      "path": ".claude\\skills\\phoenix-workflow-orchestrator\\SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude\\skills\\phoenix-xirr-fees-validator\\SKILL.md",
       "exists": true,
       "docType": "skill",
@@ -9173,6 +9362,18 @@
     },
     {
       "path": ".claude\\skills\\react-hook-form-stability\\SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude\\skills\\react-performance-optimization.md",
       "exists": true,
       "docType": "skill",
       "frontmatter": {},
@@ -9751,12 +9952,12 @@
     }
   ],
   "stats": {
-    "total_docs": 719,
-    "stale_docs": 707,
-    "missing_frontmatter": 639,
+    "total_docs": 732,
+    "stale_docs": 717,
+    "missing_frontmatter": 645,
     "by_status": {
-      "UNKNOWN": 703,
-      "ACTIVE": 11,
+      "UNKNOWN": 713,
+      "ACTIVE": 14,
       "active": 2,
       "ready": 3
     }
