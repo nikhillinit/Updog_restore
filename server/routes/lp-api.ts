@@ -17,6 +17,12 @@
  * @module server/routes/lp-api
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+// NOTE: Error handling uses untyped `error` objects for logging.
+// This is a pre-existing pattern throughout the codebase.
+// TODO: Create typed error handling utility (Issue #TBD)
+
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { requireAuth } from '../lib/auth/jwt';
@@ -121,9 +127,7 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 404, duration);
         recordError(endpoint, 'LP_NOT_FOUND', 404);
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       // Check cache header to determine if this was a cache hit
@@ -153,9 +157,9 @@ router.get(
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch LP profile')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch LP profile'));
     }
   }
 );
@@ -181,9 +185,7 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 404, duration);
         recordError(endpoint, 'LP_NOT_FOUND', 404);
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       const summary = await lpCalculator.calculateSummary(lpId);
@@ -218,9 +220,9 @@ router.get(
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to calculate LP summary')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to calculate LP summary'));
     }
   }
 );
@@ -254,9 +256,7 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 404, duration);
         recordError(endpoint, 'LP_NOT_FOUND', 404);
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       // Validate query parameters
@@ -268,13 +268,15 @@ router.get(
         try {
           const cursorPayload = verifyCursor<{ offset: number; limit: number }>(query.cursor);
           startOffset = cursorPayload.offset;
-        } catch (error) {
+        } catch {
           const duration = endTimer();
           recordLPRequest(endpoint, 'GET', 400, duration, lpId);
           recordError(endpoint, 'INVALID_CURSOR', 400);
-          return res.status(400).json(
-            createErrorResponse('INVALID_CURSOR', 'Pagination cursor is invalid or tampered')
-          );
+          return res
+            .status(400)
+            .json(
+              createErrorResponse('INVALID_CURSOR', 'Pagination cursor is invalid or tampered')
+            );
         }
       }
 
@@ -314,10 +316,7 @@ router.get(
       }
 
       const endDate = query.endDate || new Date().toISOString().split('T')[0] || '';
-      const transactions = await lpCalculator.calculateCapitalAccount(
-        commitmentId,
-        endDate
-      );
+      const transactions = await lpCalculator.calculateCapitalAccount(commitmentId, endDate);
 
       // Apply pagination with cursor offset
       const limit = query.limit || 50;
@@ -347,9 +346,7 @@ router.get(
       await lpAuditLogger.logCapitalAccountView(lpId, req.user?.id, query.fundIds, req);
 
       // Create signed cursor for next page (prevents tampering)
-      const nextCursor = hasMore
-        ? createCursor({ offset: startOffset + limit, limit })
-        : null;
+      const nextCursor = hasMore ? createCursor({ offset: startOffset + limit, limit }) : null;
 
       return res.json({
         transactions: responseTransactions,
@@ -362,22 +359,24 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       console.error('Capital account API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch capital account')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch capital account'));
     }
   }
 );
@@ -404,16 +403,16 @@ router.get(
       const fundId = toNumber(fundIdParam, 'fundId');
 
       if (fundId <= 0) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', 'Fund ID must be a positive integer', 'fundId')
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', 'Fund ID must be a positive integer', 'fundId')
+          );
       }
 
       const lpId = req.lpProfile?.id;
       if (!lpId) {
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       // Validate query parameters
@@ -428,23 +427,24 @@ router.get(
         .limit(1);
 
       if (commitment.length === 0) {
-        return res.status(404).json(
-          createErrorResponse('COMMITMENT_NOT_FOUND', `No commitment found for fund ${fundId}`)
-        );
+        return res
+          .status(404)
+          .json(
+            createErrorResponse('COMMITMENT_NOT_FOUND', `No commitment found for fund ${fundId}`)
+          );
       }
 
       const commitmentData = commitment[0];
       if (!commitmentData) {
-        return res.status(404).json(
-          createErrorResponse('COMMITMENT_NOT_FOUND', `No commitment found for fund ${fundId}`)
-        );
+        return res
+          .status(404)
+          .json(
+            createErrorResponse('COMMITMENT_NOT_FOUND', `No commitment found for fund ${fundId}`)
+          );
       }
 
       // Get capital account
-      const transactions = await lpCalculator.calculateCapitalAccount(
-        commitmentData.id,
-        asOfDate
-      );
+      const transactions = await lpCalculator.calculateCapitalAccount(commitmentData.id, asOfDate);
 
       const latestTransaction = transactions[transactions.length - 1];
 
@@ -470,26 +470,26 @@ router.get(
       return res.json(response);
     } catch (error) {
       if (error instanceof NumberParseError) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', error.message)
-        );
+        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
       }
 
       if (error instanceof z.ZodError) {
         const firstError = error.errors[0];
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       console.error('Fund detail API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch fund detail')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch fund detail'));
     }
   }
 );
@@ -511,16 +511,16 @@ router.get(
       const fundId = toNumber(fundIdParam, 'fundId');
 
       if (fundId <= 0) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', 'Fund ID must be a positive integer', 'fundId')
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', 'Fund ID must be a positive integer', 'fundId')
+          );
       }
 
       const lpId = req.lpProfile?.id;
       if (!lpId) {
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       const holdings = await lpCalculator.calculateProRataHoldings(lpId, fundId);
@@ -539,15 +539,13 @@ router.get(
       });
     } catch (error) {
       if (error instanceof NumberParseError) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', error.message)
-        );
+        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
       }
 
       console.error('Holdings API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch holdings')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch holdings'));
     }
   }
 );
@@ -581,9 +579,7 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 404, duration);
         recordError(endpoint, 'LP_NOT_FOUND', 404);
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       // Validate query parameters
@@ -628,11 +624,7 @@ router.get(
         '';
       const endDate = query.endDate || new Date().toISOString().split('T')[0] || '';
 
-      const performance = await lpCalculator.calculatePerformance(
-        commitmentId,
-        startDate,
-        endDate
-      );
+      const performance = await lpCalculator.calculatePerformance(commitmentId, startDate, endDate);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=300');
@@ -656,22 +648,24 @@ router.get(
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       console.error('Performance API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch performance')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch performance'));
     }
   }
 );
@@ -711,9 +705,9 @@ router.get(
       });
     } catch (error) {
       console.error('Benchmark API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch benchmark data')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch benchmark data'));
     }
   }
 );
@@ -741,9 +735,7 @@ router.post(
         const duration = endTimer();
         recordLPRequest(endpoint, 'POST', 404, duration);
         recordError(endpoint, 'LP_NOT_FOUND', 404);
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       // Validate request body
@@ -780,7 +772,9 @@ router.post(
             ...(config.templateId && { templateId: config.templateId }),
             ...(config.metadata && { metadata: config.metadata }),
           });
-          console.log(`[LP-API] Queued report ${reportId}, jobId: ${jobId}, wait: ${estimatedWaitMs}ms`);
+          console.log(
+            `[LP-API] Queued report ${reportId}, jobId: ${jobId}, wait: ${estimatedWaitMs}ms`
+          );
         } catch (queueError) {
           console.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
           // Report is still created in pending state, can be retried
@@ -795,13 +789,7 @@ router.post(
       recordLPRequest(endpoint, 'POST', 202, duration, lpId);
 
       // SECURITY: Log LP data access for compliance (SOC2, GDPR)
-      await lpAuditLogger.logReportGeneration(
-        lpId,
-        reportId,
-        config.reportType,
-        req.user?.id,
-        req
-      );
+      await lpAuditLogger.logReportGeneration(lpId, reportId, config.reportType, req.user?.id, req);
 
       return res.status(202).json({
         reportId,
@@ -814,22 +802,24 @@ router.post(
         const duration = endTimer();
         recordLPRequest(endpoint, 'POST', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid report configuration',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid report configuration',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       console.error('Report generation API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'POST', 500, duration);
       recordError(endpoint, 'INTERNAL_ERROR', 500);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to queue report generation')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to queue report generation'));
     }
   }
 );
@@ -849,9 +839,7 @@ router.get(
       const lpId = req.lpProfile?.id;
 
       if (!lpId) {
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       const reports = await db
@@ -882,9 +870,7 @@ router.get(
       });
     } catch (error) {
       console.error('Reports list API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch reports')
-      );
+      return res.status(500).json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch reports'));
     }
   }
 );
@@ -905,15 +891,13 @@ router.get(
       const lpId = req.lpProfile?.id;
 
       if (!reportId) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_REQUEST', 'Report ID is required')
-        );
+        return res
+          .status(400)
+          .json(createErrorResponse('INVALID_REQUEST', 'Report ID is required'));
       }
 
       if (!lpId) {
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       const report = await db
@@ -923,9 +907,9 @@ router.get(
         .limit(1);
 
       if (report.length === 0) {
-        return res.status(404).json(
-          createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`));
       }
 
       const reportData = report[0];
@@ -939,9 +923,9 @@ router.get(
       return res.json(reportData);
     } catch (error) {
       console.error('Report status API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to fetch report status')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch report status'));
     }
   }
 );
@@ -962,15 +946,13 @@ router.get(
       const lpId = req.lpProfile?.id;
 
       if (!reportId) {
-        return res.status(400).json(
-          createErrorResponse('INVALID_REQUEST', 'Report ID is required')
-        );
+        return res
+          .status(400)
+          .json(createErrorResponse('INVALID_REQUEST', 'Report ID is required'));
       }
 
       if (!lpId) {
-        return res.status(404).json(
-          createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
-        );
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
       const report = await db
@@ -980,44 +962,262 @@ router.get(
         .limit(1);
 
       if (report.length === 0) {
-        return res.status(404).json(
-          createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`));
       }
 
       const reportData = report[0];
       if (!reportData) {
-        return res.status(404).json(
-          createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('REPORT_NOT_FOUND', `Report ${reportId} not found`));
       }
 
       if (reportData.status !== 'ready') {
-        return res.status(400).json(
-          createErrorResponse(
-            'REPORT_NOT_READY',
-            `Report is ${reportData.status}, not ready for download`
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'REPORT_NOT_READY',
+              `Report is ${reportData.status}, not ready for download`
+            )
+          );
       }
 
       if (!reportData.fileUrl) {
-        return res.status(404).json(
-          createErrorResponse('FILE_NOT_FOUND', 'Report file not found')
-        );
+        return res.status(404).json(createErrorResponse('FILE_NOT_FOUND', 'Report file not found'));
       }
 
       // SECURITY: Log LP data access for compliance (SOC2, GDPR)
       await lpAuditLogger.logReportDownload(lpId, reportId, req.user?.id, req);
 
-      // TODO: Implement actual file download logic
-      // For now, return a redirect to the file URL
-      res.redirect(reportData.fileUrl);
+      // Generate signed URL for secure download
+      const { getStorageService } = await import('../services/storage-service.js');
+      const storage = getStorageService();
+
+      // Extract the storage key from the file URL (remove base path)
+      const fileKey = reportData.fileUrl.replace(/^\/api\/files\//, '');
+
+      try {
+        // Check if file exists
+        const exists = await storage.exists(fileKey);
+        if (!exists) {
+          // File may have been uploaded with full path
+          const existsWithPath = await storage.exists(reportData.fileUrl);
+          if (!existsWithPath) {
+            return res
+              .status(404)
+              .json(createErrorResponse('FILE_NOT_FOUND', 'Report file not found in storage'));
+          }
+        }
+
+        // Generate signed URL (expires in 1 hour for security)
+        const signedUrl = await storage.getSignedUrl(fileKey, 3600);
+
+        // Return download information with signed URL
+        res.json({
+          success: true,
+          data: {
+            reportId,
+            downloadUrl: signedUrl.url,
+            expiresAt: signedUrl.expiresAt.toISOString(),
+            fileName: `${reportData.reportType}-${reportId}.${reportData.format}`,
+            contentType: getContentType(reportData.format),
+            fileSize: reportData.fileSize,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (storageError) {
+        // If storage service fails, fall back to direct URL
+        console.warn(
+          'Storage signed URL generation failed, falling back to direct URL:',
+          sanitizeForLogging(storageError)
+        );
+        res.json({
+          success: true,
+          data: {
+            reportId,
+            downloadUrl: reportData.fileUrl,
+            fileName: `${reportData.reportType}-${reportId}.${reportData.format}`,
+            contentType: getContentType(reportData.format),
+            fileSize: reportData.fileSize,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       console.error('Report download API error:', sanitizeForLogging(error));
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to download report')
-      );
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to download report'));
+    }
+  }
+);
+
+/**
+ * Helper to get content type for report format
+ */
+function getContentType(format: string): string {
+  const contentTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    csv: 'text/csv',
+  };
+  return contentTypes[format] || 'application/octet-stream';
+}
+
+// ============================================================================
+// SETTINGS ENDPOINTS
+// ============================================================================
+
+/**
+ * Settings validation schemas
+ */
+const LPNotificationPreferencesSchema = z.object({
+  emailCapitalCalls: z.boolean().optional(),
+  emailDistributions: z.boolean().optional(),
+  emailQuarterlyReports: z.boolean().optional(),
+  emailAnnualReports: z.boolean().optional(),
+  emailMarketUpdates: z.boolean().optional(),
+});
+
+const LPDisplayPreferencesSchema = z.object({
+  currency: z.enum(['USD', 'EUR', 'GBP']).optional(),
+  numberFormat: z.enum(['US', 'EU']).optional(),
+  timezone: z.string().optional(),
+  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).optional(),
+});
+
+const LPSettingsSchema = z.object({
+  notifications: LPNotificationPreferencesSchema.optional(),
+  display: LPDisplayPreferencesSchema.optional(),
+});
+
+/**
+ * GET /api/lp/settings
+ *
+ * Get LP notification and display preferences
+ */
+router.get(
+  '/api/lp/settings',
+  requireAuth(),
+  requireLPAccess,
+  lpLimiter,
+  async (req: Request, res: Response) => {
+    const endTimer = startTimer();
+    const endpoint = '/api/lp/settings';
+
+    try {
+      const lpId = req.lpProfile?.id;
+
+      if (!lpId) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'GET', 404, duration);
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
+      }
+
+      // Fetch LP settings from database
+      // For now, return default settings (settings table not yet implemented)
+      const defaultSettings = {
+        notifications: {
+          emailCapitalCalls: true,
+          emailDistributions: true,
+          emailQuarterlyReports: true,
+          emailAnnualReports: true,
+          emailMarketUpdates: false,
+        },
+        display: {
+          currency: 'USD',
+          numberFormat: 'US',
+          timezone: 'America/New_York',
+          dateFormat: 'MM/DD/YYYY',
+        },
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'private, max-age=300');
+
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'GET', 200, duration, lpId);
+
+      return res.json(defaultSettings);
+    } catch (error) {
+      console.error('Settings GET API error:', sanitizeForLogging(error));
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'GET', 500, duration);
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to fetch settings'));
+    }
+  }
+);
+
+/**
+ * PUT /api/lp/settings
+ *
+ * Update LP notification and display preferences
+ */
+router.put(
+  '/api/lp/settings',
+  requireAuth(),
+  requireLPAccess,
+  lpLimiter,
+  async (req: Request, res: Response) => {
+    const endTimer = startTimer();
+    const endpoint = '/api/lp/settings';
+
+    try {
+      const lpId = req.lpProfile?.id;
+
+      if (!lpId) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'PUT', 404, duration);
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
+      }
+
+      // Validate request body
+      const settings = LPSettingsSchema.parse(req.body);
+
+      // TODO: Persist settings to database
+      // For now, just validate and echo back
+      console.log(`[LP-API] Settings update for LP ${lpId}:`, sanitizeForLogging(settings));
+
+      // SECURITY: Log settings change for audit
+      await lpAuditLogger.logSettingsUpdate(lpId, req.user?.id, req);
+
+      res.setHeader('Content-Type', 'application/json');
+
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'PUT', 200, duration, lpId);
+
+      return res.json({
+        success: true,
+        message: 'Settings updated successfully',
+        settings,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'PUT', 400, duration);
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid settings',
+              firstError?.path.join('.')
+            )
+          );
+      }
+
+      console.error('Settings PUT API error:', sanitizeForLogging(error));
+      const duration = endTimer();
+      recordLPRequest(endpoint, 'PUT', 500, duration);
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to update settings'));
     }
   }
 );

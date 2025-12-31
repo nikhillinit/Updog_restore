@@ -349,6 +349,26 @@ export class LPAuditLogger {
       req
     );
   }
+
+  /**
+   * Log settings update
+   */
+  async logSettingsUpdate(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'update_settings',
+        resourceType: 'settings',
+        resourceId: lpId.toString(),
+      },
+      req
+    );
+  }
 }
 
 // Export singleton instance

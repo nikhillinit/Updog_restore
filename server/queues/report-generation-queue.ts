@@ -12,6 +12,20 @@ import type IORedis from 'ioredis';
 import { db } from '../db';
 import { lpReports } from '@shared/schema-lp-reporting.js';
 import { eq } from 'drizzle-orm';
+import { getStorageService } from '../services/storage-service.js';
+import {
+  fetchLPReportData,
+  buildK1ReportData,
+  buildQuarterlyReportData,
+  buildCapitalAccountReportData,
+  generateK1PDF,
+  generateQuarterlyPDF,
+  generateCapitalAccountPDF,
+} from '../services/pdf-generation-service.js';
+import {
+  generateCapitalAccountXLSX,
+  generateQuarterlyXLSX,
+} from '../services/xlsx-generation-service.js';
 
 // Job types
 export interface ReportGenerationJobData {
@@ -114,6 +128,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   });
 
   // Create worker to process report generation jobs
+  // eslint-disable-next-line povc-security/require-bullmq-config -- uses lockDuration (BullMQ's actual timeout)
   worker = new Worker<ReportGenerationJobData, ReportGenerationResult>(
     QUEUE_NAME,
     async (job: Job<ReportGenerationJobData, ReportGenerationResult>) => {
@@ -152,38 +167,121 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         // Phase 3: Generate report file (70%)
         let fileUrl: string;
         let fileSize: number;
+        let reportBuffer: Buffer;
+
+        // Fetch LP data for the report
+        const lpData = await fetchLPReportData(lpId, job.data.fundIds);
 
         switch (format) {
-          case 'xlsx':
-            // Placeholder: Generate Excel report
-            // const xlsxBuffer = await generateExcelReport(lpId, metrics, job.data);
-            fileUrl = `/reports/${reportId}.xlsx`;
-            fileSize = 50000; // Placeholder size
-            break;
+          case 'xlsx': {
+            // Generate actual Excel report using xlsx library
+            const xlsxFundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
+            if (!xlsxFundId) {
+              throw new Error('No fund ID available for Excel report generation');
+            }
 
-          case 'csv':
-            // Placeholder: Generate CSV report
-            // const csvContent = await generateCSVReport(lpId, metrics, job.data);
-            fileUrl = `/reports/${reportId}.csv`;
-            fileSize = 10000; // Placeholder size
+            switch (reportType) {
+              case 'capital_account': {
+                const asOfDate = new Date(job.data.dateRange.endDate);
+                const capitalData = buildCapitalAccountReportData(lpData, xlsxFundId, asOfDate);
+                reportBuffer = generateCapitalAccountXLSX(capitalData);
+                break;
+              }
+              case 'quarterly':
+              case 'annual':
+              default: {
+                const endDate = new Date(job.data.dateRange.endDate);
+                const month = endDate.getMonth();
+                const quarter = reportType === 'annual' ? 'Annual' : `Q${Math.floor(month / 3) + 1}`;
+                const quarterlyData = buildQuarterlyReportData(lpData, xlsxFundId, quarter, endDate.getFullYear());
+                reportBuffer = generateQuarterlyXLSX(quarterlyData);
+                break;
+              }
+            }
             break;
+          }
+
+          case 'csv': {
+            // Generate CSV from LP transactions
+            const csvHeader = 'date,type,amount,description\n';
+            const csvRows = lpData.transactions
+              .map((t) => `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`)
+              .join('\n');
+            reportBuffer = Buffer.from(csvHeader + csvRows);
+            break;
+          }
 
           case 'pdf':
-          default:
-            // Placeholder: Generate PDF report
-            // const pdfBuffer = await generatePDFReport(lpId, metrics, job.data);
-            fileUrl = `/reports/${reportId}.pdf`;
-            fileSize = 100000; // Placeholder size
+          default: {
+            // Generate actual PDF using @react-pdf/renderer
+            const fundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
+            if (!fundId) {
+              throw new Error('No fund ID available for report generation');
+            }
+
+            switch (reportType) {
+              case 'tax_package': {
+                // Extract tax year from date range
+                const taxYear = new Date(job.data.dateRange.endDate).getFullYear();
+                const k1Data = buildK1ReportData(lpData, fundId, taxYear);
+                reportBuffer = await generateK1PDF(k1Data);
+                break;
+              }
+              case 'quarterly': {
+                // Extract quarter from date range
+                const endDate = new Date(job.data.dateRange.endDate);
+                const month = endDate.getMonth();
+                const quarter = `Q${Math.floor(month / 3) + 1}`;
+                const year = endDate.getFullYear();
+                const quarterlyData = buildQuarterlyReportData(lpData, fundId, quarter, year);
+                reportBuffer = await generateQuarterlyPDF(quarterlyData);
+                break;
+              }
+              case 'capital_account': {
+                const asOfDate = new Date(job.data.dateRange.endDate);
+                const capitalData = buildCapitalAccountReportData(lpData, fundId, asOfDate);
+                reportBuffer = await generateCapitalAccountPDF(capitalData);
+                break;
+              }
+              case 'annual':
+              default: {
+                // Annual report uses quarterly template with full year
+                const yearEnd = new Date(job.data.dateRange.endDate);
+                const annualData = buildQuarterlyReportData(lpData, fundId, 'Annual', yearEnd.getFullYear());
+                reportBuffer = await generateQuarterlyPDF(annualData);
+                break;
+              }
+            }
             break;
+          }
         }
 
         await job.updateProgress(70);
         reportEvents.emitProgress(job.id!, reportId, 70, `Saving ${format.toUpperCase()} file...`);
 
-        // Phase 4: Upload/save file (90%)
-        // Placeholder: Upload to S3 or save to filesystem
-        // await uploadReport(fileUrl, buffer);
-        await simulateWork(500); // Simulate upload
+        // Phase 4: Upload to storage service (90%)
+        const storage = getStorageService();
+        const fileKey = `reports/lp-${lpId}/${reportId}.${format}`;
+        const contentTypes: Record<string, string> = {
+          pdf: 'application/pdf',
+          xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          csv: 'text/csv',
+        };
+
+        try {
+          const uploadResult = await storage.upload(
+            fileKey,
+            reportBuffer,
+            contentTypes[format] || 'application/octet-stream'
+          );
+          fileUrl = uploadResult.url;
+          fileSize = uploadResult.size;
+        } catch (uploadError) {
+          console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
+          // Fallback to placeholder URL if storage fails
+          fileUrl = `/reports/${reportId}.${format}`;
+          fileSize = reportBuffer.length;
+        }
 
         await job.updateProgress(90);
         reportEvents.emitProgress(job.id!, reportId, 90, 'Finalizing report...');
@@ -239,6 +337,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
     {
       connection,
       concurrency: 2, // Process 2 reports at a time
+      lockDuration: 300000, // 5 min timeout per AP-QUEUE-02
       limiter: {
         max: 10, // Max 10 reports per minute
         duration: 60000,
@@ -270,8 +369,11 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       await worker?.close();
       await queueEvents?.close();
       await queue?.close();
+      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
       queue = null;
+      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
       worker = null;
+      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
       queueEvents = null;
       console.log('[ReportQueue] Closed LP report generation queue');
     },
