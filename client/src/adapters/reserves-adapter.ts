@@ -20,7 +20,7 @@ interface ExistingCompany {
   sector?: string;
   ownershipPercentage?: number;
   ownership?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ExistingFund {
@@ -37,10 +37,10 @@ interface ExistingFund {
 export function adaptCompany(existing: ExistingCompany): Company {
   // Generate ID if missing
   const id = existing.id || `company-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // Get name with fallbacks
   const name = existing.name || existing.companyName || `Company ${id}`;
-  
+
   // Convert invested amount to cents
   const investedDollars = existing.investedAmount || existing.invested || 0;
   const invested_cents = dollarsToCents(investedDollars);
@@ -48,11 +48,11 @@ export function adaptCompany(existing: ExistingCompany): Company {
   // Convert exit multiple to basis points (CRITICAL: use moicToBps to prevent 100× error)
   const exitMultiple = existing.exitMultiple || existing.targetMoic || 1.0;
   const exit_moic_bps = moicToBps(exitMultiple); // 2.5x → 25000 bps (NOT percentToBps!)
-  
+
   // Get ownership percentage
   const ownership = existing.ownershipPercentage || existing.ownership || 0;
   const ownership_pct = ownership > 1 ? ownership / 100 : ownership; // Normalize to 0-1
-  
+
   return {
     id,
     name,
@@ -63,8 +63,8 @@ export function adaptCompany(existing: ExistingCompany): Company {
     ...(existing.sector !== undefined && { sector: existing.sector }),
     metadata: {
       source: 'adapter',
-      ...(existing.id !== undefined && { original_id: existing.id })
-    }
+      ...(existing.id !== undefined && { original_id: existing.id }),
+    },
   };
 }
 
@@ -72,18 +72,18 @@ export function adaptCompany(existing: ExistingCompany): Company {
 export function adaptFundToReservesInput(fund: ExistingFund): ReservesInput {
   // Get companies array with various fallbacks
   const companiesArray = fund.companies || fund.portfolio || [];
-  
+
   // Convert all companies
   const companies = companiesArray.map(adaptCompany);
-  
+
   // Calculate fund size in cents
   const fundSizeDollars = fund.fundSize || fund.totalCommitted || 0;
   const fund_size_cents = dollarsToCents(fundSizeDollars);
-  
+
   return {
     companies,
     fund_size_cents,
-    quarter_index: getCurrentQuarterIndex()
+    quarter_index: getCurrentQuarterIndex(),
   };
 }
 
@@ -98,27 +98,27 @@ export function adaptReservesConfig(options?: {
 }): ReservesConfig {
   const reservePercent = options?.reservePercentage || options?.reserveRatio || 0.15; // Default 15%
   const reserve_bps = percentToBps(reservePercent * 100);
-  
+
   // Determine cap policy
   let capPolicy;
   if (options?.stageCaps && Object.keys(options.stageCaps).length > 0) {
     capPolicy = {
       kind: 'stage_based' as const,
       default_percent: options.capPercent || 0.5,
-      stage_caps: options.stageCaps
+      stage_caps: options.stageCaps,
     };
   } else {
     capPolicy = {
       kind: 'fixed_percent' as const,
-      default_percent: options?.capPercent || 0.5
+      default_percent: options?.capPercent || 0.5,
     };
   }
-  
+
   return {
     reserve_bps,
     remain_passes: options?.enableRemainPass ? 1 : 0,
     cap_policy: capPolicy,
-    audit_level: options?.auditLevel || 'basic'
+    audit_level: options?.auditLevel || 'basic',
   };
 }
 
@@ -139,8 +139,30 @@ export interface AdaptedReservesResult {
   warnings?: string[];
 }
 
+interface ReservesAllocation {
+  company_id: string;
+  planned_cents: number;
+  reason: string;
+}
+
+interface ReservesResultData {
+  allocations: ReservesAllocation[];
+  remaining_cents: number;
+  metadata: {
+    total_available_cents: number;
+    companies_funded: number;
+  };
+}
+
+interface ReservesResult {
+  ok: boolean;
+  data?: ReservesResultData;
+  error?: string;
+  warnings?: string[];
+}
+
 export function adaptReservesResult(
-  result: any,
+  result: ReservesResult,
   companiesMap?: Map<string, ExistingCompany>
 ): AdaptedReservesResult {
   if (!result.ok || !result.data) {
@@ -151,80 +173,80 @@ export function adaptReservesResult(
       companiesFunded: 0,
       success: false,
       errors: [result.error || 'Calculation failed'],
-      warnings: result.warnings
+      warnings: result.warnings ?? undefined,
     };
   }
-  
+
   const { allocations, remaining_cents, metadata } = result.data;
-  
+
   // Convert allocations back to dollars
-  const adaptedAllocations = allocations.map((alloc: any) => {
-    const company = companiesMap?.get(alloc.company_id);
-    const plannedDollars = centsToDollars(alloc.planned_cents);
-    const initialInvestment = company ? 
-      (company.investedAmount || company.invested || 0) : 0;
-    
-    return {
-      companyId: alloc.company_id,
-      companyName: company?.name || company?.companyName,
-      plannedReserve: plannedDollars,
-      reservePercent: initialInvestment > 0 ? 
-        (plannedDollars / initialInvestment) * 100 : 0,
-      reason: alloc.reason
-    };
-  });
-  
+  const adaptedAllocations = allocations.map(
+    (alloc): AdaptedReservesResult['allocations'][number] => {
+      const company = companiesMap?.get(alloc.company_id);
+      const plannedDollars = centsToDollars(alloc.planned_cents);
+      const initialInvestment = company ? company.investedAmount || company.invested || 0 : 0;
+
+      return {
+        companyId: alloc.company_id,
+        companyName: company?.name || company?.companyName || undefined,
+        plannedReserve: plannedDollars,
+        reservePercent: initialInvestment > 0 ? (plannedDollars / initialInvestment) * 100 : 0,
+        reason: alloc.reason,
+      };
+    }
+  );
+
   return {
     allocations: adaptedAllocations,
     remainingReserve: centsToDollars(remaining_cents),
     totalReserve: centsToDollars(metadata.total_available_cents),
     companiesFunded: metadata.companies_funded,
     success: true,
-    warnings: result.warnings
+    warnings: result.warnings ?? undefined,
   };
 }
 
 // Validation helpers
 export function validateCompanyData(company: ExistingCompany): string[] {
   const errors: string[] = [];
-  
+
   if (!company.id && !company.name && !company.companyName) {
     errors.push('Company must have an ID or name');
   }
-  
+
   const invested = company.investedAmount || company.invested;
   if (invested == null || invested < 0) {
     errors.push('Company must have a non-negative invested amount');
   }
-  
+
   const exitMultiple = company.exitMultiple || company.targetMoic;
   if (exitMultiple != null && exitMultiple < 0) {
     errors.push('Exit multiple must be non-negative');
   }
-  
+
   return errors;
 }
 
 export function validateFundData(fund: ExistingFund): string[] {
   const errors: string[] = [];
-  
+
   const companies = fund.companies || fund.portfolio;
   if (!companies || companies.length === 0) {
     errors.push('Fund must have at least one company');
   }
-  
+
   const fundSize = fund.fundSize || fund.totalCommitted;
   if (fundSize != null && fundSize <= 0) {
     errors.push('Fund size must be positive');
   }
-  
+
   // Validate each company
-  companies?.forEach((company: any, index: any) => {
+  companies?.forEach((company, index) => {
     const companyErrors = validateCompanyData(company);
-    companyErrors.forEach(error => {
+    companyErrors.forEach((error) => {
       errors.push(`Company ${index + 1}: ${error}`);
     });
   });
-  
+
   return errors;
 }
