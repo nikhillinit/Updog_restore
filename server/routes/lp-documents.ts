@@ -25,7 +25,6 @@ import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { lpDocuments } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
-import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
 import { v4 as uuidv4 } from 'uuid';
@@ -237,10 +236,7 @@ router.get('/documents', requireLPAccess, documentsLimiter, async (req: Request,
       : null;
 
     // Audit log
-    await lpAuditLogger.logDocumentsListView(lpId, {
-      filters: sanitizeForLogging(query),
-      resultCount: paginatedDocuments.length,
-    });
+    await lpAuditLogger.logDocumentsListView(lpId, undefined, req);
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'private, max-age=60');
@@ -454,10 +450,7 @@ router.get(
       }
 
       // Audit log
-      await lpAuditLogger.logDocumentView(lpId, documentId, {
-        documentType: document.documentType,
-        title: document.title,
-      });
+      await lpAuditLogger.logDocumentView(lpId, documentId, undefined, req);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=300');
@@ -603,12 +596,7 @@ router.get(
       const downloadUrl = `https://lp-documents.example.com/download/${document.storageKey}?token=${uuidv4()}&expires=${expiresAt.getTime()}`;
 
       // Audit log
-      await lpAuditLogger.logDocumentDownload(lpId, documentId, {
-        fileName: document.fileName,
-        documentType: document.documentType,
-        accessLevel: document.accessLevel,
-        reauthenticated: document.accessLevel === 'sensitive',
-      });
+      await lpAuditLogger.logDocumentDownload(lpId, documentId, undefined, req);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');

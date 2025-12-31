@@ -20,7 +20,7 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import type Redis from 'ioredis';
 import { db } from '../db';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { lpCapitalCalls, lpNotifications, lpPaymentSubmissions } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { logger } from '../lib/logger';
@@ -112,9 +112,8 @@ export class CapitalCallStatusWorker {
    */
   async scheduleStatusCheck(job: CapitalCallStatusJob): Promise<Job<CapitalCallStatusJob>> {
     try {
-      const queuedJob = await this.queue.add('status-check', job, {
-        delay: job.type === 'scheduled-check' ? 0 : undefined,
-      });
+      const jobOptions = job.type === 'scheduled-check' ? { delay: 0 } : {};
+      const queuedJob = await this.queue.add('status-check', job, jobOptions);
 
       logger.info(
         { jobId: queuedJob.id, type: job.type, callId: job.callId },
@@ -299,7 +298,10 @@ export class CapitalCallStatusWorker {
       .from(lpCapitalCalls)
       .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
       .where(
-        and(eq(lpCapitalCalls.status, CALL_STATUS.PENDING), lte(lpCapitalCalls.dueDate, todayStr))
+        and(
+          eq(lpCapitalCalls.status, CALL_STATUS.PENDING),
+          sql`${lpCapitalCalls.dueDate} <= ${todayStr}`
+        )
       );
 
     for (const call of pendingTodue) {
@@ -334,7 +336,10 @@ export class CapitalCallStatusWorker {
       .from(lpCapitalCalls)
       .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
       .where(
-        and(eq(lpCapitalCalls.status, CALL_STATUS.DUE), lte(lpCapitalCalls.dueDate, graceDateStr))
+        and(
+          eq(lpCapitalCalls.status, CALL_STATUS.DUE),
+          sql`${lpCapitalCalls.dueDate} <= ${graceDateStr}`
+        )
       );
 
     for (const call of dueToOverdue) {
@@ -361,7 +366,7 @@ export class CapitalCallStatusWorker {
 
       // Check if we've already sent this reminder today
       const reminderKey = `capital-call-reminder:${reminderDateStr}:${daysBeforeDue}`;
-      const alreadySent = await this.redis.get(reminderKey);
+      const alreadySent = await this.redis['get'](reminderKey);
 
       if (!alreadySent) {
         const upcomingCalls = await db
@@ -378,7 +383,7 @@ export class CapitalCallStatusWorker {
           .where(
             and(
               eq(lpCapitalCalls.status, CALL_STATUS.PENDING),
-              eq(lpCapitalCalls.dueDate, reminderDateStr)
+              sql`${lpCapitalCalls.dueDate} = ${reminderDateStr}`
             )
           );
 
@@ -395,7 +400,7 @@ export class CapitalCallStatusWorker {
         }
 
         // Mark this reminder as sent (TTL 24 hours)
-        await this.redis.setex(reminderKey, 86400, '1');
+        await this.redis['setex'](reminderKey, 86400, '1');
       }
     }
 

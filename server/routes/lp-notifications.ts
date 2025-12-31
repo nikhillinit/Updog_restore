@@ -221,11 +221,7 @@ router.get(
         : null;
 
       // Audit log
-      await lpAuditLogger.logNotificationsView(lpId, {
-        unreadOnly: query.unreadOnly,
-        type: query.type ?? null,
-        resultCount: paginatedNotifications.length,
-      });
+      await lpAuditLogger.logNotificationsView(lpId, undefined, req);
 
       // Set cache headers based on unreadOnly
       const cacheMaxAge = query.unreadOnly ? 10 : 60;
@@ -392,7 +388,7 @@ router.post(
       }
 
       // Audit log
-      await lpAuditLogger.logNotificationRead(lpId, notificationId);
+      await lpAuditLogger.logNotificationRead(lpId, notificationId, undefined, req);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
@@ -486,11 +482,7 @@ router.post(
       }
 
       // Audit log
-      await lpAuditLogger.logNotificationsView(lpId, {
-        action: 'bulk_read',
-        markedCount,
-        type: type ?? null,
-      });
+      await lpAuditLogger.logNotificationsView(lpId, undefined, req);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
@@ -691,9 +683,7 @@ router.put(
         .limit(1);
 
       // Audit log
-      await lpAuditLogger.logNotificationPrefsUpdate(lpId, {
-        changedFields: Object.keys(updates),
-      });
+      await lpAuditLogger.logNotificationPrefsUpdate(lpId, undefined, req);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
