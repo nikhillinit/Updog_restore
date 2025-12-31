@@ -1,21 +1,21 @@
 # Staleness Report
 
-_Generated: 2025-12-29T11:11:02.425Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2025-12-31T02:22:12.447Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 719   |
-| Stale Documents     | 707   |
-| Missing Frontmatter | 639   |
+| Total Documents     | 732   |
+| Stale Documents     | 717   |
+| Missing Frontmatter | 645   |
 
 ### By Status
 
 | Status  | Count |
 | ------- | ----- |
-| UNKNOWN | 703   |
-| ACTIVE  | 11    |
+| UNKNOWN | 713   |
+| ACTIVE  | 14    |
 | ready   | 3     |
 | active  | 2     |
 
@@ -76,7 +76,7 @@ Documents that need review (older than their cadence threshold):
 | `PHASE2_HANDOFF_MEMO.md`                                 | Never        | 999      | No                   | Unassigned |
 | `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md`            | Never        | 999      | No                   | Unassigned |
 
-_...and 657 more stale documents._
+_...and 667 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -183,6 +183,12 @@ be verified:
 - [ ] **docs\phase2 docs\CHECKLIST-Phase2.md** (999 days old)
 - [ ] **docs\phase2 docs\STRATEGY-Phase2-CapitalAllocation.md** (999 days old)
 - [ ] **docs\plans\2025-12-28-backend-testing-improvements.md** (999 days old)
+- [ ] **docs\plans\2025-12-29-phase2-planning-REVIEW.md** (999 days old)
+- [ ] **docs\plans\2025-12-29-phase2-planning.md** (999 days old)
+- [ ] **docs\plans\2025-12-29-phase3c-solo-execution.md** (999 days old)
+- [ ] **docs\plans\2025-12-29-phoenix-phases-1.4-1.7-completion.md** (999 days
+      old)
+- [ ] **docs\plans\2025-12-29-pr-318-merge-validation-plan.md** (999 days old)
 - [ ] **docs\plans\COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md** (999 days old)
 - [ ] **docs\plans\FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md** (999 days old)
 - [ ] **docs\plans\FOUNDATION-HARDENING-STRATEGY.md** (999 days old)
@@ -228,9 +234,11 @@ be verified:
 - [ ] **cheatsheets\pr-merge-verification.md** (999 days old)
 - [ ] **cheatsheets\schema-alignment.md** (999 days old)
 - [ ] **.claude\agents\phoenix-precision-guardian.md** (999 days old)
+- [ ] **.claude\agents\workflow-orchestrator.md** (999 days old)
 - [ ] **.claude\ANTI-DRIFT-CHECKLIST.md** (999 days old)
 - [ ] **.claude\commands\deploy-check.md** (999 days old)
 - [ ] **.claude\commands\fix-auto.md** (999 days old)
+- [ ] **.claude\commands\pr-ready.md** (999 days old)
 - [ ] **.claude\commands\pre-commit-check.md** (999 days old)
 - [ ] **.claude\commands\workflows.md** (999 days old)
 - [ ] **.claude\commands\wshobson\deps-audit.md** (999 days old)
@@ -613,13 +621,22 @@ Documents without proper YAML frontmatter:
 - [ ] `docs\phase2 docs\PR_BODY-Phase2.md`
 - [ ] `docs\phase2 docs\README.md`
 - [ ] `docs\phase2 docs\STRATEGY-Phase2-CapitalAllocation.md`
+- [ ] `docs\PHOENIX-SOT\brand-bridge.md`
 - [ ] `docs\PHOENIX-SOT\deferred-vesting-plan.md`
 - [ ] `docs\PHOENIX-SOT\execution-plan-v2.34.md`
+- [ ] `docs\PHOENIX-SOT\execution-plan-v3.0-phase3-addendum.md`
 - [ ] `docs\PHOENIX-SOT\mcp-tools-guide.md`
 - [ ] `docs\PHOENIX-SOT\prompt-templates.md`
 - [ ] `docs\PHOENIX-SOT\skills-overview.md`
 - [ ] `docs\phoenix-v2.32-command-enhancements.md`
 - [ ] `docs\plans\2025-12-28-backend-testing-improvements.md`
+- [ ] `docs\plans\2025-12-29-phase2-planning-REVIEW.md`
+- [ ] `docs\plans\2025-12-29-phase2-planning.md`
+- [ ] `docs\plans\2025-12-29-phase3c-solo-execution.md`
+- [ ] `docs\plans\2025-12-29-phoenix-phase3-planning.md`
+- [ ] `docs\plans\2025-12-29-phoenix-phases-1.4-1.7-completion.md`
+- [ ] `docs\plans\2025-12-29-plan-review-and-refinements.md`
+- [ ] `docs\plans\2025-12-29-pr-318-merge-validation-plan.md`
 - [ ] `docs\plans\COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md`
 - [ ] `docs\plans\FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md`
 - [ ] `docs\plans\FOUNDATION-HARDENING-STRATEGY.md`
@@ -818,15 +835,8 @@ Documents without proper YAML frontmatter:
 - [ ] `cheatsheets\testcontainers-guide.md`
 - [ ] `cheatsheets\testing.md`
 - [ ] `.claude\agents\PHOENIX-AGENTS.md`
-- [ ] `.claude\agents\workflow-engine\code-reviewer.md`
-- [ ] `.claude\agents\workflow-engine\security-engineer.md`
-- [ ] `.claude\agents\workflow-engine\test-automator.md`
-- [ ] `.claude\agents\workflow-engine\typescript-pro.md`
 - [ ] `.claude\ANTI-DRIFT-CHECKLIST.md`
-- [ ] `.claude\commands\catalog-tooling.md`
-- [ ] `.claude\commands\enable-agent-memory.md`
 - [ ] `.claude\commands\evaluate-tools.md`
-- [ ] `.claude\commands\session-start.md`
 - [ ] `.claude\commands\wshobson\deps-audit.md`
 - [ ] `.claude\commands\wshobson\tech-debt.md`
 - [ ] `.claude\DELIVERY-SUMMARY.md`
@@ -855,10 +865,12 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude\skills\analogical-thinking.md`
 - [ ] `.claude\skills\api-design-principles.md`
 - [ ] `.claude\skills\architecture-patterns.md`
+- [ ] `.claude\skills\async-error-resilience.md`
 - [ ] `.claude\skills\baseline-governance\SKILL.md`
 - [ ] `.claude\skills\brainstorming.md`
 - [ ] `.claude\skills\claude-infra-integrity\SKILL.md`
 - [ ] `.claude\skills\continuous-improvement.md`
+- [ ] `.claude\skills\database-schema-evolution.md`
 - [ ] `.claude\skills\dispatching-parallel-agents.md`
 - [ ] `.claude\skills\extended-thinking-framework.md`
 - [ ] `.claude\skills\financial-calc-correctness\SKILL.md`
@@ -869,8 +881,10 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude\skills\multi-model-consensus.md`
 - [ ] `.claude\skills\notebooklm.md`
 - [ ] `.claude\skills\pattern-recognition.md`
+- [ ] `.claude\skills\phoenix-workflow-orchestrator\SKILL.md`
 - [ ] `.claude\skills\prompt-caching-usage.md`
 - [ ] `.claude\skills\react-hook-form-stability\SKILL.md`
+- [ ] `.claude\skills\react-performance-optimization.md`
 - [ ] `.claude\skills\README.md`
 - [ ] `.claude\skills\root-cause-tracing.md`
 - [ ] `.claude\skills\statistical-testing\SKILL.md`

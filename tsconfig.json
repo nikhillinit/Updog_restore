@@ -21,7 +21,8 @@
     "**/*.md",
     ".tsc-baseline.json",
     "HANDOFF-*.md",
-    "KICKOFF-*.md"
+    "KICKOFF-*.md",
+    ".claude/**/*"
   ],
   "compilerOptions": {
     "incremental": true,
