@@ -67,7 +67,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 62,
-      "lastUpdated": "2026-01-02T03:29:11.226Z"
+      "lastUpdated": "2026-01-02T03:33:38.966Z"
     },
     "server": {
       "errors": [
@@ -174,9 +174,6 @@
         "server/routes/flags.ts:TS2345:5c57db38",
         "server/routes/health.ts:TS7053:6dff0ecb",
         "server/routes/metrics-rum-v2.ts:TS4111:eefae09d",
-        "server/routes/monte-carlo.ts:TS4111:4eae7a72",
-        "server/routes/monte-carlo.ts:TS4111:86e3fc63",
-        "server/routes/monte-carlo.ts:TS4111:89fa2ca5",
         "server/routes/portfolio-intelligence.ts:TS2379:4bc3c078",
         "server/routes/portfolio-intelligence.ts:TS2379:59ea9b4d",
         "server/routes/portfolio-intelligence.ts:TS2379:67e0cbf7",
@@ -241,10 +238,6 @@
         "server/seed-db.ts:TS18048:12840775",
         "server/seed-db.ts:TS18048:264e294d",
         "server/server.ts:TS2379:3410ab34",
-        "server/server.ts:TS4111:2b702660",
-        "server/server.ts:TS4111:67f3653f",
-        "server/server.ts:TS4111:8896ff1f",
-        "server/server.ts:TS4111:f18600a7",
         "server/services/actual-metrics-calculator.ts:TS2339:01164bf4",
         "server/services/actual-metrics-calculator.ts:TS2339:081a887d",
         "server/services/actual-metrics-calculator.ts:TS2339:0ffa5f3b",
@@ -369,19 +362,13 @@
         "server/services/streaming-monte-carlo-engine.ts:TS18048:3ad28e50",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:3c46e71e",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:5fda8d6c",
-        "server/services/streaming-monte-carlo-engine.ts:TS18048:a8a437eb",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:bea9824e",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:d4744b8b",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:e4387164",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:e70cf839",
-        "server/services/streaming-monte-carlo-engine.ts:TS18048:f4a25efa",
         "server/services/streaming-monte-carlo-engine.ts:TS18048:f8cb5771",
         "server/services/streaming-monte-carlo-engine.ts:TS2532:f9b13494",
         "server/services/streaming-monte-carlo-engine.ts:TS2564:df97916e",
-        "server/services/streaming-monte-carlo-engine.ts:TS4111:489b5dee",
-        "server/services/streaming-monte-carlo-engine.ts:TS4111:a8a437eb",
-        "server/services/streaming-monte-carlo-engine.ts:TS4111:bcac481a",
-        "server/services/streaming-monte-carlo-engine.ts:TS4111:f4a25efa",
         "server/services/time-travel-analytics.ts:TS2322:07bc5d2b",
         "server/services/time-travel-analytics.ts:TS2322:6358e943",
         "server/services/time-travel-analytics.ts:TS2322:72588fa7",
@@ -400,26 +387,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 328,
-      "lastUpdated": "2026-01-02T03:29:11.226Z"
+      "total": 315,
+      "lastUpdated": "2026-01-02T03:33:38.966Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T03:29:11.226Z"
+      "lastUpdated": "2026-01-02T03:33:38.966Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T03:29:11.226Z"
+      "lastUpdated": "2026-01-02T03:33:38.966Z"
     }
   },
-  "totalErrors": 392,
-  "timestamp": "2026-01-02T03:29:11.226Z",
+  "totalErrors": 379,
+  "timestamp": "2026-01-02T03:33:38.966Z",
   "buildMode": "per-project",
-  "elapsedMs": 19253
+  "elapsedMs": 18981
 }

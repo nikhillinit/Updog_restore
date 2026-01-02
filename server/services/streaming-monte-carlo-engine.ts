@@ -574,8 +574,8 @@ export class StreamingMonteCarloEngine {
    * Calculate risk metrics from streaming data
    */
   private async calculateStreamingRiskMetrics(distributions: Record<string, MemoryEfficientDistribution>): Promise<RiskMetrics> {
-    const irrDist = distributions.irr;
-    const totalValueDist = distributions.totalValue;
+    const irrDist = distributions['irr'];
+    const totalValueDist = distributions['totalValue'];
 
     // Value at Risk from percentiles
     const var5 = irrDist.percentiles['get'](5) || irrDist.min;
@@ -631,8 +631,9 @@ export class StreamingMonteCarloEngine {
 
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
-      const expectedIRR = this.estimateReserveImpact(distributions.irr.mean, ratio, portfolioInputs);
-      const riskAdjustedReturn = expectedIRR / distributions.irr.standardDeviation;
+      const irrDistribution = distributions['irr'];
+      const expectedIRR = this.estimateReserveImpact(irrDistribution?.mean ?? 0, ratio, portfolioInputs);
+      const riskAdjustedReturn = expectedIRR / (irrDistribution?.standardDeviation ?? 1);
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
       allocationAnalysis.push({
