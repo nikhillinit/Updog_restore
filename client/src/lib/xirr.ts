@@ -179,7 +179,7 @@ function aggregateSameDayCashflows(cashflows: Cashflow[]): Cashflow[] {
   const byDate = new Map<string, number>();
 
   for (const cf of cashflows) {
-    const key = cf.date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const key = cf.date.toISOString().split('T')[0] ?? ''; // YYYY-MM-DD
     byDate.set(key, (byDate.get(key) ?? 0) + cf.amount);
   }
 

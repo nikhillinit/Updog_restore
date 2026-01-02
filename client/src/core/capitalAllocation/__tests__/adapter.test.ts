@@ -61,8 +61,8 @@ describe('Input Adapter', () => {
         // All should be in $M scale
         expect(result.commitmentCents).toBe(100 * 1_000_000 * 100);
         expect(result.minCashBufferCents).toBe(5 * 1_000_000 * 100);
-        expect(result.contributionsCents[0].amountCents).toBe(30 * 1_000_000 * 100);
-        expect(result.distributionsCents[0].amountCents).toBe(10 * 1_000_000 * 100);
+        expect(result.contributionsCents[0]?.amountCents).toBe(30 * 1_000_000 * 100);
+        expect(result.distributionsCents[0]?.amountCents).toBe(10 * 1_000_000 * 100);
       });
     });
 
@@ -113,9 +113,9 @@ describe('Input Adapter', () => {
         const result = adaptTruthCaseInput(input);
 
         expect(result.cohorts).toHaveLength(1);
-        expect(result.cohorts[0].name).toBe('2024');
-        expect(result.cohorts[0].id).toBe('_implicit_2024');
-        expect(result.cohorts[0].weightBps).toBe(10_000_000); // 100%
+        expect(result.cohorts[0]?.name).toBe('2024');
+        expect(result.cohorts[0]?.id).toBe('_implicit_2024');
+        expect(result.cohorts[0]?.weightBps).toBe(10_000_000); // 100%
       });
 
       it('normalizes cohort weights to basis points', () => {
@@ -148,9 +148,9 @@ describe('Input Adapter', () => {
         const result = adaptTruthCaseInput(input);
 
         // Should be sorted: A (2024-01-01), C (2024-01-01, but 'a' < 'c'), B (2024-06-01)
-        expect(result.cohorts[0].id).toBe('A');
-        expect(result.cohorts[1].id).toBe('C');
-        expect(result.cohorts[2].id).toBe('B');
+        expect(result.cohorts[0]?.id).toBe('A');
+        expect(result.cohorts[1]?.id).toBe('C');
+        expect(result.cohorts[2]?.id).toBe('B');
       });
     });
 

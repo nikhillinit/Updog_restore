@@ -124,7 +124,7 @@ export function getSchedulePattern(
         for (let i = 0; i < investmentPeriod; i++) {
           const pct = remaining / (investmentPeriod - i) * 1.3;
           pattern[i] = Math.min(pct, remaining);
-          remaining -= pattern[i];
+          remaining -= pattern[i] ?? 0;
         }
       }
       break;
@@ -190,7 +190,7 @@ export function calculateProjections(data: {
     let calledCapital = 0;
     if (isInvestmentPeriod) {
       const yearIndex = year - 1;
-      const percentage = schedule[yearIndex] / 100;
+      const percentage = (schedule[yearIndex] ?? 0) / 100;
       calledCapital = data.targetFundSize * percentage;
     }
 

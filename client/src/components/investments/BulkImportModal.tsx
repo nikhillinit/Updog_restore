@@ -101,7 +101,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+    const firstLine = lines[0];
+    if (!firstLine) return [];
+    const headers = firstLine.split(',').map(h => h.replace(/"/g, '').trim());
     const data = lines.slice(1).map((line, index) => {
       const values = line.split(',').map(v => v.replace(/"/g, '').trim());
       const row: any = { _rowNumber: index + 2 }; // +2 because of header and 0-indexing

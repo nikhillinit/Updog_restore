@@ -52,12 +52,17 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
  */
 export async function createRateLimitOptions(baseOptions: Partial<Options>): Promise<Partial<Options>> {
   const store = await createRateLimitStore();
-  
-  return {
+
+  const options: Partial<Options> = {
     ...baseOptions,
-    store,
     // Ensure we don't leak store type in response
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
   };
+
+  if (store) {
+    options.store = store;
+  }
+
+  return options;
 }

@@ -57,6 +57,7 @@ export function getFirstError(errors: FieldErrors): { field: string; message: st
   if (fields.length === 0) return null;
 
   const field = fields[0];
+  if (!field) return null;
   const messages = errors[field];
   const message = messages?.[0] ?? 'Unknown error';
 

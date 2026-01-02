@@ -200,7 +200,7 @@ export class PortfolioPerformancePredictorService {
       scenarios: config.scenarioCount,
       timeHorizonYears: config.timeHorizonYears,
       confidenceIntervals: config.confidenceIntervals,
-      baselineId: config.baselineId
+      ...(config.baselineId && { baselineId: config.baselineId }),
     };
 
     const monteCarloForecast = await monteCarloSimulationService.generateForecast(mcParams);

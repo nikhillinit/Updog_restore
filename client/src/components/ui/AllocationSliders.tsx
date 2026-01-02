@@ -122,7 +122,7 @@ export function AllocationSliders({ initial, onChange, className }: AllocationSl
 
             <Slider
               value={[allocation.pct]}
-              onValueChange={([value]) => handleSliderChange(allocation.id, value)}
+              onValueChange={([value]) => handleSliderChange(allocation.id, value ?? allocation.pct)}
               min={0}
               max={100}
               step={1}

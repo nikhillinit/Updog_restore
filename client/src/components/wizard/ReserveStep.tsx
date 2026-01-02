@@ -183,7 +183,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
               max={50}
               step={1}
               value={[reservePercent]}
-              onValueChange={([value]) => setReservePercent(value)}
+              onValueChange={([value]) => setReservePercent(value ?? reservePercent)}
               className="w-full"
               aria-label="Reserve percentage slider"
             />
@@ -255,7 +255,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                 max={200}
                 step={5}
                 value={[defaultCapPercent]}
-                onValueChange={([value]) => setDefaultCapPercent(value)}
+                onValueChange={([value]) => setDefaultCapPercent(value ?? defaultCapPercent)}
                 className="w-full"
                 aria-label="Default cap percentage slider"
               />

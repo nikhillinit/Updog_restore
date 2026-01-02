@@ -164,7 +164,7 @@ export default function CashManagementDashboard() {
         ...newTransaction,
         amount: parseFloat(newTransaction.amount),
         status: 'pending',
-        date: newTransaction.date || new Date().toISOString().split('T')[0]
+        date: newTransaction.date || new Date().toISOString().split('T')[0] || ''
       };
       setTransactions([transaction, ...transactions]);
       setShowAddTransaction(false);

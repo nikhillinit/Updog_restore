@@ -11,4 +11,5 @@ declare module '@testing-library/react' {
   export const act: any;
   export const cleanup: any;
   export const within: any;
+  export const renderHook: any;
 }

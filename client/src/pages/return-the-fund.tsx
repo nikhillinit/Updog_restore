@@ -186,8 +186,14 @@ export default function ReturnTheFundPage() {
 
   const selectedInvestmentData = investments.find(inv => inv.id === selectedInvestment)?.data || seriesAOwnership;
 
-  const currentReserve = reserveAmount[0];
-  const selectedData = returnTheFundData.find(item => item.investmentAmount === currentReserve) || returnTheFundData[5];
+  const currentReserve = reserveAmount[0] ?? 0;
+  const selectedData = returnTheFundData.find(item => item.investmentAmount === currentReserve) ?? returnTheFundData[5] ?? {
+    investmentAmount: 0,
+    resultingOwnership: 0,
+    returnTheFund: 0,
+    exitFMV: 0,
+    exitMOIC: 0,
+  };
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;

@@ -233,7 +233,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
       // Dev telemetry stub - always returns 204 for telemetry endpoints
       {
         name: 'dev-telemetry-stub',
-        configureServer(server) {
+        configureServer(server: { middlewares: { use: (path: string, handler: (req: http.IncomingMessage, res: http.ServerResponse) => void) => void } }) {
           server.middlewares.use(
             '/api/telemetry/wizard',
             async (req: http.IncomingMessage, res: http.ServerResponse) => {

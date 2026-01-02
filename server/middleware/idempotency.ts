@@ -15,6 +15,15 @@ interface IdempotencyOptions {
   includeStatusCodes?: number[];   // Status codes to cache (default: [200, 201])
 }
 
+interface ResolvedIdempotencyConfig {
+  ttl: number;
+  prefix: string;
+  generateKey?: (req: Request) => string | undefined;
+  skipPaths: string[];
+  memoryFallback: boolean;
+  includeStatusCodes: number[];
+}
+
 interface IdempotentResponse {
   statusCode: number;
   headers: Record<string, string>;
@@ -58,7 +67,7 @@ class MemoryIdempotencyStore {
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
-      this.store.delete(firstKey);
+      if (firstKey) this.store.delete(firstKey);
     }
     
     const expiry = Date.now() + (ttl * 1000);
@@ -246,13 +255,13 @@ async function retrieveResponse(
  * Idempotency middleware factory
  */
 export function idempotency(options: IdempotencyOptions = {}) {
-  const config = {
+  const config: ResolvedIdempotencyConfig = {
     ttl: options.ttl || 300,
     prefix: options.prefix || 'idem',
-    generateKey: options.generateKey,
     skipPaths: options.skipPaths || [],
     memoryFallback: options.memoryFallback !== false,
     includeStatusCodes: options.includeStatusCodes || [200, 201],
+    ...(options.generateKey && { generateKey: options.generateKey }),
   };
   
   return async (req: Request, res: Response, next: NextFunction) => {

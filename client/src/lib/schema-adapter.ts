@@ -115,7 +115,7 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (extended.feeProfile.tiers.length > 1) {
     warnings.push(
       'Legacy engine only supports single fee tier. ' +
-      `Only the first tier (${(extended.feeProfile.tiers[0].annualRatePercent.toNumber() * 100).toFixed(2)}%) will be used.`
+      `Only the first tier (${((extended.feeProfile.tiers[0]?.annualRatePercent.toNumber() ?? 0) * 100).toFixed(2)}%) will be used.`
     );
   }
 

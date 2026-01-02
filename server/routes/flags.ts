@@ -189,13 +189,20 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
         preview: {
           key,
           updates,
-          actor: req.user.email,
+          actor: req.user?.email ?? 'unknown',
           timestamp: new Date().toISOString()
         }
       });
     }
 
-    await updateFlag(key!, updates as any, req.user, reason!);
+    // Construct user context for audit trail
+    const userContext = {
+      sub: req.user?.id?.toString() ?? req.user?.sub ?? 'unknown',
+      email: req.user?.email ?? 'unknown',
+      ip: req.ip ?? 'unknown',
+      userAgent: req.headers['user-agent'] ?? 'unknown',
+    };
+    await updateFlag(key!, updates as any, userContext, reason!);
     
     const newVersion = await getFlagsVersion();
     

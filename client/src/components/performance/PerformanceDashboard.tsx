@@ -87,8 +87,8 @@ function getDateRange(timeframe: string): { startDate: string; endDate: string }
   }
 
   return {
-    startDate: startDate.toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: startDate.toISOString().split('T')[0] ?? '',
+    endDate: new Date().toISOString().split('T')[0] ?? '',
   };
 }
 

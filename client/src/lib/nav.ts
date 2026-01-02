@@ -169,7 +169,7 @@ export function generatePortfolioNAV(
         );
         const navIndex = q - investment.startQuarter;
         if (navIndex < investmentNAV.length) {
-          totalNAV += investmentNAV[navIndex];
+          totalNAV += investmentNAV[navIndex] ?? 0;
         }
       } else if (q > investment.exitQuarter) {
         // Investment has exited, add to distributions

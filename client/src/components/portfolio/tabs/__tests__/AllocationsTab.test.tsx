@@ -90,7 +90,7 @@ function renderWithQuery(ui: React.ReactElement) {
 
 describe('AllocationsTab', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi['clearAllMocks']();
     global.fetch = vi.fn();
   });
 

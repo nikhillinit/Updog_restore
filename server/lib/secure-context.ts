@@ -50,7 +50,7 @@ export function extractUserContext(req: Request): UserContext | null {
       email: claims.email,
       role: claims.role,
       orgId: claims.org_id || '', // Will be resolved from database if not in JWT
-      partnerId: claims.partner_id
+      ...(claims.partner_id && { partnerId: claims.partner_id })
     };
     
     // Fund ID comes from route params, not headers

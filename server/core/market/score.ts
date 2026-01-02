@@ -231,7 +231,7 @@ export class MarketScoreComputer {
   /**
    * Export current configuration for persistence
    */
-  exportConfig = (): { weights: typeof this.weights; norms: Normalization } => {
+  exportConfig(this: MarketScoreComputer): { weights: typeof DEFAULT_WEIGHTS; norms: Normalization } {
     return {
       weights: { ...this.weights },
       norms: {
@@ -244,7 +244,7 @@ export class MarketScoreComputer {
   /**
    * Import configuration from persistence
    */
-  importConfig = (config: { weights: typeof this.weights; norms: Normalization }): void => {
+  importConfig(this: MarketScoreComputer, config: { weights: typeof DEFAULT_WEIGHTS; norms: Normalization }): void {
     this.weights = { ...config.weights };
     this.norms = {
       mean: { ...config.norms.mean },

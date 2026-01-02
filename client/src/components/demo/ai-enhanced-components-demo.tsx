@@ -78,7 +78,7 @@ function generateMockMonteCarloResults(portfolioSize: number = 25): MonteCarloRe
       multiple: Math.round(multiple * 100) / 100,
       irr: Math.round(irr * 1000) / 1000,
       category,
-      stage: stages[Math.floor(Math.random() * stages.length)],
+      stage: stages[Math.floor(Math.random() * stages.length)] ?? 'seed',
       exitTiming: Math.round(exitTiming * 10) / 10
     });
   }
@@ -181,7 +181,7 @@ function createSampleDataSections(results: MonteCarloResult[]): DataSection[] {
               <strong>Statistical Measures:</strong>
               <ul className="mt-2 space-y-1 text-gray-600">
                 <li>Mean Return: {avgMultiple.toFixed(2)}x</li>
-                <li>Median Return: {results.sort((a, b) => a.multiple - b.multiple)[Math.floor(results.length / 2)].multiple.toFixed(2)}x</li>
+                <li>Median Return: {(results.sort((a, b) => a.multiple - b.multiple)[Math.floor(results.length / 2)]?.multiple ?? 0).toFixed(2)}x</li>
                 <li>Standard Deviation: {Math.sqrt(results.reduce((sum, r) => sum + Math.pow(r.multiple - avgMultiple, 2), 0) / (results.length - 1)).toFixed(2)}</li>
               </ul>
             </div>

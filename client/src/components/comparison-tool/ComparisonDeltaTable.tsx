@@ -110,10 +110,12 @@ export function ComparisonDeltaTable({
   // Group metrics by metric name
   const metricsByName = deltaMetrics.reduce<Record<string, DeltaMetric[]>>(
     (acc, metric) => {
-      if (!acc[metric.metricName]) {
-        acc[metric.metricName] = [];
+      const existing = acc[metric.metricName];
+      if (!existing) {
+        acc[metric.metricName] = [metric];
+      } else {
+        existing.push(metric);
       }
-      acc[metric.metricName].push(metric);
       return acc;
     },
     {}

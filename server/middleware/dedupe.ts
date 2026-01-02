@@ -37,7 +37,7 @@ class MemoryDedupeStore {
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
-      this.store.delete(firstKey);
+      if (firstKey) this.store.delete(firstKey);
     }
     
     const expiry = Date.now() + (ttl * 1000);

@@ -13,7 +13,7 @@ export const StageOrder: StageKey[] = ['preseed', 'seed', 'seriesA', 'seriesBplu
 
 const nextStage = (s: StageKey): StageKey | null => {
   const i = StageOrder.indexOf(s);
-  return i >= 0 && i < StageOrder.length - 1 ? StageOrder[i + 1] : null;
+  return i >= 0 && i < StageOrder.length - 1 ? StageOrder[i + 1] ?? null : null;
 };
 
 export interface MarketByStage {

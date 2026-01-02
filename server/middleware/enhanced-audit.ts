@@ -411,7 +411,7 @@ function determineRiskLevel(req: Request, res: Response, executionTime: number):
 function extractEntityType(path: string): string {
   const segments = path.split('/').filter(Boolean);
   if (segments.length >= 2 && segments[0] === 'api') {
-    return segments[1];
+    return segments[1] ?? 'unknown';
   }
   return 'unknown';
 }
@@ -425,7 +425,7 @@ function extractEntityId(path: string): string | null {
   if (uuidMatch) return uuidMatch[0];
 
   const numericMatch = path.match(numericPattern);
-  if (numericMatch) return numericMatch[1];
+  if (numericMatch) return numericMatch[1] ?? null;
 
   return null;
 }

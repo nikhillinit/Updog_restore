@@ -113,7 +113,8 @@ function findClosestStage(input: string): string[] {
 
   // Simple prefix matching
   for (const canonical of CANONICAL_STAGES) {
-    if (canonical.startsWith(normalized) || normalized.startsWith(canonical.split('_')[0])) {
+    const firstPart = canonical.split('_')[0] ?? '';
+    if (canonical.startsWith(normalized) || normalized.startsWith(firstPart)) {
       suggestions.push(canonical);
     }
   }

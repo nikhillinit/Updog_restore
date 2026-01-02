@@ -95,8 +95,9 @@ export function CompanySelectionTable({
     if (!selected) return '';
 
     // Use editing value if available
-    if (editingValues[company.id] !== undefined) {
-      return editingValues[company.id];
+    const editingValue = editingValues[company.id];
+    if (editingValue !== undefined) {
+      return editingValue;
     }
 
     // Otherwise format the current value

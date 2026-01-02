@@ -238,7 +238,10 @@ export async function forEachAsync<T>(
   if (!isSafeArray(array)) return;
   
   for (let i = 0; i < array.length; i++) {
-    await callback(array[i], i);
+    const item = array[i];
+    if (item !== undefined) {
+      await callback(item, i);
+    }
   }
 }
 

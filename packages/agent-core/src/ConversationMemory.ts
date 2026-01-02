@@ -422,6 +422,7 @@ export function getConversationFileList(context: ThreadContext): string[] {
   // Process turns in reverse (newest first)
   for (let i = context.turns.length - 1; i >= 0; i--) {
     const turn = context.turns[i];
+    if (!turn) continue;
     if (turn.files) {
       for (const file of turn.files) {
         if (!seen.has(file)) {
@@ -452,6 +453,7 @@ export function getConversationImageList(context: ThreadContext): string[] {
 
   for (let i = context.turns.length - 1; i >= 0; i--) {
     const turn = context.turns[i];
+    if (!turn) continue;
     if (turn.images) {
       for (const image of turn.images) {
         if (!seen.has(image)) {
@@ -611,6 +613,7 @@ export async function buildConversationHistory(
 
   for (let i = allTurns.length - 1; i >= 0; i--) {
     const turn = allTurns[i];
+    if (!turn) continue;
     const turnNum = i + 1;
 
     const roleLabel = turn.role === 'user' ? 'Agent' : turn.modelName || 'Assistant';

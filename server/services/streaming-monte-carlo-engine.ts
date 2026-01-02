@@ -146,7 +146,8 @@ class ConnectionPoolManager {
 // ============================================================================
 
 class StreamingAggregator {
-  private aggregatedData: {
+  // Use definite assignment assertion since it's initialized in reset() called by constructor
+  private aggregatedData!: {
     totalScenarios: number;
     sums: Record<string, number>;
     squares: Record<string, number>;
@@ -228,9 +229,9 @@ class StreamingAggregator {
       this.aggregatedData['histogram'][metric] = new Map();
     }
 
-    const min = this.aggregatedData['mins'][metric];
-    const max = this.aggregatedData['maxs'][metric];
-    const binSize = (max - min) / this.histogramBins;
+    const min = this.aggregatedData['mins'][metric] ?? 0;
+    const max = this.aggregatedData['maxs'][metric] ?? 1;
+    const binSize = (max - min) / this.histogramBins || 1;
     const binIndex = Math.floor((value - min) / binSize);
 
     const histogram = this.aggregatedData['histogram'][metric];
@@ -578,28 +579,33 @@ export class StreamingMonteCarloEngine {
     const irrDist = distributions['irr'];
     const totalValueDist = distributions['totalValue'];
 
+    // Default values for missing distributions
+    const defaultDist = { mean: 0, min: 0, max: 1, standardDeviation: 1, percentiles: new Map() };
+    const irr = irrDist ?? defaultDist;
+    const totalValue = totalValueDist ?? defaultDist;
+
     // Value at Risk from percentiles
-    const var5 = irrDist.percentiles['get'](5) || irrDist.min;
-    const var10 = irrDist.percentiles['get'](10) || irrDist.min;
+    const var5 = irr.percentiles['get'](5) ?? irr.min;
+    const var10 = irr.percentiles['get'](10) ?? irr.min;
 
     // Estimate CVaR (simplified calculation)
     const cvar5 = var5 * 0.8; // Conservative estimate
     const cvar10 = var10 * 0.85;
 
     // Probability of loss (using normal approximation)
-    const probabilityOfLoss = this.normalCDF(0, irrDist.mean, irrDist.standardDeviation);
+    const probabilityOfLoss = this.normalCDF(0, irr.mean, irr.standardDeviation);
 
     // Downside risk (simplified calculation)
-    const downsideRisk = irrDist.standardDeviation * 0.7; // Approximate
+    const downsideRisk = irr.standardDeviation * 0.7; // Approximate
 
     // Risk ratios
     const riskFreeRate = 0.02;
-    const excessReturn = irrDist.mean - riskFreeRate;
-    const sharpeRatio = excessReturn / irrDist.standardDeviation;
-    const sortinoRatio = excessReturn / downsideRisk;
+    const excessReturn = irr.mean - riskFreeRate;
+    const sharpeRatio = irr.standardDeviation !== 0 ? excessReturn / irr.standardDeviation : 0;
+    const sortinoRatio = downsideRisk !== 0 ? excessReturn / downsideRisk : 0;
 
     // Max drawdown (estimated)
-    const maxDrawdown = (totalValueDist.max - totalValueDist.min) / totalValueDist.max;
+    const maxDrawdown = totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
 
     return {
       valueAtRisk: { var5, var10 },

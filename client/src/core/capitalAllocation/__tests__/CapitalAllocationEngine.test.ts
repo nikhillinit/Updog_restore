@@ -285,7 +285,7 @@ describe('Capital Allocation Engine', () => {
         const result = executeCapitalAllocation(input);
 
         expect(result.allocations_by_cohort).toHaveLength(1);
-        expect(result.allocations_by_cohort[0].cohort).toBe('2024');
+        expect(result.allocations_by_cohort[0]?.cohort).toBe('2024');
       });
 
       it('uses vintage_year for implicit cohort name', () => {
@@ -296,7 +296,7 @@ describe('Capital Allocation Engine', () => {
 
         const result = executeCapitalAllocation(input);
 
-        expect(result.allocations_by_cohort[0].cohort).toBe('2025');
+        expect(result.allocations_by_cohort[0]?.cohort).toBe('2025');
       });
     });
 

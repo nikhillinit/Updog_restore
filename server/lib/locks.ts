@@ -6,6 +6,13 @@
 import crypto from 'crypto';
 import type { RLSRequest } from '../middleware/with-rls-transaction.js';
 
+// Type declaration for global metrics (used for monitoring)
+declare const global: typeof globalThis & {
+  metrics?: {
+    fundLockConflicts?: { inc: () => void };
+  };
+};
+
 /**
  * Generate a deterministic 64-bit integer from org and fund IDs
  */
@@ -289,7 +296,7 @@ export class DistributedLock {
   private stopLeaseRenewal(): void {
     if (this.leaseTimer) {
       clearInterval(this.leaseTimer);
-      this.leaseTimer = undefined;
+      delete this.leaseTimer;
     }
   }
 }

@@ -243,7 +243,12 @@ export default function InvestmentStrategyStep() {
       const newIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
 
       if (newIndex >= 0 && newIndex < stages.length) {
-        [stages[stageIndex], stages[newIndex]] = [stages[newIndex], stages[stageIndex]];
+        const stageA = stages[stageIndex];
+        const stageB = stages[newIndex];
+        if (stageA && stageB) {
+          stages[stageIndex] = stageB;
+          stages[newIndex] = stageA;
+        }
       }
 
       return { ...p, stages };

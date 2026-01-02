@@ -77,7 +77,7 @@ async function fetchMonteCarloResults(): Promise<MonteCarloResult[]> {
       multiple: Math.round(multiple * 100) / 100,
       irr: Math.round(irr * 1000) / 1000,
       category,
-      stage: ['pre-seed', 'seed', 'series-a', 'series-b'][Math.floor(Math.random() * 4)],
+      stage: ['pre-seed', 'seed', 'series-a', 'series-b'][Math.floor(Math.random() * 4)] ?? 'seed',
       exitTiming: Math.round(exitTiming * 10) / 10
     });
   }
