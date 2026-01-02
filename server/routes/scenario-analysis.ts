@@ -179,7 +179,7 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
-      const include = (req.query.include as string)?.split(',') || ['cases', 'weighted_summary'];
+      const include = (req.query['include'] as string)?.split(',') || ['cases', 'weighted_summary'];
 
       const scenario = await db.query.scenarios.findFirst({
         where: and(
