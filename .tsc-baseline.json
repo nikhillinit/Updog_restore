@@ -67,7 +67,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 62,
-      "lastUpdated": "2026-01-02T02:57:54.682Z"
+      "lastUpdated": "2026-01-02T03:02:42.890Z"
     },
     "server": {
       "errors": [
@@ -155,14 +155,6 @@
         "server/queues/simulation-queue.ts:TS4111:32a26a42",
         "server/queues/simulation-queue.ts:TS4111:e53b028e",
         "server/queues/simulation-queue.ts:TS4111:f439b54b",
-        "server/routes.ts:TS4111:21460381",
-        "server/routes.ts:TS4111:2a901493",
-        "server/routes.ts:TS4111:4c31ad00",
-        "server/routes.ts:TS4111:5445747f",
-        "server/routes.ts:TS4111:63452232",
-        "server/routes.ts:TS4111:c9080835",
-        "server/routes.ts:TS4111:eddb1ec9",
-        "server/routes.ts:TS4111:f8f409fe",
         "server/routes/__tests__/funds.idempotency.spec.ts:TS4111:bccac4ee",
         "server/routes/_ops-stage-validation.ts:TS4111:a90f40ea",
         "server/routes/ai.ts:TS2379:482e584e",
@@ -181,11 +173,6 @@
         "server/routes/error-budget.ts:TS2345:4762bdb2",
         "server/routes/flags.ts:TS18048:93182590",
         "server/routes/flags.ts:TS2345:5c57db38",
-        "server/routes/fund-config.ts:TS4111:9030b31b",
-        "server/routes/fund-metrics.ts:TS4111:1dc31b30",
-        "server/routes/fund-metrics.ts:TS4111:21460381",
-        "server/routes/fund-metrics.ts:TS4111:72d27b46",
-        "server/routes/fund-metrics.ts:TS4111:b9206bd2",
         "server/routes/health.ts:TS4111:2c9335b7",
         "server/routes/health.ts:TS4111:574dcd03",
         "server/routes/health.ts:TS4111:73ec7992",
@@ -195,7 +182,6 @@
         "server/routes/monte-carlo.ts:TS4111:4eae7a72",
         "server/routes/monte-carlo.ts:TS4111:86e3fc63",
         "server/routes/monte-carlo.ts:TS4111:89fa2ca5",
-        "server/routes/monte-carlo.ts:TS4111:d3d05beb",
         "server/routes/operations.ts:TS4111:78ec2a79",
         "server/routes/performance-metrics.ts:TS4111:02f9a3ae",
         "server/routes/performance-metrics.ts:TS4111:9ce668e2",
@@ -427,26 +413,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 355,
-      "lastUpdated": "2026-01-02T02:57:54.682Z"
+      "total": 341,
+      "lastUpdated": "2026-01-02T03:02:42.890Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T02:57:54.682Z"
+      "lastUpdated": "2026-01-02T03:02:42.890Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T02:57:54.682Z"
+      "lastUpdated": "2026-01-02T03:02:42.890Z"
     }
   },
-  "totalErrors": 419,
-  "timestamp": "2026-01-02T02:57:54.682Z",
+  "totalErrors": 405,
+  "timestamp": "2026-01-02T03:02:42.890Z",
   "buildMode": "per-project",
-  "elapsedMs": 19963
+  "elapsedMs": 19167
 }

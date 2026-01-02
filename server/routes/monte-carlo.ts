@@ -558,7 +558,7 @@ router['get']('/performance', async (req: Request, res: Response) => {
  */
 router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
   try {
-    const fundId = toNumber(req.params.fundId, 'Fund ID');
+    const fundId = toNumber(req.params['fundId'], 'Fund ID');
     const runs = parseInt(req.query.runs as string || '1000');
     const timeHorizonYears = parseInt(req.query.timeHorizonYears as string || '8');
     const engine = req.query.engine as 'streaming' | 'traditional' | 'auto' || 'auto';
