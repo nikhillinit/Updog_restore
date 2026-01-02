@@ -575,14 +575,14 @@ export async function aiDebate({
     askAllAIs({ prompt: counterPrompt, models: [ai2], tags: [...tags, 'debate', 'counter'] }),
   ]);
 
-  const totalCost = (opening[0].cost_usd ?? 0) + (counter[0].cost_usd ?? 0);
+  const totalCost = (opening[0]?.cost_usd ?? 0) + (counter[0]?.cost_usd ?? 0);
 
   return {
     topic,
     ai1,
     ai2,
-    opening: opening[0],
-    counter: counter[0],
+    opening: opening[0]!,
+    counter: counter[0]!,
     totalCost,
     elapsedMs: Date.now() - startTime,
   };
@@ -662,7 +662,7 @@ export async function collaborativeSolve({
     let cumulativeInsights = '';
 
     for (let i = 0; i < models.length; i++) {
-      const model = models[i];
+      const model = models[i]!;
       let prompt = `Step ${i + 1}: Analyze this problem: ${problem}.`;
 
       if (cumulativeInsights) {
@@ -678,10 +678,10 @@ export async function collaborativeSolve({
         tags: [...tags, 'collaborative', 'sequential', `step-${i + 1}`],
       });
 
-      steps.push(result[0]);
+      steps.push(result[0]!);
 
       // Accumulate insights for next AI
-      if (result[0].text) {
+      if (result[0]?.text) {
         cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${result[0].text}`;
       }
     }
@@ -753,8 +753,8 @@ async function askHuggingFace(prompt: string, model: string) {
     })
   });
   if (!r.ok) throw new Error(`HF ${model} -> ${r.status}`);
-  const j = await r["json"]();
-  const text = Array.isArray(j) ? j[0]?.generated_text : j?.generated_text ?? '';
+  const j = await r.json();
+  const text = Array.isArray(j) ? (j[0]?.['generated_text'] ?? '') : (j?.['generated_text'] ?? '');
   return {
     text,
     usage: {
@@ -786,19 +786,19 @@ export const AIRouter = {
     // Wire to your existing cloud functions (budgeting/retry already there)
     if (providerId === 'gpt' || providerId === 'gpt4') {
       const r = await askGPT(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'gemini') {
       const r = await askGemini(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'deepseek') {
       const r = await askDeepSeek(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'claude') {
       const r = await askClaude(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
 
     throw new Error(`Unknown providerId: ${providerId}`);

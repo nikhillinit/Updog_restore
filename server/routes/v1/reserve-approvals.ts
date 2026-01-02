@@ -3,7 +3,7 @@
  * Requires both partners to approve changes to reserve strategies
  */
 
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
@@ -62,7 +62,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
     
     const [approval] = await db.insert(reserveApprovals).values({
       strategyId,
-      requestedBy: req.user.email,
+      requestedBy: req.user!.email,
       action,
       strategyData,
       reason,
@@ -83,9 +83,9 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
     await db.insert(approvalAuditLog).values({
       approvalId: approval.id,
       action: 'created',
-      actor: req.user.email,
+      actor: req.user!.email,
       details: { reason, impact },
-      ipAddress: req.ip,
+      ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
     } as any);
     
@@ -115,7 +115,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
  */
 router['get']('/', (async (req: Request, res: Response) => {
   try {
-    const status = req.query.status as string || 'pending';
+    const status = req.query['status'] as string || 'pending';
     
     const approvals = await db.select({
       approval: reserveApprovals,
@@ -165,7 +165,7 @@ router['get']('/', (async (req: Request, res: Response) => {
  */
 router['get']('/:id', (async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params['id'] as string;
     
     const [approval] = await db.select()
       .from(reserveApprovals)
@@ -190,7 +190,7 @@ router['get']('/:id', (async (req: Request, res: Response) => {
       approval,
       signatures,
       auditLog,
-      canSign: await canPartnerSign(req.user.email, id),
+      canSign: await canPartnerSign(req.user!.email, id),
       isExpired: approval.expiresAt < new Date(),
       isApproved: signatures.length >= 2
     } as any);
@@ -206,13 +206,13 @@ router['get']('/:id', (async (req: Request, res: Response) => {
  */
 router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params['id'] as string;
     const { verificationCode } = req.body; // Optional 2FA code
     
     // Check if partner is authorized
     const [partner] = await db.select()
       .from(approvalPartners)
-      .where(eq(approvalPartners.email, req.user.email));
+      .where(eq(approvalPartners.email, req.user!.email));
     
     if (!partner || partner.deactivated) {
       return res["status"](403)["json"]({ error: 'Not authorized as partner' });
@@ -246,7 +246,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
       .where(
         and(
           eq(approvalSignatures.approvalId, id),
-          eq(approvalSignatures.partnerEmail, req.user.email)
+          eq(approvalSignatures.partnerEmail, req.user!.email)
         )
       );
     
@@ -257,29 +257,29 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
     // Generate signature
     const signatureData = {
       approvalId: id,
-      partnerEmail: req.user.email,
+      partnerEmail: req.user!.email,
       timestamp: Date.now(),
       calculationHash: approval.calculationHash
     };
     
     const cfg = getConfig();
     const signature = jwt.sign(
-      signatureData, 
-      cfg.JWT_SECRET!,
-      { 
+      signatureData,
+      (cfg as Record<string, unknown>)['JWT_SECRET'] as string,
+      {
         algorithm: "HS256" as jwt.Algorithm,
         expiresIn: '7d',
-        issuer: cfg.JWT_ISSUER,
-        audience: cfg.JWT_AUDIENCE
+        issuer: (cfg as Record<string, unknown>)['JWT_ISSUER'] as string,
+        audience: (cfg as Record<string, unknown>)['JWT_AUDIENCE'] as string
       }
     );
     
     // Record signature
     await db.insert(approvalSignatures).values({
       approvalId: id,
-      partnerEmail: req.user.email,
+      partnerEmail: req.user!.email,
       signature,
-      ipAddress: req.ip || 'unknown',
+      ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'],
       sessionId: req.session?.id,
       twoFactorVerified: verificationCode ? new Date() : null,
@@ -290,9 +290,9 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
     await db.insert(approvalAuditLog).values({
       approvalId: id,
       action: 'signed',
-      actor: req.user.email,
+      actor: req.user!.email,
       details: { verified2FA: !!verificationCode },
-      ipAddress: req.ip,
+      ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
     } as any);
     
@@ -342,7 +342,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
  */
 router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params['id'] as string;
     const { reason } = req.body;
     
     if (!reason || reason.length < 10) {
@@ -352,7 +352,7 @@ router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res:
     // Check authorization
     const [partner] = await db.select()
       .from(approvalPartners)
-      .where(eq(approvalPartners.email, req.user.email));
+      .where(eq(approvalPartners.email, req.user!.email));
     
     if (!partner || partner.deactivated) {
       return res["status"](403)["json"]({ error: 'Not authorized as partner' });
@@ -367,16 +367,16 @@ router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res:
     await db.insert(approvalAuditLog).values({
       approvalId: id,
       action: 'rejected',
-      actor: req.user.email,
+      actor: req.user!.email,
       details: { reason },
-      ipAddress: req.ip,
+      ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
     } as any);
-    
+
     res["json"]({
       success: true,
       message: 'Approval rejected',
-      rejectedBy: req.user.email
+      rejectedBy: req.user!.email
     } as any);
     
   } catch (error) {
@@ -412,7 +412,7 @@ async function canPartnerSign(email: string, approvalId: string): Promise<boolea
  */
 async function notifyPartners(partners: ApprovalPartner[], approval: ReserveApproval): Promise<void> {
   const config = getConfig();
-  const baseUrl = (config as Record<string, unknown>)['publicUrl'] as string || process.env['PUBLIC_URL'] || 'http://localhost:5000';
+  const baseUrl = (config as Record<string, unknown>)['publicUrl'] as string ?? process.env['PUBLIC_URL'] ?? 'http://localhost:5000';
   const approvalUrl = `${baseUrl}/approvals/${approval.id}`;
 
   // Risk level colors for Slack
@@ -423,7 +423,7 @@ async function notifyPartners(partners: ApprovalPartner[], approval: ReserveAppr
   };
 
   const riskLevel = approval.riskLevel as string;
-  const color = riskColors[riskLevel] || riskColors['medium'];
+  const color = riskColors[riskLevel] ?? riskColors['medium'];
 
   // Format amount for display
   const formattedAmount = new Intl.NumberFormat('en-US', {
@@ -445,7 +445,7 @@ async function notifyPartners(partners: ApprovalPartner[], approval: ReserveAppr
           text: `Reserve Strategy Approval Required`,
           attachments: [{
             color,
-            title: `${approval.action.toUpperCase()}: ${approval.strategyId}`,
+            title: `${(approval.action as string).toUpperCase()}: ${approval.strategyId}`,
             title_link: approvalUrl,
             fields: [
               { title: 'Risk Level', value: riskLevel.toUpperCase(), short: true },
@@ -495,7 +495,7 @@ async function notifyPartners(partners: ApprovalPartner[], approval: ReserveAppr
  */
 async function executeReserveStrategyChange(approval: ReserveApproval): Promise<void> {
   const strategyData = approval.strategyData as Record<string, unknown>;
-  const affectedFunds = (approval.affectedFunds as string[]) || [];
+  const affectedFunds = (approval.affectedFunds as string[]) ?? [];
 
   console.log(`[executeReserveStrategyChange] Executing ${approval.action} for strategy ${approval.strategyId}`);
 
@@ -507,7 +507,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
       actor: 'system',
       details: { strategyId: approval.strategyId, affectedFunds },
       systemGenerated: new Date(),
-    });
+    } as any);
 
     switch (approval.action) {
       case 'create':
@@ -543,7 +543,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
         executedAt: new Date().toISOString(),
       },
       systemGenerated: new Date(),
-    });
+    } as any);
 
     console.log(`[executeReserveStrategyChange] Successfully executed strategy change for approval ${approval.id}`);
 
@@ -558,14 +558,14 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
         strategyId: approval.strategyId,
       },
       systemGenerated: new Date(),
-    });
+    } as any);
 
     // Update approval status to failed
     await db.update(reserveApprovals)
-      .set({
+      ['set']({
         status: 'failed',
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(reserveApprovals.id, approval.id));
 
     console.error(`[executeReserveStrategyChange] Failed to execute strategy change:`, error);
