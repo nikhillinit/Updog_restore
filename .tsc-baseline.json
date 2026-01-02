@@ -72,7 +72,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 67,
-      "lastUpdated": "2025-12-31T03:05:49.613Z"
+      "lastUpdated": "2026-01-02T02:29:22.238Z"
     },
     "server": {
       "errors": [
@@ -332,7 +332,6 @@
         "server/services/notion-service.ts:TS18046:a6b6e362",
         "server/services/notion-service.ts:TS18046:cebfd0e5",
         "server/services/notion-service.ts:TS2322:051c3335",
-        "server/services/notion-service.ts:TS2322:500a5f78",
         "server/services/notion-service.ts:TS2322:9027cc4b",
         "server/services/notion-service.ts:TS2322:95495446",
         "server/services/notion-service.ts:TS2322:a51ca186",
@@ -358,8 +357,9 @@
         "server/services/notion-service.ts:TS2379:ff7c0b16",
         "server/services/notion-service.ts:TS2551:0aa2a147",
         "server/services/notion-service.ts:TS2551:34359356",
+        "server/services/notion-service.ts:TS2551:be0921e6",
+        "server/services/notion-service.ts:TS2551:c5902fc7",
         "server/services/notion-service.ts:TS2552:c21d383c",
-        "server/services/notion-service.ts:TS2769:176c7db1",
         "server/services/notion-service.ts:TS2769:5481333e",
         "server/services/notion-service.ts:TS2769:e28242d4",
         "server/services/notion-service.ts:TS2769:eedfb7bc",
@@ -446,21 +446,25 @@
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
       "total": 368,
-      "lastUpdated": "2025-12-31T03:05:49.613Z"
+      "lastUpdated": "2026-01-02T02:29:22.238Z"
     },
     "shared": {
-      "errors": ["shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"],
+      "errors": [
+        "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
+      ],
       "total": 1,
-      "lastUpdated": "2025-12-31T03:05:49.613Z"
+      "lastUpdated": "2026-01-02T02:29:22.238Z"
     },
     "unknown": {
-      "errors": ["vite.config.ts:TS7006:118fabe7"],
+      "errors": [
+        "vite.config.ts:TS7006:118fabe7"
+      ],
       "total": 1,
-      "lastUpdated": "2025-12-31T03:05:49.613Z"
+      "lastUpdated": "2026-01-02T02:29:22.238Z"
     }
   },
   "totalErrors": 437,
-  "timestamp": "2025-12-31T03:05:49.613Z",
+  "timestamp": "2026-01-02T02:29:22.238Z",
   "buildMode": "per-project",
-  "elapsedMs": 19896
+  "elapsedMs": 19295
 }
