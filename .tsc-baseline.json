@@ -3,10 +3,7 @@
   "projects": {
     "client": {
       "errors": [
-        "client/src/adapters/reserves-adapter.ts:TS2375:9ec9ba88",
-        "client/src/components/charts/LazyResponsiveContainer.tsx:TS2322:6ffbd1e2",
         "client/src/components/modeling-wizard/steps/CapitalAllocationStep.tsx:TS2375:87faab38",
-        "client/src/components/modeling-wizard/steps/ExitRecyclingStep.tsx:TS2375:25f5f29b",
         "client/src/components/portfolio-constructor/FundStrategyBuilder.tsx:TS2307:88267344",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:e149ce5b",
         "client/src/core/pacing/PacingEngine.ts:TS18048:513a28ff",
@@ -40,7 +37,6 @@
         "client/src/lib/validation-helpers.ts:TS2322:d390f4cf",
         "client/src/lib/validation.ts:TS2322:802a8f0c",
         "client/src/lib/validation.ts:TS2538:ff2dca87",
-        "client/src/lib/waterfall.ts:TS4111:5cb278ed",
         "client/src/lib/wizard-calculations.ts:TS6307:bd87e15b",
         "client/src/lib/wizard-reserve-bridge.ts:TS6307:e5ff24ab",
         "client/src/lib/wizard-schemas.ts:TS2769:12605ac9",
@@ -57,7 +53,6 @@
         "client/src/pages/ScenarioComparison.tsx:TS2339:cf8dfa28",
         "client/src/pages/ScenarioComparison.tsx:TS2339:e4ca9356",
         "client/src/pages/ScenarioComparison.tsx:TS2345:8fa6594e",
-        "client/src/pages/kpi-manager/KpiDefinitionModal.tsx:TS2375:927410ee",
         "client/src/utils/array-safety-enhanced.ts:TS2345:17b8b001",
         "client/src/utils/async-iteration.ts:TS18048:5019f5d5",
         "client/src/utils/async-iteration.ts:TS18048:75e9fcd8",
@@ -71,8 +66,8 @@
         "client/src/utils/async-iteration.ts:TS2345:7355dce4",
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
-      "total": 67,
-      "lastUpdated": "2026-01-02T02:43:57.808Z"
+      "total": 62,
+      "lastUpdated": "2026-01-02T02:53:52.798Z"
     },
     "server": {
       "errors": [
@@ -443,25 +438,25 @@
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
       "total": 365,
-      "lastUpdated": "2026-01-02T02:43:57.808Z"
+      "lastUpdated": "2026-01-02T02:53:52.798Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T02:43:57.808Z"
+      "lastUpdated": "2026-01-02T02:53:52.798Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T02:43:57.808Z"
+      "lastUpdated": "2026-01-02T02:53:52.798Z"
     }
   },
-  "totalErrors": 434,
-  "timestamp": "2026-01-02T02:43:57.808Z",
+  "totalErrors": 429,
+  "timestamp": "2026-01-02T02:53:52.798Z",
   "buildMode": "per-project",
-  "elapsedMs": 19138
+  "elapsedMs": 19547
 }
