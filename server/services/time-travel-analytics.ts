@@ -189,14 +189,14 @@ export class TimeTravelAnalyticsService {
       fundId,
       timestamp: targetTime.toISOString(),
       snapshot: {
-        id: snapshot.id,
+        id: String(snapshot.id),
         time: snapshot.snapshotTime,
         eventCount: snapshot.eventCount ?? 0,
         stateHash: snapshot.stateHash ?? '',
       },
       state: snapshot.state as PortfolioState,
       eventsApplied: eventsAfterSnapshot.length,
-      events: includeEvents ? eventsAfterSnapshot : undefined,
+      ...(includeEvents && { events: eventsAfterSnapshot }),
     };
 
     // Cache for 5 minutes
@@ -276,11 +276,14 @@ export class TimeTravelAnalyticsService {
       .where(and(...conditions));
     const count = countResult[0]?.count ?? 0;
 
+    const rangeStart = startTime?.toISOString() || events.at(events.length - 1)?.eventTime;
+    const rangeEnd = endTime?.toISOString() || events.at(0)?.eventTime;
+
     return {
       fundId,
       timeRange: {
-        start: startTime?.toISOString() || events.at(events.length - 1)?.eventTime,
-        end: endTime?.toISOString() || events.at(0)?.eventTime,
+        ...(rangeStart && { start: rangeStart }),
+        ...(rangeEnd && { end: rangeEnd }),
       },
       events,
       snapshots,
@@ -330,11 +333,11 @@ export class TimeTravelAnalyticsService {
         timestamp1: timestamp1.toISOString(),
         timestamp2: timestamp2.toISOString(),
         state1: {
-          snapshotId: state1.snapshot.id,
+          snapshotId: String(state1.snapshot.id),
           eventCount: state1.eventsApplied,
         },
         state2: {
-          snapshotId: state2.snapshot.id,
+          snapshotId: String(state2.snapshot.id),
           eventCount: state2.eventsApplied,
         },
       },
@@ -363,7 +366,7 @@ export class TimeTravelAnalyticsService {
       conditions.push(sql`${fundEvents.eventType} = ANY(${eventTypes})`);
     }
 
-    const events = await this.db
+    const rawEvents = await this.db
       .select({
         id: fundEvents.id,
         fundId: fundEvents.fundId,
@@ -379,6 +382,18 @@ export class TimeTravelAnalyticsService {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(fundEvents.eventTime))
       .limit(limit);
+
+    // Map to LatestEventResult format
+    const events: LatestEventResult[] = rawEvents.map((e) => ({
+      id: String(e.id),
+      fundId: e.fundId,
+      eventType: e.eventType,
+      eventTime: e.eventTime,
+      operation: e.operation ?? 'unknown',
+      entityType: e.entityType ?? 'unknown',
+      metadata: e.metadata as Record<string, unknown> | null,
+      fundName: e.fundName,
+    }));
 
     return {
       events,

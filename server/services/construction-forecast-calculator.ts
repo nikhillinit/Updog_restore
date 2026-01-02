@@ -110,60 +110,73 @@ export class ConstructionForecastCalculator {
     const hasInvestments = false; // Construction phase by definition
     const isConstruction = isConstructionPhase(fundAge, hasInvestments);
 
+    // Number of quarters in fund life
+    const numQuarters = fundLifeYears * 4;
+
     // Compute fee basis timeline if fee profile provided
-    let feeBasisTimeline;
+    let feeTimelinePerPeriod: Decimal[] = Array(numQuarters + 1).fill(new Decimal(0));
     if (feeProfile) {
       const feeBasisConfig: FeeBasisConfig = {
         fundSize,
-        numQuarters: fundLifeYears * 4,
+        numQuarters,
         feeProfile
       };
-      feeBasisTimeline = computeFeeBasisTimeline(feeBasisConfig);
+      const feeBasisTimeline = computeFeeBasisTimeline(feeBasisConfig);
+      // Extract management fees from each period
+      feeTimelinePerPeriod = feeBasisTimeline.periods.map((p) => p.managementFees);
     }
 
     // Configure J-curve computation
     const jCurveConfig: JCurveConfig = {
-      fundSize,
-      targetTVPI,
-      investmentPeriodQuarters: investmentPeriodYears * 4,
-      fundLifeQuarters: fundLifeYears * 4,
-      actualTVPIPoints: [], // No actuals in construction phase
+      kind: 'logistic',
+      horizonYears: fundLifeYears,
+      investYears: investmentPeriodYears,
+      targetTVPI: new Decimal(targetTVPI),
+      step: 'quarter',
       navCalculationMode,
       finalDistributionCoefficient,
-      feeBasisTimeline
     };
 
     // Compute J-curve path
-    const jCurvePath = computeJCurvePath(jCurveConfig);
+    const jCurvePath = computeJCurvePath(jCurveConfig, feeTimelinePerPeriod);
 
-    // Extract current metrics (quarter 0)
-    const currentPoint = jCurvePath.mainPath[0];
-    if (!currentPoint) {
+    // Extract current metrics (quarter 0) from separate arrays
+    const tvpi0 = jCurvePath.tvpi[0];
+    const dpi0 = jCurvePath.dpi[0];
+    const nav0 = jCurvePath.nav[0];
+    const calls0 = jCurvePath.calls[0];
+
+    if (!tvpi0 || !nav0) {
       throw new Error('J-curve computation failed: no data points');
     }
 
     const current = {
-      tvpi: currentPoint.tvpi,
-      dpi: currentPoint.dpi,
-      rvpi: currentPoint.rvpi,
-      nav: new Decimal(currentPoint.nav),
-      calledCapital: new Decimal(currentPoint.calledCapital),
-      distributions: new Decimal(currentPoint.distributions)
+      tvpi: tvpi0.toNumber(),
+      dpi: dpi0?.toNumber() ?? 0,
+      rvpi: tvpi0.minus(dpi0 ?? 0).toNumber(),
+      nav: nav0,
+      calledCapital: calls0 ?? new Decimal(0),
+      distributions: nav0.times(dpi0 ?? 0),
     };
 
     // Extract projected metrics (final quarter)
-    const finalPoint = jCurvePath.mainPath[jCurvePath.mainPath.length - 1];
-    if (!finalPoint) {
+    const lastIdx = jCurvePath.tvpi.length - 1;
+    const tvpiFinal = jCurvePath.tvpi[lastIdx];
+    const dpiFinal = jCurvePath.dpi[lastIdx];
+    const navFinal = jCurvePath.nav[lastIdx];
+    const callsFinal = jCurvePath.calls[lastIdx];
+
+    if (!tvpiFinal || !navFinal) {
       throw new Error('J-curve computation failed: no final point');
     }
 
     const projected = {
-      tvpi: finalPoint.tvpi,
-      dpi: finalPoint.dpi,
-      rvpi: finalPoint.rvpi,
-      nav: new Decimal(finalPoint.nav),
-      calledCapital: new Decimal(finalPoint.calledCapital),
-      distributions: new Decimal(finalPoint.distributions)
+      tvpi: tvpiFinal.toNumber(),
+      dpi: dpiFinal?.toNumber() ?? 0,
+      rvpi: tvpiFinal.minus(dpiFinal ?? 0).toNumber(),
+      nav: navFinal,
+      calledCapital: callsFinal ?? fundSize,
+      distributions: navFinal.times(dpiFinal ?? 0),
     };
 
     return {

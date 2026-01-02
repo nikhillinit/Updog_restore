@@ -87,7 +87,7 @@ export function useFlags(): Record<FlagKey, boolean> {
       flags[key] =
         getRuntimeFlag(key) ??
         getEnvFlag(key) ??
-        ALL_FLAGS[flagKey].enabled;
+        ALL_FLAGS[flagKey]?.enabled ?? false;
     });
 
     return flags as Record<FlagKey, boolean>;
@@ -113,7 +113,7 @@ export function debugFlags(): void {
     flags[flagKey] =
       getRuntimeFlag(key) ??
       getEnvFlag(key) ??
-      ALL_FLAGS[flagKey].enabled;
+      ALL_FLAGS[flagKey]?.enabled ?? false;
   });
 
   console.group('🚩 Feature Flags');
@@ -123,7 +123,7 @@ export function debugFlags(): void {
       enabled: value,
       runtime: getRuntimeFlag(key) ?? 'not set',
       env: getEnvFlag(key) ?? 'not set',
-      default: ALL_FLAGS[key as FlagKey].enabled,
+      default: ALL_FLAGS[key as FlagKey]?.enabled ?? false,
     }))
   );
   console.groupEnd();
