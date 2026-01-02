@@ -10,6 +10,33 @@ and this project adheres to
 
 ### Added
 
+- **LP Portal Sprint 3: Capital Calls, Distributions & Dashboard** (2025-12-31)
+  - **Planning Complete**: Comprehensive sprint plan created
+  - **Scope**: 2-week sprint building on Sprint 2 infrastructure
+  - **Week 1 Features**:
+    - Capital call tracking with wire instructions (TC-LP-003)
+    - Payment submission workflow
+    - Distribution history with waterfall breakdown (TC-LP-004)
+    - Tax categorization (ROC vs taxable income)
+  - **Week 2 Features**:
+    - Enhanced LP dashboard with performance metrics (TC-LP-002)
+    - Activity feed aggregation
+    - Document management API (TC-LP-006)
+    - In-app notifications (TC-LP-008)
+  - **Database Schema**: 6 new tables for Sprint 3 entities
+    - `lp_capital_calls` - Capital call tracking
+    - `lp_payment_submissions` - Payment confirmation workflow
+    - `lp_distribution_details` - Enhanced distribution breakdown
+    - `lp_documents` - Document management
+    - `lp_notifications` - In-app notifications
+    - `lp_notification_preferences` - User preferences
+  - **TypeScript Types**: Complete API type definitions
+  - **Anti-Pattern Compliance**: All 24 patterns required
+  - **Files**:
+    - `docs/plans/2025-12-31-lp-portal-sprint-3.md` - Sprint plan
+    - `shared/schema-lp-sprint3.ts` - Drizzle schema
+    - `shared/types/lp-sprint3.ts` - API types
+
 - **Sprint 1: Deal Pipeline Management System MVP** (2025-12-30)
   - Complete REST API with 10 endpoints at `/api/deals/*`:
     - `POST /api/deals/opportunities` - Create deal (idempotency-enabled)

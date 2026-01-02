@@ -47,6 +47,7 @@ export default [
       'coverage/**',
       '.vite/**',
       '.vercel/**',
+      '.claude/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"

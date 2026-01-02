@@ -206,7 +206,7 @@ jobs:
               npm run lint
               ;;
             unit-fast)
-              npm run test:unit -- --bail --reporter=dot || npm run test:quick
+              npm run test:unit -- --bail=1 --reporter=dot || npm run test:quick
               ;;
           esac
 

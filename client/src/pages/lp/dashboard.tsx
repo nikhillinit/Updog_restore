@@ -2,20 +2,47 @@
  * LP Dashboard Page
  *
  * Main landing page for Limited Partners showing portfolio summary,
- * fund performance, and recent activity.
+ * fund performance, capital calls, distributions, documents, and notifications.
+ *
+ * Enhanced in Sprint 3 with:
+ * - Capital calls widget with pending/due/overdue tracking
+ * - Distributions widget with YTD summary
+ * - Documents widget with recent documents
+ * - Notifications widget with real-time updates
  *
  * @module client/pages/lp/dashboard
  */
 
 import { useLPContext } from '@/contexts/LPContext';
 import { useLPSummary } from '@/hooks/useLPSummary';
+import { useLPUnreadCount } from '@/hooks/useLPNotifications';
 import DashboardSummary from '@/components/lp/DashboardSummary';
+import CapitalCallsWidget from '@/components/lp/CapitalCallsWidget';
+import DistributionsWidget from '@/components/lp/DistributionsWidget';
+import DocumentsWidget from '@/components/lp/DocumentsWidget';
+import NotificationsWidget from '@/components/lp/NotificationsWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Building2, Calendar, ExternalLink } from 'lucide-react';
+import {
+  TrendingUp,
+  Building2,
+  Calendar,
+  ExternalLink,
+  DollarSign,
+  Banknote,
+  FileText,
+  Bell,
+  Settings,
+} from 'lucide-react';
 import { useLocation } from 'wouter';
 
 // ============================================================================
@@ -23,11 +50,18 @@ import { useLocation } from 'wouter';
 // ============================================================================
 
 export default function LPDashboard() {
-  const { lpProfile, selectedFundId, setSelectedFundId, isLoading: profileLoading } = useLPContext();
+  const {
+    lpProfile,
+    selectedFundId,
+    setSelectedFundId,
+    isLoading: profileLoading,
+  } = useLPContext();
   const { data: summaryData, isLoading: summaryLoading } = useLPSummary();
+  const { data: unreadData } = useLPUnreadCount();
   const [, navigate] = useLocation();
 
   const isLoading = profileLoading || summaryLoading;
+  const unreadCount = unreadData?.unreadCount ?? 0;
 
   if (isLoading && !summaryData) {
     return (
@@ -37,6 +71,10 @@ export default function LPDashboard() {
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32" />
           ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
         </div>
         <Skeleton className="h-64" />
       </div>
@@ -64,32 +102,65 @@ export default function LPDashboard() {
           </p>
         </div>
 
-        {/* Fund Filter */}
-        {lpProfile && lpProfile.commitments.length > 1 && (
-          <Select
-            value={selectedFundId?.toString() || 'all'}
-            onValueChange={(v) => setSelectedFundId(v === 'all' ? null : parseInt(v))}
+        <div className="flex items-center gap-3">
+          {/* Notifications Badge */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            onClick={() => navigate('/lp/notifications')}
           >
-            <SelectTrigger className="w-[250px]">
-              <Building2 className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Funds</SelectItem>
-              {lpProfile.commitments.map((c) => (
-                <SelectItem key={c.fundId} value={c.fundId.toString()}>
-                  {c.fundName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Button>
+
+          {/* Settings */}
+          <Button variant="outline" size="icon" onClick={() => navigate('/lp/settings')}>
+            <Settings className="h-5 w-5" />
+          </Button>
+
+          {/* Fund Filter */}
+          {lpProfile && lpProfile.commitments.length > 1 && (
+            <Select
+              value={selectedFundId?.toString() || 'all'}
+              onValueChange={(v) => setSelectedFundId(v === 'all' ? null : parseInt(v))}
+            >
+              <SelectTrigger className="w-[250px]">
+                <Building2 className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Funds</SelectItem>
+                {lpProfile.commitments.map((c) => (
+                  <SelectItem key={c.fundId} value={c.fundId.toString()}>
+                    {c.fundName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Summary Metrics */}
       {summaryData && (
         <DashboardSummary metrics={summaryData.aggregateMetrics} isLoading={isLoading} />
       )}
+
+      {/* Sprint 3: Activity Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CapitalCallsWidget />
+        <DistributionsWidget />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DocumentsWidget />
+        <NotificationsWidget />
+      </div>
 
       {/* Fund Summaries */}
       {summaryData && summaryData.fundSummaries.length > 0 && (
@@ -115,7 +186,9 @@ export default function LPDashboard() {
                     {/* Fund Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-inter font-bold text-lg text-[#292929]">{fund.fundName}</h3>
+                        <h3 className="font-inter font-bold text-lg text-[#292929]">
+                          {fund.fundName}
+                        </h3>
                         <Badge variant="outline">{fund.vintageYear}</Badge>
                         <ExternalLink className="h-4 w-4 text-[#292929]/50" />
                       </div>
@@ -130,7 +203,9 @@ export default function LPDashboard() {
                     <div className="flex items-center gap-6">
                       <div className="text-center">
                         <div className="text-xs font-poppins text-[#292929]/50">IRR</div>
-                        <div className={`text-lg font-bold font-inter ${fund.irr >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div
+                          className={`text-lg font-bold font-inter ${fund.irr >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                        >
                           {formatPercent(fund.irr)}
                         </div>
                       </div>
@@ -167,36 +242,60 @@ export default function LPDashboard() {
         </Card>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Enhanced for Sprint 3 */}
       <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
         <CardHeader>
           <CardTitle className="font-inter text-[#292929]">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <Button
+              variant="outline"
+              className="h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => navigate('/lp/capital-calls')}
+            >
+              <DollarSign className="h-6 w-6 text-blue-600" />
+              <span className="font-poppins text-sm">Capital Calls</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => navigate('/lp/distributions')}
+            >
+              <Banknote className="h-6 w-6 text-green-600" />
+              <span className="font-poppins text-sm">Distributions</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => navigate('/lp/documents')}
+            >
+              <FileText className="h-6 w-6 text-indigo-600" />
+              <span className="font-poppins text-sm">Documents</span>
+            </Button>
             <Button
               variant="outline"
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/capital-account')}
             >
-              <TrendingUp className="h-6 w-6 text-blue-600" />
-              <span className="font-poppins">View Capital Account</span>
+              <TrendingUp className="h-6 w-6 text-orange-600" />
+              <span className="font-poppins text-sm">Capital Account</span>
             </Button>
             <Button
               variant="outline"
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/performance')}
             >
-              <TrendingUp className="h-6 w-6 text-green-600" />
-              <span className="font-poppins">Performance Analytics</span>
+              <TrendingUp className="h-6 w-6 text-purple-600" />
+              <span className="font-poppins text-sm">Performance</span>
             </Button>
             <Button
               variant="outline"
               className="h-auto py-4 flex flex-col items-center gap-2"
               onClick={() => navigate('/lp/reports')}
             >
-              <Building2 className="h-6 w-6 text-purple-600" />
-              <span className="font-poppins">Generate Reports</span>
+              <Building2 className="h-6 w-6 text-amber-600" />
+              <span className="font-poppins text-sm">Reports</span>
             </Button>
           </div>
         </CardContent>

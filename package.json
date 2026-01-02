@@ -166,7 +166,7 @@
     "phoenix:truth:capital": "cross-env TZ=UTC vitest run tests/unit/truth-cases/capital-allocation.test.ts",
     "phoenix:truth:recycling": "cross-env TZ=UTC vitest run tests/unit/truth-cases/exit-recycling.test.ts",
     "test:affected": "node scripts/test-smart.mjs --only-affected",
-    "test:affected:fast": "npm run test:affected -- --bail --reporter=dot",
+    "test:affected:fast": "npm run test:affected -- --bail=1 --reporter=dot",
     "test:affected:verbose": "npm run test:affected -- --reporter=verbose",
     "ci:smart": "npm run test:affected && npm run lint:affected",
     "test:intelligent": "node scripts/smart-test-runner.mjs",
