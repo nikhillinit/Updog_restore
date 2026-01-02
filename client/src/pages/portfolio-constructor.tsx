@@ -644,7 +644,7 @@ export default function PortfolioConstructor() {
                           const updatedScenarios = [...strategy.scenarios];
                           updatedScenarios[activeScenario] = {
                             ...updatedScenarios[activeScenario],
-                            marketEnvironment: value
+                            marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession'
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}

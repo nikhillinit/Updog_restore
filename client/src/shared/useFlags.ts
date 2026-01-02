@@ -45,10 +45,11 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
  */
 const getEnvFlag = (flagKey: string): boolean | undefined => {
   try {
-    const envVal = (import.meta as any).env?.[`VITE_${flagKey.toUpperCase()}`];
+    const meta = import.meta as ImportMeta & { env?: Record<string, string> };
+    const envVal = meta.env?.[`VITE_${flagKey.toUpperCase()}`];
     if (envVal === 'true' || envVal === '1') return true;
     if (envVal === 'false' || envVal === '0') return false;
-  } catch (e) {
+  } catch (_e) {
     // Ignore - might be SSR or no import.meta
   }
   return undefined;
@@ -100,7 +101,7 @@ export function useFlags(): Record<FlagKey, boolean> {
  */
 export function useFlag(key: FlagKey): boolean {
   const flags = useFlags();
-  return flags[key];
+  return flags[key] ?? false;
 }
 
 /**
@@ -131,5 +132,5 @@ export function debugFlags(): void {
 
 // Expose to window in development
 if (import.meta.env?.DEV) {
-  (window as any).__debugFlags = debugFlags;
+  (window as unknown as { __debugFlags?: typeof debugFlags }).__debugFlags = debugFlags;
 }
