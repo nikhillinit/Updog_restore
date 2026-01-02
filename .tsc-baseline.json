@@ -20,17 +20,6 @@
         "client/src/lib/fund-calc.ts:TS2322:8781c4f4",
         "client/src/lib/inflight.ts:TS2322:879e9edf",
         "client/src/lib/nav.ts:TS2532:9973bc0c",
-        "client/src/lib/path-utils.ts:TS2345:13bc6872",
-        "client/src/lib/path-utils.ts:TS2538:1967e068",
-        "client/src/lib/path-utils.ts:TS2538:201c582c",
-        "client/src/lib/path-utils.ts:TS2538:3c46a70a",
-        "client/src/lib/path-utils.ts:TS2538:57166916",
-        "client/src/lib/path-utils.ts:TS2538:6f085551",
-        "client/src/lib/path-utils.ts:TS2538:b966d07c",
-        "client/src/lib/path-utils.ts:TS2538:e602cbf3",
-        "client/src/lib/path-utils.ts:TS2538:f7503d7f",
-        "client/src/lib/path-utils.ts:TS2538:fdded273",
-        "client/src/lib/path-utils.ts:TS2538:ff31a30c",
         "client/src/lib/rollout-orchestrator.ts:TS2345:893ce423",
         "client/src/lib/schema-adapter.ts:TS2532:ce1d208f",
         "client/src/lib/validation-helpers.ts:TS2322:7f2a0ce9",
@@ -53,21 +42,10 @@
         "client/src/pages/ScenarioComparison.tsx:TS2339:cf8dfa28",
         "client/src/pages/ScenarioComparison.tsx:TS2339:e4ca9356",
         "client/src/pages/ScenarioComparison.tsx:TS2345:8fa6594e",
-        "client/src/utils/array-safety-enhanced.ts:TS2345:17b8b001",
-        "client/src/utils/async-iteration.ts:TS18048:5019f5d5",
-        "client/src/utils/async-iteration.ts:TS18048:75e9fcd8",
-        "client/src/utils/async-iteration.ts:TS18048:d3fe5cb7",
-        "client/src/utils/async-iteration.ts:TS2339:5019f5d5",
-        "client/src/utils/async-iteration.ts:TS2339:75e9fcd8",
-        "client/src/utils/async-iteration.ts:TS2345:3f0291d6",
-        "client/src/utils/async-iteration.ts:TS2345:4bec192b",
-        "client/src/utils/async-iteration.ts:TS2345:56ede1ba",
-        "client/src/utils/async-iteration.ts:TS2345:58e37d2d",
-        "client/src/utils/async-iteration.ts:TS2345:7355dce4",
-        "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
+        "client/src/utils/array-safety-enhanced.ts:TS2345:17b8b001"
       ],
-      "total": 62,
-      "lastUpdated": "2026-01-02T03:33:38.966Z"
+      "total": 40,
+      "lastUpdated": "2026-01-02T03:51:53.794Z"
     },
     "server": {
       "errors": [
@@ -185,28 +163,6 @@
         "server/routes/portfolio/snapshots.ts:TS2379:012c2f11",
         "server/routes/portfolio/snapshots.ts:TS2379:7b87e481",
         "server/routes/portfolio/snapshots.ts:TS2379:e8e89d82",
-        "server/routes/scenario-analysis.ts:TS2304:0bc61cb1",
-        "server/routes/scenario-analysis.ts:TS2322:629669a5",
-        "server/routes/scenario-analysis.ts:TS2322:d9b69327",
-        "server/routes/scenario-analysis.ts:TS2322:e648f72d",
-        "server/routes/scenario-analysis.ts:TS2339:01e6fb9a",
-        "server/routes/scenario-analysis.ts:TS2339:060104ef",
-        "server/routes/scenario-analysis.ts:TS2339:0e799553",
-        "server/routes/scenario-analysis.ts:TS2339:120308cd",
-        "server/routes/scenario-analysis.ts:TS2345:19a3b177",
-        "server/routes/scenario-analysis.ts:TS2345:5f268dd4",
-        "server/routes/scenario-analysis.ts:TS2532:3f334774",
-        "server/routes/scenario-analysis.ts:TS2551:fdf83ead",
-        "server/routes/scenario-analysis.ts:TS2551:fe5b5574",
-        "server/routes/scenario-analysis.ts:TS2739:f0e058d2",
-        "server/routes/scenario-analysis.ts:TS2769:2ac68e98",
-        "server/routes/scenario-analysis.ts:TS2769:43bf5093",
-        "server/routes/scenario-analysis.ts:TS2769:4725c1e7",
-        "server/routes/scenario-analysis.ts:TS2769:5abf25ad",
-        "server/routes/scenario-analysis.ts:TS2769:629669a5",
-        "server/routes/scenario-analysis.ts:TS2769:893dbdcf",
-        "server/routes/scenario-analysis.ts:TS2769:9b0e96e8",
-        "server/routes/scenario-analysis.ts:TS2769:bff610e9",
         "server/routes/scenario-comparison.ts:TS2345:dddab6a7",
         "server/routes/scenario-comparison.ts:TS7006:8cb96423",
         "server/routes/scenario-comparison.ts:TS7006:b6460c19",
@@ -311,32 +267,19 @@
         "server/services/notion-service.ts:TS2552:c21d383c",
         "server/services/notion-service.ts:TS2769:5481333e",
         "server/services/notion-service.ts:TS2769:eedfb7bc",
-        "server/services/performance-prediction.ts:TS18046:11499e29",
-        "server/services/performance-prediction.ts:TS18048:96e6de9d",
         "server/services/performance-prediction.ts:TS18048:9b9fba1e",
-        "server/services/performance-prediction.ts:TS2322:0495e9d0",
-        "server/services/performance-prediction.ts:TS2322:0b13189a",
         "server/services/performance-prediction.ts:TS2345:49837e96",
-        "server/services/performance-prediction.ts:TS2345:b48e9a72",
-        "server/services/performance-prediction.ts:TS2345:e202b3ab",
         "server/services/performance-prediction.ts:TS2375:9ec9ba88",
-        "server/services/performance-prediction.ts:TS2532:0b13189a",
-        "server/services/performance-prediction.ts:TS2532:0f371af6",
         "server/services/performance-prediction.ts:TS2532:195796f0",
-        "server/services/performance-prediction.ts:TS2532:209e033e",
-        "server/services/performance-prediction.ts:TS2532:351fdc54",
         "server/services/performance-prediction.ts:TS2532:41b22676",
-        "server/services/performance-prediction.ts:TS2532:5422cbbe",
         "server/services/performance-prediction.ts:TS2532:70a1b119",
         "server/services/performance-prediction.ts:TS2532:7da720ea",
-        "server/services/performance-prediction.ts:TS2532:88f710cc",
         "server/services/performance-prediction.ts:TS2532:9044feb2",
         "server/services/performance-prediction.ts:TS2532:963c1644",
         "server/services/performance-prediction.ts:TS2532:9d5ba954",
         "server/services/performance-prediction.ts:TS2532:cc9aa9bd",
         "server/services/performance-prediction.ts:TS2532:d14d3441",
         "server/services/performance-prediction.ts:TS2532:d39c7efe",
-        "server/services/performance-prediction.ts:TS2532:e003f9b8",
         "server/services/performance-prediction.ts:TS2769:8c78cb5f",
         "server/services/portfolio-performance-predictor.ts:TS2375:f50f0fce",
         "server/services/power-law-distribution.ts:TS2322:96d3e2e5",
@@ -387,26 +330,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 315,
-      "lastUpdated": "2026-01-02T03:33:38.966Z"
+      "total": 280,
+      "lastUpdated": "2026-01-02T03:51:53.794Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T03:33:38.966Z"
+      "lastUpdated": "2026-01-02T03:51:53.794Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T03:33:38.966Z"
+      "lastUpdated": "2026-01-02T03:51:53.794Z"
     }
   },
-  "totalErrors": 379,
-  "timestamp": "2026-01-02T03:33:38.966Z",
+  "totalErrors": 322,
+  "timestamp": "2026-01-02T03:51:53.794Z",
   "buildMode": "per-project",
-  "elapsedMs": 18981
+  "elapsedMs": 19230
 }

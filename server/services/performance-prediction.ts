@@ -151,7 +151,7 @@ export class PerformancePredictionEngine {
 
       return predictions;
     } catch (error) {
-      throw new Error(`Performance prediction failed: ${error.message}`);
+      throw new Error(`Performance prediction failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -272,7 +272,7 @@ export class PerformancePredictionEngine {
     const cohortPerformance = await this.getCohortPerformance(
       cohortFunds.map((f: FundRecord) => f.id)
     );
-    const fundPerformance = monthlyPerformance[monthlyPerformance.length - 1] || 0;
+    const fundPerformance = monthlyPerformance[monthlyPerformance.length - 1] ?? 0;
 
     const percentileRank = this.calculatePercentileRank(fundPerformance, cohortPerformance);
 
@@ -282,7 +282,7 @@ export class PerformancePredictionEngine {
       performanceProfile: {
         jCurve: monthlyPerformance,
         peakIRR: Math.max(...monthlyPerformance),
-        timeToBreakeven: monthlyPerformance.findIndex((v) => v > 0) || -1,
+        timeToBreakeven: monthlyPerformance.findIndex((v) => v > 0),
         currentStage,
       },
       comparisons: {
@@ -319,13 +319,13 @@ export class PerformancePredictionEngine {
         ...pred,
         predictions: pred.predictions.map((p) => ({
           ...p,
-          value: p.value * (1 + (scenario.adjustments[pred.metric] || 0)),
-          lowerBound: p.lowerBound * (1 + (scenario.adjustments[pred.metric] || 0)),
-          upperBound: p.upperBound * (1 + (scenario.adjustments[pred.metric] || 0)),
+          value: p.value * (1 + (scenario.adjustments[pred.metric] ?? 0)),
+          lowerBound: p.lowerBound * (1 + (scenario.adjustments[pred.metric] ?? 0)),
+          upperBound: p.upperBound * (1 + (scenario.adjustments[pred.metric] ?? 0)),
         })),
       }));
 
-      results['set'](scenario.name, adjustedPredictions);
+      results.set(scenario.name, adjustedPredictions);
     }
 
     return results;
@@ -379,7 +379,7 @@ export class PerformancePredictionEngine {
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -437,12 +437,12 @@ export class PerformancePredictionEngine {
     }
 
     // Calculate trend
-    const trend = (smoothed[smoothed.length - 1] - smoothed[0]) / smoothed.length;
+    const trend = ((smoothed[smoothed.length - 1] ?? 0) - (smoothed[0] ?? 0)) / smoothed.length;
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
-    const lastValue = smoothed[smoothed.length - 1];
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
+    const lastValue = smoothed[smoothed.length - 1] ?? 0;
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -539,7 +539,7 @@ export class PerformancePredictionEngine {
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -604,14 +604,14 @@ export class PerformancePredictionEngine {
 
       models.forEach((model: PredictionResult, mi: number) => {
         if (model.predictions[i]) {
-          value += model.predictions[i].value * normalizedWeights[mi];
-          lowerBound += model.predictions[i].lowerBound * normalizedWeights[mi];
-          upperBound += model.predictions[i].upperBound * normalizedWeights[mi];
+          value += model.predictions[i]!.value * normalizedWeights[mi]!;
+          lowerBound += model.predictions[i]!.lowerBound * normalizedWeights[mi]!;
+          upperBound += model.predictions[i]!.upperBound * normalizedWeights[mi]!;
         }
       });
 
       ensemblePredictions.push({
-        timestamp: models[0].predictions[i].timestamp,
+        timestamp: models[0]?.predictions[i]?.timestamp ?? new Date(),
         value,
         lowerBound,
         upperBound,
@@ -785,14 +785,14 @@ export class PerformancePredictionEngine {
       orderBy: fundMetrics.asOfDate,
     });
 
-    return metrics.map((m: FundMetrics) => parseFloat(m.irr?.toString() || '0'));
+    return metrics.map((m: FundMetrics) => parseFloat(m.irr?.toString() ?? '0'));
   }
 
   private determineFundStage(
     ageYears: number,
     performance: number[]
   ): 'investment' | 'growth' | 'harvest' | 'mature' {
-    const currentPerformance = performance[performance.length - 1] || 0;
+    const currentPerformance = performance[performance.length - 1] ?? 0;
 
     if (ageYears < 2) return 'investment';
     if (ageYears < 5 && currentPerformance < 0.1) return 'investment';
@@ -810,8 +810,9 @@ export class PerformancePredictionEngine {
     const latestByFund = new Map<number, number>();
 
     for (const metric of metrics) {
-      if (!latestByFund.has(metric.fundId)) {
-        latestByFund['set'](metric.fundId, parseFloat(metric.irr?.toString() || '0'));
+      const fundId = metric.fundId;
+      if (fundId !== null && !latestByFund.has(fundId)) {
+        latestByFund.set(fundId, parseFloat(metric.irr?.toString() ?? '0'));
       }
     }
 
@@ -819,18 +820,21 @@ export class PerformancePredictionEngine {
   }
 
   private calculateMedian(values: number[]): number {
+    if (values.length === 0) return 0;
     const sorted = values.slice().sort((a: number, b: number) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
   }
 
   private calculatePercentile(values: number[], percentile: number): number {
+    if (values.length === 0) return 0;
     const sorted = values.slice().sort((a: number, b: number) => a - b);
     const index = Math.ceil((percentile / 100) * sorted.length) - 1;
-    return sorted[Math.max(0, index)];
+    return sorted[Math.max(0, index)]!;
   }
 
   private calculatePercentileRank(value: number, population: number[]): number {
+    if (population.length === 0) return 0;
     const below = population.filter((v) => v < value).length;
     return (below / population.length) * 100;
   }
