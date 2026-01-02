@@ -139,12 +139,16 @@ export function ExitRecyclingStep({ initialData, onSave, fundFinancials }: ExitR
   // Toggle handler with preservation pattern
   const handleRecyclingToggle = (enabled: boolean) => {
     if (!enabled) {
-      // Toggle OFF: Preserve all 4 recycling fields
+      // Toggle OFF: Preserve all 4 recycling fields (only include defined values)
+      const cap = getValues('recyclingCap');
+      const period = getValues('recyclingPeriod');
+      const exitRate = getValues('exitRecyclingRate');
+      const mgmtRate = getValues('mgmtFeeRecyclingRate');
       preservedValuesRef.current = {
-        recyclingCap: getValues('recyclingCap'),
-        recyclingPeriod: getValues('recyclingPeriod'),
-        exitRecyclingRate: getValues('exitRecyclingRate'),
-        mgmtFeeRecyclingRate: getValues('mgmtFeeRecyclingRate'),
+        ...(cap !== undefined && { recyclingCap: cap }),
+        ...(period !== undefined && { recyclingPeriod: period }),
+        ...(exitRate !== undefined && { exitRecyclingRate: exitRate }),
+        ...(mgmtRate !== undefined && { mgmtFeeRecyclingRate: mgmtRate }),
       };
       setValue('enabled', false);
     } else if (preservedValuesRef.current.recyclingCap !== undefined) {

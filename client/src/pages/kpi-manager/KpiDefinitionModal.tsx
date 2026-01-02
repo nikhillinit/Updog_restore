@@ -98,7 +98,7 @@ export function KpiDefinitionModal({
           <div className="space-y-3">
             <Label>Type</Label>
             <Select
-              value={formData.type ?? undefined}
+              value={formData.type ?? ''}
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, type: value as 'quantitative' | 'qualitative' }))
               }
@@ -116,7 +116,7 @@ export function KpiDefinitionModal({
           <div className="space-y-3">
             <Label>Frequency</Label>
             <Select
-              value={formData.frequency ?? undefined}
+              value={formData.frequency ?? ''}
               onValueChange={(value) =>
                 setFormData((prev) => ({
                   ...prev,
@@ -161,7 +161,7 @@ export function KpiDefinitionModal({
                 placeholder="66"
               />
               <Select
-                value={formData.termUnit ?? undefined}
+                value={formData.termUnit ?? ''}
                 onValueChange={(value) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -184,7 +184,7 @@ export function KpiDefinitionModal({
           <div className="space-y-3">
             <Label>Number Format</Label>
             <Select
-              value={formData.numberFormat ?? undefined}
+              value={formData.numberFormat ?? ''}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, numberFormat: value }))}
             >
               <SelectTrigger className="border-gray-300">

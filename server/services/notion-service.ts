@@ -752,21 +752,29 @@ export class NotionService {
     const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const iv = crypto.randomBytes(16);
 
-    const cipher = crypto.createCipher(algorithm, key);
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
     let encrypted = cipher.update(token, 'utf8', 'hex');
     encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag().toString('hex');
 
-    return `${iv.toString('hex')  }:${  encrypted}`;
+    // Format: iv:authTag:encrypted
+    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   }
 
   private decryptToken(encryptedToken: string): string {
     const algorithm = 'aes-256-gcm';
     const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const parts = encryptedToken.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
-    const encrypted = parts[1];
 
-    const decipher = crypto.createDecipher(algorithm, key);
+    // Handle both old format (iv:encrypted) and new format (iv:authTag:encrypted)
+    const iv = Buffer.from(parts[0] ?? '', 'hex');
+    const authTag = parts.length === 3 ? Buffer.from(parts[1] ?? '', 'hex') : null;
+    const encrypted = parts.length === 3 ? (parts[2] ?? '') : (parts[1] ?? '');
+
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    if (authTag) {
+      decipher.setAuthTag(authTag);
+    }
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
 

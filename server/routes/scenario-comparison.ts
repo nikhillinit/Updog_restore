@@ -28,8 +28,8 @@ const router = Router();
 let redis: ReturnType<typeof createClient> | null = null;
 
 async function getRedisClient() {
-  if (!redis && process.env.REDIS_URL && process.env.REDIS_URL !== 'memory://') {
-    redis = createClient({ url: process.env.REDIS_URL });
+  if (!redis && process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
+    redis = createClient({ url: process.env['REDIS_URL'] });
     await redis.connect().catch((err) => {
       console.error('[scenario-comparison] Redis connect failed; comparisons will not be cached', err);
       redis = null;
@@ -165,7 +165,7 @@ router.post(
           follow_ons: Number(c.followOns),
           exit_proceeds: Number(c.exitProceeds),
           exit_valuation: Number(c.exitValuation),
-          months_to_exit: c.monthsToExit ?? undefined,
+          ...(c.monthsToExit != null && { months_to_exit: c.monthsToExit }),
         })),
       }));
 

@@ -80,7 +80,9 @@ export function deepSet<T extends object>(
   // Traverse to second-to-last part, creating structure as needed
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
+    if (!key) continue;
     const nextKey = parts[i + 1];
+    if (!nextKey) continue;
     const shouldBeArray = isIndex(nextKey);
 
     // Check if current node is not an object or is null
@@ -99,7 +101,9 @@ export function deepSet<T extends object>(
 
   // Set the final value
   const lastKey = parts[parts.length - 1];
-  node[lastKey] = value;
+  if (lastKey) {
+    node[lastKey] = value;
+  }
 
   return obj;
 }
@@ -132,7 +136,7 @@ export function deepGet<T = unknown>(
 
   let node = obj;
   for (const part of parts) {
-    if (node == null) return defaultValue;
+    if (node == null || !part) return defaultValue;
     node = node[part];
   }
 
@@ -153,7 +157,7 @@ export function deepHas(obj: any, path: string): boolean {
 
   let node = obj;
   for (const part of parts) {
-    if (typeof node !== 'object' || node === null) return false;
+    if (typeof node !== 'object' || node === null || !part) return false;
     if (!(part in node)) return false;
     node = node[part];
   }
@@ -178,13 +182,15 @@ export function deepDelete<T extends object>(obj: T, path: string): T {
   // Traverse to parent
   for (let i = 0; i < parts.length - 1; i++) {
     if (typeof node !== 'object' || node === null) return obj;
-    node = node[parts[i]];
+    const part = parts[i];
+    if (!part) return obj;
+    node = node[part];
     if (node == null) return obj;
   }
 
   // Delete the final key
   const lastKey = parts[parts.length - 1];
-  if (typeof node === 'object' && node !== null) {
+  if (typeof node === 'object' && node !== null && lastKey) {
     delete node[lastKey];
   }
 

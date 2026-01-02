@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app['get']('/api/funds/:id', async (req: Request, res: Response) => {
     try {
-      const idParam = req.params.id;
+      const idParam = req.params['id'];
       const id = toNumber(idParam, 'ID');
 
       if (id <= 0) {
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio company routes - Type-safe with query validation
   app['get']('/api/portfolio-companies', async (req: Request, res: Response) => {
     try {
-      const fundIdQuery = req.query.fundId;
+      const fundIdQuery = req.query['fundId'];
       let fundId: number | undefined = undefined;
 
       if (fundIdQuery) {
@@ -241,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app['get']('/api/portfolio-companies/:id', async (req: Request, res: Response) => {
     try {
-      const idParam = req.params.id;
+      const idParam = req.params['id'];
       const id = toNumber(idParam, 'ID');
 
       if (id <= 0) {
@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fund metrics routes - Type-safe parameter validation
   app['get']('/api/fund-metrics/:fundId', async (req: Request, res: Response) => {
     try {
-      const fundIdParam = req.params.fundId;
+      const fundIdParam = req.params['fundId'];
       const fundId = toNumber(fundIdParam, 'fund ID');
 
       if (fundId <= 0) {
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Activity routes - Type-safe query parameter handling
   app['get']('/api/activities', async (req: Request, res: Response) => {
     try {
-      const fundIdQuery = req.query.fundId;
+      const fundIdQuery = req.query['fundId'];
       let fundId: number | undefined = undefined;
 
       if (fundIdQuery) {
@@ -390,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard summary route - Type-safe with comprehensive validation
   app['get']('/api/dashboard-summary/:fundId', async (req: Request, res: Response) => {
     try {
-      const fundIdParam = req.params.fundId;
+      const fundIdParam = req.params['fundId'];
       const fundId = toNumber(fundIdParam, 'fund ID');
 
       if (fundId <= 0) {
@@ -451,7 +451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Investment routes - Type-safe with query validation
   app['get']('/api/investments', async (req: Request, res: Response) => {
     try {
-      const fundIdQuery = req.query.fundId;
+      const fundIdQuery = req.query['fundId'];
       let fundId: number | undefined = undefined;
 
       if (fundIdQuery) {
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app['get']('/api/investments/:id', async (req: Request, res: Response) => {
     try {
-      const idParam = req.params.id;
+      const idParam = req.params['id'];
       const id = toNumber(idParam, 'ID');
 
       if (id <= 0) {
@@ -535,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Investment rounds routes - Type-safe parameter validation
   app.post('/api/investments/:id/rounds', async (req: Request, res: Response) => {
     try {
-      const idParam = req.params.id;
+      const idParam = req.params['id'];
       const investmentId = toNumber(idParam, 'investment ID');
 
       if (investmentId <= 0) {
@@ -569,7 +569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance cases routes - Type-safe parameter validation
   app.post('/api/investments/:id/cases', async (req: Request, res: Response) => {
     try {
-      const idParam = req.params.id;
+      const idParam = req.params['id'];
       const investmentId = toNumber(idParam, 'investment ID');
 
       if (investmentId <= 0) {
@@ -603,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reserve Engine routes - Type-safe with comprehensive error handling
   app['get']('/api/reserves/:fundId', async (req: Request, res: Response) => {
     try {
-      const fundIdParam = req.params.fundId;
+      const fundIdParam = req.params['fundId'];
       const fundId = toNumber(fundIdParam, 'fund ID');
 
       if (fundId <= 0) {
@@ -680,9 +680,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app['get']('/api/pacing/summary', async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
-      const fundSizeParam = req.query.fundSize as string;
-      const quarterParam = req.query.deploymentQuarter as string;
-      const marketConditionParam = req.query.marketCondition as string;
+      const fundSizeParam = req.query['fundSize'] as string;
+      const quarterParam = req.query['deploymentQuarter'] as string;
+      const marketConditionParam = req.query['marketCondition'] as string;
 
       const pacingInput: PacingInput = {
         fundSize: fundSizeParam ? toNumber(fundSizeParam, 'fund size') : 50000000, // $50M default
@@ -718,9 +718,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app['get']('/api/cohorts/analysis', async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
-      const fundIdQuery = req.query.fundId;
-      const vintageYearQuery = req.query.vintageYear;
-      const cohortSizeQuery = req.query.cohortSize;
+      const fundIdQuery = req.query['fundId'];
+      const vintageYearQuery = req.query['vintageYear'];
+      const cohortSizeQuery = req.query['cohortSize'];
 
       let fundId = config.DEFAULT_FUND_ID; // Default fund (from env config)
       let vintageYear = new Date().getFullYear() - 1; // Default to last year

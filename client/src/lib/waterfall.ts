@@ -38,7 +38,7 @@ function isValidCarryVesting(value: unknown): value is Waterfall['carryVesting']
   const v = value as Record<string, unknown>;
 
   // Verify required numeric properties exist
-  return typeof v.cliffYears === 'number' && typeof v.vestingYears === 'number';
+  return typeof v['cliffYears'] === 'number' && typeof v['vestingYears'] === 'number';
 }
 
 /**

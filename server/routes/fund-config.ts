@@ -42,7 +42,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -119,7 +119,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -162,7 +162,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -269,7 +269,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {

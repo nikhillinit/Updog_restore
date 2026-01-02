@@ -201,9 +201,14 @@ router["put"]('/:fundId/transactions/:transactionId', async (req: Request, res: 
       });
     }
 
+    // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
     const updatedTransaction: CashTransaction = {
       ...existingTransaction,
-      ...updates,
+      ...filteredUpdates,
       updatedAt: new Date(),
     };
 

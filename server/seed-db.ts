@@ -35,6 +35,10 @@ export async function seedDatabase() {
     } as any;
     const [fund] = await db.insert(funds).values(fundData).returning();
 
+    if (!fund) {
+      throw new Error("Failed to create fund");
+    }
+
     console.log("✅ Created fund:", fund.name);
 
     // Insert sample portfolio companies

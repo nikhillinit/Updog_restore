@@ -344,7 +344,7 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       isActive: true,
     });
 
-    res.status(201).json({
+    res['status'](201)['json']({
       success: true,
       data: strategy,
       message: 'Strategy model created successfully',
@@ -391,9 +391,9 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
 
     // Fetch strategies from database
     const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
-      isActive,
-      modelType,
-      limit,
+      ...(isActive !== undefined && { isActive }),
+      ...(modelType && { modelType }),
+      ...(limit && { limit }),
     });
 
     res['json']({
@@ -446,8 +446,26 @@ router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Respons
     }
 
     // Update strategy via service
+    const validatedUpdate = validation.data;
     const updatedStrategy = await portfolioIntelligenceService.strategies.update(strategyId, {
-      ...validation.data,
+      ...(validatedUpdate.name && { name: validatedUpdate.name }),
+      ...(validatedUpdate.description && { description: validatedUpdate.description }),
+      ...(validatedUpdate.modelType && { modelType: validatedUpdate.modelType }),
+      ...(validatedUpdate.targetPortfolioSize && { targetPortfolioSize: validatedUpdate.targetPortfolioSize }),
+      ...(validatedUpdate.maxPortfolioSize && { maxPortfolioSize: validatedUpdate.maxPortfolioSize }),
+      ...(validatedUpdate.targetDeploymentPeriodMonths && { targetDeploymentPeriodMonths: validatedUpdate.targetDeploymentPeriodMonths }),
+      ...(validatedUpdate.checkSizeRange && { checkSizeRange: validatedUpdate.checkSizeRange }),
+      ...(validatedUpdate.sectorAllocation && { sectorAllocation: validatedUpdate.sectorAllocation }),
+      ...(validatedUpdate.stageAllocation && { stageAllocation: validatedUpdate.stageAllocation }),
+      ...(validatedUpdate.geographicAllocation && { geographicAllocation: validatedUpdate.geographicAllocation }),
+      ...(validatedUpdate.initialReservePercentage !== undefined && { initialReservePercentage: String(validatedUpdate.initialReservePercentage) }),
+      ...(validatedUpdate.followOnStrategy && { followOnStrategy: validatedUpdate.followOnStrategy }),
+      ...(validatedUpdate.concentrationLimits && { concentrationLimits: validatedUpdate.concentrationLimits }),
+      ...(validatedUpdate.riskTolerance && { riskTolerance: validatedUpdate.riskTolerance }),
+      ...(validatedUpdate.targetIrr !== undefined && { targetIrr: String(validatedUpdate.targetIrr) }),
+      ...(validatedUpdate.targetMultiple !== undefined && { targetMultiple: String(validatedUpdate.targetMultiple) }),
+      ...(validatedUpdate.targetDpi !== undefined && { targetDpi: String(validatedUpdate.targetDpi) }),
+      ...(validatedUpdate.tags && { tags: validatedUpdate.tags }),
     });
 
     if (!updatedStrategy) {
@@ -594,7 +612,7 @@ router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res
       createdBy: userId,
     });
 
-    res.status(201).json({
+    res['status'](201)['json']({
       success: true,
       data: scenario,
       message: 'Portfolio scenario created successfully',
@@ -635,9 +653,9 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
 
     // Fetch scenarios from database
     const scenarios = await portfolioIntelligenceService.scenarios.getByFund(fundId, {
-      scenarioType,
-      status,
-      limit,
+      ...(scenarioType && { scenarioType }),
+      ...(status && { status }),
+      ...(limit && { limit }),
     });
 
     res['json']({
@@ -694,7 +712,7 @@ router['post'](
         createdAt: new Date().toISOString(),
       };
       storage.comparisons.set(item.id, item);
-      res.status(201).json({
+      res['status'](201)['json']({
         success: true,
         data: item,
         message: 'Scenario comparison completed successfully',
@@ -793,7 +811,7 @@ router['post'](
         createdBy: userId,
       });
 
-      res.status(201).json({
+      res['status'](201)['json']({
         success: true,
         data: {
           ...simulation,
@@ -909,7 +927,7 @@ router['post'](
         createdBy: userId,
       });
 
-      res.status(201).json({
+      res['status'](201)['json']({
         success: true,
         data: {
           ...reserveStrategy,
@@ -959,8 +977,8 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
 
     // Fetch reserve strategies from database
     const strategies = await portfolioIntelligenceService.reserves.getByFund(fundId, {
-      strategyType,
-      isActive,
+      ...(strategyType && { strategyType }),
+      ...(isActive !== undefined && { isActive }),
     });
 
     res['json']({
@@ -1031,7 +1049,7 @@ router['post'](
         createdAt: new Date().toISOString(),
       };
       storage.backtests.set(item.id, item);
-      res.status(201).json({
+      res['status'](201)['json']({
         success: true,
         data: item,
         message: 'Reserve strategy backtest completed successfully',
@@ -1124,7 +1142,7 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
       updatedAt: new Date().toISOString(),
     };
     storage.forecasts.set(item.id, item);
-    res.status(201).json({
+    res['status'](201)['json']({
       success: true,
       data: item,
       message: 'Performance forecast generated successfully',
@@ -1159,8 +1177,8 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
 
     // Fetch forecasts from database
     const forecasts = await portfolioIntelligenceService.forecasts.getByScenario(scenarioId, {
-      forecastType,
-      status,
+      ...(forecastType && { forecastType }),
+      ...(status && { status }),
     });
 
     res['json']({
@@ -1250,7 +1268,7 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       }
     );
 
-    res.json({
+    res['json']({
       success: true,
       data: {
         forecastId: validatedData.forecastId,
@@ -1398,7 +1416,7 @@ router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       createdAt: new Date().toISOString(),
     };
     storage.quickScenarios.set(item.id, item);
-    res.status(201).json({
+    res['status'](201)['json']({
       success: true,
       data: item,
       message: 'Quick scenario generated successfully',

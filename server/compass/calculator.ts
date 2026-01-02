@@ -137,7 +137,7 @@ export function calculateSandboxValuation(
       evWithControl: Math.round(evWithControl),
       finalValue: Math.round(finalValue),
       impliedMultiple: Math.round(impliedMultiple * 100) / 100, // Round to 2 decimals
-      vsLastRound,
+      ...(vsLastRound && { vsLastRound }),
     },
     calculatedAt: new Date(),
   };
@@ -176,7 +176,7 @@ export function calculateValuationRange(
 
   const getPercentile = (arr: number[], percentile: number): number => {
     const index = Math.ceil((percentile / 100) * arr.length) - 1;
-    return arr[Math.max(0, Math.min(index, arr.length - 1))];
+    return arr[Math.max(0, Math.min(index, arr.length - 1))] ?? 0;
   };
 
   // Calculate valuations at different percentiles
@@ -190,11 +190,11 @@ export function calculateValuationRange(
   };
 
   return {
-    low: calculateAtMultiple(multiples[0]),
+    low: calculateAtMultiple(multiples[0] ?? 0),
     p25: calculateAtMultiple(getPercentile(multiples, 25)),
     median: calculateAtMultiple(getPercentile(multiples, 50)),
     p75: calculateAtMultiple(getPercentile(multiples, 75)),
-    high: calculateAtMultiple(multiples[multiples.length - 1]),
+    high: calculateAtMultiple(multiples[multiples.length - 1] ?? 0),
   };
 }
 

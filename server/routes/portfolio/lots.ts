@@ -66,7 +66,7 @@ router.post(
         sharePriceCents: BigInt(sharePriceCents),
         sharesAcquired,
         costBasisCents: BigInt(costBasisCents),
-        idempotencyKey,
+        ...(idempotencyKey && { idempotencyKey }),
       });
 
       return res.status(201).json({
@@ -133,10 +133,10 @@ router.get(
     try {
       // 3. List lots using service
       const result = await lotService.list(fundId, {
-        cursor,
         limit,
-        investmentId,
-        lotType: lotType as 'initial' | 'follow_on' | 'secondary' | undefined,
+        ...(cursor && { cursor }),
+        ...(investmentId && { investmentId }),
+        ...(lotType && { lotType: lotType as 'initial' | 'follow_on' | 'secondary' }),
       });
 
       return res.json({

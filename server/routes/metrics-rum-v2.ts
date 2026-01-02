@@ -146,7 +146,7 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
   (req as any).rumV2 = {
     processMetric: (name: string, value: number, labels: Record<string, any>) => {
       const { pathname = '/', rating = 'unknown', navigationType = 'navigate' } = labels;
-      const timestamp = labels.timestamp || Date.now();
+      const timestamp = labels['timestamp'] || Date.now();
       
       // 1. Validate replay window
       const replayValidation = validateReplayWindow(timestamp);

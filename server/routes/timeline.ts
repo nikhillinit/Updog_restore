@@ -86,8 +86,8 @@ const createSnapshotSchema = z.object({
 
       // Delegate to service
       const result = await service.getTimelineEvents(fundIdNum, {
-        startTime: startTimeStr ? new Date(startTimeStr) : undefined,
-        endTime: endTimeStr ? new Date(endTimeStr) : undefined,
+        ...(startTimeStr && { startTime: new Date(startTimeStr) }),
+        ...(endTimeStr && { endTime: new Date(endTimeStr) }),
         limit: limitNum,
         offset: offsetNum,
       });

@@ -45,7 +45,7 @@ export class RedisApprovalRateLimiter {
     this.redis = this.useMemory
       ? null
       : createClient({
-          url: resolvedRedisUrl,
+          url: resolvedRedisUrl as string,
           socket: {
             connectTimeout: 5000
           },
@@ -162,7 +162,7 @@ export class RedisApprovalRateLimiter {
       const windowStart = now - this.config.windowMs;
       const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
       if (timestamps.length >= this.config.maxRequests) {
-        const resetAt = timestamps[0] + this.config.windowMs;
+        const resetAt = timestamps[0]! + this.config.windowMs;
         this.memoryBuckets.set(key, timestamps);
         return {
           allowed: false,
@@ -214,11 +214,12 @@ export class RedisApprovalRateLimiter {
 
       const [allowed, remaining, resetAt] = result;
 
+      const retryAfter = allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined;
       return {
         allowed: allowed === 1,
         remaining,
         resetAt,
-        retryAfter: allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined
+        ...(retryAfter !== undefined && { retryAfter })
       };
 
     } catch (error) {
@@ -267,7 +268,7 @@ export class RedisApprovalRateLimiter {
       this.memoryBuckets.set(key, timestamps);
       return {
         count: timestamps.length,
-        oldestRequest: timestamps.length > 0 ? timestamps[0] : null,
+        oldestRequest: timestamps.length > 0 ? timestamps[0]! : null,
       };
     }
 
@@ -286,8 +287,8 @@ export class RedisApprovalRateLimiter {
 
     return {
       count,
-      oldestRequest: oldest.length > 0
-        ? parseInt(oldest[0].split('-')[0])
+      oldestRequest: oldest.length > 0 && oldest[0]
+        ? parseInt(oldest[0].split('-')[0]!)
         : null
     };
   }
@@ -381,7 +382,15 @@ export async function createRateLimiter(
 
   if (isProduction && shouldUseRedis) {
     try {
-      const redisLimiter = new RedisApprovalRateLimiter({ ...config, redisUrl });
+      const limiterConfig: RateLimiterConfig = {
+        maxRequests: config?.maxRequests ?? 3,
+        windowMs: config?.windowMs ?? 60000,
+        redisUrl
+      };
+      if (config?.keyPrefix !== undefined) {
+        limiterConfig.keyPrefix = config.keyPrefix;
+      }
+      const redisLimiter = new RedisApprovalRateLimiter(limiterConfig);
       await redisLimiter.connect();
       console.log('Using Redis-backed rate limiter');
       return redisLimiter;
