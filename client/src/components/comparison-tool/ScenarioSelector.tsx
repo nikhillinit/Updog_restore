@@ -27,7 +27,7 @@ interface Scenario {
   lastUpdated?: string;
 }
 
-interface ScenarioSelectorProps {
+interface BaseScenarioSelectorProps {
   scenarios: Scenario[];
   baseScenarioId?: string;
   comparisonScenarioIds: string[];
@@ -37,15 +37,53 @@ interface ScenarioSelectorProps {
   disabled?: boolean;
 }
 
-export function ScenarioSelector({
-  scenarios,
-  baseScenarioId,
-  comparisonScenarioIds,
-  onBaseChange,
-  onComparisonChange,
-  maxComparisons = 5,
-  disabled = false,
-}: ScenarioSelectorProps) {
+interface SimpleScenarioSelectorProps {
+  scenarios?: Scenario[];
+  value: string[];
+  onChange: (scenarioIds: string[]) => void;
+  maxSelections?: number;
+  minSelections?: number;
+  disabled?: boolean;
+}
+
+export type ScenarioSelectorProps = BaseScenarioSelectorProps | SimpleScenarioSelectorProps;
+
+function isSimpleProps(props: ScenarioSelectorProps): props is SimpleScenarioSelectorProps {
+  return 'value' in props && 'onChange' in props;
+}
+
+export function ScenarioSelector(props: ScenarioSelectorProps) {
+  // Handle simple value/onChange API
+  if (isSimpleProps(props)) {
+    const { value, onChange, disabled = false } = props;
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {value.map((id) => (
+            <Badge key={id} variant="secondary" className="cursor-pointer" onClick={() => onChange(value.filter(v => v !== id))}>
+              {id.substring(0, 8)}...
+              <X className="h-3 w-3 ml-1" />
+            </Badge>
+          ))}
+        </div>
+        {value.length === 0 && (
+          <p className="text-sm text-muted-foreground">No scenarios selected</p>
+        )}
+        {disabled && <p className="text-sm text-muted-foreground">Selection disabled</p>}
+      </div>
+    );
+  }
+
+  // Handle complex API
+  const {
+    scenarios,
+    baseScenarioId,
+    comparisonScenarioIds,
+    onBaseChange,
+    onComparisonChange,
+    maxComparisons = 5,
+    disabled = false,
+  } = props;
   const [baseOpen, setBaseOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
 

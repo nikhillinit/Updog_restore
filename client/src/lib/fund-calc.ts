@@ -265,7 +265,7 @@ function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
         'ipo',
         'secondary',
       ];
-      const exitBucket = exitBuckets[globalCompanyIndex % 4];
+      const exitBucket = exitBuckets[globalCompanyIndex % 4] ?? 'failure';
 
       companies.push({
         companyId,

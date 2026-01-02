@@ -32,7 +32,7 @@ export function PortfolioConfigForm({
   };
 
   const handleSliderChange = (values: number[]) => {
-    const newRatio = values[0] / 100; // Convert from percentage to decimal
+    const newRatio = (values[0] ?? 0) / 100; // Convert from percentage to decimal
     onReserveRatioChange(newRatio);
   };
 

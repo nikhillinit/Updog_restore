@@ -55,7 +55,7 @@ describe('EditAllocationDialog', () => {
   const mockOnOpenChange = vi.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi['clearAllMocks']();
     global.fetch = vi.fn();
   });
 

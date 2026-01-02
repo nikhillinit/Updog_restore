@@ -3,18 +3,12 @@
   "projects": {
     "client": {
       "errors": [
-        "client/src/components/portfolio-constructor/FundStrategyBuilder.tsx:TS2307:88267344",
         "client/src/lib/__tests__/type-guards.spec.ts:TS2532:10637e8c",
-        "client/src/lib/capital-calculations.ts:TS2532:899c02a1",
-        "client/src/lib/fund-calc.ts:TS2322:8781c4f4",
-        "client/src/lib/rollout-orchestrator.ts:TS2345:893ce423",
-        "client/src/lib/schema-adapter.ts:TS2532:ce1d208f",
         "client/src/lib/wizard-calculations.ts:TS6307:bd87e15b",
-        "client/src/lib/wizard-reserve-bridge.ts:TS6307:e5ff24ab",
-        "client/src/pages/ScenarioComparison.tsx:TS2322:68a5da00"
+        "client/src/lib/wizard-reserve-bridge.ts:TS6307:e5ff24ab"
       ],
-      "total": 9,
-      "lastUpdated": "2026-01-02T22:14:14.317Z"
+      "total": 3,
+      "lastUpdated": "2026-01-02T22:36:40.747Z"
     },
     "server": {
       "errors": [
@@ -54,11 +48,11 @@
         "server/services/metrics-aggregator.ts:TS2345:cec83484"
       ],
       "total": 34,
-      "lastUpdated": "2026-01-02T22:14:14.317Z"
+      "lastUpdated": "2026-01-02T22:36:40.747Z"
     }
   },
-  "totalErrors": 43,
-  "timestamp": "2026-01-02T22:14:14.317Z",
+  "totalErrors": 37,
+  "timestamp": "2026-01-02T22:36:40.747Z",
   "buildMode": "per-project",
-  "elapsedMs": 20692
+  "elapsedMs": 19244
 }

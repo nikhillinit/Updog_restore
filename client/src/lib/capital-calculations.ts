@@ -190,7 +190,7 @@ export function calculateProjections(data: {
     let calledCapital = 0;
     if (isInvestmentPeriod) {
       const yearIndex = year - 1;
-      const percentage = schedule[yearIndex] / 100;
+      const percentage = (schedule[yearIndex] ?? 0) / 100;
       calledCapital = data.targetFundSize * percentage;
     }
 

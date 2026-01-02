@@ -176,7 +176,7 @@ export default function MobileExecutiveDashboardPage() {
   // Enable debugger in development or with URL parameter
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const debugMode = urlParams.get('debug') === 'true' || process.env.NODE_ENV === 'development';
+    const debugMode = urlParams.get('debug') === 'true' || process.env['NODE_ENV'] === 'development';
     setEnableDebugger(debugMode);
   }, []);
 
