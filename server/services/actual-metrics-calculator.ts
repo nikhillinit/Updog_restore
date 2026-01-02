@@ -83,9 +83,9 @@ export class ActualMetricsCalculator {
       : new Decimal(0);
     const averageCheckSize = totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age
-    const fundAgeMonths = fund.establishmentDate
-      ? this.calculateMonthsSince(new Date(fund.establishmentDate))
+    // Calculate fund age (approximate using vintage year)
+    const fundAgeMonths = fund.vintageYear
+      ? this.calculateMonthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
       : undefined;
 
     return {
@@ -273,9 +273,9 @@ export class ActualMetricsCalculator {
     // In production, this would query an investments table
     const companies = await storage.getPortfolioCompanies(fundId);
     return companies
-      .filter((c) => c.investmentDate)
+      .filter((c) => c.createdAt) // Use createdAt as proxy for investment date
       .map((c) => ({
-        date: new Date(c.investmentDate!),
+        date: new Date(c.createdAt!),
         amount: c.investmentAmount ? parseFloat(c.investmentAmount.toString()) : 0,
       }));
   }
