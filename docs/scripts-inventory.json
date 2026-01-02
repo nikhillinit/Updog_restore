@@ -1745,7 +1745,7 @@
     },
     {
       "name": "test:affected:fast",
-      "command": "npm run test:affected -- --bail --reporter=dot",
+      "command": "npm run test:affected -- --bail=1 --reporter=dot",
       "category": "test",
       "isDead": false,
       "isDuplicate": false,
