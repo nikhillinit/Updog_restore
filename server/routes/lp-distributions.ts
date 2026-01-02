@@ -103,9 +103,9 @@ function formatCentsAsString(cents: bigint | null | undefined): string {
  */
 router.get(
   '/api/lp/distributions',
+  distributionsLimiter,
   requireAuth(),
   requireLPAccess,
-  distributionsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/distributions';
@@ -266,9 +266,9 @@ router.get(
  */
 router.get(
   '/api/lp/distributions/summary',
+  distributionsLimiter,
   requireAuth(),
   requireLPAccess,
-  distributionsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/distributions/summary';
@@ -388,9 +388,9 @@ router.get(
  */
 router.get(
   '/api/lp/distributions/tax-summary/:year',
+  distributionsLimiter,
   requireAuth(),
   requireLPAccess,
-  distributionsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/distributions/tax-summary/:year';
@@ -546,9 +546,9 @@ router.get(
  */
 router.get(
   '/api/lp/distributions/:distributionId',
+  distributionsLimiter,
   requireAuth(),
   requireLPAccess,
-  distributionsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/distributions/:distributionId';

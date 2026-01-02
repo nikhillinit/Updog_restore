@@ -124,7 +124,7 @@ function formatFileSize(bytes: number): string {
 // GET /api/lp/documents
 // ============================================================================
 
-router.get('/documents', requireLPAccess, documentsLimiter, async (req: Request, res: Response) => {
+router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request, res: Response) => {
   const endTimer = startTimer();
   const endpoint = '/api/lp/documents';
 
@@ -269,8 +269,8 @@ router.get('/documents', requireLPAccess, documentsLimiter, async (req: Request,
 
 router.get(
   '/documents/search',
-  requireLPAccess,
   documentsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/documents/search';
@@ -382,8 +382,8 @@ router.get(
 
 router.get(
   '/documents/:documentId',
-  requireLPAccess,
   documentsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/documents/:documentId';
@@ -494,8 +494,8 @@ router.get(
 
 router.get(
   '/documents/:documentId/download',
-  requireLPAccess,
   downloadLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/documents/:documentId/download';

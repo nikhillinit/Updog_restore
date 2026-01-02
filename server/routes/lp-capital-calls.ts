@@ -109,9 +109,9 @@ function formatCentsAsString(cents: bigint | null | undefined): string {
  */
 router.get(
   '/api/lp/capital-calls',
+  capitalCallsLimiter,
   requireAuth(),
   requireLPAccess,
-  capitalCallsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/capital-calls';
@@ -269,9 +269,9 @@ router.get(
  */
 router.get(
   '/api/lp/capital-calls/:callId',
+  capitalCallsLimiter,
   requireAuth(),
   requireLPAccess,
-  capitalCallsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/capital-calls/:callId';
@@ -416,9 +416,9 @@ router.get(
  */
 router.get(
   '/api/lp/capital-calls/:callId/wire-instructions',
+  capitalCallsLimiter,
   requireAuth(),
   requireLPAccess,
-  capitalCallsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/capital-calls/:callId/wire-instructions';
@@ -519,9 +519,9 @@ router.get(
  */
 router.post(
   '/api/lp/capital-calls/:callId/payment',
+  capitalCallsLimiter,
   requireAuth(),
   requireLPAccess,
-  capitalCallsLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/capital-calls/:callId/payment';

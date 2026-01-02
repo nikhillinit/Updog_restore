@@ -98,8 +98,8 @@ function createErrorResponse(code: string, message: string, field?: string): LPA
 
 router.get(
   '/notifications',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications';
@@ -257,8 +257,8 @@ router.get(
 
 router.get(
   '/notifications/unread-count',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications/unread-count';
@@ -317,8 +317,8 @@ router.get(
 
 router.post(
   '/notifications/:notificationId/read',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications/:notificationId/read';
@@ -424,8 +424,8 @@ router.post(
 
 router.post(
   '/notifications/read-all',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications/read-all';
@@ -520,8 +520,8 @@ router.post(
 
 router.get(
   '/notifications/preferences',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications/preferences';
@@ -590,8 +590,8 @@ router.get(
 
 router.put(
   '/notifications/preferences',
-  requireLPAccess,
   notificationsLimiter,
+  requireLPAccess,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
     const endpoint = '/api/lp/notifications/preferences';
