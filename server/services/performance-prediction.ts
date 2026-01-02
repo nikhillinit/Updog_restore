@@ -188,7 +188,7 @@ export class PerformancePredictionEngine {
         .filter((idx) => idx < timeSeries.length && timeSeries[idx])
         .map((idx) => timeSeries[idx]!.timestamp),
       seasonalityDetected: seasonality.detected,
-      cyclePeriod: seasonality.period,
+      ...(seasonality.period !== undefined && { cyclePeriod: seasonality.period }),
     };
   }
 
@@ -371,7 +371,7 @@ export class PerformancePredictionEngine {
     // Calculate regression coefficients
     const sumX = x.reduce((a: number, b: number) => a + b, 0);
     const sumY = y.reduce((a: number, b: number) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
     const sumX2 = x.reduce((sum: number, xi: number) => sum + xi * xi, 0);
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
@@ -431,9 +431,9 @@ export class PerformancePredictionEngine {
     const values = timeSeries.map((d) => d.value);
 
     // Apply exponential smoothing
-    const smoothed = [values[0]];
+    const smoothed = [values[0] ?? 0];
     for (let i = 1; i < values.length; i++) {
-      smoothed.push(alpha * values[i] + (1 - alpha) * smoothed[i - 1]);
+      smoothed.push(alpha * (values[i] ?? 0) + (1 - alpha) * (smoothed[i - 1] ?? 0));
     }
 
     // Calculate trend
@@ -495,8 +495,8 @@ export class PerformancePredictionEngine {
     const sumX3 = x.reduce((sum: number, xi: number) => sum + xi * xi * xi, 0);
     const sumX4 = x.reduce((sum: number, xi: number) => sum + xi * xi * xi * xi, 0);
     const sumY = y.reduce((a: number, b: number) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
+    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * (y[i] ?? 0), 0);
 
     // Solve system of equations using Cramer's rule (simplified)
     const det =
@@ -656,24 +656,24 @@ export class PerformancePredictionEngine {
     const n = actual.length;
 
     // Mean Absolute Error
-    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - predicted[i]), 0) / n;
+    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - (predicted[i] ?? 0)), 0) / n;
 
     // Root Mean Square Error
-    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0) / n;
+    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0) / n;
     const rmse = Math.sqrt(mse);
 
     // Mean Absolute Percentage Error
     const mape =
       actual.reduce((sum, a, i) => {
         if (a !== 0) {
-          return sum + Math.abs((a - predicted[i]) / a);
+          return sum + Math.abs((a - (predicted[i] ?? 0)) / a);
         }
         return sum;
       }, 0) / n;
 
     // R-squared
     const meanActual = actual.reduce((sum: number, a: number) => sum + a, 0) / n;
-    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0);
+    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0);
     const ssTot = actual.reduce((sum: number, a: number) => sum + Math.pow(a - meanActual, 2), 0);
     const r2Score = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
 
@@ -702,7 +702,7 @@ export class PerformancePredictionEngine {
 
     const sumX = x.reduce((a: number, b: number) => a + b, 0);
     const sumY = y.reduce((a: number, b: number) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
     const sumX2 = x.reduce((sum: number, xi: number) => sum + xi * xi, 0);
 
     return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
@@ -713,8 +713,10 @@ export class PerformancePredictionEngine {
     const returns = [];
 
     for (let i = 1; i < values.length; i++) {
-      if (values[i - 1] !== 0) {
-        returns.push((values[i] - values[i - 1]) / values[i - 1]);
+      const prevVal = values[i - 1];
+      const currVal = values[i];
+      if (prevVal !== undefined && currVal !== undefined && prevVal !== 0) {
+        returns.push((currVal - prevVal) / prevVal);
       }
     }
 
@@ -734,8 +736,10 @@ export class PerformancePredictionEngine {
       const next = values[i + 1];
 
       // Check for local maxima or minima
-      if ((curr > prev && curr > next) || (curr < prev && curr < next)) {
-        inflectionPoints.push(i);
+      if (prev !== undefined && curr !== undefined && next !== undefined) {
+        if ((curr > prev && curr > next) || (curr < prev && curr < next)) {
+          inflectionPoints.push(i);
+        }
       }
     }
 
@@ -769,11 +773,18 @@ export class PerformancePredictionEngine {
     let denominator = 0;
 
     for (let i = 0; i < n; i++) {
-      numerator += (values[i] - mean) * (values[i + lag] - mean);
+      const vi = values[i];
+      const viLag = values[i + lag];
+      if (vi !== undefined && viLag !== undefined) {
+        numerator += (vi - mean) * (viLag - mean);
+      }
     }
 
     for (let i = 0; i < values.length; i++) {
-      denominator += Math.pow(values[i] - mean, 2);
+      const vi = values[i];
+      if (vi !== undefined) {
+        denominator += Math.pow(vi - mean, 2);
+      }
     }
 
     return denominator === 0 ? 0 : numerator / denominator;
@@ -840,19 +851,19 @@ export class PerformancePredictionEngine {
   }
 
   private async storePrediction(result: PredictionResult, config: PredictionConfig): Promise<void> {
+    // TODO: Schema needs alignment - performanceForecasts table has different structure
     await db.insert(performanceForecasts).values({
       fundId: result.fundId,
-      predictionEngine: 'performance-prediction-v1',
-      predictionType: result.metric,
-      predictionHorizon: config.predictionHorizon,
-      predictions: result.predictions,
-      confidence: config.confidenceLevel,
-      metadata: {
-        modelType: config.modelType,
+      forecastName: `prediction-${result.metric}-${Date.now()}`,
+      forecastType: 'fund_level',
+      forecastHorizonYears: Math.ceil(config.predictionHorizon / 12),
+      forecastPeriods: result.predictions,
+      methodology: config.modelType,
+      modelParameters: {
         accuracy: result.accuracy,
         parameters: result.modelMetadata.parameters,
       },
-      createdAt: new Date(),
+      confidenceIntervals: { level: config.confidenceLevel },
     });
   }
 }
