@@ -297,24 +297,97 @@ If batch introduces runtime errors:
 3. Isolate problematic fix
 4. Apply more conservative fix
 
+## Existing Utilities (LEVERAGE THESE)
+
+The codebase already has type-safety utilities that can accelerate fixes:
+
+### 1. `shared/utils/type-safety.ts`
+
+```typescript
+import {
+  optionalProp,
+  optionalProps,
+  isDefined,
+  filterDefined,
+  withDefault,
+  safeString,
+} from '@shared/utils/type-safety';
+
+// For single optional property (TS2375 fix)
+return { required: 'value', ...optionalProp('name', maybeValue) };
+
+// For multiple optional properties
+return { required: 'value', ...optionalProps({ opt1, opt2, opt3 }) };
+
+// Type guard for undefined checks
+if (isDefined(value)) {
+  /* value is T, not T | undefined */
+}
+
+// Filter undefined from arrays
+const clean = filterDefined([item1, item2, maybeItem3]);
+```
+
+### 2. `client/src/lib/ts/spreadIfDefined.ts`
+
+```typescript
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+
+// For component props (JSX)
+<Input {...spreadIfDefined("error", errorMessage)} />
+
+// For object construction
+return { required, ...spreadIfDefined('optional', maybeValue) };
+```
+
+### 3. `shared/type-safety-utils.ts`
+
+```typescript
+import {
+  toSafeNumber,
+  isSafeNumber,
+  SafeArithmetic,
+} from '@shared/type-safety-utils';
+
+// Safe number conversion
+const num = toSafeNumber(maybeValue, 0); // returns 0 if invalid
+
+// Type guard for numbers
+if (isSafeNumber(value)) {
+  /* value is number */
+}
+
+// Safe arithmetic with fallbacks
+SafeArithmetic.divide(a, b, { allowZero: true });
+```
+
+**Recommendation**: Use these utilities instead of writing inline checks. This:
+
+- Reduces code duplication
+- Ensures consistent patterns
+- Makes future refactoring easier
+- Already tested and proven
+
 ## Technical Patterns
 
-### Pattern 1: Filtering undefined from objects
+### Pattern 1: Filtering undefined from objects (USE `optionalProp` UTILITY)
 
 ```typescript
 // Before (TS2375 error)
 return { name: value }; // value is string | undefined
 
-// After
+// After - Using existing utility (PREFERRED)
+import { optionalProp } from '@shared/utils/type-safety';
+return { ...optionalProp('name', value) };
+
+// After - Manual (if utility not importable)
 return {
   ...(value !== undefined && { name: value }),
 };
 
-// Or for multiple optional fields
-const result: SomeType = { required: 'value' };
-if (optional1 !== undefined) result.optional1 = optional1;
-if (optional2 !== undefined) result.optional2 = optional2;
-return result;
+// For multiple optional fields - Using utility
+import { optionalProps } from '@shared/utils/type-safety';
+return { required: 'value', ...optionalProps({ optional1, optional2 }) };
 ```
 
 ### Pattern 2: Type guards for schema access
@@ -389,6 +462,77 @@ npx tsc --noEmit -p tsconfig.server.json
 # Build verification
 npm run build
 ```
+
+## Optimization Opportunities
+
+### Parallel Fix Execution
+
+Files within the same batch can be fixed in parallel since they have no
+dependencies:
+
+| Parallel Group | Files                                                     | Estimated Speedup |
+| -------------- | --------------------------------------------------------- | ----------------- |
+| lib-group-1    | flags.ts, locks.ts, logger.ts                             | 3x                |
+| lib-group-2    | tracing.ts, secure-context.ts, rateLimitStore.ts          | 3x                |
+| middleware-all | idempotency.ts, enhanced-audit.ts, dedupe.ts, security.ts | 4x                |
+| client-core    | PacingEngine.ts, DeterministicReserveEngine.ts            | 2x                |
+| client-lib     | All client/src/lib files                                  | 10x               |
+
+### High-Impact Single Fixes
+
+These single changes could resolve multiple errors:
+
+1. **Add `@types/node-fetch`** (1 change, 2 errors fixed)
+
+   ```bash
+   npm install -D @types/node-fetch
+   ```
+
+2. **Create shared `PortfolioCompanyWithComputed` type** (1 type, ~15 errors
+   fixed)
+   - Fixes projected-metrics-calculator.ts property errors
+   - Fixes actual-metrics-calculator.ts property errors
+   - Add to `shared/types/portfolio.ts`
+
+3. **Update `shared/utils/type-safety.ts` exports** (1 change, ~50 errors
+   easier)
+   - Re-export from `@shared/` for easier imports
+   - All exactOptionalPropertyTypes fixes become one-liners
+
+### Schema Alignment Strategy
+
+Instead of fixing 35 schema-related errors individually, consider:
+
+1. **Create adapter types** in `shared/types/adapters.ts`:
+
+   ```typescript
+   // Transform storage layer to application layer
+   export type PortfolioCompanyApp = PortfolioCompanyStorage & {
+     initialInvestment: number;
+     ownershipPercent: number;
+   };
+
+   export function toAppCompany(
+     storage: PortfolioCompanyStorage
+   ): PortfolioCompanyApp;
+   ```
+
+2. **Centralize transformation** in service layer
+3. **Fix once, apply everywhere**
+
+### Time Estimate Refinement
+
+With utilities and parallelization:
+
+| Batch     | Original       | Optimized      | Savings |
+| --------- | -------------- | -------------- | ------- |
+| 1         | 1 hour         | 30 min         | 50%     |
+| 2         | 2 hours        | 1 hour         | 50%     |
+| 3         | 1.5 hours      | 45 min         | 50%     |
+| 4         | 2 hours        | 1 hour         | 50%     |
+| 5         | 6 hours        | 4 hours        | 33%     |
+| 6         | 3 hours        | 2 hours        | 33%     |
+| **Total** | **15.5 hours** | **9.25 hours** | **40%** |
 
 ## Appendix: Full Error List by File
 
