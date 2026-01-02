@@ -45,7 +45,7 @@
         "client/src/utils/array-safety-enhanced.ts:TS2345:17b8b001"
       ],
       "total": 40,
-      "lastUpdated": "2026-01-02T04:06:54.173Z"
+      "lastUpdated": "2026-01-02T04:13:26.890Z"
     },
     "server": {
       "errors": [
@@ -96,13 +96,6 @@
         "server/lib/locks.ts:TS7017:1ddca1ae",
         "server/lib/logger.ts:TS2769:9068eeb0",
         "server/lib/rateLimitStore.ts:TS2375:9ec9ba88",
-        "server/lib/redis-rate-limiter.ts:TS2322:d407b0d7",
-        "server/lib/redis-rate-limiter.ts:TS2345:62b534b8",
-        "server/lib/redis-rate-limiter.ts:TS2375:9ec9ba88",
-        "server/lib/redis-rate-limiter.ts:TS2379:106a55e1",
-        "server/lib/redis-rate-limiter.ts:TS2379:817e983d",
-        "server/lib/redis-rate-limiter.ts:TS2532:62b534b8",
-        "server/lib/redis-rate-limiter.ts:TS2532:f0ec4718",
         "server/lib/redis/cluster.ts:TS2379:a2c42373",
         "server/lib/secure-context.ts:TS2375:e2da5fbd",
         "server/lib/stage-validation-mode.ts:TS2322:0932d0d0",
@@ -300,26 +293,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 250,
-      "lastUpdated": "2026-01-02T04:06:54.173Z"
+      "total": 243,
+      "lastUpdated": "2026-01-02T04:13:26.890Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T04:06:54.173Z"
+      "lastUpdated": "2026-01-02T04:13:26.890Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T04:06:54.173Z"
+      "lastUpdated": "2026-01-02T04:13:26.890Z"
     }
   },
-  "totalErrors": 292,
-  "timestamp": "2026-01-02T04:06:54.173Z",
+  "totalErrors": 285,
+  "timestamp": "2026-01-02T04:13:26.890Z",
   "buildMode": "per-project",
-  "elapsedMs": 19544
+  "elapsedMs": 19672
 }

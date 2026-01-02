@@ -94,7 +94,7 @@ router["post"]('/api/funds/:id/baselines', idempotency, async (req: Request, res
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -286,7 +286,7 @@ router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: Reque
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     const report = await varianceTrackingService.calculations.generateVarianceReport({
       fundId,
@@ -429,7 +429,7 @@ router["post"]('/api/funds/:id/alert-rules', async (req: Request, res: Response)
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -540,7 +540,7 @@ router["post"]('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -590,7 +590,7 @@ router["post"]('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -648,7 +648,7 @@ router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Requ
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {

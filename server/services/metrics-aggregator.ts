@@ -35,11 +35,11 @@ class InMemoryCache implements CacheClient {
   async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
     if (!entry) return null;
-    if (Date.now() > entry.expiry) {
+    if (Date.now() > entry['expiry']) {
       this.cache.delete(key);
       return null;
     }
-    return entry.value as T;
+    return entry['value'] as T;
   }
 
   async set<T>(key: string, value: T, options?: { ttlSeconds?: number }): Promise<void> {
@@ -101,11 +101,13 @@ export class MetricsAggregator {
       const cached = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (cached) {
         // Add cache metadata
-        cached._cache = {
-          hit: true,
-          key: cacheKey,
+        return {
+          ...cached,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+          },
         };
-        return cached;
       }
     }
 
@@ -114,23 +116,27 @@ export class MetricsAggregator {
     if (isRebuilding) {
       const stale = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (stale) {
-        stale._cache = {
-          hit: true,
-          key: cacheKey,
-          staleWhileRevalidate: true,
+        return {
+          ...stale,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+            staleWhileRevalidate: true,
+          },
         };
-        return stale;
       }
       // No stale data available, wait and retry once
       await new Promise(resolve => setTimeout(resolve, 100));
       const retried = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (retried) {
-        retried._cache = {
-          hit: true,
-          key: cacheKey,
-          staleWhileRevalidate: true,
+        return {
+          ...retried,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+            staleWhileRevalidate: true,
+          },
         };
-        return retried;
       }
       // Fall through to recompute
     }
@@ -338,11 +344,11 @@ export class MetricsAggregator {
       targetFundSize,
       targetIRR: config.targetIRR,
       targetTVPI: config.targetTVPI,
-      targetDPI: config.targetDPI,
+      targetDPI: config.targetDPI ?? undefined,
       targetDeploymentYears: config.investmentPeriodYears,
       targetCompanyCount,
       targetAverageCheckSize: targetFundSize / targetCompanyCount,
-      targetReserveRatio: config.reserveRatio,
+      targetReserveRatio: config.reserveRatio ?? undefined,
     };
   }
 
