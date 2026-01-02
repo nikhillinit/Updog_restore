@@ -107,7 +107,7 @@ export class ActualMetricsCalculator {
       totalCompanies,
       deploymentRate: deploymentRate.toNumber(),
       averageCheckSize: averageCheckSize.toNumber(),
-      fundAgeMonths,
+      ...(fundAgeMonths !== undefined && { fundAgeMonths }),
     };
   }
 
@@ -276,7 +276,7 @@ export class ActualMetricsCalculator {
       .filter((c) => c.investmentDate)
       .map((c) => ({
         date: new Date(c.investmentDate!),
-        amount: c.initialInvestment ? parseFloat(c.initialInvestment.toString()) : 0,
+        amount: c.investmentAmount ? parseFloat(c.investmentAmount.toString()) : 0,
       }));
   }
 
