@@ -74,9 +74,9 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
 
     while ((match = errorRegex.exec(output)) !== null) {
       errors.push({
-        file: match[1],
-        line: parseInt(match[2]),
-        message: match[3].trim()
+        file: match[1] ?? '',
+        line: parseInt(match[2] ?? '0'),
+        message: (match[3] ?? '').trim()
       });
     }
 
