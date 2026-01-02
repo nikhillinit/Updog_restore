@@ -8,7 +8,7 @@
         "client/src/lib/wizard-reserve-bridge.ts:TS6307:e5ff24ab"
       ],
       "total": 3,
-      "lastUpdated": "2026-01-02T22:36:40.747Z"
+      "lastUpdated": "2026-01-02T23:01:50.103Z"
     },
     "server": {
       "errors": [
@@ -48,11 +48,11 @@
         "server/services/metrics-aggregator.ts:TS2345:cec83484"
       ],
       "total": 34,
-      "lastUpdated": "2026-01-02T22:36:40.747Z"
+      "lastUpdated": "2026-01-02T23:01:50.103Z"
     }
   },
   "totalErrors": 37,
-  "timestamp": "2026-01-02T22:36:40.747Z",
+  "timestamp": "2026-01-02T23:01:50.103Z",
   "buildMode": "per-project",
-  "elapsedMs": 19244
+  "elapsedMs": 29305
 }
