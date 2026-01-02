@@ -173,7 +173,7 @@ export function adaptReservesResult(
       companiesFunded: 0,
       success: false,
       errors: [result.error || 'Calculation failed'],
-      warnings: result.warnings ?? undefined,
+      ...(result.warnings && { warnings: result.warnings }),
     };
   }
 
@@ -186,9 +186,10 @@ export function adaptReservesResult(
       const plannedDollars = centsToDollars(alloc.planned_cents);
       const initialInvestment = company ? company.investedAmount || company.invested || 0 : 0;
 
+      const companyName = company?.name || company?.companyName;
       return {
         companyId: alloc.company_id,
-        companyName: company?.name || company?.companyName || undefined,
+        ...(companyName && { companyName }),
         plannedReserve: plannedDollars,
         reservePercent: initialInvestment > 0 ? (plannedDollars / initialInvestment) * 100 : 0,
         reason: alloc.reason,
@@ -202,7 +203,7 @@ export function adaptReservesResult(
     totalReserve: centsToDollars(metadata.total_available_cents),
     companiesFunded: metadata.companies_funded,
     success: true,
-    warnings: result.warnings ?? undefined,
+    ...(result.warnings && { warnings: result.warnings }),
   };
 }
 

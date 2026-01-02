@@ -60,7 +60,7 @@ router.post(
       const snapshot = await snapshotService.create({
         fundId,
         name,
-        idempotencyKey,
+        ...(idempotencyKey && { idempotencyKey }),
       });
 
       // Return 202 Accepted with location header for polling
@@ -117,9 +117,9 @@ router.get(
     try {
       // 3. List snapshots using service
       const result = await snapshotService.list(fundId, {
-        cursor,
+        ...(cursor && { cursor }),
         limit,
-        status: status as 'pending' | 'calculating' | 'complete' | 'error' | undefined,
+        ...(status && { status: status as 'pending' | 'calculating' | 'complete' | 'error' }),
       });
 
       return res.json({
@@ -162,7 +162,7 @@ router.get(
 
     try {
       // 2. Get snapshot using service
-      const snapshot = await snapshotService.getById(snapshotId);
+      const snapshot = await snapshotService.get(snapshotId);
 
       // Add retry-after header for incomplete snapshots
       if (snapshot.status === 'pending' || snapshot.status === 'calculating') {
@@ -231,9 +231,9 @@ router.put(
     try {
       // 3. Update snapshot using service
       const snapshot = await snapshotService.update(snapshotId, {
-        name,
-        status: status as 'pending' | 'calculating' | 'complete' | 'error' | undefined,
-        calculatedMetrics,
+        ...(name && { name }),
+        ...(status && { status: status as 'pending' | 'calculating' | 'complete' | 'error' }),
+        ...(calculatedMetrics && { calculatedMetrics }),
         version: BigInt(version),
       });
 

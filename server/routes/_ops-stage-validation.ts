@@ -4,7 +4,7 @@ import express from 'express';
 import { setStageValidationMode } from '../lib/stage-validation-mode';
 
 const router = express.Router();
-const SECRET = process.env.ALERTMANAGER_WEBHOOK_SECRET;
+const SECRET = process.env['ALERTMANAGER_WEBHOOK_SECRET'];
 if (!SECRET || SECRET.length < 32) {
   throw new Error('ALERTMANAGER_WEBHOOK_SECRET (≥32 hex chars) is required');
 }

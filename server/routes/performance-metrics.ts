@@ -18,7 +18,7 @@ const router = Router();
  */
 router["get"]('/summary', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000); // Default 1 hour
+    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000); // Default 1 hour
     const metrics = monitor.exportMetrics();
 
     const summary = {
@@ -52,7 +52,7 @@ router["get"]('/summary', (req: Request, res: Response) => {
  */
 router["get"]('/monte-carlo', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
+    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000);
     const stats = monitor.getStats('monte_carlo_simulation', timeWindow);
 
     const monteCarloMetrics = {
@@ -90,7 +90,7 @@ router["get"]('/monte-carlo', (req: Request, res: Response) => {
  */
 router["get"]('/alerts', (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query['limit'] as string) || 50;
     const alerts = monitor.getRecentAlerts(limit);
 
     const formattedAlerts = alerts.map(alert => ({
@@ -185,8 +185,8 @@ router["get"]('/realtime', (req: Request, res: Response) => {
  */
 router["get"]('/operations', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
-    const category = req.query.category as string;
+    const timeWindow = parseInt(req.query['window'] as string) || (60 * 60 * 1000);
+    const category = req.query['category'] as string;
 
     const metrics = monitor.exportMetrics();
     let operations = Object.entries(metrics.summary);

@@ -58,9 +58,9 @@ export async function createServer(
   console.log('[server] Creating Express application...');
   
   // Bind providers to app.locals for routes/services
-  app.locals.providers = providers;
-  app.locals.cache = providers.cache;
-  app.locals.config = config;
+  app.locals['providers'] = providers;
+  app.locals['cache'] = providers.cache;
+  app.locals['config'] = config;
   
   // Security first - disable version disclosure
   app['disable']('x-powered-by');
@@ -237,7 +237,7 @@ export async function createServer(
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',
-        fundId: req.params.fundId || req.query.fundId as string
+        fundId: req.params['fundId'] || req.query['fundId'] as string
       };
       return next();
     }

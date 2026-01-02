@@ -106,6 +106,10 @@ export class BaselineService {
         .values(baselineData)
         .returning();
 
+      if (!baseline) {
+        throw new Error('Failed to create baseline');
+      }
+
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
       recordBaselineOperation(fundId.toString(), 'create', baselineType, duration);
@@ -341,6 +345,10 @@ export class VarianceCalculationService {
       const [report] = await db.insert(varianceReports)
         .values(reportData)
         .returning();
+
+      if (!report) {
+        throw new Error('Failed to create variance report');
+      }
 
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
@@ -704,6 +712,10 @@ export class AlertManagementService {
       .values(ruleData)
       .returning();
 
+    if (!rule) {
+      throw new Error('Failed to create alert rule');
+    }
+
     return rule;
   }
 
@@ -740,6 +752,10 @@ export class AlertManagementService {
     const [alert] = await db.insert(performanceAlerts)
       .values(alertData)
       .returning();
+
+    if (!alert) {
+      throw new Error('Failed to create performance alert');
+    }
 
     // Record metrics
     recordAlertGenerated(params.fundId.toString(), params.alertType, params.severity, params.category);
@@ -860,10 +876,11 @@ export class VarianceTrackingService {
     let finalBaselineId = baselineId;
     if (!finalBaselineId) {
       const defaultBaseline = await this.baselines.getBaselines(fundId, { isDefault: true });
-      if (!defaultBaseline.length) {
+      const baseline = defaultBaseline[0];
+      if (!baseline) {
         throw new Error('No default baseline found for fund');
       }
-      finalBaselineId = defaultBaseline[0].id;
+      finalBaselineId = baseline.id;
     }
 
     // Generate variance report

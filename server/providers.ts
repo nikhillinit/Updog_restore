@@ -161,7 +161,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
         await withCircuitBreaker(
           async () => {
             if (ttlSeconds) {
-              await redis.setex(key, ttlSeconds, value);
+              await redis['setex'](key, ttlSeconds, value);
             } else {
               await redis['set'](key, value);
             }

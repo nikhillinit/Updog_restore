@@ -217,9 +217,9 @@ class DevDashboardWebSocket {
 
       while ((match = errorRegex.exec(output)) !== null) {
         errors.push({
-          file: match[1],
-          line: parseInt(match[2]),
-          message: match[3].trim()
+          file: match[1] ?? '',
+          line: parseInt(match[2] ?? '0'),
+          message: (match[3] ?? '').trim()
         });
       }
 
@@ -311,7 +311,7 @@ class DevDashboardWebSocket {
         }, 2000);
       });
     } catch (error) {
-      console.warn('File watcher setup failed (chokidar not installed):', error.message);
+      console.warn('File watcher setup failed (chokidar not installed):', error instanceof Error ? error.message : String(error));
     }
   }
 

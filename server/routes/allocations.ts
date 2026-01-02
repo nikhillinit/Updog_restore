@@ -34,7 +34,7 @@ interface HttpError extends Error {
 }
 
 // Request type with user context
-interface RequestContext extends Request {
+interface RequestContext {
   rid?: string;
   user?: { id?: number };
 }
@@ -266,7 +266,7 @@ async function updateCompanyAllocation(
     throw error;
   }
 
-  const currentVersion = versionCheck.rows[0].allocation_version;
+  const currentVersion = versionCheck.rows[0]!.allocation_version;
 
   // Check for version conflict
   if (currentVersion !== expectedVersion) {
@@ -369,7 +369,7 @@ router['get'](
   '/funds/:fundId/companies',
   asyncHandler(async (req: Request, res: Response) => {
     const startTime = Date.now();
-    const requestId = (req as RequestContext).rid || 'unknown';
+    const requestId = (req as unknown as RequestContext).rid ?? 'unknown';
 
     // Validate fundId parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
@@ -512,7 +512,7 @@ router['get'](
 
     // Get next cursor (last company ID)
     const nextCursor =
-      hasMore && companies.length > 0 ? companies[companies.length - 1].id.toString() : null;
+      hasMore && companies.length > 0 ? companies[companies.length - 1]!.id.toString() : null;
 
     // Convert database results to response format
     const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) => ({
@@ -690,7 +690,7 @@ router['post'](
     const { expected_version, updates } = bodyValidation.data;
 
     // Get user ID from auth context (if available)
-    const userId = (req as RequestContext).user?.id || null;
+    const userId = (req as unknown as RequestContext).user?.id ?? null;
 
     // Execute updates in transaction
     const result = await transaction(async (client) => {

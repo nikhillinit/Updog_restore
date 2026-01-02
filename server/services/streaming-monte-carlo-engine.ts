@@ -189,14 +189,14 @@ class StreamingAggregator {
       const value = scenario[metric as keyof SingleScenario] as number;
 
       // Running sums for mean
-      this.aggregatedData.sums[metric] = (this.aggregatedData.sums[metric] || 0) + value;
+      this.aggregatedData['sums'][metric] = (this.aggregatedData['sums'][metric] || 0) + value;
 
       // Running squares for variance
-      this.aggregatedData.squares[metric] = (this.aggregatedData.squares[metric] || 0) + (value * value);
+      this.aggregatedData['squares'][metric] = (this.aggregatedData['squares'][metric] || 0) + (value * value);
 
       // Min/Max tracking
-      this.aggregatedData.mins[metric] = Math.min(this.aggregatedData.mins[metric] || value, value);
-      this.aggregatedData.maxs[metric] = Math.max(this.aggregatedData.maxs[metric] || value, value);
+      this.aggregatedData['mins'][metric] = Math.min(this.aggregatedData['mins'][metric] || value, value);
+      this.aggregatedData['maxs'][metric] = Math.max(this.aggregatedData['maxs'][metric] || value, value);
 
       // Reservoir sampling for percentiles
       this.addToReservoir(metric, value);
@@ -207,11 +207,11 @@ class StreamingAggregator {
   }
 
   private addToReservoir(metric: string, value: number): void {
-    if (!this.aggregatedData.sortedSamples[metric]) {
-      this.aggregatedData.sortedSamples[metric] = [];
+    if (!this.aggregatedData['sortedSamples'][metric]) {
+      this.aggregatedData['sortedSamples'][metric] = [];
     }
 
-    const samples = this.aggregatedData.sortedSamples[metric];
+    const samples = this.aggregatedData['sortedSamples'][metric];
     if (samples.length < this.maxSampleSize) {
       samples.push(value);
     } else {
@@ -224,16 +224,16 @@ class StreamingAggregator {
   }
 
   private addToHistogram(metric: string, value: number): void {
-    if (!this.aggregatedData.histogram[metric]) {
-      this.aggregatedData.histogram[metric] = new Map();
+    if (!this.aggregatedData['histogram'][metric]) {
+      this.aggregatedData['histogram'][metric] = new Map();
     }
 
-    const min = this.aggregatedData.mins[metric];
-    const max = this.aggregatedData.maxs[metric];
+    const min = this.aggregatedData['mins'][metric];
+    const max = this.aggregatedData['maxs'][metric];
     const binSize = (max - min) / this.histogramBins;
     const binIndex = Math.floor((value - min) / binSize);
 
-    const histogram = this.aggregatedData.histogram[metric];
+    const histogram = this.aggregatedData['histogram'][metric];
     histogram['set'](binIndex, (histogram['get'](binIndex) || 0) + 1);
   }
 
@@ -250,15 +250,15 @@ class StreamingAggregator {
 
   private calculateDistribution(metric: string): MemoryEfficientDistribution {
     const count = this.aggregatedData.totalScenarios;
-    const sum = this.aggregatedData.sums[metric] || 0;
-    const sumSquares = this.aggregatedData.squares[metric] || 0;
+    const sum = this.aggregatedData['sums'][metric] || 0;
+    const sumSquares = this.aggregatedData['squares'][metric] || 0;
 
     const mean = sum / count;
     const variance = (sumSquares / count) - (mean * mean);
     const standardDeviation = Math.sqrt(Math.max(0, variance));
 
     // Calculate percentiles from sorted samples
-    const samples = this.aggregatedData.sortedSamples[metric] || [];
+    const samples = this.aggregatedData['sortedSamples'][metric] || [];
     samples.sort((a: any, b: any) => a - b);
 
     const percentiles = new Map<number, number>();
@@ -270,8 +270,8 @@ class StreamingAggregator {
     }
 
     return {
-      min: this.aggregatedData.mins[metric] || 0,
-      max: this.aggregatedData.maxs[metric] || 0,
+      min: this.aggregatedData['mins'][metric] || 0,
+      max: this.aggregatedData['maxs'][metric] || 0,
       mean,
       standardDeviation,
       percentiles,
@@ -423,7 +423,8 @@ export class StreamingMonteCarloEngine {
       return results;
 
     } catch (error) {
-      throw new Error(`Streaming Monte Carlo simulation failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Streaming Monte Carlo simulation failed: ${errorMessage}`);
     } finally {
       // Cleanup resources
       await this.cleanup();
@@ -574,8 +575,8 @@ export class StreamingMonteCarloEngine {
    * Calculate risk metrics from streaming data
    */
   private async calculateStreamingRiskMetrics(distributions: Record<string, MemoryEfficientDistribution>): Promise<RiskMetrics> {
-    const irrDist = distributions.irr;
-    const totalValueDist = distributions.totalValue;
+    const irrDist = distributions['irr'];
+    const totalValueDist = distributions['totalValue'];
 
     // Value at Risk from percentiles
     const var5 = irrDist.percentiles['get'](5) || irrDist.min;
@@ -631,8 +632,9 @@ export class StreamingMonteCarloEngine {
 
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
-      const expectedIRR = this.estimateReserveImpact(distributions.irr.mean, ratio, portfolioInputs);
-      const riskAdjustedReturn = expectedIRR / distributions.irr.standardDeviation;
+      const irrDistribution = distributions['irr'];
+      const expectedIRR = this.estimateReserveImpact(irrDistribution?.mean ?? 0, ratio, portfolioInputs);
+      const riskAdjustedReturn = expectedIRR / (irrDistribution?.standardDeviation ?? 1);
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
       allocationAnalysis.push({
@@ -652,7 +654,7 @@ export class StreamingMonteCarloEngine {
       currentReserveRatio,
       optimalReserveRatio: optimal.reserveRatio,
       improvementPotential: optimal.expectedIRR -
-        allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0,
+        (allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0),
       coverageScenarios: {
         p25: 0.6,
         p50: 0.75,

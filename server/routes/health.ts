@@ -195,7 +195,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     const start = Date.now();
     await storage.getAllFunds();
     detailed.database = "ok";
-    detailed.metrics.dbLatencyMs = Date.now() - start;
+    detailed.metrics['dbLatencyMs'] = Date.now() - start;
   } catch (error) {
     detailed.database = "fail";
   }
@@ -208,9 +208,9 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   detailed.workers = redisHealthy ? "ok" : "idle";
   
   // Memory and uptime
-  detailed.metrics.uptimeSeconds = Math.floor(process.uptime());
-  detailed.metrics.memoryMB = Math.round(process.memoryUsage().heapUsed / 1048576);
-  detailed.metrics.version = process.env["npm_package_version"] || "1.3.2";
+  detailed.metrics['uptimeSeconds'] = Math.floor(process.uptime());
+  detailed.metrics['memoryMB'] = Math.round(process.memoryUsage().heapUsed / 1048576);
+  detailed.metrics['version'] = process.env["npm_package_version"] || "1.3.2";
   
   res["json"](detailed);
 });
