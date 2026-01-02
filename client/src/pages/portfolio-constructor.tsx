@@ -639,8 +639,8 @@ export default function PortfolioConstructor() {
                     <div>
                       <Label>Market Environment</Label>
                       <Select
-                        value={strategy.scenarios[activeScenario]?.marketEnvironment}
-                        onValueChange={(value: any) => {
+                        value={strategy.scenarios[activeScenario]?.marketEnvironment ?? 'normal'}
+                        onValueChange={(value: string) => {
                           const updatedScenarios = [...strategy.scenarios];
                           updatedScenarios[activeScenario] = {
                             ...updatedScenarios[activeScenario],
@@ -669,7 +669,7 @@ export default function PortfolioConstructor() {
                           const updatedScenarios = [...strategy.scenarios];
                           updatedScenarios[activeScenario] = {
                             ...updatedScenarios[activeScenario],
-                            dealFlowMultiplier: value
+                            dealFlowMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -688,7 +688,7 @@ export default function PortfolioConstructor() {
                           const updatedScenarios = [...strategy.scenarios];
                           updatedScenarios[activeScenario] = {
                             ...updatedScenarios[activeScenario],
-                            valuationMultiplier: value
+                            valuationMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -707,7 +707,7 @@ export default function PortfolioConstructor() {
                           const updatedScenarios = [...strategy.scenarios];
                           updatedScenarios[activeScenario] = {
                             ...updatedScenarios[activeScenario],
-                            exitMultiplier: value
+                            exitMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
