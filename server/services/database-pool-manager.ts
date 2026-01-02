@@ -83,11 +83,11 @@ export class DatabasePoolManager extends EventEmitter {
    */
   async createPool(poolId: string, config: PoolConfig): Promise<Pool> {
     if (this.pools.has(poolId)) {
-      return this.pools['get'](poolId)!;
+      return this.pools.get(poolId)!;
     }
 
     const fullConfig = { ...this.defaultConfig, ...config };
-    this.poolConfigs['set'](poolId, fullConfig);
+    this.poolConfigs.set(poolId, fullConfig);
 
     // Create pool with advanced configuration
     const pool = new Pool({
@@ -109,8 +109,8 @@ export class DatabasePoolManager extends EventEmitter {
       this.startHealthMonitoring(poolId);
     }
 
-    this.pools['set'](poolId, pool);
-    this.activeConnections['set'](poolId, new Set());
+    this.pools.set(poolId, pool);
+    this.activeConnections.set(poolId, new Set());
 
     this.emit('poolCreated', { poolId, config: fullConfig });
 
@@ -121,7 +121,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Get pool with automatic scaling based on load
    */
   async getPool(poolId: string): Promise<Pool> {
-    const pool = this.pools['get'](poolId);
+    const pool = this.pools.get(poolId);
     if (!pool) {
       throw new Error(`Pool ${poolId} not found. Create it first with createPool()`);
     }
@@ -150,7 +150,7 @@ export class DatabasePoolManager extends EventEmitter {
       };
 
       // Track active connection
-      this.activeConnections['get'](poolId)!.add(wrapper);
+      this.activeConnections.get(poolId)!.add(wrapper);
 
       // Update metrics
       this.updateAcquisitionMetrics(poolId, Date.now() - startTime);
@@ -175,7 +175,7 @@ export class DatabasePoolManager extends EventEmitter {
       wrapper.client.release();
 
       // Remove from tracking
-      this.activeConnections['get'](poolId)?.delete(wrapper);
+      this.activeConnections.get(poolId)?.delete(wrapper);
 
       this.emit('connectionReleased', { poolId, queryCount: wrapper.queryCount });
 
@@ -249,7 +249,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Get detailed pool metrics
    */
   getMetrics(poolId: string): PoolMetrics | null {
-    return this.metrics['get'](poolId) || null;
+    return this.metrics.get(poolId) || null;
   }
 
   /**
@@ -267,8 +267,8 @@ export class DatabasePoolManager extends EventEmitter {
    * Check pool health and perform maintenance
    */
   async checkPoolHealth(poolId: string): Promise<boolean> {
-    const pool = this.pools['get'](poolId);
-    const metrics = this.metrics['get'](poolId);
+    const pool = this.pools.get(poolId);
+    const metrics = this.metrics.get(poolId);
 
     if (!pool || !metrics) {
       return false;
@@ -299,8 +299,8 @@ export class DatabasePoolManager extends EventEmitter {
    * Scale pool based on current load
    */
   private async checkPoolScaling(poolId: string): Promise<void> {
-    const metrics = this.metrics['get'](poolId);
-    const config = this.poolConfigs['get'](poolId);
+    const metrics = this.metrics.get(poolId);
+    const config = this.poolConfigs.get(poolId);
 
     if (!metrics || !config) return;
 
@@ -323,7 +323,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Clean up stale connections
    */
   private async cleanupStaleConnections(poolId: string): Promise<void> {
-    const activeConns = this.activeConnections['get'](poolId);
+    const activeConns = this.activeConnections.get(poolId);
     if (!activeConns) return;
 
     const staleThreshold = 300000; // 5 minutes
@@ -351,7 +351,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Initialize metrics for a pool
    */
   private initializeMetrics(poolId: string): void {
-    this.metrics['set'](poolId, {
+    this.metrics.set(poolId, {
       totalConnections: 0,
       activeConnections: 0,
       idleConnections: 0,
@@ -370,20 +370,20 @@ export class DatabasePoolManager extends EventEmitter {
    * Setup pool event handlers
    */
   private setupPoolEventHandlers(poolId: string, pool: Pool): void {
-    pool['on']('connect', () => {
-      const metrics = this.metrics['get'](poolId)!;
+    pool.on('connect', () => {
+      const metrics = this.metrics.get(poolId)!;
       metrics.connectionsCreated++;
       metrics.totalConnections++;
       metrics.peakConnections = Math.max(metrics.peakConnections, metrics.totalConnections);
     });
 
-    pool['on']('remove', () => {
-      const metrics = this.metrics['get'](poolId)!;
+    pool.on('remove', () => {
+      const metrics = this.metrics.get(poolId)!;
       metrics.connectionsDestroyed++;
       metrics.totalConnections--;
     });
 
-    pool['on']('error', (error: any) => {
+    pool.on('error', (error: any) => {
       this.updateErrorMetrics(poolId, error);
       this.emit('poolError', { poolId, error });
     });
@@ -393,21 +393,21 @@ export class DatabasePoolManager extends EventEmitter {
    * Start health monitoring for a pool
    */
   private startHealthMonitoring(poolId: string): void {
-    const config = this.poolConfigs['get'](poolId)!;
+    const config = this.poolConfigs.get(poolId)!;
 
     const interval = setInterval(async () => {
       await this.checkPoolHealth(poolId);
       this.updateMemoryMetrics(poolId);
     }, config.healthCheckIntervalMs);
 
-    this.healthCheckIntervals['set'](poolId, interval);
+    this.healthCheckIntervals.set(poolId, interval);
   }
 
   /**
    * Update acquisition metrics
    */
   private updateAcquisitionMetrics(poolId: string, acquisitionTime: number): void {
-    const metrics = this.metrics['get'](poolId)!;
+    const metrics = this.metrics.get(poolId)!;
     metrics.activeConnections++;
     metrics.idleConnections = Math.max(0, metrics.totalConnections - metrics.activeConnections);
   }
@@ -416,7 +416,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Update query metrics
    */
   private updateQueryMetrics(poolId: string, queryTime: number): void {
-    const metrics = this.metrics['get'](poolId)!;
+    const metrics = this.metrics.get(poolId)!;
 
     // Update rolling average
     if (metrics.averageQueryTime === 0) {
@@ -430,7 +430,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Update error metrics
    */
   private updateErrorMetrics(poolId: string, error: any): void {
-    const metrics = this.metrics['get'](poolId)!;
+    const metrics = this.metrics.get(poolId)!;
     metrics.connectionErrors++;
     this.emit('error', { poolId, error });
   }
@@ -439,7 +439,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Update memory metrics
    */
   private updateMemoryMetrics(poolId: string): void {
-    const metrics = this.metrics['get'](poolId)!;
+    const metrics = this.metrics.get(poolId)!;
     const memUsage = process.memoryUsage();
     metrics.memoryUsageMB = memUsage.heapUsed / (1024 * 1024);
   }
@@ -448,8 +448,8 @@ export class DatabasePoolManager extends EventEmitter {
    * Gracefully close a specific pool
    */
   async closePool(poolId: string): Promise<void> {
-    const pool = this.pools['get'](poolId);
-    const interval = this.healthCheckIntervals['get'](poolId);
+    const pool = this.pools.get(poolId);
+    const interval = this.healthCheckIntervals.get(poolId);
 
     if (interval) {
       clearInterval(interval);
@@ -457,7 +457,7 @@ export class DatabasePoolManager extends EventEmitter {
     }
 
     if (pool) {
-      await pool["end"]();
+      await pool.end();
       this.pools.delete(poolId);
     }
 
@@ -504,11 +504,11 @@ export class DatabasePoolManager extends EventEmitter {
 export const databasePoolManager = new DatabasePoolManager();
 
 // Setup global error handling
-databasePoolManager['on']('error', (error: any) => {
+databasePoolManager.on('error', (error: any) => {
   console.error('Database Pool Error:', error);
 });
 
-databasePoolManager['on']('poolError', ({ poolId, error }) => {
+databasePoolManager.on('poolError', ({ poolId, error }) => {
   console.error(`Pool ${poolId} Error:`, error);
 });
 

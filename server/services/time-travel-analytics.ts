@@ -270,16 +270,17 @@ export class TimeTravelAnalyticsService {
     ]);
 
     // Count total events for pagination
-    const [{ count }] = await this.db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(fundEvents)
       .where(and(...conditions));
+    const count = countResult[0]?.count ?? 0;
 
     return {
       fundId,
       timeRange: {
-        start: startTime?.toISOString() || events[events.length - 1]?.eventTime,
-        end: endTime?.toISOString() || events[0]?.eventTime,
+        start: startTime?.toISOString() || events.at(events.length - 1)?.eventTime,
+        end: endTime?.toISOString() || events.at(0)?.eventTime,
       },
       events,
       snapshots,
@@ -425,7 +426,7 @@ export class TimeTravelAnalyticsService {
         time: snapshot.snapshotTime,
       },
       state: snapshot.state,
-      eventsApplied: Number(eventsCount[0].count),
+      eventsApplied: Number(eventsCount[0]?.count ?? 0),
     };
   }
 
