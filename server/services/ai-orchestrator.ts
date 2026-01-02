@@ -147,7 +147,7 @@ async function incrementBudget(calls: number, cost: number): Promise<number> {
   const current = await getBudgetData();
 
   const updated: BudgetData = {
-    date: today,
+    date: today ?? '',
     count: current.date === today ? current.count + calls : calls,
     total_cost_usd: current.date === today ? current.total_cost_usd + cost : cost,
   };
@@ -332,7 +332,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
     return {
       model: 'gpt',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -375,7 +375,7 @@ async function askGemini(prompt: string): Promise<AIResponse> {
     return {
       model: 'gemini',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -417,7 +417,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
     return {
       model: 'deepseek',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -632,7 +632,7 @@ export async function aiConsensus({
 
   return {
     question,
-    options,
+    ...(options && { options }),
     responses,
     consensus,
     totalCost,

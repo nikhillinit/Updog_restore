@@ -94,7 +94,7 @@ class PerformanceMonitor extends EventEmitter {
       operation,
       duration,
       timestamp: Date.now(),
-      metadata,
+      ...(metadata && { metadata }),
       category,
       severity
     };
@@ -153,8 +153,8 @@ class PerformanceMonitor extends EventEmitter {
     return {
       count,
       avgDuration: sum / count,
-      minDuration: durations[0],
-      maxDuration: durations[count - 1],
+      minDuration: durations[0] ?? 0,
+      maxDuration: durations[count - 1] ?? 0,
       p95Duration: durations[p95Index] || 0,
       slowCount: filteredMetrics.filter(m => m.severity === 'slow').length,
       criticalCount: filteredMetrics.filter(m => m.severity === 'critical').length
@@ -191,7 +191,7 @@ class PerformanceMonitor extends EventEmitter {
           ip: req.ip
         });
 
-        return originalEnd.apply(this, args);
+        return originalEnd.apply(this, args as Parameters<typeof originalEnd>);
       };
 
       next();
