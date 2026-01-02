@@ -146,7 +146,7 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
       .orderBy(desc(flagsState.createdAt))
       .limit(1);
 
-    if (latestState.length > 0) {
+    if (latestState.length > 0 && latestState[0]) {
       const state = latestState[0];
       return {
         version: state.version,

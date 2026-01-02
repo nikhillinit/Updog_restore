@@ -103,7 +103,7 @@ export interface WizardValidationState {
  */
 export const DEFAULT_FUND_BASICS: FundBasics = {
   fundName: '',
-  establishmentDate: new Date().toISOString().split('T')[0], // Today's date
+  establishmentDate: new Date().toISOString().split('T')[0] ?? '', // Today's date
   committedCapitalUSD: 0,
   gpCommitmentUSD: 0,
   managementFeeBasis: 'committed',

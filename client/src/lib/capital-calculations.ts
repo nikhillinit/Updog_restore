@@ -124,7 +124,7 @@ export function getSchedulePattern(
         for (let i = 0; i < investmentPeriod; i++) {
           const pct = remaining / (investmentPeriod - i) * 1.3;
           pattern[i] = Math.min(pct, remaining);
-          remaining -= pattern[i];
+          remaining -= pattern[i] ?? 0;
         }
       }
       break;
