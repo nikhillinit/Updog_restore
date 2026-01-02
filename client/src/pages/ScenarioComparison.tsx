@@ -37,11 +37,16 @@ export function ScenarioComparisonPage() {
 
     const [baseScenarioId, ...comparisonScenarioIds] = selectedScenarioIds;
 
+    // Ensure baseScenarioId is defined before mutation
+    if (!baseScenarioId) return;
+
     createComparison.mutate({
       fundId,
       baseScenarioId,
       comparisonScenarioIds,
+      comparisonType: 'deal_level',
       comparisonMetrics,
+      includeDetails: false,
     });
   };
 
@@ -84,7 +89,7 @@ export function ScenarioComparisonPage() {
                 selected
                 {selectedScenarioIds.length >= 2 && (
                   <span className="text-muted-foreground ml-2">
-                    (Baseline: {selectedScenarioIds[0].substring(0, 8)}...)
+                    (Baseline: {selectedScenarioIds[0]?.substring(0, 8)}...)
                   </span>
                 )}
               </div>
@@ -132,19 +137,19 @@ export function ScenarioComparisonPage() {
           <CardHeader>
             <CardTitle>Comparison Results</CardTitle>
             <CardDescription>
-              Comparing {comparisonData.scenarios.length} scenarios across{' '}
+              Comparing {comparisonData['results']?.['scenarios']?.length ?? 0} scenarios across{' '}
               {comparisonData.comparisonMetrics.length} metrics
-              {comparisonData.expiresAt && (
+              {comparisonData['cacheExpiresAt'] && (
                 <span className="text-muted-foreground ml-2">
-                  (Expires: {new Date(comparisonData.expiresAt).toLocaleTimeString()})
+                  (Expires: {new Date(comparisonData['cacheExpiresAt']).toLocaleTimeString()})
                 </span>
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ComparisonDeltaTable
-              deltaMetrics={comparisonData.deltaMetrics}
-              scenarios={comparisonData.scenarios}
+              deltaMetrics={comparisonData['results']?.['deltaMetrics'] ?? []}
+              scenarios={comparisonData['results']?.['scenarios'] ?? []}
               showAbsolute={true}
               showPercentage={true}
               highlightThreshold={0.1}
