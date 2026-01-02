@@ -852,8 +852,10 @@ export class PerformancePredictionEngine {
 
   private async storePrediction(result: PredictionResult, config: PredictionConfig): Promise<void> {
     // TODO: Schema needs alignment - performanceForecasts table has different structure
+    // Using createdBy: 1 as system user placeholder until proper user context is available
     await db.insert(performanceForecasts).values({
       fundId: result.fundId,
+      createdBy: 1, // System-generated prediction
       forecastName: `prediction-${result.metric}-${Date.now()}`,
       forecastType: 'fund_level',
       forecastHorizonYears: Math.ceil(config.predictionHorizon / 12),

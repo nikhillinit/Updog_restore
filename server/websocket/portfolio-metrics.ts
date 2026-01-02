@@ -85,7 +85,7 @@ export class PortfolioMetricsWebSocket {
 
   private handleMessage(ws: WebSocket, data: unknown) {
     try {
-      const message = JSON.parse(data.toString());
+      const message = JSON.parse(String(data));
 
       // Handle subscribe
       const subscribeResult = SubscribeSchema.safeParse(message);
@@ -228,7 +228,7 @@ export class PortfolioMetricsWebSocket {
       this.clients.forEach((client, ws) => {
         // Disconnect stale clients (no pong in 60 seconds)
         if (now - client.lastPing > 60000) {
-          ws.terminate();
+          (ws as unknown as { terminate?: () => void }).terminate?.();
           return;
         }
         // Send ping
