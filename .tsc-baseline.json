@@ -45,7 +45,7 @@
         "client/src/utils/array-safety-enhanced.ts:TS2345:17b8b001"
       ],
       "total": 40,
-      "lastUpdated": "2026-01-02T04:25:57.373Z"
+      "lastUpdated": "2026-01-02T04:32:46.223Z"
     },
     "server": {
       "errors": [
@@ -73,10 +73,6 @@
         "server/examples/streaming-monte-carlo-examples.ts:TS2345:06c28559",
         "server/examples/streaming-monte-carlo-examples.ts:TS2532:64fd62cf",
         "server/examples/streaming-monte-carlo-examples.ts:TS2532:973cbc0c",
-        "server/infra/circuit-breaker-cache.ts:TS2322:082c695c",
-        "server/infra/circuit-breaker-cache.ts:TS2322:4e75cd65",
-        "server/infra/circuit-breaker-cache.ts:TS2322:67c5c306",
-        "server/infra/circuit-breaker-cache.ts:TS2416:082c695c",
         "server/infra/circuit-breaker/CircuitBreaker.ts:TS2532:8778a70a",
         "server/lib/approvals-guard.ts:TS18048:df821426",
         "server/lib/approvals-guard.ts:TS2375:9ec9ba88",
@@ -139,16 +135,11 @@
         "server/routes/metrics-rum-v2.ts:TS4111:eefae09d",
         "server/routes/portfolio/lots.ts:TS2379:1d39cf12",
         "server/routes/portfolio/lots.ts:TS2379:2fdea7b0",
-        "server/routes/portfolio/snapshots.ts:TS2339:351490fc",
-        "server/routes/portfolio/snapshots.ts:TS2379:012c2f11",
-        "server/routes/portfolio/snapshots.ts:TS2379:7b87e481",
-        "server/routes/portfolio/snapshots.ts:TS2379:e8e89d82",
         "server/routes/scenario-comparison.ts:TS2345:dddab6a7",
         "server/routes/scenario-comparison.ts:TS7006:8cb96423",
         "server/routes/scenario-comparison.ts:TS7006:b6460c19",
         "server/routes/scenario-comparison.ts:TS7006:f9a7fc73",
         "server/routes/timeline.ts:TS2379:f7c6386d",
-        "server/routes/v1/reserve-approvals.ts:TS2769:7869c695",
         "server/routes/variance.ts:TS2379:151d6b78",
         "server/routes/variance.ts:TS2379:210793b8",
         "server/routes/variance.ts:TS2379:62c11eb6",
@@ -179,13 +170,6 @@
         "server/services/metrics-aggregator.ts:TS2345:8ba8a22d",
         "server/services/metrics-aggregator.ts:TS2345:94541e72",
         "server/services/metrics-aggregator.ts:TS2345:cec83484",
-        "server/services/metrics-aggregator.ts:TS2375:95c88681",
-        "server/services/metrics-aggregator.ts:TS2375:b8e4267b",
-        "server/services/metrics-aggregator.ts:TS2379:e307ca23",
-        "server/services/monte-carlo-service-unified.ts:TS18046:0c915c32",
-        "server/services/monte-carlo-service-unified.ts:TS18046:56f33ec7",
-        "server/services/monte-carlo-service-unified.ts:TS18046:860bff6a",
-        "server/services/monte-carlo-service-unified.ts:TS18046:f7eacf3d",
         "server/services/notion-service.ts:TS18046:00762c98",
         "server/services/notion-service.ts:TS18046:0c36a7e7",
         "server/services/notion-service.ts:TS18046:a6b6e362",
@@ -278,26 +262,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 228,
-      "lastUpdated": "2026-01-02T04:25:57.373Z"
+      "total": 212,
+      "lastUpdated": "2026-01-02T04:32:46.223Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T04:25:57.373Z"
+      "lastUpdated": "2026-01-02T04:32:46.223Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2026-01-02T04:25:57.373Z"
+      "lastUpdated": "2026-01-02T04:32:46.223Z"
     }
   },
-  "totalErrors": 270,
-  "timestamp": "2026-01-02T04:25:57.373Z",
+  "totalErrors": 254,
+  "timestamp": "2026-01-02T04:32:46.223Z",
   "buildMode": "per-project",
-  "elapsedMs": 19353
+  "elapsedMs": 20077
 }

@@ -255,7 +255,7 @@ export class MetricsAggregator {
             target: targetStatus,
             variance: varianceStatus,
           },
-          warnings: warnings.length > 0 ? warnings : undefined,
+          ...(warnings.length > 0 && { warnings }),
           computeTimeMs,
         },
       };
@@ -344,11 +344,11 @@ export class MetricsAggregator {
       targetFundSize,
       targetIRR: config.targetIRR,
       targetTVPI: config.targetTVPI,
-      targetDPI: config.targetDPI ?? undefined,
+      ...(config.targetDPI != null && { targetDPI: config.targetDPI }),
       targetDeploymentYears: config.investmentPeriodYears,
       targetCompanyCount,
       targetAverageCheckSize: targetFundSize / targetCompanyCount,
-      targetReserveRatio: config.reserveRatio ?? undefined,
+      ...(config.reserveRatio != null && { targetReserveRatio: config.reserveRatio }),
     };
   }
 

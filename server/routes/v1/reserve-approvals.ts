@@ -10,7 +10,7 @@ import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
 import { db } from '../../db';
 import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners, type ReserveApproval, type ApprovalPartner } from '@shared/schemas/reserve-approvals.js';
 import { reserveDecisions } from '@shared/schema.js';
-import { eq, and, gte } from 'drizzle-orm';
+import { eq, and, gte, isNull } from 'drizzle-orm';
 import { postToSlack } from '@shared/slack.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -90,7 +90,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
     } as any);
     
     // Get list of partners to notify
-    const partners = await db.select().from(approvalPartners).where(eq(approvalPartners.deactivated, null));
+    const partners = await db.select().from(approvalPartners).where(isNull(approvalPartners.deactivated));
     
     // TODO: Send notifications to partners
     await notifyPartners(partners, approval);
