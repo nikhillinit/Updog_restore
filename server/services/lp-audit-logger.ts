@@ -34,7 +34,23 @@ export type AuditAction =
   | 'view_report_list'
   | 'view_report_status'
   | 'download_report'
-  | 'update_settings';
+  | 'update_settings'
+  // Sprint 3: Capital Calls
+  | 'view_capital_calls_list'
+  | 'view_capital_call_detail'
+  | 'view_wire_instructions'
+  | 'submit_payment'
+  // Sprint 3: Distributions
+  | 'view_distributions_list'
+  | 'view_distribution_detail'
+  // Sprint 3: Documents
+  | 'view_documents_list'
+  | 'view_document'
+  | 'download_document'
+  // Sprint 3: Notifications
+  | 'view_notifications'
+  | 'mark_notification_read'
+  | 'update_notification_prefs';
 
 export type ResourceType =
   | 'lp_profile'
@@ -45,7 +61,15 @@ export type ResourceType =
   | 'performance'
   | 'benchmark'
   | 'report'
-  | 'settings';
+  | 'settings'
+  // Sprint 3: New resource types
+  | 'capital_call'
+  | 'wire_instructions'
+  | 'payment_submission'
+  | 'distribution'
+  | 'document'
+  | 'notification'
+  | 'notification_preferences';
 
 export interface AuditLogEntry {
   lpId: number;
@@ -140,7 +164,11 @@ export class LPAuditLogger {
   /**
    * Log LP profile view
    */
-  async logProfileView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
+  async logProfileView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
     await this.log(
       {
         lpId,
@@ -156,7 +184,11 @@ export class LPAuditLogger {
   /**
    * Log LP summary view
    */
-  async logSummaryView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
+  async logSummaryView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
     await this.log(
       {
         lpId,
@@ -258,7 +290,11 @@ export class LPAuditLogger {
   /**
    * Log benchmark view
    */
-  async logBenchmarkView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
+  async logBenchmarkView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
     await this.log(
       {
         lpId,
@@ -296,7 +332,11 @@ export class LPAuditLogger {
   /**
    * Log report list view
    */
-  async logReportListView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
+  async logReportListView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
     await this.log(
       {
         lpId,
@@ -364,6 +404,268 @@ export class LPAuditLogger {
         ...(userId !== undefined ? { userId } : {}),
         action: 'update_settings',
         resourceType: 'settings',
+        resourceId: lpId.toString(),
+      },
+      req
+    );
+  }
+
+  // ===========================================================================
+  // Sprint 3: Capital Calls Audit Methods
+  // ===========================================================================
+
+  /**
+   * Log capital calls list view
+   */
+  async logCapitalCallsListView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_capital_calls_list',
+        resourceType: 'capital_call',
+      },
+      req
+    );
+  }
+
+  /**
+   * Log capital call detail view
+   */
+  async logCapitalCallDetailView(
+    lpId: number,
+    callId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_capital_call_detail',
+        resourceType: 'capital_call',
+        resourceId: callId,
+      },
+      req
+    );
+  }
+
+  /**
+   * Log wire instructions access - CRITICAL for SOC2/audit compliance
+   */
+  async logWireInstructionsAccess(
+    lpId: number,
+    callId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_wire_instructions',
+        resourceType: 'wire_instructions',
+        resourceId: callId,
+        metadata: { sensitiveDataAccessed: true },
+      },
+      req
+    );
+  }
+
+  /**
+   * Log payment submission
+   */
+  async logPaymentSubmission(
+    lpId: number,
+    callId: string,
+    submissionId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'submit_payment',
+        resourceType: 'payment_submission',
+        resourceId: submissionId,
+        metadata: { callId },
+      },
+      req
+    );
+  }
+
+  // ===========================================================================
+  // Sprint 3: Distributions Audit Methods
+  // ===========================================================================
+
+  /**
+   * Log distributions list view
+   */
+  async logDistributionsListView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_distributions_list',
+        resourceType: 'distribution',
+      },
+      req
+    );
+  }
+
+  /**
+   * Log distribution detail view
+   */
+  async logDistributionDetailView(
+    lpId: number,
+    distributionId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_distribution_detail',
+        resourceType: 'distribution',
+        resourceId: distributionId,
+      },
+      req
+    );
+  }
+
+  // ===========================================================================
+  // Sprint 3: Documents Audit Methods
+  // ===========================================================================
+
+  /**
+   * Log documents list view
+   */
+  async logDocumentsListView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_documents_list',
+        resourceType: 'document',
+      },
+      req
+    );
+  }
+
+  /**
+   * Log document view
+   */
+  async logDocumentView(
+    lpId: number,
+    documentId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_document',
+        resourceType: 'document',
+        resourceId: documentId,
+      },
+      req
+    );
+  }
+
+  /**
+   * Log document download
+   */
+  async logDocumentDownload(
+    lpId: number,
+    documentId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'download_document',
+        resourceType: 'document',
+        resourceId: documentId,
+      },
+      req
+    );
+  }
+
+  // ===========================================================================
+  // Sprint 3: Notifications Audit Methods
+  // ===========================================================================
+
+  /**
+   * Log notifications view
+   */
+  async logNotificationsView(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'view_notifications',
+        resourceType: 'notification',
+      },
+      req
+    );
+  }
+
+  /**
+   * Log notification marked as read
+   */
+  async logNotificationRead(
+    lpId: number,
+    notificationId: string,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'mark_notification_read',
+        resourceType: 'notification',
+        resourceId: notificationId,
+      },
+      req
+    );
+  }
+
+  /**
+   * Log notification preferences update
+   */
+  async logNotificationPrefsUpdate(
+    lpId: number,
+    userId: string | number | undefined,
+    req?: Request
+  ): Promise<void> {
+    await this.log(
+      {
+        lpId,
+        ...(userId !== undefined ? { userId } : {}),
+        action: 'update_notification_prefs',
+        resourceType: 'notification_preferences',
         resourceId: lpId.toString(),
       },
       req

@@ -5,12 +5,16 @@
 
 import * as schema from '@shared/schema';
 import * as lpSchema from '@shared/schema-lp-reporting';
+import * as lpSprint3Schema from '@shared/schema-lp-sprint3';
 import * as approvalSchema from '@shared/schemas/reserve-approvals';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-// Combined schema for LP reporting + reserve approval support
-const combinedSchema = { ...schema, ...lpSchema, ...approvalSchema };
-type CombinedSchema = typeof schema & typeof lpSchema & typeof approvalSchema;
+// Combined schema for LP reporting + reserve approval support + Sprint 3
+const combinedSchema = { ...schema, ...lpSchema, ...lpSprint3Schema, ...approvalSchema };
+type CombinedSchema = typeof schema &
+  typeof lpSchema &
+  typeof lpSprint3Schema &
+  typeof approvalSchema;
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
