@@ -257,8 +257,13 @@ export const ChartLegend = React.forwardRef<
     className?: string;
     nameKey?: string;
   }
->(({ className, ...props }, ref) => {
+>(({ className, nameKey, content, ...props }, ref) => {
   const { config } = useChart()
+
+  // Filter out undefined values to satisfy exactOptionalPropertyTypes
+  const filteredProps = Object.fromEntries(
+    Object.entries(props).filter(([_, value]) => value !== undefined)
+  )
 
   return (
     <Legend
@@ -268,7 +273,8 @@ export const ChartLegend = React.forwardRef<
         className
       )}
       content={ChartLegendContent as any}
-      {...props}
+      {...(filteredProps as any)}
+      {...(nameKey && { nameKey })}
     />
   )
 })

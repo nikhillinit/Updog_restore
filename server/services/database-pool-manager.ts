@@ -304,17 +304,17 @@ export class DatabasePoolManager extends EventEmitter {
 
     if (!metrics || !config) return;
 
-    const utilizationRatio = metrics.activeConnections / config.maxConnections;
+    const utilizationRatio = metrics.activeConnections / (config.maxConnections ?? 10);
 
     // Scale up if utilization is high
-    if (utilizationRatio > 0.8 && config.maxConnections < 20) {
-      config.maxConnections = Math.min(config.maxConnections + 2, 20);
+    if (utilizationRatio > 0.8 && (config.maxConnections ?? 10) < 20) {
+      config.maxConnections = Math.min((config.maxConnections ?? 10) + 2, 20);
       this.emit('poolScaledUp', { poolId, newMaxConnections: config.maxConnections });
     }
 
     // Scale down if utilization is low for extended period
-    if (utilizationRatio < 0.3 && config.maxConnections > config.minConnections) {
-      config.maxConnections = Math.max(config.maxConnections - 1, config.minConnections);
+    if (utilizationRatio < 0.3 && (config.maxConnections ?? 10) > (config.minConnections ?? 2)) {
+      config.maxConnections = Math.max((config.maxConnections ?? 10) - 1, config.minConnections ?? 2);
       this.emit('poolScaledDown', { poolId, newMaxConnections: config.maxConnections });
     }
   }

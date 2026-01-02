@@ -108,12 +108,12 @@ router["post"]('/api/funds/:id/baselines', idempotency, async (req: Request, res
     const baseline = await varianceTrackingService.baselines.createBaseline({
       fundId,
       name: data.name,
-      description: data.description,
+      ...(data.description && { description: data.description }),
       baselineType: data.baselineType,
       periodStart: new Date(data.periodStart),
       periodEnd: new Date(data.periodEnd),
       createdBy: userId,
-      tags: data.tags
+      ...(data.tags && { tags: data.tags })
     });
 
     res["status"](201)["json"]({
@@ -157,9 +157,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
-      baselineType,
-      isDefault,
-      limit
+      ...(baselineType && { baselineType }),
+      ...(isDefault !== undefined && { isDefault }),
+      ...(limit && { limit })
     });
 
     res["json"]({
@@ -293,9 +293,9 @@ router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: Reque
       baselineId: data.baselineId || '', // Will be resolved to default in service
       reportName: data.reportName,
       reportType: data.reportType,
-      reportPeriod: data.reportPeriod,
-      asOfDate: data.asOfDate ? new Date(data.asOfDate) : undefined,
-      generatedBy: userId || undefined
+      ...(data.reportPeriod && { reportPeriod: data.reportPeriod }),
+      ...(data.asOfDate && { asOfDate: new Date(data.asOfDate) }),
+      ...(userId && { generatedBy: userId })
     });
 
     res["status"](201)["json"]({
@@ -442,12 +442,12 @@ router["post"]('/api/funds/:id/alert-rules', async (req: Request, res: Response)
     const rule = await varianceTrackingService.alerts.createAlertRule({
       fundId,
       name: data.name,
-      description: data.description,
+      ...(data.description && { description: data.description }),
       ruleType: data.ruleType,
       metricName: data.metricName,
       operator: data.operator,
       thresholdValue: data.thresholdValue,
-      secondaryThreshold: data.secondaryThreshold,
+      ...(data.secondaryThreshold !== undefined && { secondaryThreshold: data.secondaryThreshold }),
       severity: data.severity,
       category: data.category,
       checkFrequency: data.checkFrequency,
@@ -495,9 +495,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
-      severity,
-      category,
-      limit
+      ...(severity && { severity }),
+      ...(category && { category }),
+      ...(limit && { limit })
     });
 
     res["json"]({
@@ -660,8 +660,8 @@ router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Requ
 
     const result = await varianceTrackingService.performCompleteVarianceAnalysis({
       fundId,
-      baselineId: data.baselineId,
-      reportName: data.reportName,
+      ...(data.baselineId && { baselineId: data.baselineId }),
+      ...(data.reportName && { reportName: data.reportName }),
       userId
     });
 
