@@ -146,7 +146,7 @@ router.post(
 
       // Validate all scenarios found
       if (scenariosFromDb.length !== allScenarioIds.length) {
-        const foundIds = scenariosFromDb.map((s) => s.id);
+        const foundIds = scenariosFromDb.map((s: typeof scenariosFromDb[number]) => s.id);
         const missingIds = allScenarioIds.filter((id) => !foundIds.includes(id));
         return res.status(404).json({
           success: false,
@@ -155,11 +155,13 @@ router.post(
       }
 
       // Transform to service format (Drizzle returns camelCase fields)
-      const scenariosForService: ScenarioDatabaseRow[] = scenariosFromDb.map((s) => ({
+      type ScenarioWithCases = typeof scenariosFromDb[number];
+      type CaseType = ScenarioWithCases['cases'][number];
+      const scenariosForService: ScenarioDatabaseRow[] = scenariosFromDb.map((s: ScenarioWithCases) => ({
         id: s.id,
         name: s.name,
         scenario_type: 'deal_level', // Hard-coded for MVP (all scenarios are deal-level)
-        cases: s.cases.map((c) => ({
+        cases: s.cases.map((c: CaseType) => ({
           probability: Number(c.probability),
           investment: Number(c.investment),
           follow_ons: Number(c.followOns),
@@ -171,7 +173,7 @@ router.post(
 
       // Initialize comparison service with Redis
       const redisClient = await getRedisClient();
-      const comparisonService = new ComparisonService(redisClient);
+      const comparisonService = new ComparisonService(redisClient as any);
 
       // Perform comparison
       const result = await comparisonService.compareScenarios(
@@ -242,7 +244,7 @@ router.get(
 
       // Initialize comparison service with Redis
       const redisClient = await getRedisClient();
-      const comparisonService = new ComparisonService(redisClient);
+      const comparisonService = new ComparisonService(redisClient as any);
 
       // Retrieve cached comparison
       const cached = await comparisonService.getComparison(comparisonId);

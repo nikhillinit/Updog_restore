@@ -161,7 +161,9 @@ export class PowerLawDistribution {
       ...config,
     };
 
-    this.randomSeed = randomSeed;
+    if (randomSeed !== undefined) {
+      this.randomSeed = randomSeed;
+    }
     this.rng = this.createRandomGenerator(randomSeed);
     this.stageProfiles = this.initializeStageProfiles();
   }
@@ -614,7 +616,7 @@ export class PowerLawDistribution {
 
     const getPercentile = (p: number): number => {
       const index = Math.floor((p / 100) * (n - 1));
-      return sorted[index];
+      return sorted[index] ?? 0;
     };
 
     return {

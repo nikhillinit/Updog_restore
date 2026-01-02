@@ -70,7 +70,7 @@ if (import.meta.env.PROD) {
 const rootElement = document.getElementById("root");
 if (rootElement) {
   createRoot(rootElement).render(
-    process.env.NODE_ENV === 'development' ? (
+    process.env['NODE_ENV'] === 'development' ? (
       <StrictMode>
         <App />
       </StrictMode>

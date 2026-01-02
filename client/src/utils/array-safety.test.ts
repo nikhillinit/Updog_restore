@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 /**
  * tests/utils/array-safety.test.ts
  *
@@ -14,7 +9,7 @@
  *  - type parameters are preserved
  *  - map works on complex object arrays
  */
-
+import { describe, test, expect } from 'vitest';
 import { safeArray, forEach, map, filter, reduce } from '@/utils/array-safety';
 
 describe('ArraySafety utilities', () => {
@@ -54,8 +49,8 @@ describe('ArraySafety utilities', () => {
 
   test('filter selects correctly or returns [] for null/undefined', () => {
     expect(filter<number>([1, 2, 3], x => x > 1)).toEqual([2, 3]);
-    expect(filter<number>(undefined, x => true)).toEqual([]);
-    expect(filter<number>(null, x => true)).toEqual([]);
+    expect(filter<number>(undefined, _x => true)).toEqual([]);
+    expect(filter<number>(null, _x => true)).toEqual([]);
   });
 
   test('reduce combines correctly or returns initial value for null/undefined', () => {
@@ -74,4 +69,3 @@ describe('ArraySafety utilities', () => {
     expect(names).toEqual(['Alice', 'Bob']);
   });
 });
-

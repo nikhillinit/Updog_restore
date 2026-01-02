@@ -353,8 +353,9 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
 // Schema health endpoint
 router['get']('/api/health/schema', async (req: Request, res: Response) => {
   try {
-    // Query database for table list
-    const result = await storage['query']?.(
+    // Query database for table list (dynamically access query method if available)
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const result = await storageWithQuery.query?.(
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = 'public'
@@ -382,8 +383,9 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
 // Migration status endpoint
 router['get']('/api/health/migrations', async (req: Request, res: Response) => {
   try {
-    // Query migration history
-    const result = await storage['query']?.(
+    // Query migration history (dynamically access query method if available)
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const result = await storageWithQuery.query?.(
       `SELECT name, hash, created_at
        FROM drizzle_migrations
        ORDER BY created_at DESC

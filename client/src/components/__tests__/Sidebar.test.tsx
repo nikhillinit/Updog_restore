@@ -38,12 +38,12 @@ vi.mock('wouter', () => ({
 
 describe('Sidebar', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi['resetAllMocks']();
   });
 
   describe('when NEW_IA flag is OFF (legacy mode)', () => {
     it('renders 26 navigation items', () => {
-      vi.mocked(useFlag).mockReturnValue(false);
+      vi['mocked'](useFlag).mockReturnValue(false);
 
       const { container } = render(
         <Sidebar activeModule="dashboard" onModuleChange={() => {}} />
@@ -54,7 +54,7 @@ describe('Sidebar', () => {
     });
 
     it('shows legacy navigation labels', () => {
-      vi.mocked(useFlag).mockReturnValue(false);
+      vi['mocked'](useFlag).mockReturnValue(false);
 
       render(<Sidebar activeModule="dashboard" onModuleChange={() => {}} />);
 
@@ -67,7 +67,7 @@ describe('Sidebar', () => {
 
   describe('when NEW_IA flag is ON (new IA mode)', () => {
     it('renders exactly 5 navigation items', () => {
-      vi.mocked(useFlag).mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       const { container } = render(
         <Sidebar activeModule="overview" onModuleChange={() => {}} />
@@ -78,7 +78,7 @@ describe('Sidebar', () => {
     });
 
     it('shows new IA navigation labels', () => {
-      vi.mocked(useFlag).mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
 
@@ -91,7 +91,7 @@ describe('Sidebar', () => {
     });
 
     it('does NOT show legacy-only items', () => {
-      vi.mocked(useFlag).mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
 
