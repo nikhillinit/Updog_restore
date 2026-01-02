@@ -188,8 +188,8 @@ export function conditionalRequest(options: {
     }
     
     // Store parsed values for handler use
-    req.ifMatch = ifMatch ? parseETag(ifMatch) : undefined;
-    req.ifNoneMatch = ifNoneMatch ? parseETag(ifNoneMatch) : undefined;
+    if (ifMatch) req.ifMatch = parseETag(ifMatch);
+    if (ifNoneMatch) req.ifNoneMatch = parseETag(ifNoneMatch);
     
     next();
   };

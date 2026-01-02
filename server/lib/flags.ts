@@ -122,7 +122,7 @@ function evaluateTargeting(flag: FlagValue, userContext?: UserContext): boolean 
     return flag.enabled;
   }
 
-  for (const rule of flag.targeting.rules) {
+  for (const rule of flag.targeting.rules ?? []) {
     if (rule.attribute === 'userId' && rule.operator === 'in_bucket' && rule.percentage) {
       if (inBucket(userContext.id, rule.percentage)) {
         return true;

@@ -87,9 +87,9 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   close: () => Promise<void>;
 }> {
   const connection = {
-    host: redisConnection.options['host'] || 'localhost',
-    port: redisConnection.options['port'] || 6379,
-    password: redisConnection.options['password'],
+    host: redisConnection['options']['host'] || 'localhost',
+    port: redisConnection['options']['port'] || 6379,
+    password: redisConnection['options']['password'],
   };
 
   // Create queue
