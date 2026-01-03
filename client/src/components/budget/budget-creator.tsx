@@ -33,7 +33,7 @@ interface BudgetCreatorProps {
   className?: string;
 }
 
-export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, className }: BudgetCreatorProps) {
+export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, className: _className }: BudgetCreatorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newExpenseCategory, setNewExpenseCategory] = useState("");
   const [newExpenseAmount, setNewExpenseAmount] = useState("");

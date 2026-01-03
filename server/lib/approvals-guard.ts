@@ -53,7 +53,6 @@ export async function verifyApproval(
     strategyId,
     inputsHash,
     minApprovals = 2,
-    expiresAfterHours = 72,
     requireDistinctPartners = true
   } = options;
 
@@ -213,7 +212,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       const strategyData = req.body.strategyData || req.body;
 
       if (!strategyId) {
-        return res["status"](400)["json"]({
+        return res.status(400).json({
           error: 'strategy_id_required',
           message: 'Strategy ID is required for approval verification'
         });
@@ -229,7 +228,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       });
 
       if (!result.ok) {
-        return res["status"](403)["json"]({
+        return res.status(403).json({
           error: 'approval_required',
           message: result.reason,
           approvalId: result.approvalId,
@@ -253,7 +252,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       next();
     } catch (error) {
       console.error('Approval middleware error:', error);
-      res["status"](500)["json"]({
+      res.status(500).json({
         error: 'approval_verification_failed',
         message: 'Failed to verify approval'
       });

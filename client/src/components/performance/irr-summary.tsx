@@ -44,18 +44,19 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
   ];
 
   // Calculate IRR from realized cash flows only
-  const calculateRealizedIRR = (_realizedCashFlows: number[], _investmentDates: Date[], _realizationDates: Date[]): number => {
+  const _calculateRealizedIRR = (_realizedCashFlows: number[], _investmentDates: Date[], _realizationDates: Date[]): number => {
     // Simplified IRR calculation for realized-only cash flows
     // In practice, this would use a more sophisticated IRR algorithm (Newton-Raphson method)
-    
-    // Sample realized cash flow analysis
-    const totalInvested = 25000000; // $25M invested
-    const totalRealized = 28500000; // $28.5M realized
+
+    // Sample realized cash flow analysis - demonstration only
+    // eslint-disable-next-line custom/no-hardcoded-fund-metrics
+    const totalInvested = 25_000_000;
+    const totalRealized = 28_500_000;
     const avgHoldingPeriod = 3.2; // 3.2 years average
-    
+
     // Simple IRR approximation: (Ending Value / Beginning Value)^(1/years) - 1
     const simpleIRR = Math.pow(totalRealized / totalInvested, 1 / avgHoldingPeriod) - 1;
-    
+
     return simpleIRR * 100; // Convert to percentage
   };
 

@@ -491,11 +491,12 @@ export const createMigrationWrapper = polymorphicForwardRef<'div', {
         : process.env['NODE_ENV'] === 'development')
     : true;
 
-  if (options.logMigrationEvents) {
-    React.useEffect(() => {
+  // Always call the hook, but make the logging conditional inside
+  React.useEffect(() => {
+    if (options.logMigrationEvents) {
       console.log(`Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`);
-    }, [useAdapted, componentName]);
-  }
+    }
+  }, [useAdapted, componentName, options.logMigrationEvents]);
 
   const Component = as || 'div';
 

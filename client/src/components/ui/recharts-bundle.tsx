@@ -260,9 +260,9 @@ export const ChartLegend = React.forwardRef<
   const { config } = useChart()
 
   // Filter out undefined values to satisfy exactOptionalPropertyTypes
-  const filteredProps = Object.fromEntries(
+  const filteredProps: Record<string, unknown> = Object.fromEntries(
     Object.entries(props).filter(([_, value]) => value !== undefined)
-  )
+  );
 
   return (
     <Legend
@@ -272,7 +272,7 @@ export const ChartLegend = React.forwardRef<
         className
       )}
       content={ChartLegendContent as unknown as React.ComponentType<unknown>}
-      {...(filteredProps as Record<string, unknown>)}
+      {...filteredProps}
       {...(nameKey && { nameKey })}
     />
   )
@@ -342,7 +342,7 @@ const componentMap = {
   Legend
 };
 
-const RechartsDispatcher = React.forwardRef<HTMLDivElement, { component: string }>((props, ref) => {
+const RechartsDispatcher = React.forwardRef<HTMLDivElement, { component: string; [key: string]: unknown }>((props, ref) => {
   const { component, ...rest } = props;
   const Component = componentMap[component as keyof typeof componentMap];
 
@@ -350,7 +350,7 @@ const RechartsDispatcher = React.forwardRef<HTMLDivElement, { component: string 
     return null;
   }
 
-  return <Component ref={ref} {...rest} />;
+  return <Component ref={ref} {...(rest as Record<string, unknown>)} />;
 });
 
 export default RechartsDispatcher;

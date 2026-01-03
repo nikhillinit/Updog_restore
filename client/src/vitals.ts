@@ -20,11 +20,11 @@ function isTelemetryAllowed(): boolean {
   const privacySettings = localStorage.getItem('privacy-settings');
   if (privacySettings) {
     try {
-      const settings = JSON.parse(privacySettings);
+      const settings = JSON.parse(privacySettings) as Record<string, unknown>;
       if (settings.telemetryOptOut === true) {
         return false;
       }
-    } catch (e) {
+    } catch (e: unknown) {
       // Invalid settings, allow by default
     }
   }
@@ -167,7 +167,7 @@ export function startVitals() {
       });
 
       observer.observe({ entryTypes: ['longtask'] });
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Long task observer not supported:', e);
     }
   }

@@ -283,7 +283,7 @@ Provide a specific, actionable fix that addresses the root cause.`,
   private async evaluateFix(
     failure: TestFailure,
     repair: string,
-    _input: RepairInput
+    _input: unknown
   ): Promise<EvaluationResult> {
     const criteria = {
       testPasses: false,
@@ -622,13 +622,13 @@ Failed Criteria: ${Object.entries(evaluation.criteria)
       let stderr = '';
 
       if (childProcess.stdout) {
-        childProcess.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+        childProcess.stdout.on('data', (data) => { stdout += data.toString(); });
       }
       if (childProcess.stderr) {
-        childProcess.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+        childProcess.stderr.on('data', (data) => { stderr += data.toString(); });
       }
 
-      childProcess.on('close', (exitCode: number | null) => {
+      childProcess.on('close', (exitCode) => {
         resolve({ stdout, stderr, exitCode: exitCode || 0 });
       });
 

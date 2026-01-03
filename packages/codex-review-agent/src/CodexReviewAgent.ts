@@ -248,7 +248,7 @@ Format each issue as: [SEVERITY] Message`,
         throw new Error(`AI orchestrator returned ${response.status}`);
       }
 
-      const data = (await response.json()) as { results?: Array<{ error?: string; text?: string }> };
+      const data = (await response.json()) as unknown as { results?: Array<{ error?: string; text?: string }> };
       const result = data.results?.[0];
 
       if (result?.error) {

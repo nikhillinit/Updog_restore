@@ -391,9 +391,9 @@ export default function GraduationRateStrategy() {
                   <BarChart data={strategy.calculatedRates}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                    <Tooltip 
-                      formatter={(value: number) => [formatCurrency(value), "Follow-On Capital"]}
+                    <YAxis tickFormatter={(value) => formatCurrency(value as number)} />
+                    <Tooltip
+                      formatter={(value) => [formatCurrency(value as number), "Follow-On Capital"]}
                       labelFormatter={(label) => `Round: ${label}`}
                     />
                     <Bar dataKey="totalFollowOn" fill="#3b82f6" />
@@ -547,15 +547,15 @@ export default function GraduationRateStrategy() {
                   <AreaChart data={monteCarloResults.slice(0, 100)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="simulation" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                    <Tooltip 
-                      formatter={(value: number) => [formatCurrency(value), "Follow-On Capital"]}
+                    <YAxis tickFormatter={(value) => formatCurrency(value as number)} />
+                    <Tooltip
+                      formatter={(value) => [formatCurrency(value as number), "Follow-On Capital"]}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="followOnCapital" 
-                      stroke="#f59e0b" 
-                      fill="#f59e0b" 
+                    <Area
+                      type="monotone"
+                      dataKey="followOnCapital"
+                      stroke="#f59e0b"
+                      fill="#f59e0b"
                       fillOpacity={0.6}
                     />
                   </AreaChart>

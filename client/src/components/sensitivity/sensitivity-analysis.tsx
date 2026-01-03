@@ -454,7 +454,7 @@ export default function SensitivityAnalysis() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDEPENDENT_VARIABLES.map((variable: any) => (
+                      {INDEPENDENT_VARIABLES.map((variable) => (
                         <SelectItem key={variable.id} value={variable.id}>
                           {variable.name}
                         </SelectItem>
@@ -478,7 +478,7 @@ export default function SensitivityAnalysis() {
                 <div className="lg:col-span-2">
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={sensitivityData.filter((_: any, i: any) => i % 11 === 0)}>
+                      <LineChart data={sensitivityData.filter((_, i) => i % 11 === 0)}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="input1" />
                         <YAxis />

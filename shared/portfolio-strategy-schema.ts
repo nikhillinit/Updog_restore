@@ -208,26 +208,39 @@ export interface LegacyPortfolioStrategy {
 }
 
 export const migrateLegacyStrategy = (legacy: LegacyPortfolioStrategy): PortfolioStrategy => {
+  const legacyId = legacy.id as string | undefined;
+  const legacyName = legacy.name as string | undefined;
+  const legacyFundSize = legacy.fundSize as number | undefined;
+  const legacyDeploymentPeriodMonths = legacy.deploymentPeriodMonths as number | undefined;
+  const legacyTargetPortfolioSize = legacy.targetPortfolioSize as number | undefined;
+  const legacyCheckSizes = legacy.checkSizes as CheckSizeConfig | undefined;
+  const legacySectorAllocation = legacy.sectorAllocation as AllocationConfig | undefined;
+  const legacyStageAllocation = legacy.stageAllocation as AllocationConfig | undefined;
+  const legacyGeographicAllocation = legacy.geographicAllocation as AllocationConfig | undefined;
+  const legacyReservePercentage = legacy.reservePercentage as number | undefined;
+  const legacyAllocatedCapital = legacy.allocatedCapital as number | undefined;
+  const legacyScenarios = legacy.scenarios as ScenarioConfig[] | undefined;
+
   const migrated: Partial<PortfolioStrategy> = {
     ...legacy,
-    id: legacy['id'] || undefined,
-    name: legacy['name'] || 'Untitled Strategy',
-    fundSize: legacy['fundSize'] || 50000000,
-    totalFundSize: legacy['fundSize'] || 50000000,
-    deploymentPeriodMonths: legacy['deploymentPeriodMonths'] || 36,
-    targetPortfolioSize: legacy['targetPortfolioSize'] || 25,
-    checkSizes: legacy['checkSizes'] || {
+    id: legacyId || undefined,
+    name: legacyName || 'Untitled Strategy',
+    fundSize: legacyFundSize || 50000000,
+    totalFundSize: legacyFundSize || 50000000,
+    deploymentPeriodMonths: legacyDeploymentPeriodMonths || 36,
+    targetPortfolioSize: legacyTargetPortfolioSize || 25,
+    checkSizes: legacyCheckSizes || {
       min: 500000,
       target: 2000000,
       max: 5000000
     },
-    sectorAllocation: legacy['sectorAllocation'] || { 'Technology': 1.0 },
-    stageAllocation: legacy['stageAllocation'] || { 'Series A': 1.0 },
-    geographicAllocation: legacy['geographicAllocation'] || { 'North America': 1.0 },
-    reservePercentage: legacy['reservePercentage'] || 50,
-    reserveRatio: legacy['reservePercentage'] ? legacy['reservePercentage'] / 100 : 0.5,
-    allocatedCapital: legacy['allocatedCapital'] || 0,
-    scenarios: legacy['scenarios'] || []
+    sectorAllocation: legacySectorAllocation || { 'Technology': 1.0 },
+    stageAllocation: legacyStageAllocation || { 'Series A': 1.0 },
+    geographicAllocation: legacyGeographicAllocation || { 'North America': 1.0 },
+    reservePercentage: legacyReservePercentage || 50,
+    reserveRatio: legacyReservePercentage ? legacyReservePercentage / 100 : 0.5,
+    allocatedCapital: legacyAllocatedCapital || 0,
+    scenarios: legacyScenarios || []
   };
 
   return createPortfolioStrategy(migrated);

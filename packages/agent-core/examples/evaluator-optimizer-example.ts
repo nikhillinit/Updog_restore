@@ -162,7 +162,7 @@ async function customFunctionsExample(): Promise<void> {
   });
 
   // Custom generator with specific logic
-  const customGenerator: GeneratorFunction<string> = async (task: string, context?: string) => {
+  const customGenerator: GeneratorFunction<string> = async (task, context?) => {
     const prompt = context ? `${task}\n\n${context}` : task;
     const response = await mockLlmCall(prompt);
 
@@ -177,7 +177,7 @@ async function customFunctionsExample(): Promise<void> {
   };
 
   // Custom evaluator with specific criteria
-  const customEvaluator: EvaluatorFunction<string> = async (content: string, _task: string) => {
+  const customEvaluator: EvaluatorFunction<string> = async (content, _task) => {
     const prompt = `Evaluate this code:\n${content}\n\nFor task: ${_task}`;
     const response = await mockLlmCall(prompt);
 
@@ -223,9 +223,9 @@ async function typedContentExample(): Promise<void> {
   });
 
   const generator: GeneratorFunction<CodeArtifact> = async (
-    _task: string,
-    _context?: string
-  ): Promise<{ thoughts: string; result: CodeArtifact }> => {
+    _task,
+    _context?
+  ) => {
     return {
       thoughts: 'Creating code with tests and docs',
       result: {
@@ -237,9 +237,9 @@ async function typedContentExample(): Promise<void> {
   };
 
   const evaluator: EvaluatorFunction<CodeArtifact> = async (
-    content: CodeArtifact,
-    _task: string
-  ): Promise<{ status: 'PASS' | 'NEEDS_IMPROVEMENT' | 'FAIL'; feedback: string }> => {
+    content,
+    _task
+  ) => {
     // Check if all required parts are present
     const hasCode = content.code.length > 0;
     const hasTests = content.tests.length > 0;

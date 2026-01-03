@@ -72,9 +72,9 @@ export class BaselineService {
     // Get portfolio composition
     const portfolioData = await this.getPortfolioComposition(fundId);
 
-    // Get reserve and pacing data
-    const reserveData = await this.getReserveSnapshot(fundId);
-    const pacingData = await this.getPacingSnapshot(fundId);
+    // Get reserve and pacing data (kept for future use)
+    const _reserveData = await this.getReserveSnapshot(fundId);
+    const _pacingData = await this.getPacingSnapshot(fundId);
 
     // Check if this should be the default baseline
     const existingDefaults = await db.query.fundBaselines.findMany({
@@ -157,14 +157,14 @@ export class BaselineService {
   async setDefaultBaseline(baselineId: string, fundId: number): Promise<void> {
     await db.transaction(async (tx) => {
       // Clear existing defaults
-      await tx.update(fundBaselines)['set']({ isDefault: false, updatedAt: new Date() })
+      await tx.update(fundBaselines).set({ isDefault: false, updatedAt: new Date() })
         .where(and(
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true)
         ));
 
       // Set new default
-      await tx.update(fundBaselines)['set']({ isDefault: true, updatedAt: new Date() })
+      await tx.update(fundBaselines).set({ isDefault: true, updatedAt: new Date() })
         .where(eq(fundBaselines.id, baselineId));
     });
   }
@@ -173,7 +173,7 @@ export class BaselineService {
    * Deactivate a baseline
    */
   async deactivateBaseline(baselineId: string): Promise<void> {
-    await db.update(fundBaselines)['set']({ isActive: false, updatedAt: new Date() })
+    await db.update(fundBaselines).set({ isActive: false, updatedAt: new Date() })
       .where(eq(fundBaselines.id, baselineId));
   }
 
@@ -770,7 +770,7 @@ export class AlertManagementService {
       where: eq(performanceAlerts.id, alertId)
     });
 
-    await db.update(performanceAlerts)['set']({
+    await db.update(performanceAlerts).set({
         status: 'acknowledged',
         acknowledgedBy: userId,
         acknowledgedAt: new Date(),
@@ -795,7 +795,7 @@ export class AlertManagementService {
     });
 
     const resolveTime = new Date();
-    await db.update(performanceAlerts)['set']({
+    await db.update(performanceAlerts).set({
         status: 'resolved',
         resolvedBy: userId,
         resolvedAt: resolveTime,

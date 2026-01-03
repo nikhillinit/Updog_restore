@@ -262,11 +262,11 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           <TabsContent value="counts" className="space-y-4">
             <div className="grid gap-3">
               {StageOrder.map((stage) => {
-                const roundedResult = roundedResults as Record<string, unknown> | null;
-                const result = results as Record<string, unknown> | null;
-                const surplusByStage = roundedResult?.surplusByStage as Record<string, number> | undefined;
-                const rounded = roundedResult?.rounded as Record<string, number> | undefined;
-                const initialInvestmentsByStage = result?.initialInvestmentsByStage as Record<string, number> | undefined;
+                const roundedResult = roundedResults as unknown as Record<string, Record<string, number>> | null;
+                const result = results as unknown as Record<string, Record<string, number>> | null;
+                const surplusByStage = roundedResult?.surplusByStage;
+                const rounded = roundedResult?.rounded;
+                const initialInvestmentsByStage = result?.initialInvestmentsByStage;
 
                 return (
                   <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
@@ -297,9 +297,9 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           <TabsContent value="capital" className="space-y-4">
             <div className="grid gap-3">
               {StageOrder.map((stage) => {
-                const result = results as Record<string, unknown> | null;
-                const initialSpendByStage = result?.initialSpendByStage as Record<string, number> | undefined;
-                const followOnSpendByStage = result?.followOnSpendByStage as Record<string, number> | undefined;
+                const result = results as unknown as Record<string, Record<string, number>> | null;
+                const initialSpendByStage = result?.initialSpendByStage;
+                const followOnSpendByStage = result?.followOnSpendByStage;
 
                 return (
                   <div key={stage} className="p-3 border rounded-lg">
