@@ -114,7 +114,7 @@ PR_CREATED*.md
 .claude/settings.local.json
 
 # TypeScript cache files
-.tscache
+.tscache*
 
 # Code quality and analysis tools
 .codacy/
