@@ -355,7 +355,6 @@
     "@slack/webhook": "^7.0.5",
     "@tanstack/react-query": "^5.90.16",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/p-map": "2.0.0",
     "@types/papaparse": "^5.5.0",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
