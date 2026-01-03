@@ -92,7 +92,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   }
 
   const client = createClient({
-    url: cfg.url,
+    ...(cfg.url !== undefined ? { url: cfg.url } : {}),
     socket: socketOptions
   });
 

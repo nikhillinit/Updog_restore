@@ -25,6 +25,13 @@ const KEEPALIVE_INTERVAL_MS = 25_000; // 25 seconds
 
 export async function stream(req: Request, res: Response) {
   const { runId } = req.params;
+
+  if (!runId) {
+    logger.warn('Stream endpoint called without runId', { path: req.path });
+    res.status(400).json({ error: 'Missing runId parameter' });
+    return;
+  }
+
   let bytesSent = 0;
   const startTime = Date.now();
 
@@ -95,7 +102,10 @@ export async function stream(req: Request, res: Response) {
         cleanup();
       }
     } catch (error) {
-      logger.error('SSE write error', { runId, error });
+      logger.warn('SSE write error', {
+        runId,
+        errorMsg: error instanceof Error ? error.message : String(error),
+      });
       cleanup();
     }
   });
