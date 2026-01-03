@@ -352,8 +352,9 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
 
       // Extract DB from pathname (e.g., /0, /1)
       const dbMatch = url.pathname.match(/^\/(\d+)$/);
-      if (dbMatch) {
-        options.db = parseInt(dbMatch[1], 10);
+      const dbNumber = dbMatch?.[1];
+      if (dbNumber !== undefined) {
+        options.db = parseInt(dbNumber, 10);
       }
 
       // Enable TLS for rediss:// URLs
