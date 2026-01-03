@@ -24,19 +24,19 @@ const poolConfig = {
 export const pool = new Pool(poolConfig);
 
 // Pool event handlers for monitoring
-pool['on']('error', (err: any) => {
+pool['on']('error', (err: unknown) => {
   console.error('[PG Pool] Unexpected error on idle client:', err);
 });
 
-pool['on']('connect', (client: any) => {
+pool['on']('connect', () => {
   console.log('[PG Pool] New client connected');
 });
 
-pool['on']('acquire', (client: any) => {
+pool['on']('acquire', () => {
   console.debug('[PG Pool] Client acquired from pool');
 });
 
-pool['on']('remove', (client: any) => {
+pool['on']('remove', () => {
   console.debug('[PG Pool] Client removed from pool');
 });
 
@@ -92,8 +92,8 @@ export function getQueryMetrics() {
   const totalQueries = queryMetrics.length;
   const errorQueries = queryMetrics.filter(m => m.error).length;
   const slowQueries = queryMetrics.filter(m => m.duration > 1000).length;
-  const avgDuration = queryMetrics.reduce((sum: any, m: any) => sum + m.duration, 0) / totalQueries || 0;
-  
+  const avgDuration = queryMetrics.reduce((sum, m) => sum + m.duration, 0) / totalQueries || 0;
+
   return {
     totalQueries,
     errorQueries,
@@ -106,14 +106,14 @@ export function getQueryMetrics() {
 /**
  * Internal query function without circuit breaker
  */
-async function _query<T extends QueryResultRow = any>(
+async function _query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<QueryResult<T>> {
   const start = Date.now();
   let error: Error | undefined;
   let result: QueryResult<T> | undefined;
-  
+
   try {
     result = await pool.query<T>(text, params);
     return result;
@@ -134,15 +134,15 @@ async function _query<T extends QueryResultRow = any>(
 /**
  * Execute a query with circuit breaker protection
  */
-export async function query<T extends QueryResultRow = any>(
+export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<QueryResult<T>> {
   // Skip circuit breaker if disabled
   if (process.env['CB_DB_ENABLED'] === 'false') {
     return _query<T>(text, params);
   }
-  
+
   return dbBreaker.run(
     () => _query<T>(text, params),
     async () => ({ rows: [] as T[], command: '', rowCount: 0, oid: 0, fields: [] })
@@ -163,9 +163,9 @@ export async function q<T extends QueryResultRow = QueryResultRow>(
 /**
  * Execute a query and return the first row
  */
-export async function queryOne<T extends QueryResultRow = any>(
+export async function queryOne<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<T | null> {
   const result = await query<T>(text, params);
   return result.rows[0] || null;
@@ -306,9 +306,9 @@ export async function withBackoff<T>(
 /**
  * Query with automatic retry on transient failures
  */
-export async function queryWithRetry<T extends QueryResultRow = any>(
+export async function queryWithRetry<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[],
+  params?: unknown[],
   options?: Parameters<typeof withBackoff>[1]
 ): Promise<QueryResult<T>> {
   return withBackoff(async () => query<T>(text, params), options);

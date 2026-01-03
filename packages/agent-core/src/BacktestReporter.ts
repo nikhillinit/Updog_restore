@@ -271,7 +271,7 @@ export class BacktestReporter {
       'prompt-cache'
     ];
 
-    const analysis: Record<AgentPattern, PatternMetrics> = {} as any;
+    const analysis: Record<AgentPattern, PatternMetrics> = {} as Record<AgentPattern, PatternMetrics>;
 
     for (const pattern of patterns) {
       const patternCases = cases.filter(c => c.agentPattern === pattern);
@@ -518,7 +518,7 @@ export class BacktestReporter {
       c.agentPattern === 'router' && c.routedModel !== undefined
     );
 
-    const taskTypeAccuracy: Record<TaskType, { total: number; accurate: number }> = {} as any;
+    const taskTypeAccuracy: Partial<Record<TaskType, { total: number; accurate: number }>> = {};
 
     routerCases.forEach(c => {
       if (!taskTypeAccuracy[c.taskType]) {

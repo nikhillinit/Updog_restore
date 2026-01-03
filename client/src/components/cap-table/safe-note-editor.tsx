@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,7 +167,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {safesNotes.map((instrument: any) => {
+        {safesNotes.map((instrument) => {
           const conversion = pricePerShare ? calculateConversion(instrument, pricePerShare) : null;
           
           return (
@@ -289,7 +284,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
           </DialogHeader>
           
           <div className="space-y-6">
-            <Tabs value={formData.type ?? 'safe'} onValueChange={(value: any) => setFormData({ ...formData, type: value as 'safe' | 'note' })}>
+            <Tabs value={formData.type ?? 'safe'} onValueChange={(value) => setFormData({ ...formData, type: value as 'safe' | 'note' })}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="safe">SAFE</TabsTrigger>
                 <TabsTrigger value="note">Convertible Note</TabsTrigger>
@@ -302,7 +297,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                     <Input
                       id="holder-name"
                       value={formData.holderName}
-                      onChange={(e: any) => setFormData({ ...formData, holderName: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
                       placeholder="Angel Investor"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -313,7 +308,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="principal"
                       type="number"
                       value={formData.principal}
-                      onChange={(e: any) => setFormData({ ...formData, principal: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, principal: Number(e.target.value) })}
                       placeholder="500000"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -327,7 +322,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="valuation-cap"
                       type="number"
                       value={formData.valuationCap}
-                      onChange={(e: any) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
                       placeholder="8000000"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -340,7 +335,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       step="0.01"
                       max="1"
                       value={formData.discount ? formData.discount * 100 : ''}
-                      onChange={(e: any) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
+                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
                       placeholder="20"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -355,7 +350,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                     <Input
                       id="note-holder-name"
                       value={formData.holderName}
-                      onChange={(e: any) => setFormData({ ...formData, holderName: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
                       placeholder="Note Holder"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -366,7 +361,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="note-principal"
                       type="number"
                       value={formData.principal}
-                      onChange={(e: any) => setFormData({ ...formData, principal: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, principal: Number(e.target.value) })}
                       placeholder="750000"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -381,7 +376,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="number"
                       step="0.01"
                       value={formData.interestRate ? formData.interestRate * 100 : ''}
-                      onChange={(e: any) => setFormData({ ...formData, interestRate: Number(e.target.value) / 100 })}
+                      onChange={(e) => setFormData({ ...formData, interestRate: Number(e.target.value) / 100 })}
                       placeholder="8"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -393,7 +388,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       type="number"
                       step="0.01"
                       value={formData.discount ? formData.discount * 100 : ''}
-                      onChange={(e: any) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
+                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) / 100 })}
                       placeholder="25"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -404,7 +399,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="maturity-date"
                       type="date"
                       value={formData.maturityDate}
-                      onChange={(e: any) => setFormData({ ...formData, maturityDate: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, maturityDate: e.target.value })}
                       className="border-yellow-300 bg-yellow-50"
                     />
                   </div>
@@ -417,7 +412,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="note-cap"
                       type="number"
                       value={formData.valuationCap}
-                      onChange={(e: any) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, valuationCap: Number(e.target.value) })}
                       placeholder="12000000"
                       className="border-yellow-300 bg-yellow-50"
                     />
@@ -428,7 +423,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
                       id="investment-date"
                       type="date"
                       value={formData.investmentDate}
-                      onChange={(e: any) => setFormData({ ...formData, investmentDate: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, investmentDate: e.target.value })}
                       className="border-yellow-300 bg-yellow-50"
                     />
                   </div>

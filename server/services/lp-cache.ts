@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import { logger } from '../lib/logger';
 
 /**
@@ -57,8 +57,8 @@ export class LPReportingCache {
    */
   async getLPSummary(
     lpId: string,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const key = `lp:${lpId}:summary`;
 
     try {
@@ -100,8 +100,8 @@ export class LPReportingCache {
     fundIds: number[],
     startDate: Date,
     endDate: Date,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const dateRange = `${startDate.toISOString()}:${endDate.toISOString()}`;
     const fundStr = fundIds.join(',') || 'all';
     const key = `lp:${lpId}:capital-activity:${fundStr}:${dateRange}`;
@@ -140,8 +140,8 @@ export class LPReportingCache {
   async getFundPerformance(
     lpId: string,
     fundId: number,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const key = `lp:${lpId}:fund:${fundId}:performance`;
 
     try {
@@ -173,8 +173,8 @@ export class LPReportingCache {
    */
   async getAggregatePerformance(
     lpId: string,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const key = `lp:${lpId}:performance:aggregate`;
 
     try {
@@ -210,8 +210,8 @@ export class LPReportingCache {
   async getProRataHoldings(
     lpId: string,
     fundId: number,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const key = `lp:${lpId}:fund:${fundId}:holdings`;
 
     try {
@@ -251,8 +251,8 @@ export class LPReportingCache {
     granularity: 'monthly' | 'quarterly',
     startDate: Date,
     endDate: Date,
-    fetchFn: () => Promise<any>
-  ): Promise<any> {
+    fetchFn: () => Promise<unknown>
+  ): Promise<unknown> {
     const dateRange = `${startDate.toISOString()}:${endDate.toISOString()}`;
     const key = `lp:${lpId}:commitment:${commitmentId}:timeseries:${granularity}:${dateRange}`;
 
@@ -379,7 +379,7 @@ export class LPReportingCache {
    */
   private async set(
     key: string,
-    value: any,
+    value: unknown,
     ttl: number,
     tags: string[] = []
   ): Promise<void> {
@@ -408,7 +408,7 @@ export class LPReportingCache {
   /**
    * Get cache value
    */
-  async get(key: string): Promise<any | null> {
+  async get(key: string): Promise<unknown | null> {
     try {
       const value = await this.redis['get'](key);
       return value ? JSON.parse(value) : null;

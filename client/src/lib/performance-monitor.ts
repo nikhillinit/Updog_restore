@@ -30,7 +30,7 @@ export interface PerformanceMetric {
   unit: string;
   timestamp: Date;
   threshold?: 'normal' | 'warning' | 'critical';
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface PerformanceAlert {
@@ -42,7 +42,7 @@ export interface PerformanceAlert {
   message: string;
   timestamp: Date;
   resolved?: Date;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export class PerformanceMonitor {
@@ -81,7 +81,7 @@ export class PerformanceMonitor {
   /**
    * Record a performance measurement with automatic threshold checking
    */
-  recordMetric(name: string, value: number, unit: string, context?: Record<string, any>): void {
+  recordMetric(name: string, value: number, unit: string, context?: Record<string, unknown>): void {
     const metric: PerformanceMetric = {
       name,
       value,
@@ -126,7 +126,7 @@ export class PerformanceMonitor {
     
     // Record memory usage if available
     if (typeof performance !== 'undefined' && 'memory' in performance) {
-      const memory = (performance as any).memory;
+      const memory = (performance as { memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
       this.recordMetric('memory_used', memory.usedJSHeapSize / 1024 / 1024, 'MB', {
         total: memory.totalJSHeapSize / 1024 / 1024,
         limit: memory.jsHeapSizeLimit / 1024 / 1024
@@ -181,7 +181,7 @@ export class PerformanceMonitor {
     const averages: Record<string, number> = {};
     const peaks: Record<string, number> = {};
     
-    const metricGroups = recentMetrics.reduce((acc: any, metric: any) => {
+    const metricGroups = recentMetrics.reduce((acc, metric) => {
       if (!acc[metric.name]) acc[metric.name] = [];
       acc[metric.name].push(metric.value);
       return acc;
@@ -189,7 +189,7 @@ export class PerformanceMonitor {
     
     for (const [name, values] of Object.entries(metricGroups)) {
       const numberArray = values as number[];
-      averages[name] = numberArray.reduce((sum: number, val: number) => sum + val, 0) / numberArray.length;
+      averages[name] = numberArray.reduce((sum, val) => sum + val, 0) / numberArray.length;
       peaks[name] = Math.max(...numberArray);
     }
     
@@ -216,7 +216,7 @@ export class PerformanceMonitor {
    * Get detailed performance report
    */
   generatePerformanceReport(): {
-    summary: any;
+    summary: unknown;
     trends: Record<string, number[]>;
     recommendations: string[];
     alerts: PerformanceAlert[];
@@ -318,8 +318,8 @@ export class PerformanceMonitor {
         };
         
         this.alerts.push(alert);
-        this.activeAlerts['set'](alertId, alert);
-        
+        this.activeAlerts.set(alertId, alert);
+
         // Send to external alerting system
         this.sendAlert(alert);
       }
@@ -330,7 +330,7 @@ export class PerformanceMonitor {
       );
       
       alertsToResolve.forEach(alertId => {
-        const alert = this.activeAlerts['get'](alertId);
+        const alert = this.activeAlerts.get(alertId);
         if (alert) {
           alert.resolved = new Date();
           this.activeAlerts.delete(alertId);
@@ -371,7 +371,7 @@ export class PerformanceMonitor {
   }
   
   private calculateAverages(metrics: PerformanceMetric[]): Record<string, number> {
-    const groups = metrics.reduce((acc: any, metric: any) => {
+    const groups = metrics.reduce((acc, metric) => {
       if (!acc[metric.name]) acc[metric.name] = [];
       acc[metric.name].push(metric.value);
       return acc;
@@ -381,7 +381,7 @@ export class PerformanceMonitor {
     for (const [name, values] of Object.entries(groups)) {
       const numberArray = values as number[];
       if (numberArray.length > 0) {
-        averages[name] = numberArray.reduce((sum: number, val: number) => sum + val, 0) / numberArray.length;
+        averages[name] = numberArray.reduce((sum, val) => sum + val, 0) / numberArray.length;
       }
     }
     
@@ -390,8 +390,8 @@ export class PerformanceMonitor {
   
   private initializePerformanceObserver(): void {
     if (typeof PerformanceObserver !== 'undefined') {
-      const observer = new PerformanceObserver((list: any) => {
-        list.getEntries().forEach((entry: any) => {
+      const observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
           if (entry.entryType === 'measure') {
             this.recordMetric(entry.name, entry.duration, 'ms', {
               entryType: entry.entryType,

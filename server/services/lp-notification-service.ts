@@ -12,7 +12,7 @@
 
 import { db } from '../db';
 import { limitedPartners, lpFundCommitments, lpReports } from '@shared/schema-lp-reporting';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import {
   sendCapitalCallEmail,
   sendDistributionEmail,
@@ -20,7 +20,6 @@ import {
   type CapitalCallEmailData,
   type DistributionEmailData,
   type ReportReadyEmailData,
-  type SendResult,
 } from './email-service';
 import { getStorageService } from './storage-service';
 

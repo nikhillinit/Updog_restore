@@ -16,7 +16,7 @@ export interface LogEntry {
   level: LogLevel;
   agent: string;
   message: string;
-  data?: any;
+  data?: unknown;
   error?: string;
   stack?: string;
 }
@@ -41,19 +41,19 @@ export class Logger {
     this.ensureLogDirectory();
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     this.log('debug', message, data);
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     this.log('info', message, data);
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     this.log('warn', message, data);
   }
 
-  error(message: string, error?: Error | any): void {
+  error(message: string, error?: Error | unknown): void {
     const errorData = error instanceof Error ? {
       message: error.message,
       stack: error.stack,
@@ -63,7 +63,7 @@ export class Logger {
     this.log('error', message, errorData);
   }
 
-  private log(level: LogLevel, message: string, data?: any): void {
+  private log(level: LogLevel, message: string, data?: unknown): void {
     if (this.logLevels[level] < this.logLevels[this.config.level]) {
       return;
     }
@@ -129,7 +129,7 @@ export class Logger {
       } else {
         writeFileSync(logFile, jsonEntry);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to write to log file:', error);
     }
   }
@@ -139,7 +139,7 @@ export class Logger {
       if (!existsSync(this.config.logDir)) {
         mkdirSync(this.config.logDir, { recursive: true });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Failed to create log directory:', error);
       // Disable file logging if directory creation fails
       this.config.enableFile = false;
@@ -152,13 +152,13 @@ export class Logger {
   logAgentOperation(
     operation: string,
     status: 'start' | 'success' | 'error',
-    data?: any,
+    data?: unknown,
     error?: Error
   ): void {
     const operationData = {
       operation,
       status,
-      ...data,
+      ...(data && typeof data === 'object' ? data as Record<string, unknown> : {}),
     };
 
     switch (status) {
@@ -188,3 +188,14 @@ export class Logger {
     return join(this.config.logDir, `${this.config.agent}.log`);
   }
 }
+
+/**
+ * Default logger instance for internal use
+ * Individual agents should create their own logger instances
+ */
+export const logger = new Logger({
+  level: 'info',
+  agent: 'agent-core',
+  enableConsole: true,
+  enableFile: false, // Internal logger doesn't write to file
+});

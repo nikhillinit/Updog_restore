@@ -24,7 +24,7 @@ import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-
 /**
  * Cache adapter bridges Express app.locals.cache to service Cache interface
  */
-function createCacheAdapter(appLocalsCache: any): Cache | undefined {
+function createCacheAdapter(appLocalsCache: unknown): Cache | undefined {
   if (!appLocalsCache) return undefined;
 
   return {
@@ -76,7 +76,7 @@ const createSnapshotSchema = z.object({
       params: z.object({ fundId: z.coerce.number() }),
       query: timelineRangeSchema.omit({ fundId: true }),
     }),
-    asyncHandler(async (req: any, res: any) => {
+    asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params.fundId, 10);
       const startTimeStr = typeof req.query.startTime === 'string' ? req.query.startTime : undefined;
@@ -107,7 +107,7 @@ const createSnapshotSchema = z.object({
       params: z.object({ fundId: z.coerce.number() }),
       query: pointInTimeSchema.omit({ fundId: true }),
     }),
-    asyncHandler(async (req: any, res: any) => {
+    asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params.fundId, 10);
       const timestampStr = typeof req.query.timestamp === 'string' ? req.query.timestamp : '';
@@ -141,7 +141,7 @@ const createSnapshotSchema = z.object({
       params: z.object({ fundId: z.coerce.number() }),
       body: createSnapshotSchema.omit({ fundId: true }),
     }),
-    asyncHandler(async (req: any, res: any) => {
+    asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params.fundId, 10);
       const { type, _description } = req.body;
@@ -156,7 +156,7 @@ const createSnapshotSchema = z.object({
       }
 
       // Get queue from providers
-      const providers = (req as any).app.locals.providers;
+      const providers = (req as { app: { locals: { providers?: { queue?: { enabled: boolean } } } } }).app.locals.providers;
 
       // Only create snapshot if queues are enabled
       if (!providers.queue?.enabled) {
@@ -194,7 +194,7 @@ const createSnapshotSchema = z.object({
         includeDiff: z.coerce.boolean().default(true),
       }),
     }),
-    asyncHandler(async (req: any, res: any) => {
+    asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const { fundId } = req.params;
       const { timestamp1, timestamp2, includeDiff } = req.query;
@@ -232,7 +232,7 @@ const createSnapshotSchema = z.object({
         eventTypes: z.array(z.string()).optional(),
       }),
     }),
-    asyncHandler(async (req: any, res: any) => {
+    asyncHandler(async (req, res) => {
       const limitNum = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
       const eventTypes = Array.isArray(req.query.eventTypes) ? req.query.eventTypes : undefined;
 
@@ -253,7 +253,7 @@ const createSnapshotSchema = z.object({
  * This factory allows cache integration when app context is available.
  */
 function createDefaultTimelineRouter(app?: Express) {
-  const cache = app ? createCacheAdapter((app as any).locals.cache) : undefined;
+  const cache = app ? createCacheAdapter((app as { locals: { cache?: unknown } }).locals.cache) : undefined;
   const timelineService = new TimeTravelAnalyticsService(db, cache);
   return createTimelineRouter(timelineService);
 }

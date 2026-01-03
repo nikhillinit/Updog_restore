@@ -245,7 +245,7 @@ export class PostgresMemoryStore {
     try {
       await client.query('SELECT 1');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Database connection test failed:', error);
       return false;
     } finally {

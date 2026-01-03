@@ -76,11 +76,11 @@ describe('EvaluatorOptimizer', () => {
       const workflow = new EvaluatorOptimizer({ verbose: false, maxIterations: 5 });
 
       let callCount = 0;
-      mockGenerator.mockImplementation(async (task: string, context?: string) => {
+      mockGenerator.mockImplementation(async (_task: string, context?: string) => {
         callCount++;
         return {
           thoughts: `Attempt ${callCount}`,
-          result: `Solution ${callCount}`,
+          result: `Solution ${callCount}${context ? ` with context: ${context.substring(0, 10)}` : ''}`,
         };
       });
 

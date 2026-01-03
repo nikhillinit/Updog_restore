@@ -4,27 +4,30 @@
  */
 
 // Express.js specific safe property access
-export function safeAppDisable(app: any, feature: string): void {
-  if (app && typeof app['disable'] === 'function') {
-    app['disable'](feature);
+export function safeAppDisable(app: unknown, feature: string): void {
+  if (app && typeof app === 'object' && 'disable' in app && typeof (app as Record<string, unknown>)['disable'] === 'function') {
+    ((app as Record<string, unknown>)['disable'] as (feature: string) => void)(feature);
   }
 }
 
-export function safeAppSet(app: any, setting: string, value: any): void {
-  if (app && typeof app['set'] === 'function') {
-    app['set'](setting, value);
+export function safeAppSet(app: unknown, setting: string, value: unknown): void {
+  if (app && typeof app === 'object' && 'set' in app && typeof (app as Record<string, unknown>)['set'] === 'function') {
+    ((app as Record<string, unknown>)['set'] as (setting: string, value: unknown) => void)(setting, value);
   }
 }
 
-export function safeResponseSetHeader(res: any, name: string, value: string): void {
-  if (res && typeof res['setHeader'] === 'function') {
-    res['setHeader'](name, value);
+export function safeResponseSetHeader(res: unknown, name: string, value: string): void {
+  if (res && typeof res === 'object' && 'setHeader' in res && typeof (res as Record<string, unknown>)['setHeader'] === 'function') {
+    ((res as Record<string, unknown>)['setHeader'] as (name: string, value: string) => void)(name, value);
   }
 }
 
-export function safeRequestGetHeader(req: any, name: string): string | undefined {
-  if (!req || !req['headers']) return undefined;
-  return req['headers'][name];
+export function safeRequestGetHeader(req: unknown, name: string): string | undefined {
+  if (!req || typeof req !== 'object' || !('headers' in req)) return undefined;
+  const headers = (req as { headers?: Record<string, unknown> }).headers;
+  if (!headers || typeof headers !== 'object') return undefined;
+  const value = headers[name];
+  return typeof value === 'string' ? value : undefined;
 }
 
 // Environment variables safe access
@@ -60,31 +63,40 @@ export function safeDynamicPropertySet<T>(
 }
 
 // Mock function safe access (for testing)
-export function safeMockFunctionCall<T extends (...args: any[]) => any>(
-  mockObj: any,
+export function safeMockFunctionCall<T extends (...args: unknown[]) => unknown>(
+  mockObj: unknown,
   functionName: string,
   ...args: Parameters<T>
 ): ReturnType<T> | undefined {
-  if (mockObj && typeof mockObj[functionName] === 'function') {
-    return mockObj[functionName](...args);
+  if (mockObj && typeof mockObj === 'object' && functionName in mockObj) {
+    const fn = (mockObj as Record<string, unknown>)[functionName];
+    if (typeof fn === 'function') {
+      return (fn as T)(...args);
+    }
   }
   return undefined;
 }
 
-export function safeMockClearAllMocks(mockObj: any): void {
-  if (mockObj && typeof mockObj['clearAllMocks'] === 'function') {
-    mockObj['clearAllMocks']();
+export function safeMockClearAllMocks(mockObj: unknown): void {
+  if (mockObj && typeof mockObj === 'object' && 'clearAllMocks' in mockObj) {
+    const fn = (mockObj as Record<string, unknown>)['clearAllMocks'];
+    if (typeof fn === 'function') {
+      (fn as () => void)();
+    }
   }
 }
 
 // Redis client safe access
 export function safeRedisCall<T>(
-  client: any,
+  client: unknown,
   method: string,
-  ...args: any[]
+  ...args: unknown[]
 ): Promise<T> | undefined {
-  if (client && typeof client[method] === 'function') {
-    return client[method](...args);
+  if (client && typeof client === 'object' && method in client) {
+    const fn = (client as Record<string, unknown>)[method];
+    if (typeof fn === 'function') {
+      return (fn as (...args: unknown[]) => Promise<T>)(...args);
+    }
   }
   return undefined;
 }
@@ -102,23 +114,35 @@ export function safeConfigAccess<T>(
 
 // Metrics object safe access
 export function safeMetricsIncrement(
-  metrics: any,
+  metrics: unknown,
   counterName: string,
   labels?: Record<string, string>
 ): void {
-  if (metrics && typeof metrics[counterName] === 'object' && typeof metrics[counterName]['inc'] === 'function') {
-    metrics[counterName]['inc'](labels);
+  if (metrics && typeof metrics === 'object' && counterName in metrics) {
+    const counter = (metrics as Record<string, unknown>)[counterName];
+    if (counter && typeof counter === 'object' && 'inc' in counter) {
+      const incFn = (counter as Record<string, unknown>)['inc'];
+      if (typeof incFn === 'function') {
+        (incFn as (labels?: Record<string, string>) => void)(labels);
+      }
+    }
   }
 }
 
 export function safeMetricsSet(
-  metrics: any,
+  metrics: unknown,
   gaugeName: string,
   value: number,
   labels?: Record<string, string>
 ): void {
-  if (metrics && typeof metrics[gaugeName] === 'object' && typeof metrics[gaugeName]['set'] === 'function') {
-    metrics[gaugeName]['set'](value, labels);
+  if (metrics && typeof metrics === 'object' && gaugeName in metrics) {
+    const gauge = (metrics as Record<string, unknown>)[gaugeName];
+    if (gauge && typeof gauge === 'object' && 'set' in gauge) {
+      const setFn = (gauge as Record<string, unknown>)['set'];
+      if (typeof setFn === 'function') {
+        (setFn as (value: number, labels?: Record<string, string>) => void)(value, labels);
+      }
+    }
   }
 }
 
@@ -142,16 +166,19 @@ export function safeQueryParamAccess(
 
 // Dynamic method invocation with safety
 export function safeDynamicMethodCall<T>(
-  obj: any,
+  obj: unknown,
   methodName: string,
-  ...args: any[]
+  ...args: unknown[]
 ): T | undefined {
-  if (obj && typeof obj[methodName] === 'function') {
-    try {
-      return obj[methodName](...args);
-    } catch (error) {
-      console.error(`Error calling method ${methodName}:`, error);
-      return undefined;
+  if (obj && typeof obj === 'object' && methodName in obj) {
+    const method = (obj as Record<string, unknown>)[methodName];
+    if (typeof method === 'function') {
+      try {
+        return (method as (...args: unknown[]) => T)(...args);
+      } catch (error) {
+        console.error(`Error calling method ${methodName}:`, error);
+        return undefined;
+      }
     }
   }
   return undefined;
@@ -168,7 +195,7 @@ export function safeArrayLikeAccess<T>(
 }
 
 // Type-safe wrapper with corrected generic constraints
-export function createSafeAccessor<T extends Record<string, any>>(obj: T) {
+export function createSafeAccessor<T extends Record<string, unknown>>(obj: T) {
   return {
     get<K extends string & keyof T>(key: K): T[K] | undefined {
       return obj[key];
@@ -183,13 +210,13 @@ export function createSafeAccessor<T extends Record<string, any>>(obj: T) {
     },
     call<K extends string & keyof T>(
       method: K,
-      ...args: T[K] extends (...args: any[]) => any ? Parameters<T[K]> : never[]
-    ): T[K] extends (...args: any[]) => infer R ? R | undefined : never {
+      ...args: T[K] extends (...args: unknown[]) => unknown ? Parameters<T[K]> : never[]
+    ): T[K] extends (...args: unknown[]) => infer R ? R | undefined : never {
       const fn = obj[method];
       if (typeof fn === 'function') {
-        return (fn as any)(...args);
+        return (fn as (...args: unknown[]) => unknown)(...args) as T[K] extends (...args: unknown[]) => infer R ? R | undefined : never;
       }
-      return undefined as any;
+      return undefined as T[K] extends (...args: unknown[]) => infer R ? R | undefined : never;
     }
   };
 }

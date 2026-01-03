@@ -101,7 +101,7 @@ export class ConversationCache {
 
     // Cache miss - load from storage
     this.stats.misses++;
-    const startTime = Date.now();
+    const _startTime = Date.now();
 
     try {
       const thread = await getThread(threadId);
@@ -120,7 +120,7 @@ export class ConversationCache {
       this.cache.set(threadId, conversation);
 
       return conversation;
-    } catch (error) {
+    } catch (error: unknown) {
       // Don't cache errors
       console.error('Failed to load conversation:', error);
       return null;

@@ -118,12 +118,12 @@ export interface ScenariosData {
   scenarioType: 'construction' | 'current_state' | 'comparison';
   baseCase: {
     name: string;
-    assumptions: Record<string, any>;
+    assumptions: Record<string, unknown>;
   };
   scenarios?: Array<{
     id: string;
     name: string;
-    assumptions: Record<string, any>;
+    assumptions: Record<string, unknown>;
   }>;
 }
 
@@ -207,7 +207,7 @@ export type ModelingWizardEvents =
   | { type: 'NEXT' }
   | { type: 'BACK' }
   | { type: 'GOTO'; step: WizardStep }
-  | { type: 'SAVE_STEP'; step: WizardStep; data: any }
+  | { type: 'SAVE_STEP'; step: WizardStep; data: unknown }
   | { type: 'VALIDATE_STEP'; step: WizardStep }
   | { type: 'TOGGLE_SKIP_OPTIONAL'; skip: boolean }
   | { type: 'AUTO_SAVE' }
@@ -416,74 +416,118 @@ function clearStorage(): void {
 /**
  * Validate step data based on step-specific rules
  */
-function validateStepData(step: WizardStep, data: any): string[] {
+function validateStepData(step: WizardStep, data: unknown): string[] {
   const errors: string[] = [];
+
+  // Type guard to check if data is a record
+  const isRecord = (val: unknown): val is Record<string, unknown> => {
+    return typeof val === 'object' && val !== null;
+  };
 
   // Import validation schemas dynamically to avoid circular dependencies
   // In production, these would call the Zod schemas from modeling-wizard.schemas.ts
 
+  if (!isRecord(data)) {
+    errors.push('Invalid data format');
+    return errors;
+  }
+
   switch (step) {
-    case 'generalInfo':
-      if (!data?.fundName || data.fundName.trim().length === 0) {
+    case 'generalInfo': {
+      const fundName = data.fundName;
+      const vintageYear = data.vintageYear;
+      const fundSize = data.fundSize;
+
+      if (!fundName || (typeof fundName === 'string' && fundName.trim().length === 0)) {
         errors.push('Fund name is required');
       }
-      if (!data?.vintageYear || data.vintageYear < 2000 || data.vintageYear > 2030) {
+      if (!vintageYear || (typeof vintageYear === 'number' && (vintageYear < 2000 || vintageYear > 2030))) {
         errors.push('Vintage year must be between 2000 and 2030');
       }
-      if (!data?.fundSize || data.fundSize <= 0) {
+      if (!fundSize || (typeof fundSize === 'number' && fundSize <= 0)) {
         errors.push('Fund size must be positive');
       }
       break;
+    }
 
-    case 'sectorProfiles':
-      if (!data?.sectorProfiles || data.sectorProfiles.length === 0) {
+    case 'sectorProfiles': {
+      const sectorProfiles = data.sectorProfiles;
+
+      if (!sectorProfiles || !Array.isArray(sectorProfiles) || sectorProfiles.length === 0) {
         errors.push('At least one sector profile is required');
       }
       // Check allocations sum to 100%
-      const totalAllocation = data?.sectorProfiles?.reduce((sum: number, sp: any) => sum + sp.allocation, 0) || 0;
-      if (Math.abs(totalAllocation - 100) > 0.01) {
-        errors.push('Sector allocations must sum to 100%');
+      if (Array.isArray(sectorProfiles)) {
+        const totalAllocation = sectorProfiles.reduce((sum, sp) => {
+          return sum + (isRecord(sp) && typeof sp.allocation === 'number' ? sp.allocation : 0);
+        }, 0);
+        if (Math.abs(totalAllocation - 100) > 0.01) {
+          errors.push('Sector allocations must sum to 100%');
+        }
       }
       break;
+    }
 
-    case 'capitalAllocation':
-      if (!data?.initialCheckSize || data.initialCheckSize <= 0) {
+    case 'capitalAllocation': {
+      const initialCheckSize = data.initialCheckSize;
+      const followOnStrategy = data.followOnStrategy;
+
+      if (!initialCheckSize || (typeof initialCheckSize === 'number' && initialCheckSize <= 0)) {
         errors.push('Initial check size must be positive');
       }
-      if (!data?.followOnStrategy?.reserveRatio || data.followOnStrategy.reserveRatio < 0 || data.followOnStrategy.reserveRatio > 1) {
-        errors.push('Reserve ratio must be between 0 and 1');
+      if (isRecord(followOnStrategy)) {
+        const reserveRatio = followOnStrategy.reserveRatio;
+        if (!reserveRatio || (typeof reserveRatio === 'number' && (reserveRatio < 0 || reserveRatio > 1))) {
+          errors.push('Reserve ratio must be between 0 and 1');
+        }
       }
       break;
+    }
 
-    case 'feesExpenses':
-      if (!data?.managementFee?.rate || data.managementFee.rate < 0 || data.managementFee.rate > 5) {
-        errors.push('Management fee rate must be between 0% and 5%');
+    case 'feesExpenses': {
+      const managementFee = data.managementFee;
+
+      if (isRecord(managementFee)) {
+        const rate = managementFee.rate;
+        if (!rate || (typeof rate === 'number' && (rate < 0 || rate > 5))) {
+          errors.push('Management fee rate must be between 0% and 5%');
+        }
       }
       break;
+    }
 
-    case 'exitRecycling':
+    case 'exitRecycling': {
       // Optional step - only validate if enabled
-      if (data?.enabled) {
-        if (data.recyclingCap && (data.recyclingCap < 0 || data.recyclingCap > 100)) {
+      const enabled = data.enabled;
+      const recyclingCap = data.recyclingCap;
+
+      if (enabled) {
+        if (recyclingCap && typeof recyclingCap === 'number' && (recyclingCap < 0 || recyclingCap > 100)) {
           errors.push('Recycling cap must be between 0% and 100%');
         }
       }
       break;
+    }
 
-    case 'waterfall':
-      if (!data?.type || !['american', 'european', 'hybrid'].includes(data.type)) {
+    case 'waterfall': {
+      const type = data.type;
+      const preferredReturn = data.preferredReturn;
+
+      if (!type || (typeof type === 'string' && !['american', 'european', 'hybrid'].includes(type))) {
         errors.push('Waterfall type must be specified');
       }
-      if (data?.preferredReturn && (data.preferredReturn < 0 || data.preferredReturn > 20)) {
+      if (preferredReturn && typeof preferredReturn === 'number' && (preferredReturn < 0 || preferredReturn > 20)) {
         errors.push('Preferred return must be between 0% and 20%');
       }
       break;
+    }
 
-    case 'scenarios':
-      if (!data?.scenarioType) {
+    case 'scenarios': {
+      if (!data.scenarioType) {
         errors.push('Scenario type is required');
       }
       break;
+    }
   }
 
   return errors;
@@ -638,7 +682,7 @@ export const modelingWizardMachine = setup({
      */
     saveReserveCalculation: assign(({ context, event }) => {
       // XState v5 invoke done events pass output directly
-      const output = (event as any).output;
+      const output = (event as { output: { allocation: ReserveAllocation; enriched: EnrichedReserveAllocation } }).output;
 
       return {
         ...context,
@@ -691,9 +735,9 @@ export const modelingWizardMachine = setup({
     /**
      * Set persistence error when persistence fails
      */
-     
+
     setPersistenceError: assign({
-      persistenceError: ({ event }: { event: any }) => (event.error as Error).message
+      persistenceError: ({ event }) => (event.error as Error).message
     }),
 
     /**

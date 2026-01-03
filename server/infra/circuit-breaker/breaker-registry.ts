@@ -26,9 +26,9 @@ export class BreakerRegistry {
     return this.breakers['get'](name);
   }
 
-  getAll(): Record<string, any> {
-    const result: Record<string, any> = {};
-    this.breakers.forEach((breaker: any, name: any) => {
+  getAll(): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    this.breakers.forEach((breaker, name) => {
       result[name] = {
         state: breaker.getState(),
         stats: breaker.getMetrics?.() || {}
@@ -38,16 +38,16 @@ export class BreakerRegistry {
   }
 
   // Get critical breakers for readiness checks
-  getCritical(): Array<{ name: string; breaker: any }> {
-    const critical: Array<{ name: string; breaker: any }> = [];
-    
+  getCritical(): Array<{ name: string; breaker: BreakerLike }> {
+    const critical: Array<{ name: string; breaker: BreakerLike }> = [];
+
     // Add cache and database breakers as critical
-    this.breakers.forEach((breaker: any, name: any) => {
+    this.breakers.forEach((breaker, name) => {
       if (name.includes('cache') || name.includes('db') || name.includes('database')) {
         critical.push({ name, breaker });
       }
     });
-    
+
     return critical;
   }
 
@@ -60,7 +60,7 @@ export class BreakerRegistry {
   // Get degraded services (half-open or recently recovered)
   getDegraded(): string[] {
     const degraded: string[] = [];
-    this.breakers.forEach((breaker: any, name: any) => {
+    this.breakers.forEach((breaker, name) => {
       const state = breaker.getState();
       if (state === 'HALF_OPEN' || state === 'OPEN') {
         degraded.push(name);

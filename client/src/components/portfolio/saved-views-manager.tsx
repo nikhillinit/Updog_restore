@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +44,7 @@ interface AnalyticsView {
   xAxis: string;
   yAxis: string;
   groupBy?: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   notes: string;
   createdAt: string;
   lastModified: string;
@@ -210,17 +205,17 @@ export default function SavedViewsManager({
               <Input
                 placeholder="View name (required)"
                 value={formData.name}
-                onChange={(e: any) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               />
               <Input
                 placeholder="Description (optional)"
                 value={formData.description}
-                onChange={(e: any) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
               <Textarea
                 placeholder="Analysis notes and insights..."
                 value={formData.notes}
-                onChange={(e: any) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 rows={3}
               />
               <div className="flex justify-end space-x-2">
@@ -242,7 +237,7 @@ export default function SavedViewsManager({
           <Input
             placeholder="Search saved views..."
             value={searchTerm}
-            onChange={(e: any) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         {allTags.length > 0 && (
@@ -285,7 +280,7 @@ export default function SavedViewsManager({
             </CardContent>
           </Card>
         ) : (
-          filteredViews.map((view: any) => {
+          filteredViews.map((view) => {
             const ChartIcon = getChartTypeIcon(view.chartType);
             return (
               <Card key={view.id} className="hover:shadow-md transition-shadow">
@@ -334,7 +329,7 @@ export default function SavedViewsManager({
 
                         {view.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {view.tags.map((tag: string) => (
+                            {view.tags.map((tag) => (
                               <Badge key={tag} variant="outline" className="text-xs">
                                 {tag}
                               </Badge>
@@ -412,17 +407,17 @@ export default function SavedViewsManager({
             <Input
               placeholder="View name (required)"
               value={formData.name}
-              onChange={(e: any) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
             <Input
               placeholder="Description (optional)"
               value={formData.description}
-              onChange={(e: any) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             />
             <Textarea
               placeholder="Analysis notes and insights..."
               value={formData.notes}
-              onChange={(e: any) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
             />
             <div className="flex justify-end space-x-2">

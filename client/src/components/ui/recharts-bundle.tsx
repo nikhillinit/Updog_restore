@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import * as React from "react"
@@ -69,8 +68,8 @@ export const ChartTooltip = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
-      payload?: any
-      label?: any
+      payload?: unknown
+      label?: unknown
     }
 >(
   (
@@ -94,7 +93,7 @@ export const ChartTooltip = React.forwardRef<
     const { config } = useChart()
 
     const tooltipLabel = React.useMemo(() => {
-      if (hideLabel || !payload?.length) {
+      if (hideLabel || !Array.isArray(payload) || payload.length === 0) {
         return null
       }
 
@@ -129,7 +128,7 @@ export const ChartTooltip = React.forwardRef<
       labelKey,
     ])
 
-    if (!active || !payload?.length) {
+    if (!active || !Array.isArray(payload) || payload.length === 0) {
       return null
     }
 
@@ -145,7 +144,7 @@ export const ChartTooltip = React.forwardRef<
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item: any, index: number) => {
+          {payload.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color || item.fill || item.color
@@ -225,7 +224,7 @@ export const ChartTooltipContent = React.forwardRef<
     labelKey?: string
     config?: ChartConfig
   }
->((props: any, ref: any) => {
+>((props, ref) => {
   const { config } = useChart()
   const { className, hideLabel, hideIndicator, indicator, nameKey, labelKey, ...rest } = props
 
@@ -253,7 +252,7 @@ ChartTooltipContent.displayName = "ChartTooltipContent"
 export const ChartLegend = React.forwardRef<
   HTMLDivElement,
   Omit<React.ComponentProps<typeof Legend>, "content"> & {
-    content?: React.ComponentType<any> | React.ReactElement;
+    content?: React.ComponentType<unknown> | React.ReactElement;
     className?: string;
     nameKey?: string;
   }
@@ -261,19 +260,19 @@ export const ChartLegend = React.forwardRef<
   const { config } = useChart()
 
   // Filter out undefined values to satisfy exactOptionalPropertyTypes
-  const filteredProps = Object.fromEntries(
+  const filteredProps: Record<string, unknown> = Object.fromEntries(
     Object.entries(props).filter(([_, value]) => value !== undefined)
-  )
+  );
 
   return (
     <Legend
-      ref={ref as any}
+      ref={ref as unknown as React.Ref<SVGElement>}
       className={cn(
         "flex flex-wrap items-center justify-center gap-4 text-xs",
         className
       )}
-      content={ChartLegendContent as any}
-      {...(filteredProps as any)}
+      content={ChartLegendContent as unknown as React.ComponentType<unknown>}
+      {...filteredProps}
       {...(nameKey && { nameKey })}
     />
   )
@@ -284,7 +283,7 @@ ChartLegend.displayName = "ChartLegend"
 export const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    payload?: any
+    payload?: unknown
     verticalAlign?: "top" | "bottom"
     hideIcon?: boolean
     nameKey?: string
@@ -292,7 +291,7 @@ export const ChartLegendContent = React.forwardRef<
 >(({ className, hideIcon = false, payload, verticalAlign = "bottom", nameKey }, ref) => {
   const { config } = useChart()
 
-  if (!payload?.length) {
+  if (!Array.isArray(payload) || payload.length === 0) {
     return null
   }
 
@@ -306,7 +305,7 @@ export const ChartLegendContent = React.forwardRef<
         className
       )}
     >
-      {payload.map((item: any) => {
+      {payload.map((item) => {
         const key = `${nameKey || item.dataKey || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
@@ -343,15 +342,15 @@ const componentMap = {
   Legend
 };
 
-const RechartsDispatcher = React.forwardRef<any, any & { component: string }>((props: any, ref: any) => {
+const RechartsDispatcher = React.forwardRef<HTMLDivElement, { component: string; [key: string]: unknown }>((props, ref) => {
   const { component, ...rest } = props;
   const Component = componentMap[component as keyof typeof componentMap];
-  
+
   if (!Component) {
     return null;
   }
-  
-  return <Component ref={ref} {...rest as any} />;
+
+  return <Component ref={ref} {...(rest as Record<string, unknown>)} />;
 });
 
 export default RechartsDispatcher;

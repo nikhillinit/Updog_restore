@@ -55,10 +55,10 @@ export const fundModelWireSchema = z.object({
   }),
 })
 .refine(
-  (data: any) => {
+  (data: z.infer<typeof fundModelWireSchema>) => {
     // Validation: Allocation sum ≤ 100%
     const totalAllocation = data.state.investmentStrategy.allocations
-      .reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
+      .reduce((sum: number, alloc: z.infer<typeof StageAllocationSchema>) => sum + alloc.percentage, 0);
     return totalAllocation <= 100.01; // Allow tiny floating point tolerance
   },
   {

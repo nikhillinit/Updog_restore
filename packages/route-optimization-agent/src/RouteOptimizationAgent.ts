@@ -1,6 +1,6 @@
-import type { AgentExecutionContext } from '@agent-core/BaseAgent';
-import { BaseAgent } from '@agent-core/BaseAgent';
-import { withThinking } from '@agent-core/ThinkingMixin';
+import type { AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -429,7 +429,7 @@ const ${route.component} = React.lazy(() => import('./pages/${route.component}')
         if (input.testNavigation) {
           await this.testRouteNavigation(opt.route);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.error('Failed to implement optimization', { opt, error });
       }
     }
@@ -459,12 +459,12 @@ export const RouteLoading: React.FC = () => {
     try {
       await execAsync(`npm test -- --grep "navigation ${route}"`);
       this.logger.info('Navigation test passed', { route });
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Navigation test failed', { route, error });
     }
   }
 
-  protected getExecutionMetadata(input: RouteOptimizationInput): Record<string, any> {
+  protected getExecutionMetadata(input: RouteOptimizationInput): Record<string, unknown> {
     return {
       analyzeUsage: input.analyzeUsage,
       implementLazy: input.implementLazy,

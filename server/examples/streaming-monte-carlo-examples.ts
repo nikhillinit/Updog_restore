@@ -142,7 +142,7 @@ export async function batchProcessingExample() {
   console.log(`✅ Batch completed in ${totalTime}ms`);
 
   // Analyze results
-  results.forEach((result: any, index: any) => {
+  results.forEach((result, index) => {
     const config = batchConfigs[index];
     if (!config) return;
     console.log(`\nFund ${config.fundId}:`);
@@ -325,7 +325,7 @@ export async function performanceMonitoringExample() {
 
   if (recommendations.recommendations.length > 0) {
     console.log('\n💡 Specific recommendations:');
-    recommendations.recommendations.forEach((rec: any, i: any) => {
+    recommendations.recommendations.forEach((rec, i) => {
       console.log(`  ${i + 1}. ${rec}`);
     });
   }
@@ -348,18 +348,19 @@ export async function healthMonitoringExample() {
 
   if (health.connectionPools && Object.keys(health.connectionPools).length > 0) {
     console.log('\n🔗 Connection Pool Status:');
-    Object.entries(health.connectionPools).forEach(([poolId, metrics]: [string, any]) => {
+    Object.entries(health.connectionPools).forEach(([poolId, metrics]) => {
+      const m = metrics as Record<string, unknown>;
       console.log(`  ${poolId}:`);
-      console.log(`    Active connections: ${metrics.activeConnections}`);
-      console.log(`    Total connections: ${metrics.totalConnections}`);
-      console.log(`    Connection errors: ${metrics.connectionErrors}`);
-      console.log(`    Average query time: ${metrics.averageQueryTime.toFixed(2)}ms`);
+      console.log(`    Active connections: ${m.activeConnections}`);
+      console.log(`    Total connections: ${m.totalConnections}`);
+      console.log(`    Connection errors: ${m.connectionErrors}`);
+      console.log(`    Average query time: ${typeof m.averageQueryTime === 'number' ? m.averageQueryTime.toFixed(2) : 'N/A'}ms`);
     });
   }
 
   if (health.recommendations.length > 0) {
     console.log('\n⚠️  Health Recommendations:');
-    health.recommendations.forEach((rec: any, i: any) => {
+    health.recommendations.forEach((rec, i) => {
       console.log(`  ${i + 1}. ${rec}`);
     });
   }
@@ -497,12 +498,12 @@ export async function stressTest(fundId: number, startRuns: number = 1000, maxRu
   console.log('\n📊 Stress Test Summary:');
   const successful = results.filter(r => !r.error);
   if (successful.length > 0) {
-    const avgThroughput = successful.reduce((sum: any, r: any) => sum + (r.scenariosPerSecond ?? 0), 0) / successful.length;
+    const avgThroughput = successful.reduce((sum, r) => sum + (r.scenariosPerSecond ?? 0), 0) / successful.length;
     const memoryValues = successful.map(r => r.memoryUsageMB ?? 0);
     const peakMemory = Math.max(...memoryValues);
     console.log(`Average throughput: ${avgThroughput.toFixed(0)} scenarios/sec`);
     console.log(`Peak memory usage: ${peakMemory.toFixed(2)}MB`);
-    console.log(`Engine transitions: ${successful.filter((r: any, i: any) => { const prev = successful[i-1]; return i > 0 && prev && r.engineUsed !== prev.engineUsed; }).length}`);
+    console.log(`Engine transitions: ${successful.filter((r, i) => { const prev = successful[i-1]; return i > 0 && prev && r.engineUsed !== prev.engineUsed; }).length}`);
   }
 
   return results;
