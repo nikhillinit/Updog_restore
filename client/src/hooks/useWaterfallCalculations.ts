@@ -34,7 +34,7 @@ export function useWaterfallCalculations(
 
     // American waterfall: Deal-by-deal (simplified to 20% carry)
     return calculateAmericanDistribution(fundSize, totalValue, totalProfit);
-  }, [waterfall, moic]);
+  }, [moic]);
 }
 
 /**
