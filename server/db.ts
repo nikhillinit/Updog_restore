@@ -71,7 +71,8 @@ if (isTest) {
   }
 
   pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
-  db = drizzle({ client: pool, schema: combinedSchema });
+  // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
+  db = drizzle(pool, { schema: combinedSchema });
 }
 
 export { db, pool };

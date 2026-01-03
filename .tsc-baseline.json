@@ -1,30 +1,8 @@
 {
   "version": "2.0.0",
-  "projects": {
-    "client": {
-      "errors": [
-        "client/src/lib/__tests__/type-guards.spec.ts:TS2532:10637e8c"
-      ],
-      "total": 1,
-      "lastUpdated": "2026-01-03T02:10:53.368Z"
-    },
-    "server": {
-      "errors": [
-        "server/db.ts:TS2345:13b9169b",
-        "server/db/index.ts:TS2459:571d360f",
-        "server/middleware/enhanced-audit.ts:TS2769:46c8c98c",
-        "server/services/actual-metrics-calculator.ts:TS2345:a6a82629",
-        "server/services/metrics-aggregator.ts:TS2339:24487253",
-        "server/services/metrics-aggregator.ts:TS2345:8ba8a22d",
-        "server/services/metrics-aggregator.ts:TS2345:94541e72",
-        "server/services/metrics-aggregator.ts:TS2345:cec83484"
-      ],
-      "total": 8,
-      "lastUpdated": "2026-01-03T02:10:53.368Z"
-    }
-  },
-  "totalErrors": 9,
-  "timestamp": "2026-01-03T02:10:53.368Z",
+  "projects": {},
+  "totalErrors": 0,
+  "timestamp": "2026-01-03T05:17:39.489Z",
   "buildMode": "per-project",
-  "elapsedMs": 19624
+  "elapsedMs": 18507
 }

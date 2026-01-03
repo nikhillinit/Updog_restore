@@ -113,8 +113,9 @@ export class ActualMetricsCalculator {
 
   /**
    * Calculate current Net Asset Value from portfolio companies
+   * Only requires status and currentValuation fields
    */
-  private calculateNAV(companies: PortfolioCompany[]): Decimal {
+  private calculateNAV(companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]): Decimal {
     return companies
       .filter((c) => c.status === 'active')
       .reduce((sum, company) => {
@@ -295,7 +296,7 @@ export class ActualMetricsCalculator {
    * Fetch distributions for a fund
    * TODO: This should be added to storage interface
    */
-  private async getDistributions(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
+  private async getDistributions(_fundId: number): Promise<Array<{ date: Date; amount: number }>> {
     // For now, return empty array
     // In production, this would query a distributions table
     // TODO: Add distributions table to schema and storage layer
