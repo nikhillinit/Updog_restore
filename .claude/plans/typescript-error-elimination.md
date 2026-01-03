@@ -99,10 +99,11 @@ perRound?: Record<string, number>;  // Already optional!
 
 ```typescript
 // In server/core/reserves/adapter.ts:289
+// NOTE: Use ternary pattern to match 154+ codebase instances
 const prediction: ReservePrediction = {
   recommendedReserve: result.recommendedReserve,
-  ...(result.perRound !== undefined && { perRound: result.perRound }),
-  ...(result.confidence !== undefined && { confidence: result.confidence }),
+  ...(result.perRound !== undefined ? { perRound: result.perRound } : {}),
+  ...(result.confidence !== undefined ? { confidence: result.confidence } : {}),
   notes: result.notes ?? [],
 };
 ```
@@ -113,13 +114,13 @@ const prediction: ReservePrediction = {
 
 **WRONG**: Make rateLimitStore optional (already is)
 
-**CORRECT**: Use conditional spread
+**CORRECT**: Use conditional spread (ternary pattern)
 
 ```typescript
 return {
   mode,
   cache,
-  ...(rateLimitStore !== undefined && { rateLimitStore }),
+  ...(rateLimitStore !== undefined ? { rateLimitStore } : {}),
   queue,
   sessions,
   teardown,
@@ -141,9 +142,9 @@ return {
   follow_ons: summary.follow_ons,
   exit_proceeds: summary.exit_proceeds,
   exit_valuation: summary.exit_valuation,
-  ...(summary.months_to_exit !== undefined && {
-    months_to_exit: summary.months_to_exit,
-  }),
+  ...(summary.months_to_exit !== undefined
+    ? { months_to_exit: summary.months_to_exit }
+    : {}),
 };
 ```
 
@@ -199,21 +200,29 @@ if (!slo) {
 }
 ```
 
-### 3.2 Redis URL Validation (CRITICAL)
+### 3.2 Redis DB Index Access (noUncheckedIndexedAccess)
 
 **File**: `server/db/redis-factory.ts:356`
 
-**WRONG**: `url ?? ''` (silent Redis DB mismatch risk)
+**Error**: TS2345 - `dbMatch[1]` is `string | undefined` due to
+`noUncheckedIndexedAccess`
 
-**CORRECT**:
+**WRONG** (current code):
 
 ```typescript
-const dbMatch = url.pathname?.match(/^\/(\d+)$/);
+const dbMatch = url.pathname.match(/^\/(\d+)$/);
 if (dbMatch) {
-  options.db = parseInt(dbMatch[1], 10);
-} else if (url.pathname === undefined) {
-  logger.error('Redis URL missing pathname', { url: url.toString() });
-  throw new Error('Invalid Redis URL: missing pathname');
+  options.db = parseInt(dbMatch[1], 10); // dbMatch[1] is string | undefined
+}
+```
+
+**CORRECT** (guard the array element access):
+
+```typescript
+const dbMatch = url.pathname.match(/^\/(\d+)$/);
+const dbNumber = dbMatch?.[1];
+if (dbNumber !== undefined) {
+  options.db = parseInt(dbNumber, 10);
 }
 ```
 
@@ -239,9 +248,9 @@ These are caused by passing `store | undefined` where library expects `store?`.
 // WRONG
 const options = { store: maybeStore };
 
-// CORRECT
+// CORRECT (ternary pattern to match codebase convention)
 const options = {
-  ...(maybeStore !== undefined && { store: maybeStore }),
+  ...(maybeStore !== undefined ? { store: maybeStore } : {}),
 };
 ```
 
@@ -402,13 +411,17 @@ npm test -- --project=server
 
 ## Execution Checklist
 
-- [ ] Phase 0: Create baseline snapshot
+**NOTE**: Phase 4 moved before Phase 2 per deep analysis (schema imports
+cascade)
+
+- [ ] Phase 0: Enhanced baseline (clear cache, verify tests compile)
 - [ ] Phase 1: Config fixes (verify: 32-34 errors)
-- [ ] Phase 2: exactOptionalPropertyTypes (verify: 26-28 errors)
-- [ ] Phase 3: Null safety (verify: 12-14 errors)
-- [ ] Phase 4: Schema alignment (verify: 4-6 errors)
+- [ ] **Phase 4: Schema alignment FIRST** (verify: 28-30 errors)
+- [ ] Phase 2: exactOptionalPropertyTypes (verify: 22-24 errors)
+- [ ] Phase 3: Null safety + validation middleware (verify: 8-10 errors)
 - [ ] Phase 5: External types (verify: 0 errors)
-- [ ] Final: `npm run baseline:save && npm test`
+- [ ] Phase 6: Add regression tests (NEW)
+- [ ] Final: `npm run baseline:save && npm test && npm run lint`
 
 ---
 
@@ -555,3 +568,12 @@ echo "Rollback: git revert HEAD --no-edit && npm run check" > .baselines/rollbac
 - Must add validation middleware to Phase 3
 - Must create regression tests before deployment
 - Must document rollback procedure
+
+### Codex Review Sign-off
+
+- [x] Pattern Standardization: All `&&` patterns converted to ternary form
+- [x] redis-factory.ts: Corrected to guard `dbMatch[1]`
+      (noUncheckedIndexedAccess)
+- [x] Execution Checklist: Updated with correct phase order (Phase 4 before 2)
+
+**Codex Verdict**: ALL FAIL ITEMS CORRECTED - READY FOR EXECUTION
