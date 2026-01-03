@@ -60,7 +60,7 @@ export interface CircuitBreakerConfig {
  *   const result = await operation();
  *   breaker.recordSuccess();
  *   return result;
- * } catch (error) {
+ * } catch (error: unknown) {
  *   breaker.recordFailure();
  *   throw error;
  * }

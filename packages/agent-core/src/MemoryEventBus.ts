@@ -174,18 +174,14 @@ export class MemoryEventBus {
     const listenerSet = this.listeners.get(eventType)!;
     listenerSet.add(listener as MemoryEventListener);
 
-    logger.debug({
-      msg: 'Event listener registered',
-      eventType,
+    logger.debug('Event listener registered', {eventType,
       totalListeners: listenerSet.size,
     });
 
     // Return unsubscribe function
     return () => {
       listenerSet.delete(listener as MemoryEventListener);
-      logger.debug({
-        msg: 'Event listener unregistered',
-        eventType,
+      logger.debug('Event listener unregistered', {eventType,
         totalListeners: listenerSet.size,
       });
     };
@@ -238,17 +234,13 @@ export class MemoryEventBus {
 
     const listeners = this.listeners.get(fullEvent.type);
     if (!listeners || listeners.size === 0) {
-      logger.debug({
-        msg: 'Event emitted with no listeners',
-        eventType: fullEvent.type,
+      logger.debug('Event emitted with no listeners', {eventType: fullEvent.type,
         tenantId: fullEvent.tenantId,
       });
       return;
     }
 
-    logger.debug({
-      msg: 'Emitting event',
-      eventType: fullEvent.type,
+    logger.debug('Emitting event', {eventType: fullEvent.type,
       tenantId: fullEvent.tenantId,
       listenerCount: listeners.size,
     });
@@ -257,10 +249,8 @@ export class MemoryEventBus {
     const promises = Array.from(listeners).map(async (listener) => {
       try {
         await listener(fullEvent);
-      } catch (error) {
-        logger.error({
-          msg: 'Event listener error',
-          eventType: fullEvent.type,
+      } catch (error: unknown) {
+        logger.error('Event listener error', {eventType: fullEvent.type,
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -277,15 +267,11 @@ export class MemoryEventBus {
   removeAllListeners(eventType?: MemoryEventType): void {
     if (eventType) {
       this.listeners.delete(eventType);
-      logger.debug({
-        msg: 'All listeners removed',
-        eventType,
+      logger.debug('All listeners removed', {eventType,
       });
     } else {
       this.listeners.clear();
-      logger.debug({
-        msg: 'All listeners removed (all event types)',
-      });
+      logger.debug('All listeners removed (all event types)', {});
     }
   }
 
@@ -322,9 +308,7 @@ export class MemoryEventBus {
    */
   clearHistory(): void {
     this.eventHistory = [];
-    logger.debug({
-      msg: 'Event history cleared',
-    });
+    logger.debug('Event history cleared', {});
   }
 
   /**

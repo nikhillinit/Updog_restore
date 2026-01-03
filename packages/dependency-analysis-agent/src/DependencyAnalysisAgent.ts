@@ -1,6 +1,6 @@
-import type { AgentExecutionContext } from '@povc/agent-core';
-import { BaseAgent } from '@povc/agent-core';
-import { withThinking } from '@povc/agent-core/ThinkingMixin';
+import type { AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -97,7 +97,7 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
 
   protected async performOperation(
     input: DependencyAnalysisInput,
-    context: AgentExecutionContext
+    _context: AgentExecutionContext
   ): Promise<DependencyAnalysis> {
     this.logger.info('Starting dependency analysis', { input });
 
@@ -141,16 +141,16 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
     try {
       // Use depcheck if available
       const { stdout } = await execAsync('npx depcheck --json').catch(() => ({ stdout: '{}' }));
-      const result = JSON.parse(stdout);
-      
+      const result = JSON.parse(stdout) as { dependencies?: string[] };
+
       if (result.dependencies) {
         unused.push(...result.dependencies);
       }
-    } catch (error) {
+    } catch {
       this.logger.warn('depcheck not available, using basic analysis');
-      
+
       // Fallback: basic import analysis
-      const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+      const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8')) as { dependencies?: Record<string, string> };
       const dependencies = Object.keys(packageJson.dependencies || {});
       const imports = await this.scanImports();
 
@@ -171,27 +171,31 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
     try {
       // Get size information for all dependencies
       const { stdout } = await execAsync('npm ls --json --depth=0').catch(() => ({ stdout: '{}' }));
-      const tree = JSON.parse(stdout);
-      
-      const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-      const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+      const _tree = JSON.parse(stdout) as Record<string, unknown>;
+
+      interface PackageJson {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      }
+      const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8')) as PackageJson;
+      const dependencies: Record<string, string> = { ...(packageJson.dependencies || {}), ...(packageJson.devDependencies || {}) };
 
       for (const [name, version] of Object.entries(dependencies)) {
         const size = await this.getPackageSize(name);
-        
+
         if (size > thresholdKB) {
           const usageCount = await this.countUsages(name);
-          
+
           heavy.push({
             name,
-            version: version as string,
+            version,
             sizeKB: size,
             usageCount,
             isDevDependency: !!(packageJson.devDependencies && packageJson.devDependencies[name]),
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Failed to analyze package sizes', { error });
     }
 
@@ -205,8 +209,8 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
 
     try {
       const { stdout } = await execAsync('npm ls --json');
-      const tree = JSON.parse(stdout);
-      
+      const tree = JSON.parse(stdout) as { dependencies?: Record<string, unknown> };
+
       const versionMap = new Map<string, Set<string>>();
       this.walkDependencyTree(tree.dependencies || {}, versionMap);
 
@@ -221,30 +225,30 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Failed to analyze duplicates', { error });
     }
 
     return duplicates;
   }
 
-  private walkDependencyTree(deps: any, versionMap: Map<string, Set<string>>, depth = 0): void {
+  private walkDependencyTree(deps: Record<string, unknown>, versionMap: Map<string, Set<string>>, depth = 0): void {
     if (depth > 5) return; // Limit recursion depth
 
     for (const [name, info] of Object.entries(deps)) {
       if (typeof info === 'object' && info !== null) {
-        const depInfo = info as any;
-        
+        const depInfo = info as Record<string, unknown>;
+
         if (!versionMap.has(name)) {
           versionMap.set(name, new Set());
         }
-        
-        if (depInfo.version) {
+
+        if (typeof depInfo.version === 'string') {
           versionMap.get(name)!.add(depInfo.version);
         }
-        
-        if (depInfo.dependencies) {
-          this.walkDependencyTree(depInfo.dependencies, versionMap, depth + 1);
+
+        if (depInfo.dependencies && typeof depInfo.dependencies === 'object') {
+          this.walkDependencyTree(depInfo.dependencies as Record<string, unknown>, versionMap, depth + 1);
         }
       }
     }
@@ -408,7 +412,7 @@ export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyA
     return commands;
   }
 
-  protected getExecutionMetadata(input: DependencyAnalysisInput): Record<string, any> {
+  protected getExecutionMetadata(input: DependencyAnalysisInput): Record<string, unknown> {
     return {
       checkUnused: input.checkUnused,
       checkHeavy: input.checkHeavy,

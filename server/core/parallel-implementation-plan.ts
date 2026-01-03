@@ -11,15 +11,15 @@
 export interface ConcurrencyManager {
   // Optimistic concurrency control
   checkRowVersion(_fundId: number, _expectedVersion: string): Promise<boolean>;
-  updateWithVersion(_fundId: number, _data: any, _currentVersion: string): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
-  
+  updateWithVersion(_fundId: number, _data: Record<string, unknown>, _currentVersion: string): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
+
   // Advisory locking for calculations
   acquireCalcLock(_fundId: number, timeout?: number): Promise<{ acquired: boolean; lockId?: string }>;
   releaseCalcLock(_lockId: string): Promise<void>;
-  
+
   // Idempotency handling
-  checkIdempotency(_key: string): Promise<{ exists: boolean; result?: any }>;
-  storeIdempotentResult(_key: string, _fundId: number, _paramsHash: string, _result: any): Promise<void>;
+  checkIdempotency(_key: string): Promise<{ exists: boolean; result?: unknown }>;
+  storeIdempotentResult(_key: string, _fundId: number, _paramsHash: string, _result: unknown): Promise<void>;
 }
 
 // ============================================================
@@ -28,13 +28,13 @@ export interface ConcurrencyManager {
 
 export interface TenancyManager {
   // RLS context setting
-  setTenantContext(_tx: any, _orgId: string, fundId?: string): Promise<void>;
-  clearTenantContext(_tx: any): Promise<void>;
-  
+  setTenantContext(_tx: unknown, _orgId: string, fundId?: string): Promise<void>;
+  clearTenantContext(_tx: unknown): Promise<void>;
+
   // Hierarchical flag resolution
-  resolveFlags(userId?: string, fundId?: string, orgId?: string): Promise<Record<string, any>>;
-  getFlagValue(_key: string, _context: FlagContext): Promise<any>;
-  
+  resolveFlags(userId?: string, fundId?: string, orgId?: string): Promise<Record<string, unknown>>;
+  getFlagValue(_key: string, _context: FlagContext): Promise<unknown>;
+
   // Cache management
   getCacheHeaders(_orgId: string, fundId?: string, userId?: string): Record<string, string>;
 }
@@ -43,7 +43,7 @@ export interface FlagContext {
   userId?: string;
   fundId?: string;
   orgId?: string;
-  attributes?: Record<string, any>;
+  attributes?: Record<string, unknown>;
 }
 
 // ============================================================
@@ -54,18 +54,18 @@ export interface VersionManager {
   // Version selection
   getActiveVersion(_engineType: string): Promise<string>;
   getWasmBinary(_version: string, _engineType: string): Promise<Buffer>;
-  
+
   // Migration handling
-  migrateParams(_fromVersion: string, _toVersion: string, _params: any): Promise<any>;
+  migrateParams(_fromVersion: string, _toVersion: string, _params: Record<string, unknown>): Promise<Record<string, unknown>>;
   canRunVersion(_version: string): Promise<{ allowed: boolean; reason?: string }>;
-  
+
   // A/B testing
-  runComparison(_engineType: string, _params: any, _versions: string[]): Promise<ComparisonResult>;
+  runComparison(_engineType: string, _params: Record<string, unknown>, _versions: string[]): Promise<ComparisonResult>;
 }
 
 export interface ComparisonResult {
-  results: Map<string, any>;
-  differences: any[];
+  results: Map<string, unknown>;
+  differences: Array<Record<string, unknown>>;
   recommendation: string;
 }
 
@@ -102,14 +102,14 @@ export interface AuditManager {
   // Synchronous DB audit
   logCalculation(_event: CalcAuditEvent): Promise<void>;
   logApproval(_event: ApprovalAuditEvent): Promise<void>;
-  
+
   // Async streaming
   queueForStream(_event: AuditEvent): Promise<void>;
   processOutbox(): Promise<{ processed: number; failed: number }>;
-  
+
   // Compliance queries
   getAuditTrail(_entityId: string, startDate?: Date): Promise<AuditEvent[]>;
-  generateComplianceReport(_orgId: string, _period: string): Promise<any>;
+  generateComplianceReport(_orgId: string, _period: string): Promise<Record<string, unknown>>;
 }
 
 export interface CalcAuditEvent {
@@ -121,7 +121,7 @@ export interface CalcAuditEvent {
   seed?: bigint;
   actor: string;
   approvalId?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ApprovalAuditEvent {
@@ -129,7 +129,7 @@ export interface ApprovalAuditEvent {
   action: 'requested' | 'signed' | 'rejected' | 'expired';
   actor: string;
   fundId: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AuditEvent {
@@ -140,8 +140,8 @@ export interface AuditEvent {
   actor?: string;
   entityType?: string;
   entityId?: string;
-  changes?: any;
-  metadata?: any;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================
@@ -165,9 +165,9 @@ export class ReservesV11System {
   
   async calculateWithFullProtection(
     fundId: number,
-    params: any,
+    params: Record<string, unknown>,
     context: { userId: string; orgId: string }
-  ): Promise<any> {
+  ): Promise<unknown> {
     // Step 1: Check idempotency
     const idempotencyKey = `${context.userId  }:${  JSON.stringify(params)}`;
     const cached = await this.integration.concurrency.checkIdempotency(idempotencyKey);
@@ -217,12 +217,12 @@ export class ReservesV11System {
     }
   }
   
-  private hashParams(_params: any): string {
+  private hashParams(_params: Record<string, unknown>): string {
     // Implement stable JSON stringify and SHA-256 hash
     return 'hash_placeholder';
   }
-  
-  private async runWasmCalculation(_wasm: Buffer, _params: any, _flags: any): Promise<any> {
+
+  private async runWasmCalculation(_wasm: Buffer, _params: Record<string, unknown>, _flags: Record<string, unknown>): Promise<Record<string, unknown>> {
     // Placeholder for actual WASM execution
     return { success: true };
   }
@@ -243,7 +243,7 @@ export class QuickWins {
   }
   
   // Canonical JSON hashing
-  static canonicalHash(obj: any): string {
+  static canonicalHash(obj: Record<string, unknown>): string {
     const crypto = require('crypto');
     const sorted = JSON.stringify(obj, Object.keys(obj).sort());
     return crypto.createHash('sha256').update(sorted).digest('hex');
@@ -258,11 +258,11 @@ export class QuickWins {
   }
   
   // Worker cleanup on timeout
-  static setupWorkerTimeout(worker: any, timeoutMs: number): void {
+  static setupWorkerTimeout(worker: { terminate: () => void; on: (event: string, callback: () => void) => void }, timeoutMs: number): void {
     const timeout = setTimeout(() => {
       worker.terminate();
     }, timeoutMs);
-    
+
     worker['on']('exit', () => clearTimeout(timeout));
   }
 }

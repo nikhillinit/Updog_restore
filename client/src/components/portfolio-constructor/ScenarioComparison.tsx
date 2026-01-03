@@ -147,10 +147,10 @@ export function ScenarioComparison({
 
   // Generate time series data for comparison
   const timeSeriesData = useMemo(() => {
-    const years = Array.from({ length: 8 }, (_: any, i: any) => i);
+    const years = Array.from({ length: 8 }, (_, i) => i);
 
     return years.map(year => {
-      const dataPoint: any = { year: `Y${year}` };
+      const dataPoint = { year: `Y${year}` };
 
       scenarios.forEach(scenario => {
         // Simulate different growth curves based on scenario parameters
@@ -176,10 +176,10 @@ export function ScenarioComparison({
     ];
 
     return metrics.map(({ metric, field, max, invert }) => {
-      const dataPoint: any = { metric };
+      const dataPoint = { metric };
 
       scenarios.forEach(scenario => {
-        let value = (scenario.projections as any)[field];
+        let value = (scenario.projections as Record<string, unknown>)[field];
         if (invert) {
           value = max - value;
         }
@@ -235,7 +235,7 @@ export function ScenarioComparison({
     }
   };
 
-  const updateScenarioParameter = (scenarioId: string, parameter: string, value: any) => {
+  const updateScenarioParameter = (scenarioId: string, parameter: string, value: unknown) => {
     setScenarios(prev => prev.map(scenario => {
       if (scenario.id !== scenarioId) return scenario;
 
@@ -276,12 +276,12 @@ export function ScenarioComparison({
     });
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.dataKey}: <span className="font-medium">{entry.value.toFixed(2)}x</span>
             </p>
@@ -302,7 +302,7 @@ export function ScenarioComparison({
         </div>
 
         <div className="flex items-center space-x-3">
-          <Select value={comparisonMetric} onValueChange={(value: any) => setComparisonMetric(value)}>
+          <Select value={comparisonMetric} onValueChange={(value) => setComparisonMetric(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Compare by..." />
             </SelectTrigger>
@@ -383,7 +383,7 @@ export function ScenarioComparison({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       duplicateScenario(scenario.id);
                     }}
@@ -396,7 +396,7 @@ export function ScenarioComparison({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={(e: any) => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         removeScenario(scenario.id);
                       }}
@@ -409,7 +409,7 @@ export function ScenarioComparison({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       applyScenario(scenario.id);
                     }}
@@ -440,7 +440,7 @@ export function ScenarioComparison({
                     <Input
                       id="scenario-name"
                       value={selectedScenarioData.name}
-                      onChange={(e: any) => {
+                      onChange={(e) => {
                         setScenarios(prev => prev.map(s =>
                           s.id === selectedScenario
                             ? { ...s, name: e.target.value }
@@ -455,7 +455,7 @@ export function ScenarioComparison({
                     <Input
                       id="scenario-description"
                       value={selectedScenarioData.description}
-                      onChange={(e: any) => {
+                      onChange={(e) => {
                         setScenarios(prev => prev.map(s =>
                           s.id === selectedScenario
                             ? { ...s, description: e.target.value }
@@ -529,7 +529,7 @@ export function ScenarioComparison({
                       <Label>Sector Focus</Label>
                       <Select
                         value={selectedScenarioData.parameters.sectorFocus}
-                        onValueChange={(value: any) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
+                        onValueChange={(value) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
                         {...spreadIfDefined("disabled", selectedScenarioData.isBaseline)}
                       >
                         <SelectTrigger>
@@ -596,7 +596,7 @@ export function ScenarioComparison({
                 <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
-                  <YAxis tickFormatter={(value: any) => `${value.toFixed(1)}x`} />
+                  <YAxis tickFormatter={(value) => `${value.toFixed(1)}x`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   {scenarios.map(scenario => (

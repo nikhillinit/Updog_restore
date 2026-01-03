@@ -16,7 +16,7 @@ export const asObject = <T extends AnyZod>(schema: T): T => schema;
  * Helper for creating object schemas with better type inference
  * Prevents issues with generic constraint mismatches
  */
-export function createSchema<T extends Record<string, any>>(
+export function createSchema<T extends Record<string, unknown>>(
   shape: { [K in keyof T]: AnyZod }
 ): z.ZodObject<{ [K in keyof T]: AnyZod }> {
   return z.object(shape);

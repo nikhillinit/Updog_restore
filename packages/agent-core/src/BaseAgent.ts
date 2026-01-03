@@ -135,7 +135,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
     this.logger.info('Starting agent execution', { context, input });
 
     let lastError: Error | null = null;
-    const attempt = 0;
+    const _attempt = 0;
     const maxRetries = this.config.maxRetries || 3;
 
     // Try initial attempt + maxRetries
@@ -208,7 +208,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
         );
 
         return agentResult;
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         this.logger.warn('Agent execution attempt failed', {
@@ -280,14 +280,14 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
   /**
    * Validation hook - override to add input validation
    */
-  protected async validateInput(input: TInput): Promise<void> {
+  protected async validateInput(_input: TInput): Promise<void> {
     // Default: no validation
   }
 
   /**
    * Pre-execution hook
    */
-  protected async beforeExecution(input: TInput, context: AgentExecutionContext): Promise<void> {
+  protected async beforeExecution(input: TInput, _context: AgentExecutionContext): Promise<void> {
     await this.validateInput(input);
   }
 

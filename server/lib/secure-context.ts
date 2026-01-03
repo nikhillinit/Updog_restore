@@ -57,9 +57,9 @@ export function extractUserContext(req: Request): UserContext | null {
     if (req.params['fundId']) {
       context.fundId = req.params['fundId'];
     }
-    
+
     return context;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('JWT verification failed:', error);
     return null;
   }
@@ -109,23 +109,25 @@ export function requireSecureContext(
  * Must be called within a transaction
  */
 export async function setDatabaseContext(
-  tx: any,
+  tx: unknown,
   context: UserContext
 ): Promise<void> {
+  const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<unknown>;
+
   // Set session variables for RLS policies
-  await tx.execute(sql`SET LOCAL app.current_user = ${context.userId}`);
-  await tx.execute(sql`SET LOCAL app.current_org = ${context.orgId}`);
-  
+  await txExecute(sql`SET LOCAL app.current_user = ${context.userId}`);
+  await txExecute(sql`SET LOCAL app.current_org = ${context.orgId}`);
+
   if (context.fundId) {
-    await tx.execute(sql`SET LOCAL app.current_fund = ${context.fundId}`);
+    await txExecute(sql`SET LOCAL app.current_fund = ${context.fundId}`);
   }
-  
+
   if (context.partnerId) {
-    await tx.execute(sql`SET LOCAL app.current_partner = ${context.partnerId}`);
+    await txExecute(sql`SET LOCAL app.current_partner = ${context.partnerId}`);
   }
-  
+
   // Set role for additional security checks
-  await tx.execute(sql`SET LOCAL app.current_role = ${context.role}`);
+  await txExecute(sql`SET LOCAL app.current_role = ${context.role}`);
 }
 
 /**
@@ -134,12 +136,12 @@ export async function setDatabaseContext(
  */
 export async function executeWithContext<T>(
   context: UserContext,
-  queryFn: (_tx: any) => Promise<T>
+  queryFn: (_tx: unknown) => Promise<T>
 ): Promise<T> {
-  return await db.transaction(async (tx: any) => {
+  return await db.transaction(async (tx) => {
     // Set RLS context
     await setDatabaseContext(tx, context);
-    
+
     // Execute the actual query
     return await queryFn(tx);
   });
@@ -153,17 +155,17 @@ export async function validateFundAccess(
   context: UserContext,
   fundId: string
 ): Promise<boolean> {
-  const result = await executeWithContext(context, async (tx: any) => {
-    const funds = await tx.execute(sql`
-      SELECT id FROM funds 
+  const result = await executeWithContext(context, async (tx) => {
+    const funds = await (tx as Record<string, unknown>).execute(sql`
+      SELECT id FROM funds
       WHERE id = ${fundId}
       AND organization_id = ${context.orgId}
       LIMIT 1
-    `);
-    
+    `) as { rows: unknown[] };
+
     return funds.rows.length > 0;
   });
-  
+
   return result;
 }
 
@@ -172,65 +174,67 @@ export async function validateFundAccess(
  */
 export async function resolveFlags(
   context: UserContext
-): Promise<Record<string, any>> {
-  return await executeWithContext(context, async (tx: any) => {
+): Promise<Record<string, unknown>> {
+  return await executeWithContext(context, async (tx) => {
+    const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<{ rows: Array<Record<string, unknown>> }>;
+
     // Get flags at each level
     const [globalFlags, orgFlags, fundFlags, userFlags] = await Promise.all([
       // Global flags
-      tx.execute(sql`
-        SELECT key, value FROM feature_flags 
-        WHERE scope = 'global' 
+      txExecute(sql`
+        SELECT key, value FROM feature_flags
+        WHERE scope = 'global'
         AND enabled = true
       `),
-      
+
       // Organization flags
-      tx.execute(sql`
-        SELECT key, value FROM feature_flags 
-        WHERE scope = 'org' 
+      txExecute(sql`
+        SELECT key, value FROM feature_flags
+        WHERE scope = 'org'
         AND scope_id = ${context.orgId}::uuid
         AND enabled = true
       `),
-      
+
       // Fund flags (if fund context exists)
-      context.fundId ? tx.execute(sql`
-        SELECT key, value FROM feature_flags 
-        WHERE scope = 'fund' 
+      context.fundId ? txExecute(sql`
+        SELECT key, value FROM feature_flags
+        WHERE scope = 'fund'
         AND scope_id = ${context.fundId}::uuid
         AND enabled = true
       `) : { rows: [] },
-      
+
       // User flags
-      tx.execute(sql`
-        SELECT key, value FROM feature_flags 
-        WHERE scope = 'user' 
+      txExecute(sql`
+        SELECT key, value FROM feature_flags
+        WHERE scope = 'user'
         AND scope_id = ${context.userId}::uuid
         AND enabled = true
       `)
     ]);
-    
+
     // Merge flags with proper precedence: user > fund > org > global
-    const merged: Record<string, any> = {};
-    
+    const merged: Record<string, unknown> = {};
+
     // Start with global
     for (const row of globalFlags.rows) {
-      merged[row.key] = row.value;
+      merged[String(row.key)] = row.value;
     }
-    
+
     // Override with org
     for (const row of orgFlags.rows) {
-      merged[row.key] = row.value;
+      merged[String(row.key)] = row.value;
     }
-    
+
     // Override with fund
     for (const row of fundFlags.rows) {
-      merged[row.key] = row.value;
+      merged[String(row.key)] = row.value;
     }
-    
+
     // Override with user
     for (const row of userFlags.rows) {
-      merged[row.key] = row.value;
+      merged[String(row.key)] = row.value;
     }
-    
+
     return merged;
   });
 }
@@ -261,12 +265,14 @@ export async function auditLog(
     action: string;
     entityType: string;
     entityId: string;
-    changes?: any;
-    metadata?: any;
+    changes?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
   }
 ): Promise<void> {
-  await executeWithContext(context, async (tx: any) => {
-    await tx.execute(sql`
+  await executeWithContext(context, async (tx) => {
+    const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<unknown>;
+
+    await txExecute(sql`
       INSERT INTO audit_events (
         event_type,
         actor_sub,

@@ -1,14 +1,8 @@
 import { eq, and, gte, lte, sql, desc, asc, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { logger } from '../lib/logger';
-import Decimal from 'decimal.js';
-import {
-  limitedPartners,
-  lpFundCommitments,
-  lpPerformanceSnapshots,
-  capitalActivities,
-} from '@shared/schema-lp-reporting';
-import { funds } from '@shared/schema';
+
+
 
 /**
  * LP Reporting Dashboard - Optimized Query Functions
@@ -498,13 +492,13 @@ export async function getPerformanceTimeseries(
 
 // Helper: Downsample snapshots to specified granularity
 function downsampleSnapshots(
-  snapshots: any[],
+  snapshots: Array<Record<string, unknown>>,
   granularity: 'monthly' | 'quarterly'
-): any[] {
+): Array<Record<string, unknown>> {
   if (snapshots.length === 0) return [];
 
   const bucketMs = granularity === 'monthly' ? 30 * 24 * 60 * 60 * 1000 : 90 * 24 * 60 * 60 * 1000;
-  const buckets: Map<string, any[]> = new Map();
+  const buckets: Map<string, Array<Record<string, unknown>>> = new Map();
 
   // Group snapshots into buckets
   for (const snapshot of snapshots) {
@@ -549,7 +543,7 @@ export async function getAllLPs(limit: number = 1000): Promise<number[]> {
  * Run EXPLAIN ANALYZE on key queries to verify index usage
  * Used in tests and monitoring
  */
-export async function explainQuery(queryName: string): Promise<any> {
+export async function explainQuery(queryName: string): Promise<unknown> {
   try {
     const plans: Record<string, string> = {
       capital_activities:

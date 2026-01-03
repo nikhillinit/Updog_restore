@@ -46,7 +46,7 @@ export class EmbeddingService {
         dimensions: model === 'text-embedding-3-small' ? dimensions : undefined,
       });
       return response.data[0].embedding;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('OpenAI embeddings API error:', error);
       // Fallback to mock on error
       return this.generateMockEmbedding(text, dimensions);
@@ -73,7 +73,7 @@ export class EmbeddingService {
         dimensions: model === 'text-embedding-3-small' ? dimensions : undefined,
       });
       return response.data.map((d) => d.embedding);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('OpenAI batch embeddings API error:', error);
       // Fallback to mock on error
       return Promise.all(texts.map((text) => this.generateMockEmbedding(text, dimensions)));

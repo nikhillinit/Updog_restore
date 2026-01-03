@@ -7,17 +7,34 @@ export interface FundDataLite {
   exitSchedule: Array<{ monthOffset: number; amount: number }>; // deterministic exits
 }
 
+interface FundDataInput {
+  totalCommittedCapital?: string;
+  size?: string;
+  startDate?: string | Date;
+  lifeYears?: string;
+  fundLife?: string;
+  exitSchedule?: Array<{ monthOffset: number; amount: number }>;
+  gpCommitmentPercent?: string;
+  carryPercentage?: string;
+  preferredReturnRate?: string;
+  exitRecycling?: {
+    enabled?: boolean;
+    recyclePercentage?: number;
+    recycleWindowMonths?: number;
+  };
+}
+
 /** Deterministic CFs: one initial contribution + scheduled distributions */
 export function generateCashFlowsFromFundLite(d: FundDataLite): CashFlow[] {
   const flows: CashFlow[] = [];
   flows.push({ date: d.startDate, amount: -Math.abs(d.fundSize) });
 
   for (const e of d.exitSchedule) {
-    const dt = new Date(d.startDate); 
+    const dt = new Date(d.startDate);
     dt.setMonth(dt.getMonth() + e.monthOffset);
     flows.push({ date: dt, amount: Math.max(0, e.amount) });
   }
-  return flows.sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
+  return flows.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 /**
@@ -62,7 +79,7 @@ export function generateSampleExitSchedule(
 /**
  * Convert fund data from wizard format to cash flows
  */
-export function convertFundDataToCashFlows(fundData: any): CashFlow[] {
+export function convertFundDataToCashFlows(fundData: FundDataInput): CashFlow[] {
   const fundSize = parseFloat(fundData.totalCommittedCapital?.replace(/,/g, '') || fundData.size || '0');
   const startDate = new Date(fundData.startDate || new Date());
   const fundLifeYears = parseInt(fundData.lifeYears || fundData.fundLife || '10');
@@ -81,9 +98,9 @@ export function convertFundDataToCashFlows(fundData: any): CashFlow[] {
 /**
  * Generate waterfall inputs from fund data
  */
-export function generateWaterfallInputs(fundData: any) {
+export function generateWaterfallInputs(fundData: FundDataInput) {
   const fundSize = parseFloat(fundData.totalCommittedCapital?.replace(/,/g, '') || fundData.size || '0');
-  const gpCommitmentPercent = parseFloat(fundData.gpCommitmentPercent || '2') / 100;
+  const _gpCommitmentPercent = parseFloat(fundData.gpCommitmentPercent || '2') / 100;
   const carryPercent = parseFloat(fundData.carryPercentage || '20') / 100;
   
   // Simple contribution schedule - can be enhanced later
@@ -98,7 +115,7 @@ export function generateWaterfallInputs(fundData: any) {
   const exitSchedule = fundData.exitSchedule || generateSampleExitSchedule(fundSize, 
     parseInt(fundData.lifeYears || '10'));
   
-  const exits = exitSchedule.map((exit: any, index: number) => ({
+  const exits = exitSchedule.map(exit => ({
     quarter: Math.floor(exit.monthOffset / 3) || 1, // Convert months to quarters
     grossProceeds: exit.amount
   }));

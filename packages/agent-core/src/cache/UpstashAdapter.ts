@@ -125,7 +125,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       this.isInitialized = true;
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] Initialization failed:', error);
       this.stats.errors++;
       // Don't throw - graceful degradation
@@ -189,7 +189,7 @@ export class UpstashAdapter implements CacheAdapter {
       this.circuitBreaker?.recordSuccess();
       return deserialized;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       this.circuitBreaker?.recordFailure();
       console.error('[UpstashAdapter] Get error:', {
@@ -234,7 +234,7 @@ export class UpstashAdapter implements CacheAdapter {
         return this.deserialize<T>(r);
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       console.error('[UpstashAdapter] Mget error:', error);
       return keys.map(() => null);
@@ -279,7 +279,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       this.circuitBreaker?.recordSuccess();
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       this.circuitBreaker?.recordFailure();
       console.error('[UpstashAdapter] Set error:', {
@@ -315,7 +315,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       await Promise.all(promises);
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       console.error('[UpstashAdapter] Mset error:', error);
     }
@@ -351,7 +351,7 @@ export class UpstashAdapter implements CacheAdapter {
       this.circuitBreaker?.recordSuccess();
       return result as number;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       this.circuitBreaker?.recordFailure();
       console.error('[UpstashAdapter] Del error:', error);
@@ -384,7 +384,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       return result as number;
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] TTL error:', error);
       return null;
     }
@@ -413,7 +413,7 @@ export class UpstashAdapter implements CacheAdapter {
         undefined
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] Sadd error:', error);
     }
   }
@@ -443,7 +443,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       return result as string[];
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] Smembers error:', error);
       return [];
     }
@@ -470,7 +470,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       return result === 'PONG';
 
-    } catch (error) {
+    } catch (_error: unknown) {
       return false;
     }
   }
@@ -540,7 +540,7 @@ export class UpstashAdapter implements CacheAdapter {
       // Base64 encode for string transport
       return final.toString('base64');
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] Serialization error:', error);
       return null;
     }
@@ -570,7 +570,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       return decoded;
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[UpstashAdapter] Deserialization error:', {
         error: error instanceof Error ? error.message : String(error)
       });

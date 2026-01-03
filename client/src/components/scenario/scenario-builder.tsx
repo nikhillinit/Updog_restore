@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -281,7 +276,7 @@ export default function ScenarioBuilder() {
                 <Input
                   id="scenario-name"
                   value={newScenarioName}
-                  onChange={(e: any) => setNewScenarioName(e.target.value)}
+                  onChange={(e) => setNewScenarioName(e.target.value)}
                   placeholder="Enter scenario name"
                 />
               </div>
@@ -292,7 +287,7 @@ export default function ScenarioBuilder() {
                     <SelectValue placeholder="Select base scenario" />
                   </SelectTrigger>
                   <SelectContent>
-                    {scenarios.map((scenario: any) => (
+                    {scenarios.map((scenario) => (
                       <SelectItem key={scenario.id} value={scenario.id}>
                         {scenario.name}
                       </SelectItem>
@@ -367,7 +362,7 @@ export default function ScenarioBuilder() {
                       <span>Round</span>
                     </div>
                   </td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {scenario.metrics.totalInitialInvestments.toFixed(1)}
                     </td>
@@ -377,7 +372,7 @@ export default function ScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Investable Capital</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.investableCapital)}
                     </td>
@@ -387,7 +382,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Initial Capital</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.initialCapital)}
                     </td>
@@ -397,7 +392,7 @@ export default function ScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Follow-on Capital</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.followOnCapital)}
                     </td>
@@ -407,7 +402,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Follow-on Reserve</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.followOnReserve)}
                     </td>
@@ -424,7 +419,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Projected Fund Value</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.projectedFundValue)}
                     </td>
@@ -434,7 +429,7 @@ export default function ScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Gross Multiple</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatMultiple(scenario.metrics.grossMultiple)}
                     </td>
@@ -444,7 +439,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">TVPI</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatMultiple(scenario.metrics.tvpi)}
                     </td>
@@ -454,7 +449,7 @@ export default function ScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Gross IRR</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.grossIrr)}
                     </td>
@@ -464,7 +459,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Net IRR</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.netIrr)}
                     </td>
@@ -481,7 +476,7 @@ export default function ScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Total to LPs</td>
-                  {scenarios.map((scenario: any) => (
+                  {scenarios.map((scenario) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.totalToLPs)}
                     </td>

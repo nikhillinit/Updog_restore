@@ -181,7 +181,7 @@ async function runPhase2Demo() {
     } else {
       console.log('\n⚠️  Using mock embeddings (set OPENAI_API_KEY for real embeddings)');
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('\n❌ Demo failed:', error);
     throw error;
   } finally {

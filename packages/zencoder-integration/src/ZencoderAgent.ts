@@ -1,17 +1,69 @@
-import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
-import { BaseAgent } from '@povc/agent-core';
-import { withThinking } from '@povc/agent-core/ThinkingMixin';
+import type { AgentConfig, AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import axios from 'axios';
+
+interface TypeScriptError {
+  file: string;
+  line: number;
+  column: number;
+  message: string;
+}
+
+interface TestFailure {
+  file: string;
+  test: string;
+  error: string;
+  line: number;
+}
+
+interface ESLintError {
+  file: string;
+  rule?: string;
+  message: string;
+  line: number;
+}
+
+interface Vulnerability {
+  package: string;
+  version: string;
+  description: string;
+  severity: string;
+  fixVersion: string;
+}
+
+interface FixContext {
+  type: string;
+  file?: string;
+  error?: string;
+  line?: number;
+  code?: string;
+  testName?: string;
+  errors?: ESLintError[];
+  package?: string;
+  currentVersion?: string;
+  vulnerability?: string;
+  severity?: string;
+  suggestedVersion?: string;
+}
+
+interface FixResponse {
+  success: boolean;
+  description?: string;
+  patch?: string;
+  error?: string;
+  newVersion?: string;
+}
 
 export interface ZencoderInput {
   projectRoot: string;
   task: 'typescript-fix' | 'test-fix' | 'eslint-fix' | 'dependency-update';
   targetFiles?: string[];
   maxFixes?: number;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface ZencoderResult {
@@ -90,7 +142,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
       result.timeMs = Date.now() - startTime;
       result.summary = `Fixed ${result.filesFixed}/${result.filesAnalyzed} files in ${result.timeMs}ms`;
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Zencoder operation failed', { error });
       throw error;
     }
@@ -160,7 +212,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     result.filesAnalyzed = new Set(errors.map(e => e.file)).size;
 
     // Group errors by file
-    const errorsByFile = new Map<string, any[]>();
+    const errorsByFile = new Map<string, ESLintError[]>();
     for (const error of errors) {
       if (!errorsByFile.has(error.file)) {
         errorsByFile.set(error.file, []);
@@ -227,14 +279,14 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     }
   }
 
-  private async requestZencoderFix(context: any): Promise<any> {
+  private async requestZencoderFix(context: FixContext): Promise<FixResponse> {
     // In production, this would call the actual Zencoder API
     // For now, we'll implement local AI-powered fixes
-    
+
     if (this.apiKey && this.apiEndpoint !== 'https://api.zencoder.ai/v1') {
       // Call actual Zencoder API if configured
       try {
-        const response = await axios.post(
+        const response = await axios.post<FixResponse>(
           `${this.apiEndpoint}/fix`,
           context,
           {
@@ -246,7 +298,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
           }
         );
         return response.data;
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn('Zencoder API call failed, falling back to local AI', { error });
       }
     }
@@ -255,7 +307,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     return this.generateLocalFix(context);
   }
 
-  private async generateLocalFix(context: any): Promise<any> {
+  private async generateLocalFix(context: FixContext): Promise<FixResponse> {
     // Implement intelligent fix generation based on context type
     switch (context.type) {
       case 'typescript':
@@ -271,12 +323,12 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     }
   }
 
-  private async generateTypeScriptFix(context: any): Promise<any> {
+  private async generateTypeScriptFix(context: FixContext): Promise<FixResponse> {
     // Analyze TypeScript error and generate fix
-    const { error, code, line } = context;
-    
+    const { error, code } = context;
+
     // Common TypeScript error patterns and fixes
-    if (error.includes('Property') && error.includes('does not exist')) {
+    if (error && error.includes('Property') && error.includes('does not exist')) {
       // Add missing property
       return {
         success: true,
@@ -284,8 +336,8 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
         patch: this.createAddPropertyPatch(context),
       };
     }
-    
-    if (error.includes('Type') && error.includes('is not assignable')) {
+
+    if (error && error.includes('Type') && error.includes('is not assignable')) {
       // Fix type mismatch
       return {
         success: true,
@@ -297,19 +349,19 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     return { success: false, error: 'Unable to generate fix for this TypeScript error' };
   }
 
-  private async generateTestFix(context: any): Promise<any> {
-    const { error, testName } = context;
-    
+  private async generateTestFix(context: FixContext): Promise<FixResponse> {
+    const { error } = context;
+
     // Common test failure patterns
-    if (error.includes('Cannot read property') || error.includes('undefined')) {
+    if (error && (error.includes('Cannot read property') || error.includes('undefined'))) {
       return {
         success: true,
         description: 'Add null checks and mock setup',
         patch: this.createTestMockPatch(context),
       };
     }
-    
-    if (error.includes('timeout')) {
+
+    if (error && error.includes('timeout')) {
       return {
         success: true,
         description: 'Increase timeout and add async handling',
@@ -320,36 +372,39 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     return { success: false, error: 'Unable to generate fix for this test failure' };
   }
 
-  private async generateESLintFix(context: any): Promise<any> {
-    const { errors, code } = context;
-    
+  private async generateESLintFix(context: FixContext): Promise<FixResponse> {
+    const { errors } = context;
+
     // Handle no-unused-vars
-    const unusedVars = errors.filter((e: any) => e.rule === 'no-unused-vars');
-    if (unusedVars.length > 0) {
-      return {
-        success: true,
-        description: `Remove ${unusedVars.length} unused variables`,
-        patch: this.createRemoveUnusedPatch(context),
-      };
+    if (errors) {
+      const unusedVars = errors.filter((e) => e.rule === 'no-unused-vars');
+      if (unusedVars.length > 0) {
+        return {
+          success: true,
+          description: `Remove ${unusedVars.length} unused variables`,
+          patch: this.createRemoveUnusedPatch(context),
+        };
+      }
     }
 
     return { success: false, error: 'Unable to generate ESLint fixes' };
   }
 
-  private async generateDependencyFix(context: any): Promise<any> {
-    const { package: pkg, suggestedVersion } = context;
-    
+  private async generateDependencyFix(context: FixContext): Promise<FixResponse> {
+    const pkg = context.package;
+    const suggestedVersion = context.suggestedVersion;
+
     return {
       success: true,
-      description: `Update ${pkg} to ${suggestedVersion}`,
+      description: `Update ${pkg || 'package'} to ${suggestedVersion || 'latest'}`,
       newVersion: suggestedVersion,
     };
   }
 
   // Helper methods for getting errors/failures
-  private async getTypeScriptErrors(projectRoot: string): Promise<any[]> {
+  private async getTypeScriptErrors(projectRoot: string): Promise<TypeScriptError[]> {
     return new Promise((resolve) => {
-      const errors: any[] = [];
+      const errors: TypeScriptError[] = [];
       const tsc = spawn('npx', ['tsc', '--noEmit'], {
         cwd: projectRoot || process.cwd(),
         shell: true,
@@ -379,17 +434,17 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     });
   }
 
-  private async getTestFailures(projectRoot: string, targetFiles?: string[]): Promise<any[]> {
+  private async getTestFailures(projectRoot: string, targetFiles?: string[]): Promise<TestFailure[]> {
     // Implementation would parse test output
     return [];
   }
 
-  private async getESLintErrors(projectRoot: string, targetFiles?: string[]): Promise<any[]> {
+  private async getESLintErrors(projectRoot: string, targetFiles?: string[]): Promise<ESLintError[]> {
     // Implementation would run ESLint and parse output
     return [];
   }
 
-  private async getVulnerabilities(projectRoot: string): Promise<any[]> {
+  private async getVulnerabilities(projectRoot: string): Promise<Vulnerability[]> {
     // Implementation would run npm audit and parse output
     return [];
   }
@@ -424,28 +479,28 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
   }
 
   // Patch creation helpers
-  private createAddPropertyPatch(context: any): string {
+  private createAddPropertyPatch(context: FixContext): string {
     // Implementation would generate appropriate patch
-    return context.code;
+    return context.code || '';
   }
 
-  private createTypeFixPatch(context: any): string {
+  private createTypeFixPatch(context: FixContext): string {
     // Implementation would generate appropriate patch
-    return context.code;
+    return context.code || '';
   }
 
-  private createTestMockPatch(context: any): string {
+  private createTestMockPatch(context: FixContext): string {
     // Implementation would generate appropriate patch
-    return context.code;
+    return context.code || '';
   }
 
-  private createAsyncTestPatch(context: any): string {
+  private createAsyncTestPatch(context: FixContext): string {
     // Implementation would generate appropriate patch
-    return context.code;
+    return context.code || '';
   }
 
-  private createRemoveUnusedPatch(context: any): string {
+  private createRemoveUnusedPatch(context: FixContext): string {
     // Implementation would generate appropriate patch
-    return context.code;
+    return context.code || '';
   }
 }

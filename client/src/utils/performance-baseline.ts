@@ -118,12 +118,13 @@ export const performanceBaseline = new PerformanceBaseline();
  * React hook to track component render performance
  */
 export function useRenderTracking(componentName: string) {
-  if (!import.meta.env.DEV) return;
-  
   const startTime = performance.now();
-  
+
   // Track after render completes
   React.useEffect(() => {
+    // Only track in development environment
+    if (!import.meta.env.DEV) return;
+
     const renderTime = performance.now() - startTime;
     performanceBaseline.trackRender(componentName, renderTime);
   });

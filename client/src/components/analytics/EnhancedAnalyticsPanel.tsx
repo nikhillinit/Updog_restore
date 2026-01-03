@@ -7,10 +7,10 @@ import { TrendingUp, DollarSign, BarChart3, Calculator } from 'lucide-react';
 
 export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exits }:{
   cashFlows: Array<{ date: string; amount: number }>;
-  wConfig: any; contributions: any[]; exits: any[];
+  wConfig: unknown; contributions: unknown[]; exits: unknown[];
 }) {
   const { calculateXIRR, runMonteCarlo, calculateWaterfall, progress, cancel } = useWorkerAnalytics();
-  const [metrics, setMetrics] = useState<any>({ irr: null, mc: null, wf: null });
+  const [metrics, setMetrics] = useState<{ irr: unknown; mc: unknown; wf: unknown }>({ irr: null, mc: null, wf: null });
   const [activeCalculations, setActiveCalculations] = useState<Set<string>>(new Set());
 
   // XIRR
@@ -19,9 +19,9 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
     let cancelled = false;
     setActiveCalculations(prev => new Set(prev).add(id));
     
-    calculateXIRR(cashFlows, id).then(res => { 
+    calculateXIRR(cashFlows, id).then(res => {
       if (!cancelled) {
-        setMetrics((m: any) => ({ ...m, irr: res }));
+        setMetrics((m) => ({ ...m, irr: res }));
         setActiveCalculations(prev => {
           const next = new Set(prev);
           next.delete(id);
@@ -38,7 +38,7 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
     const t = setTimeout(() => {
       setActiveCalculations(prev => new Set(prev).add(id));
       runMonteCarlo(cashFlows, id, 0.2, 500).then(res => {
-        setMetrics((m: any)=>({ ...m, mc: res }));
+        setMetrics((m)=>({ ...m, mc: res }));
         setActiveCalculations(prev => {
           const next = new Set(prev);
           next.delete(id);
@@ -55,9 +55,9 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
     let cancelled = false;
     setActiveCalculations(prev => new Set(prev).add(id));
     
-    calculateWaterfall(wConfig, contributions, exits, id).then(res => { 
+    calculateWaterfall(wConfig, contributions, exits, id).then(res => {
       if (!cancelled) {
-        setMetrics((m:any)=>({ ...m, wf: res }));
+        setMetrics((m)=>({ ...m, wf: res }));
         setActiveCalculations(prev => {
           const next = new Set(prev);
           next.delete(id);

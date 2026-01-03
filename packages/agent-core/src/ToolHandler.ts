@@ -22,7 +22,7 @@ export interface ToolUseBlock {
   type: 'tool_use';
   id: string;
   name: string;
-  input: Record<string, any>;
+  input: Record<string, unknown>;
 }
 
 /**
@@ -83,8 +83,7 @@ export class ToolHandler {
       return [];
     }
 
-    logger.info({
-      msg: 'Processing tool uses',
+    logger.info('Processing tool uses', {
       count: toolUses.length,
       tools: toolUses.map(t => t.name),
       tenantId: this.context.tenantId,
@@ -121,8 +120,7 @@ export class ToolHandler {
     const startTime = Date.now();
 
     try {
-      logger.debug({
-        msg: 'Executing tool use',
+      logger.debug('Executing tool use', {
         toolName: use.name,
         toolUseId: use.id,
         tenantId: this.context.tenantId,
@@ -153,12 +151,11 @@ export class ToolHandler {
         tool_use_id: use.id,
         content: result,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      logger.error({
-        msg: 'Tool execution failed',
+      logger.error('Tool execution failed', {
         toolName: use.name,
         toolUseId: use.id,
         tenantId: this.context.tenantId,
@@ -193,8 +190,7 @@ export class ToolHandler {
   private async handleMemoryTool(use: ToolUseBlock): Promise<string> {
     const { command, path } = use.input;
 
-    logger.info({
-      msg: 'Memory tool operation',
+    logger.info('Memory tool operation', {
       command,
       path,
       tenantId: this.context.tenantId,
@@ -218,8 +214,7 @@ export class ToolHandler {
    * Future tools can be added as new cases in executeToolUse().
    */
   private async handleUnknownTool(use: ToolUseBlock): Promise<string> {
-    logger.warn({
-      msg: 'Unknown tool called',
+    logger.warn('Unknown tool called', {
       toolName: use.name,
       toolUseId: use.id,
       tenantId: this.context.tenantId,
@@ -252,8 +247,7 @@ export class ToolHandler {
       byTool: this.groupMetricsByTool(),
     };
 
-    logger.info({
-      msg: 'Tool execution metrics',
+    logger.info('Tool execution metrics', {
       ...summary,
       tenantId: this.context.tenantId,
     });

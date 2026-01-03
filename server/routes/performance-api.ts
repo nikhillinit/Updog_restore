@@ -102,7 +102,7 @@ router.get(
   performanceLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
-    let cacheHit = false;
+    const cacheHit = false;
     let fundId = 0;
 
     try {

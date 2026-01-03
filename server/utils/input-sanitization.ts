@@ -296,11 +296,11 @@ export function sanitizeObject(
     allowedKeys?: string[];
     blockedKeys?: string[];
   } = {}
-): any {
+): unknown {
   const opts = { ...DEFAULT_SANITIZATION_OPTIONS, ...options };
   const maxDepth = opts.maxDepth || 10;
 
-  function sanitizeRecursive(value: any, depth: number = 0): any {
+  function sanitizeRecursive(value: unknown, depth: number = 0): unknown {
     if (depth > maxDepth) {
       throw new Error('Object nesting too deep');
     }
@@ -326,7 +326,7 @@ export function sanitizeObject(
     }
 
     if (typeof value === 'object') {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
 
       for (const [key, val] of Object.entries(value)) {
         const sanitizedKey = sanitizeString(key, { maxLength: 100 });
@@ -360,16 +360,17 @@ export function sanitizeObject(
 /**
  * Sanitize Monte Carlo simulation configuration
  */
-export function sanitizeMonteCarloConfig(config: any): any {
+export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknown> {
   if (!config || typeof config !== 'object') {
     throw new Error('Monte Carlo configuration must be an object');
   }
 
-  const sanitized: any = {};
+  const cfg = config as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
 
   // Fund ID validation
-  if (config.fundId !== undefined) {
-    sanitized.fundId = sanitizeNumber(config.fundId, {
+  if (cfg.fundId !== undefined) {
+    sanitized.fundId = sanitizeNumber(cfg.fundId, {
       integer: true,
       positive: true,
       max: 999999999
@@ -377,8 +378,8 @@ export function sanitizeMonteCarloConfig(config: any): any {
   }
 
   // Simulation runs validation
-  if (config.runs !== undefined) {
-    sanitized.runs = sanitizeNumber(config.runs, {
+  if (cfg.runs !== undefined) {
+    sanitized.runs = sanitizeNumber(cfg.runs, {
       integer: true,
       min: 100,
       max: 50000
@@ -386,8 +387,8 @@ export function sanitizeMonteCarloConfig(config: any): any {
   }
 
   // Time horizon validation
-  if (config.timeHorizonYears !== undefined) {
-    sanitized.timeHorizonYears = sanitizeNumber(config.timeHorizonYears, {
+  if (cfg.timeHorizonYears !== undefined) {
+    sanitized.timeHorizonYears = sanitizeNumber(cfg.timeHorizonYears, {
       integer: true,
       min: 1,
       max: 15
@@ -395,8 +396,8 @@ export function sanitizeMonteCarloConfig(config: any): any {
   }
 
   // Portfolio size validation
-  if (config.portfolioSize !== undefined) {
-    sanitized.portfolioSize = sanitizeNumber(config.portfolioSize, {
+  if (cfg.portfolioSize !== undefined) {
+    sanitized.portfolioSize = sanitizeNumber(cfg.portfolioSize, {
       integer: true,
       positive: true,
       max: 1000
@@ -404,13 +405,13 @@ export function sanitizeMonteCarloConfig(config: any): any {
   }
 
   // Baseline ID validation
-  if (config.baselineId !== undefined) {
-    sanitized.baselineId = sanitizeString(config.baselineId, {
+  if (cfg.baselineId !== undefined) {
+    sanitized.baselineId = sanitizeString(cfg.baselineId, {
       maxLength: 36 // UUID length
     });
 
     // Validate UUID format
-    if (!validator.isUUID(sanitized.baselineId)) {
+    if (!validator.isUUID(sanitized.baselineId as string)) {
       throw new Error('Invalid baseline ID format');
     }
   }
@@ -421,34 +422,38 @@ export function sanitizeMonteCarloConfig(config: any): any {
 /**
  * Sanitize financial distribution parameters
  */
-export function sanitizeDistributionParams(params: any): any {
+export function sanitizeDistributionParams(params: unknown): Record<string, unknown> {
   if (!params || typeof params !== 'object') {
     throw new Error('Distribution parameters must be an object');
   }
 
-  const sanitized: any = {};
+  const prms = params as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
 
   // Sanitize IRR parameters
-  if (params.irr) {
+  if (prms.irr) {
+    const irr = prms.irr as { mean: unknown; volatility: unknown };
     sanitized.irr = {
-      mean: sanitizeNumber(params.irr.mean, { min: -1, max: 10, finite: true }),
-      volatility: sanitizeNumber(params.irr.volatility, { min: 0.01, max: 5, finite: true })
+      mean: sanitizeNumber(irr.mean, { min: -1, max: 10, finite: true }),
+      volatility: sanitizeNumber(irr.volatility, { min: 0.01, max: 5, finite: true })
     };
   }
 
   // Sanitize multiple parameters
-  if (params.multiple) {
+  if (prms.multiple) {
+    const multiple = prms.multiple as { mean: unknown; volatility: unknown };
     sanitized.multiple = {
-      mean: sanitizeNumber(params.multiple.mean, { min: 0, max: 100, finite: true }),
-      volatility: sanitizeNumber(params.multiple.volatility, { min: 0.01, max: 10, finite: true })
+      mean: sanitizeNumber(multiple.mean, { min: 0, max: 100, finite: true }),
+      volatility: sanitizeNumber(multiple.volatility, { min: 0.01, max: 10, finite: true })
     };
   }
 
   // Sanitize DPI parameters
-  if (params.dpi) {
+  if (prms.dpi) {
+    const dpi = prms.dpi as { mean: unknown; volatility: unknown };
     sanitized.dpi = {
-      mean: sanitizeNumber(params.dpi.mean, { min: 0, max: 5, finite: true }),
-      volatility: sanitizeNumber(params.dpi.volatility, { min: 0.01, max: 2, finite: true })
+      mean: sanitizeNumber(dpi.mean, { min: 0, max: 5, finite: true }),
+      volatility: sanitizeNumber(dpi.volatility, { min: 0.01, max: 2, finite: true })
     };
   }
 
@@ -463,8 +468,8 @@ export class SanitizationError extends Error {
   constructor(
     message: string,
     public _field?: string,
-    public _originalValue?: any,
-    public _sanitizedValue?: any
+    public _originalValue?: unknown,
+    public _sanitizedValue?: unknown
   ) {
     super(message);
     this.name = 'SanitizationError';
@@ -479,9 +484,9 @@ export function createSanitizationMiddleware(options: {
   sanitizeQuery?: boolean;
   sanitizeParams?: boolean;
   strictMode?: boolean;
-  customSanitizers?: Record<string, (_value: any) => any>;
+  customSanitizers?: Record<string, (_value: unknown) => unknown>;
 } = {}) {
-  return (req: any, res: any, next: any) => {
+  return (req: Record<string, unknown>, res: Record<string, unknown>, next: (error?: unknown) => void) => {
     try {
       const opts = {
         sanitizeBody: true,

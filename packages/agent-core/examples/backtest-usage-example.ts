@@ -8,11 +8,11 @@
  * 4. Saving reports
  */
 
-import type { BacktestExecutionReport } from '../src/Backtest';
+import type { BacktestReport, BacktestResult } from '../src/Backtest';
 import { BacktestRunner } from '../src/Backtest';
 import { resolve } from 'path';
 
-async function runBacktestExample() {
+async function runBacktestExample(): Promise<BacktestReport> {
   console.log('Backtest Runner Example\n');
 
   // 1. Load test cases from JSON file
@@ -34,7 +34,7 @@ async function runBacktestExample() {
 
   // 3. Run the backtest
   console.log('Starting backtest...\n');
-  const report: BacktestExecutionReport = await runner.runBacktest(testCases);
+  const report: BacktestReport = await runner.runBacktest(testCases);
 
   // 4. Analyze results
   console.log(`\n${  '='.repeat(60)}`);
@@ -70,10 +70,10 @@ async function runBacktestExample() {
   }
 
   // 6. Analyze failures
-  const failures = report.results.filter(r => !r.agentSuccess);
+  const failures: BacktestResult[] = report.results.filter((r: BacktestResult) => !r.agentSuccess);
   if (failures.length > 0) {
     console.log('Failed Cases:');
-    failures.forEach(f => {
+    failures.forEach((f: BacktestResult) => {
       console.log(`  - ${f.caseId}: ${f.errors?.[0] || 'Unknown error'}`);
     });
     console.log();
@@ -91,7 +91,7 @@ async function runBacktestExample() {
 }
 
 // Advanced usage: Accessing individual results
-async function analyzeIndividualCases() {
+async function analyzeIndividualCases(): Promise<void> {
   const casesPath = resolve(__dirname, 'sample-test-cases.json');
   const testCases = BacktestRunner.loadTestCases(casesPath);
 
@@ -100,13 +100,13 @@ async function analyzeIndividualCases() {
     dryRun: true,
   });
 
-  const report = await runner.runBacktest(testCases);
+  const report: BacktestReport = await runner.runBacktest(testCases);
 
   // Analyze each result
   console.log('\nDetailed Case Analysis:');
   console.log('='.repeat(60));
 
-  report.results.forEach((result, index) => {
+  report.results.forEach((result: BacktestResult, index: number) => {
     console.log(`\nCase ${index + 1}: ${result.caseId}`);
     console.log(`  Success: ${result.agentSuccess ? '✓' : '✗'}`);
     console.log(`  Quality: ${result.qualityScore.toFixed(1)}/100`);
@@ -122,7 +122,7 @@ async function analyzeIndividualCases() {
 }
 
 // Example: Filtering and sorting results
-async function analyzeBestPerformers() {
+async function analyzeBestPerformers(): Promise<void> {
   const casesPath = resolve(__dirname, 'sample-test-cases.json');
   const testCases = BacktestRunner.loadTestCases(casesPath);
 
@@ -131,17 +131,17 @@ async function analyzeBestPerformers() {
     dryRun: true,
   });
 
-  const report = await runner.runBacktest(testCases);
+  const report: BacktestReport = await runner.runBacktest(testCases);
 
   // Find top performers by quality score
-  const topPerformers = report.results
-    .filter(r => r.agentSuccess)
-    .sort((a, b) => b.qualityScore - a.qualityScore)
+  const topPerformers: BacktestResult[] = report.results
+    .filter((r: BacktestResult) => r.agentSuccess)
+    .sort((a: BacktestResult, b: BacktestResult) => b.qualityScore - a.qualityScore)
     .slice(0, 5);
 
   console.log('\nTop 5 Performers by Quality:');
   console.log('='.repeat(60));
-  topPerformers.forEach((result, index) => {
+  topPerformers.forEach((result: BacktestResult, index: number) => {
     console.log(`${index + 1}. ${result.caseId}`);
     console.log(`   Quality: ${result.qualityScore.toFixed(1)}/100`);
     console.log(`   Speedup: ${result.speedup.toFixed(1)}x`);
@@ -149,14 +149,14 @@ async function analyzeBestPerformers() {
   });
 
   // Find fastest cases by speedup
-  const fastest = report.results
-    .filter(r => r.agentSuccess)
-    .sort((a, b) => b.speedup - a.speedup)
+  const fastest: BacktestResult[] = report.results
+    .filter((r: BacktestResult) => r.agentSuccess)
+    .sort((a: BacktestResult, b: BacktestResult) => b.speedup - a.speedup)
     .slice(0, 5);
 
   console.log('\nTop 5 Fastest Cases:');
   console.log('='.repeat(60));
-  fastest.forEach((result, index) => {
+  fastest.forEach((result: BacktestResult, index: number) => {
     console.log(`${index + 1}. ${result.caseId}`);
     console.log(`   Speedup: ${result.speedup.toFixed(1)}x`);
     console.log(`   Quality: ${result.qualityScore.toFixed(1)}/100`);

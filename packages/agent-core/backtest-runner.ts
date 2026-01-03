@@ -282,7 +282,7 @@ async function main(): Promise<void> {
       console.log('All test cases completed successfully!');
       process.exit(0);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error();
     console.error('FATAL ERROR:');
     console.error(error instanceof Error ? error.message : String(error));
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
 /**
  * Print summary to console
  */
-function printSummary(report: any): void {
+function printSummary(report: BacktestReport): void {
   console.log('='.repeat(60));
   console.log('SUMMARY');
   console.log('='.repeat(60));

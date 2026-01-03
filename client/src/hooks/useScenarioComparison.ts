@@ -13,7 +13,6 @@ import { useFundContext } from '@/contexts/FundContext';
 import type {
   ComparisonResponse,
   SavedComparisonConfig,
-  ComparisonResults,
 } from '@shared/types/scenario-comparison';
 import type {
   CreateComparisonRequest,
@@ -84,19 +83,19 @@ async function fetchComparisons(
 
   const response = await fetch(`/api/portfolio/comparisons?${params.toString()}`);
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to fetch comparisons`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to fetch comparisons`);
   }
-  return response.json();
+  return response.json() as Promise<PaginatedResponse<ComparisonResponse>>;
 }
 
 async function fetchComparison(comparisonId: string): Promise<ComparisonResponse> {
   const response = await fetch(`/api/portfolio/comparisons/${comparisonId}`);
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to fetch comparison`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to fetch comparison`);
   }
-  const result = await response.json();
+  const result = await response.json() as { data: ComparisonResponse };
   return result.data;
 }
 
@@ -107,10 +106,10 @@ async function createComparison(request: CreateComparisonRequest): Promise<Compa
     body: JSON.stringify(request),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to create comparison`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to create comparison`);
   }
-  const result = await response.json();
+  const result = await response.json() as { data: ComparisonResponse };
   return result.data;
 }
 
@@ -119,8 +118,8 @@ async function deleteComparison(comparisonId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok && response.status !== 204) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to delete comparison`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to delete comparison`);
   }
 }
 
@@ -132,11 +131,11 @@ async function exportComparison(
     `/api/portfolio/comparisons/${comparisonId}/export?format=${format}`
   );
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to export comparison`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to export comparison`);
   }
   if (format === 'json') {
-    return response.json();
+    return response.json() as Promise<ComparisonResponse>;
   }
   return response.blob();
 }
@@ -154,19 +153,19 @@ async function fetchSavedConfigs(
 
   const response = await fetch(`/api/portfolio/comparison-configs?${params.toString()}`);
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to fetch configs`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to fetch configs`);
   }
-  return response.json();
+  return response.json() as Promise<PaginatedResponse<SavedComparisonConfig>>;
 }
 
 async function fetchSavedConfig(configId: string): Promise<SavedComparisonConfig> {
   const response = await fetch(`/api/portfolio/comparison-configs/${configId}`);
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to fetch config`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to fetch config`);
   }
-  const result = await response.json();
+  const result = await response.json() as { data: SavedComparisonConfig };
   return result.data;
 }
 
@@ -179,10 +178,10 @@ async function createSavedConfig(
     body: JSON.stringify(request),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to create config`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to create config`);
   }
-  const result = await response.json();
+  const result = await response.json() as { data: SavedComparisonConfig };
   return result.data;
 }
 
@@ -196,10 +195,10 @@ async function updateSavedConfig(
     body: JSON.stringify(request),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to update config`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to update config`);
   }
-  const result = await response.json();
+  const result = await response.json() as { data: SavedComparisonConfig };
   return result.data;
 }
 
@@ -208,8 +207,8 @@ async function deleteSavedConfig(configId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok && response.status !== 204) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error['message'] || `HTTP ${response.status}: Failed to delete config`);
+    const error = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(error.message || `HTTP ${response.status}: Failed to delete config`);
   }
 }
 

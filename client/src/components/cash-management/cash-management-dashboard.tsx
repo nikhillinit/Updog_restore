@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,9 +130,9 @@ export default function CashManagementDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddTransaction, setShowAddTransaction] = useState(false);
 
-  const totalCurrentBalance = CASH_CATEGORIES.reduce((sum: any, cat: any) => sum + cat.currentBalance, 0);
-  const totalWeightedRequirements = CASH_CATEGORIES.reduce((sum: any, cat: any) => sum + cat.weightedRequirements, 0);
-  const totalPreviousBalance = CASH_CATEGORIES.reduce((sum: any, cat: any) => sum + cat.previousBalance, 0);
+  const totalCurrentBalance = CASH_CATEGORIES.reduce((sum, cat) => sum + cat.currentBalance, 0);
+  const totalWeightedRequirements = CASH_CATEGORIES.reduce((sum, cat) => sum + cat.weightedRequirements, 0);
+  const totalPreviousBalance = CASH_CATEGORIES.reduce((sum, cat) => sum + cat.previousBalance, 0);
   
   const balanceChange = totalCurrentBalance - totalPreviousBalance;
   const balanceChangePercent = ((balanceChange / totalPreviousBalance) * 100);
@@ -203,19 +198,19 @@ export default function CashManagementDashboard() {
                 <Input
                   type="date"
                   value={newTransaction.date}
-                  onChange={(e: any) => setNewTransaction({...newTransaction, date: e.target.value})}
+                  onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
                 />
               </div>
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={newTransaction.category} onValueChange={(value: any) => 
+              <Select value={newTransaction.category} onValueChange={(value) => 
                 setNewTransaction({...newTransaction, category: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CASH_CATEGORIES.map((cat: any) => (
+                  {CASH_CATEGORIES.map((cat) => (
                     <SelectItem key={cat.category} value={cat.category}>
                       {cat.category}
                     </SelectItem>
@@ -228,7 +223,7 @@ export default function CashManagementDashboard() {
               <Input
                 placeholder="Transaction description"
                 value={newTransaction.description}
-                onChange={(e: any) => setNewTransaction({...newTransaction, description: e.target.value})}
+                onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
               />
             </div>
             <div>
@@ -237,7 +232,7 @@ export default function CashManagementDashboard() {
                 type="number"
                 placeholder="0.00"
                 value={newTransaction.amount}
-                onChange={(e: any) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
               />
             </div>
             <div className="flex justify-end space-x-2">
@@ -386,7 +381,7 @@ export default function CashManagementDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {CASH_CATEGORIES.map((category: any, index: any) => {
+                    {CASH_CATEGORIES.map((category, index) => {
                       const variance = category.currentBalance - category.weightedRequirements;
                       return (
                         <tr key={index} className="border-b hover:bg-gray-50">
@@ -439,7 +434,7 @@ export default function CashManagementDashboard() {
                   <Input
                     placeholder="Search transactions..."
                     value={searchTerm}
-                    onChange={(e: any) => setSearchTerm(e.target.value)}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-64"
                   />
                 </div>
@@ -450,7 +445,7 @@ export default function CashManagementDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {CASH_CATEGORIES.map((cat: any) => (
+                    {CASH_CATEGORIES.map((cat) => (
                       <SelectItem key={cat.category} value={cat.category}>
                         {cat.category}
                       </SelectItem>
@@ -468,7 +463,7 @@ export default function CashManagementDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredTransactions.map((transaction: any) => (
+                {filteredTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div className="flex items-center space-x-3">
                       <div className={`w-3 h-3 rounded-full ${

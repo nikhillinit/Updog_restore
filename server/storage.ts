@@ -1,48 +1,66 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { 
+import {
   funds, portfolioCompanies, investments, fundMetrics, activities, users,
   type Fund, type PortfolioCompany, type Investment, type FundMetrics, type Activity, type User,
-  type InsertFund, type InsertPortfolioCompany, type InsertInvestment, 
+  type InsertFund, type InsertPortfolioCompany, type InsertInvestment,
   type InsertFundMetrics, type InsertActivity, type InsertUser
 } from "../schema/src/index.js";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
+// Round and performance case types (simplified versions without schema definition)
+export interface InvestmentRound {
+  id: number;
+  name: string;
+  date: string;
+  valuation: number;
+  amount: number;
+  ownership: number;
+  leadInvestor?: string;
+  status?: string;
+  type?: string;
+}
+
+export interface PerformanceCase {
+  id: number;
+  name: string;
+  exitValuation: number;
+  exitDate: string;
+  probability: number;
+  type?: string;
+  description?: string;
+}
+
 export interface IStorage {
   // Health check methods
   ping(): Promise<boolean>;
   isRedisHealthy?(): Promise<boolean>;
-  
+
   // User methods
   getUser(_id: number): Promise<User | undefined>;
   getUserByUsername(_username: string): Promise<User | undefined>;
   createUser(_user: InsertUser): Promise<User>;
-  
+
   // Fund methods
   getAllFunds(): Promise<Fund[]>;
   getFund(_id: number): Promise<Fund | undefined>;
   createFund(_fund: InsertFund): Promise<Fund>;
-  
+
   // Portfolio methods
   getPortfolioCompanies(fundId?: number): Promise<PortfolioCompany[]>;
   getPortfolioCompany(_id: number): Promise<PortfolioCompany | undefined>;
   createPortfolioCompany(_company: InsertPortfolioCompany): Promise<PortfolioCompany>;
-  
+
   // Investment methods
   getInvestments(fundId?: number): Promise<Investment[]>;
   getInvestment(_id: number): Promise<Investment | undefined>;
-  createInvestment(_investment: any): Promise<Investment>;
-  addInvestmentRound(_investmentId: number, _round: any): Promise<any>;
-  addPerformanceCase(_investmentId: number, _performanceCase: any): Promise<any>;
-  
+  createInvestment(_investment: InsertInvestment): Promise<Investment>;
+  addInvestmentRound(_investmentId: number, _round: Partial<InvestmentRound>): Promise<InvestmentRound>;
+  addPerformanceCase(_investmentId: number, _performanceCase: Partial<PerformanceCase>): Promise<PerformanceCase>;
+
   // Metrics methods
   getFundMetrics(_fundId: number): Promise<FundMetrics[]>;
   createFundMetrics(_metrics: InsertFundMetrics): Promise<FundMetrics>;
-  
+
   // Activity methods
   getActivities(fundId?: number): Promise<Activity[]>;
   createActivity(_activity: InsertActivity): Promise<Activity>;
@@ -103,7 +121,7 @@ export class MemStorage implements IStorage {
       status: "active",
       createdAt: new Date(),
     };
-    this.funds['set'](1, sampleFund);
+    this.funds.set(1, sampleFund);
     this.currentFundId = 2;
 
     // Sample portfolio companies
@@ -153,7 +171,7 @@ export class MemStorage implements IStorage {
     ];
     
     sampleCompanies.forEach(company => {
-      this.portfolioCompanies['set'](company.id, company);
+      this.portfolioCompanies.set(company.id, company);
     });
     this.currentCompanyId = 4;
 
@@ -195,7 +213,7 @@ export class MemStorage implements IStorage {
     ];
 
     sampleActivities.forEach(activity => {
-      this.activities['set'](activity.id, activity);
+      this.activities.set(activity.id, activity);
     });
     this.currentActivityId = 4;
 
@@ -211,13 +229,13 @@ export class MemStorage implements IStorage {
       tvpi: "2.22",
       createdAt: new Date(),
     };
-    this.fundMetrics['set'](1, sampleMetrics);
+    this.fundMetrics.set(1, sampleMetrics);
     this.currentMetricsId = 2;
   }
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users['get'](id);
+    return this.users.get(id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -227,7 +245,7 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const user: User = { ...insertUser, id };
-    this.users['set'](id, user);
+    this.users.set(id, user);
     return user;
   }
 
@@ -237,13 +255,13 @@ export class MemStorage implements IStorage {
   }
 
   async getFund(id: number): Promise<Fund | undefined> {
-    return this.funds['get'](id);
+    return this.funds.get(id);
   }
 
   async createFund(insertFund: InsertFund): Promise<Fund> {
     const id = this.currentFundId++;
-    const fund: Fund = { 
-      id, 
+    const fund: Fund = {
+      id,
       name: insertFund.name,
       size: String(insertFund.size),
       deployedCapital: "0", // Default value from schema
@@ -253,7 +271,7 @@ export class MemStorage implements IStorage {
       status: "active", // Default value from schema
       createdAt: new Date()
     };
-    this.funds['set'](id, fund);
+    this.funds.set(id, fund);
     return fund;
   }
 
@@ -264,14 +282,14 @@ export class MemStorage implements IStorage {
   }
 
   async getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined> {
-    return this.portfolioCompanies['get'](id);
+    return this.portfolioCompanies.get(id);
   }
 
   async createPortfolioCompany(insertCompany: InsertPortfolioCompany): Promise<PortfolioCompany> {
     const id = this.currentCompanyId++;
-    const company: PortfolioCompany = { 
-      ...insertCompany, 
-      id, 
+    const company: PortfolioCompany = {
+      ...insertCompany,
+      id,
       createdAt: new Date(),
       status: "active", // Default value from schema
       description: null, // Optional field
@@ -280,7 +298,7 @@ export class MemStorage implements IStorage {
       foundedYear: null, // Optional field
       dealTags: null // Optional field
     };
-    this.portfolioCompanies['set'](id, company);
+    this.portfolioCompanies.set(id, company);
     return company;
   }
 
@@ -291,13 +309,13 @@ export class MemStorage implements IStorage {
   }
 
   async getInvestment(id: number): Promise<Investment | undefined> {
-    return this.investments['get'](id);
+    return this.investments.get(id);
   }
 
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
     const id = this.currentInvestmentId++;
-    const investment: Investment = { 
-      id, 
+    const investment: Investment = {
+      id,
       fundId: null, // Optional field
       companyId: null, // Optional field
       investmentDate: insertInvestment.investmentDate,
@@ -308,61 +326,51 @@ export class MemStorage implements IStorage {
       dealTags: null, // Optional field
       createdAt: new Date()
     };
-    this.investments['set'](id, investment);
+    this.investments.set(id, investment);
     return investment;
   }
 
-  async addInvestmentRound(investmentId: number, roundData: any): Promise<any> {
-    const investment = this.investments['get'](investmentId);
+  async addInvestmentRound(investmentId: number, roundData: Partial<InvestmentRound>): Promise<InvestmentRound> {
+    const investment = this.investments.get(investmentId);
     if (!investment) {
       throw new Error('Investment not found');
     }
-    
-    const round = {
+
+    const round: InvestmentRound = {
       id: Date.now(),
-      name: roundData.name,
-      date: roundData.date,
-      valuation: parseFloat(roundData.valuation || "0"),
-      amount: parseFloat(roundData.amount || "0"),
-      ownership: parseFloat(roundData.ownership || "0"),
+      name: roundData.name ?? '',
+      date: roundData.date ?? '',
+      valuation: roundData.valuation ?? 0,
+      amount: roundData.amount ?? 0,
+      ownership: roundData.ownership ?? 0,
       leadInvestor: roundData.leadInvestor,
       status: roundData.status,
       type: roundData.type
     };
-    
+
     // Note: In a real implementation, rounds would be stored in a separate table
     // For now, we're just returning the round data
-    // if (!investment.rounds) {
-    //   investment.rounds = [];
-    // }
-    // investment.rounds.push(round);
-    // this.investments['set'](investmentId, investment);
     return round;
   }
 
-  async addPerformanceCase(investmentId: number, caseData: any): Promise<any> {
-    const investment = this.investments['get'](investmentId);
+  async addPerformanceCase(investmentId: number, caseData: Partial<PerformanceCase>): Promise<PerformanceCase> {
+    const investment = this.investments.get(investmentId);
     if (!investment) {
       throw new Error('Investment not found');
     }
-    
-    const performanceCase = {
+
+    const performanceCase: PerformanceCase = {
       id: Date.now(),
-      name: caseData.name,
-      exitValuation: parseFloat(caseData.exitValuation || "0"),
-      exitDate: caseData.exitDate,
-      probability: parseFloat(caseData.probability || "0"),
+      name: caseData.name ?? '',
+      exitValuation: caseData.exitValuation ?? 0,
+      exitDate: caseData.exitDate ?? '',
+      probability: caseData.probability ?? 0,
       type: caseData.type,
       description: caseData.description
     };
-    
+
     // Note: In a real implementation, performance cases would be stored in a separate table
     // For now, we're just returning the performance case data
-    // if (!investment.performanceCases) {
-    //   investment.performanceCases = [];
-    // }
-    // investment.performanceCases.push(performanceCase);
-    // this.investments['set'](investmentId, investment);
     return performanceCase;
   }
 
@@ -373,9 +381,9 @@ export class MemStorage implements IStorage {
 
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
     const id = this.currentMetricsId++;
-    const metrics: FundMetrics = { 
-      ...insertMetrics, 
-      id, 
+    const metrics: FundMetrics = {
+      ...insertMetrics,
+      id,
       createdAt: new Date(),
       fundId: null, // Optional field
       irr: null, // Optional field
@@ -383,7 +391,7 @@ export class MemStorage implements IStorage {
       dpi: null, // Optional field
       tvpi: null // Optional field
     };
-    this.fundMetrics['set'](id, metrics);
+    this.fundMetrics.set(id, metrics);
     return metrics;
   }
 
@@ -395,16 +403,16 @@ export class MemStorage implements IStorage {
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
     const id = this.currentActivityId++;
-    const activity: Activity = { 
-      ...insertActivity, 
-      id, 
+    const activity: Activity = {
+      ...insertActivity,
+      id,
       createdAt: new Date(),
       description: null, // Optional field
       fundId: null, // Optional field
       companyId: null, // Optional field
       amount: null // Optional field
     };
-    this.activities['set'](id, activity);
+    this.activities.set(id, activity);
     return activity;
   }
 }
@@ -520,31 +528,31 @@ export class DatabaseStorage implements IStorage {
     return investment;
   }
 
-  async addInvestmentRound(investmentId: number, roundData: any): Promise<any> {
+  async addInvestmentRound(investmentId: number, roundData: Partial<InvestmentRound>): Promise<InvestmentRound> {
     // For database implementation, this would involve a separate rounds table
     // For now, we'll return mock data as the schema might need extending
     return {
       id: Date.now(),
-      name: roundData.name,
-      date: roundData.date,
-      valuation: parseFloat(roundData.valuation || "0"),
-      amount: parseFloat(roundData.amount || "0"),
-      ownership: parseFloat(roundData.ownership || "0"),
+      name: roundData.name ?? '',
+      date: roundData.date ?? '',
+      valuation: roundData.valuation ?? 0,
+      amount: roundData.amount ?? 0,
+      ownership: roundData.ownership ?? 0,
       leadInvestor: roundData.leadInvestor,
       status: roundData.status,
       type: roundData.type
     };
   }
 
-  async addPerformanceCase(investmentId: number, caseData: any): Promise<any> {
+  async addPerformanceCase(investmentId: number, caseData: Partial<PerformanceCase>): Promise<PerformanceCase> {
     // For database implementation, this would involve a separate performance_cases table
     // For now, we'll return mock data as the schema might need extending
     return {
       id: Date.now(),
-      name: caseData.name,
-      exitValuation: parseFloat(caseData.exitValuation || "0"),
-      exitDate: caseData.exitDate,
-      probability: parseFloat(caseData.probability || "0"),
+      name: caseData.name ?? '',
+      exitValuation: caseData.exitValuation ?? 0,
+      exitDate: caseData.exitDate ?? '',
+      probability: caseData.probability ?? 0,
       type: caseData.type,
       description: caseData.description
     };

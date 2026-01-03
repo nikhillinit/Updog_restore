@@ -4,7 +4,7 @@
  * Tests for @react-pdf/renderer integration and template generation.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerFonts, areFontsRegistered, PDF_FONTS } from '../fonts';
 import {
   pdfTheme,

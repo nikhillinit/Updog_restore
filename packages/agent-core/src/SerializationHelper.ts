@@ -55,8 +55,10 @@ function getWorkerPool(): Piscina {
  * Cleanup worker pool on process exit
  */
 export async function shutdownSerializationPool(): Promise<void> {
-  if (workerPool) {
-    await workerPool.destroy();
+  const pool = workerPool;
+  if (pool) {
+    await pool.destroy();
+    // eslint-disable-next-line require-atomic-updates -- Safe: pool reference prevents race condition
     workerPool = null;
   }
 }
@@ -117,7 +119,7 @@ export async function serializeAsync(
       originalSize: result.originalSize
     };
 
-  } catch (error) {
+  } catch (error: unknown) {
     // Fallback if worker pool fails - use synchronous serialization
     console.error('[SerializationHelper] Worker pool failure, falling back to sync:', error);
 
@@ -182,7 +184,7 @@ export function serializeSafely(obj: unknown, maxSize = 50000): string {
     }
 
     return serialized;
-  } catch (error) {
+  } catch (error: unknown) {
     return JSON.stringify({
       _serializationError: true,
       error: error instanceof Error ? error.message : String(error),

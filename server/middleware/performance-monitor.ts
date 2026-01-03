@@ -13,7 +13,7 @@ interface PerformanceMetric {
   operation: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   category: 'monte_carlo' | 'api' | 'database' | 'computation';
   severity: 'normal' | 'slow' | 'critical';
 }
@@ -80,7 +80,7 @@ class PerformanceMonitor extends EventEmitter {
   /**
    * Track a performance metric
    */
-  track(operation: string, duration: number, category: PerformanceMetric['category'], metadata?: Record<string, any>) {
+  track(operation: string, duration: number, category: PerformanceMetric['category'], metadata?: Record<string, unknown>) {
     const threshold = this.thresholds.get(operation) || this.thresholds.get('api_request')!;
 
     let severity: PerformanceMetric['severity'] = 'normal';
@@ -179,7 +179,7 @@ class PerformanceMonitor extends EventEmitter {
       const startTime = performance.now();
       const originalEnd = res.end;
 
-      res.end = function(this: Response, ...args: any[]) {
+      res.end = function(this: Response, ...args: unknown[]) {
         const duration = performance.now() - startTime;
         const operation = `${req.method} ${req.route?.path || req.path}`;
 
@@ -201,7 +201,7 @@ class PerformanceMonitor extends EventEmitter {
   /**
    * Decorator for tracking function performance
    */
-  trackFunction<T extends (...args: any[]) => any>(
+  trackFunction<T extends (...args: unknown[]) => unknown>(
     operation: string,
     category: PerformanceMetric['category'],
     fn: T
@@ -213,8 +213,8 @@ class PerformanceMonitor extends EventEmitter {
         const result = fn(...args);
 
         // Handle both sync and async functions
-        if (result && typeof result.then === 'function') {
-          return result.finally(() => {
+        if (result && typeof result === 'object' && 'then' in result && typeof result.then === 'function') {
+          return (result as Promise<unknown>).finally(() => {
             const duration = performance.now() - startTime;
             this.track(operation, duration, category, { args: args.length });
           });
@@ -241,7 +241,7 @@ class PerformanceMonitor extends EventEmitter {
     const startTime = performance.now();
 
     return {
-      end: (metadata?: Record<string, any>) => {
+      end: (metadata?: Record<string, unknown>) => {
         const duration = performance.now() - startTime;
         this.track(operation, duration, category, metadata);
         return duration;
@@ -253,12 +253,12 @@ class PerformanceMonitor extends EventEmitter {
    * Export metrics for external monitoring systems
    */
   exportMetrics(): {
-    summary: Record<string, any>;
+    summary: Record<string, unknown>;
     recentMetrics: PerformanceMetric[];
     alerts: PerformanceMetric[];
   } {
     const operations = [...new Set(this.metrics.map(m => m.operation))];
-    const summary: Record<string, any> = {};
+    const summary: Record<string, unknown> = {};
 
     for (const operation of operations) {
       summary[operation] = this.getStats(operation, 60 * 60 * 1000); // Last hour
@@ -279,7 +279,7 @@ export const monitor = new PerformanceMonitor();
 export class MonteCarloPerformanceTracker {
   private simulationTimers = new Map<string, number>();
 
-  startSimulation(simulationId: string, config: any) {
+  startSimulation(simulationId: string, config: Record<string, unknown>) {
     this.simulationTimers.set(simulationId, performance.now());
 
     monitor.track('monte_carlo_start', 0, 'monte_carlo', {
@@ -289,17 +289,18 @@ export class MonteCarloPerformanceTracker {
     });
   }
 
-  endSimulation(simulationId: string, results: any) {
+  endSimulation(simulationId: string, results: Record<string, unknown> | null) {
     const startTime = this.simulationTimers.get(simulationId);
     if (!startTime) return;
 
     const duration = performance.now() - startTime;
     this.simulationTimers.delete(simulationId);
 
+    const scenarios = results && typeof results.scenarios === 'object' && Array.isArray(results.scenarios) ? results.scenarios : [];
     monitor.track('monte_carlo_simulation', duration, 'monte_carlo', {
       simulationId,
       duration,
-      resultCount: results?.scenarios?.length || 0,
+      resultCount: scenarios.length,
       hasError: !results
     });
   }

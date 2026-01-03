@@ -1,6 +1,6 @@
+/* eslint-disable no-undef */
 // Build verification test - checks that the package built correctly
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
 
 console.log('Starting build verification tests...\n');
 

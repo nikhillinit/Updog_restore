@@ -39,28 +39,26 @@ export function useFundSelector<T>(
   selector: (s: FundState) => T,
   equality?: (a: T, b: T) => boolean
 ): T {
-  // Development mode: wrap selector with performance monitoring
-  if (import.meta.env.DEV) {
-    const wrappedSelector = (state: FundState): T => {
-      const start = performance.now();
-      const result = selector(state);
-      const duration = performance.now() - start;
+  // Wrap selector with performance monitoring in dev mode
+  const wrappedSelector = import.meta.env.DEV
+    ? (state: FundState): T => {
+        const start = performance.now();
+        const result = selector(state);
+        const duration = performance.now() - start;
 
-      // Only warn for selectors taking more than 4ms
-      if (duration > 4) {
-        console.warn(`[Slow selector] ${duration.toFixed(2)}ms`, {
-          selector: selector.toString().slice(0, 100)
-        });
+        // Only warn for selectors taking more than 4ms
+        if (duration > 4) {
+          console.warn(`[Slow selector] ${duration.toFixed(2)}ms`, {
+            selector: selector.toString().slice(0, 100)
+          });
+        }
+
+        return result;
       }
+    : selector;
 
-      return result;
-    };
-
-    return useFundSelectorImpl(wrappedSelector, equality);
-  }
-
-  // Production mode: use selector directly
-  return useFundSelectorImpl(selector, equality);
+  // Call the hook unconditionally (same call path every render)
+  return useFundSelectorImpl(wrappedSelector, equality);
 }
 
 /**

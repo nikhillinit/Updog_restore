@@ -17,8 +17,21 @@ async function main() {
   console.log(`   Timeframe: ${dataset.metadata.timeframe}`);
   console.log(`   Repository: ${dataset.metadata.repository}\n`);
 
+  // Define interface for dataset test case
+  interface DatasetTestCase {
+    id: string;
+    commitHash: string;
+    type: string;
+    description: string;
+    files: string[];
+    errorMessage: string;
+    humanSolution: string;
+    timeToResolve?: number;
+    complexity: number;
+  }
+
   // Convert to BacktestExecutionCase format (simulate for now since we don't have real AI)
-  const testCases = dataset.testCases.slice(0, 10).map((tc: any) => ({
+  const testCases = dataset.testCases.slice(0, 10).map((tc: DatasetTestCase) => ({
     id: tc.id,
     commitHash: tc.commitHash,
     type: tc.type,
@@ -32,8 +45,11 @@ async function main() {
 
   console.log(`🔬 Running backtest on first ${testCases.length} cases (subset)...\n`);
 
+  // Define interface for test case result type
+  type TestCase = typeof testCases[number];
+
   // Simulate results (in production, this would call real AI APIs)
-  const simulatedResults = testCases.map((tc: any, i: number) => {
+  const simulatedResults = testCases.map((tc: TestCase, i: number) => {
     const success = Math.random() > 0.12; // 88% success rate
     const qualityScore = success ? 75 + Math.random() * 20 : 40 + Math.random() * 30;
 
@@ -47,7 +63,7 @@ async function main() {
       speedup: success ? 2 + Math.random() * 8 : 1 + Math.random() * 2,
       iterations: Math.floor(1 + Math.random() * 2),
       cost: 0.05 + Math.random() * 0.15,
-      pattern: ['router', 'orchestrator', 'evaluator-optimizer', 'prompt-cache'][i % 4] as any,
+      pattern: (['router', 'orchestrator', 'evaluator-optimizer', 'prompt-cache'] as const)[i % 4],
       duration: 5 + Math.random() * 10,
       timestamp: new Date().toISOString()
     };

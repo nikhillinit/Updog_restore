@@ -44,7 +44,10 @@ export function polymorphicForwardRef<
   ) => ReactNode
 ) {
   // Simplified type assertion to work with strict mode
-  return forwardRef(render as any) as any;
+  type RenderType = (props: PolymorphicProps<DefaultTag, ExtraProps>, ref: ForwardedRef<Element>) => ReactNode;
+  return forwardRef(render as RenderType) as <T extends ElementType = DefaultTag>(
+    props: PolymorphicProps<T, ExtraProps> & { ref?: ForwardedRef<Element> }
+  ) => ReactNode;
 }
 
 /**
@@ -69,8 +72,8 @@ export function createPolymorphicComponent<
  */
 export function hasProperty<T extends ElementType, K extends string>(
   Component: T,
-  propName: K
-): Component is T & { [_P in K]: any } {
+  _propName: K
+): Component is T & { [_P in K]: unknown } {
   // This is a runtime check - in practice you'd implement based on your needs
   return true; // Simplified for type-level usage
 }

@@ -63,7 +63,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     };
 
     // Simple mapping for demo - in production, you'd have more sophisticated allocation logic
-    allocations.forEach((alloc: { percentage?: number }, index: number) => {
+    allocations.forEach((alloc, index) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         allocationPctByStage[stageKey] = alloc.percentage || 0;
@@ -77,7 +77,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       seriesA: 0,
       seriesBplus: 0
     };
-    
+
     const initialCheckByStage: Record<StageKey, number> = {
       preseed: 250_000,
       seed: 500_000,
@@ -85,7 +85,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       seriesBplus: 1_200_000
     };
 
-    stages.forEach((stage: { graduate?: number }, index: number) => {
+    stages.forEach((stage, index) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         graduationPctByStage[stageKey] = stage.graduate || 0;
@@ -171,7 +171,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {inputErrors.map((error: any, index: any) => (
+          {inputErrors.map((error, index) => (
             <Alert key={index} variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
@@ -261,54 +261,68 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           
           <TabsContent value="counts" className="space-y-4">
             <div className="grid gap-3">
-              {StageOrder.map((stage: any) => (
-                <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
-                    {showWholeNumbers && roundedResults && (
-                      <Badge variant={(roundedResults as any).surplusByStage[stage] >= 0 ? "secondary" : "destructive"}>
-                        {(roundedResults as any).surplusByStage[stage] >= 0 ? '+' : ''}
-                        {formatCurrency((roundedResults as any).surplusByStage[stage])} surplus
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      {formatNumber(
-                        showWholeNumbers && roundedResults
-                          ? (roundedResults as any).rounded[stage]
-                          : (results as any).initialInvestmentsByStage[stage]
-                      )} deals
+              {StageOrder.map((stage) => {
+                const roundedResult = roundedResults as unknown as Record<string, Record<string, number>> | null;
+                const result = results as unknown as Record<string, Record<string, number>> | null;
+                const surplusByStage = roundedResult?.surplusByStage;
+                const rounded = roundedResult?.rounded;
+                const initialInvestmentsByStage = result?.initialInvestmentsByStage;
+
+                return (
+                  <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
+                      {showWholeNumbers && roundedResults && surplusByStage && (
+                        <Badge variant={surplusByStage[stage] >= 0 ? "secondary" : "destructive"}>
+                          {surplusByStage[stage] >= 0 ? '+' : ''}
+                          {formatCurrency(surplusByStage[stage])} surplus
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">
+                        {formatNumber(
+                          showWholeNumbers && roundedResults && rounded
+                            ? rounded[stage]
+                            : initialInvestmentsByStage?.[stage] ?? 0
+                        )} deals
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
           
           <TabsContent value="capital" className="space-y-4">
             <div className="grid gap-3">
-              {StageOrder.map((stage: any) => (
-                <div key={stage} className="p-3 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Initial:</span>
-                      <span className="ml-2 font-medium">
-                        {formatCurrency((results as any).initialSpendByStage[stage])}
-                      </span>
+              {StageOrder.map((stage) => {
+                const result = results as unknown as Record<string, Record<string, number>> | null;
+                const initialSpendByStage = result?.initialSpendByStage;
+                const followOnSpendByStage = result?.followOnSpendByStage;
+
+                return (
+                  <div key={stage} className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Follow-on:</span>
-                      <span className="ml-2 font-medium">
-                        {formatCurrency((results as any).followOnSpendByStage[stage])}
-                      </span>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Initial:</span>
+                        <span className="ml-2 font-medium">
+                          {formatCurrency(initialSpendByStage?.[stage] ?? 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Follow-on:</span>
+                        <span className="ml-2 font-medium">
+                          {formatCurrency(followOnSpendByStage?.[stage] ?? 0)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>
@@ -316,7 +330,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
         {/* Warnings */}
         {results.warnings.length > 0 && (
           <div className="space-y-2">
-            {results.warnings.map((warning: any, index: any) => (
+            {results.warnings.map((warning, index) => (
               <Alert key={index}>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{warning}</AlertDescription>

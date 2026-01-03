@@ -142,7 +142,7 @@ export class PatternLearningEngine {
    * @param context - Execution context
    */
   async recordPattern(
-    result: AgentResult<any>,
+    result: AgentResult<unknown>,
     context: AgentExecutionContext
   ): Promise<void> {
     try {
@@ -168,17 +168,13 @@ export class PatternLearningEngine {
         confidence: pattern.confidence,
       });
 
-      logger.info({
-        msg: 'Pattern recorded',
-        patternId: pattern.id,
+      logger.info('Pattern recorded', {patternId: pattern.id,
         operation: pattern.context.operation,
         patternType: pattern.patternType,
         confidence: pattern.confidence,
       });
-    } catch (error) {
-      logger.error({
-        msg: 'Failed to record pattern',
-        error: error instanceof Error ? error.message : String(error),
+    } catch (error: unknown) {
+      logger.error('Failed to record pattern', {error: error instanceof Error ? error.message : String(error),
         tenantId: this.tenantId,
       });
     }
@@ -206,10 +202,8 @@ export class PatternLearningEngine {
       // Limit results
       const limit = context.limit ?? 5;
       return sorted.slice(0, limit);
-    } catch (error) {
-      logger.error({
-        msg: 'Failed to retrieve patterns',
-        error: error instanceof Error ? error.message : String(error),
+    } catch (error: unknown) {
+      logger.error('Failed to retrieve patterns', {error: error instanceof Error ? error.message : String(error),
         operation: context.operation,
       });
       return [];
@@ -264,7 +258,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
    * Extract pattern from agent result and context
    */
   private extractPattern(
-    result: AgentResult<any>,
+    result: AgentResult<unknown>,
     context: AgentExecutionContext
   ): ConversationPattern {
     const patternType: PatternType = result.success ? 'success' : 'failure';
@@ -361,9 +355,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
 
     await this.storage.set(key, JSON.stringify(updated));
 
-    logger.debug({
-      msg: 'Pattern updated',
-      patternId: updated.id,
+    logger.debug('Pattern updated', {patternId: updated.id,
       occurrences: updated.occurrences,
       confidence: updated.confidence,
     });
@@ -381,9 +373,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
 
     await this.storage.set(key, JSON.stringify(pattern));
 
-    logger.debug({
-      msg: 'Pattern created',
-      patternId: pattern.id,
+    logger.debug('Pattern created', {patternId: pattern.id,
       operation: pattern.context.operation,
     });
   }
@@ -397,9 +387,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
     // Full implementation would scan keys matching:
     // app:prod:pattern:{operation}:{tenantId}:*:v1
 
-    logger.debug({
-      msg: 'getAllPatterns not fully implemented',
-      operation,
+    logger.debug('getAllPatterns not fully implemented', {operation,
       note: 'Requires Redis SCAN implementation',
     });
 
@@ -495,7 +483,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
       const fileProps = ['files', 'filePaths', 'path', 'file'];
       for (const prop of fileProps) {
         if (prop in input) {
-          const value = (input as any)[prop];
+          const value = (input as Record<string, unknown>)[prop];
           if (typeof value === 'string') {
             const ext = value.match(/\.(\w+)$/)?.[0];
             return ext ? [ext] : [];
@@ -510,7 +498,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
   /**
    * Hash input for signature matching
    */
-  private hashInput(input: any): string {
+  private hashInput(input: unknown): string {
     const str = typeof input === 'string' ? input : JSON.stringify(input);
     // Simple hash (for demo - use crypto.createHash in production)
     return str.slice(0, 100); // First 100 chars
@@ -519,7 +507,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
   /**
    * Extract learned insight from result
    */
-  private extractInsight(result: AgentResult<any>, context: AgentExecutionContext): string {
+  private extractInsight(result: AgentResult<unknown>, context: AgentExecutionContext): string {
     if (result.success) {
       return `Successful approach for ${context.operation ?? 'operation'} with ${result.retries ?? 0} retries`;
     } else {
@@ -530,7 +518,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
   /**
    * Extract approach description from result
    */
-  private extractApproach(result: AgentResult<any>, context: AgentExecutionContext): string {
+  private extractApproach(result: AgentResult<unknown>, context: AgentExecutionContext): string {
     // Try to extract from result output
     if (result.output && typeof result.output === 'string') {
       // Take first sentence as approach

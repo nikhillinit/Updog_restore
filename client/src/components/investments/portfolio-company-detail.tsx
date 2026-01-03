@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -440,7 +435,7 @@ export default function PortfolioCompanyDetail() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip formatter={(value: any) => [`$${value}mm`, 'Return the Fund']} />
+                <Tooltip formatter={(value) => [`$${value}mm`, 'Return the Fund']} />
                 <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
@@ -519,7 +514,7 @@ export default function PortfolioCompanyDetail() {
                     'Internal Status', 'Lead Status', 'Strategic', 'Deal Source',
                     'Google Drive Link', 'Formation Date', 'Source of Deal', 'BiV Director',
                     'OIC', 'Years of Operation', 'Fund raising notes', 'Valuation Notes', 'DD notes'
-                  ].map((field: any) => (
+                  ].map((field) => (
                     <div key={field}>
                       <label className="text-sm font-medium text-gray-700">{field}</label>
                       <div className="mt-1 p-2 bg-gray-50 rounded text-gray-500">-</div>
@@ -565,7 +560,7 @@ export default function PortfolioCompanyDetail() {
 
               {/* Rounds Timeline */}
               <div className="space-y-4">
-                {SAMPLE_ROUNDS.map((round: any, index: any) => (
+                {SAMPLE_ROUNDS.map((round, index) => (
                   <div key={round.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                       {index + 1}
@@ -687,7 +682,7 @@ export default function PortfolioCompanyDetail() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
                         <YAxis />
-                        <Tooltip formatter={(value: any) => [`$${value}M`, 'Valuation']} />
+                        <Tooltip formatter={(value) => [`$${value}M`, 'Valuation']} />
                         <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -702,7 +697,7 @@ export default function PortfolioCompanyDetail() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
                         <YAxis />
-                        <Tooltip formatter={(value: any) => [`$${value}mm`, 'Return the Fund']} />
+                        <Tooltip formatter={(value) => [`$${value}mm`, 'Return the Fund']} />
                         <Line type="monotone" dataKey="value" stroke="#22c55e" strokeWidth={2} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -825,7 +820,7 @@ export default function PortfolioCompanyDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {OPTIMAL_RESERVE_DATA.map((row: any, index: any) => {
+                    {OPTIMAL_RESERVE_DATA.map((row, index) => {
                       const isOptimal = row.capitalEfficiency > 0 && 
                                        row.capitalEfficiency === Math.max(...OPTIMAL_RESERVE_DATA.map(r => r.capitalEfficiency));
                       
@@ -955,8 +950,8 @@ export default function PortfolioCompanyDetail() {
                   </TableHeader>
                   <TableBody>
                     {RESERVE_RANKING_DATA
-                      .sort((a: any, b: any) => b.marginalReturnPer1K - a.marginalReturnPer1K)
-                      .map((company: any, index: any) => (
+                      .sort((a, b) => b.marginalReturnPer1K - a.marginalReturnPer1K)
+                      .map((company, index) => (
                         <TableRow key={company.companyName} className={cn(
                           "hover:bg-gray-50",
                           company.companyName === 'Carmasal Fund' && "bg-blue-50 border-l-4 border-blue-400"

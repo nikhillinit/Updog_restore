@@ -201,7 +201,7 @@ export function isColorCompliant(color: string): boolean {
  * Calculate contrast ratio between two colors
  * (Simplified - for full implementation use a color library)
  */
-export function calculateContrastRatio(foreground: string, background: string): number {
+export function calculateContrastRatio(_foreground: string, _background: string): number {
   // Simplified implementation - returns placeholder
   // In production, use a proper color contrast calculation
   return 4.5; // Placeholder

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Router } from 'express';
 import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
@@ -16,7 +11,7 @@ const router = Router();
 
 // TTL cache for health checks to avoid DB storms
 const memoryKV = new MemoryKV();
-const healthCache = new TTLCache<any>(memoryKV);
+const healthCache = new TTLCache<Record<string, unknown>>(memoryKV);
 const HEALTH_CACHE_MS = 1500; // 1.5 second cache
 
 // Register cache invalidator for state changes
@@ -40,7 +35,7 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = (req as any).app.locals.providers;
+  const providers = (req as { app: { locals: { providers?: { mode?: string } } } }).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
@@ -50,7 +45,7 @@ router['get']('/health', (req: Request, res: Response) => {
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = (req as any).app.locals.providers;
+  const providers = (req as { app: { locals: { providers?: { mode?: string } } } }).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
@@ -101,7 +96,7 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
     res['set']('X-Health-TTL-Set', ttlMs.toString());
     
     res["json"](healthData);
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](500)["json"]({
       error: 'Health check failed',
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -136,7 +131,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   try {
     const dbHealthy = await storage['ping']();
     checks.database = dbHealthy ? "ok" : "fail";
-  } catch (error) {
+  } catch (error: unknown) {
     checks.database = "fail";
   }
   
@@ -187,7 +182,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     database: "unknown",
     redis: "unknown",
     workers: "unknown",
-    metrics: {} as Record<string, any>
+    metrics: {} as Record<string, string | number>
   };
   
   // Database check
@@ -196,7 +191,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     await storage.getAllFunds();
     detailed.database = "ok";
     detailed.metrics['dbLatencyMs'] = Date.now() - start;
-  } catch (error) {
+  } catch (error: unknown) {
     detailed.database = "fail";
   }
   
@@ -206,17 +201,17 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   
   // Worker status (depends on Redis)
   detailed.workers = redisHealthy ? "ok" : "idle";
-  
+
   // Memory and uptime
   detailed.metrics['uptimeSeconds'] = Math.floor(process.uptime());
   detailed.metrics['memoryMB'] = Math.round(process.memoryUsage().heapUsed / 1048576);
   detailed.metrics['version'] = process.env["npm_package_version"] || "1.3.2";
-  
+
   res["json"](detailed);
 });
 
 // Simple inflight/uptime snapshot; extend as needed.
-router['get']('/health/inflight', (_req: any, res: any) => {
+router['get']('/health/inflight', (_req: Request, res: Response) => {
   res["json"]({
     uptime: process.uptime(),
     memory: process.memoryUsage()
@@ -244,11 +239,11 @@ router['get']('/api/health/db', async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       database: 'error',
       status: 'error',
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -264,11 +259,11 @@ router['get']('/api/health/cache', async (req: Request, res: Response) => {
       status: redisHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       cache: 'error',
       status: 'error',
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -293,13 +288,13 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
     }
 
     // Check queue status via Redis
-    const queueHealth: Record<string, any> = {};
+    const queueHealth: Record<string, { status: string; waiting?: number; active?: number; error?: string }> = {};
 
     try {
       // Import Redis client to check queue status
       const IORedis = await import('ioredis');
-       
-      const Redis: any = IORedis.default;
+
+      const Redis = IORedis.default;
       const redis = new Redis({
         host: process.env["REDIS_HOST"] || 'localhost',
         port: parseInt(process.env["REDIS_PORT"] || '6379'),
@@ -320,16 +315,16 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
             waiting,
             active,
           };
-        } catch (error) {
+        } catch (error: unknown) {
           queueHealth[queueName] = {
             status: 'error',
-            error: (error as Error).message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
       }
 
       await redis.quit();
-    } catch (error) {
+    } catch (error: unknown) {
       // Fallback if Redis check fails
       queueHealth['reserve-calc'] = { status: 'unknown' };
       queueHealth['pacing-calc'] = { status: 'unknown' };
@@ -340,11 +335,11 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       queues: {},
       status: 'error',
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -354,7 +349,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
 router['get']('/api/health/schema', async (req: Request, res: Response) => {
   try {
     // Query database for table list (dynamically access query method if available)
-    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: Array<{ table_name: string }> }> };
     const result = await storageWithQuery.query?.(
       `SELECT table_name
        FROM information_schema.tables
@@ -362,7 +357,7 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
        ORDER BY table_name`
     );
 
-    const tables = result?.rows?.map((row: any) => row.table_name) || [];
+    const tables = result?.rows?.map((row: { table_name: string }) => row.table_name) || [];
 
     res["json"]({
       tables,
@@ -370,11 +365,11 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       tables: [],
       status: 'error',
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -384,7 +379,7 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
 router['get']('/api/health/migrations', async (req: Request, res: Response) => {
   try {
     // Query migration history (dynamically access query method if available)
-    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: Array<{ name: string; hash: string; created_at: Date }> }> };
     const result = await storageWithQuery.query?.(
       `SELECT name, hash, created_at
        FROM drizzle_migrations
@@ -400,10 +395,10 @@ router['get']('/api/health/migrations', async (req: Request, res: Response) => {
       count: migrations.length,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       status: 'error',
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -430,9 +425,9 @@ router['get']('/api/version', (req: Request, res: Response) => {
 router['get']('/api/health/alerts', async (req: Request, res: Response) => {
   try {
     const alerts = {
-      critical: [] as any[],
-      warning: [] as any[],
-      info: [] as any[],
+      critical: [] as Array<{ type: string; message: string; timestamp: string }>,
+      warning: [] as Array<{ type: string; message: string; timestamp: string }>,
+      info: [] as Array<{ type: string; message: string; timestamp: string }>,
     };
 
     // Check database connectivity
@@ -471,11 +466,11 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
       ...alerts,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       critical: [{
         type: 'system',
-        message: (error as Error).message,
+        message: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
       }],
       warning: [],
@@ -526,8 +521,8 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
 
           workerRes.on('end', () => {
             try {
-              const health = JSON.parse(data);
-              const worker = health.workers?.find((w: any) =>
+              const health = JSON.parse(data) as { workers?: Array<{ name: string; status: string; jobsProcessed: number; lastJobTime: string }> };
+              const worker = health.workers?.find((w) =>
                 w.name.includes(workerType)
               );
 
@@ -549,7 +544,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
               }
 
               resolve(null);
-            } catch (error) {
+            } catch (error: unknown) {
               reject(error);
             }
           });
@@ -559,21 +554,21 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
         req.on('timeout', () => reject(new Error('Timeout')));
         req["end"]();
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Worker health server not accessible
       res["json"]({
         status: 'unknown',
         worker: workerType,
         message: 'Worker health server not accessible',
-        error: (error as Error).message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
       });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](503)["json"]({
       status: 'error',
       worker: workerType,
-      error: (error as Error).message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }

@@ -21,7 +21,7 @@ import { DashboardCard } from './DashboardCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { DollarSign, BarChart3, Users, TrendingUp } from 'lucide-react';
-import { getChartColor, rechartsProps } from '@/lib/chart-theme';
+import { getChartColor } from '@/lib/chart-theme';
 
 // Sample data matching target UI
 const areaChartData = [

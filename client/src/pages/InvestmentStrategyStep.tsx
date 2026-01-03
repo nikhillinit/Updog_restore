@@ -147,10 +147,6 @@ export default function InvestmentStrategyStep() {
     });
   }, [STORAGE_KEY]);
 
-  const calculateFailureRate = (graduationRate: number, exitRate: number): number => {
-    return Math.max(0, 100 - graduationRate - exitRate);
-  };
-
   const validateStageRates = (graduationRate: number, exitRate: number): boolean => {
     return graduationRate + exitRate <= 100;
   };
@@ -280,7 +276,7 @@ export default function InvestmentStrategyStep() {
 
           <div className="space-y-6">
 
-            {sectorProfiles.map((profile: any) => {
+            {sectorProfiles.map((profile) => {
               const isEditing = editingProfile === profile.id;
 
               return (
@@ -341,7 +337,7 @@ export default function InvestmentStrategyStep() {
                           </div>
 
                           {/* Rows with Matching Fixed Column Grid */}
-                          {profile.stages.map((stage: any, index: any) => (
+                          {profile.stages.map((stage) => (
                             <div key={stage.id} className="grid text-base py-4 px-2 bg-white rounded-xl border border-[#E0D8D1] hover:bg-[#F2F2F2] hover:border-[#292929] hover:shadow-md transition-all duration-200" style={{
                               gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
                             }}>
@@ -378,7 +374,7 @@ export default function InvestmentStrategyStep() {
                         <Label className="text-sm font-poppins font-medium text-[#292929]">Profile Name</Label>
                         <Input
                           value={profile.name}
-                          onChange={(e: any) => handleUpdateProfile(profile.id, { name: e.target.value })}
+                          onChange={(e) => handleUpdateProfile(profile.id, { name: e.target.value })}
                           placeholder="e.g., FinTech, HealthTech, Enterprise SaaS"
                           className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
                         />
@@ -417,7 +413,7 @@ export default function InvestmentStrategyStep() {
                             <div className="text-[#E0D8D1] px-3 text-center">Exit Val ($M)</div>
                             <div className="text-[#F2F2F2] px-3 text-center">Actions</div>
                           </div>
-                        {profile.stages.map((stage: any, stageIndex: any) => (
+                        {profile.stages.map((stage, stageIndex) => (
                           <div key={stage.id} className="grid items-center py-4 px-2 bg-white rounded-xl border border-[#E0D8D1] shadow-sm hover:shadow-lg hover:border-[#292929] transition-all duration-200" style={{
                             gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
                           }}>
@@ -448,7 +444,7 @@ export default function InvestmentStrategyStep() {
                                 min="0"
                                 step="0.1"
                                 value={stage.roundSize}
-                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
+                                onChange={(e) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
                                 className="h-12 text-sm text-center font-medium w-full"
                                 placeholder="0.0"
                               />
@@ -477,7 +473,7 @@ export default function InvestmentStrategyStep() {
                                 min="0"
                                 step="1"
                                 value={stage.valuation}
-                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
+                                onChange={(e) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
                                 className="h-12 text-sm text-center font-medium w-full"
                                 placeholder="0"
                               />
@@ -491,7 +487,7 @@ export default function InvestmentStrategyStep() {
                                 max="50"
                                 step="0.5"
                                 value={stage.esopPct}
-                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
+                                onChange={(e) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
                                 className="h-12 text-sm text-center font-medium w-full"
                                 placeholder="10"
                               />
@@ -505,7 +501,7 @@ export default function InvestmentStrategyStep() {
                                 max="100"
                                 step="1"
                                 value={stage.graduationRate}
-                                onChange={(e: any) => {
+                                onChange={(e) => {
                                   const value = parseFloat(e.target.value) || 0;
                                   if (validateStageRates(value, stage.exitRate)) {
                                     handleUpdateStage(profile.id, stage.id, { graduationRate: value });
@@ -524,7 +520,7 @@ export default function InvestmentStrategyStep() {
                                 max="120"
                                 step="1"
                                 value={stage.monthsToGraduate}
-                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
+                                onChange={(e) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
                                 className="h-12 text-sm text-center font-medium w-full"
                                 placeholder="18"
                               />
@@ -538,7 +534,7 @@ export default function InvestmentStrategyStep() {
                                 max="100"
                                 step="1"
                                 value={stage.exitRate}
-                                onChange={(e: any) => {
+                                onChange={(e) => {
                                   const value = parseFloat(e.target.value) || 0;
                                   if (validateStageRates(stage.graduationRate, value)) {
                                     handleUpdateStage(profile.id, stage.id, { exitRate: value });
@@ -556,7 +552,7 @@ export default function InvestmentStrategyStep() {
                                 min="0"
                                 step="1"
                                 value={stage.exitValuation}
-                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
+                                onChange={(e) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
                                 className="h-12 text-sm text-center font-medium w-full"
                                 placeholder="50"
                               />

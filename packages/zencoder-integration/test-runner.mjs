@@ -9,7 +9,7 @@ async function runTests() {
 
   // Test 1: Instantiation
   try {
-    const agent = new ZencoderAgent({
+    new ZencoderAgent({
       name: 'test-agent',
       maxRetries: 1,
       timeout: 10000,

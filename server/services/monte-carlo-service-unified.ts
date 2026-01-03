@@ -47,7 +47,7 @@ export interface PerformanceMetrics {
   executionTimeMs: number;
   memoryUsageMB: number;
   scenariosPerSecond: number;
-  connectionPoolStats: any;
+  connectionPoolStats: Record<string, unknown> | null;
   fallbackTriggered: boolean;
   selectionReason: string;
 }
@@ -145,7 +145,7 @@ export class UnifiedMonteCarloService {
    */
   async runBatchSimulations(configs: UnifiedSimulationConfig[]): Promise<Array<SimulationResults & { performance: PerformanceMetrics }>> {
     // Optimize batch execution based on total workload
-    const totalScenarios = configs.reduce((sum: any, config: any) => sum + config.runs, 0);
+    const totalScenarios = configs.reduce((sum, config) => sum + config.runs, 0);
     const shouldUseStreaming = totalScenarios > this.STREAMING_THRESHOLD_SCENARIOS;
 
     if (shouldUseStreaming) {
@@ -221,11 +221,11 @@ export class UnifiedMonteCarloService {
     const traditionalMetrics = this.performanceHistory.filter(p => p.engineUsed === 'traditional');
 
     const streamingAvgSpeed = streamingMetrics.length > 0
-      ? streamingMetrics.reduce((sum: any, m: any) => sum + m.scenariosPerSecond, 0) / streamingMetrics.length
+      ? streamingMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) / streamingMetrics.length
       : 0;
 
     const traditionalAvgSpeed = traditionalMetrics.length > 0
-      ? traditionalMetrics.reduce((sum: any, m: any) => sum + m.scenariosPerSecond, 0) / traditionalMetrics.length
+      ? traditionalMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) / traditionalMetrics.length
       : 0;
 
     const preferredEngine = streamingAvgSpeed > traditionalAvgSpeed ? 'streaming' : 'traditional';
@@ -233,7 +233,7 @@ export class UnifiedMonteCarloService {
     const recommendations: string[] = [];
 
     if (streamingMetrics.length > 0) {
-      const avgMemoryUsage = streamingMetrics.reduce((sum: any, m: any) => sum + m.memoryUsageMB, 0) / streamingMetrics.length;
+      const avgMemoryUsage = streamingMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0) / streamingMetrics.length;
       if (avgMemoryUsage > 200) {
         recommendations.push('Consider reducing batch size to optimize memory usage');
       }
@@ -480,7 +480,7 @@ export class UnifiedMonteCarloService {
   private analyzeMemoryPattern(): string {
     if (this.performanceHistory.length === 0) return 'unknown';
 
-    const avgMemoryUsage = this.performanceHistory.reduce((sum: any, m: any) => sum + m.memoryUsageMB, 0) / this.performanceHistory.length;
+    const avgMemoryUsage = this.performanceHistory.reduce((sum, m) => sum + m.memoryUsageMB, 0) / this.performanceHistory.length;
 
     if (avgMemoryUsage < 100) return 'low';
     if (avgMemoryUsage < 300) return 'moderate';
@@ -495,7 +495,7 @@ export class UnifiedMonteCarloService {
       totalSimulations: this.performanceHistory.length,
       streamingUsage: this.performanceHistory.filter(p => p.engineUsed === 'streaming').length,
       traditionalUsage: this.performanceHistory.filter(p => p.engineUsed === 'traditional').length,
-      averageExecutionTime: this.performanceHistory.reduce((sum: any, p: any) => sum + p.executionTimeMs, 0) / this.performanceHistory.length,
+      averageExecutionTime: this.performanceHistory.reduce((sum, p) => sum + p.executionTimeMs, 0) / this.performanceHistory.length,
       fallbackRate: this.performanceHistory.filter(p => p.fallbackTriggered).length / this.performanceHistory.length
     };
   }

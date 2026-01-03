@@ -35,7 +35,7 @@ router["get"]('/summary', (req: Request, res: Response) => {
         monteCarloPerformance: metrics.summary['monte_carlo_simulation']?.avgDuration || 0,
         apiPerformance: Object.entries(metrics.summary)
           .filter(([key]) => key.startsWith('GET ') || key.startsWith('POST '))
-          .reduce((avg, [, stats]: any) => avg + stats.avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
+          .reduce((avg, [, stats]: [string, { avgDuration: number }]) => avg + stats.avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
       }
     };
 
@@ -132,7 +132,7 @@ router["get"]('/realtime', (req: Request, res: Response) => {
     'Access-Control-Allow-Headers': 'Cache-Control'
   });
 
-  const sendMetric = (metric: any) => {
+  const sendMetric = (metric: { operation: string; duration: number; severity: string; category: string; timestamp: number }) => {
     const data = JSON.stringify({
       type: 'metric',
       data: {
@@ -147,7 +147,7 @@ router["get"]('/realtime', (req: Request, res: Response) => {
     res["write"](`data: ${data}\n\n`);
   };
 
-  const sendAlert = (alert: any) => {
+  const sendAlert = (alert: { operation: string; duration: number; severity: string; category: string; timestamp: number }) => {
     const data = JSON.stringify({
       type: 'alert',
       data: {
@@ -201,7 +201,7 @@ router["get"]('/operations', (req: Request, res: Response) => {
       operations = operations.filter(([opName]) => operationNames.includes(opName));
     }
 
-    const formattedOperations = operations.map(([operation, stats]: any) => ({
+    const formattedOperations = operations.map(([operation, stats]: [string, { count: number; avgDuration: number; minDuration: number; maxDuration: number; p95Duration: number; slowCount: number; criticalCount: number }]) => ({
       operation,
       stats: {
         count: stats.count,

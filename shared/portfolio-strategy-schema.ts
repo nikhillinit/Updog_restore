@@ -19,7 +19,7 @@ export const CheckSizeConfigSchema = z.object({
   target: z.number().positive('Target check size must be positive'),
   max: z.number().positive('Maximum check size must be positive')
 }).refine(
-  (data: any) => data.min <= data.target && data.target <= data.max,
+  (data) => data.min <= data.target && data.target <= data.max,
   {
     message: "Check sizes must follow min ≤ target ≤ max",
     path: ["checkSizes"]
@@ -73,7 +73,7 @@ export const PortfolioStrategySchema = z.object({
 
   scenarios: z.array(ScenarioConfigSchema).min(1, 'At least one scenario is required')
 }).refine(
-  (data: any) => {
+  (data) => {
     // Ensure fund size aliases are consistent
     return Math.abs(data.fundSize - data.totalFundSize) < 0.01;
   },
@@ -82,7 +82,7 @@ export const PortfolioStrategySchema = z.object({
     path: ["totalFundSize"]
   }
 ).refine(
-  (data: any) => {
+  (data) => {
     // Ensure reserve percentage and ratio are consistent
     const expectedRatio = data.reservePercentage / 100;
     return Math.abs(data.reserveRatio - expectedRatio) < 0.001;
@@ -92,11 +92,11 @@ export const PortfolioStrategySchema = z.object({
     path: ["reserveRatio"]
   }
 ).refine(
-  (data: any) => {
+  (data) => {
     // Validate allocations sum to approximately 1.0
-    const sectorSum = Object.values(data.sectorAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
-    const stageSum = Object.values(data.stageAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
-    const geoSum = Object.values(data.geographicAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
+    const sectorSum = Object.values(data.sectorAllocation).reduce((sum, val) => sum + val, 0) as number;
+    const stageSum = Object.values(data.stageAllocation).reduce((sum, val) => sum + val, 0) as number;
+    const geoSum = Object.values(data.geographicAllocation).reduce((sum, val) => sum + val, 0) as number;
 
     return Math.abs(sectorSum - 1.0) < 0.01 &&
            Math.abs(stageSum - 1.0) < 0.01 &&
@@ -204,30 +204,43 @@ export const updatePortfolioStrategy = (
 export interface LegacyPortfolioStrategy {
   fundSize?: number;
   reservePercentage?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const migrateLegacyStrategy = (legacy: LegacyPortfolioStrategy): PortfolioStrategy => {
+  const legacyId = legacy.id as string | undefined;
+  const legacyName = legacy.name as string | undefined;
+  const legacyFundSize = legacy.fundSize as number | undefined;
+  const legacyDeploymentPeriodMonths = legacy.deploymentPeriodMonths as number | undefined;
+  const legacyTargetPortfolioSize = legacy.targetPortfolioSize as number | undefined;
+  const legacyCheckSizes = legacy.checkSizes as CheckSizeConfig | undefined;
+  const legacySectorAllocation = legacy.sectorAllocation as AllocationConfig | undefined;
+  const legacyStageAllocation = legacy.stageAllocation as AllocationConfig | undefined;
+  const legacyGeographicAllocation = legacy.geographicAllocation as AllocationConfig | undefined;
+  const legacyReservePercentage = legacy.reservePercentage as number | undefined;
+  const legacyAllocatedCapital = legacy.allocatedCapital as number | undefined;
+  const legacyScenarios = legacy.scenarios as ScenarioConfig[] | undefined;
+
   const migrated: Partial<PortfolioStrategy> = {
     ...legacy,
-    id: legacy['id'] || undefined,
-    name: legacy['name'] || 'Untitled Strategy',
-    fundSize: legacy['fundSize'] || 50000000,
-    totalFundSize: legacy['fundSize'] || 50000000,
-    deploymentPeriodMonths: legacy['deploymentPeriodMonths'] || 36,
-    targetPortfolioSize: legacy['targetPortfolioSize'] || 25,
-    checkSizes: legacy['checkSizes'] || {
+    id: legacyId || undefined,
+    name: legacyName || 'Untitled Strategy',
+    fundSize: legacyFundSize || 50000000,
+    totalFundSize: legacyFundSize || 50000000,
+    deploymentPeriodMonths: legacyDeploymentPeriodMonths || 36,
+    targetPortfolioSize: legacyTargetPortfolioSize || 25,
+    checkSizes: legacyCheckSizes || {
       min: 500000,
       target: 2000000,
       max: 5000000
     },
-    sectorAllocation: legacy['sectorAllocation'] || { 'Technology': 1.0 },
-    stageAllocation: legacy['stageAllocation'] || { 'Series A': 1.0 },
-    geographicAllocation: legacy['geographicAllocation'] || { 'North America': 1.0 },
-    reservePercentage: legacy['reservePercentage'] || 50,
-    reserveRatio: legacy['reservePercentage'] ? legacy['reservePercentage'] / 100 : 0.5,
-    allocatedCapital: legacy['allocatedCapital'] || 0,
-    scenarios: legacy['scenarios'] || []
+    sectorAllocation: legacySectorAllocation || { 'Technology': 1.0 },
+    stageAllocation: legacyStageAllocation || { 'Series A': 1.0 },
+    geographicAllocation: legacyGeographicAllocation || { 'North America': 1.0 },
+    reservePercentage: legacyReservePercentage || 50,
+    reserveRatio: legacyReservePercentage ? legacyReservePercentage / 100 : 0.5,
+    allocatedCapital: legacyAllocatedCapital || 0,
+    scenarios: legacyScenarios || []
   };
 
   return createPortfolioStrategy(migrated);

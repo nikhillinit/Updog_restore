@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -262,19 +257,19 @@ export default function PortfolioConstructor() {
   });
 
   // Helper functions
-  const updateStrategy = (field: keyof PortfolioStrategy, value: any) => {
+  const updateStrategy = <K extends keyof PortfolioStrategy>(field: K, value: PortfolioStrategy[K]) => {
     setStrategy(prev => {
       const updated = { ...prev, [field]: value };
 
       // Maintain consistency between original and alias properties
       if (field === 'fundSize') {
-        updated.totalFundSize = value;
+        updated.totalFundSize = value as number;
       } else if (field === 'totalFundSize') {
-        updated.fundSize = value;
+        updated.fundSize = value as number;
       } else if (field === 'reservePercentage') {
-        updated.reserveRatio = value / 100; // Convert percentage to ratio
+        updated.reserveRatio = (value as number) / 100; // Convert percentage to ratio
       } else if (field === 'reserveRatio') {
-        updated.reservePercentage = value * 100; // Convert ratio to percentage
+        updated.reservePercentage = (value as number) * 100; // Convert ratio to percentage
       }
 
       return updated;
@@ -316,7 +311,7 @@ export default function PortfolioConstructor() {
     amount: strategy.fundSize * percentage
   }));
 
-  const deploymentScheduleData = Array.from({ length: strategy.deploymentPeriodMonths }, (_: any, i: any) => ({
+  const deploymentScheduleData = Array.from({ length: strategy.deploymentPeriodMonths }, (_, i) => ({
     month: i + 1,
     cumulative: (calculatedMetrics.initialCapital * (i + 1)) / strategy.deploymentPeriodMonths,
     quarterly: i % 3 === 2 ? calculatedMetrics.deploymentPerQuarter : 0
@@ -417,7 +412,7 @@ export default function PortfolioConstructor() {
                       id="fundSize"
                       type="number"
                       value={strategy.fundSize}
-                      onChange={(e: any) => updateStrategy('fundSize', Number(e.target.value))}
+                      onChange={(e) => updateStrategy('fundSize', Number(e.target.value))}
                       className="mt-1"
                     />
                   </div>
@@ -427,7 +422,7 @@ export default function PortfolioConstructor() {
                       id="portfolioSize"
                       type="number"
                       value={strategy.targetPortfolioSize}
-                      onChange={(e: any) => updateStrategy('targetPortfolioSize', Number(e.target.value))}
+                      onChange={(e) => updateStrategy('targetPortfolioSize', Number(e.target.value))}
                       className="mt-1"
                     />
                   </div>
@@ -439,7 +434,7 @@ export default function PortfolioConstructor() {
                     id="deploymentPeriod"
                     type="number"
                     value={strategy.deploymentPeriodMonths}
-                    onChange={(e: any) => updateStrategy('deploymentPeriodMonths', Number(e.target.value))}
+                    onChange={(e) => updateStrategy('deploymentPeriodMonths', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -477,7 +472,7 @@ export default function PortfolioConstructor() {
                     id="minCheck"
                     type="number"
                     value={strategy.checkSizes.min}
-                    onChange={(e: any) => updateCheckSizes('min', Number(e.target.value))}
+                    onChange={(e) => updateCheckSizes('min', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -487,7 +482,7 @@ export default function PortfolioConstructor() {
                     id="targetCheck"
                     type="number"
                     value={strategy.checkSizes.target}
-                    onChange={(e: any) => updateCheckSizes('target', Number(e.target.value))}
+                    onChange={(e) => updateCheckSizes('target', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -497,7 +492,7 @@ export default function PortfolioConstructor() {
                     id="maxCheck"
                     type="number"
                     value={strategy.checkSizes.max}
-                    onChange={(e: any) => updateCheckSizes('max', Number(e.target.value))}
+                    onChange={(e) => updateCheckSizes('max', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -534,14 +529,14 @@ export default function PortfolioConstructor() {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={(props: any) => `${props.name || ''} ${formatPercentage(props.value || 0)}`}
+                        label={(props) => `${props.name || ''} ${formatPercentage(props.value || 0)}`}
                         labelLine={false}
                       >
-                        {sectorChartData.map((entry: any, index: any) => (
+                        {sectorChartData.map((entry, index) => (
                           <Cell key={`sector-${index}`} fill={SECTOR_COLORS[index % SECTOR_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any) => formatPercentage(Number(value) || 0)} />
+                      <Tooltip formatter={(value) => formatPercentage(Number(value) || 0)} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -570,8 +565,8 @@ export default function PortfolioConstructor() {
                     <BarChart data={stageChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value: any) => formatPercentage(Number(value) || 0)} />
-                      <Tooltip formatter={(value: any) => formatPercentage(Number(value) || 0)} />
+                      <YAxis tickFormatter={(value) => formatPercentage(Number(value) || 0)} />
+                      <Tooltip formatter={(value) => formatPercentage(Number(value) || 0)} />
                       <Bar dataKey="value" fill="#3B82F6" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -623,7 +618,7 @@ export default function PortfolioConstructor() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex gap-2">
-                    {strategy.scenarios.map((scenario: any, index: any) => (
+                    {strategy.scenarios.map((scenario, index) => (
                       <Button
                         key={index}
                         variant={activeScenario === index ? "default" : "outline"}
@@ -749,7 +744,7 @@ export default function PortfolioConstructor() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {strategy.scenarios.map((scenario: any, index: any) => (
+                  {strategy.scenarios.map((scenario, index) => (
                     <div
                       key={index}
                       className={`p-4 rounded-lg border ${
@@ -884,7 +879,7 @@ export default function PortfolioConstructor() {
                   <AreaChart data={deploymentScheduleData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value) => formatCurrency(Number(value))} />
                     <Tooltip formatter={(value: number) => formatCurrency(value)} />
                     <Area
                       type="monotone"

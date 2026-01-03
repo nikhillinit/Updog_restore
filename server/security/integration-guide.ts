@@ -129,13 +129,13 @@ export const monteCarloSecurityStack = [
  * =============================================================================
  */
 
-export function createValidationMiddleware<T>(schema: any) {
+export function createValidationMiddleware<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { errors: Array<{ path: (string | number)[]; message: string; code: string }> } } }) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const validation = schema.safeParse(req.body);
 
       if (!validation.success) {
-        const errors = validation.error.errors.map((err: any) => ({
+        const errors = validation.error?.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code
@@ -151,7 +151,7 @@ export function createValidationMiddleware<T>(schema: any) {
       req.body = validation.data;
       next();
 
-    } catch (error) {
+    } catch (error: unknown) {
       return res["status"](500)["json"]({
         error: 'Validation error',
         message: 'Internal validation error occurred'
@@ -200,7 +200,7 @@ export function setupSecureRoutes(app: Application): void {
 
         res["json"](results);
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Monte Carlo simulation failed:', error);
         res["status"](500)["json"]({
           error: 'Simulation failed',
@@ -232,7 +232,7 @@ export function setupSecureRoutes(app: Application): void {
           // fund
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Fund creation failed:', error);
         res["status"](500)["json"]({
           error: 'Fund creation failed',
@@ -264,7 +264,7 @@ export function setupSecureRoutes(app: Application): void {
           // investment
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Investment entry failed:', error);
         res["status"](500)["json"]({
           error: 'Investment entry failed',
@@ -290,7 +290,7 @@ export function setupSecureRoutes(app: Application): void {
           total: 0
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Search failed:', error);
         res["status"](500)["json"]({
           error: 'Search failed',

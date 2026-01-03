@@ -83,6 +83,41 @@ export interface CostBudget {
 
   /** Remaining budget in USD */
   get remaining(): number;
+
+  /** Check if budget can afford an estimated cost */
+  canAfford(estimatedCost: number): boolean;
+
+  /** Record spending against budget */
+  recordSpend(cost: number): void;
+}
+
+/** Internal API response format from /api/interleaved-thinking/analyze */
+interface ThinkingApiResponse {
+  success: boolean;
+  response?: string;
+  thinking?: string[];
+  toolUses?: Array<{
+    name: string;
+    input: unknown;
+    output: unknown;
+  }>;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+  };
+  cost?: {
+    input_cost_usd: number;
+    output_cost_usd: number;
+    total_cost_usd: number;
+  };
+  error?: string;
+}
+
+/** Health check response format */
+interface ThinkingHealthResponse {
+  success: boolean;
+  status?: string;
 }
 
 export interface ThinkingCapabilities {
@@ -140,16 +175,20 @@ class CostBudgetImpl implements CostBudget {
  *   }
  * }
  */
-export function applyThinkingMixin<TBase extends new (...args: never[]) => object>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mixin pattern requires flexible constructor types
+export function applyThinkingMixin<TBase extends abstract new (...args: any[]) => any>(
   Base: TBase
 ) {
+  // @ts-expect-error - Mixin classes extending abstract bases have known TypeScript limitations
   return class ThinkingEnabled extends Base implements ThinkingCapabilities {
     private thinkingBudget: CostBudgetImpl;
     private thinkingApiUrl: string;
     protected thinkingLogger!: Logger;
     protected thinkingMetrics!: MetricsCollector;
 
-    constructor(...args: never[]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mixin pattern requires flexible constructor
+    constructor(...args: any[]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Mixin passes through constructor args
       super(...args);
 
       // Initialize thinking-specific infrastructure
@@ -227,7 +266,7 @@ export function applyThinkingMixin<TBase extends new (...args: never[]) => objec
             }
           }
 
-          const result = await response.json();
+          const result = await response.json() as ThinkingApiResponse;
           const duration = Date.now() - startTime;
 
           // Validate and track costs - estimate if missing
@@ -262,9 +301,10 @@ export function applyThinkingMixin<TBase extends new (...args: never[]) => objec
             budget_remaining: this.thinkingBudget.remaining
           });
 
-          this.thinkingMetrics.recordAgentOperation(
+          this.thinkingMetrics.recordExecution(
             this.constructor.name,
             'extended_thinking',
+            'success',
             duration
           );
 
@@ -438,7 +478,7 @@ export function applyThinkingMixin<TBase extends new (...args: never[]) => objec
           return false;
         }
 
-        const health = await response.json();
+        const health = await response.json() as ThinkingHealthResponse;
         const isHealthy = health.success && health.status === 'healthy';
 
         this.thinkingLogger.debug('Thinking API health check result', {

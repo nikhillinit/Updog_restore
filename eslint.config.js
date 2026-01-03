@@ -282,6 +282,30 @@ export default [
       },
     },
   },
+  // Packages JavaScript files (test runners, examples, etc.)
+  {
+    files: ['packages/**/*.js', 'packages/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        global: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+  },
   // API and server files with proper tsconfig
   {
     files: ['api/**/*.ts', 'api/**/*.js', 'server/**/*.ts', 'server/**/*.js'],

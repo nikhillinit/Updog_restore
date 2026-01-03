@@ -3,7 +3,7 @@ import { toCents, fromCents, addCents, conservationCheck, type Cents } from '../
 
 export class ConstrainedReserveEngine {
   calculate(input: ReserveInput) {
-    const { availableReserves, companies, stagePolicies, constraints: cst = {} } = input;
+    const { availableReserves, companies: _companies, stagePolicies: _stagePolicies, constraints: cst = {} } = input;
 
     const minCheckC = toCents(cst.minCheck ?? 0);
     const disc = cst.discountRateAnnual ?? 0.12;
@@ -15,8 +15,8 @@ export class ConstrainedReserveEngine {
 
     const stageAllocated = new Map<string, Cents>();
     const polByStage = new Map(input.stagePolicies.map(p=>[p.stage, p]));
-    const years = (s:string)=> (cst.graduationYears as any)?.[s] ?? 5;
-    const pExit = (s:string)=> (cst.graduationProb as any)?.[s] ?? 0.5;
+    const years = (s:string)=> (cst.graduationYears as Record<string, number> | undefined)?.[s] ?? 5;
+    const pExit = (s:string)=> (cst.graduationProb as Record<string, number> | undefined)?.[s] ?? 0.5;
 
     const comps = input.companies.map(c=>{
       const pol = polByStage['get'](c.stage);

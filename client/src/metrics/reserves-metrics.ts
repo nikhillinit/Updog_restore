@@ -8,7 +8,7 @@ import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 interface MetricEvent {
   type: string;
   value: number | string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -82,9 +82,9 @@ class ReservesMetrics {
     });
   }
   
-  recordDivergence(tsResult: any, wasmResult: any): void {
+  recordDivergence(tsResult: unknown, wasmResult: unknown): void {
     const divergence = this.calculateDivergence(tsResult, wasmResult);
-    
+
     this.addEvent({
       type: 'divergence',
       value: divergence,
@@ -166,33 +166,39 @@ class ReservesMetrics {
   }
   
   // Calculate divergence between results
-  private calculateDivergence(a: any, b: any): number {
-    if (!a?.data || !b?.data) return 1.0;
-    
-    const allocationsA = a.data.allocations || [];
-    const allocationsB = b.data.allocations || [];
-    
+  private calculateDivergence(a: unknown, b: unknown): number {
+    const aData = a as Record<string, unknown> | null | undefined;
+    const bData = b as Record<string, unknown> | null | undefined;
+
+    if (!aData?.data || !bData?.data) return 1.0;
+
+    const aDataObj = aData.data as Record<string, unknown>;
+    const bDataObj = bData.data as Record<string, unknown>;
+    const allocationsA = (aDataObj.allocations || []) as Array<Record<string, number>>;
+    const allocationsB = (bDataObj.allocations || []) as Array<Record<string, number>>;
+
     if (allocationsA.length !== allocationsB.length) {
       return Math.abs(allocationsA.length - allocationsB.length) / Math.max(allocationsA.length, allocationsB.length, 1);
     }
-    
+
     let totalDiff = 0;
     let totalAmount = 0;
-    
-    allocationsA.forEach((alloc: any, i: number) => {
+
+    allocationsA.forEach((alloc, i: number) => {
       const otherAlloc = allocationsB[i];
       if (otherAlloc) {
         totalDiff += Math.abs(alloc.planned_cents - otherAlloc.planned_cents);
         totalAmount += alloc.planned_cents;
       }
     });
-    
+
     return totalAmount > 0 ? totalDiff / totalAmount : 0;
   }
   
   // Lightweight hash for comparison
-  hashLite(obj: any): string {
-    const str = JSON.stringify(obj, Object.keys(obj).sort());
+  hashLite(obj: unknown): string {
+    const objRecord = obj as Record<string, unknown>;
+    const str = JSON.stringify(objRecord, Object.keys(objRecord).sort());
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
@@ -259,9 +265,9 @@ class ReservesAuditLog {
   
   record(entry: {
     operation: string;
-    input: any;
-    output: any;
-    config: any;
+    input: unknown;
+    output: unknown;
+    config: unknown;
     duration_ms: number;
     warnings?: string[];
     user_id?: string;
@@ -314,8 +320,9 @@ class ReservesAuditLog {
     }
   }
   
-  private hashLite(obj: any): string {
-    const str = JSON.stringify(obj, Object.keys(obj).sort());
+  private hashLite(obj: unknown): string {
+    const objRecord = obj as Record<string, unknown>;
+    const str = JSON.stringify(objRecord, Object.keys(objRecord).sort());
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);

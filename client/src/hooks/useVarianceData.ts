@@ -32,7 +32,7 @@ export interface VarianceReport {
     significantVariances: number;
     criticalVariances: number;
   };
-  variances: any[];
+  variances: unknown[];
 }
 
 export interface AlertRule {
@@ -62,7 +62,7 @@ export interface Alert {
   severity: 'info' | 'warning' | 'critical' | 'urgent';
   category: 'performance' | 'risk' | 'operational' | 'compliance';
   message: string;
-  details: any;
+  details: Record<string, unknown>;
   status: 'active' | 'acknowledged' | 'resolved';
   triggeredAt: string;
   acknowledgedAt?: string;
@@ -103,13 +103,13 @@ export function useBaselines(
     queryKey: ['/api/funds', fundId, 'baselines', options],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (options.baselineType) searchParams['set']('baselineType', options.baselineType);
-      if (options.isDefault !== undefined) searchParams['set']('isDefault', options.isDefault.toString());
-      if (options.limit) searchParams['set']('limit', options.limit.toString());
+      if (options.baselineType) searchParams.set('baselineType', options.baselineType);
+      if (options.isDefault !== undefined) searchParams.set('isDefault', options.isDefault.toString());
+      if (options.limit) searchParams.set('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/baselines${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       const response = await apiRequest('GET', url);
-      return response.json();
+      return response.json() as Promise<{ success: boolean; data: Baseline[]; count: number }>;
     },
     enabled: !!fundId,
     staleTime: 60000, // 1 minute
@@ -124,7 +124,7 @@ export function useVarianceReports(fundId: number) {
     queryKey: ['/api/funds', fundId, 'variance-reports'],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/funds/${fundId}/variance-reports`);
-      return response.json();
+      return response.json() as Promise<{ success: boolean; data: VarianceReport[]; count: number }>;
     },
     enabled: !!fundId,
     staleTime: 60000, // 1 minute
@@ -161,9 +161,9 @@ export function useActiveAlerts(
     queryKey: ['/api/funds', fundId, 'alerts', options],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (options.severity) searchParams['set']('severity', options.severity.join(','));
-      if (options.category) searchParams['set']('category', options.category.join(','));
-      if (options.limit) searchParams['set']('limit', options.limit.toString());
+      if (options.severity) searchParams.set('severity', options.severity.join(','));
+      if (options.category) searchParams.set('category', options.category.join(','));
+      if (options.limit) searchParams.set('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/alerts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       const response = await apiRequest('GET', url);
@@ -217,7 +217,7 @@ export function useCreateBaseline() {
       });
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate baselines queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
@@ -243,7 +243,7 @@ export function useSetDefaultBaseline() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/baselines/${params.baselineId}/set-default`, {});
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
       });
@@ -268,7 +268,7 @@ export function useDeactivateBaseline() {
       const response = await apiRequest('DELETE', `/api/funds/${params.fundId}/baselines/${params.baselineId}`, {});
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
       });
@@ -297,7 +297,7 @@ export function useGenerateVarianceReport() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-reports`, params);
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-reports'],
       });
@@ -328,7 +328,7 @@ export function useCreateAlertRule() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/alert-rules`, params);
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'alerts'],
       });
@@ -356,7 +356,10 @@ export function useAcknowledgeAlert() {
       // Invalidate all alert queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds'],
-        predicate: (query: any) => query.queryKey.includes('alerts'),
+        predicate: (query) => {
+          const key = query.queryKey as unknown[];
+          return key.includes('alerts');
+        },
       });
     },
   });
@@ -382,7 +385,10 @@ export function useResolveAlert() {
       // Invalidate all alert queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds'],
-        predicate: (query: any) => query.queryKey.includes('alerts'),
+        predicate: (query) => {
+          const key = query.queryKey as unknown[];
+          return key.includes('alerts');
+        },
       });
     },
   });
@@ -403,7 +409,7 @@ export function usePerformVarianceAnalysis() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-analysis`, params);
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate all variance-related queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-reports'],

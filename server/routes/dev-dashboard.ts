@@ -93,11 +93,11 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
 
       if (recentHistory.length >= 3) {
         const recent = recentHistory.slice(-3);
-        const avg = recent.reduce((sum: number, entry: any) => sum + entry.count, 0) / recent.length;
+        const avg = recent.reduce((sum: number, entry: { timestamp: number; count: number }) => sum + entry.count, 0) / recent.length;
         if (errors.length < avg * 0.8) trend = 'improving';
         else if (errors.length > avg * 1.2) trend = 'degrading';
       }
-    } catch (e) {
+    } catch (e: unknown) {
       // Ignore history errors
     }
 
@@ -106,7 +106,7 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
       errors: errors.slice(0, 10), // Limit to top 10 errors
       trend
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       errorCount: -1,
       errors: [],
@@ -118,7 +118,7 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
 async function getTestMetrics(): Promise<DevHealthMetrics['tests']> {
   try {
     const { stdout } = await execAsync('npm run test:quick -- --reporter=json 2>/dev/null || echo "{"failed":true}"');
-    const testResult = JSON.parse(stdout.split('\n').find(line => line.startsWith('{')) || '{"failed":true}');
+    const testResult = JSON.parse(stdout.split('\n').find(line => line.startsWith('{')) || '{"failed":true}') as { failed?: boolean; testResults?: Array<{ numPassingTests: number; numFailingTests: number }> };
 
     let status: 'passing' | 'failing' | 'unknown' = 'unknown';
     let passCount = 0;
@@ -126,8 +126,8 @@ async function getTestMetrics(): Promise<DevHealthMetrics['tests']> {
 
     if (testResult.testResults) {
       const results = testResult.testResults;
-      passCount = results.reduce((sum: number, result: any) => sum + result.numPassingTests, 0);
-      failCount = results.reduce((sum: number, result: any) => sum + result.numFailingTests, 0);
+      passCount = results.reduce((sum: number, result) => sum + result.numPassingTests, 0);
+      failCount = results.reduce((sum: number, result) => sum + result.numFailingTests, 0);
       status = failCount === 0 ? 'passing' : 'failing';
     }
 
@@ -141,7 +141,7 @@ async function getTestMetrics(): Promise<DevHealthMetrics['tests']> {
         slowTests: []
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: 'unknown',
       passCount: 0,
@@ -164,14 +164,14 @@ async function getBuildMetrics(): Promise<DevHealthMetrics['build']> {
     try {
       const clientStats = await fs.stat(clientPath);
       clientSize = clientStats.size;
-    } catch (e) {
+    } catch (e: unknown) {
       // Client build not found
     }
 
     try {
       const serverStats = await fs.stat(serverPath);
       serverSize = serverStats.size;
-    } catch (e) {
+    } catch (e: unknown) {
       // Server build not found
     }
 
@@ -181,7 +181,7 @@ async function getBuildMetrics(): Promise<DevHealthMetrics['build']> {
       size: { client: clientSize, server: serverSize },
       warnings: 0
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: 'failed',
       duration: 0,
@@ -204,7 +204,7 @@ async function getMonteCarloMetrics(): Promise<DevHealthMetrics['monteCarlo']> {
       throughput: 100, // simulations per minute
       errorRate: 0.01
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: 'offline',
       avgLatency: 0,
@@ -225,7 +225,7 @@ async function getDatabaseMetrics(): Promise<DevHealthMetrics['database']> {
       latency,
       connectionCount: 1 // Placeholder
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: 'disconnected',
       latency: 0,
@@ -268,7 +268,7 @@ async function getGitMetrics(): Promise<DevHealthMetrics['git']> {
         timestamp: timestamp || new Date().toISOString()
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       branch: 'unknown',
       uncommittedChanges: 0,
@@ -317,7 +317,7 @@ router["get"]('/health', async (req: Request, res: Response) => {
       overall: calculateOverallHealth(metrics),
       metrics
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](500)["json"]({
       error: 'Failed to gather dev health metrics',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -330,7 +330,7 @@ router["post"]('/fix/typescript', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run check && npm run lint:fix');
     res["json"]({ success: true, message: 'TypeScript issues fixed' });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Fix failed'
@@ -342,7 +342,7 @@ router["post"]('/fix/tests', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run test:quick');
     res["json"]({ success: true, message: 'Tests executed' });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Tests failed'
@@ -354,7 +354,7 @@ router["post"]('/fix/build', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run build:fast');
     res["json"]({ success: true, message: 'Build completed' });
-  } catch (error) {
+  } catch (error: unknown) {
     res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Build failed'

@@ -17,7 +17,7 @@ export interface WasmExecutionOptions {
   enableProfiling?: boolean;
 }
 
-export interface WasmExecutionResult<T = any> {
+export interface WasmExecutionResult<T = unknown> {
   result: T;
   metadata: {
     seed: string;
@@ -35,7 +35,7 @@ export interface WasmExecutionResult<T = any> {
 export interface WasmExecutionError {
   code: 'TIMEOUT' | 'MEMORY_LIMIT' | 'NON_FINITE' | 'EXECUTION_ERROR';
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -61,18 +61,18 @@ export class WasmRunner extends EventEmitter {
   /**
    * Execute WASM module with resource limits
    */
-  async execute<T = any>(
+  async execute<T = unknown>(
     wasmPath: string,
     functionName: string,
-    args: any[],
+    args: unknown[],
     options: WasmExecutionOptions = {}
   ): Promise<WasmExecutionResult<T>> {
     const opts = { ...this.defaultOptions, ...options };
     const executionId = `exec-${++this.executionCount}-${Date.now()}`;
-    
+
     // Generate or use provided seed for determinism
     const seed = opts.seed || crypto.randomBytes(16).toString('hex');
-    
+
     const workerData = {
       wasmPath,
       functionName,
@@ -84,15 +84,15 @@ export class WasmRunner extends EventEmitter {
       enableProfiling: opts.enableProfiling
     };
 
-    return new Promise((resolve: any, reject: any) => {
+    return new Promise((resolve: (value: WasmExecutionResult<T>) => void, reject: (reason: WasmExecutionError) => void) => {
       // Create worker thread for isolated execution
       const worker = new Worker(
         path.join(__dirname, 'wasm-worker.js'),
         { workerData }
       );
 
-      this.workers['set'](executionId, worker);
-      
+      this.workers.set(executionId, worker);
+
       const startTime = Date.now();
       let timedOut = false;
       let memoryUsage = 0;
@@ -104,50 +104,50 @@ export class WasmRunner extends EventEmitter {
         timedOut = true;
         worker.terminate();
         this.workers.delete(executionId);
-        
+
         const error: WasmExecutionError = {
           code: 'TIMEOUT',
           message: `WASM execution exceeded timeout of ${opts.timeoutMs}ms`,
           details: { executionId, functionName, timeoutMs: opts.timeoutMs }
         };
-        
+
         this.emit('timeout', { executionId, functionName, duration: Date.now() - startTime });
         reject(error);
       }, opts.timeoutMs!);
 
       // Handle worker messages
-      worker['on']('message', (msg: any) => {
+      worker.on('message', (msg: { type: string; bytes?: number; value?: unknown; location?: string; result?: T; cpuTime?: number; gasUsed?: number }) => {
         if (msg.type === 'memory-usage') {
-          memoryUsage = msg.bytes;
-          if (msg.bytes > (opts.maxMemoryMB! * 1024 * 1024)) {
+          memoryUsage = msg.bytes ?? 0;
+          if (memoryUsage > (opts.maxMemoryMB! * 1024 * 1024)) {
             worker.terminate();
             clearTimeout(timeout);
             this.workers.delete(executionId);
-            
+
             const error: WasmExecutionError = {
               code: 'MEMORY_LIMIT',
-              message: `Memory limit exceeded: ${msg.bytes} bytes`,
+              message: `Memory limit exceeded: ${memoryUsage} bytes`,
               details: { executionId, limit: opts.maxMemoryMB! * 1024 * 1024 }
             };
-            
-            this.emit('memory-limit', { executionId, bytes: msg.bytes });
+
+            this.emit('memory-limit', { executionId, bytes: memoryUsage });
             reject(error);
           }
         } else if (msg.type === 'non-finite') {
           nonFiniteCount++;
-          warnings.push(`Non-finite value detected: ${msg.value} at ${msg.location}`);
-          
+          warnings.push(`Non-finite value detected: ${String(msg.value)} at ${msg.location ?? 'unknown'}`);
+
           if (opts.trapNonFinite) {
             worker.terminate();
             clearTimeout(timeout);
             this.workers.delete(executionId);
-            
+
             const error: WasmExecutionError = {
               code: 'NON_FINITE',
-              message: `Non-finite value trapped: ${msg.value}`,
+              message: `Non-finite value trapped: ${String(msg.value)}`,
               details: { executionId, value: msg.value, location: msg.location }
             };
-            
+
             this.emit('non-finite', { executionId, value: msg.value });
             reject(error);
           }
@@ -170,11 +170,11 @@ export class WasmRunner extends EventEmitter {
           this.workers.delete(executionId);
           
           // Update stats
-          this.totalCpuTime += msg.cpuTime || executionTime;
+          this.totalCpuTime += msg.cpuTime ?? executionTime;
           this.totalMemoryUsed += memoryUsage;
-          
+
           const result: WasmExecutionResult<T> = {
-            result: msg.result,
+            result: msg.result as T,
             metadata: {
               seed,
               engineVersion: opts.engineVersion!,
@@ -187,45 +187,45 @@ export class WasmRunner extends EventEmitter {
             },
             warnings
           };
-          
-          this.emit('execution-complete', { 
-            executionId, 
+
+          this.emit('execution-complete', {
+            executionId,
             duration: executionTime,
-            memoryUsed: memoryUsage 
+            memoryUsed: memoryUsage
           });
-          
+
           resolve(result);
         }
       });
 
       // Handle worker errors
-      worker['on']('error', (err: any) => {
+      worker.on('error', (err: Error) => {
         clearTimeout(timeout);
         worker.terminate();
         this.workers.delete(executionId);
-        
+
         const error: WasmExecutionError = {
           code: 'EXECUTION_ERROR',
           message: err.message,
-          details: { executionId, error: err }
+          details: { executionId, error: err.message }
         };
-        
+
         this.emit('execution-error', { executionId, error: err });
         reject(error);
       });
 
       // Handle worker exit
-      worker['on']('exit', (code: any) => {
+      worker.on('exit', (code: number) => {
         if (!timedOut && code !== 0) {
           clearTimeout(timeout);
           this.workers.delete(executionId);
-          
+
           const error: WasmExecutionError = {
             code: 'EXECUTION_ERROR',
             message: `Worker exited with code ${code}`,
             details: { executionId, exitCode: code }
           };
-          
+
           reject(error);
         }
       });
@@ -235,11 +235,11 @@ export class WasmRunner extends EventEmitter {
   /**
    * Execute multiple WASM functions with batch resource limits
    */
-  async executeBatch<T = any>(
+  async executeBatch<T = unknown>(
     executions: Array<{
       wasmPath: string;
       functionName: string;
-      args: any[];
+      args: unknown[];
       options?: WasmExecutionOptions;
     }>,
     batchOptions: {
@@ -281,13 +281,13 @@ export class WasmRunner extends EventEmitter {
         );
         
         executing.add(promise as Promise<WasmExecutionResult<T>>);
-        
+
         promise.then(
-          (result: any) => {
+          (result: WasmExecutionResult<T>) => {
             results.push(result);
             executing.delete(promise as Promise<WasmExecutionResult<T>>);
           },
-          (error: any) => {
+          (error: WasmExecutionError) => {
             executing.delete(promise as Promise<WasmExecutionResult<T>>);
             throw error;
           }
@@ -342,20 +342,20 @@ export class WasmRunner extends EventEmitter {
 export const wasmRunner = new WasmRunner();
 
 // Export helper functions
-export async function runWasmCalculation<T = any>(
+export async function runWasmCalculation<T = unknown>(
   wasmPath: string,
   functionName: string,
-  args: any[],
+  args: unknown[],
   options?: WasmExecutionOptions
 ): Promise<WasmExecutionResult<T>> {
   return wasmRunner.execute<T>(wasmPath, functionName, args, options);
 }
 
-export async function runWasmBatch<T = any>(
+export async function runWasmBatch<T = unknown>(
   executions: Array<{
     wasmPath: string;
     functionName: string;
-    args: any[];
+    args: unknown[];
     options?: WasmExecutionOptions;
   }>,
   batchOptions?: {

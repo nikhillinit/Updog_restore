@@ -222,7 +222,7 @@ export class EvaluatorOptimizer<T = string> {
         duration,
         error: `Max iterations (${this.config.maxIterations}) reached without passing evaluation`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 

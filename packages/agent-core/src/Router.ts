@@ -257,7 +257,7 @@ export class AIRouter {
   /**
    * Get alternative models for fallback
    */
-  private getAlternatives(primaryModel: AIModel, task: Task): AIModel[] {
+  private getAlternatives(primaryModel: AIModel, _task: Task): AIModel[] {
     const alternatives: Record<AIModel, AIModel[]> = {
       'claude-sonnet': ['claude-opus', 'gemini'],
       'claude-haiku': ['claude-sonnet', 'gemini'],

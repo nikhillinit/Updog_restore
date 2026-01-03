@@ -1,6 +1,6 @@
-import type { AgentExecutionContext } from '@agent-core/BaseAgent';
-import { BaseAgent } from '@agent-core/BaseAgent';
-import { withThinking } from '@agent-core/ThinkingMixin';
+import type { AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -104,7 +104,7 @@ export class BundleOptimizationAgent extends withThinking(BaseAgent)<BundleOptim
     this.logger.info('Building project for analysis');
     try {
       await execAsync('npm run build');
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Build failed, continuing with existing bundle', { error });
     }
   }
@@ -214,7 +214,7 @@ Suggest specific, actionable optimization strategies.`,
         thinking_blocks: strategy.thinking.length,
         cost: strategy.cost?.total_cost_usd
       });
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Extended thinking failed, using heuristic analysis', { error });
     }
 
@@ -307,13 +307,13 @@ Suggest specific, actionable optimization strategies.`,
             }
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.error('Failed to apply optimization', { optimization, error });
       }
     }
   }
 
-  protected getExecutionMetadata(input: BundleOptimizationInput): Record<string, any> {
+  protected getExecutionMetadata(input: BundleOptimizationInput): Record<string, unknown> {
     return {
       targetSizeKB: input.targetSizeKB,
       strategy: input.strategy || 'balanced',

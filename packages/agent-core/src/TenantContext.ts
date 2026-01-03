@@ -45,7 +45,7 @@ export interface TenantContext {
   permissions: TenantPermissions;
 
   /** Additional metadata */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -108,8 +108,7 @@ export class TenantContextProvider {
   static run<T>(context: Partial<TenantContext> & { tenantId: string }, fn: () => T): T {
     const fullContext = this.normalizeContext(context);
 
-    logger.debug({
-      msg: 'Setting tenant context',
+    logger.debug('Setting tenant context', {
       tenantId: fullContext.tenantId,
       userId: fullContext.userId,
       projectId: fullContext.projectId,
@@ -198,7 +197,7 @@ export class TenantContextProvider {
   static fromRequest(req: {
     headers?: Record<string, string | string[] | undefined>;
     user?: { id: string; organizationId?: string };
-    query?: Record<string, any>;
+    query?: Record<string, unknown>;
   }): TenantContext {
     // Extract from headers (x-tenant-id, x-user-id, x-project-id)
     const headers = req.headers ?? {};
@@ -211,7 +210,7 @@ export class TenantContextProvider {
     const organizationId = req.user?.organizationId;
 
     // Extract from query params (fallback)
-    const projectId = projectIdHeader ?? req.query?.projectId;
+    const projectId = projectIdHeader ?? (typeof req.query?.projectId === 'string' ? req.query.projectId : undefined);
 
     // Build composite tenant ID
     const tenantId = tenantIdHeader ?? (userId && projectId ? `${userId}:${projectId}` : userId ?? 'anonymous');

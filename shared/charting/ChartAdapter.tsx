@@ -129,7 +129,7 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
   
   const renderLines = () => {
     if (series && series.length > 0) {
-      return series.map((s: any, index: any) => (
+      return series.map((s: ChartSeries, index: number) => (
         <Line
           key={s.key}
           type={curve}
@@ -211,7 +211,7 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
 
   const renderAreas = () => {
     if (series && series.length > 0) {
-      return series.map((s: any, index: any) => (
+      return series.map((s: ChartSeries, index: number) => (
         <Area
           key={s.key}
           type={curve}
@@ -283,7 +283,7 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
 
   const renderBars = () => {
     if (series && series.length > 0) {
-      return series.map((s: any, index: any) => (
+      return series.map((s: ChartSeries, index: number) => (
         <Bar
           key={s.key}
           dataKey={s.key}
@@ -355,7 +355,7 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
 
   const renderScatters = () => {
     if (series && series.length > 0) {
-      return series.map((s: any, index: any) => (
+      return series.map((s: ChartSeries, index: number) => (
         <Scatter
           key={s.key}
           data={s.data || data}
@@ -437,10 +437,10 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
         dataKey={valueKey}
         nameKey={labelKey}
       >
-        {data.map((entry: any, index: any) => (
-          <Cell 
-            key={`cell-${index}`} 
-            fill={mergedConfig.colors[index % mergedConfig.colors.length]} 
+        {data.map((entry: ChartDataPoint, index: number) => (
+          <Cell
+            key={`cell-${index}`}
+            fill={mergedConfig.colors[index % mergedConfig.colors.length]}
           />
         ))}
       </Pie>
@@ -468,8 +468,8 @@ export interface MigrationOptions {
 }
 
 export const createMigrationWrapper = polymorphicForwardRef<'div', {
-  LegacyComponent: React.ComponentType<any>;
-  AdaptedComponent: React.ComponentType<any>;
+  LegacyComponent: React.ComponentType<Record<string, unknown>>;
+  AdaptedComponent: React.ComponentType<Record<string, unknown>>;
   componentName: string;
   options?: MigrationOptions;
 }>(function MigrationWrapper<T extends React.ElementType = 'div'>({
@@ -480,38 +480,39 @@ export const createMigrationWrapper = polymorphicForwardRef<'div', {
   as,
   ...props
 }: PolymorphicProps<T, {
-  LegacyComponent: React.ComponentType<any>;
-  AdaptedComponent: React.ComponentType<any>;
+  LegacyComponent: React.ComponentType<Record<string, unknown>>;
+  AdaptedComponent: React.ComponentType<Record<string, unknown>>;
   componentName: string;
   options?: MigrationOptions;
 }>, ref: React.ForwardedRef<Element>) {
-  const useAdapted = options.enableFeatureFlag 
+  const useAdapted = options.enableFeatureFlag
     ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
         ? (window.localStorage.getItem('use-adapted-charts') === 'true')
         : process.env['NODE_ENV'] === 'development')
     : true;
 
-  if (options.logMigrationEvents) {
-    React.useEffect(() => {
+  // Always call the hook, but make the logging conditional inside
+  React.useEffect(() => {
+    if (options.logMigrationEvents) {
       console.log(`Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`);
-    }, [useAdapted, componentName]);
-  }
+    }
+  }, [useAdapted, componentName, options.logMigrationEvents]);
 
   const Component = as || 'div';
 
   try {
     if (useAdapted) {
-      return <AdaptedComponent {...(props as any)} ref={ref} />;
+      return <AdaptedComponent {...(props as Record<string, unknown>)} ref={ref} />;
     }
   } catch (error) {
     if (options.fallbackToOriginal) {
       console.warn(`Chart Migration: ${componentName} adapted version failed, falling back to legacy`, error);
-      return <LegacyComponent {...(props as any)} ref={ref} />;
+      return <LegacyComponent {...(props as Record<string, unknown>)} ref={ref} />;
     }
     throw error;
   }
 
-  return <LegacyComponent {...(props as any)} ref={ref} />;
+  return <LegacyComponent {...(props as Record<string, unknown>)} ref={ref} />;
 });
 
 // Export unified chart components

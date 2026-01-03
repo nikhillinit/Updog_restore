@@ -9,7 +9,6 @@ import { z } from 'zod';
 import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
 import { db } from '../../db';
 import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners, type ReserveApproval, type ApprovalPartner } from '@shared/schemas/reserve-approvals.js';
-import { reserveDecisions } from '@shared/schema.js';
 import { eq, and, gte, isNull } from 'drizzle-orm';
 import { postToSlack } from '@shared/slack.js';
 import crypto from 'crypto';
@@ -46,7 +45,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       return res["status"](400)["json"]({ 
         error: 'validation_error', 
         issues: validation.error.issues 
-      } as any);
+      });
     }
 
     const { strategyId, action, strategyData, reason, impact } = validation.data;
@@ -72,7 +71,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       expiresAt,
       calculationHash,
       status: 'pending'
-    } as any).returning();
+    }).returning();
 
     if (!approval) {
       res["status"](500)["json"]({ error: 'Failed to create approval request' });
@@ -87,7 +86,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       details: { reason, impact },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
-    } as any);
+    });
     
     // Get list of partners to notify
     const partners = await db.select().from(approvalPartners).where(isNull(approvalPartners.deactivated));
@@ -102,13 +101,13 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Res
       requiredApprovals: 2,
       notifiedPartners: partners.length,
       message: 'Approval request created. Both partners must approve within 72 hours.'
-    } as any);
+    });
     
   } catch (error) {
     console.error('Error creating approval request:', error);
     res["status"](500)["json"]({ error: 'Failed to create approval request' });
   }
-}) as any);
+}));
 
 /**
  * GET /api/v1/reserve-approvals - List pending approvals
@@ -152,13 +151,13 @@ router['get']('/', (async (req: Request, res: Response) => {
     res["json"]({
       approvals: approvalsWithSignatures,
       total: approvalsWithSignatures.length
-    } as any);
+    });
     
   } catch (error) {
     console.error('Error fetching approvals:', error);
     res["status"](500)["json"]({ error: 'Failed to fetch approvals' });
   }
-}) as any);
+}));
 
 /**
  * GET /api/v1/reserve-approvals/:id - Get specific approval details
@@ -193,13 +192,13 @@ router['get']('/:id', (async (req: Request, res: Response) => {
       canSign: await canPartnerSign(req.user!.email, id),
       isExpired: approval.expiresAt < new Date(),
       isApproved: signatures.length >= 2
-    } as any);
+    });
     
   } catch (error) {
     console.error('Error fetching approval:', error);
     res["status"](500)["json"]({ error: 'Failed to fetch approval' });
   }
-}) as any);
+}));
 
 /**
  * POST /api/v1/reserve-approvals/:id/sign - Sign an approval
@@ -234,7 +233,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
     if (approval.expiresAt < new Date()) {
       // Mark as expired
       await db.update(reserveApprovals)
-        ['set']({ status: 'expired', updatedAt: new Date() } as any)
+        ['set']({ status: 'expired', updatedAt: new Date() })
         .where(eq(reserveApprovals.id, id));
       
       return res["status"](400)["json"]({ error: 'Approval has expired' });
@@ -284,7 +283,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
       sessionId: req.session?.id,
       twoFactorVerified: verificationCode ? new Date() : null,
       verificationCode: verificationCode ? crypto.createHash('sha256').update(verificationCode).digest('hex') : null
-    } as any);
+    });
     
     // Log the signing
     await db.insert(approvalAuditLog).values({
@@ -294,7 +293,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
       details: { verified2FA: !!verificationCode },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
-    } as any);
+    });
     
     // Check if this completes the approval (need 2 signatures)
     const signatureCount = await db.$count(approvalSignatures, eq(approvalSignatures.approvalId, id));
@@ -302,7 +301,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
     if (signatureCount >= 2) {
       // Mark as approved and execute
       await db.update(reserveApprovals)
-        ['set']({ status: 'approved', updatedAt: new Date() } as any)
+        ['set']({ status: 'approved', updatedAt: new Date() })
         .where(eq(reserveApprovals.id, id));
       
       await db.insert(approvalAuditLog).values({
@@ -311,7 +310,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
         actor: 'system',
         systemGenerated: new Date(),
         details: { signatureCount }
-      } as any);
+      });
       
       // TODO: Execute the actual reserve strategy change
       await executeReserveStrategyChange(approval);
@@ -321,21 +320,21 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
         message: 'Approval signed and executed',
         status: 'approved',
         executed: true
-      } as any);
+      });
     } else {
       res["json"]({
         success: true,
         message: 'Approval signed successfully',
         remainingApprovals: 2 - signatureCount,
         status: 'pending'
-      } as any);
+      });
     }
     
   } catch (error) {
     console.error('Error signing approval:', error);
     res["status"](500)["json"]({ error: 'Failed to sign approval' });
   }
-}) as any);
+}));
 
 /**
  * POST /api/v1/reserve-approvals/:id/reject - Reject an approval
@@ -360,7 +359,7 @@ router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res:
     
     // Update approval status
     await db.update(reserveApprovals)
-      ['set']({ status: 'rejected', updatedAt: new Date() } as any)
+      ['set']({ status: 'rejected', updatedAt: new Date() })
       .where(eq(reserveApprovals.id, id));
     
     // Log rejection
@@ -371,19 +370,19 @@ router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res:
       details: { reason },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent']
-    } as any);
+    });
 
     res["json"]({
       success: true,
       message: 'Approval rejected',
       rejectedBy: req.user!.email
-    } as any);
+    });
     
   } catch (error) {
     console.error('Error rejecting approval:', error);
     res["status"](500)["json"]({ error: 'Failed to reject approval' });
   }
-}) as any);
+}));
 
 // Helper functions
 
@@ -507,7 +506,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
       actor: 'system',
       details: { strategyId: approval.strategyId, affectedFunds },
       systemGenerated: new Date(),
-    } as any);
+    });
 
     switch (approval.action) {
       case 'create':
@@ -543,7 +542,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
         executedAt: new Date().toISOString(),
       },
       systemGenerated: new Date(),
-    } as any);
+    });
 
     console.log(`[executeReserveStrategyChange] Successfully executed strategy change for approval ${approval.id}`);
 
@@ -558,14 +557,14 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
         strategyId: approval.strategyId,
       },
       systemGenerated: new Date(),
-    } as any);
+    });
 
     // Update approval status to failed
     await db.update(reserveApprovals)
       ['set']({
         status: 'failed',
         updatedAt: new Date(),
-      } as any)
+      })
       .where(eq(reserveApprovals.id, approval.id));
 
     console.error(`[executeReserveStrategyChange] Failed to execute strategy change:`, error);

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -193,8 +188,8 @@ export default function PartialSalesPage() {
   // Summary calculations
   const totalOpportunities = filteredData.length;
   const attractiveOpportunities = filteredData.filter(item => item.impliedPremium <= 0).length;
-  const avgFundIRR = filteredData.reduce((sum: any, item: any) => sum + item.fundIRR, 0) / filteredData.length;
-  const totalMOICLoss = filteredData.reduce((sum: any, item: any) => 
+  const avgFundIRR = filteredData.reduce((sum, item) => sum + item.fundIRR, 0) / filteredData.length;
+  const totalMOICLoss = filteredData.reduce((sum, item) =>
     sum + (item.currentlyProjectedMOIC - item.newProjectedMOIC), 0
   );
 
@@ -259,7 +254,7 @@ export default function PartialSalesPage() {
                 <Input
                   type="number"
                   value={percentSold}
-                  onChange={(e: any) => setPercentSold(Number(e.target.value))}
+                  onChange={(e) => setPercentSold(Number(e.target.value))}
                   className="w-20"
                   min="1"
                   max="100"
@@ -273,7 +268,7 @@ export default function PartialSalesPage() {
                 <Input
                   type="number"
                   value={minimumHoldingPeriod}
-                  onChange={(e: any) => setMinimumHoldingPeriod(Number(e.target.value))}
+                  onChange={(e) => setMinimumHoldingPeriod(Number(e.target.value))}
                   className="w-20"
                   min="1"
                   max="60"
@@ -357,7 +352,7 @@ export default function PartialSalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((item: any, index: any) => (
+                {filteredData.map((item, index) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
                     <td className="p-3">
                       <div className="font-medium">{item.company}</div>
@@ -425,7 +420,7 @@ export default function PartialSalesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredData.slice(0, 5).map((item: any, index: any) => (
+              {filteredData.slice(0, 5).map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <div className="font-medium">{item.company}</div>

@@ -16,7 +16,7 @@ export interface Subtask {
   description: string;
   assignedWorker: AIModel;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  result?: any;
+  result?: unknown;
   error?: string;
   dependencies?: string[]; // IDs of subtasks that must complete first
 }
@@ -24,7 +24,7 @@ export interface Subtask {
 export interface WorkerResult {
   subtaskId: string;
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
   duration: number;
 }
@@ -91,7 +91,7 @@ export class Orchestrator {
    */
   async execute(options: {
     taskDescription: string;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
     workerFunction: WorkerFunction;
     predefinedSubtasks?: Omit<Subtask, 'id' | 'status'>[];
   }): Promise<{
@@ -162,7 +162,7 @@ export class Orchestrator {
    */
   private async decomposeTask(
     taskDescription: string,
-    context?: Record<string, any>
+    _context?: Record<string, unknown>
   ): Promise<Subtask[]> {
     // Simple heuristic-based decomposition
     // In production, this would call an AI to dynamically decompose
@@ -269,17 +269,21 @@ export class Orchestrator {
             const result = await this.executeWithRetry(subtask, workerFunction);
 
             if (result.success) {
+              // eslint-disable-next-line require-atomic-updates
               subtask.status = 'completed';
+              // eslint-disable-next-line require-atomic-updates
               subtask.result = result.data;
               completed.add(subtask.id);
             } else {
+              // eslint-disable-next-line require-atomic-updates
               subtask.status = 'failed';
+              // eslint-disable-next-line require-atomic-updates
               subtask.error = result.error;
             }
 
             this.subtasks.set(subtask.id, subtask);
             return result;
-          } catch (error) {
+          } catch (error: unknown) {
             subtask.status = 'failed';
             subtask.error = String(error);
             this.subtasks.set(subtask.id, subtask);
@@ -324,7 +328,7 @@ export class Orchestrator {
         lastError = result.error;
         this.logger.warn(`Subtask ${subtask.id} failed, retrying...`, { error: result.error });
 
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = String(error);
         this.logger.warn(`Subtask ${subtask.id} threw error, retrying...`, { error });
       }

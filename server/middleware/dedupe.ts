@@ -20,7 +20,7 @@ interface DedupeOptions {
 interface DedupedResponse {
   statusCode: number;
   headers: Record<string, string>;
-  body: any;
+  body: unknown;
   timestamp: number;
   requestCount: number;
 }
@@ -87,13 +87,13 @@ class MemoryDedupeStore {
 const memoryStore = new MemoryDedupeStore();
 
 // Track in-flight requests for singleflight pattern
-const inflightRequests = new Map<string, Promise<any>>();
+const inflightRequests = new Map<string, Promise<DedupedResponse>>();
 
 /**
  * Generate deduplication key from request
  */
 function generateDedupeKey(req: Request, options: DedupeOptions): string {
-  const parts: any = {
+  const parts: Record<string, unknown> = {
     method: req.method,
     path: req.path,
     query: req.query,
@@ -102,17 +102,17 @@ function generateDedupeKey(req: Request, options: DedupeOptions): string {
   
   // Include specific headers if configured
   if (options.includeHeaders && options.includeHeaders.length > 0) {
-    parts.headers = {};
+    parts.headers = {} as Record<string, unknown>;
     for (const header of options.includeHeaders) {
       const value = req.headers[header.toLowerCase()];
       if (value) {
-        parts.headers[header] = value;
+        (parts.headers as Record<string, unknown>)[header] = value;
       }
     }
   }
-  
+
   // Include user ID if authenticated
-  const userId = (req as any).user?.id;
+  const userId = (req as { user?: { id: string } }).user?.id;
   if (userId) {
     parts.userId = userId;
   }
@@ -140,9 +140,9 @@ async function storeResponse(
     if (redisClient) {
       await redisClient.setex(redisKey, ttl, JSON.stringify(response));
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[Dedupe] Failed to store in Redis:', error);
-    
+
     // Fallback to memory if enabled
     if (options.memoryFallback) {
       memoryStore['set'](key, response, ttl);
@@ -173,7 +173,7 @@ async function retrieveResponse(
         return response;
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('[Dedupe] Failed to retrieve from Redis:', error);
   }
   
@@ -239,42 +239,42 @@ export function dedupe(options: DedupeOptions = {}) {
     // Use singleflight pattern for in-flight deduplication
     if (config.useSingleflight && inflightRequests.has(key)) {
       console.log(`[Dedupe] Request in-flight, waiting for completion: ${key.substring(0, 8)}...`);
-      
+
       try {
-        const result = await inflightRequests['get'](key);
-        
+        const result = await inflightRequests['get'](key) as DedupedResponse;
+
         res['setHeader']('X-Request-Dedup', 'inflight');
         res['setHeader']('X-Dedup-Key', key.substring(0, 8));
-        
+
         return res["status"](result.statusCode)["json"](result.body);
-      } catch (error) {
+      } catch (error: unknown) {
         // If in-flight request failed, proceed normally
         console.error('[Dedupe] In-flight request failed:', error);
       }
     }
-    
+
     // Create promise for in-flight tracking
-    let resolveInflight: (value: any) => void;
-    let rejectInflight: (reason?: any) => void;
-    
+    let resolveInflight: (value: DedupedResponse) => void;
+    let rejectInflight: (reason?: Error) => void;
+
     if (config.useSingleflight) {
-      const inflightPromise = new Promise((resolve: any, reject: any) => {
+      const inflightPromise = new Promise<DedupedResponse>((resolve, reject) => {
         resolveInflight = resolve;
         rejectInflight = reject;
       });
-      
+
       inflightRequests['set'](key, inflightPromise);
     }
-    
+
     // Capture response for caching
     const originalSend = res.send;
     const originalJson = res.json;
-    
-    let responseBody: any;
+
+    let responseBody: unknown;
     let responseCaptured = false;
     
     // Override send method
-    res.send = function(body?: any) {
+    res.send = function(body?: unknown) {
       if (!responseCaptured && [200, 201].includes(res.statusCode)) {
         responseBody = body;
         responseCaptured = true;
@@ -288,10 +288,10 @@ export function dedupe(options: DedupeOptions = {}) {
           requestCount: 1,
         };
         
-        storeResponse(key, response, config).catch(error => {
+        storeResponse(key, response, config).catch((error: unknown) => {
           console.error('[Dedupe] Failed to cache response:', error);
         });
-        
+
         // Resolve in-flight promise
         if (config.useSingleflight) {
           resolveInflight!(response);
@@ -302,17 +302,17 @@ export function dedupe(options: DedupeOptions = {}) {
         rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
         inflightRequests.delete(key);
       }
-      
+
       res['setHeader']('X-Dedup-Key', key.substring(0, 8));
       return originalSend.call(this, body);
     };
-    
+
     // Override json method
-    res.json = function(body?: any) {
+    res.json = function(body?: unknown) {
       if (!responseCaptured && [200, 201].includes(res.statusCode)) {
         responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: DedupedResponse = {
           statusCode: res.statusCode,
@@ -321,8 +321,8 @@ export function dedupe(options: DedupeOptions = {}) {
           timestamp: Date.now(),
           requestCount: 1,
         };
-        
-        storeResponse(key, response, config).catch(error => {
+
+        storeResponse(key, response, config).catch((error: unknown) => {
           console.error('[Dedupe] Failed to cache response:', error);
         });
         

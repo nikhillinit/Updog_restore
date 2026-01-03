@@ -141,7 +141,7 @@ export class HealthMonitor {
       // Update metrics from Prometheus if available
       try {
         await this.updateMetricsFromPrometheus(health);
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn('Failed to update metrics from Prometheus', {
           agentName: health.agentName,
           error: error instanceof Error ? error.message : String(error),

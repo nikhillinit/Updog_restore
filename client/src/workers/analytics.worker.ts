@@ -3,8 +3,21 @@ import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledge
 import { PRNG } from '@shared/utils/prng';
 
 type WorkerType = 'xirr' | 'monte-carlo' | 'waterfall';
-interface WorkerRequest { id: string; type: WorkerType | 'cancel'; payload?: any; }
-interface WorkerResponse { id: string; result?: any; error?: string; progress?: number; }
+interface WorkerRequest {
+  id: string;
+  type: WorkerType | 'cancel';
+  payload?: {
+    cashFlows?: Array<{ date: string | Date; amount: number }>;
+    guess?: number;
+    config?: unknown;
+    contributions?: unknown;
+    exits?: unknown;
+    runs?: number;
+    chunkSize?: number;
+    volatility?: number;
+  };
+}
+interface WorkerResponse { id: string; result?: unknown; error?: string; progress?: number; }
 
 const CANCELLED = new Set<string>();
 
@@ -18,15 +31,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     if (type === 'xirr') {
       if (CANCELLED.has(id)) return;
+      if (!payload?.cashFlows) throw new Error('Missing cashFlows in xirr request');
       const res = xirrNewtonBisection(payload.cashFlows, payload.guess ?? 0.1);
-      if (!CANCELLED.has(id)) (self as any).postMessage({ id, result: res } as WorkerResponse);
+      if (!CANCELLED.has(id)) self.postMessage({ id, result: res } as WorkerResponse);
       return;
     }
 
     if (type === 'waterfall') {
       if (CANCELLED.has(id)) return;
+      if (!payload) throw new Error('Missing payload in waterfall request');
       const res = calculateAmericanWaterfallLedger(payload.config, payload.contributions, payload.exits);
-      if (!CANCELLED.has(id)) (self as any).postMessage({ id, result: res } as WorkerResponse);
+      if (!CANCELLED.has(id)) self.postMessage({ id, result: res } as WorkerResponse);
       return;
     }
 
@@ -34,6 +49,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       // Reset PRNG to ensure deterministic results across multiple simulations
       prng.reset(999);
 
+      if (!payload?.cashFlows) throw new Error('Missing cashFlows in monte-carlo request');
       const runs: number = payload.runs ?? 1000;
       const chunkSize = payload.chunkSize ?? 100;
       const flowsBase = payload.cashFlows as Array<{ date: string; amount: number }>;
@@ -54,15 +70,15 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           const r = xirrNewtonBisection(flows);
           if (r.converged && r.irr !== null) results.push(r.irr);
         }
-        (self as any).postMessage({ id, progress: Math.round(((c + 1) / chunks) * 100) } as WorkerResponse);
+        self.postMessage({ id, progress: Math.round(((c + 1) / chunks) * 100) } as WorkerResponse);
       }
-      results.sort((a: any, b: any) => a - b);
+      results.sort((a, b) => a - b);
       const q = (p: number) => results.length ? results[Math.max(0, Math.min(results.length - 1, Math.floor(p * (results.length - 1))))] : null;
-      const mean = results.length ? results.reduce((s: any, x: any) => s + x, 0) / results.length : null;
-      const variance = results.length ? results.reduce((s: any, x: any) => s + Math.pow(x - (mean as number), 2), 0) / results.length : null;
+      const mean = results.length ? results.reduce((s, x) => s + x, 0) / results.length : null;
+      const variance = results.length && mean !== null ? results.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / results.length : null;
 
       if (!CANCELLED.has(id)) {
-        (self as any).postMessage({
+        self.postMessage({
           id,
           result: {
             p10: q(0.10),
@@ -80,8 +96,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     }
 
     throw new Error(`Unknown worker type: ${type}`);
-  } catch (e: any) {
-    if (!CANCELLED.has(id)) (self as any).postMessage({ id, error: e?.message ?? 'Unknown error' } as WorkerResponse);
+  } catch (e) {
+    const error = e instanceof Error ? e.message : 'Unknown error';
+    if (!CANCELLED.has(id)) self.postMessage({ id, error } as WorkerResponse);
   } finally {
     CANCELLED.delete(id);
   }

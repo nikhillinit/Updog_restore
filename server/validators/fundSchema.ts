@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import type { z } from 'zod';
 import {
   InvestmentStrategySchema,
@@ -11,13 +6,20 @@ import {
   CompleteFundSetupSchema
 } from '@shared/types';
 
+// Type for the fund setup data
+type FundSetupData = z.infer<typeof CompleteFundSetupSchema>;
+type InvestmentStrategy = z.infer<typeof InvestmentStrategySchema>;
+type Allocation = { percentage: number };
+type Stage = { graduationRate: number; exitRate: number };
+type SectorProfile = { targetPercentage: number };
+
 // Enhanced Fund Schema with cross-field validation
 export const fundSchema = CompleteFundSetupSchema
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Allocation sum ≤ 100%
       const totalAllocation = data.investmentStrategy.allocations
-        .reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
+        .reduce((sum: number, alloc: Allocation) => sum + alloc.percentage, 0);
       return totalAllocation <= 100;
     },
     {
@@ -26,9 +28,9 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Each stage graduation + exit ≤ 100%
-      return data.investmentStrategy.stages.every((stage: any) => 
+      return data.investmentStrategy.stages.every((stage: Stage) =>
         (stage.graduationRate + stage.exitRate) <= 100
       );
     },
@@ -38,7 +40,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Last stage graduation rate must be 0
       const stages = data.investmentStrategy.stages;
       if (stages.length > 0) {
@@ -53,10 +55,10 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Sector profile sum ≤ 100%
       const totalSectorAllocation = data.investmentStrategy.sectorProfiles
-        .reduce((sum: any, sector: any) => sum + sector.targetPercentage, 0);
+        .reduce((sum: number, sector: SectorProfile) => sum + sector.targetPercentage, 0);
       return totalSectorAllocation <= 100;
     },
     {
@@ -65,7 +67,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: If exit recycling enabled, percentage must be > 0
       if (data.exitRecycling.enabled) {
         return data.exitRecycling.recyclePercentage > 0;
@@ -77,9 +79,9 @@ export const fundSchema = CompleteFundSetupSchema
       path: ["exitRecycling", "recyclePercentage"],
     }
   )
-  
+
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Fund life is required for closed-end funds
       return data.isEvergreen || !!data.lifeYears;
     },
@@ -89,7 +91,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: FundSetupData) => {
       // Validation Rule: Investment horizon cannot exceed fund life for closed-end funds
       if (!data.isEvergreen && data.lifeYears) {
         return data.investmentHorizonYears <= data.lifeYears;
@@ -105,8 +107,8 @@ export const fundSchema = CompleteFundSetupSchema
 // Individual schema exports for component-level validation
 export const investmentStrategySchema = InvestmentStrategySchema
   .refine(
-    (data: any) => {
-      const totalAllocation = data.allocations.reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
+    (data: InvestmentStrategy) => {
+      const totalAllocation = data.allocations.reduce((sum: number, alloc: Allocation) => sum + alloc.percentage, 0);
       return totalAllocation <= 100;
     },
     {
@@ -115,8 +117,8 @@ export const investmentStrategySchema = InvestmentStrategySchema
     }
   )
   .refine(
-    (data: any) => {
-      return data.stages.every((stage: any) => (stage.graduationRate + stage.exitRate) <= 100);
+    (data: InvestmentStrategy) => {
+      return data.stages.every((stage: Stage) => (stage.graduationRate + stage.exitRate) <= 100);
     },
     {
       message: "For each stage, graduation rate + exit rate cannot exceed 100%",
@@ -124,7 +126,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
     }
   )
   .refine(
-    (data: any) => {
+    (data: InvestmentStrategy) => {
       if (data.stages.length > 0) {
         const lastStage = data.stages[data.stages.length - 1];
         return lastStage?.graduationRate === 0;
@@ -137,8 +139,9 @@ export const investmentStrategySchema = InvestmentStrategySchema
     }
   );
 
+type ExitRecycling = z.infer<typeof ExitRecyclingSchema>;
 export const exitRecyclingSchema = ExitRecyclingSchema.refine(
-  (data: any) => {
+  (data: ExitRecycling) => {
     if (data.enabled) {
       return data.recyclePercentage > 0;
     }

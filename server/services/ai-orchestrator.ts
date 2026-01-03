@@ -199,11 +199,12 @@ async function withRetryAndTimeout<T>(
 
       clearTimeout(timeoutId);
       return result;
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      lastError = error as Error;
 
       // Don't retry on auth errors
-      if (error.message?.includes('API key') || error.message?.includes('401')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('API key') || errorMessage.includes('401')) {
         throw error;
       }
 
@@ -235,8 +236,9 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     // Configure tools (native memory tool)
     const tools: Anthropic.Tool[] = [];
     if (options?.enableMemory) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tools.push({
-        type: 'memory_20250818' as any, // Native memory tool
+        type: 'memory_20250818' as any, // Native memory tool (beta feature)
         name: 'memory',
       } as any);
     }
@@ -245,17 +247,18 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     const contextManagement = options?.enableContextClearing ? {
       edits: [
         {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           type: 'clear_tool_uses_20250919' as any,
           trigger: {
-            type: 'input_tokens' as any,
+            type: 'input_tokens' as unknown as 'input_tokens',
             value: 5000,
           },
           keep: {
-            type: 'tool_uses' as any,
+            type: 'tool_uses' as unknown as 'tool_uses',
             value: 3,
           },
           clear_at_least: {
-            type: 'input_tokens' as any,
+            type: 'input_tokens' as unknown as 'input_tokens',
             value: 3000,
           },
         },
@@ -268,17 +271,21 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
         tools: tools.length > 0 ? tools : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(contextManagement ? { context_management: contextManagement as any } : {}),
         // Opus 4.5: Set effort to 'high' for deep reasoning
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any),
       'claude'
     );
 
     const text = response.content
       .filter((c) => c.type === 'text')
-      .map((c) => (c as any).text)
+      .map((c) => (c as { type: 'text'; text: string }).text)
       .join('\n');
 
     const usage = {
@@ -294,10 +301,10 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
       cost_usd: estimateCost('claude', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'claude',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -336,10 +343,10 @@ async function askGPT(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gpt',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -379,10 +386,10 @@ async function askGemini(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gemini',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -421,10 +428,10 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'deepseek',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -715,7 +722,7 @@ export async function collaborativeSolve({
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 // Ollama support (optional - dynamic require)
-let __ollama__: any = null;
+let __ollama__: unknown = null;
 try {
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
@@ -772,7 +779,7 @@ const __userText = (messages: ChatMessage[]) =>
   messages.find(m => m.role === 'user')?.content ?? '';
 
 export const AIRouter = {
-  async call(providerId: string, messages: ChatMessage[], _opts?: any) {
+  async call(providerId: string, messages: ChatMessage[], _opts?: Record<string, unknown>) {
     const prompt = __userText(messages);
 
     if (providerId.startsWith('ollama:')) {

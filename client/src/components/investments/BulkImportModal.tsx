@@ -13,15 +13,15 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, Download, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface BulkImportModalProps {
-  onImportComplete: (investments: any[]) => Promise<void>;
+  onImportComplete: (investments: unknown[]) => Promise<void>;
   children?: React.ReactNode;
 }
 
 interface ImportResult {
   success: boolean;
   imported: number;
-  errors: Array<{ row: number; message: string; data?: any }>;
-  warnings: Array<{ row: number; message: string; data?: any }>;
+  errors: Array<{ row: number; message: string; data?: unknown }>;
+  warnings: Array<{ row: number; message: string; data?: unknown }>;
 }
 
 const CSV_TEMPLATE_HEADERS = [
@@ -74,7 +74,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'upload' | 'preview' | 'processing' | 'results'>('upload');
   const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<unknown[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
 
@@ -83,7 +83,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       CSV_TEMPLATE_HEADERS.join(','),
       ...SAMPLE_DATA.map(row =>
         CSV_TEMPLATE_HEADERS.map(header =>
-          `"${(row as any)[header] || ''}"`
+          `"${(row as Record<string, unknown>)[header] || ''}"`
         ).join(',')
       )
     ].join('\n');
@@ -97,7 +97,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     window.URL.revokeObjectURL(url);
   };
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = (text: string): unknown[] => {
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) return [];
 
@@ -106,7 +106,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     const headers = firstLine.split(',').map(h => h.replace(/"/g, '').trim());
     const data = lines.slice(1).map((line, index) => {
       const values = line.split(',').map(v => v.replace(/"/g, '').trim());
-      const row: any = { _rowNumber: index + 2 }; // +2 because of header and 0-indexing
+      const row = { _rowNumber: index + 2 }; // +2 because of header and 0-indexing
 
       headers.forEach((header, i) => {
         row[header] = values[i] || '';
@@ -118,9 +118,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     return data;
   };
 
-  const validateData = (data: any[]): { valid: any[]; errors: Array<{ row: number; message: string; data?: any }> } => {
-    const valid: any[] = [];
-    const errors: Array<{ row: number; message: string; data?: any }> = [];
+  const validateData = (data: unknown[]): { valid: unknown[]; errors: Array<{ row: number; message: string; data?: unknown }> } => {
+    const valid: unknown[] = [];
+    const errors: Array<{ row: number; message: string; data?: unknown }> = [];
 
     data.forEach((row) => {
       const rowErrors: string[] = [];

@@ -153,11 +153,11 @@ router["get"]('/funds/:fundId/portfolio-analysis',
         generated_at: new Date(),
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Portfolio analysis error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -200,13 +200,13 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       const scenarioData = scenario[0];
 
       // Fetch cases if requested
-      let mappedCases: any[] = [];
+      let mappedCases: Array<Record<string, unknown>> = [];
       if (include.includes('cases')) {
         const cases = await db.select()
           .from(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
-        mappedCases = cases.map((c: any) => ({
+        mappedCases = cases.map((c) => ({
           id: c.id,
           case_name: c.caseName,
           description: c.description ?? undefined,
@@ -259,11 +259,11 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["json"](response);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Get scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -307,11 +307,11 @@ router["post"]('/companies/:companyId/scenarios',
 
       res["status"](201)["json"](scenario[0]);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Create scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -365,8 +365,8 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       }
 
       // Validate probabilities
-      let cases = body.cases as any[];
-      const validation = validateProbabilities(cases as any);
+      let cases = body.cases as Array<Record<string, unknown>>;
+      const validation = validateProbabilities(cases as Array<{ probability: number }>);
 
       if (!validation.is_valid && !body.normalize) {
         return res["status"](400)["json"]({
@@ -381,27 +381,27 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       let normalized = false;
       const original_sum = validation.sum;
       if (body.normalize && !validation.is_valid) {
-        cases = normalizeProbabilities(cases as any);
+        cases = normalizeProbabilities(cases as Array<{ probability: number }>) as Array<Record<string, unknown>>;
         normalized = true;
       }
 
       // Delete existing cases and insert new ones (transaction)
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx) => {
         await tx.delete(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
         if (cases.length > 0) {
           await tx.insert(scenarioCases).values(
-            cases.map((c: any) => ({
+            cases.map((c) => ({
               scenarioId: scenarioId,
-              caseName: c.case_name,
-              description: c.description,
-              probability: String(c.probability),
-              investment: String(c.investment),
-              followOns: String(c.follow_ons),
-              exitProceeds: String(c.exit_proceeds),
-              exitValuation: String(c.exit_valuation),
-              monthsToExit: c.months_to_exit,
+              caseName: String(c.case_name || ''),
+              description: c.description as string | undefined,
+              probability: String(c.probability || 0),
+              investment: String(c.investment || 0),
+              followOns: String(c.follow_ons || 0),
+              exitProceeds: String(c.exit_proceeds || 0),
+              exitValuation: String(c.exit_valuation || 0),
+              monthsToExit: c.months_to_exit as number | undefined,
               ownershipAtExit: c.ownership_at_exit ? String(c.ownership_at_exit) : null,
             }))
           );
@@ -430,7 +430,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       });
 
       // Return updated data
-      const casesWithMOIC = addMOICToCases(cases as any);
+      const casesWithMOIC = addMOICToCases(cases as Array<Record<string, unknown>>);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
       res["json"]({
@@ -442,7 +442,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         original_sum: normalized ? original_sum : undefined,
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
@@ -454,7 +454,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -511,11 +511,11 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["status"](204)["send"]();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -576,11 +576,11 @@ router["post"]('/companies/:companyId/reserves/optimize',
         generated_at: new Date(),
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Reserves optimization error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }

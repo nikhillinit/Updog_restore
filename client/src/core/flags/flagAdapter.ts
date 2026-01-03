@@ -52,6 +52,7 @@ export function getInitialFlagStates(): Record<string, boolean> {
 
 /**
  * Check if a flag is enabled (respects dependencies)
+ * NOTE: This is a React Hook and must be called inside a component or custom hook
  */
 export function useFeatureFlag(flagKey: FlagKey): boolean {
   const flagStates = getInitialFlagStates();
@@ -60,14 +61,16 @@ export function useFeatureFlag(flagKey: FlagKey): boolean {
 
 /**
  * Simple ENV-based flags for starter kit components
- * Proxies to comprehensive system
+ * These are computed once at module load time (not reactive)
+ * For reactive flags in components, use useFeatureFlag() hook instead
  */
+const flagStates = getInitialFlagStates();
 export const FLAGS = {
-  NEW_IA: useFeatureFlag('enable_new_ia'),
-  ENABLE_SELECTOR_KPIS: useFeatureFlag('enable_kpi_selectors'),
-  ENABLE_MODELING_WIZARD: useFeatureFlag('enable_modeling_wizard'),
-  ENABLE_OPERATIONS_HUB: useFeatureFlag('enable_operations_hub'),
-  ENABLE_LP_REPORTING: useFeatureFlag('enable_lp_reporting'),
+  NEW_IA: isFlagEnabled('enable_new_ia', flagStates),
+  ENABLE_SELECTOR_KPIS: isFlagEnabled('enable_kpi_selectors', flagStates),
+  ENABLE_MODELING_WIZARD: isFlagEnabled('enable_modeling_wizard', flagStates),
+  ENABLE_OPERATIONS_HUB: isFlagEnabled('enable_operations_hub', flagStates),
+  ENABLE_LP_REPORTING: isFlagEnabled('enable_lp_reporting', flagStates),
 } as const;
 
 /**

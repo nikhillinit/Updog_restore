@@ -39,7 +39,7 @@ async function demoToolHandler() {
   });
 
   // Simulate Claude API response with tool_use
-  const mockResponse: any = {
+  const mockResponse: { content: Array<{ type: string; text?: string; name?: string; input?: unknown }> } = {
     content: [
       {
         type: 'text',
@@ -326,7 +326,7 @@ async function runAllDemos() {
     console.log(`\n${  '='.repeat(60)}`);
     console.log('✅ ALL DEMOS COMPLETED SUCCESSFULLY');
     console.log('='.repeat(60));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('\n❌ Demo failed:', error);
     process.exit(1);
   }

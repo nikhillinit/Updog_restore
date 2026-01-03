@@ -143,7 +143,7 @@ export class RepairRouter {
  * Manages parallel execution of specialized repair agents
  */
 export class MultiAgentFleet {
-  private agents: Map<string, BaseAgent<any, any>> = new Map();
+  private agents: Map<string, BaseAgent<unknown, unknown>> = new Map();
   private router = new RepairRouter();
   
   constructor() {
@@ -158,7 +158,7 @@ export class MultiAgentFleet {
         maxRetries: 2,
         timeout: 60000,
         ...config,
-      } as any));
+      }));
     }
   }
   
@@ -169,17 +169,17 @@ export class MultiAgentFleet {
     successful: number;
     failed: number;
     manual: number;
-    repairs: any[];
+    repairs: unknown[];
   }> {
     // Route failures to appropriate agents
     const plan = await this.router.route(failures);
     
     // Execute repairs in parallel
-    const repairPromises: Promise<any>[] = [];
-    
+    const repairPromises: Promise<{ type: string; result?: unknown; error?: unknown }>[] = [];
+
     for (const [type, agentFailures] of Object.entries(plan)) {
       if (type === 'manual' || agentFailures.length === 0) continue;
-      
+
       const agent = this.agents.get(type);
       if (agent) {
         repairPromises.push(
@@ -189,14 +189,14 @@ export class MultiAgentFleet {
         );
       }
     }
-    
+
     // Wait for all repairs to complete
     const results = await Promise.allSettled(repairPromises);
-    
+
     // Aggregate results
     let successful = 0;
     let failed = 0;
-    const repairs: any[] = [];
+    const repairs: unknown[] = [];
     
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -229,15 +229,15 @@ export class MultiAgentFleet {
    * Get agent statistics
    */
   getStats() {
-    const stats: Record<string, any> = {};
-    
+    const stats: Record<string, { name: string }> = {};
+
     for (const [type, agent] of this.agents) {
       stats[type] = {
         name: agent.name,
         // Add more stats as needed
       };
     }
-    
+
     return stats;
   }
 }

@@ -59,8 +59,8 @@ const AuditEventSchema = z.object({
   action: z.string().min(1).max(100),
   entityType: z.string().min(1).max(50),
   entityId: z.union([z.string(), z.number()]).optional(),
-  changes: z.any().optional(),
-  metadata: z.record(z.any()).optional(),
+  changes: z.unknown().optional(),
+  metadata: z.record(z.unknown()).optional(),
   ipAddress: z.string().ip().optional(),
   userAgent: z.string().max(500).optional(),
   correlationId: z.string().uuid().optional(),
@@ -89,8 +89,8 @@ const FinancialAuditSchema = z.object({
   previousValue: z.number().finite().optional(),
   newValue: z.number().finite().optional(),
   calculationMethod: z.string().max(100).optional(),
-  dataInputs: z.record(z.any()).optional(),
-  outputs: z.record(z.any()).optional(),
+  dataInputs: z.record(z.unknown()).optional(),
+  outputs: z.record(z.unknown()).optional(),
   complianceFlags: z.array(z.string()).optional()
 });
 
@@ -110,7 +110,7 @@ class AuditEncryption {
     return crypto.scryptSync(key, 'audit-salt', AuditEncryption.keyLength);
   }
 
-  static encrypt(data: any): { encrypted: string; iv: string; tag: string } {
+  static encrypt(data: unknown): { encrypted: string; iv: string; tag: string } {
     try {
       const key = this.getEncryptionKey();
       const iv = crypto.randomBytes(16);
@@ -133,7 +133,7 @@ class AuditEncryption {
     }
   }
 
-  static decrypt(encryptedData: { encrypted: string; iv: string; tag: string }): any {
+  static decrypt(encryptedData: { encrypted: string; iv: string; tag: string }): unknown {
     try {
       const key = this.getEncryptionKey();
       const iv = Buffer.from(encryptedData.iv, 'hex');
@@ -145,7 +145,7 @@ class AuditEncryption {
       let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
 
-      return JSON.parse(decrypted);
+      return JSON.parse(decrypted) as unknown;
     } catch (error) {
       securityLogger.error('Audit decryption failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw new Error('Failed to decrypt audit data');
@@ -153,19 +153,19 @@ class AuditEncryption {
   }
 }
 
-const sanitizeSensitiveData = (data: any, sensitiveFields: string[]): any => {
+const sanitizeSensitiveData = (data: unknown, sensitiveFields: string[]): unknown => {
   if (!data || typeof data !== 'object') return data;
 
   const sanitized = Array.isArray(data) ? [...data] : { ...data };
 
-  const sanitizeValue = (obj: any): any => {
+  const sanitizeValue = (obj: unknown): unknown => {
     if (!obj || typeof obj !== 'object') return obj;
 
     if (Array.isArray(obj)) {
       return obj.map(sanitizeValue);
     }
 
-    const result: any = {};
+    const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase();
       const isSensitive = sensitiveFields.some(field =>
@@ -186,7 +186,7 @@ const sanitizeSensitiveData = (data: any, sensitiveFields: string[]): any => {
   return sanitizeValue(sanitized);
 };
 
-const generateAuditHash = (data: any): string => {
+const generateAuditHash = (data: Record<string, unknown>): string => {
   const jsonString = JSON.stringify(data, Object.keys(data).sort());
   return crypto.createHash('sha256').update(jsonString).digest('hex');
 };
@@ -210,24 +210,24 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
 
     // Capture request data
     const startTime = Date.now();
-    const correlationId = (req as any).correlationId || crypto.randomUUID();
-    const userId = (req as any).user?.id;
-    const sessionId = (req as any).session?.id || req['get']('x-session-id');
+    const correlationId = (req as Record<string, unknown>).correlationId as string || crypto.randomUUID();
+    const userId = ((req as Record<string, unknown>).user as { id?: number } | undefined)?.id;
+    const sessionId = ((req as Record<string, unknown>).session as { id?: string } | undefined)?.id || req['get']('x-session-id');
 
     // Capture original response methods
     const originalJson = res.json;
     const originalSend = res.send;
-    let responseBody: any;
+    let responseBody: unknown;
     let responseSize = 0;
 
     // Override response methods to capture data
-    res.json = function(body: any) {
+    res.json = function(body: unknown) {
       responseBody = body;
       responseSize = JSON.stringify(body).length;
       return originalJson.call(this, body);
     };
 
-    res.send = function(body: any) {
+    res.send = function(body: unknown) {
       if (!responseBody) {
         responseBody = body;
         responseSize = typeof body === 'string' ? body.length : JSON.stringify(body).length;
@@ -247,7 +247,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
         const riskLevel = determineRiskLevel(req, res, executionTime);
 
         // Prepare audit data
-        const auditData: any = {
+        const auditData: Record<string, unknown> = {
           timestamp: new Date(),
           correlationId,
           userId: userId || null,
@@ -336,7 +336,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
     });
 
     // Add correlation ID to request for tracking
-    (req as any).correlationId = correlationId;
+    (req as Record<string, unknown>).correlationId = correlationId;
     next();
   };
 }
@@ -361,11 +361,11 @@ export function financialAuditMiddleware(req: Request, res: Response, next: Next
   }
 
   const startTime = Date.now();
-  const correlationId = (req as any).correlationId || crypto.randomUUID();
+  const correlationId = (req as Record<string, unknown>).correlationId as string || crypto.randomUUID();
 
   // Override response to capture financial operation results
   const originalJson = res.json;
-  res.json = function(body: any) {
+  res.json = function(body: unknown) {
     // Log financial operation
     setImmediate(async () => {
       try {
@@ -430,28 +430,28 @@ function extractEntityId(path: string): string | null {
   return null;
 }
 
-async function storeAuditRecord(auditData: any): Promise<void> {
+async function storeAuditRecord(auditData: Record<string, unknown>): Promise<void> {
   try {
     // Store in database
     await db.insert(auditLog).values({
-      userId: auditData.userId,
-      action: auditData.action,
-      entityType: auditData.entityType,
-      entityId: auditData.entityId?.toString(),
-      changes: auditData.encryptedData || {
+      userId: auditData.userId as number | null,
+      action: auditData.action as string,
+      entityType: auditData.entityType as string,
+      entityId: (auditData.entityId as string | number | null)?.toString(),
+      changes: (auditData.encryptedData as Record<string, unknown>) || {
         requestBody: auditData.requestBody,
         responseBody: auditData.responseBody,
         // Store execution metrics in JSON field (Decision 1)
         executionTimeMs: auditData.executionTimeMs,
         riskLevel: auditData.riskLevel,
       },
-      ipAddress: auditData.ipAddress,
-      userAgent: auditData.userAgent,
-      correlationId: auditData.correlationId,
-      sessionId: auditData.sessionId,
-      requestPath: auditData.requestPath,
-      httpMethod: auditData.httpMethod,
-      statusCode: auditData.statusCode,
+      ipAddress: auditData.ipAddress as string | null,
+      userAgent: auditData.userAgent as string | null,
+      correlationId: auditData.correlationId as string | null,
+      sessionId: auditData.sessionId as string | null,
+      requestPath: auditData.requestPath as string,
+      httpMethod: auditData.httpMethod as string,
+      statusCode: auditData.statusCode as number,
     });
   } catch (error) {
     // Log to file as fallback
@@ -465,25 +465,29 @@ async function storeAuditRecord(auditData: any): Promise<void> {
 async function logFinancialOperation(
   req: Request,
   res: Response,
-  responseBody: any,
+  responseBody: unknown,
   executionTime: number,
   correlationId: string
 ): Promise<void> {
   try {
-    const fundId = req.body?.fundId || req.params?.['fundId'] || responseBody?.fundId;
+    const reqBody = req.body as Record<string, unknown> | undefined;
+    const resBody = responseBody as Record<string, unknown> | undefined;
+    const params = req.params as Record<string, unknown> | undefined;
+
+    const fundId = reqBody?.fundId || params?.['fundId'] || resBody?.fundId;
     if (!fundId) return;
 
     const operation = determineFinancialOperation(req.path, req.method);
-    const amount = extractAmount(req.body, responseBody);
+    const amount = extractAmount(reqBody, resBody);
 
     const financialAudit = {
-      fundId: parseInt(fundId),
+      fundId: parseInt(fundId as string),
       operation,
       amount,
       dataInputs: sanitizeSensitiveData(req.body, defaultAuditConfig.sensitiveFields || []),
       outputs: sanitizeSensitiveData(responseBody, defaultAuditConfig.sensitiveFields || []),
-      calculationMethod: responseBody?.calculationMethod || req.body?.calculationMethod,
-      complianceFlags: validateCompliance(req.body, responseBody)
+      calculationMethod: (resBody?.calculationMethod || reqBody?.calculationMethod) as string | undefined,
+      complianceFlags: validateCompliance(reqBody, resBody)
     };
 
     const validation = FinancialAuditSchema.safeParse(financialAudit);
@@ -500,7 +504,7 @@ async function logFinancialOperation(
       fundId: validation.data.fundId,
       eventType: 'FINANCIAL_OPERATION',
       payload: validation.data,
-      userId: (req as any).user?.id,
+      userId: ((req as Record<string, unknown>).user as { id?: number } | undefined)?.id || null,
       correlationId,
       eventTime: new Date(),
       operation: validation.data.operation,
@@ -540,22 +544,22 @@ function determineFinancialOperation(path: string, method: string): string {
   return 'financial_operation';
 }
 
-function extractAmount(requestBody: any, responseBody: any): number | undefined {
+function extractAmount(requestBody: Record<string, unknown> | undefined, responseBody: Record<string, unknown> | undefined): number | undefined {
   const amountFields = ['amount', 'fundSize', 'investmentAmount', 'totalValue', 'value'];
 
   for (const field of amountFields) {
     if (requestBody?.[field] && typeof requestBody[field] === 'number') {
-      return requestBody[field];
+      return requestBody[field] as number;
     }
     if (responseBody?.[field] && typeof responseBody[field] === 'number') {
-      return responseBody[field];
+      return responseBody[field] as number;
     }
   }
 
   return undefined;
 }
 
-function validateCompliance(requestBody: any, responseBody: any): string[] {
+function validateCompliance(requestBody: Record<string, unknown> | undefined, responseBody: Record<string, unknown> | undefined): string[] {
   const flags: string[] = [];
 
   // Check for large amounts requiring additional approval
@@ -565,13 +569,15 @@ function validateCompliance(requestBody: any, responseBody: any): string[] {
   }
 
   // Check for high-risk calculations
-  if (responseBody?.riskMetrics?.probabilityOfLoss > 0.3) {
+  const riskMetrics = responseBody?.riskMetrics as { probabilityOfLoss?: number } | undefined;
+  if (riskMetrics?.probabilityOfLoss && riskMetrics.probabilityOfLoss > 0.3) {
     flags.push('HIGH_RISK_SCENARIO');
   }
 
   // Check for unusual market conditions
-  if (requestBody?.marketEnvironment?.scenario === 'bear' &&
-      responseBody?.irr?.statistics?.mean < -0.1) {
+  const marketEnv = requestBody?.marketEnvironment as { scenario?: string } | undefined;
+  const irrStats = (responseBody?.irr as { statistics?: { mean?: number } } | undefined)?.statistics;
+  if (marketEnv?.scenario === 'bear' && irrStats?.mean && irrStats.mean < -0.1) {
     flags.push('SEVERE_LOSS_SCENARIO');
   }
 
