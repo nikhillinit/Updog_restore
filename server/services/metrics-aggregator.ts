@@ -18,7 +18,7 @@ import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
-import { getFundAge, isConstructionPhase } from '@shared/lib/lifecycle-rules';
+import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
 import type { Fund } from '@shared/schema';
 
 interface CacheClient {
@@ -150,8 +150,8 @@ export class MetricsAggregator {
 
     try {
       // Fetch fund data
-      const fund = await storage.getFund(fundId);
-      if (!fund) {
+      const fundFromDb = await storage.getFund(fundId);
+      if (!fundFromDb) {
         throw this.createError(
           'INSUFFICIENT_DATA',
           `Fund ${fundId} not found`,
@@ -159,8 +159,24 @@ export class MetricsAggregator {
         );
       }
 
+      // Adapt fund to include optional fields with null defaults
+      const fund = {
+        ...fundFromDb,
+        establishmentDate: ('establishmentDate' in fundFromDb ? fundFromDb.establishmentDate : null) as string | null,
+        isActive: ('isActive' in fundFromDb ? fundFromDb.isActive : null) as boolean | null,
+      };
+
       // Fetch portfolio companies
-      const companies = await storage.getPortfolioCompanies(fundId);
+      const companiesFromDb = await storage.getPortfolioCompanies(fundId);
+
+      // Adapt companies to include optional fields with null defaults
+      // ProjectedMetricsCalculator expects these Pick fields
+      const companies = companiesFromDb.map(c => ({
+        ...c,
+        currentStage: ('currentStage' in c ? c.currentStage : null) as string | null,
+        investmentDate: ('investmentDate' in c ? c.investmentDate : null) as Date | null,
+        ownershipCurrentPct: ('ownershipCurrentPct' in c ? c.ownershipCurrentPct : null) as string | null,
+      }));
 
       // Fetch fund configuration
       const config = await this.getFundConfig(fundId);
@@ -184,7 +200,8 @@ export class MetricsAggregator {
         try {
           // Check if fund is in construction phase (no investments yet)
           const hasInvestments = companies.length > 0;
-          const fundAge = getFundAge(fund.establishmentDate || fund.createdAt);
+          const fundStartDate = fund.establishmentDate ?? fund.createdAt;
+          const fundAge: FundAge = fundStartDate ? getFundAge(fundStartDate) : { years: 0, months: 0, quarters: 0, totalMonths: 0 };
           const isConstruction = isConstructionPhase(fundAge, hasInvestments);
 
           if (isConstruction) {
@@ -303,7 +320,7 @@ export class MetricsAggregator {
   /**
    * Get fund configuration with defaults
    */
-  private async getFundConfig(fundId: number): Promise<{
+  private async getFundConfig(_fundId: number): Promise<{
     targetIRR: number;
     targetTVPI: number;
     targetDPI?: number;

@@ -642,11 +642,14 @@ export default function PortfolioConstructor() {
                         value={strategy.scenarios[activeScenario]?.marketEnvironment ?? 'normal'}
                         onValueChange={(value: string) => {
                           const updatedScenarios = [...strategy.scenarios];
-                          updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
-                            marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession'
-                          };
-                          updateStrategy('scenarios', updatedScenarios);
+                          const current = updatedScenarios[activeScenario];
+                          if (current) {
+                            updatedScenarios[activeScenario] = {
+                              ...current,
+                              marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession'
+                            };
+                            updateStrategy('scenarios', updatedScenarios);
+                          }
                         }}
                       >
                         <SelectTrigger>
@@ -667,11 +670,14 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.dealFlowMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
-                          updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
-                            dealFlowMultiplier: value ?? 1
-                          };
-                          updateStrategy('scenarios', updatedScenarios);
+                          const current = updatedScenarios[activeScenario];
+                          if (current) {
+                            updatedScenarios[activeScenario] = {
+                              ...current,
+                              dealFlowMultiplier: value ?? 1
+                            };
+                            updateStrategy('scenarios', updatedScenarios);
+                          }
                         }}
                         max={2.0}
                         min={0.5}
@@ -686,11 +692,14 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.valuationMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
-                          updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
-                            valuationMultiplier: value ?? 1
-                          };
-                          updateStrategy('scenarios', updatedScenarios);
+                          const current = updatedScenarios[activeScenario];
+                          if (current) {
+                            updatedScenarios[activeScenario] = {
+                              ...current,
+                              valuationMultiplier: value ?? 1
+                            };
+                            updateStrategy('scenarios', updatedScenarios);
+                          }
                         }}
                         max={2.0}
                         min={0.5}
@@ -705,11 +714,14 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.exitMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
-                          updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
-                            exitMultiplier: value ?? 1
-                          };
-                          updateStrategy('scenarios', updatedScenarios);
+                          const current = updatedScenarios[activeScenario];
+                          if (current) {
+                            updatedScenarios[activeScenario] = {
+                              ...current,
+                              exitMultiplier: value ?? 1
+                            };
+                            updateStrategy('scenarios', updatedScenarios);
+                          }
                         }}
                         max={2.0}
                         min={0.3}

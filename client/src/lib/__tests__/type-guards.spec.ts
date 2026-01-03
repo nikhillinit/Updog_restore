@@ -304,6 +304,8 @@ describe('Type Inference Tests', () => {
 
     // Should be string[], not (string | null)[]
     expect(defined).toEqual(['a', 'b']);
-    expect(defined[0].length).toBe(1); // Should not need null check
+    const first = defined[0];
+    expect(first).toBeDefined();
+    expect(first?.length).toBe(1); // Safe access with optional chaining
   });
 });

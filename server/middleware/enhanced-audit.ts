@@ -432,7 +432,7 @@ function extractEntityId(path: string): string | null {
 
 async function storeAuditRecord(auditData: any): Promise<void> {
   try {
-    // Store in database
+    // Store in database - metadata is included in the changes field (jsonb)
     await db.insert(auditLog).values({
       userId: auditData.userId,
       action: auditData.action,
@@ -441,7 +441,14 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       changes: auditData.encryptedData || {
         requestBody: auditData.requestBody,
         responseBody: auditData.responseBody,
-        metadata: auditData.metadata
+        metadata: auditData.metadata,
+        // Additional execution metadata
+        executionTimeMs: auditData.executionTimeMs,
+        riskLevel: auditData.riskLevel,
+        requestSize: auditData.requestSize,
+        responseSize: auditData.responseSize,
+        integrityHash: auditData.integrityHash,
+        encrypted: !!auditData.encryptedData
       },
       ipAddress: auditData.ipAddress,
       userAgent: auditData.userAgent,
@@ -450,14 +457,6 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       requestPath: auditData.requestPath,
       httpMethod: auditData.httpMethod,
       statusCode: auditData.statusCode,
-      metadata: {
-        executionTimeMs: auditData.executionTimeMs,
-        riskLevel: auditData.riskLevel,
-        requestSize: auditData.requestSize,
-        responseSize: auditData.responseSize,
-        integrityHash: auditData.integrityHash,
-        encrypted: !!auditData.encryptedData
-      }
     });
   } catch (error) {
     // Log to file as fallback
