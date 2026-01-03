@@ -23,8 +23,22 @@ const redisConfig = {
   lazyConnect: true,
 };
 
+// Redis client interface
+interface RedisClient {
+  get: (key: string) => Promise<string | null>;
+  set: (key: string, value: string | number | Buffer) => Promise<unknown>;
+  setex: (key: string, ttl: number, value: string | number | Buffer) => Promise<unknown>;
+  del: (key: string) => Promise<number>;
+  incr: (key: string) => Promise<number>;
+  expire: (key: string, seconds: number) => Promise<number | boolean>;
+  ping: () => Promise<string>;
+  quit: () => Promise<void>;
+  on: (event: string, listener: (...args: unknown[]) => void) => void;
+  status?: () => AsyncIterable<{ type: string }>;
+}
+
 // Create Redis client using typed factory (skip in memory mode)
-let redis: any;
+let redis: RedisClient;
 if (process.env['REDIS_URL'] === 'memory://') {
   console.log('[Redis Circuit] Memory mode detected, skipping Redis client creation');
   // Create a no-op Redis client stub for memory mode
@@ -40,27 +54,29 @@ if (process.env['REDIS_URL'] === 'memory://') {
     on: () => {},
   };
 } else {
-  redis = createCacheFromEnv();
+  redis = createCacheFromEnv() as RedisClient;
 }
 
 // Redis event handlers for monitoring
-redis['on']('connect', () => {
+redis.on('connect', () => {
   console.log('[Redis] Connected to Redis server');
 });
 
-redis['on']('ready', () => {
+redis.on('ready', () => {
   console.log('[Redis] Redis client ready');
 });
 
-redis['on']('error', (err: any) => {
+redis.on('error', (...args: unknown[]) => {
+  const err = args[0] as Error;
   console.error('[Redis] Redis client error:', err.message);
 });
 
-redis['on']('close', () => {
+redis.on('close', () => {
   console.log('[Redis] Redis connection closed');
 });
 
-redis['on']('reconnecting', (delay: number) => {
+redis.on('reconnecting', (...args: unknown[]) => {
+  const delay = args[0] as number;
   console.log(`[Redis] Reconnecting in ${delay}ms`);
 });
 
@@ -76,7 +92,7 @@ const redisBreakerConfig = {
 // Create circuit breaker for Redis operations
 // Note: The CircuitBreaker constructor requires options, operation, and fallback
 // But we'll pass operations dynamically in each method call
-const redisBreaker = new CircuitBreaker<any>(
+const redisBreaker = new CircuitBreaker<unknown>(
   redisBreakerConfig,
   async () => { throw new Error('Operation not provided'); },
   async () => { throw new Error('Fallback not provided'); }
@@ -89,10 +105,10 @@ breakerRegistry.register('redis', redisBreaker);
  * In-memory fallback cache for when Redis is unavailable
  */
 class MemoryCache {
-  private cache = new Map<string, { value: any; expiry?: number }>();
+  private cache = new Map<string, { value: string | number | Buffer; expiry?: number }>();
   private readonly maxSize = 1000;
-  
-  set(key: string, value: any, ttl?: number): void {
+
+  set(key: string, value: string | number | Buffer, ttl?: number): void {
     // Evict oldest entries if cache is full
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
@@ -102,33 +118,33 @@ class MemoryCache {
     }
 
     const expiry = ttl ? Date.now() + (ttl * 1000) : undefined;
-    this.cache['set'](key, { value, ...(expiry && { expiry }) });
+    this.cache.set(key, { value, ...(expiry && { expiry }) });
   }
-  
-  get(key: string): any | null {
-    const entry = this.cache['get'](key);
-    
+
+  get(key: string): string | number | Buffer | null {
+    const entry = this.cache.get(key);
+
     if (!entry) {
       return null;
     }
-    
+
     // Check expiry
     if (entry.expiry && Date.now() > entry.expiry) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return entry.value;
   }
-  
+
   del(key: string): void {
     this.cache.delete(key);
   }
-  
+
   clear(): void {
     this.cache.clear();
   }
-  
+
   size(): number {
     return this.cache.size;
   }
@@ -176,7 +192,7 @@ export function getCacheMetrics() {
   const hits = cacheMetrics.filter(m => m.hit).length;
   const errors = cacheMetrics.filter(m => m.error).length;
   const fallbacks = cacheMetrics.filter(m => m.fallback).length;
-  const avgDuration = cacheMetrics.reduce((sum: any, m: any) => sum + m.duration, 0) / totalOps || 0;
+  const avgDuration = cacheMetrics.reduce((sum, m) => sum + m.duration, 0) / totalOps || 0;
   
   return {
     totalOps,
@@ -201,37 +217,37 @@ export async function get(key: string): Promise<string | null> {
   try {
     // Skip circuit breaker if disabled
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
-      const value = await redis['get'](key);
+      const value = await redis.get(key);
       hit = value !== null;
       return value;
     }
-    
+
     // Try Redis with circuit breaker
     const value = await redisBreaker.run(
       async () => {
-        const result = await redis['get'](key);
+        const result = await redis.get(key);
         hit = result !== null;
         return result;
       },
       async () => {
         // Fallback to memory cache
-        const cachedValue = memoryCache['get'](key);
+        const cachedValue = memoryCache.get(key);
         hit = cachedValue !== null;
-        return cachedValue;
+        return typeof cachedValue === 'string' ? cachedValue : null;
       }
     );
-    
-    return value;
+
+    return typeof value === 'string' ? value : null;
   } catch (err) {
     error = err as Error;
-    
+
     // Fallback to memory cache
     console.warn(`[Redis] Falling back to memory cache for key: ${key}`);
-    const cachedValue = memoryCache['get'](key);
+    const cachedValue = memoryCache.get(key);
     hit = cachedValue !== null;
     fallback = true;
-    
-    return cachedValue;
+
+    return typeof cachedValue === 'string' ? cachedValue : null;
   } finally {
     recordMetrics({
       operation: 'get',
@@ -258,30 +274,30 @@ export async function set(
   
   try {
     // Always update memory cache as backup
-    memoryCache['set'](key, value, ttl);
-    
+    memoryCache.set(key, value, ttl);
+
     // Skip circuit breaker if disabled
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
       if (ttl) {
-        await redis['setex'](key, ttl, value);
+        await redis.setex(key, ttl, value);
       } else {
-        await redis['set'](key, value);
+        await redis.set(key, value);
       }
       return;
     }
-    
+
     // Try Redis with circuit breaker
     await redisBreaker.run(
       async () => {
         if (ttl) {
-          await redis['setex'](key, ttl, value);
+          await redis.setex(key, ttl, value);
         } else {
-          await redis['set'](key, value);
+          await redis.set(key, value);
         }
       },
       async () => {
         // Fallback to memory cache
-        memoryCache['set'](key, value, ttl);
+        memoryCache.set(key, value, ttl);
       }
     );
   } catch (err) {
@@ -310,16 +326,16 @@ export async function del(key: string): Promise<void> {
   
   try {
     // Always delete from memory cache
-    memoryCache['del'](key);
-    
+    memoryCache.del(key);
+
     // Skip circuit breaker if disabled
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
-      await redis['del'](key);
+      await redis.del(key);
       return;
     }
-    
+
     // Try Redis with circuit breaker
-    await redisBreaker.run(async () => redis['del'](key), async () => {
+    await redisBreaker.run(async () => redis.del(key), async () => {
       // Memory cache already cleared, so operation succeeds
       console.warn(`[Redis] Failed to delete from Redis: ${key}`);
       return 0;
@@ -368,14 +384,15 @@ export async function setJSON<T>(key: string, value: T, ttl?: number): Promise<v
 export async function incr(key: string): Promise<number> {
   try {
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
-      return await redis['incr'](key);
+      return await redis.incr(key);
     }
-    
-    return await redisBreaker.run(async () => redis['incr'](key), async () => {
+
+    const result = await redisBreaker.run(async () => redis.incr(key), async () => {
       console.error(`[Redis] Failed to increment ${key}`);
       // Return 0 as fallback
       return 0;
     });
+    return typeof result === 'number' ? result : 0;
   } catch (error) {
     console.error(`[Redis] Failed to increment ${key}:`, error);
     // Return 0 as fallback
@@ -389,13 +406,14 @@ export async function incr(key: string): Promise<number> {
 export async function expire(key: string, seconds: number): Promise<boolean> {
   try {
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
-      return Boolean(await redis['expire'](key, seconds));
+      return Boolean(await redis.expire(key, seconds));
     }
-    
-    return await redisBreaker.run(
-      async () => Boolean(await redis['expire'](key, seconds)),
+
+    const result = await redisBreaker.run(
+      async () => Boolean(await redis.expire(key, seconds)),
       async () => false // Fallback: return false on circuit breaker open
     );
+    return typeof result === 'boolean' ? result : false;
   } catch (error) {
     console.error(`[Redis] Failed to set expiry for ${key}:`, error);
     return false;
@@ -407,9 +425,9 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
  */
 export async function healthCheck(): Promise<{ healthy: boolean; latency?: number; error?: string }> {
   const start = Date.now();
-  
+
   try {
-    await redis['ping']();
+    await redis.ping();
     return {
       healthy: true,
       latency: Date.now() - start,
@@ -435,7 +453,7 @@ export function clearMemoryCache(): void {
  * Close Redis connection
  */
 export async function closeRedis(): Promise<void> {
-  await redis['quit']();
+  await redis.quit();
   console.log('[Redis] Connection closed');
 }
 

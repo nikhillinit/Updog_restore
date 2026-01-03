@@ -58,6 +58,7 @@ async function demo() {
 
     try {
       // Access the private evaluatorOptimizerLoop method for demo
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (agent as any).evaluatorOptimizerLoop(failure, input);
 
       console.log(`✨ Results after ${result.iterations} iteration(s):`);
@@ -74,7 +75,7 @@ async function demo() {
       console.log(`      ${result.evaluation.criteria.noRegressions ? '✅' : '❌'} No Regressions`);
       console.log(`      ${result.evaluation.criteria.followsConventions ? '✅' : '❌'} Follows Conventions`);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(`   ❌ Error during repair: ${error}`);
     }
   }

@@ -324,7 +324,7 @@ export async function generateCommentary(input: CommentaryInput): Promise<Commen
     portfolio_activity: generatePortfolioActivity,
     market_outlook: generateMarketOutlook,
     looking_ahead: generateLookingAhead,
-    operational_updates: (inp) => ({
+    operational_updates: (_inp) => ({
       sectionType: 'operational_updates',
       title: 'Operational Updates',
       content: `Fund operations continue smoothly with regular LP communications and transparent reporting.`,

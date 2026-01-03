@@ -40,11 +40,11 @@ class TestRepairAgentWithThinking extends withThinking(BaseAgent)<TestFailure, R
     });
   }
 
-  protected async run(input: TestFailure): Promise<RepairStrategy> {
+  protected async performOperation(input: TestFailure, _context: unknown): Promise<RepairStrategy> {
     try {
       // Step 1: Assess complexity and decide thinking depth
       const taskDescription = `${input.error}\n${input.stackTrace}`;
-      const depth = await this.decideThinkingDepth(taskDescription);
+      const depth: 'quick' | 'deep' | 'skip' = await this.decideThinkingDepth(taskDescription);
 
       if (depth === 'skip') {
         // Simple failure, use pattern matching
@@ -82,11 +82,13 @@ class TestRepairAgentWithThinking extends withThinking(BaseAgent)<TestFailure, R
         confidence: this.calculateConfidence(analysis.thinking),
         cost: analysis.cost?.total_cost_usd || 0
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // CRITICAL: Always have a fallback when thinking fails
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : 'Error';
       this.logger.error('Extended thinking failed, falling back to simple repair', {
-        error: error.message,
-        error_name: error.name
+        error: errorMessage,
+        error_name: errorName
       });
       return this.simpleRepair(input);
     }
@@ -176,7 +178,7 @@ class CodeReviewerWithThinking extends withThinking(BaseAgent)<CodeSubmission, C
     });
   }
 
-  protected async run(input: CodeSubmission): Promise<CodeReview> {
+  protected async performOperation(input: CodeSubmission, _context: unknown): Promise<CodeReview> {
     try {
       // Check if thinking is available
       const available = await this.isThinkingAvailable();
@@ -222,11 +224,13 @@ class CodeReviewerWithThinking extends withThinking(BaseAgent)<CodeSubmission, C
         reasoning: review.thinking,
         thinkingCost: review.cost?.total_cost_usd || 0
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // CRITICAL: Always have a fallback for production resilience
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : 'Error';
       this.logger.error('Code review with thinking failed, using simple review', {
-        error: error.message,
-        error_name: error.name
+        error: errorMessage,
+        error_name: errorName
       });
       return this.simpleReview(input);
     }
@@ -348,8 +352,9 @@ async function runThinkingIntegrationDemo() {
       console.log(`   Cost: $${result.data.cost.toFixed(4)}`);
       console.log(`   Thinking blocks: ${result.data.reasoning.length}`);
     }
-  } catch (error: any) {
-    console.error('❌ Test repair failed:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Test repair failed:', errorMessage);
   }
 
   // Example 2: Code Reviewer
@@ -384,8 +389,9 @@ async function runThinkingIntegrationDemo() {
       console.log(`   Thinking cost: $${result.data.thinkingCost.toFixed(4)}`);
       console.log(`   Reasoning depth: ${result.data.reasoning.length} thinking blocks`);
     }
-  } catch (error: any) {
-    console.error('❌ Code review failed:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Code review failed:', errorMessage);
   }
 
   // Budget summary

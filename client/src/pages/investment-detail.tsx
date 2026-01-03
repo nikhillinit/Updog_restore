@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute , Link } from "wouter";
@@ -73,7 +68,7 @@ export default function InvestmentDetail() {
   const [showRoundDialog, setShowRoundDialog] = useState(false);
   const [showCaseDialog, setShowCaseDialog] = useState(false);
   const [showLiqPrefsDialog, setShowLiqPrefsDialog] = useState(false);
-  const [selectedPerformanceCase, setSelectedPerformanceCase] = useState<any>(null);
+  const [selectedPerformanceCase, setSelectedPerformanceCase] = useState<Record<string, unknown> | null>(null);
   const [showCapTableCalculator, setShowCapTableCalculator] = useState(false);
 
   const { data: investment, isLoading } = useQuery<Investment>({
@@ -258,7 +253,7 @@ export default function InvestmentDetail() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...roundForm}>
-                  <form onSubmit={roundForm.handleSubmit((data: any) => addRoundMutation.mutate(data))} className="space-y-4">
+                  <form onSubmit={roundForm.handleSubmit((data) => addRoundMutation.mutate(data))} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={roundForm.control}
@@ -409,7 +404,7 @@ export default function InvestmentDetail() {
 
           <div className="space-y-4">
             {investment.rounds && investment.rounds.length > 0 ? (
-              investment.rounds.map((round: any) => (
+              investment.rounds.map((round) => (
                 <Card key={round.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -538,7 +533,7 @@ export default function InvestmentDetail() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...caseForm}>
-                  <form onSubmit={caseForm.handleSubmit((data: any) => addCaseMutation.mutate(data))} className="space-y-4">
+                  <form onSubmit={caseForm.handleSubmit((data) => addCaseMutation.mutate(data))} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={caseForm.control}
@@ -631,7 +626,7 @@ export default function InvestmentDetail() {
 
           <div className="space-y-4">
             {investment.performanceCases && investment.performanceCases.length > 0 ? (
-              investment.performanceCases.map((performanceCase: any) => (
+              investment.performanceCases.map((performanceCase) => (
                 <Card key={performanceCase.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">

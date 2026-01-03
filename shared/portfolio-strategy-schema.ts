@@ -19,7 +19,7 @@ export const CheckSizeConfigSchema = z.object({
   target: z.number().positive('Target check size must be positive'),
   max: z.number().positive('Maximum check size must be positive')
 }).refine(
-  (data: any) => data.min <= data.target && data.target <= data.max,
+  (data) => data.min <= data.target && data.target <= data.max,
   {
     message: "Check sizes must follow min ≤ target ≤ max",
     path: ["checkSizes"]
@@ -73,7 +73,7 @@ export const PortfolioStrategySchema = z.object({
 
   scenarios: z.array(ScenarioConfigSchema).min(1, 'At least one scenario is required')
 }).refine(
-  (data: any) => {
+  (data) => {
     // Ensure fund size aliases are consistent
     return Math.abs(data.fundSize - data.totalFundSize) < 0.01;
   },
@@ -82,7 +82,7 @@ export const PortfolioStrategySchema = z.object({
     path: ["totalFundSize"]
   }
 ).refine(
-  (data: any) => {
+  (data) => {
     // Ensure reserve percentage and ratio are consistent
     const expectedRatio = data.reservePercentage / 100;
     return Math.abs(data.reserveRatio - expectedRatio) < 0.001;
@@ -92,11 +92,11 @@ export const PortfolioStrategySchema = z.object({
     path: ["reserveRatio"]
   }
 ).refine(
-  (data: any) => {
+  (data) => {
     // Validate allocations sum to approximately 1.0
-    const sectorSum = Object.values(data.sectorAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
-    const stageSum = Object.values(data.stageAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
-    const geoSum = Object.values(data.geographicAllocation).reduce((sum: any, val: any) => sum + val, 0) as number;
+    const sectorSum = Object.values(data.sectorAllocation).reduce((sum, val) => sum + val, 0) as number;
+    const stageSum = Object.values(data.stageAllocation).reduce((sum, val) => sum + val, 0) as number;
+    const geoSum = Object.values(data.geographicAllocation).reduce((sum, val) => sum + val, 0) as number;
 
     return Math.abs(sectorSum - 1.0) < 0.01 &&
            Math.abs(stageSum - 1.0) < 0.01 &&
@@ -204,7 +204,7 @@ export const updatePortfolioStrategy = (
 export interface LegacyPortfolioStrategy {
   fundSize?: number;
   reservePercentage?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const migrateLegacyStrategy = (legacy: LegacyPortfolioStrategy): PortfolioStrategy => {

@@ -32,7 +32,7 @@ export class InMemoryAdapter implements CacheAdapter {
   private store = new Map<string, CacheItem<unknown>>();
   private sets = new Map<string, Set<string>>();
 
-  constructor(config?: Partial<CacheAdapterConfig>) {
+  constructor(_config?: Partial<CacheAdapterConfig>) {
     // Config ignored for in-memory adapter
   }
 

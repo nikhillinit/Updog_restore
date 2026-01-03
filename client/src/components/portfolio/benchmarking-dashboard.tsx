@@ -37,7 +37,6 @@ import {
   Info
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { getChartColor } from '@/lib/chart-theme';
 
 // Mock data - in real app, this would come from API
 const PORTFOLIO_COMPANIES = [

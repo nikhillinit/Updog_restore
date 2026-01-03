@@ -69,9 +69,9 @@ export function safePropertyAccess<T extends object, K extends string>(
   key: K
 ): T extends Record<K, infer V> ? V | undefined : unknown {
   if (!isDefined(obj) || !hasProperty(obj, key)) {
-    return undefined as any;
+    return undefined as T extends Record<K, infer V> ? V | undefined : unknown;
   }
-  return (obj as any)[key];
+  return (obj as Record<K, unknown>)[key] as T extends Record<K, infer V> ? V | undefined : unknown;
 }
 
 // Number utilities with type safety

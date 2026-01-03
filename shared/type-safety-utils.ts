@@ -130,12 +130,13 @@ export class SafeArithmetic {
         }
         return numB !== 0 ? numA / numB : 0;
 
-      case 'power':
+      case 'power': {
         const result = Math.pow(numA, numB);
         if (!isSafeNumber(result)) {
           throw new Error(`Power operation resulted in invalid number: ${numA}^${numB}`);
         }
         return result;
+      }
 
       default:
         throw new Error(`Unknown arithmetic operation: ${operation}`);

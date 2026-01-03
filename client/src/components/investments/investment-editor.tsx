@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -228,7 +223,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
     console.log(`Reserving pro-rata for round: ${roundId}`);
   };
 
-  const handleBuildFutureRounds = (config: any) => {
+  const handleBuildFutureRounds = (config: unknown) => {
     // Generate future rounds based on sector profile and configuration
     const newRounds = generateFutureRounds(config);
     const updatedCases = investment.performanceCases.map(case_ => 
@@ -242,9 +237,18 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
     }));
   };
 
-  const generateFutureRounds = (config: any): InvestmentRound[] => {
+  const generateFutureRounds = (config: unknown): InvestmentRound[] => {
+    // Type guard for config
+    const isValidConfig = (c: unknown): c is { graduationRate: string; nextRoundDate: string } => {
+      return typeof c === 'object' && c !== null && 'graduationRate' in c && 'nextRoundDate' in c;
+    };
+
+    if (!isValidConfig(config)) {
+      return [];
+    }
+
     // Sample future rounds generation based on sector profile
-    const baseGraduationRate = config.graduationRate === 'sector-based' ? 65 : 
+    const baseGraduationRate = config.graduationRate === 'sector-based' ? 65 :
                               config.graduationRate === 'high' ? 85 :
                               config.graduationRate === 'medium' ? 65 : 45;
     
@@ -279,10 +283,10 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
     return futureRounds;
   };
 
-  const handleUpdateExitValuation = (valuation: number, date: string, notes: string, multiple: string) => {
-    const updatedCases = investment.performanceCases.map(case_ => 
-      case_.id === investment.activeCase 
-        ? { ...case_, exitValuation: valuation, exitDate: date, notes, multiple }
+  const handleUpdateExitValuation = (valuation: number, date: string, _notes: string, _multiple: string) => {
+    const updatedCases = investment.performanceCases.map(case_ =>
+      case_.id === investment.activeCase
+        ? { ...case_, exitValuation: valuation, exitDate: date }
         : case_
     );
     setInvestment(prev => ({ 
@@ -368,7 +372,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
           <div className="mt-2">
             <Label className="text-sm text-gray-500">Co-Investors</Label>
             <div className="flex flex-wrap gap-1 mt-1">
-              {round.coInvestors.map((investor: any, index: any) => (
+              {round.coInvestors.map((investor, index) => (
                 <Badge key={index} variant="outline" className="text-xs">
                   {investor}
                 </Badge>
@@ -384,7 +388,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
     <div className="flex items-center space-x-4 mb-6">
       <Label className="text-sm font-medium">Performance Case:</Label>
       <div className="flex space-x-2">
-        {investment.performanceCases.map((case_: any) => (
+        {investment.performanceCases.map((case_) => (
           <Button
             key={case_.id}
             variant={investment.activeCase === case_.id ? "default" : "outline"}
@@ -447,7 +451,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Input
                     id="investment-name"
                     value={investment.name}
-                    onChange={(e: any) => setInvestment(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setInvestment(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter company name"
                     className="border-yellow-300 bg-yellow-50"
                   />
@@ -457,7 +461,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Input
                     id="website"
                     value={investment.url}
-                    onChange={(e: any) => setInvestment(prev => ({ ...prev, url: e.target.value }))}
+                    onChange={(e) => setInvestment(prev => ({ ...prev, url: e.target.value }))}
                     placeholder="https://company.com"
                   />
                 </div>
@@ -469,7 +473,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Input
                     id="sector"
                     value={investment.sector}
-                    onChange={(e: any) => setInvestment(prev => ({ ...prev, sector: e.target.value }))}
+                    onChange={(e) => setInvestment(prev => ({ ...prev, sector: e.target.value }))}
                     placeholder="Enter sector"
                   />
                 </div>
@@ -478,14 +482,14 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Input
                     id="geography"
                     value={investment.geography}
-                    onChange={(e: any) => setInvestment(prev => ({ ...prev, geography: e.target.value }))}
+                    onChange={(e) => setInvestment(prev => ({ ...prev, geography: e.target.value }))}
                     placeholder="Enter geography"
                   />
                 </div>
                 <div className="md:col-span-3">
                   <DealTagsEditor
                     selectedTags={investment.tags}
-                    onTagsChange={(tags: any) => setInvestment(prev => ({ ...prev, tags }))}
+                    onTagsChange={(tags) => setInvestment(prev => ({ ...prev, tags }))}
                   />
                 </div>
               </div>
@@ -496,8 +500,8 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Textarea
                     id="management"
                     value={investment.managementTeam.join('\n')}
-                    onChange={(e: any) => setInvestment(prev => ({ 
-                      ...prev, 
+                    onChange={(e) => setInvestment(prev => ({
+                      ...prev,
                       managementTeam: e.target.value.split('\n').filter(Boolean)
                     }))}
                     placeholder="CEO: John Smith&#10;CTO: Jane Doe"
@@ -509,8 +513,8 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   <Textarea
                     id="partners"
                     value={investment.partners.join('\n')}
-                    onChange={(e: any) => setInvestment(prev => ({ 
-                      ...prev, 
+                    onChange={(e) => setInvestment(prev => ({
+                      ...prev,
                       partners: e.target.value.split('\n').filter(Boolean)
                     }))}
                     placeholder="Partner A&#10;Partner B"
@@ -537,7 +541,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
               <div>
                 <Label className="text-sm text-gray-500">Tags</Label>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {investment.tags.length > 0 ? investment.tags.map((tag: any, index: any) => (
+                  {investment.tags.length > 0 ? investment.tags.map((tag, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
@@ -654,7 +658,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                   { fieldId: 'field-3', value: ['High Growth', 'Strategic'] },
                   { fieldId: 'field-4', value: 'Partner Network' },
                 ]}
-                onValuesChange={(values: any) => {
+                onValuesChange={(values) => {
                   console.log('Custom field values updated:', values);
                 }}
               />
@@ -725,8 +729,8 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Investment Rounds</h3>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={() => setShowAddRound(true)}
               >
@@ -734,8 +738,8 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                 Next Round
               </Button>
             </div>
-            
-            {activeCase?.rounds?.map((round: any) => (
+
+            {activeCase?.rounds?.map((round) => (
               <RoundCard key={round.id} round={round} />
             ))}
           </div>
@@ -768,7 +772,7 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
             <div>
               <Label className="text-sm font-medium text-gray-700">Partners</Label>
               <div className="mt-2 space-y-1">
-                {investment.partners.map((partner: any, index: any) => (
+                {investment.partners.map((partner, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-gray-400" />
                     <span className="text-sm">{partner}</span>
@@ -776,11 +780,11 @@ export default function InvestmentEditor({ profileId, entryRound, onComplete }: 
                 ))}
               </div>
             </div>
-            
+
             <div>
               <Label className="text-sm font-medium text-gray-700">Board Members</Label>
               <div className="mt-2 space-y-1">
-                {investment.boardMembers.map((member: any, index: any) => (
+                {investment.boardMembers.map((member, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-gray-400" />
                     <span className="text-sm">{member}</span>

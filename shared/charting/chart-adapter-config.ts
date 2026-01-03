@@ -46,14 +46,14 @@ export function shouldUseNewCharts(componentName?: string): boolean {
 // Rollback helper for emergencies
 export function forceChartImplementation(impl: ChartImplementation): void {
   if (typeof window !== 'undefined') {
-    (window as any).__FORCE_CHART_IMPL = impl;
+    (window as unknown as Record<string, ChartImplementation>)['__FORCE_CHART_IMPL'] = impl;
     console.warn(`Chart implementation forced to: ${impl}`);
   }
 }
 
 // Performance monitoring wrapper
-export function withChartMetrics<T extends (...args: any[]) => any>(
-  fn: T, 
+export function withChartMetrics<T extends (...args: unknown[]) => unknown>(
+  fn: T,
   chartType: string
 ): T {
   return ((...args: Parameters<T>) => {

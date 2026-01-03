@@ -112,7 +112,7 @@ function validateInvestmentStrategy(
   warnings: ValidationError[]
 ): void {
   // Validate allocations sum to 100%
-  const totalAllocation = strategy.allocations.reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
+  const totalAllocation = strategy.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
   if (Math.abs(totalAllocation - 100) > 0.01) {
     errors.push({
       field: 'investmentStrategy.allocations',
@@ -123,7 +123,7 @@ function validateInvestmentStrategy(
   }
 
   // Validate stage constraints: graduation% + exit% ≤ 100%
-  strategy.stages.forEach((stage: any, index: any) => {
+  strategy.stages.forEach((stage, index) => {
     const total = stage.graduationRate + stage.exitRate;
     if (total > 100.01) { // Small tolerance for floating point
       errors.push({
@@ -169,7 +169,7 @@ function validateInvestmentStrategy(
   }
 
   // Warn about unusual allocation patterns
-  strategy.allocations.forEach((alloc: any, index: any) => {
+  strategy.allocations.forEach((alloc, index) => {
     if (alloc.percentage > 60) {
       warnings.push({
         field: `investmentStrategy.allocations[${index}]`,
@@ -298,7 +298,7 @@ function validateFundStructure(
  */
 export function validateField(
   fieldPath: string,
-  value: any,
+  value: unknown,
   fullData?: Partial<FundModelWire>
 ): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -370,9 +370,9 @@ export function formatValidationMessage(error: ValidationError): string {
  * Demo-safe validation wrapper
  * Never throws errors, always returns a valid result
  */
-export function validateFundSetupSafe(fundData: any): ValidationResult {
+export function validateFundSetupSafe(fundData: unknown): ValidationResult {
   try {
-    return validateFundSetup(fundData);
+    return validateFundSetup(fundData as Partial<FundModelWire>);
   } catch (error) {
     console.error('Validation error:', error);
     return {

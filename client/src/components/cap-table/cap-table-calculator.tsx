@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
 import { forEach } from '../../utils/array-safety';
@@ -50,24 +46,6 @@ interface SAFENote {
   proRataRights?: boolean;
 }
 
-interface CapTableScenario {
-  id: string;
-  name: string;
-  investmentId: string;
-  currentCapTable: Shareholder[];
-  safesNotes: SAFENote[];
-  nextRound: {
-    preMoneyValuation: number;
-    roundSize: number;
-    pricePerShare: number;
-    newInvestorShares: number;
-    optionPoolIncrease: number;
-  };
-  proFormaCapTable: Shareholder[];
-  createdAt: string;
-  lastModified: string;
-}
-
 const SAMPLE_CAP_TABLE: Shareholder[] = [
   { id: '1', name: 'Common shareholder 1', type: 'founder', shares: 8000000, percentage: 42.4875 },
   { id: '2', name: 'Unallocated', type: 'option-pool', shares: 3910625, percentage: 20.7691 },
@@ -111,11 +89,9 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
 ];
 
 export default function CapTableCalculator() {
-  const [currentCapTable, _setCurrentCapTable] = useState<Shareholder[]>(SAMPLE_CAP_TABLE);
+  const [currentCapTable] = useState<Shareholder[]>(SAMPLE_CAP_TABLE);
   const [safesNotes, setSafesNotes] = useState<SAFENote[]>(SAMPLE_SAFES_NOTES);
   const [proFormaCapTable, setProFormaCapTable] = useState<Shareholder[]>([]);
-  const [_showAddShareholder, _setShowAddShareholder] = useState(false);
-  const [_showAddSAFE, _setShowAddSAFE] = useState(false);
   const [consolidate, setConsolidate] = useState(true);
   
   // Next Round Parameters
@@ -125,10 +101,10 @@ export default function CapTableCalculator() {
 
   // Calculate cap table metrics
   const calculateMetrics = () => {
-    const totalShares = currentCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0);
-    const totalOptions = currentCapTable.find(sh => sh.type === 'option-pool')?.shares || 0;
+    const totalShares = currentCapTable.reduce<number>((sum, sh) => sum + sh.shares, 0);
+    const totalOptions = currentCapTable.find(sh => sh.type === 'option-pool')?.shares ?? 0;
     const fullyDilutedShares = totalShares;
-    
+
     // Calculate price per share for next round
     const pricePerShare = (preMoneyValuation + optionPoolIncrease) / (fullyDilutedShares + optionPoolIncrease);
     const newInvestorShares = roundSize / pricePerShare;
@@ -148,7 +124,7 @@ export default function CapTableCalculator() {
   const convertSafesNotes = (pricePerShare: number) => {
     return safesNotes.map(instrument => {
       // Calculate cap-based price
-      const fullyDilutedShares = currentCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0);
+      const fullyDilutedShares = currentCapTable.reduce((sum, sh) => sum + sh.shares, 0);
       const capBasedPrice = instrument.valuationCap ? 
         instrument.valuationCap / fullyDilutedShares : Infinity;
       
@@ -206,7 +182,7 @@ export default function CapTableCalculator() {
     }
 
     // Calculate new total shares
-    const newTotalShares = proForma.reduce((sum: any, sh: any) => sum + sh.shares, 0);
+    const newTotalShares = proForma.reduce((sum, sh) => sum + sh.shares, 0);
 
     // Recalculate all percentages
     proForma = proForma.map(shareholder => ({
@@ -215,7 +191,7 @@ export default function CapTableCalculator() {
     }));
 
     // Sort by percentage (descending)
-    proForma.sort((a: any, b: any) => b.percentage - a.percentage);
+    proForma.sort((a, b) => b.percentage - a.percentage);
 
     setProFormaCapTable(proForma);
     setSafesNotes(convertedInstruments);
@@ -226,7 +202,7 @@ export default function CapTableCalculator() {
   }, [preMoneyValuation, roundSize, optionPoolIncrease, currentCapTable, safesNotes]);
 
   const metrics = calculateMetrics();
-  const totalSAFEsNotes = safesNotes.reduce((sum: any, inst: any) => sum + inst.principal, 0);
+  const totalSAFEsNotes = safesNotes.reduce<number>((sum, inst) => sum + inst.principal, 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -344,7 +320,7 @@ export default function CapTableCalculator() {
                 id="pre-money"
                 type="number"
                 value={preMoneyValuation}
-                onChange={(e: any) => setPreMoneyValuation(Number(e.target.value))}
+                onChange={e => setPreMoneyValuation(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -355,7 +331,7 @@ export default function CapTableCalculator() {
                 id="round-size"
                 type="number"
                 value={roundSize}
-                onChange={(e: any) => setRoundSize(Number(e.target.value))}
+                onChange={e => setRoundSize(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -366,7 +342,7 @@ export default function CapTableCalculator() {
                 id="option-pool"
                 type="number"
                 value={optionPoolIncrease}
-                onChange={(e: any) => setOptionPoolIncrease(Number(e.target.value))}
+                onChange={e => setOptionPoolIncrease(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -424,7 +400,7 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentCapTable.map((shareholder: any) => (
+                  {currentCapTable.map(shareholder => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
                       <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
@@ -481,7 +457,7 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {proFormaCapTable.map((shareholder: any) => (
+                  {proFormaCapTable.map(shareholder => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
                       <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
@@ -498,10 +474,10 @@ export default function CapTableCalculator() {
                   <TableRow className="border-t-2 border-gray-300">
                     <TableCell className="font-bold">Total Shares Excluding Options</TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatShares(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum: any, sh: any) => sum + sh.shares, 0))}
+                      {formatShares(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.shares, 0))}
                     </TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatPercentage(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum: any, sh: any) => sum + sh.percentage, 0))}
+                      {formatPercentage(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.percentage, 0))}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -520,7 +496,7 @@ export default function CapTableCalculator() {
                   <TableRow className="border-t border-gray-300">
                     <TableCell className="font-bold">Total</TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatShares(proFormaCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0))}
+                      {formatShares(proFormaCapTable.reduce((sum, sh) => sum + sh.shares, 0))}
                     </TableCell>
                     <TableCell className="text-right font-bold">100.0000%</TableCell>
                     <TableCell></TableCell>

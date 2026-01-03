@@ -163,15 +163,15 @@ export function ReserveConfigurator({
 
   const selectedPoolData = reservePools.find(pool => pool.id === selectedPool);
   const totalReserveAmount = portfolioState.totalFundSize * portfolioState.reserveRatio;
-  const totalAllocated = reservePools.reduce((sum: any, pool: any) => sum + pool.percentage, 0);
+  const totalAllocated = reservePools.reduce((sum, pool) => sum + pool.percentage, 0);
   const isOverAllocated = totalAllocated > 100;
 
   // Generate deployment timeline data
   const deploymentTimeline = useMemo(() => {
-    const months: number[] = Array.from({ length: 48 }, (_: unknown, i: number) => i + 1);
+    const months: number[] = Array.from({ length: 48 }, (_, i: number) => i + 1);
 
     return months.map(month => {
-      const dataPoint: any = { month: `M${month}` };
+      const dataPoint: Record<string, number | string> = { month: `M${month}` };
 
       reservePools.forEach(pool => {
         // Simulate deployment curves based on pool characteristics
@@ -220,7 +220,7 @@ export function ReserveConfigurator({
     ));
   };
 
-  const updatePoolProperty = (poolId: string, property: string, value: any) => {
+  const updatePoolProperty = (poolId: string, property: string, value: unknown) => {
     setReservePools(prev => prev.map(pool =>
       pool.id === poolId
         ? { ...pool, [property]: value }
@@ -247,14 +247,14 @@ export function ReserveConfigurator({
     }
   };
 
-  const chartData = reservePools.map((pool: any, index: any) => ({
+  const chartData = reservePools.map((pool, index) => ({
     name: pool.name,
     value: pool.percentage,
     amount: pool.amount,
     color: POOL_COLORS[index % POOL_COLORS.length]
   }));
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: {active?: boolean; payload?: Array<{payload: {name: string; value: number; amount: number}}>}) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -286,7 +286,7 @@ export function ReserveConfigurator({
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Label htmlFor="optimization-mode" className="text-sm">Mode:</Label>
-            <Select value={optimizationMode} onValueChange={(value: any) => setOptimizationMode(value)}>
+            <Select value={optimizationMode} onValueChange={(value) => setOptimizationMode(value as 'manual' | 'guided' | 'auto')}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -354,7 +354,7 @@ export function ReserveConfigurator({
           <CardContent className="space-y-4">
             {/* Pool List */}
             <div className="space-y-3">
-              {reservePools.map((pool: any, index: any) => (
+              {reservePools.map((pool, index) => (
                 <div
                   key={pool.id}
                   className={cn(
@@ -474,7 +474,7 @@ export function ReserveConfigurator({
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {chartData.map((entry: any, index: any) => (
+                      {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -485,7 +485,7 @@ export function ReserveConfigurator({
 
               {/* Legend */}
               <div className="space-y-2">
-                {chartData.map((entry: any, index: any) => (
+                {chartData.map((entry, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
                       <div
@@ -516,7 +516,7 @@ export function ReserveConfigurator({
 
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {optimizationSuggestions.map((suggestion: any, index: any) => (
+              {optimizationSuggestions.map((suggestion, index) => (
                 <div
                   key={index}
                   className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
@@ -589,14 +589,14 @@ export function ReserveConfigurator({
                   fontSize={12}
                 />
                 <YAxis
-                  tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`}
+                  tickFormatter={(value) => `$${(Number(value) / 1000000).toFixed(0)}M`}
                   fontSize={12}
                 />
                 <Tooltip
-                  formatter={(value: any, name) => [`$${(value / 1000000).toFixed(1)}M`, name]}
-                  labelFormatter={(label: any) => `Month ${label.slice(1)}`}
+                  formatter={(value, name) => [`$${(Number(value) / 1000000).toFixed(1)}M`, name]}
+                  labelFormatter={(label) => `Month ${String(label).slice(1)}`}
                 />
-                {reservePools.map((pool: any, index: any) => (
+                {reservePools.map((pool, index) => (
                   <Area
                     key={pool.id}
                     type="monotone"

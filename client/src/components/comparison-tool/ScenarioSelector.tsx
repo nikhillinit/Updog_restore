@@ -53,9 +53,35 @@ function isSimpleProps(props: ScenarioSelectorProps): props is SimpleScenarioSel
 }
 
 export function ScenarioSelector(props: ScenarioSelectorProps) {
+  // Call all hooks BEFORE any conditional logic or early returns
+  const isSimple = isSimpleProps(props);
+  const [baseOpen, setBaseOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+
+  // Extract props for complex mode (with defaults to avoid runtime errors in simple mode)
+  const complexProps = isSimple ? null : props;
+  const scenarios = complexProps?.scenarios ?? [];
+  const baseScenarioId = complexProps?.baseScenarioId;
+  const comparisonScenarioIds = complexProps?.comparisonScenarioIds ?? [];
+
+  const baseScenario = useMemo(
+    () => scenarios.find((s) => s.id === baseScenarioId),
+    [scenarios, baseScenarioId]
+  );
+
+  const selectedComparisonScenarios = useMemo(
+    () => scenarios.filter((s) => comparisonScenarioIds.includes(s.id)),
+    [scenarios, comparisonScenarioIds]
+  );
+
+  const availableForComparison = useMemo(
+    () => scenarios.filter((s) => s.id !== baseScenarioId),
+    [scenarios, baseScenarioId]
+  );
+
   // Handle simple value/onChange API
-  if (isSimpleProps(props)) {
-    const { value, onChange, disabled = false } = props;
+  if (isSimple) {
+    const { value, onChange, disabled = false } = props as SimpleScenarioSelectorProps;
     return (
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
@@ -76,31 +102,11 @@ export function ScenarioSelector(props: ScenarioSelectorProps) {
 
   // Handle complex API
   const {
-    scenarios,
-    baseScenarioId,
-    comparisonScenarioIds,
     onBaseChange,
     onComparisonChange,
     maxComparisons = 5,
     disabled = false,
-  } = props;
-  const [baseOpen, setBaseOpen] = useState(false);
-  const [compareOpen, setCompareOpen] = useState(false);
-
-  const baseScenario = useMemo(
-    () => scenarios.find((s) => s.id === baseScenarioId),
-    [scenarios, baseScenarioId]
-  );
-
-  const selectedComparisonScenarios = useMemo(
-    () => scenarios.filter((s) => comparisonScenarioIds.includes(s.id)),
-    [scenarios, comparisonScenarioIds]
-  );
-
-  const availableForComparison = useMemo(
-    () => scenarios.filter((s) => s.id !== baseScenarioId),
-    [scenarios, baseScenarioId]
-  );
+  } = props as BaseScenarioSelectorProps;
 
   const handleComparisonToggle = (scenarioId: string) => {
     if (comparisonScenarioIds.includes(scenarioId)) {

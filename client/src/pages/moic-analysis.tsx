@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -322,7 +317,7 @@ export default function MOICAnalysisPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredData.slice(0, 3).map((company: any) => (
+              {filteredData.slice(0, 3).map((company) => (
                 <div key={company.company} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <div className="font-medium">{company.company}</div>
@@ -345,9 +340,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-4">
               {filteredData
-                .sort((a: any, b: any) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
+                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
-                .map((company: any) => (
+                .map((company) => (
                 <div key={company.company} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                   <div>
                     <div className="font-medium">{company.company}</div>
@@ -375,9 +370,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-2">
               {moicData
-                .sort((a: any, b: any) => b.exitMOIC - a.exitMOIC)
+                .sort((a, b) => b.exitMOIC - a.exitMOIC)
                 .slice(0, 3)
-                .map((company: any) => (
+                .map((company) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-green-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>
@@ -397,9 +392,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-2">
               {moicData
-                .sort((a: any, b: any) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
+                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
-                .map((company: any) => (
+                .map((company) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-blue-700 font-bold">{company.exitMOICOnPlannedReserves.toFixed(2)}x</span>
@@ -420,7 +415,7 @@ export default function MOICAnalysisPage() {
             <div className="space-y-2">
               {moicData
                 .filter(c => c.exitMOIC < 1.0)
-                .map((company: any) => (
+                .map((company) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-red-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>

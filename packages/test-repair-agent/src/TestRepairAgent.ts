@@ -1,6 +1,7 @@
-import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
-import { BaseAgent } from '@povc/agent-core';
-import { withThinking } from '@povc/agent-core/ThinkingMixin';
+import type { AgentConfig, AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
+import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
@@ -56,7 +57,7 @@ export class TestRepairAgent extends withThinking(BaseAgent)<RepairInput, Repair
       // Enable native memory integration
       enableNativeMemory: true,
       enablePatternLearning: true,
-      tenantId: config?.tenantId || 'agent:test-repair',
+      tenantId: (config?.tenantId as string | undefined) || 'agent:test-repair',
       memoryScope: 'project', // Cross-session learnings from test repairs
 
       ...config,
@@ -124,7 +125,7 @@ export class TestRepairAgent extends withThinking(BaseAgent)<RepairInput, Repair
           iterations: result.iterations,
           evaluation: result.evaluation
         });
-      } catch (error) {
+      } catch (error: unknown) {
         repairs.push({
           file: failure.file,
           changes: '',
@@ -218,7 +219,7 @@ Provide a specific, actionable fix that addresses the root cause.`,
       );
 
       return analysis.response;
-    } catch (error) {
+    } catch (error: unknown) {
       // Fallback to simple pattern matching if thinking fails
       this.logger.warn('Extended thinking failed, using pattern matching', { error });
       return this.fallbackToPatternMatching(failure);
@@ -271,7 +272,7 @@ Provide a specific, actionable fix that addresses the root cause.`,
     return 'Fix runtime error';
   }
 
-  private generateTimeoutRepair(failure: TestFailure): string {
+  private generateTimeoutRepair(_failure: TestFailure): string {
     return 'Increase test timeout or optimize async operations';
   }
 
@@ -282,7 +283,7 @@ Provide a specific, actionable fix that addresses the root cause.`,
   private async evaluateFix(
     failure: TestFailure,
     repair: string,
-    input: RepairInput
+    _input: RepairInput
   ): Promise<EvaluationResult> {
     const criteria = {
       testPasses: false,
@@ -350,8 +351,8 @@ Provide a specific, actionable fix that addresses the root cause.`,
       attemptCount: previousAttempts.length
     });
 
-    // Build optimization context
-    const optimizationPrompt = this.buildOptimizationPrompt(
+    // Build optimization context (for future use with LLM optimization)
+    const _optimizationPrompt = this.buildOptimizationPrompt(
       failure,
       currentRepair,
       evaluation,
@@ -603,7 +604,7 @@ Failed Criteria: ${Object.entries(evaluation.criteria)
       ], process.cwd());
       
       return prResult.stdout.trim();
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to create draft PR', { error });
       throw new Error(`Draft PR creation failed: ${error}`);
     }
@@ -611,7 +612,7 @@ Failed Criteria: ${Object.entries(evaluation.criteria)
 
   private executeCommand(command: string[], cwd: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
-      const process = spawn(command[0], command.slice(1), {
+      const childProcess: ChildProcess = spawn(command[0], command.slice(1), {
         cwd,
         stdio: 'pipe',
         shell: true,
@@ -620,14 +621,18 @@ Failed Criteria: ${Object.entries(evaluation.criteria)
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => stdout += data.toString());
-      process.stderr.on('data', (data) => stderr += data.toString());
+      if (childProcess.stdout) {
+        childProcess.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+      }
+      if (childProcess.stderr) {
+        childProcess.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+      }
 
-      process.on('close', (exitCode) => {
+      childProcess.on('close', (exitCode: number | null) => {
         resolve({ stdout, stderr, exitCode: exitCode || 0 });
       });
 
-      process.on('error', reject);
+      childProcess.on('error', reject);
     });
   }
 

@@ -153,7 +153,7 @@ export class AutomatedRolloutOrchestrator {
   
   private async enableStage(flagName: string, stage: RolloutStage): Promise<void> {
     // Set feature flag percentage
-    setFlag(flagName as any, true);
+    setFlag(flagName as 'reserves_v11' | 'shadow_compare', true);
     
     // Configure rollout
     const config = {
@@ -214,10 +214,17 @@ export class AutomatedRolloutOrchestrator {
   private async collectMetrics(): Promise<RolloutMetrics> {
     // In production, this would query your metrics backend
     // For now, return simulated metrics
-    
+
     const response = await fetch('/api/metrics/reserves/current');
-    const data = await response.json();
-    
+    const data = await response.json() as {
+      errorRate?: number;
+      p95Latency?: number;
+      p99Latency?: number;
+      conservationRate?: number;
+      divergenceRate?: number;
+      sampleSize?: number;
+    };
+
     return {
       errorRate: data.errorRate || 0,
       p95Latency: data.p95Latency || 0,
@@ -229,7 +236,7 @@ export class AutomatedRolloutOrchestrator {
     };
   }
   
-  private evaluateCriteria(metrics: RolloutMetrics, criteria: any): boolean {
+  private evaluateCriteria(metrics: RolloutMetrics, criteria: RolloutStage['criteria']): boolean {
     if (metrics.errorRate > criteria.maxErrorRate) return false;
     if (metrics.p95Latency > criteria.maxP95) return false;
     if (metrics.conservationRate < criteria.minConservationRate) return false;
@@ -252,7 +259,7 @@ export class AutomatedRolloutOrchestrator {
     return violations <= 1;
   }
   
-  private evaluateStageStability(buffer: RolloutMetrics[], criteria: any): boolean {
+  private evaluateStageStability(buffer: RolloutMetrics[], criteria: RolloutStage['criteria']): boolean {
     if (buffer.length === 0) return false;
     
     // Calculate percentage of metrics that meet criteria
@@ -295,8 +302,8 @@ export class AutomatedRolloutOrchestrator {
   
   private async emergencyRollback(): Promise<void> {
     // Kill switch
-    setFlag('reserves_v11' as any, false);
-    setFlag('shadow_compare' as any, false);
+    setFlag('reserves_v11', false);
+    setFlag('shadow_compare', false);
     
     // Alert
     await this.sendAlert('EMERGENCY_ROLLBACK', 'Critical failure in reserves v1.1 rollout');
@@ -307,14 +314,14 @@ export class AutomatedRolloutOrchestrator {
   
   private async stagedRollback(targetPercent: number): Promise<void> {
     // Gradual rollback
-    setFlag('reserves_v11' as any, true);
+    setFlag('reserves_v11', true);
     await this.applyRolloutConfig('reserves_v11', { percent: targetPercent });
     
     // Record
     metrics.recordRollback('staged', String(this.currentStage), String(targetPercent));
   }
   
-  private async applyRolloutConfig(flagName: string, config: any): Promise<void> {
+  private async applyRolloutConfig(flagName: string, config: Record<string, unknown>): Promise<void> {
     // In production, this would update your feature flag service
     const payload = {
       flag: flagName,
@@ -349,7 +356,7 @@ export class AutomatedRolloutOrchestrator {
     
     const report = {
       success: this.currentStage === this.stages.length - 1,
-      stages: this.stages.map((s: any, i: any) => ({
+      stages: this.stages.map((s, i) => ({
         ...s,
         completed: i <= this.currentStage
       })),
@@ -384,7 +391,7 @@ export class AutomatedRolloutOrchestrator {
     await this.sendAlert('ROLLOUT_FAILURE', JSON.stringify(report));
   }
   
-  private identifyViolations(metrics: RolloutMetrics, criteria: any): string[] {
+  private identifyViolations(metrics: RolloutMetrics, criteria: RolloutStage['criteria']): string[] {
     const violations = [];
     
     if (metrics.errorRate > criteria.maxErrorRate) {
@@ -402,7 +409,10 @@ export class AutomatedRolloutOrchestrator {
   
   private calculateAverage(metrics: RolloutMetrics[], field: keyof RolloutMetrics): number {
     if (metrics.length === 0) return 0;
-    const sum = metrics.reduce((acc: any, m: any) => acc + (m[field] as number), 0);
+    const sum = metrics.reduce((acc, m) => {
+      const value = m[field];
+      return acc + (typeof value === 'number' ? value : 0);
+    }, 0);
     return sum / metrics.length;
   }
   

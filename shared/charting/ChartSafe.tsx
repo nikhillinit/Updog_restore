@@ -41,18 +41,18 @@ function toNum(value?: FlexibleDimension): number | undefined {
  * Wraps any chart component to handle flexible dimension types
  */
 export function withChartSafe<T extends { height?: FlexibleDimension; width?: FlexibleDimension }>(
-  Component: React.ComponentType<any>
+  Component: React.ComponentType<T>
 ) {
-  return React.forwardRef<any, T>((props: any, ref: any) => {
+  return React.forwardRef<Element, T>((props: T, ref: React.ForwardedRef<Element>) => {
     const { height, width, ...restProps } = props;
-    
+
     const normalizedProps = {
       ...restProps,
       height: toNum(height),
       width: toNum(width)
     };
-    
-    return <Component ref={ref} {...normalizedProps} />;
+
+    return <Component ref={ref} {...(normalizedProps as T)} />;
   });
 }
 

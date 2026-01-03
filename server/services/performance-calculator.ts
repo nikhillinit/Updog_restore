@@ -11,8 +11,8 @@
 
 import { db } from '../db';
 import { storage } from '../storage';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
-import { fundMetrics, portfolioCompanies, investments, fundDistributions } from '@shared/schema';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { fundMetrics, portfolioCompanies, fundDistributions } from '@shared/schema';
 import type {
   TimeseriesPoint,
   BreakdownGroup,

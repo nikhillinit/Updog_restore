@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -225,7 +220,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
       {/* Performance Case Tabs */}
       <Tabs value={activeCase} onValueChange={setActiveCase} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          {performanceCases.map((performanceCase: any) => (
+          {performanceCases.map((performanceCase) => (
             <TabsTrigger 
               key={performanceCase.id} 
               value={performanceCase.id}
@@ -242,7 +237,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
         </TabsList>
 
         {/* Tab Content for each Performance Case */}
-        {performanceCases.map((performanceCase: any) => (
+        {performanceCases.map((performanceCase) => (
           <TabsContent key={performanceCase.id} value={performanceCase.id} className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -270,7 +265,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
 
             {/* Rounds Display */}
             <div className="space-y-3">
-              {performanceCase.rounds.map((round: any) => {
+              {performanceCase.rounds.map((round) => {
                 const IconComponent = getRoundIcon(round);
                 return (
                   <Card key={round.id} className="border-l-4 border-l-blue-500">

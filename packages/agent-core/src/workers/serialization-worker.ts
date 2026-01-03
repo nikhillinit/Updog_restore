@@ -90,7 +90,7 @@ export default function serializeInWorker(task: SerializationTask): Serializatio
       truncated: false
     };
 
-  } catch (error) {
+  } catch (error: unknown) {
     // Handle circular references and other serialization errors
     const errorMessage = error instanceof Error ? error.message : String(error);
 

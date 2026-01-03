@@ -133,10 +133,10 @@ export class PromptCache {
     systemPrompt?: string;
     projectContext?: string;
     userQuery: string;
-  }): { messages: any[]; system?: CacheableContent[]; headers: Record<string, string> } {
+  }): { messages: Array<{ role: string; content: CacheableContent | string }>; system?: CacheableContent[]; headers: Record<string, string> } {
     const cached = this.prepare(content);
 
-    const messages: any[] = [];
+    const messages: Array<{ role: string; content: CacheableContent | string }> = [];
 
     // Add project context as first message (cached)
     if (cached.projectContext) {

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { LineChart } from 'recharts/es6/chart/LineChart';
@@ -81,7 +76,7 @@ interface AnalyticsView {
   xAxis: string;
   yAxis: string;
   groupBy?: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   notes: string;
   createdAt: string;
   lastModified: string;
@@ -93,7 +88,7 @@ interface ChartConfig {
   xAxis: string;
   yAxis: string;
   groupBy?: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
 }
 
 const CHART_TYPES = [
@@ -207,7 +202,7 @@ const SAMPLE_COMPANIES: PortfolioCompany[] = [
 ];
 
 export default function PortfolioAnalyticsDashboard() {
-  const { currentFund } = useFundContext();
+  const { currentFund: _currentFund } = useFundContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [_selectedView, _setSelectedView] = useState<string>('all-views');
   const [savedViews, setSavedViews] = useState<AnalyticsView[]>([]);
@@ -261,9 +256,9 @@ export default function PortfolioAnalyticsDashboard() {
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
-              <Tooltip 
-                formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
+              <Tooltip
+                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
               />
               <Bar dataKey={currentChart.yAxis} fill="#3B82F6" />
             </BarChart>
@@ -276,9 +271,9 @@ export default function PortfolioAnalyticsDashboard() {
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
-              <Tooltip 
-                formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
+              <Tooltip
+                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
               />
               <Line type="monotone" dataKey={currentChart.yAxis} stroke="#3B82F6" strokeWidth={2} />
             </LineChart>
@@ -291,9 +286,9 @@ export default function PortfolioAnalyticsDashboard() {
             <AreaChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
-              <Tooltip 
-                formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
+              <YAxis tickFormatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
+              <Tooltip
+                formatter={(value) => [formatValue(Number(value), yMetric?.type || 'number'), yMetric?.label]}
               />
               <Area type="monotone" dataKey={currentChart.yAxis} stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} />
             </AreaChart>
@@ -312,18 +307,18 @@ export default function PortfolioAnalyticsDashboard() {
                 cy="50%"
                 outerRadius={120}
                 fill="#3B82F6"
-                label={(props: any) => {
+                label={(props: { name?: string; value?: number }) => {
                   // Handle the case where props might have undefined properties
                   const name = props.name ?? '';
                   const value = props.value ?? 0;
                   return `${name}: ${formatValue(value, yMetric?.type ? yMetric.type : 'number')}`;
                 }}
               >
-                {data.map((entry: any, index: any) => (
+                {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 30}, 70%, 50%)`} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => formatValue(value, yMetric?.type || 'number')} />
+              <Tooltip formatter={(value) => formatValue(Number(value), yMetric?.type || 'number')} />
             </PieChart>
           </ResponsiveContainer>
         );
@@ -401,12 +396,12 @@ export default function PortfolioAnalyticsDashboard() {
                   <Input
                     placeholder="View name"
                     value={currentChart.title}
-                    onChange={(e: any) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
                   />
                   <Textarea
                     placeholder="Add notes about this analysis (optional)"
                     value={viewNotes}
-                    onChange={(e: any) => setViewNotes(e.target.value)}
+                    onChange={(e) => setViewNotes(e.target.value)}
                     rows={3}
                   />
                   <div className="flex justify-end space-x-2">
@@ -434,7 +429,7 @@ export default function PortfolioAnalyticsDashboard() {
               <Input
                 placeholder="Search data sources..."
                 value={searchTerm}
-                onChange={(e: any) => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -466,7 +461,7 @@ export default function PortfolioAnalyticsDashboard() {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">SAVED VIEWS</h3>
               <div className="space-y-2">
-                {savedViews.map((view: any) => (
+                {savedViews.map((view) => (
                   <div
                     key={view.id}
                     className="p-2 rounded border hover:bg-gray-50 cursor-pointer"
@@ -505,7 +500,7 @@ export default function PortfolioAnalyticsDashboard() {
               <CardTitle className="flex items-center justify-between">
                 <span>Chart Builder</span>
                 <div className="flex items-center space-x-2">
-                  <Tabs value={displayMode} onValueChange={(value: any) => setDisplayMode(value)}>
+                  <Tabs value={displayMode} onValueChange={(value) => setDisplayMode(value)}>
                     <TabsList>
                       <TabsTrigger value="results">Results</TabsTrigger>
                       <TabsTrigger value="chart">Chart</TabsTrigger>
@@ -527,14 +522,14 @@ export default function PortfolioAnalyticsDashboard() {
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Chart Type</label>
-                  <Select value={currentChart.type} onValueChange={(value: any) => 
+                  <Select value={currentChart.type} onValueChange={(value) => 
                     setCurrentChart(prev => ({ ...prev, type: value }))
                   }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CHART_TYPES.map((type: any) => {
+                      {CHART_TYPES.map((type) => {
                         const Icon = type.icon;
                         return (
                           <SelectItem key={type.value} value={type.value}>
@@ -551,14 +546,14 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">X-Axis</label>
-                  <Select value={currentChart.xAxis} onValueChange={(value: any) => 
+                  <Select value={currentChart.xAxis} onValueChange={(value) => 
                     setCurrentChart(prev => ({ ...prev, xAxis: value }))
                   }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DIMENSIONS.map((dim: any) => (
+                      {DIMENSIONS.map((dim) => (
                         <SelectItem key={dim.value} value={dim.value}>
                           {dim.label}
                         </SelectItem>
@@ -569,14 +564,14 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Y-Axis</label>
-                  <Select value={currentChart.yAxis} onValueChange={(value: any) => 
+                  <Select value={currentChart.yAxis} onValueChange={(value) => 
                     setCurrentChart(prev => ({ ...prev, yAxis: value }))
                   }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {METRICS.map((metric: any) => (
+                      {METRICS.map((metric) => (
                         <SelectItem key={metric.value} value={metric.value}>
                           {metric.label}
                         </SelectItem>
@@ -589,7 +584,7 @@ export default function PortfolioAnalyticsDashboard() {
                   <label className="block text-sm font-medium mb-2">Title</label>
                   <Input
                     value={currentChart.title}
-                    onChange={(e: any) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="Chart title"
                   />
                 </div>
@@ -621,7 +616,7 @@ export default function PortfolioAnalyticsDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.map((company: any) => (
+                        {portfolioData.map((company) => (
                           <tr key={company.id} className="border-b hover:bg-gray-50">
                             <td className="p-2 font-medium">{company.name}</td>
                             <td className="p-2">
@@ -667,7 +662,7 @@ export default function PortfolioAnalyticsDashboard() {
               <Textarea
                 placeholder="Add qualitative insights, context, or explanations for this analysis..."
                 value={viewNotes}
-                onChange={(e: any) => setViewNotes(e.target.value)}
+                onChange={(e) => setViewNotes(e.target.value)}
                 rows={4}
                 className="w-full"
               />

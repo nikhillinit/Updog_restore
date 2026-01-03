@@ -109,7 +109,7 @@ export function requireSecureContext(
  * Must be called within a transaction
  */
 export async function setDatabaseContext(
-  tx: any,
+  tx: unknown,
   context: UserContext
 ): Promise<void> {
   // Set session variables for RLS policies
@@ -134,9 +134,9 @@ export async function setDatabaseContext(
  */
 export async function executeWithContext<T>(
   context: UserContext,
-  queryFn: (_tx: any) => Promise<T>
+  queryFn: (_tx: unknown) => Promise<T>
 ): Promise<T> {
-  return await db.transaction(async (tx: any) => {
+  return await db.transaction(async (tx: unknown) => {
     // Set RLS context
     await setDatabaseContext(tx, context);
     
@@ -153,7 +153,7 @@ export async function validateFundAccess(
   context: UserContext,
   fundId: string
 ): Promise<boolean> {
-  const result = await executeWithContext(context, async (tx: any) => {
+  const result = await executeWithContext(context, async (tx: unknown) => {
     const funds = await tx.execute(sql`
       SELECT id FROM funds 
       WHERE id = ${fundId}
@@ -172,8 +172,8 @@ export async function validateFundAccess(
  */
 export async function resolveFlags(
   context: UserContext
-): Promise<Record<string, any>> {
-  return await executeWithContext(context, async (tx: any) => {
+): Promise<Record<string, unknown>> {
+  return await executeWithContext(context, async (tx: unknown) => {
     // Get flags at each level
     const [globalFlags, orgFlags, fundFlags, userFlags] = await Promise.all([
       // Global flags
@@ -209,7 +209,7 @@ export async function resolveFlags(
     ]);
     
     // Merge flags with proper precedence: user > fund > org > global
-    const merged: Record<string, any> = {};
+    const merged: Record<string, unknown> = {};
     
     // Start with global
     for (const row of globalFlags.rows) {
@@ -261,11 +261,11 @@ export async function auditLog(
     action: string;
     entityType: string;
     entityId: string;
-    changes?: any;
-    metadata?: any;
+    changes?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
   }
 ): Promise<void> {
-  await executeWithContext(context, async (tx: any) => {
+  await executeWithContext(context, async (tx: unknown) => {
     await tx.execute(sql`
       INSERT INTO audit_events (
         event_type,

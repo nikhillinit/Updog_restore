@@ -68,7 +68,7 @@ export function validateReserveInput(raw: unknown) {
   if (!parsed.success) return { ok:false as const, status:400, issues:[{code:'schema', message:parsed.error.message}] };
   const v = parsed.data;
 
-  const issues: any[] = [];
+  const issues: Array<{ code: string; companyId?: string; stage?: string }> = [];
   const stages = new Set(v.stagePolicies.map(p=>p.stage));
   for (const c of v.companies) {
     if (!stages.has(c.stage)) issues.push({code:'stage_policy', companyId:c.id, stage:c.stage});

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import type { NatsConnection} from 'nats';
 import { connect, StringCodec } from 'nats';
 import { WebSocketServer } from 'ws';
@@ -11,6 +6,7 @@ import { logger } from './logger';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { natsBridgeConnections, natsBridgeMessages } from './metrics';
+import type WebSocket from 'ws';
 
 // Message schemas
 const subscribeSchema = z.object({
@@ -21,7 +17,7 @@ const subscribeSchema = z.object({
 const eventMessageSchema = z.object({
   fundId: z.number(),
   eventType: z.string(),
-  event: z.any(),
+  event: z.unknown(),
   timestamp: z.string().datetime(),
   checksum: z.string().optional(),
 });
@@ -74,11 +70,13 @@ export class NatsBridge {
       logger.info('NATS connected', { url: this.nc.getServer() });
 
       // Monitor connection events
-      (async () => {
-        for await (const status of this.nc!["status"]()) {
-          logger.info('NATS connection status', { status: status.type });
-        }
-      })();
+      if (this.nc.status) {
+        (async () => {
+          for await (const status of this.nc!.status!()) {
+            logger.info('NATS connection status', { status: status.type });
+          }
+        })();
+      }
     } catch (error) {
       logger.error('NATS connection failed', error);
       throw error;
@@ -86,22 +84,22 @@ export class NatsBridge {
   }
 
   private setupWebSocketServer(): void {
-    this.wss['on']('connection', (ws: any, req: any) => {
+    this.wss.on('connection', (ws: WebSocket, req: { socket: { remoteAddress?: string } }) => {
       const clientId = crypto.randomUUID();
       const clientSubs = new Set<string>();
-      this.connections['set'](clientId, clientSubs);
+      this.connections.set(clientId, clientSubs);
 
       logger.info('WebSocket client connected', {
         clientId,
         ip: req.socket.remoteAddress,
       });
-      
+
       natsBridgeConnections.inc();
 
       // Handle ping/pong for connection health
       const pingInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws['ping']();
+          ws.ping();
         }
       }, 30000);
 
@@ -109,32 +107,32 @@ export class NatsBridge {
         // Client is alive
       });
 
-      ws.on('message', async (data: any) => {
+      ws.on('message', async (data: Buffer) => {
         try {
-          const message = JSON.parse(data.toString());
+          const message = JSON.parse(data.toString()) as { type?: string; data?: unknown };
           natsBridgeMessages.inc({ direction: 'in', type: message.type || 'unknown' });
           await this.handleClientMessage(clientId, ws, message);
         } catch (error) {
-          ws["send"](JSON.stringify({
+          ws.send(JSON.stringify({
             error: 'Invalid message format',
             details: error instanceof Error ? error.message : 'Unknown error',
           }));
         }
       });
 
-      ws['on']('close', () => {
+      ws.on('close', () => {
         clearInterval(pingInterval);
         this.cleanupClient(clientId);
         logger.info('WebSocket client disconnected', { clientId });
         natsBridgeConnections.dec();
       });
 
-      ws['on']('error', (error: any) => {
+      ws.on('error', (error: Error) => {
         logger.error('WebSocket error', { clientId, error });
       });
 
       // Send welcome message
-      ws["send"](JSON.stringify({
+      ws.send(JSON.stringify({
         type: 'welcome',
         clientId,
         timestamp: new Date().toISOString(),
@@ -144,8 +142,8 @@ export class NatsBridge {
 
   private async handleClientMessage(
     clientId: string,
-    ws: any,
-    message: any
+    ws: WebSocket,
+    message: { type?: string; data?: unknown }
   ): Promise<void> {
     const { type, data } = message;
 
@@ -157,10 +155,10 @@ export class NatsBridge {
         await this.handleUnsubscribe(clientId, ws, data);
         break;
       case 'ping':
-        ws["send"](JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
         break;
       default:
-        ws["send"](JSON.stringify({
+        ws.send(JSON.stringify({
           error: 'Unknown message type',
           type,
         }));
@@ -169,13 +167,13 @@ export class NatsBridge {
 
   private async handleSubscribe(
     clientId: string,
-    ws: any,
-    data: any
+    ws: WebSocket,
+    data: unknown
   ): Promise<void> {
     try {
       const parsed = subscribeSchema.parse(data);
       const { fundId, eventTypes } = parsed;
-      const clientSubs = this.connections['get'](clientId)!;
+      const clientSubs = this.connections.get(clientId)!;
 
       // Subscribe to main fund subject
       const mainSubject = getFundSubject(fundId);
@@ -186,16 +184,16 @@ export class NatsBridge {
         // Forward messages to WebSocket
         (async () => {
           for await (const msg of sub) {
-            if (ws.readyState === ws.OPEN) {
-              const event = JSON.parse(this.sc.decode(msg.data));
-              
+            if (ws.readyState === WebSocket.OPEN) {
+              const event = JSON.parse(this.sc.decode(msg.data)) as Record<string, unknown>;
+
               // Add checksum for integrity
               const checksum = crypto
                 .createHash('md5')
                 .update(JSON.stringify(event))
                 .digest('hex');
 
-              ws["send"](JSON.stringify({
+              ws.send(JSON.stringify({
                 type: 'event',
                 data: { ...event, checksum },
               }));
@@ -214,14 +212,14 @@ export class NatsBridge {
 
             (async () => {
               for await (const msg of sub) {
-                if (ws.readyState === ws.OPEN) {
-                  const event = JSON.parse(this.sc.decode(msg.data));
+                if (ws.readyState === WebSocket.OPEN) {
+                  const event = JSON.parse(this.sc.decode(msg.data)) as Record<string, unknown>;
                   const checksum = crypto
                     .createHash('md5')
                     .update(JSON.stringify(event))
                     .digest('hex');
 
-                  ws["send"](JSON.stringify({
+                  ws.send(JSON.stringify({
                     type: 'event:typed',
                     data: { ...event, checksum },
                   }));
@@ -232,7 +230,7 @@ export class NatsBridge {
         }
       }
 
-      ws["send"](JSON.stringify({
+      ws.send(JSON.stringify({
         type: 'subscribed',
         fundId,
         eventTypes,
@@ -240,7 +238,7 @@ export class NatsBridge {
 
       logger.info('Client subscribed', { clientId, fundId, eventTypes });
     } catch (error) {
-      ws["send"](JSON.stringify({
+      ws.send(JSON.stringify({
         error: 'Subscription failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       }));
@@ -249,28 +247,28 @@ export class NatsBridge {
 
   private async handleUnsubscribe(
     clientId: string,
-    ws: any,
-    data: any
+    ws: WebSocket,
+    data: unknown
   ): Promise<void> {
     try {
-      const { fundId } = data;
-      const clientSubs = this.connections['get'](clientId)!;
+      const { fundId } = data as { fundId: number };
+      const clientSubs = this.connections.get(clientId)!;
 
       // Remove fund-related subscriptions
-      const toRemove = Array.from(clientSubs).filter((sub: any) =>
+      const toRemove = Array.from(clientSubs).filter((sub: string) =>
         sub.startsWith(`fund.${fundId}.`)
       );
 
-      toRemove.forEach((sub: any) => clientSubs.delete(sub));
+      toRemove.forEach((sub: string) => clientSubs.delete(sub));
 
-      ws["send"](JSON.stringify({
+      ws.send(JSON.stringify({
         type: 'unsubscribed',
         fundId,
       }));
 
       logger.info('Client unsubscribed', { clientId, fundId });
     } catch (error) {
-      ws["send"](JSON.stringify({
+      ws.send(JSON.stringify({
         error: 'Unsubscription failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       }));
@@ -278,7 +276,7 @@ export class NatsBridge {
   }
 
   private cleanupClient(clientId: string): void {
-    const clientSubs = this.connections['get'](clientId);
+    const clientSubs = this.connections.get(clientId);
     if (clientSubs) {
       // NATS subscriptions auto-cleanup when not consumed
       this.connections.delete(clientId);
@@ -289,7 +287,7 @@ export class NatsBridge {
   async publishEvent(
     fundId: number,
     eventType: string,
-    event: any
+    event: unknown
   ): Promise<void> {
     if (!this.nc) {
       throw new Error('NATS not connected');
@@ -319,7 +317,7 @@ export class NatsBridge {
 
   // Graceful shutdown
   async close(): Promise<void> {
-    this.wss.clients.forEach((ws: any) => {
+    this.wss.clients.forEach((ws: WebSocket) => {
       ws.close(1000, 'Server shutting down');
     });
 
@@ -334,7 +332,7 @@ export class NatsBridge {
     return {
       activeConnections: this.wss.clients.size,
       totalSubscriptions: Array.from(this.connections.values()).reduce(
-        (sum: any, subs: any) => sum + subs.size,
+        (sum: number, subs: Set<string>) => sum + subs.size,
         0
       ),
       natsConnected: this.nc ? !this.nc.isClosed() : false,

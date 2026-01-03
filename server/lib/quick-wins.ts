@@ -49,28 +49,28 @@ export function validateDistinctSigners(
  * 2. CANONICAL JSON HASHING
  * Ensures consistent hashing regardless of property order
  */
-export function canonicalJsonHash(obj: any): string {
+export function canonicalJsonHash(obj: unknown): string {
   // Deep sort object keys recursively
   const sortedObj = deepSortKeys(obj);
-  
+
   // Use stable stringify with sorted keys
-  const jsonStr = JSON.stringify(sortedObj, Object.keys(sortedObj).sort());
-  
+  const jsonStr = JSON.stringify(sortedObj, Object.keys(sortedObj as Record<string, unknown>).sort());
+
   // SHA-256 hash
   return crypto.createHash('sha256').update(jsonStr).digest('hex');
 }
 
-function deepSortKeys(obj: any): any {
+function deepSortKeys(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(deepSortKeys);
   if (obj instanceof Date) return obj.toISOString();
-  
+
   // Sort object keys and rebuild
-  return Object.keys(obj)
+  return Object.keys(obj as Record<string, unknown>)
     .sort()
-    .reduce((sorted: any, key) => {
-      sorted[key] = deepSortKeys(obj[key]);
+    .reduce((sorted: Record<string, unknown>, key) => {
+      sorted[key] = deepSortKeys((obj as Record<string, unknown>)[key]);
       return sorted;
     }, {});
 }
@@ -145,13 +145,13 @@ export interface WorkerGuard {
 }
 
 export function createGuardedWorker(config: WorkerGuard): {
-  execute: (_data: any) => Promise<any>;
+  execute: (_data: unknown) => Promise<unknown>;
   cleanup: () => void;
 } {
   let timeoutId: NodeJS.Timeout | null = null;
-  let resultPromise: Promise<any> | null = null;
+  let resultPromise: Promise<unknown> | null = null;
   let isTimedOut = false;
-  
+
   const cleanup = () => {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -159,48 +159,48 @@ export function createGuardedWorker(config: WorkerGuard): {
     }
     config.worker.terminate();
   };
-  
-  const execute = (data: any): Promise<any> => {
+
+  const execute = (data: unknown): Promise<unknown> => {
     if (resultPromise) {
       throw new Error('Worker is already executing');
     }
-    
-    resultPromise = new Promise((resolve: any, reject: any) => {
+
+    resultPromise = new Promise((resolve, reject) => {
       // Set up timeout
       timeoutId = setTimeout(() => {
         isTimedOut = true;
         cleanup();
-        
+
         if (config.onTimeout) {
           config.onTimeout();
         }
-        
+
         reject(new Error(`Worker timed out after ${config.timeoutMs}ms`));
       }, config.timeoutMs);
-      
+
       // Listen for worker messages
-      config.worker['on']('message', (result: any) => {
+      config.worker['on']('message', (result: unknown) => {
         if (!isTimedOut) {
           cleanup();
           resolve(result);
         }
         // Ignore messages after timeout
       });
-      
+
       config.worker['on']('error', (error: Error) => {
         if (!isTimedOut) {
           cleanup();
           reject(error);
         }
       });
-      
+
       // Send data to worker
       config.worker.postMessage(data);
     });
-    
+
     return resultPromise;
   };
-  
+
   return { execute, cleanup };
 }
 
@@ -243,19 +243,19 @@ export function sanitizeNumber(value: number, fallback: number = 0): number {
   return value;
 }
 
-export function sanitizeObject<T extends Record<string, any>>(
+export function sanitizeObject<T extends Record<string, unknown>>(
   obj: T,
   numericFields: Array<keyof T>
 ): T {
   const sanitized = { ...obj };
-  
+
   for (const field of numericFields) {
     const value = sanitized[field];
     if (typeof value === 'number') {
       sanitized[field] = sanitizeNumber(value) as T[typeof field];
     }
   }
-  
+
   return sanitized;
 }
 
@@ -264,7 +264,7 @@ export function sanitizeObject<T extends Record<string, any>>(
  * Generate reproducible seeds from input parameters
  */
 export function generateDeterministicSeed(
-  params: any,
+  params: unknown,
   version: string,
   salt: string = 'reserves_v1.1'
 ): bigint {
@@ -273,7 +273,7 @@ export function generateDeterministicSeed(
     version,
     salt
   });
-  
+
   // Convert first 8 bytes of hash to bigint
   const seedBytes = Buffer.from(hash.substring(0, 16), 'hex');
   return BigInt(`0x${  seedBytes.toString('hex')}`);
@@ -289,41 +289,53 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export function validateCalculationResult(result: any): ValidationResult {
+export function validateCalculationResult(result: unknown): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   // Check for required fields
   if (!result || typeof result !== 'object') {
     errors.push('Result must be an object');
     return { valid: false, errors, warnings };
   }
-  
+
+  const resultObj = result as Record<string, unknown>;
+
   // Check for non-finite numbers in allocations
-  if (Array.isArray(result.allocations)) {
-    result.allocations.forEach((allocation: any, index: number) => {
-      if (!Number.isFinite(allocation.recommendedAllocation)) {
-        errors.push(`Allocation ${index} has non-finite recommendedAllocation`);
-      }
-      if (allocation.recommendedAllocation < 0) {
-        errors.push(`Allocation ${index} has negative recommendedAllocation`);
+  if (Array.isArray(resultObj.allocations)) {
+    resultObj.allocations.forEach((allocation: unknown, index: number) => {
+      const alloc = allocation as Record<string, unknown>;
+      if (typeof alloc.recommendedAllocation === 'number') {
+        if (!Number.isFinite(alloc.recommendedAllocation)) {
+          errors.push(`Allocation ${index} has non-finite recommendedAllocation`);
+        }
+        if (alloc.recommendedAllocation < 0) {
+          errors.push(`Allocation ${index} has negative recommendedAllocation`);
+        }
       }
     });
   }
-  
+
   // Check for total allocation exceeding available
-  if (result.inputSummary?.totalAllocated > result.inputSummary?.availableReserves) {
+  const inputSummary = resultObj.inputSummary as Record<string, unknown> | undefined;
+  if (
+    inputSummary &&
+    typeof inputSummary.totalAllocated === 'number' &&
+    typeof inputSummary.availableReserves === 'number' &&
+    inputSummary.totalAllocated > inputSummary.availableReserves
+  ) {
     warnings.push('Total allocated exceeds available reserves');
   }
-  
+
   // Check for timestamp validity
-  if (result.metadata?.calculationDate) {
-    const date = new Date(result.metadata.calculationDate);
+  const metadata = resultObj.metadata as Record<string, unknown> | undefined;
+  if (metadata?.calculationDate) {
+    const date = new Date(metadata.calculationDate as string);
     if (isNaN(date.getTime())) {
       errors.push('Invalid calculation date');
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,

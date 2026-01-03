@@ -7,7 +7,7 @@
  * @module server/services/storage-service
  */
 
-import { createReadStream, createWriteStream, promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 

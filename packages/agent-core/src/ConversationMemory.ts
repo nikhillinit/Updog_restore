@@ -165,16 +165,16 @@ class InMemoryStorage implements ConversationStorage {
  * Redis storage implementation (production)
  */
 class RedisStorage implements ConversationStorage {
-  private client: any; // Redis client type
+  private client: unknown; // Redis client type
 
-  constructor(client: any) {
+  constructor(client: unknown) {
     this.client = client;
   }
 
   async get(key: string): Promise<string | null> {
     try {
       return await this.client.get(key);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Redis get failed', { key, error });
       return null;
     }
@@ -187,7 +187,7 @@ class RedisStorage implements ConversationStorage {
       } else {
         await this.client.set(key, value);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Redis set failed', { key, error });
       throw error;
     }
@@ -196,7 +196,7 @@ class RedisStorage implements ConversationStorage {
   async delete(key: string): Promise<void> {
     try {
       await this.client.del(key);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Redis delete failed', { key, error });
     }
   }
@@ -209,7 +209,7 @@ let storageInstance: ConversationStorage | null = null;
  * Initialize conversation storage backend
  */
 export function initializeStorage(
-  redisClient?: any
+  redisClient?: unknown
 ): ConversationStorage {
   if (redisClient) {
     logger.info('Using Redis for conversation storage');
@@ -241,7 +241,7 @@ function getStorage(): ConversationStorage {
  */
 export async function createThread(
   toolName: string,
-  initialContext: Record<string, any>,
+  initialContext: Record<string, unknown>,
   parentThreadId?: string
 ): Promise<string> {
   const threadId = randomUUID();
@@ -296,7 +296,7 @@ export async function getThread(
 
     const parsed = JSON.parse(data);
     return ThreadContextSchema.parse(parsed);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.debug('Thread retrieval failed', { threadId, error });
     return null;
   }
@@ -321,7 +321,7 @@ export async function addTurn(
     toolName?: string;
     modelProvider?: string;
     modelName?: string;
-    modelMetadata?: Record<string, any>;
+    modelMetadata?: Record<string, unknown>;
   }
 ): Promise<boolean> {
   const context = await getThread(threadId);
@@ -361,7 +361,7 @@ export async function addTurn(
     });
 
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to save turn', { threadId, error });
     return false;
   }
@@ -516,7 +516,7 @@ async function formatFileContent(filePath: string): Promise<string> {
       .join('\n');
 
     return `\n--- FILE: ${filePath} ---\n${formatted}\n--- END FILE ---\n`;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.debug('Failed to read file for conversation history', {
       filePath,
       error,

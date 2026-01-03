@@ -115,7 +115,7 @@ export class BaselineService {
       recordBaselineOperation(fundId.toString(), 'create', baselineType, duration);
 
       return baseline;
-    } catch (error) {
+    } catch (error: unknown) {
       recordSystemError('baseline-service', 'creation_failed');
       throw error;
     }
@@ -155,18 +155,16 @@ export class BaselineService {
    * Set a baseline as default
    */
   async setDefaultBaseline(baselineId: string, fundId: number): Promise<void> {
-    await db.transaction(async (tx: any) => {
+    await db.transaction(async (tx) => {
       // Clear existing defaults
-      await tx.update(fundBaselines)
-        ['set']({ isDefault: false, updatedAt: new Date() })
+      await tx.update(fundBaselines)['set']({ isDefault: false, updatedAt: new Date() })
         .where(and(
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true)
         ));
 
       // Set new default
-      await tx.update(fundBaselines)
-        ['set']({ isDefault: true, updatedAt: new Date() })
+      await tx.update(fundBaselines)['set']({ isDefault: true, updatedAt: new Date() })
         .where(eq(fundBaselines.id, baselineId));
     });
   }
@@ -175,8 +173,7 @@ export class BaselineService {
    * Deactivate a baseline
    */
   async deactivateBaseline(baselineId: string): Promise<void> {
-    await db.update(fundBaselines)
-      ['set']({ isActive: false, updatedAt: new Date() })
+    await db.update(fundBaselines)['set']({ isActive: false, updatedAt: new Date() })
       .where(eq(fundBaselines.id, baselineId));
   }
 
@@ -191,8 +188,8 @@ export class BaselineService {
       }
     });
 
-    const totalInvestments = companies.reduce((sum: any, company: any) => {
-      const companyInvestment = company.investments?.reduce((compSum: any, inv: any) =>
+    const totalInvestments = companies.reduce((sum: number, company) => {
+      const companyInvestment = company.investments?.reduce((compSum: number, inv) =>
         compSum + parseFloat(inv.amount.toString()), 0) || 0;
       return sum + companyInvestment;
     }, 0);
@@ -201,24 +198,24 @@ export class BaselineService {
     const averageInvestment = portfolioCount > 0 ? totalInvestments / portfolioCount : 0;
 
     // Get sector distribution
-    const sectorCounts = companies.reduce((acc: any, company: any) => {
+    const sectorCounts = companies.reduce((acc, company) => {
       acc[company.sector] = (acc[company.sector] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Get stage distribution
-    const stageCounts = companies.reduce((acc: any, company: any) => {
+    const stageCounts = companies.reduce((acc, company) => {
       acc[company.stage] = (acc[company.stage] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
-      .filter((c: any) => c.currentValuation)
-      .sort((a: any, b: any) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
+      .filter((c) => c.currentValuation)
+      .sort((a, b) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
-    const topPerformers = sortedCompanies.slice(0, topPerformersCount).map((c: any) => ({
+    const topPerformers = sortedCompanies.slice(0, topPerformersCount).map((c) => ({
       id: c.id,
       name: c.name,
       sector: c.sector,
@@ -366,7 +363,7 @@ export class VarianceCalculationService {
 
       finishCalculation();
       return report;
-    } catch (error) {
+    } catch (error: unknown) {
       finishCalculation();
       recordSystemError('variance-calculation', 'report_generation_failed');
       throw error;
@@ -422,7 +419,7 @@ export class VarianceCalculationService {
   /**
    * Calculate variance between current and baseline metrics
    */
-  private calculateVariances(current: any, baseline: any) {
+  private calculateVariances(current: Record<string, unknown>, baseline: Record<string, unknown>) {
     const calculations = {
       totalValueVariance: null as number | null,
       totalValueVariancePct: null as number | null,
@@ -496,29 +493,29 @@ export class VarianceCalculationService {
   /**
    * Generate variance insights and risk assessment
    */
-  private generateVarianceInsights(variances: any, portfolioVariances: any) {
-    const significantVariances: any[] = [];
-    const factors: any[] = [];
-    const thresholdBreaches: any[] = [];
+  private generateVarianceInsights(variances: Record<string, unknown>, portfolioVariances: Record<string, unknown>) {
+    const significantVariances: Array<Record<string, unknown>> = [];
+    const factors: Array<Record<string, unknown>> = [];
+    const thresholdBreaches: Array<Record<string, unknown>> = [];
     let riskLevel = 'low';
     let overallScore = "0";
 
     // Analyze total value variance
-    if (variances.totalValueVariancePct && Math.abs(variances.totalValueVariancePct) > 0.1) {
+    if (variances.totalValueVariancePct && Math.abs(variances.totalValueVariancePct as number) > 0.1) {
       significantVariances.push({
         metric: 'totalValue',
         variance: variances.totalValueVariance,
         variancePct: variances.totalValueVariancePct,
-        severity: Math.abs(variances.totalValueVariancePct) > 0.2 ? 'high' : 'medium'
+        severity: Math.abs(variances.totalValueVariancePct as number) > 0.2 ? 'high' : 'medium'
       });
     }
 
     // Analyze IRR variance
-    if (variances.irrVariance && Math.abs(variances.irrVariance) > 0.05) {
+    if (variances.irrVariance && Math.abs(variances.irrVariance as number) > 0.05) {
       significantVariances.push({
         metric: 'irr',
         variance: variances.irrVariance,
-        severity: Math.abs(variances.irrVariance) > 0.1 ? 'high' : 'medium'
+        severity: Math.abs(variances.irrVariance as number) > 0.1 ? 'high' : 'medium'
       });
     }
 
@@ -546,7 +543,7 @@ export class VarianceCalculationService {
   /**
    * Calculate overall variance score
    */
-  private calculateOverallVarianceScore(variances: any, portfolioVariances: any): string {
+  private calculateOverallVarianceScore(variances: Record<string, unknown>, _portfolioVariances: Record<string, unknown>): string {
     let score = 0;
     let weightSum = 0;
 
@@ -565,7 +562,7 @@ export class VarianceCalculationService {
       const variance = variances[varianceKey];
 
       if (variance !== null && variance !== undefined) {
-        const normalizedVariance = Math.min(Math.abs(variance), 1); // Cap at 100%
+        const normalizedVariance = Math.min(Math.abs(variance as number), 1); // Cap at 100%
         score += normalizedVariance * weight;
         weightSum += weight;
       }
@@ -577,7 +574,7 @@ export class VarianceCalculationService {
   /**
    * Check for alert triggers based on variance calculations
    */
-  private async checkAlertTriggers(fundId: number, variances: any): Promise<any[]> {
+  private async checkAlertTriggers(fundId: number, variances: Record<string, unknown>): Promise<Array<Record<string, unknown>>> {
     const activeRules = await db.query.alertRules.findMany({
       where: and(
         eq(alertRules.fundId, fundId),
@@ -585,7 +582,7 @@ export class VarianceCalculationService {
       )
     });
 
-    const triggeredAlerts = [];
+    const triggeredAlerts: Array<Record<string, unknown>> = [];
 
     for (const rule of activeRules) {
       const triggered = this.evaluateAlertRule(rule, variances);
@@ -607,7 +604,7 @@ export class VarianceCalculationService {
   /**
    * Evaluate if an alert rule should trigger
    */
-  private evaluateAlertRule(rule: AlertRule, variances: any): boolean {
+  private evaluateAlertRule(rule: AlertRule, variances: Record<string, unknown>): boolean {
     const metricValue = variances[`${rule.metricName}Variance`];
     if (metricValue === null || metricValue === undefined) {
       return false;
@@ -619,18 +616,19 @@ export class VarianceCalculationService {
     }
 
     const threshold = parseFloat(rule.thresholdValue.toString());
+    const value = metricValue as number;
 
     switch (rule.operator) {
       case 'gt':
-        return metricValue > threshold;
+        return value > threshold;
       case 'lt':
-        return metricValue < threshold;
+        return value < threshold;
       case 'gte':
-        return metricValue >= threshold;
+        return value >= threshold;
       case 'lte':
-        return metricValue <= threshold;
+        return value <= threshold;
       case 'eq':
-        return Math.abs(metricValue - threshold) < 0.001;
+        return Math.abs(value - threshold) < 0.001;
       default:
         return false;
     }
@@ -772,8 +770,7 @@ export class AlertManagementService {
       where: eq(performanceAlerts.id, alertId)
     });
 
-    await db.update(performanceAlerts)
-      ['set']({
+    await db.update(performanceAlerts)['set']({
         status: 'acknowledged',
         acknowledgedBy: userId,
         acknowledgedAt: new Date(),
@@ -798,8 +795,7 @@ export class AlertManagementService {
     });
 
     const resolveTime = new Date();
-    await db.update(performanceAlerts)
-      ['set']({
+    await db.update(performanceAlerts)['set']({
         status: 'resolved',
         resolvedBy: userId,
         resolvedAt: resolveTime,

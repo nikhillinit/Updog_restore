@@ -39,7 +39,7 @@ export interface ApprovalVerificationResult {
  * Compute deterministic hash of strategy inputs
  * Uses canonical JSON hashing to ensure consistency
  */
-export function computeStrategyHash(strategyData: any): string {
+export function computeStrategyHash(strategyData: unknown): string {
   return canonicalJsonHash(strategyData);
 }
 
@@ -125,12 +125,12 @@ export async function verifyApproval(
     if (requireDistinctPartners) {
       // Enhanced validation: check actual partner ID uniqueness from partners table
       const validation = validateDistinctSigners(
-        signatures.rows.map((s: any) => ({ 
-          partnerId: s.partner_id, // Use actual partner_id from partners table
-          partnerEmail: s.partner_email 
+        signatures.rows.map((s: Record<string, unknown>) => ({
+          partnerId: String(s.partner_id), // Use actual partner_id from partners table
+          partnerEmail: String(s.partner_email)
         }))
       );
-      
+
       if (!validation.valid || validation.uniqueCount < minApprovals) {
         approvalMetrics.denied.inc({ reason: 'duplicate_signers' });
         return {
@@ -185,16 +185,33 @@ export async function verifyApproval(
   }
 }
 
+interface ExpressRequest {
+  body: Record<string, unknown>;
+  params: Record<string, unknown>;
+  approval?: {
+    id?: string;
+    signatures?: Array<{ partnerEmail: string; approvedAt: Date }>;
+    calculationHash?: string;
+  };
+}
+
+interface ExpressResponse {
+  status: (code: number) => ExpressResponse;
+  json: (data: unknown) => void;
+}
+
+type NextFunction = () => void;
+
 /**
  * Express middleware to enforce approval on protected routes
  */
 export function requireApproval(options?: Partial<ApprovalVerificationOptions>) {
-  return async (req: any, res: any, next: any) => {
+  return async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     try {
       // Extract strategy ID and compute inputs hash
       const strategyId = req.body.strategyId || req.params.strategyId;
       const strategyData = req.body.strategyData || req.body;
-      
+
       if (!strategyId) {
         return res["status"](400)["json"]({
           error: 'strategy_id_required',
@@ -206,7 +223,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
 
       // Verify approval
       const result = await verifyApproval({
-        strategyId,
+        strategyId: String(strategyId),
         inputsHash,
         ...options
       });
@@ -225,11 +242,13 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       }
 
       // Attach approval info to request for downstream use
-      req.approval = {
+      const approvalInfo = {
         id: result.approvalId,
         signatures: result.signatures,
         calculationHash: result.calculationHash
       };
+      // eslint-disable-next-line require-atomic-updates
+      req.approval = approvalInfo;
 
       next();
     } catch (error) {
@@ -278,7 +297,7 @@ export function requiresApproval(
 export async function createApprovalIfNeeded(
   strategyId: string,
   action: 'create' | 'update' | 'delete',
-  strategyData: any,
+  strategyData: unknown,
   reason: string,
   requestedBy: string,
   impact: {
@@ -287,7 +306,7 @@ export async function createApprovalIfNeeded(
     riskLevel: 'low' | 'medium' | 'high';
   }
 ): Promise<{ requiresApproval: boolean; approvalId?: string; rateLimited?: boolean }> {
-  
+
   const needsApproval = requiresApproval(
     action,
     impact.estimatedAmount,
@@ -300,7 +319,7 @@ export async function createApprovalIfNeeded(
 
   // Check if approval already exists
   const inputsHash = computeStrategyHash(strategyData);
-  
+
   // Apply rate limiting to prevent approval storms
   const rateLimitCheck = approvalRateLimiter.canCreateApproval(strategyId, inputsHash);
   if (!rateLimitCheck.allowed) {

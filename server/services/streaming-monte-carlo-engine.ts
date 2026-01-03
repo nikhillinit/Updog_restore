@@ -260,7 +260,7 @@ class StreamingAggregator {
 
     // Calculate percentiles from sorted samples
     const samples = this.aggregatedData['sortedSamples'][metric] || [];
-    samples.sort((a: any, b: any) => a - b);
+    samples.sort((a, b) => a - b);
 
     const percentiles = new Map<number, number>();
     const percentileValues = [5, 10, 25, 50, 75, 90, 95];
@@ -283,10 +283,10 @@ class StreamingAggregator {
   getMemoryUsage(): number {
     // Estimate memory usage in MB
     const samplesMemory = Object.values(this.aggregatedData.sortedSamples)
-      .reduce((sum: any, samples: any) => sum + samples.length * 8, 0); // 8 bytes per number
+      .reduce((sum, samples) => sum + samples.length * 8, 0); // 8 bytes per number
 
     const histogramMemory = Object.values(this.aggregatedData.histogram)
-      .reduce((sum: any, hist: any) => sum + hist.size * 16, 0); // ~16 bytes per map entry
+      .reduce((sum, hist) => sum + hist.size * 16, 0); // ~16 bytes per map entry
 
     const metadataMemory = 1024; // 1KB for metadata
 
@@ -300,8 +300,7 @@ class StreamingAggregator {
 
 export class StreamingMonteCarloEngine {
   private connectionManager = new ConnectionPoolManager();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private db: any = null;
+  private db: ReturnType<typeof drizzle> | null = null;
   private dbInitPromise: Promise<void> | null = null;
   private currentStats: StreamingStats | null = null;
 
@@ -311,8 +310,7 @@ export class StreamingMonteCarloEngine {
     // without requiring DATABASE_URL
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async ensureDatabase(): Promise<any> {
+  private async ensureDatabase(): Promise<ReturnType<typeof drizzle>> {
     if (this.db) {
       return this.db;
     }
@@ -323,7 +321,7 @@ export class StreamingMonteCarloEngine {
     }
 
     await this.dbInitPromise;
-    return this.db;
+    return this.db!;
   }
 
   private async initializeDatabase(): Promise<void> {
@@ -541,8 +539,8 @@ export class StreamingMonteCarloEngine {
   /**
    * Convert streaming results to traditional format for compatibility
    */
-  private convertToTraditionalFormat(distributions: Record<string, MemoryEfficientDistribution>): any {
-    const results: any = {};
+  private convertToTraditionalFormat(distributions: Record<string, MemoryEfficientDistribution>): Record<string, unknown> {
+    const results: Record<string, unknown> = {};
 
     for (const [metric, dist] of Object.entries(distributions)) {
       const percentiles = {
@@ -652,7 +650,7 @@ export class StreamingMonteCarloEngine {
     }
 
     // Find optimal allocation
-    const optimal = allocationAnalysis.reduce((best: any, current: any) =>
+    const optimal = allocationAnalysis.reduce((best, current) =>
       current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
     );
 
@@ -821,8 +819,8 @@ export class StreamingMonteCarloEngine {
     const sectorDistribution = baseline.sectorDistribution as Record<string, number> || {};
     const stageDistribution = baseline.stageDistribution as Record<string, number> || {};
 
-    const totalSectorCount = Object.values(sectorDistribution).reduce((sum: any, count: any) => sum + count, 0);
-    const totalStageCount = Object.values(stageDistribution).reduce((sum: any, count: any) => sum + count, 0);
+    const totalSectorCount = Object.values(sectorDistribution).reduce((sum, count) => sum + count, 0);
+    const totalStageCount = Object.values(stageDistribution).reduce((sum, count) => sum + count, 0);
 
     const sectorWeights: Record<string, number> = {};
     const stageWeights: Record<string, number> = {};
@@ -899,23 +897,23 @@ export class StreamingMonteCarloEngine {
     };
   }
 
-  private extractVariances(reports: any[], field: string): number[] {
+  private extractVariances(reports: unknown[], field: string): number[] {
     return reports
-      .map(r => r[field])
+      .map(r => (r as Record<string, unknown>)[field])
       .filter(v => v !== null && v !== undefined)
-      .map(v => parseFloat(v.toString()));
+      .map(v => parseFloat(String(v)));
   }
 
   private calculateVolatility(values: number[]): number {
     if (values.length < 2) return 0;
 
-    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
     return Math.sqrt(variance);
   }
 
   private generateInsights(
-    performanceResults: any,
+    performanceResults: Record<string, unknown>,
     riskMetrics: RiskMetrics,
     reserveOptimization: ReserveOptimization,
     baseline: FundBaseline
@@ -941,7 +939,8 @@ export class StreamingMonteCarloEngine {
     }
 
     // Opportunity identification
-    if (performanceResults.irr.statistics.standardDeviation > 0.12) {
+    const irrResult = performanceResults.irr as { statistics: { standardDeviation: number } };
+    if (irrResult.statistics.standardDeviation > 0.12) {
       opportunities.push('High return variance suggests potential for better portfolio diversification');
     }
 
@@ -949,6 +948,7 @@ export class StreamingMonteCarloEngine {
       opportunities.push('Consider increasing follow-on capacity to capture more upside opportunities');
     }
 
+    const irrMean = (performanceResults.irr as { statistics: { mean: number } }).statistics.mean;
     const keyMetrics: Array<{
       metric: string;
       value: number;
@@ -958,9 +958,9 @@ export class StreamingMonteCarloEngine {
     }> = [
       {
         metric: 'Expected IRR',
-        value: toSafeNumber(performanceResults.irr.statistics.mean),
+        value: toSafeNumber(irrMean),
         benchmark: 0.15,
-        status: toSafeNumber(performanceResults.irr.statistics.mean) >= 0.15 ? 'above' : 'below',
+        status: toSafeNumber(irrMean) >= 0.15 ? 'above' : 'below',
         impact: 'high'
       },
       {
