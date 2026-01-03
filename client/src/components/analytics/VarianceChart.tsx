@@ -40,6 +40,16 @@ interface VarianceChartProps {
   chartType?: 'bar' | 'line' | 'scatter';
 }
 
+function getSeverityColor(severity?: string) {
+  switch (severity) {
+    case 'critical': return '#dc2626';
+    case 'high': return '#ea580c';
+    case 'medium': return '#d97706';
+    case 'low': return '#16a34a';
+    default: return '#6b7280';
+  }
+}
+
 export function VarianceChart({
   data,
   title,
@@ -61,16 +71,6 @@ export function VarianceChart({
       severityColor: getSeverityColor(point.severity),
     }));
   }, [data]);
-
-  function getSeverityColor(severity?: string) {
-    switch (severity) {
-      case 'critical': return '#dc2626';
-      case 'high': return '#ea580c';
-      case 'medium': return '#d97706';
-      case 'low': return '#16a34a';
-      default: return '#6b7280';
-    }
-  }
 
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: unknown[]; label?: string }) => {
     if (active && payload && payload.length) {

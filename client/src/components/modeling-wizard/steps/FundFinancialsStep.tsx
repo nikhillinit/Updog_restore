@@ -75,7 +75,11 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
   // Watch form values for real-time updates
   const fundSize = watch('fundSize');
   const orgExpenses = watch('orgExpenses');
-  const additionalExpenses = watch('additionalExpenses') || [];
+  const additionalExpenses = watch('additionalExpenses');
+  const additionalExpensesList = React.useMemo(
+    () => additionalExpenses ?? [],
+    [additionalExpenses]
+  );
   const investmentPeriod = watch('investmentPeriod');
   const gpCommitment = watch('gpCommitment');
   const cashlessSplit = watch('cashlessSplit');
@@ -92,7 +96,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
   // Calculate projections
   const projections = React.useMemo(() => {
     // Filter out undefined optional properties to satisfy exactOptionalPropertyTypes
-    const safeExpenses = (additionalExpenses ?? []).map(exp => ({
+    const safeExpenses = additionalExpensesList.map(exp => ({
       id: exp.id,
       name: exp.name,
       amount: exp.amount,
@@ -125,7 +129,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
     stepDownRate,
     scheduleType,
     customSchedule,
-    additionalExpenses
+    additionalExpensesList
   ]);
 
   // Calculate net investable capital

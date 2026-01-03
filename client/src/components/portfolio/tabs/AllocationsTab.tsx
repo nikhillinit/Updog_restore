@@ -2,7 +2,7 @@
  * Allocations Tab Component
  * Displays allocation state for all companies in a fund
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -36,29 +36,31 @@ export function AllocationsTab() {
     direction: 'asc' | 'desc';
   } | null>(null);
 
-  const handleEdit = (company: AllocationCompany) => {
+  const handleEdit = useCallback((company: AllocationCompany) => {
     setSelectedCompany(company);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const columns = useMemo(() => createAllocationsColumns(handleEdit), []);
+  const columns = useMemo(() => createAllocationsColumns(handleEdit), [handleEdit]);
+
+  const companies = data?.companies;
 
   // Extract unique sectors and statuses for filters
   const sectors = useMemo(() => {
-    if (!data?.companies) return [];
-    return Array.from(new Set(data.companies.map((c) => c.sector))).sort();
-  }, [data?.companies]);
+    if (!companies) return [];
+    return Array.from(new Set(companies.map((c) => c.sector))).sort();
+  }, [companies]);
 
   const statuses = useMemo(() => {
-    if (!data?.companies) return [];
-    return Array.from(new Set(data.companies.map((c) => c.status))).sort();
-  }, [data?.companies]);
+    if (!companies) return [];
+    return Array.from(new Set(companies.map((c) => c.status))).sort();
+  }, [companies]);
 
   // Filter and sort data
   const filteredAndSortedCompanies = useMemo(() => {
-    if (!data?.companies) return [];
+    if (!companies) return [];
 
-    let filtered = data.companies.filter((company) => {
+    let filtered = companies.filter((company) => {
       const matchesSearch = company.company_name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
@@ -91,7 +93,7 @@ export function AllocationsTab() {
     }
 
     return filtered;
-  }, [data?.companies, searchQuery, sectorFilter, statusFilter, sortConfig]);
+  }, [companies, searchQuery, sectorFilter, statusFilter, sortConfig]);
 
   const handleSort = (key: keyof AllocationCompany) => {
     setSortConfig((current) => {
@@ -144,7 +146,7 @@ export function AllocationsTab() {
   }
 
   // Empty state
-  if (!data?.companies || data.companies.length === 0) {
+  if (!companies || companies.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -249,9 +251,9 @@ export function AllocationsTab() {
       {/* Results count */}
       {searchQuery || sectorFilter !== 'all' || statusFilter !== 'all' ? (
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">
-            {filteredAndSortedCompanies.length} of {data.companies.length} companies
-          </Badge>
+            <Badge variant="secondary">
+              {filteredAndSortedCompanies.length} of {companies.length} companies
+            </Badge>
           {(searchQuery || sectorFilter !== 'all' || statusFilter !== 'all') && (
             <Button
               variant="ghost"

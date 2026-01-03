@@ -9,8 +9,9 @@ export function useWorkerAnalytics() {
   const [progress, setProgress] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/analytics.worker.ts', import.meta.url), { type: 'module' });
-    workerRef.current.onmessage = (e: MessageEvent<any>) => {
+    const worker = new Worker(new URL('../workers/analytics.worker.ts', import.meta.url), { type: 'module' });
+    workerRef.current = worker;
+    worker.onmessage = (e: MessageEvent<any>) => {
       const { id, result, error, progress: p } = e.data ?? {};
       if (p !== undefined) {
         setProgress(prev => ({ ...prev, [id]: p }));
@@ -34,8 +35,10 @@ export function useWorkerAnalytics() {
       pending.current.clear();
       setProgress({});
 
-      workerRef.current?.terminate();
-      workerRef.current = null;
+      worker.terminate();
+      if (workerRef.current === worker) {
+        workerRef.current = null;
+      }
     };
   }, []);
 
