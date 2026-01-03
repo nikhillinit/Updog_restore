@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
@@ -53,12 +54,19 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
 
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
 
+  // Watch all form values and debounce to prevent infinite save loop
+  // watch() returns new object every render, defeating memoization
+  // useDebounceDeep uses JSON-based deep equality to stabilize references
+  const formValues = watch();
+  const debouncedFormValues = useDebounceDeep(formValues, 250);
+
+  // Auto-save when valid (uses debounced value to prevent 460+ saves/sec)
   React.useEffect(() => {
-    const subscription = watch((value) => {
-      feesExpensesSchema.safeParse(value).success && onSave(value as FeesExpensesInput);
-    });
-    return () => subscription.unsubscribe();
-  }, [watch, onSave]);
+    const result = feesExpensesSchema.safeParse(debouncedFormValues);
+    if (result.success) {
+      onSave(result.data);
+    }
+  }, [debouncedFormValues, onSave]);
 
   // Toggle handler with preservation pattern
   const handleStepDownToggle = (enabled: boolean) => {
