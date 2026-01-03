@@ -441,7 +441,9 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       changes: auditData.encryptedData || {
         requestBody: auditData.requestBody,
         responseBody: auditData.responseBody,
-        metadata: auditData.metadata
+        // Store execution metrics in JSON field (Decision 1)
+        executionTimeMs: auditData.executionTimeMs,
+        riskLevel: auditData.riskLevel,
       },
       ipAddress: auditData.ipAddress,
       userAgent: auditData.userAgent,
@@ -450,14 +452,6 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       requestPath: auditData.requestPath,
       httpMethod: auditData.httpMethod,
       statusCode: auditData.statusCode,
-      metadata: {
-        executionTimeMs: auditData.executionTimeMs,
-        riskLevel: auditData.riskLevel,
-        requestSize: auditData.requestSize,
-        responseSize: auditData.responseSize,
-        integrityHash: auditData.integrityHash,
-        encrypted: !!auditData.encryptedData
-      }
     });
   } catch (error) {
     // Log to file as fallback

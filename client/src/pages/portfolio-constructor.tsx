@@ -642,8 +642,13 @@ export default function PortfolioConstructor() {
                         value={strategy.scenarios[activeScenario]?.marketEnvironment ?? 'normal'}
                         onValueChange={(value: string) => {
                           const updatedScenarios = [...strategy.scenarios];
+                          const current = updatedScenarios[activeScenario];
+                          if (!current) {
+                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            return;
+                          }
                           updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
+                            ...current,
                             marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession'
                           };
                           updateStrategy('scenarios', updatedScenarios);
@@ -667,8 +672,13 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.dealFlowMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
+                          const current = updatedScenarios[activeScenario];
+                          if (!current) {
+                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            return;
+                          }
                           updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
+                            ...current,
                             dealFlowMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
@@ -686,8 +696,13 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.valuationMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
+                          const current = updatedScenarios[activeScenario];
+                          if (!current) {
+                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            return;
+                          }
                           updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
+                            ...current,
                             valuationMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
@@ -705,8 +720,13 @@ export default function PortfolioConstructor() {
                         value={[strategy.scenarios[activeScenario]?.exitMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
+                          const current = updatedScenarios[activeScenario];
+                          if (!current) {
+                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            return;
+                          }
                           updatedScenarios[activeScenario] = {
-                            ...updatedScenarios[activeScenario],
+                            ...current,
                             exitMultiplier: value ?? 1
                           };
                           updateStrategy('scenarios', updatedScenarios);
