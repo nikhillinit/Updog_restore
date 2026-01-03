@@ -5,8 +5,14 @@
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import Redis from 'ioredis';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
+
+interface ExtendedRequest extends Request {
+  user?: { id: number | string };
+  rateLimit?: { resetTime: Date };
+  requestId?: string;
+}
 
 // Redis client for distributed rate limiting (optional)
 let redisClient: Redis | null = null;
@@ -80,11 +86,11 @@ function createRateLimiter(
 ) {
   const store = redisClient
     ? new RedisStore({
-        sendCommand: (...args: string[]) => (redisClient as any).call(...args),
+        sendCommand: (...args: string[]) => redisClient!.call(args[0], ...args.slice(1)) as Promise<unknown>,
         prefix: `rl:${keyPrefix}:`
-      }) as any
+      })
     : undefined; // Falls back to memory store
-  
+
   return rateLimit({
     windowMs: config.windowMs,
     max: config.max,
@@ -94,12 +100,12 @@ function createRateLimiter(
     keyGenerator: (req: Request) => {
       // Use IP address as key, with support for proxies
       const forwarded = req.headers['x-forwarded-for'];
-      const ip = forwarded 
+      const ip = forwarded
         ? (typeof forwarded === 'string' ? forwarded.split(',')[0] : forwarded[0])
         : req.ip;
-      
+
       // Include user ID if authenticated
-      const userId = (req as any).user?.id;
+      const userId = (req as ExtendedRequest).user?.id;
       return userId ? `${ip}:user:${userId}` : `${ip}:anon`;
     },
     skip: (req: Request) => {
@@ -108,25 +114,25 @@ function createRateLimiter(
       if (healthKey && req['get']('X-Health-Key') === healthKey) {
         return true;
       }
-      
+
       // Skip rate limiting in development mode if configured
       if (process.env['NODE_ENV'] === 'development' && process.env['SKIP_RATE_LIMIT'] === 'true') {
         return true;
       }
-      
+
       return false;
     },
     handler: (req: Request, res: Response) => {
-      const resetTime = (req as any).rateLimit?.resetTime;
+      const resetTime = (req as ExtendedRequest).rateLimit?.resetTime;
       const seconds = resetTime
         ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
-      
+
       res['setHeader']('Retry-After', String(seconds));
       sendApiError(
-        res, 
-        429, 
-        createErrorBody(config.message, (req as any).requestId, 'RATE_LIMITED')
+        res,
+        429,
+        createErrorBody(config.message, (req as ExtendedRequest).requestId, 'RATE_LIMITED')
       );
     }
   });
@@ -159,7 +165,9 @@ export class CostBasedRateLimiter {
   ) {
     // Set up automatic cleanup
     this.sweepTimer = setInterval(() => this.sweep(), Math.min(60_000, windowMs));
-    (this.sweepTimer as any).unref?.();
+    if (typeof this.sweepTimer.unref === 'function') {
+      this.sweepTimer.unref();
+    }
   }
   
   private sweep() {
@@ -230,8 +238,8 @@ export const simulationCostLimiter = new CostBasedRateLimiter(
  * Middleware for cost-based rate limiting
  */
 export function costBasedRateLimit(getCost: (_req: Request) => number) {
-  return async (req: Request, res: Response, next: Function) => {
-    const key = (req as any).user?.id || req.ip || 'unknown';
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const key = (req as ExtendedRequest).user?.id || req.ip || 'unknown';
     const cost = getCost(req);
     
     const { allowed, remaining } = await simulationCostLimiter.consume(key, cost);

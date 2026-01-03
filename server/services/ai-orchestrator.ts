@@ -80,6 +80,40 @@ interface BudgetData {
   total_cost_usd: number;
 }
 
+// Type helper to extract error message from unknown errors
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+// Type helper to check if error has a message property
+function hasMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  );
+}
+
+// Ollama client interface for optional local model support
+interface OllamaClient {
+  chat(options: { model: string; messages: Array<{ role: string; content: string }> }): Promise<{
+    message?: { content?: string };
+    prompt_eval_count?: number;
+    eval_count?: number;
+  }>;
+}
+
+// AIRouter call options interface
+interface AIRouterCallOptions {
+  temperature?: number;
+  maxTokens?: number;
+  [key: string]: unknown;
+}
+
 // ============================================================================
 // Pricing (via environment variables for easy updates)
 // ============================================================================
@@ -199,11 +233,12 @@ async function withRetryAndTimeout<T>(
 
       clearTimeout(timeoutId);
       return result;
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error : new Error(String(error));
 
       // Don't retry on auth errors
-      if (error.message?.includes('API key') || error.message?.includes('401')) {
+      const errorMsg = getErrorMessage(error);
+      if (errorMsg.includes('API key') || errorMsg.includes('401')) {
         throw error;
       }
 
@@ -224,6 +259,40 @@ export interface ClaudeOptions {
   threadId?: string;
 }
 
+// Anthropic beta feature types (not yet in official SDK types)
+interface AnthropicMemoryTool {
+  type: string;
+  name: string;
+}
+
+interface AnthropicContextEdit {
+  type: string;
+  trigger: { type: string; value: number };
+  keep: { type: string; value: number };
+  clear_at_least: { type: string; value: number };
+}
+
+interface AnthropicContextManagement {
+  edits: AnthropicContextEdit[];
+}
+
+// Extended message create params for beta features
+interface ExtendedMessageCreateParams {
+  model: string;
+  max_tokens: number;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  tools?: AnthropicMemoryTool[];
+  betas?: string[];
+  context_management?: AnthropicContextManagement;
+  effort?: string;
+}
+
+// Content block with text type
+interface TextContentBlock {
+  type: 'text';
+  text: string;
+}
+
 async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIResponse> {
   if (!anthropic) {
     return { model: 'claude', error: 'ANTHROPIC_API_KEY not configured' };
@@ -232,53 +301,60 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
   const startTime = Date.now();
 
   try {
-    // Configure tools (native memory tool)
-    const tools: Anthropic.Tool[] = [];
+    // Configure tools (native memory tool - beta feature)
+    const tools: AnthropicMemoryTool[] = [];
     if (options?.enableMemory) {
       tools.push({
-        type: 'memory_20250818' as any, // Native memory tool
+        type: 'memory_20250818', // Native memory tool
         name: 'memory',
-      } as any);
+      });
     }
 
-    // Configure context management (context clearing)
-    const contextManagement = options?.enableContextClearing ? {
+    // Configure context management (context clearing - beta feature)
+    const contextManagement: AnthropicContextManagement | undefined = options?.enableContextClearing ? {
       edits: [
         {
-          type: 'clear_tool_uses_20250919' as any,
+          type: 'clear_tool_uses_20250919',
           trigger: {
-            type: 'input_tokens' as any,
+            type: 'input_tokens',
             value: 5000,
           },
           keep: {
-            type: 'tool_uses' as any,
+            type: 'tool_uses',
             value: 3,
           },
           clear_at_least: {
-            type: 'input_tokens' as any,
+            type: 'input_tokens',
             value: 3000,
           },
         },
       ],
     } : undefined;
 
+    // Build extended params for beta features
+    const createParams: ExtendedMessageCreateParams = {
+      model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }],
+      ...(tools.length > 0 ? { tools } : {}),
+      ...(options?.enableContextClearing ? { betas: ['context-management-2025-06-27'] } : {}),
+      ...(contextManagement ? { context_management: contextManagement } : {}),
+      // Opus 4.5: Set effort to 'high' for deep reasoning
+      ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] } : {}),
+    };
+
     const response = await withRetryAndTimeout(
-      () => anthropic.messages.create({
-        model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
-        max_tokens: 8192,
-        messages: [{ role: 'user', content: prompt }],
-        tools: tools.length > 0 ? tools : undefined,
-        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
-        ...(contextManagement ? { context_management: contextManagement as any } : {}),
-        // Opus 4.5: Set effort to 'high' for deep reasoning
-        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
-      } as any),
+      () => anthropic.messages.create(createParams as Anthropic.MessageCreateParamsNonStreaming),
       'claude'
     );
 
+    // Type guard for text content blocks
+    const isTextBlock = (c: Anthropic.ContentBlock): c is TextContentBlock & Anthropic.ContentBlock =>
+      c.type === 'text' && 'text' in c;
+
     const text = response.content
-      .filter((c) => c.type === 'text')
-      .map((c) => (c as any).text)
+      .filter(isTextBlock)
+      .map((c) => c.text)
       .join('\n');
 
     const usage = {
@@ -294,10 +370,10 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
       cost_usd: estimateCost('claude', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'claude',
-      error: error.message ?? 'Unknown error',
+      error: getErrorMessage(error),
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -336,10 +412,10 @@ async function askGPT(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gpt',
-      error: error.message ?? 'Unknown error',
+      error: getErrorMessage(error),
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -379,10 +455,10 @@ async function askGemini(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gemini',
-      error: error.message ?? 'Unknown error',
+      error: getErrorMessage(error),
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -421,10 +497,10 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'deepseek',
-      error: error.message ?? 'Unknown error',
+      error: getErrorMessage(error),
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -715,9 +791,10 @@ export async function collaborativeSolve({
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 // Ollama support (optional - dynamic require)
-let __ollama__: any = null;
+let __ollama__: OllamaClient | null = null;
 try {
-  const Ollama = require('ollama');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Ollama = require('ollama') as new (opts: { host: string }) => OllamaClient;
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
 } catch (error) {
   // Ollama package not installed - this is expected in most deployments
@@ -772,7 +849,7 @@ const __userText = (messages: ChatMessage[]) =>
   messages.find(m => m.role === 'user')?.content ?? '';
 
 export const AIRouter = {
-  async call(providerId: string, messages: ChatMessage[], _opts?: any) {
+  async call(providerId: string, messages: ChatMessage[], _opts?: AIRouterCallOptions) {
     const prompt = __userText(messages);
 
     if (providerId.startsWith('ollama:')) {

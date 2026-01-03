@@ -2,6 +2,16 @@ import type { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage.js';
 import type { InsertAuditLog } from '../../shared/schema.js';
 
+interface ExtendedRequest extends Request {
+  correlationId?: string;
+  user?: { id: number };
+  session?: { id: string };
+}
+
+interface StorageWithAudit {
+  insertAuditLog?: (entry: InsertAuditLog) => Promise<void>;
+}
+
 interface AuditConfig {
   excludePaths?: string[];
   excludeMethods?: string[];
@@ -30,15 +40,16 @@ export function auditLog(config: AuditConfig = {}) {
     }
 
     // Capture request data
-    const correlationId = (req as any).correlationId;
-    const userId = (req as any).user?.id; // Assumes auth middleware sets user
+    const extReq = req as ExtendedRequest;
+    const correlationId = extReq.correlationId;
+    const userId = extReq.user?.id; // Assumes auth middleware sets user
     const startTime = Date.now();
 
     // Override res.json to capture response
     const originalJson = res.json;
-    let responseBody: any;
-    
-    res.json = function(body: any) {
+    let responseBody: unknown;
+
+    res.json = function(body: unknown) {
       responseBody = body;
       return originalJson.call(this, body);
     };
@@ -51,20 +62,20 @@ export function auditLog(config: AuditConfig = {}) {
       }
 
       try {
-        const auditEntry: any = { // TODO: Fix InsertAuditLog type
-          userId: userId || null,
+        const auditEntry: InsertAuditLog = {
+          userId: userId ?? null,
           action: req.method,
           entityType: extractEntityType(req.path),
           entityId: extractEntityId(req.path),
           changes: mergedConfig.includeBody ? {
-            request: req.body,
+            request: req.body as Record<string, unknown>,
             response: responseBody,
             params: req.params,
             query: req.query,
           } : null,
           ipAddress: req.ip || req.connection.remoteAddress || null,
           userAgent: req['get']('User-Agent') || null,
-          correlationId: correlationId || null,
+          correlationId: correlationId ?? null,
           sessionId: extractSessionId(req),
           requestPath: req.path,
           httpMethod: req.method,
@@ -83,12 +94,13 @@ export function auditLog(config: AuditConfig = {}) {
   };
 }
 
-async function logAuditEntry(entry: InsertAuditLog) {
+async function logAuditEntry(entry: InsertAuditLog): Promise<void> {
   try {
     // Use your storage layer to insert the audit log
     // Note: You'll need to add an insertAuditLog method to your storage layer
-    if ('insertAuditLog' in storage && typeof storage.insertAuditLog === 'function') {
-      await (storage as any).insertAuditLog(entry);
+    const storageWithAudit = storage as unknown as StorageWithAudit;
+    if (storageWithAudit.insertAuditLog && typeof storageWithAudit.insertAuditLog === 'function') {
+      await storageWithAudit.insertAuditLog(entry);
     } else {
       // Fallback: direct console logging for development
       console.log('AUDIT:', JSON.stringify(entry));
@@ -112,8 +124,9 @@ function extractEntityId(path: string): string | null {
 
 function extractSessionId(req: Request): string | null {
   // Extract session ID from request (cookie, header, etc.)
-  return req['get']('x-session-id') || 
-         (req as any).session?.id || 
-         req.cookies?.sessionId || 
+  const extReq = req as ExtendedRequest;
+  return req['get']('x-session-id') ||
+         extReq.session?.id ||
+         req.cookies?.sessionId ||
          null;
 }

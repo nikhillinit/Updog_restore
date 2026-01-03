@@ -10,6 +10,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { scenarios, scenarioCases, scenarioAuditLogs, portfolioCompanies } from '@shared/schema';
+import type { ScenarioCase as DbScenarioCase } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
@@ -18,9 +19,33 @@ import {
   addMOICToCases
 } from '@shared/utils/scenario-math';
 import type {
-  ScenarioAnalysisResponse
+  ScenarioAnalysisResponse,
+  ScenarioCase
 } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+
+// ============================================================================
+// Type Definitions for Request Bodies and Database Operations
+// ============================================================================
+
+/** Case input from request body (validated by Zod schema) */
+interface CaseInput {
+  case_name: string;
+  description?: string;
+  probability: number;
+  investment: number;
+  follow_ons: number;
+  exit_proceeds: number;
+  exit_valuation: number;
+  months_to_exit?: number;
+  ownership_at_exit?: number;
+}
+
+/** Helper to get error message from unknown error */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
 const router = Router();
 
@@ -153,11 +178,11 @@ router["get"]('/funds/:fundId/portfolio-analysis',
         generated_at: new Date(),
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Portfolio analysis error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }
@@ -200,13 +225,13 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       const scenarioData = scenario[0];
 
       // Fetch cases if requested
-      let mappedCases: any[] = [];
+      let mappedCases: ScenarioCase[] = [];
       if (include.includes('cases')) {
         const cases = await db.select()
           .from(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
-        mappedCases = cases.map((c: any) => ({
+        mappedCases = cases.map((c: DbScenarioCase) => ({
           id: c.id,
           case_name: c.caseName,
           description: c.description ?? undefined,
@@ -228,14 +253,7 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
         ? calculateWeightedSummary(casesWithMOIC)
         : undefined;
 
-      // Get investment rounds if requested (commented out - investmentRounds not in schema)
-      // let rounds = [];
-      // if (include.includes('rounds')) {
-      //   rounds = await db.query.investments.findMany({
-      //     where: eq(investments.companyId, parseInt(companyId)),
-      //     orderBy: (investments: any, { asc }: any) => [asc(investments.investmentDate)]
-      //   });
-      // }
+      // Note: Investment rounds feature not yet implemented - investmentRounds not in schema
 
       const response: ScenarioAnalysisResponse = {
         company_name: '', // TODO: fetch company name separately if needed
@@ -259,11 +277,11 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["json"](response);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Get scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }
@@ -307,11 +325,11 @@ router["post"]('/companies/:companyId/scenarios',
 
       res["status"](201)["json"](scenario[0]);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Create scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }
@@ -364,9 +382,20 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         });
       }
 
-      // Validate probabilities
-      let cases = body.cases as any[];
-      const validation = validateProbabilities(cases as any);
+      // Validate probabilities - map CaseInput to ScenarioCase format for validation
+      let cases: CaseInput[] = body.cases;
+      const casesForValidation: ScenarioCase[] = cases.map(c => ({
+        case_name: c.case_name,
+        description: c.description,
+        probability: c.probability,
+        investment: c.investment,
+        follow_ons: c.follow_ons,
+        exit_proceeds: c.exit_proceeds,
+        exit_valuation: c.exit_valuation,
+        months_to_exit: c.months_to_exit,
+        ownership_at_exit: c.ownership_at_exit,
+      }));
+      const validation = validateProbabilities(casesForValidation);
 
       if (!validation.is_valid && !body.normalize) {
         return res["status"](400)["json"]({
@@ -381,18 +410,18 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       let normalized = false;
       const original_sum = validation.sum;
       if (body.normalize && !validation.is_valid) {
-        cases = normalizeProbabilities(cases as any);
+        cases = normalizeProbabilities(cases);
         normalized = true;
       }
 
       // Delete existing cases and insert new ones (transaction)
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx: typeof db) => {
         await tx.delete(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
         if (cases.length > 0) {
           await tx.insert(scenarioCases).values(
-            cases.map((c: any) => ({
+            cases.map((c: CaseInput) => ({
               scenarioId: scenarioId,
               caseName: c.case_name,
               description: c.description,
@@ -429,8 +458,19 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         },
       });
 
-      // Return updated data
-      const casesWithMOIC = addMOICToCases(cases as any);
+      // Return updated data - map CaseInput to ScenarioCase format
+      const updatedCasesForMOIC: ScenarioCase[] = cases.map(c => ({
+        case_name: c.case_name,
+        description: c.description,
+        probability: c.probability,
+        investment: c.investment,
+        follow_ons: c.follow_ons,
+        exit_proceeds: c.exit_proceeds,
+        exit_valuation: c.exit_valuation,
+        months_to_exit: c.months_to_exit,
+        ownership_at_exit: c.ownership_at_exit,
+      }));
+      const casesWithMOIC = addMOICToCases(updatedCasesForMOIC);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
       res["json"]({
@@ -442,7 +482,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         original_sum: normalized ? original_sum : undefined,
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
@@ -454,7 +494,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }
@@ -511,11 +551,11 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
 
       res["status"](204)["send"]();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete scenario error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }
@@ -576,11 +616,11 @@ router["post"]('/companies/:companyId/reserves/optimize',
         generated_at: new Date(),
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Reserves optimization error:', error);
       res["status"](500)["json"]({
         error: 'Internal server error',
-        message: error.message
+        message: getErrorMessage(error)
       });
     }
   }

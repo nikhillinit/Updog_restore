@@ -13,9 +13,23 @@ import type { Request, Response, NextFunction } from 'express';
 declare global {
   namespace Express {
     interface Request {
-      validatedBody?: any;
+      validatedBody?: unknown;
     }
   }
+}
+
+// === TYPE INTERFACES FOR REFINE CALLBACKS ===
+
+/** Data shape for CreateBaselineRequestSchema refine callback */
+interface BaselineRefineData {
+  periodStart: string;
+  periodEnd: string;
+}
+
+/** Data shape for CreateAlertRuleRequestSchema refine callback */
+interface AlertRuleRefineData {
+  operator: string;
+  secondaryThreshold?: number;
 }
 
 // === CORE VALIDATION HELPERS ===
@@ -93,7 +107,7 @@ export const CreateBaselineRequestSchema = z.object({
   tags: z.array(z.string().max(50, 'Tag must be 50 characters or less'))
     .max(10, 'Maximum 10 tags allowed')
     .default([])
-}).refine((data: any) => {
+}).refine((data: BaselineRefineData) => {
   const start = new Date(data.periodStart);
   const end = new Date(data.periodEnd);
   return end > start;
@@ -122,11 +136,11 @@ export const BaselineResponseSchema = z.object({
   tvpi: decimalSchema.nullable(),
   portfolioCount: z.number().int().min(0),
   averageInvestment: decimalSchema.nullable(),
-  topPerformers: z.any(), // JSON data
-  sectorDistribution: z.any(), // JSON data
-  stageDistribution: z.any(), // JSON data
-  reserveAllocation: z.any(), // JSON data
-  pacingMetrics: z.any(), // JSON data
+  topPerformers: z.unknown(), // JSON data
+  sectorDistribution: z.unknown(), // JSON data
+  stageDistribution: z.unknown(), // JSON data
+  reserveAllocation: z.unknown(), // JSON data
+  pacingMetrics: z.unknown(), // JSON data
   isActive: z.boolean(),
   isDefault: z.boolean(),
   confidence: decimalSchema,
@@ -193,8 +207,8 @@ export const PortfolioVarianceSchema = z.object({
     valuationVariancePct: decimalSchema.nullable(),
     riskLevel: z.enum(['low', 'medium', 'high', 'critical'])
   })),
-  sectorVariances: z.record(z.string(), z.any()),
-  stageVariances: z.record(z.string(), z.any()),
+  sectorVariances: z.record(z.string(), z.unknown()),
+  stageVariances: z.record(z.string(), z.unknown()),
   portfolioCountVariance: z.number().int()
 });
 
@@ -230,19 +244,19 @@ export const VarianceReportResponseSchema = z.object({
   analysisStart: timestampSchema,
   analysisEnd: timestampSchema,
   asOfDate: timestampSchema,
-  currentMetrics: z.any(),
-  baselineMetrics: z.any(),
+  currentMetrics: z.unknown(),
+  baselineMetrics: z.unknown(),
   ...VarianceCalculationSchema.shape,
-  portfolioVariances: z.any(),
-  sectorVariances: z.any(),
-  stageVariances: z.any(),
-  reserveVariances: z.any(),
-  pacingVariances: z.any(),
+  portfolioVariances: z.unknown(),
+  sectorVariances: z.unknown(),
+  stageVariances: z.unknown(),
+  reserveVariances: z.unknown(),
+  pacingVariances: z.unknown(),
   overallVarianceScore: decimalSchema.nullable(),
-  significantVariances: z.any(),
-  varianceFactors: z.any(),
-  alertsTriggered: z.any(),
-  thresholdBreaches: z.any(),
+  significantVariances: z.unknown(),
+  varianceFactors: z.unknown(),
+  alertsTriggered: z.unknown(),
+  thresholdBreaches: z.unknown(),
   riskLevel: z.string(),
   calculationEngine: z.string(),
   calculationDurationMs: z.number().int().nullable(),
@@ -286,10 +300,10 @@ export const CreateAlertRuleRequestSchema = z.object({
   notificationChannels: z.array(notificationChannelSchema)
     .min(1, 'At least one notification channel required')
     .default(['email']),
-  escalationRules: z.any().optional(),
-  conditions: z.any().optional(),
-  filters: z.any().optional()
-}).refine((data: any) => {
+  escalationRules: z.unknown().optional(),
+  conditions: z.unknown().optional(),
+  filters: z.unknown().optional()
+}).refine((data: AlertRuleRefineData) => {
   if (data.operator === 'between' && !data.secondaryThreshold) {
     return false;
   }
@@ -317,10 +331,10 @@ export const AlertRuleResponseSchema = z.object({
   isEnabled: z.boolean(),
   checkFrequency: checkFrequencySchema,
   suppressionPeriod: z.number().int(),
-  escalationRules: z.any(),
+  escalationRules: z.unknown(),
   notificationChannels: z.array(z.string()),
-  conditions: z.any(),
-  filters: z.any(),
+  conditions: z.unknown(),
+  filters: z.unknown(),
   createdBy: positiveInt(),
   lastModifiedBy: positiveInt().nullable(),
   version: z.string(),
@@ -343,7 +357,7 @@ export const PerformanceAlertResponseSchema = z.object({
   category: categorySchema,
   title: z.string(),
   description: z.string(),
-  recommendations: z.any(),
+  recommendations: z.unknown(),
   metricName: z.string(),
   thresholdValue: decimalSchema.nullable(),
   actualValue: decimalSchema.nullable(),
@@ -359,9 +373,9 @@ export const PerformanceAlertResponseSchema = z.object({
   resolvedBy: positiveInt().nullable(),
   resolvedAt: timestampSchema.nullable(),
   resolutionNotes: z.string().nullable(),
-  affectedEntities: z.any(),
-  contextData: z.any(),
-  notificationsSent: z.any(),
+  affectedEntities: z.unknown(),
+  contextData: z.unknown(),
+  notificationsSent: z.unknown(),
   escalationLevel: z.number().int(),
   escalatedAt: timestampSchema.nullable(),
   escalatedTo: z.array(z.string()),
@@ -476,7 +490,7 @@ export const ApiSuccessResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) 
     success: z.literal(true),
     data: dataSchema,
     message: z.string().optional(),
-    metadata: z.any().optional()
+    metadata: z.unknown().optional()
   });
 
 /**
@@ -486,7 +500,7 @@ export const ApiErrorResponseSchema = z.object({
   success: z.literal(false).optional(),
   error: z.string(),
   message: z.string(),
-  details: z.any().optional(),
+  details: z.unknown().optional(),
   code: z.string().optional(),
   timestamp: timestampSchema.optional()
 });
