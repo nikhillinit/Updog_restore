@@ -58,6 +58,9 @@ jspm_packages/
 # Optional eslint cache
 .eslintcache
 
+# Local baseline backups (development artifacts)
+.baselines/
+
 # Optional REPL history
 .node_repl_history
 
