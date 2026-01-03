@@ -347,11 +347,12 @@ export const MobileBarChart = memo(function MobileBarChart({
   const chartRef = useRef<HTMLDivElement>(null);
   const isVisible = useIntersectionObserver(chartRef);
   const [animatedBars, setAnimatedBars] = useState<boolean[]>([]);
+  const barCount = data.length;
 
   useEffect(() => {
     if (isVisible) {
       // Stagger animation for each bar
-      data.forEach((_, index) => {
+      for (let index = 0; index < barCount; index += 1) {
         setTimeout(() => {
           setAnimatedBars(prev => {
             const newState = [...prev];
@@ -359,9 +360,9 @@ export const MobileBarChart = memo(function MobileBarChart({
             return newState;
           });
         }, index * 100);
-      });
+      }
     }
-  }, [isVisible, data.length]);
+  }, [isVisible, barCount]);
 
   if (data.length === 0) {
     return (
