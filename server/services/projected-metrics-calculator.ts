@@ -84,7 +84,7 @@ export class ProjectedMetricsCalculator {
    */
   async calculate(
     fund: Fund,
-    companies: PortfolioCompany[],
+    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct' | 'investmentDate'>[],
     config: FundConfig,
     options: CalculationOptions = {}
   ): Promise<ProjectedMetrics> {
@@ -148,7 +148,7 @@ export class ProjectedMetricsCalculator {
    */
   private async calculateReserves(
     fund: Fund,
-    companies: PortfolioCompany[],
+    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct'>[],
     _config: FundConfig
   ): Promise<ReserveResults | null> {
     try {
@@ -182,7 +182,7 @@ export class ProjectedMetricsCalculator {
    */
   private async calculatePacing(
     fund: Fund,
-    _companies: PortfolioCompany[],
+    _companies: Pick<PortfolioCompany, 'id'>[],
     config: FundConfig
   ): Promise<PacingResults | null> {
     try {
@@ -240,7 +240,7 @@ export class ProjectedMetricsCalculator {
    */
   private async calculateCohorts(
     fund: Fund,
-    companies: PortfolioCompany[],
+    companies: Pick<PortfolioCompany, 'investmentDate'>[],
     config: FundConfig
   ): Promise<CohortResults | null> {
     try {
