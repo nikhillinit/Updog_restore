@@ -288,7 +288,9 @@ export class AutomatedRolloutOrchestrator {
     }
     
     // Generate failure report
-    await this.generateFailureReport(stage, lastMetrics);
+    if (lastMetrics) {
+      await this.generateFailureReport(stage, lastMetrics);
+    }
   }
   
   private async emergencyRollback(): Promise<void> {

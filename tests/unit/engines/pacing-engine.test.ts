@@ -3,9 +3,9 @@
  * Comprehensive tests for fund deployment pacing with market condition adjustments
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { PacingEngine, generatePacingSummary } from '@/core/pacing/PacingEngine';
-import type { PacingInput, PacingOutput } from '@shared/types';
+import type { PacingInput } from '@shared/types';
 
 // =============================================================================
 // TEST FIXTURES

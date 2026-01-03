@@ -16,11 +16,6 @@ import type { ApiError } from '@shared/types';
 
 const router = Router();
 
-// Extend Request type to include user property
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
-
 // === VALIDATION SCHEMAS ===
 
 const CreateBaselineSchema = z.object({
@@ -70,7 +65,7 @@ const VarianceAnalysisSchema = z.object({
  * Create a new baseline for a fund
  * POST /api/funds/:id/baselines
  */
-router["post"]('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/baselines', idempotency, async (req: Request, res: Response) => {
   try {
     // Parse and validate fund ID
     let fundId: number;
@@ -99,7 +94,7 @@ router["post"]('/api/funds/:id/baselines', idempotency, async (req: Authenticate
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -113,12 +108,12 @@ router["post"]('/api/funds/:id/baselines', idempotency, async (req: Authenticate
     const baseline = await varianceTrackingService.baselines.createBaseline({
       fundId,
       name: data.name,
-      description: data.description,
+      ...(data.description && { description: data.description }),
       baselineType: data.baselineType,
       periodStart: new Date(data.periodStart),
       periodEnd: new Date(data.periodEnd),
       createdBy: userId,
-      tags: data.tags
+      ...(data.tags && { tags: data.tags })
     });
 
     res["status"](201)["json"]({
@@ -162,9 +157,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
-      baselineType,
-      isDefault,
-      limit
+      ...(baselineType && { baselineType }),
+      ...(isDefault !== undefined && { isDefault }),
+      ...(limit && { limit })
     });
 
     res["json"]({
@@ -264,7 +259,7 @@ router["delete"]('/api/funds/:id/baselines/:baselineId', async (req: Request, re
  * Generate variance report
  * POST /api/funds/:id/variance-reports
  */
-router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -291,16 +286,16 @@ router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: Authe
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     const report = await varianceTrackingService.calculations.generateVarianceReport({
       fundId,
       baselineId: data.baselineId || '', // Will be resolved to default in service
       reportName: data.reportName,
       reportType: data.reportType,
-      reportPeriod: data.reportPeriod,
-      asOfDate: data.asOfDate ? new Date(data.asOfDate) : undefined,
-      generatedBy: userId || undefined
+      ...(data.reportPeriod && { reportPeriod: data.reportPeriod }),
+      ...(data.asOfDate && { asOfDate: new Date(data.asOfDate) }),
+      ...(userId && { generatedBy: userId })
     });
 
     res["status"](201)["json"]({
@@ -407,7 +402,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
  * Create alert rule
  * POST /api/funds/:id/alert-rules
  */
-router["post"]('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/alert-rules', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -434,7 +429,7 @@ router["post"]('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, r
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -447,12 +442,12 @@ router["post"]('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, r
     const rule = await varianceTrackingService.alerts.createAlertRule({
       fundId,
       name: data.name,
-      description: data.description,
+      ...(data.description && { description: data.description }),
       ruleType: data.ruleType,
       metricName: data.metricName,
       operator: data.operator,
       thresholdValue: data.thresholdValue,
-      secondaryThreshold: data.secondaryThreshold,
+      ...(data.secondaryThreshold !== undefined && { secondaryThreshold: data.secondaryThreshold }),
       severity: data.severity,
       category: data.category,
       checkFrequency: data.checkFrequency,
@@ -500,9 +495,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
-      severity,
-      category,
-      limit
+      ...(severity && { severity }),
+      ...(category && { category }),
+      ...(limit && { limit })
     });
 
     res["json"]({
@@ -524,7 +519,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  * Acknowledge an alert
  * POST /api/alerts/:alertId/acknowledge
  */
-router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/acknowledge', async (req: Request, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -545,7 +540,7 @@ router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequ
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -574,7 +569,7 @@ router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequ
  * Resolve an alert
  * POST /api/alerts/:alertId/resolve
  */
-router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/resolve', async (req: Request, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -595,7 +590,7 @@ router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest,
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -626,7 +621,7 @@ router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest,
  * Perform complete variance analysis
  * POST /api/funds/:id/variance-analysis
  */
-router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -653,7 +648,7 @@ router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Auth
     }
 
     const data = validation.data;
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -665,8 +660,8 @@ router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Auth
 
     const result = await varianceTrackingService.performCompleteVarianceAnalysis({
       fundId,
-      baselineId: data.baselineId,
-      reportName: data.reportName,
+      ...(data.baselineId && { baselineId: data.baselineId }),
+      ...(data.reportName && { reportName: data.reportName }),
       userId
     });
 

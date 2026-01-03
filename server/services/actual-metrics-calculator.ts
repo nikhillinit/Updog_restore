@@ -83,9 +83,9 @@ export class ActualMetricsCalculator {
       : new Decimal(0);
     const averageCheckSize = totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age
-    const fundAgeMonths = fund.establishmentDate
-      ? this.calculateMonthsSince(new Date(fund.establishmentDate))
+    // Calculate fund age (approximate using vintage year)
+    const fundAgeMonths = fund.vintageYear
+      ? this.calculateMonthsSince(new Date(fund.vintageYear, 0, 1)) // Jan 1 of vintage year
       : undefined;
 
     return {
@@ -97,7 +97,7 @@ export class ActualMetricsCalculator {
       currentNAV: currentNAV.toNumber(),
       totalDistributions: totalDistributions.toNumber(),
       totalValue: totalValue.toNumber(),
-      irr: irr.toNumber(),
+      irr: irr !== null ? irr.toNumber() : null, // null when XIRR cannot converge
       tvpi: tvpi.toNumber(),
       dpi: dpi !== null ? dpi.toNumber() : null, // null when no distributions
       rvpi: rvpi.toNumber(),
@@ -107,14 +107,15 @@ export class ActualMetricsCalculator {
       totalCompanies,
       deploymentRate: deploymentRate.toNumber(),
       averageCheckSize: averageCheckSize.toNumber(),
-      fundAgeMonths,
+      ...(fundAgeMonths !== undefined && { fundAgeMonths }),
     };
   }
 
   /**
    * Calculate current Net Asset Value from portfolio companies
+   * Only requires status and currentValuation fields
    */
-  private calculateNAV(companies: PortfolioCompany[]): Decimal {
+  private calculateNAV(companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]): Decimal {
     return companies
       .filter((c) => c.status === 'active')
       .reduce((sum, company) => {
@@ -129,12 +130,13 @@ export class ActualMetricsCalculator {
    * Calculate Internal Rate of Return using XIRR algorithm
    *
    * XIRR calculates IRR for irregular cashflow intervals using Newton-Raphson method
+   * Returns null when calculation cannot converge
    */
   private async calculateIRR(
     investments: Array<{ date: Date; amount: number }>,
     distributions: Array<{ date: Date; amount: number }>,
     currentNAV: Decimal
-  ): Promise<Decimal> {
+  ): Promise<Decimal | null> {
     // Build cashflow series
     const cashflows: CashFlow[] = [
       ...investments.map((inv) => ({
@@ -168,11 +170,23 @@ export class ActualMetricsCalculator {
   /**
    * XIRR (Extended Internal Rate of Return) calculation
    *
+   * @deprecated TODO: Migrate to shared XIRR implementation.
+   * The canonical implementation at 'client/src/lib/finance/xirr.ts' provides:
+   * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
+   * - Proper null return on non-convergence (this version returns last estimate)
+   *
+   * Migration requires:
+   * 1. Create shared/lib/xirr.ts with canonical algorithm
+   * 2. Add Decimal.js precision mode support
+   * 3. Update both client and server imports
+   *
    * Uses Newton-Raphson method to find the rate that makes NPV = 0
+   * Returns null when calculation cannot converge (insufficient data, divergence)
    */
-  private xirr(cashflows: CashFlow[]): Decimal {
+  private xirr(cashflows: CashFlow[]): Decimal | null {
     if (cashflows.length < 2) {
-      return new Decimal(0);
+      console.debug('[XIRR] Insufficient cashflows for calculation:', cashflows.length);
+      return null; // Cannot calculate with < 2 cashflows
     }
 
     const baseDate = cashflows[0]!.date;
@@ -204,10 +218,13 @@ export class ActualMetricsCalculator {
 
       // Prevent infinite loops with unrealistic rates
       if (rate.lt(-0.99) || rate.gt(10)) {
-        return new Decimal(0);
+        console.debug('[XIRR] Rate diverged to unrealistic value:', rate.toString());
+        return null; // Cannot converge - rate is unrealistic
       }
     }
 
+    // Did not converge within max iterations - return last estimate with warning
+    console.debug('[XIRR] Did not converge within max iterations, returning estimate:', rate.toString());
     return rate;
   }
 
@@ -257,10 +274,10 @@ export class ActualMetricsCalculator {
     // In production, this would query an investments table
     const companies = await storage.getPortfolioCompanies(fundId);
     return companies
-      .filter((c) => c.investmentDate)
+      .filter((c) => c.createdAt) // Use createdAt as proxy for investment date
       .map((c) => ({
-        date: new Date(c.investmentDate!),
-        amount: c.initialInvestment ? parseFloat(c.initialInvestment.toString()) : 0,
+        date: new Date(c.createdAt!),
+        amount: c.investmentAmount ? parseFloat(c.investmentAmount.toString()) : 0,
       }));
   }
 
@@ -279,7 +296,7 @@ export class ActualMetricsCalculator {
    * Fetch distributions for a fund
    * TODO: This should be added to storage interface
    */
-  private async getDistributions(fundId: number): Promise<Array<{ date: Date; amount: number }>> {
+  private async getDistributions(_fundId: number): Promise<Array<{ date: Date; amount: number }>> {
     // For now, return empty array
     // In production, this would query a distributions table
     // TODO: Add distributions table to schema and storage layer

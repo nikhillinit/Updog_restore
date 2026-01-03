@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * Distributed tracing utilities for deployment and operational monitoring
  */
@@ -35,7 +35,7 @@ class TracingService {
   startSpan(operationName: string, parentId?: string, tags: Record<string, any> = {}): TraceSpan {
     const span: TraceSpan = {
       id: this.generateSpanId(),
-      parentId,
+      ...(parentId && { parentId }),
       operationName,
       startTime: Date.now(),
       tags: this.sanitizeTags(tags),
@@ -82,7 +82,7 @@ class TracingService {
       timestamp: Date.now(),
       message,
       level,
-      fields
+      ...(fields && { fields })
     });
 
     // Also log to console for immediate visibility

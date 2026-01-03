@@ -8,10 +8,10 @@ import { APIResponseError } from '@notionhq/client';
 import crypto from 'crypto';
 import type {
   NotionWorkspaceConnection,
-  NotionDatabaseMapping,
   NotionSyncJob,
   NotionPage,
   NotionDatabase,
+  NotionDatabaseMapping,
   PortfolioCompanyNotionConfig} from '@shared/notion-schema';
 import {
   extractPlainText,
@@ -20,6 +20,15 @@ import {
   parseNotionSelect,
   parseNotionMultiSelect
 } from '@shared/notion-schema';
+import { db } from '../db';
+import { eq, desc } from 'drizzle-orm';
+import {
+  notionConnections,
+  notionSyncJobs,
+  notionPortfolioConfigs,
+  portfolioCompanies,
+  investments,
+} from '@shared/schema';
 
 // =============================================================================
 // NOTION API SERVICE
@@ -193,7 +202,7 @@ export class NotionService {
 
         const response = await client.search({
           filter: { property: 'object', value: 'database' },
-          start_cursor: nextCursor,
+          ...(nextCursor && { start_cursor: nextCursor }),
           page_size: 100
         });
 
@@ -374,7 +383,7 @@ export class NotionService {
 
       const response = await client.databases.query({
         database_id: databaseId,
-        start_cursor: nextCursor,
+        ...(nextCursor && { start_cursor: nextCursor }),
         page_size: 100
       });
 
@@ -464,7 +473,7 @@ export class NotionService {
     mapping: NotionDatabaseMapping
   ): Promise<{ created: number; updated: number }> {
     let created = 0;
-    let updated = 0;
+    const updated = 0;
 
     for (const item of data) {
       try {
@@ -502,23 +511,187 @@ export class NotionService {
   // =============================================================================
 
   private async processPortfolioCompanyData(data: any): Promise<void> {
-    // TODO: Implement portfolio company data processing
-    console.log('Processing portfolio company data:', data);
+    try {
+      // Extract company data from Notion page properties
+      const companyData = {
+        name: extractPlainText(data.properties?.Name || data.properties?.name),
+        stage: parseNotionSelect(data.properties?.Stage || data.properties?.stage),
+        sector: parseNotionSelect(data.properties?.Sector || data.properties?.sector),
+        location: extractPlainText(data.properties?.Location || data.properties?.location),
+        website: extractPlainText(data.properties?.Website || data.properties?.website),
+        founded: parseNotionDate(data.properties?.Founded || data.properties?.founded),
+        employees: parseNotionNumber(data.properties?.Employees || data.properties?.employees),
+        description: extractPlainText(data.properties?.Description || data.properties?.description),
+        notionPageId: data.id,
+      };
+
+      if (!companyData.name) {
+        console.warn('[notion-service] Skipping company - no name found');
+        return;
+      }
+
+      // Check if company exists by Notion page ID (stored in metadata)
+      const existingCompanies = await db
+        .select()
+        .from(portfolioCompanies)
+        .limit(100);
+
+      // Find existing company by name since we can't store metadata in this schema
+      const existing = existingCompanies.find(c => c.name === companyData.name);
+
+      if (existing) {
+        // Update existing company
+        await db
+          .update(portfolioCompanies)
+          .set({
+            name: companyData.name,
+            stage: companyData.stage || existing.stage,
+            sector: companyData.sector || existing.sector,
+            // Note: Notion sync metadata would require schema changes to store
+          })
+          .where(eq(portfolioCompanies.id, existing.id));
+        console.log('[notion-service] Updated portfolio company:', companyData.name);
+      } else {
+        console.log('[notion-service] Portfolio company from Notion needs manual linking:', companyData.name);
+        // Don't auto-create - just log for manual review
+        // Companies should be created through the normal workflow
+      }
+    } catch (error) {
+      console.error('[notion-service] Failed to process portfolio company data:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   private async processInvestmentData(data: any): Promise<void> {
-    // TODO: Implement investment data processing
-    console.log('Processing investment data:', data);
+    try {
+      // Extract investment data from Notion page properties
+      const investmentData = {
+        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
+        amount: parseNotionNumber(data.properties?.Amount || data.properties?.amount),
+        date: parseNotionDate(data.properties?.Date || data.properties?.date),
+        round: parseNotionSelect(data.properties?.Round || data.properties?.round),
+        valuation: parseNotionNumber(data.properties?.Valuation || data.properties?.valuation),
+        ownership: parseNotionNumber(data.properties?.Ownership || data.properties?.ownership),
+        notionPageId: data.id,
+      };
+
+      if (!investmentData.companyName || !investmentData.amount) {
+        console.warn('[notion-service] Skipping investment - missing company name or amount');
+        return;
+      }
+
+      // Log for manual review - investments should be linked to existing companies
+      console.log('[notion-service] Investment data from Notion:', {
+        company: investmentData.companyName,
+        amount: investmentData.amount,
+        round: investmentData.round,
+        date: investmentData.date,
+      });
+
+      // Find matching company
+      const [company] = await db
+        .select()
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.name, investmentData.companyName))
+        .limit(1);
+
+      if (company) {
+        // Check if investment already exists
+        const existingInvestments = await db
+          .select()
+          .from(investments)
+          .where(eq(investments.companyId, company.id))
+          .limit(100);
+
+        // Find existing investment by round/amount since we can't store metadata in this schema
+        const existing = existingInvestments.find(i =>
+          i.round === investmentData.round
+        );
+
+        if (existing) {
+          await db
+            .update(investments)
+            .set({
+              amount: investmentData.amount?.toString() || existing.amount,
+              round: investmentData.round || existing.round,
+              investmentDate: investmentData.date ? new Date(investmentData.date) : existing.investmentDate,
+              // Note: Notion sync metadata would require schema changes to store
+            })
+            .where(eq(investments.id, existing.id));
+          console.log('[notion-service] Updated investment for:', investmentData.companyName);
+        }
+      } else {
+        console.log('[notion-service] Company not found for investment:', investmentData.companyName);
+      }
+    } catch (error) {
+      console.error('[notion-service] Failed to process investment data:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   private async processKPIData(data: any): Promise<void> {
-    // TODO: Implement KPI data processing
-    console.log('Processing KPI data:', data);
+    try {
+      // Extract KPI data from Notion page properties
+      const kpiData = {
+        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
+        metric: extractPlainText(data.properties?.Metric || data.properties?.metric),
+        value: parseNotionNumber(data.properties?.Value || data.properties?.value),
+        period: extractPlainText(data.properties?.Period || data.properties?.period),
+        date: parseNotionDate(data.properties?.Date || data.properties?.date),
+        category: parseNotionSelect(data.properties?.Category || data.properties?.category),
+        notionPageId: data.id,
+      };
+
+      if (!kpiData.companyName || !kpiData.metric) {
+        console.warn('[notion-service] Skipping KPI - missing company name or metric');
+        return;
+      }
+
+      // Log KPI data for processing
+      console.log('[notion-service] KPI data from Notion:', {
+        company: kpiData.companyName,
+        metric: kpiData.metric,
+        value: kpiData.value,
+        period: kpiData.period,
+      });
+
+      // KPIs would typically be stored in a separate kpis table
+      // For now, log for manual review or future implementation
+    } catch (error) {
+      console.error('[notion-service] Failed to process KPI data:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   private async processBoardReportData(data: any): Promise<void> {
-    // TODO: Implement board report data processing
-    console.log('Processing board report data:', data);
+    try {
+      // Extract board report data from Notion page properties
+      const reportData = {
+        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
+        reportDate: parseNotionDate(data.properties?.Date || data.properties?.date),
+        reportType: parseNotionSelect(data.properties?.Type || data.properties?.type),
+        status: parseNotionSelect(data.properties?.Status || data.properties?.status),
+        summary: extractPlainText(data.properties?.Summary || data.properties?.summary),
+        highlights: parseNotionMultiSelect(data.properties?.Highlights || data.properties?.highlights),
+        concerns: parseNotionMultiSelect(data.properties?.Concerns || data.properties?.concerns),
+        notionPageId: data.id,
+      };
+
+      if (!reportData.companyName) {
+        console.warn('[notion-service] Skipping board report - missing company name');
+        return;
+      }
+
+      // Log board report data for processing
+      console.log('[notion-service] Board report from Notion:', {
+        company: reportData.companyName,
+        date: reportData.reportDate,
+        type: reportData.reportType,
+        status: reportData.status,
+      });
+
+      // Board reports would typically be stored in a separate table
+      // For now, log for manual review or future implementation
+    } catch (error) {
+      console.error('[notion-service] Failed to process board report data:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   // =============================================================================
@@ -572,21 +745,29 @@ export class NotionService {
     const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const iv = crypto.randomBytes(16);
 
-    const cipher = crypto.createCipher(algorithm, key);
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
     let encrypted = cipher.update(token, 'utf8', 'hex');
     encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag().toString('hex');
 
-    return iv.toString('hex') + ':' + encrypted;
+    // Format: iv:authTag:encrypted
+    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   }
 
   private decryptToken(encryptedToken: string): string {
     const algorithm = 'aes-256-gcm';
     const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const parts = encryptedToken.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
-    const encrypted = parts[1];
 
-    const decipher = crypto.createDecipher(algorithm, key);
+    // Handle both old format (iv:encrypted) and new format (iv:authTag:encrypted)
+    const iv = Buffer.from(parts[0] ?? '', 'hex');
+    const authTag = parts.length === 3 ? Buffer.from(parts[1] ?? '', 'hex') : null;
+    const encrypted = parts.length === 3 ? (parts[2] ?? '') : (parts[1] ?? '');
+
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    if (authTag) {
+      decipher.setAuthTag(authTag);
+    }
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
 
@@ -594,22 +775,308 @@ export class NotionService {
   }
 
   // =============================================================================
-  // DATABASE OPERATIONS (TODO: Implement with your DB layer)
+  // DATABASE OPERATIONS
   // =============================================================================
 
   private async saveConnection(connection: NotionWorkspaceConnection): Promise<void> {
-    // TODO: Implement database save
-    console.log('Saving connection:', connection.id);
+    try {
+      // Check if connection already exists
+      const existing = await db
+        .select()
+        .from(notionConnections)
+        .where(eq(notionConnections.workspaceId, connection.workspaceId))
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update existing connection - map domain type to DB schema
+        await db
+          .update(notionConnections)
+          .set({
+            workspaceName: connection.workspaceName,
+            accessToken: connection.accessToken,
+            tokenType: 'bearer',
+            botId: connection.botId,
+            ownerType: connection.owner?.type ?? 'workspace',
+            ownerId: null,
+            status: connection.status,
+            scopes: [],
+            lastSyncAt: connection.lastSyncAt ?? null,
+            metadata: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(notionConnections.workspaceId, connection.workspaceId));
+        console.log('[notion-service] Updated connection:', connection.workspaceId);
+      } else {
+        // Insert new connection - map domain type to DB schema
+        await db.insert(notionConnections).values({
+          workspaceId: connection.workspaceId,
+          workspaceName: connection.workspaceName,
+          accessToken: connection.accessToken,
+          tokenType: 'bearer',
+          botId: connection.botId,
+          ownerType: connection.owner?.type ?? 'workspace',
+          ownerId: null,
+          status: connection.status,
+          scopes: [],
+          lastSyncAt: connection.lastSyncAt ?? null,
+          metadata: null,
+        });
+        console.log('[notion-service] Created connection:', connection.workspaceId);
+      }
+    } catch (error) {
+      console.error('[notion-service] Failed to save connection:', error instanceof Error ? error.message : String(error));
+      throw error;
+    }
   }
 
   private async saveSyncJob(job: NotionSyncJob): Promise<void> {
-    // TODO: Implement database save
-    console.log('Saving sync job:', job.id);
+    try {
+      // Get connection ID from workspace
+      const [connection] = await db
+        .select({ id: notionConnections.id })
+        .from(notionConnections)
+        .where(eq(notionConnections.workspaceId, job.connectionId))
+        .limit(1);
+
+      if (!connection) {
+        throw new Error(`Connection not found for workspace: ${job.connectionId}`);
+      }
+
+      // Map domain type to DB schema
+      const typeToSyncType: Record<string, string> = {
+        full_sync: 'full',
+        incremental_sync: 'incremental',
+        single_page: 'manual',
+        webhook_trigger: 'manual',
+      };
+      const directionToDb: Record<string, string> = {
+        pull: 'inbound',
+        push: 'outbound',
+        bidirectional: 'bidirectional',
+      };
+      const statusToDb: Record<string, string> = {
+        queued: 'pending',
+        running: 'running',
+        completed: 'completed',
+        failed: 'failed',
+        cancelled: 'failed',
+      };
+
+      await db.insert(notionSyncJobs).values({
+        connectionId: connection.id,
+        fundId: null,
+        syncType: typeToSyncType[job.type] ?? 'full',
+        direction: directionToDb[job.direction] ?? 'inbound',
+        status: statusToDb[job.status] ?? 'pending',
+        progress: job.progress?.processed ?? 0,
+        itemsProcessed: job.progress?.processed ?? 0,
+        itemsCreated: job.progress?.success ?? 0,
+        itemsUpdated: 0,
+        itemsFailed: job.progress?.failed ?? 0,
+        errorMessage: job.result?.errors?.[0]?.message ?? null,
+        errorDetails: job.result?.errors ? { errors: job.result.errors } : null,
+        startedAt: job.startedAt ?? null,
+        completedAt: job.completedAt ?? null,
+        metadata: job.metadata ?? null,
+      });
+      console.log('[notion-service] Created sync job for connection:', job.connectionId);
+    } catch (error) {
+      console.error('[notion-service] Failed to save sync job:', error instanceof Error ? error.message : String(error));
+      throw error;
+    }
   }
 
   private async savePortfolioCompanyConfig(config: PortfolioCompanyNotionConfig): Promise<void> {
-    // TODO: Implement database save
-    console.log('Saving portfolio company config:', config.id);
+    try {
+      // Check if config already exists for this company
+      const companyIdNum = parseInt(config.companyId, 10);
+      const existing = await db
+        .select()
+        .from(notionPortfolioConfigs)
+        .where(eq(notionPortfolioConfigs.companyId, companyIdNum))
+        .limit(1);
+
+      // Map domain types to DB schema types
+      const dbSharedDatabases = config.sharedDatabases?.map(db => ({
+        databaseId: db.databaseId,
+        databaseName: db.databaseName,
+        purpose: db.purpose,
+        accessLevel: db.accessLevel,
+      })) ?? null;
+
+      const dbAutomationRules = config.automationRules?.map(rule => ({
+        id: rule.id,
+        trigger: rule.trigger,
+        action: rule.action,
+        isActive: rule.enabled ?? true,
+      })) ?? null;
+
+      const dbCommunicationSettings = config.communicationSettings ? {
+        allowNotifications: config.communicationSettings.allowNotifications,
+        notificationChannels: config.communicationSettings.notificationChannels,
+        reportingSchedule: config.communicationSettings.reportingSchedule ?? 'monthly',
+      } : null;
+
+      if (existing.length > 0) {
+        // Update existing config
+        await db
+          .update(notionPortfolioConfigs)
+          .set({
+            companyName: config.companyName,
+            integrationStatus: config.integrationStatus,
+            sharedDatabases: dbSharedDatabases,
+            automationRules: dbAutomationRules,
+            communicationSettings: dbCommunicationSettings,
+            lastActivityAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(notionPortfolioConfigs.companyId, companyIdNum));
+        console.log('[notion-service] Updated portfolio config for company:', config.companyId);
+      } else {
+        // Insert new config
+        await db.insert(notionPortfolioConfigs).values({
+          companyId: companyIdNum,
+          companyName: config.companyName,
+          integrationStatus: config.integrationStatus,
+          sharedDatabases: dbSharedDatabases,
+          automationRules: dbAutomationRules,
+          communicationSettings: dbCommunicationSettings,
+        });
+        console.log('[notion-service] Created portfolio config for company:', config.companyId);
+      }
+    } catch (error) {
+      console.error('[notion-service] Failed to save portfolio config:', error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  }
+
+  // =============================================================================
+  // CONNECTION RETRIEVAL METHODS
+  // =============================================================================
+
+  async getConnectionByWorkspaceId(workspaceId: string): Promise<NotionWorkspaceConnection | null> {
+    try {
+      const [result] = await db
+        .select()
+        .from(notionConnections)
+        .where(eq(notionConnections.workspaceId, workspaceId))
+        .limit(1);
+
+      if (!result) return null;
+
+      // Map DB row to domain type (shape differs from schema type)
+      // Note: fundId not stored in DB, would need to be looked up via mapping table
+      return {
+        id: result.id,
+        fundId: '', // DB schema doesn't include fundId - would need separate lookup
+        workspaceId: result.workspaceId,
+        workspaceName: result.workspaceName,
+        accessToken: result.accessToken,
+        botId: result.botId || '',
+        owner: { type: (result.ownerType || 'workspace') as 'user' | 'workspace' },
+        capabilities: {
+          read_content: true,
+          update_content: true,
+          insert_content: true,
+          read_user_with_email: true,
+          read_user_without_email: true,
+        },
+        status: result.status as 'active' | 'revoked' | 'expired' | 'error',
+        lastSyncAt: result.lastSyncAt ?? undefined,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      } as NotionWorkspaceConnection;
+    } catch (error) {
+      console.error('[notion-service] Failed to get connection:', error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }
+
+  async listActiveConnections(): Promise<NotionWorkspaceConnection[]> {
+    try {
+      const results = await db
+        .select()
+        .from(notionConnections)
+        .where(eq(notionConnections.status, 'active'))
+        .orderBy(desc(notionConnections.updatedAt));
+
+      // Map DB rows to domain type (shape differs from schema type)
+      // Note: fundId not stored in DB, would need to be looked up via mapping table
+      return results.map(result => ({
+        id: result.id,
+        fundId: '', // DB schema doesn't include fundId - would need separate lookup
+        workspaceId: result.workspaceId,
+        workspaceName: result.workspaceName,
+        accessToken: result.accessToken,
+        botId: result.botId || '',
+        owner: { type: (result.ownerType || 'workspace') as 'user' | 'workspace' },
+        capabilities: {
+          read_content: true,
+          update_content: true,
+          insert_content: true,
+          read_user_with_email: true,
+          read_user_without_email: true,
+        },
+        status: result.status as 'active' | 'revoked' | 'expired' | 'error',
+        lastSyncAt: result.lastSyncAt ?? undefined,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      })) as NotionWorkspaceConnection[];
+    } catch (error) {
+      console.error('[notion-service] Failed to list connections:', error instanceof Error ? error.message : String(error));
+      return [];
+    }
+  }
+
+  async getSyncJobsByConnection(connectionId: string, limit = 10): Promise<NotionSyncJob[]> {
+    try {
+      const results = await db
+        .select()
+        .from(notionSyncJobs)
+        .where(eq(notionSyncJobs.connectionId, connectionId))
+        .orderBy(desc(notionSyncJobs.createdAt))
+        .limit(limit);
+
+      // Map DB rows to domain type (shape differs from schema type)
+      const directionMap: Record<string, 'pull' | 'push' | 'bidirectional'> = {
+        inbound: 'pull',
+        outbound: 'push',
+        bidirectional: 'bidirectional',
+      };
+      const typeMap: Record<string, 'full_sync' | 'incremental_sync' | 'single_page' | 'webhook_trigger'> = {
+        full: 'full_sync',
+        incremental: 'incremental_sync',
+        manual: 'single_page',
+      };
+      const statusMap: Record<string, 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'> = {
+        pending: 'queued',
+        running: 'running',
+        completed: 'completed',
+        failed: 'failed',
+      };
+
+      return results.map(result => ({
+        id: result.id,
+        connectionId: result.connectionId,
+        type: typeMap[result.syncType] ?? 'full_sync',
+        direction: directionMap[result.direction] ?? 'pull',
+        status: statusMap[result.status] ?? 'queued',
+        progress: {
+          total: result.itemsProcessed || 0,
+          processed: result.itemsProcessed || 0,
+          success: result.itemsCreated || 0,
+          failed: result.itemsFailed || 0,
+          skipped: 0,
+        },
+        startedAt: result.startedAt ?? undefined,
+        completedAt: result.completedAt ?? undefined,
+        metadata: result.metadata as Record<string, unknown> | undefined,
+        createdAt: result.createdAt,
+      })) as NotionSyncJob[];
+    } catch (error) {
+      console.error('[notion-service] Failed to get sync jobs:', error instanceof Error ? error.message : String(error));
+      return [];
+    }
   }
 }
 

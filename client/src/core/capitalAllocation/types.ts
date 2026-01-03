@@ -57,6 +57,7 @@ export const CashFlowSchema = z.object({
   amount: z.number(), // In input units (dollars or $M)
   amountCents: z.number().int().optional(), // Normalized to cents
   type: z.enum(['contribution', 'distribution', 'deployment']).optional(),
+  recycle_eligible: z.boolean().optional(), // For distributions: true = proceeds, false/undefined = LP payout
 });
 
 export type CashFlow = z.infer<typeof CashFlowSchema>;
@@ -220,6 +221,12 @@ export const CAEngineOutputSchema = z.object({
   endingCashCents: z.number().int().optional(),
   effective_buffer: z.number().optional(),
   effectiveBufferCents: z.number().int().optional(),
+
+  // Distribution classification (CA-019, CA-020)
+  cash_impact: z.number().optional(), // Recall inflows
+  cashImpactCents: z.number().int().optional(),
+  recycling_pool_delta: z.number().optional(), // From recycle_eligible distributions
+  recyclingPoolDeltaCents: z.number().int().optional(),
 });
 
 export type CAEngineOutput = z.infer<typeof CAEngineOutputSchema>;

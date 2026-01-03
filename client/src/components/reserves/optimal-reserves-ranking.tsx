@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -354,7 +354,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
               <div>
                 <div className="text-sm text-green-800">Top Performer</div>
                 <div className="font-bold text-green-900">{reserveRankings[0]?.company}</div>
-                <div className="text-sm text-green-700">{formatMOIC(reserveRankings[0]?.followOnMOIC)} Follow-on MOIC</div>
+                <div className="text-sm text-green-700">{formatMOIC(reserveRankings[0]?.followOnMOIC ?? 0)} Follow-on MOIC</div>
               </div>
             </div>
           </CardContent>

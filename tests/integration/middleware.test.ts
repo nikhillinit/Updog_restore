@@ -9,11 +9,10 @@ import { setReady } from '../../server/health/state';
 import type { Server } from 'http';
 
 describe('Critical Middleware Tests', () => {
-  let app: express.Application;
   let server: Server;
 
   beforeAll(() => {
-    app = express();
+    // Test setup
   });
 
   afterAll(() => {
@@ -34,10 +33,10 @@ describe('Critical Middleware Tests', () => {
       for (let i = 0; i < 35; i++) {
         requests.push(request(testApp).get('/test'));
       }
-      
+
       const responses = await Promise.all(requests);
-      const rateLimited = responses.filter(r => r.status === 429);
-      
+      const rateLimited = responses.filter((r) => r.status === 429);
+
       // Should rate limit after 30 requests with same "unknown" key
       expect(rateLimited.length).toBeGreaterThan(0);
     });
@@ -60,27 +59,26 @@ describe('Critical Middleware Tests', () => {
 
     it('should bypass rate limit with valid health key', async () => {
       const originalHealthKey = process.env.HEALTH_KEY;
-      process.env.HEALTH_KEY = 'test-health-key';
+      try {
+        process.env.HEALTH_KEY = 'test-health-key';
 
-      const testApp = express();
-      testApp.use(rateLimitDetailed());
-      testApp.get('/test', (req, res) => res.json({ ok: true }));
+        const testApp = express();
+        testApp.use(rateLimitDetailed());
+        testApp.get('/test', (req, res) => res.json({ ok: true }));
 
-      // Make many requests with health key
-      const requests = [];
-      for (let i = 0; i < 50; i++) {
-        requests.push(
-          request(testApp)
-            .get('/test')
-            .set('X-Health-Key', 'test-health-key')
-        );
+        // Make many requests with health key
+        const requests = [];
+        for (let i = 0; i < 50; i++) {
+          requests.push(request(testApp).get('/test').set('X-Health-Key', 'test-health-key'));
+        }
+
+        const responses = await Promise.all(requests);
+        const allOk = responses.every((r) => r.status === 200);
+        expect(allOk).toBe(true);
+      } finally {
+        // eslint-disable-next-line require-atomic-updates
+        process.env.HEALTH_KEY = originalHealthKey;
       }
-
-      const responses = await Promise.all(requests);
-      const allOk = responses.every(r => r.status === 200);
-      expect(allOk).toBe(true);
-
-      process.env.HEALTH_KEY = originalHealthKey;
     });
   });
 
@@ -91,14 +89,23 @@ describe('Critical Middleware Tests', () => {
 
       const testApp = express();
       const corsOrigins = process.env.CORS_ORIGIN
-        ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
+        ? process.env.CORS_ORIGIN.split(',')
+            .map((o) => o.trim())
+            .filter(Boolean)
         : ['http://localhost:5173'];
 
-      testApp.use(cors({
-        origin: corsOrigins,
-        credentials: true,
-        exposedHeaders: ['X-Request-ID', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
-      }));
+      testApp.use(
+        cors({
+          origin: corsOrigins,
+          credentials: true,
+          exposedHeaders: [
+            'X-Request-ID',
+            'RateLimit-Limit',
+            'RateLimit-Remaining',
+            'RateLimit-Reset',
+          ],
+        })
+      );
       testApp.get('/test', (req, res) => res.json({ ok: true }));
 
       // Should have cleaned up the origins
@@ -109,17 +116,22 @@ describe('Critical Middleware Tests', () => {
 
     it('should expose RateLimit headers', async () => {
       const testApp = express();
-      testApp.use(cors({
-        origin: ['http://localhost:5173'],
-        credentials: true,
-        exposedHeaders: ['X-Request-ID', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
-      }));
+      testApp.use(
+        cors({
+          origin: ['http://localhost:5173'],
+          credentials: true,
+          exposedHeaders: [
+            'X-Request-ID',
+            'RateLimit-Limit',
+            'RateLimit-Remaining',
+            'RateLimit-Reset',
+          ],
+        })
+      );
       testApp.use(rateLimitDetailed());
       testApp.get('/test', (req, res) => res.json({ ok: true }));
 
-      const res = await request(testApp)
-        .get('/test')
-        .set('Origin', 'http://localhost:5173');
+      const res = await request(testApp).get('/test').set('Origin', 'http://localhost:5173');
 
       expect(res.headers['access-control-expose-headers']).toContain('RateLimit-Limit');
       expect(res.headers['access-control-expose-headers']).toContain('RateLimit-Remaining');
@@ -128,20 +140,48 @@ describe('Critical Middleware Tests', () => {
   });
 
   describe('C. Shutdown Guard', () => {
-    it('should return 503 when not ready', async () => {
+    it('should reject during shutdown without executing route handler', async () => {
       setReady(false);
 
       const testApp = express();
       testApp.use(requestId());
       testApp.use(shutdownGuard());
-      testApp.get('/test', (req, res) => res.json({ ok: true }));
 
-      const res = await request(testApp).get('/test');
-      
+      // Flag to prove route handler never executes
+      let routeHandlerRan = false;
+
+      testApp.post('/api/test', (req, res) => {
+        routeHandlerRan = true;
+        res.json({ received: true });
+      });
+
+      const res = await request(testApp)
+        .post('/api/test')
+        .set('Content-Type', 'application/json')
+        .send({ test: 'small-payload' });
+
+      // Status & Headers - The Contract
       expect(res.status).toBe(503);
       expect(res.headers['connection']).toBe('close');
-      expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
+      expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(res.headers['retry-after']).toBe('30'); // Hardcoded default
+
+      // Body - The Contract
       expect(res.body.error).toBe('Service Unavailable');
+      expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
+
+      // RequestId validation - strict type checking
+      expect(typeof res.body.requestId).toBe('string');
+      expect(res.body.requestId.length).toBeGreaterThan(0);
+      expect(res.body.requestId).toMatch(
+        /^req_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
+
+      // Invariant: Handler must not execute during shutdown
+      expect(routeHandlerRan).toBe(false);
+
+      setReady(true);
     });
 
     it('should pass through when ready', async () => {
@@ -152,10 +192,35 @@ describe('Critical Middleware Tests', () => {
       testApp.get('/test', (req, res) => res.json({ ok: true }));
 
       const res = await request(testApp).get('/test');
-      
+
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
+
+      // Verify shutdown-specific retry-after header NOT present when ready
+      expect(res.headers['retry-after']).toBeUndefined();
     });
+
+    it.each(['/healthz', '/readyz', '/metrics', '/health/live', '/health/detailed'])(
+      'should allow %s during shutdown',
+      async (path) => {
+        setReady(false);
+
+        const testApp = express();
+        testApp.use(shutdownGuard());
+
+        testApp.get(path, (req, res) => res.json({ status: 'ok' }));
+
+        const res = await request(testApp).get(path);
+
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('ok');
+
+        // Critical: Verify shutdown-specific retry-after header NOT leaked to allowlisted paths
+        expect(res.headers['retry-after']).toBeUndefined();
+
+        setReady(true);
+      }
+    );
   });
 
   describe('D. Error Codes', () => {
@@ -180,7 +245,7 @@ describe('Critical Middleware Tests', () => {
       });
 
       const res = await request(testApp).get('/test');
-      
+
       expect(res.status).toBe(409);
       expect(res.body.code).toBe('CONFLICT');
       expect(res.body.error).toBe('Test error');
@@ -191,25 +256,25 @@ describe('Critical Middleware Tests', () => {
   describe('E. Health Cache Invalidation', () => {
     it('should support multiple invalidators', async () => {
       const { registerInvalidator } = await import('../../server/health/state');
-      
+
       const called: number[] = [];
       const unregister1 = registerInvalidator(() => called.push(1));
       const unregister2 = registerInvalidator(() => called.push(2));
-      
+
       // Trigger state change
       setReady(false);
       setReady(true);
-      
+
       expect(called).toContain(1);
       expect(called).toContain(2);
-      
+
       // Cleanup
       unregister1();
       unregister2();
-      
+
       called.length = 0;
       setReady(false);
-      
+
       // Should not be called after unregister
       expect(called).toHaveLength(0);
     });
@@ -220,10 +285,10 @@ describe('Critical Middleware Tests', () => {
       // Create error with code
       const err = new Error('Too many concurrent requests; please retry shortly.');
       (err as any).code = 'CAPACITY_EXCEEDED';
-      
+
       // Should check code property
       expect((err as any).code).toBe('CAPACITY_EXCEEDED');
-      
+
       // Should not rely on message
       err.message = 'Different message';
       expect((err as any).code).toBe('CAPACITY_EXCEEDED');
@@ -233,48 +298,48 @@ describe('Critical Middleware Tests', () => {
   describe('G. Enhanced Middleware Tests', () => {
     it('should allow /healthz during shutdown', async () => {
       setReady(false);
-      
+
       const testApp = express();
       testApp.use(shutdownGuard());
       testApp.get('/healthz', (req, res) => res.json({ status: 'ok' }));
-      
+
       const res = await request(testApp).get('/healthz');
       expect(res.status).toBe(200);
       // Connection header not set for allowlisted paths
       expect(res.headers['retry-after']).toBeUndefined();
-      
+
       setReady(true);
     });
 
     it('should return 503 + Connection: close for non-allowlisted paths during shutdown', async () => {
       setReady(false);
-      
+
       const testApp = express();
       testApp.use(requestId());
       testApp.use(shutdownGuard());
       testApp.get('/api/funds', (req, res) => res.json({ funds: [] }));
-      
+
       const res = await request(testApp).get('/api/funds');
       expect(res.status).toBe(503);
       expect(res.headers['connection']).toBe('close');
       expect(res.headers['retry-after']).toBe('30');
       expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
-      
+
       setReady(true);
     });
 
     it('should reject invalid CORS origins', async () => {
       const testApp = express();
-      testApp.use(cors({
-        origin: ['http://localhost:5173'],
-        credentials: true
-      }));
+      testApp.use(
+        cors({
+          origin: ['http://localhost:5173'],
+          credentials: true,
+        })
+      );
       testApp.get('/test', (req, res) => res.json({ ok: true }));
-      
-      const res = await request(testApp)
-        .get('/test')
-        .set('Origin', 'chrome-extension://abc');
-      
+
+      const res = await request(testApp).get('/test').set('Origin', 'chrome-extension://abc');
+
       expect(res.headers['access-control-allow-origin']).toBeUndefined();
     });
 
@@ -283,12 +348,12 @@ describe('Critical Middleware Tests', () => {
       testApp.use(requestId());
       testApp.use(rateLimitDetailed());
       testApp.get('/test', (req, res) => res.json({ ok: true }));
-      
+
       // Exhaust rate limit
       for (let i = 0; i < 31; i++) {
         await request(testApp).get('/test');
       }
-      
+
       const res = await request(testApp).get('/test');
       expect(res.status).toBe(429);
       expect(res.headers['ratelimit-limit']).toBeDefined();
@@ -310,12 +375,12 @@ describe('Critical Middleware Tests', () => {
         next(err);
       });
       testApp.post('/test', (req, res) => res.json({ received: req.body }));
-      
+
       const res = await request(testApp)
         .post('/test')
         .set('Content-Type', 'application/json')
         .send('{invalid json');
-      
+
       expect(res.status).toBe(400);
       expect(res.body.code).toBe('INVALID_JSON');
     });
@@ -330,13 +395,13 @@ describe('Critical Middleware Tests', () => {
         next(err);
       });
       testApp.post('/test', (req, res) => res.json({ received: req.body }));
-      
+
       const largePayload = JSON.stringify({ data: 'x'.repeat(2000) });
       const res = await request(testApp)
         .post('/test')
         .set('Content-Type', 'application/json')
         .send(largePayload);
-      
+
       expect(res.status).toBe(413);
       expect(res.body.code).toBe('PAYLOAD_TOO_LARGE');
     });
@@ -352,64 +417,65 @@ describe('Critical Middleware Tests', () => {
           res.set('X-Request-ID', (req as any).requestId);
         }
         if (err?.type === 'entity.parse.failed') {
-          return res.status(400).json({ 
-            error: 'Invalid JSON', 
+          return res.status(400).json({
+            error: 'Invalid JSON',
             code: 'INVALID_JSON',
-            requestId: (req as any).requestId 
+            requestId: (req as any).requestId,
           });
         }
         next(err);
       });
       testApp.post('/test', (req, res) => res.json({ ok: true }));
-      
+
       const res = await request(testApp)
         .post('/test')
         .set('Content-Type', 'application/json')
         .send('{bad json');
-      
+
       expect(res.status).toBe(400);
       expect(res.headers['x-request-id']).toBeDefined();
       expect(res.body.requestId).toBeDefined();
       expect(res.body.requestId).toBe(res.headers['x-request-id']);
     });
 
+    // Shutdown guard runs before JSON parsing to keep large bodies from being parsed.
     it('should reject during shutdown without parsing large body', async () => {
       setReady(false);
-      
+
       const testApp = express();
       testApp.use(requestId());
       testApp.use(shutdownGuard());
       testApp.use(express.json({ limit: '10mb' }));
       testApp.post('/api/test', (req, res) => res.json({ received: true }));
-      
+
       const largeBody = JSON.stringify({ data: 'x'.repeat(5000000) }); // 5MB
       const startTime = Date.now();
-      
+
       const res = await request(testApp)
         .post('/api/test')
         .set('Content-Type', 'application/json')
         .set('Content-Length', String(largeBody.length))
         .send(largeBody);
-      
+
       const duration = Date.now() - startTime;
-      
+
       expect(res.status).toBe(503);
       expect(duration).toBeLessThan(100); // Should reject quickly without parsing
-      
+
       setReady(true);
     });
 
     it('should allow /health/detailed during shutdown', async () => {
       setReady(false);
-      
+
       const testApp = express();
       testApp.use(shutdownGuard());
       testApp.get('/health/detailed', (req, res) => res.json({ status: 'detailed' }));
-      
+
       const res = await request(testApp).get('/health/detailed');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('detailed');
-      
+
       setReady(true);
     });
 
@@ -418,18 +484,16 @@ describe('Critical Middleware Tests', () => {
       testApp.set('trust proxy', true);
       testApp.use(rateLimitDetailed());
       testApp.get('/test', (req, res) => res.json({ ip: req.ip }));
-      
-      const res = await request(testApp)
-        .get('/test')
-        .set('X-Forwarded-For', '2001:db8::1');
-      
+
+      const res = await request(testApp).get('/test').set('X-Forwarded-For', '2001:db8::1');
+
       expect(res.status).toBe(200);
       expect(res.headers['ratelimit-limit']).toBeDefined();
     });
 
     it('should return error codes from httpCodeToAppCode', async () => {
       const { httpCodeToAppCode } = await import('../../server/lib/apiError');
-      
+
       expect(httpCodeToAppCode(413)).toBe('PAYLOAD_TOO_LARGE');
       expect(httpCodeToAppCode(415)).toBe('UNSUPPORTED_MEDIA_TYPE');
     });

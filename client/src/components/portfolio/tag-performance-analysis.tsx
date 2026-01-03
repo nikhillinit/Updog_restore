@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+/**
+ * Tag Performance Analysis
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
+ */
+
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -18,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
+import { getChartColor } from '@/lib/chart-theme';
 
 interface TagPerformance {
   tag: string;
@@ -175,7 +179,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
     }
   };
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+  // Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -245,8 +249,8 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {getChartData().map((entry: any, index: any) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {getChartData().map((_entry: unknown, index: number) => (
+                      <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: any, _name: any) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />

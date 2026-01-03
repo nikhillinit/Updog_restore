@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 import type { Store, Options } from 'express-rate-limit';
 
 /**
@@ -40,7 +40,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
         return result as string | number | null;
       },
       prefix: 'rate-limit:',
-    });
+    }) as unknown as Store;
   } catch (error) {
     console.warn('⚠️ Rate limit Redis unavailable, falling back to memory store:', error);
     return undefined;
@@ -52,12 +52,17 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
  */
 export async function createRateLimitOptions(baseOptions: Partial<Options>): Promise<Partial<Options>> {
   const store = await createRateLimitStore();
-  
-  return {
+
+  const options: Partial<Options> = {
     ...baseOptions,
-    store,
     // Ensure we don't leak store type in response
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
   };
+
+  if (store) {
+    options.store = store;
+  }
+
+  return options;
 }

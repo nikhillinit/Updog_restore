@@ -96,12 +96,19 @@ export class BaselineService {
       snapshotDate: new Date(),
       totalValue: latestMetrics.totalValue,
       deployedCapital: portfolioData.deployedCapital,
-      createdBy
+      createdBy,
+      isDefault,
+      description,
+      tags
     };
 
       const [baseline] = await db.insert(fundBaselines)
         .values(baselineData)
         .returning();
+
+      if (!baseline) {
+        throw new Error('Failed to create baseline');
+      }
 
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
@@ -318,12 +325,30 @@ export class VarianceCalculationService {
       analysisEnd: baseline.periodEnd,
       asOfDate,
       currentMetrics,
-      baselineMetrics
+      baselineMetrics,
+      totalValueVariance: variances.totalValueVariance?.toString() ?? null,
+      totalValueVariancePct: variances.totalValueVariancePct?.toString() ?? null,
+      irrVariance: variances.irrVariance?.toString() ?? null,
+      multipleVariance: variances.multipleVariance?.toString() ?? null,
+      dpiVariance: variances.dpiVariance?.toString() ?? null,
+      tvpiVariance: variances.tvpiVariance?.toString() ?? null,
+      portfolioVariances,
+      significantVariances: insights.significantVariances,
+      varianceFactors: insights.factors,
+      thresholdBreaches: insights.thresholdBreaches,
+      riskLevel: insights.riskLevel,
+      alertsTriggered,
+      generatedBy,
+      reportPeriod
     };
 
       const [report] = await db.insert(varianceReports)
         .values(reportData)
         .returning();
+
+      if (!report) {
+        throw new Error('Failed to create variance report');
+      }
 
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
@@ -588,7 +613,12 @@ export class VarianceCalculationService {
       return false;
     }
 
-    const threshold = parseFloat(rule.thresholdValue?.toString() || '0');
+    // Check if threshold is null or undefined
+    if (rule.thresholdValue === null || rule.thresholdValue === undefined) {
+      return false;
+    }
+
+    const threshold = parseFloat(rule.thresholdValue.toString());
 
     switch (rule.operator) {
       case 'gt':
@@ -664,16 +694,27 @@ export class AlertManagementService {
     createdBy: number;
   }): Promise<AlertRule> {
     const ruleData: InsertAlertRule = {
+      fundId: params.fundId,
       name: params.name,
+      description: params.description,
       ruleType: params.ruleType,
       metricName: params.metricName,
       operator: params.operator,
+      thresholdValue: params.thresholdValue.toString(),
+      secondaryThreshold: params.secondaryThreshold?.toString(),
+      severity: params.severity || 'warning',
+      category: params.category || 'performance',
+      checkFrequency: params.checkFrequency || 'daily',
       createdBy: params.createdBy
     };
 
     const [rule] = await db.insert(alertRules)
       .values(ruleData)
       .returning();
+
+    if (!rule) {
+      throw new Error('Failed to create alert rule');
+    }
 
     return rule;
   }
@@ -711,6 +752,10 @@ export class AlertManagementService {
     const [alert] = await db.insert(performanceAlerts)
       .values(alertData)
       .returning();
+
+    if (!alert) {
+      throw new Error('Failed to create performance alert');
+    }
 
     // Record metrics
     recordAlertGenerated(params.fundId.toString(), params.alertType, params.severity, params.category);
@@ -831,10 +876,11 @@ export class VarianceTrackingService {
     let finalBaselineId = baselineId;
     if (!finalBaselineId) {
       const defaultBaseline = await this.baselines.getBaselines(fundId, { isDefault: true });
-      if (!defaultBaseline.length) {
+      const baseline = defaultBaseline[0];
+      if (!baseline) {
         throw new Error('No default baseline found for fund');
       }
-      finalBaselineId = defaultBaseline[0].id;
+      finalBaselineId = baseline.id;
     }
 
     // Generate variance report

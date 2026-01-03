@@ -18,8 +18,8 @@ import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
-import { getFundAge, isConstructionPhase } from '@shared/lib/lifecycle-rules';
-import type { Fund } from '@shared/schema';
+import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
+import type { Fund, PortfolioCompany } from '@shared/schema';
 
 interface CacheClient {
   get<T>(key: string): Promise<T | null>;
@@ -35,11 +35,11 @@ class InMemoryCache implements CacheClient {
   async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
     if (!entry) return null;
-    if (Date.now() > entry.expiry) {
+    if (Date.now() > entry['expiry']) {
       this.cache.delete(key);
       return null;
     }
-    return entry.value as T;
+    return entry['value'] as T;
   }
 
   async set<T>(key: string, value: T, options?: { ttlSeconds?: number }): Promise<void> {
@@ -101,11 +101,13 @@ export class MetricsAggregator {
       const cached = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (cached) {
         // Add cache metadata
-        cached._cache = {
-          hit: true,
-          key: cacheKey,
+        return {
+          ...cached,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+          },
         };
-        return cached;
       }
     }
 
@@ -114,23 +116,27 @@ export class MetricsAggregator {
     if (isRebuilding) {
       const stale = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (stale) {
-        stale._cache = {
-          hit: true,
-          key: cacheKey,
-          staleWhileRevalidate: true,
+        return {
+          ...stale,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+            staleWhileRevalidate: true,
+          },
         };
-        return stale;
       }
       // No stale data available, wait and retry once
       await new Promise(resolve => setTimeout(resolve, 100));
       const retried = await this.cache.get<UnifiedFundMetrics>(cacheKey);
       if (retried) {
-        retried._cache = {
-          hit: true,
-          key: cacheKey,
-          staleWhileRevalidate: true,
+        return {
+          ...retried,
+          _cache: {
+            hit: true,
+            key: cacheKey,
+            staleWhileRevalidate: true,
+          },
         };
-        return retried;
       }
       // Fall through to recompute
     }
@@ -144,17 +150,28 @@ export class MetricsAggregator {
 
     try {
       // Fetch fund data
-      const fund = await storage.getFund(fundId);
-      if (!fund) {
+      const fundFromDb = await storage.getFund(fundId);
+      if (!fundFromDb) {
         throw this.createError(
           'INSUFFICIENT_DATA',
           `Fund ${fundId} not found`,
           'aggregator'
         );
       }
+      // Ensure fund object has optional nullable fields for projected calculator
+      const fund = fundFromDb as Fund & {
+        establishmentDate: string | Date | null;
+        isActive: boolean | null;
+      };
 
       // Fetch portfolio companies
-      const companies = await storage.getPortfolioCompanies(fundId);
+      const companiesFromDb = await storage.getPortfolioCompanies(fundId);
+      // Type assert companies to include optional fields needed by projected calculator
+      const companies = companiesFromDb as Array<PortfolioCompany & {
+        currentStage: string | null;
+        investmentDate: Date | null;
+        ownershipCurrentPct: string | null;
+      }>;
 
       // Fetch fund configuration
       const config = await this.getFundConfig(fundId);
@@ -178,7 +195,10 @@ export class MetricsAggregator {
         try {
           // Check if fund is in construction phase (no investments yet)
           const hasInvestments = companies.length > 0;
-          const fundAge = getFundAge(fund.establishmentDate || fund.createdAt);
+          const fundStartDate = fund.establishmentDate ?? fund.createdAt;
+          const fundAge: FundAge = fundStartDate
+            ? getFundAge(fundStartDate)
+            : { years: 0, months: 0, quarters: 0, totalMonths: 0 };
           const isConstruction = isConstructionPhase(fundAge, hasInvestments);
 
           if (isConstruction) {
@@ -249,7 +269,7 @@ export class MetricsAggregator {
             target: targetStatus,
             variance: varianceStatus,
           },
-          warnings: warnings.length > 0 ? warnings : undefined,
+          ...(warnings.length > 0 && { warnings }),
           computeTimeMs,
         },
       };
@@ -297,7 +317,7 @@ export class MetricsAggregator {
   /**
    * Get fund configuration with defaults
    */
-  private async getFundConfig(fundId: number): Promise<{
+  private async getFundConfig(_fundId: number): Promise<{
     targetIRR: number;
     targetTVPI: number;
     targetDPI?: number;
@@ -338,11 +358,11 @@ export class MetricsAggregator {
       targetFundSize,
       targetIRR: config.targetIRR,
       targetTVPI: config.targetTVPI,
-      targetDPI: config.targetDPI,
+      ...(config.targetDPI != null && { targetDPI: config.targetDPI }),
       targetDeploymentYears: config.investmentPeriodYears,
       targetCompanyCount,
       targetAverageCheckSize: targetFundSize / targetCompanyCount,
-      targetReserveRatio: config.reserveRatio,
+      ...(config.reserveRatio != null && { targetReserveRatio: config.reserveRatio }),
     };
   }
 

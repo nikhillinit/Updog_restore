@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * Consolidated error handling patterns
  * Unified approach to error management across the application
@@ -266,7 +266,9 @@ export class UnifiedErrorHandler {
         'simple',
         'default',
         async () => { throw error; }
-      ).catch(() => {}); // Ignore metric errors
+      ).catch((metricErr) => {
+        console.debug('[ErrorHandler] Failed to track database error metric:', metricErr?.message || metricErr);
+      });
     }
 
     if (isIdempotencyError(error)) {
@@ -274,7 +276,9 @@ export class UnifiedErrorHandler {
         'conflict',
         error.cacheHit ? 'redis' : 'database',
         async () => { throw error; }
-      ).catch(() => {}); // Ignore metric errors
+      ).catch((metricErr) => {
+        console.debug('[ErrorHandler] Failed to track idempotency error metric:', metricErr?.message || metricErr);
+      });
     }
   }
 

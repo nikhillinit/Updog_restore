@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { logger } from '@/lib/logger';
+import { logger } from '../lib/logger';
 
 /**
  * Cancellation endpoint for agent runs
@@ -17,7 +17,7 @@ export async function cancel(req: Request, res: Response) {
     // await redis.set(`ai:run:${runId}:cancel`, '1', 'EX', 300);
 
     // Mock implementation for development
-    logger.info('Agent run cancellation requested', { runId });
+    logger.info({ runId }, 'Agent run cancellation requested');
 
     // In production, this would set a Redis key:
     // const redis = getRedisClient();
@@ -25,7 +25,7 @@ export async function cancel(req: Request, res: Response) {
 
     res["status"](204)["send"]();
   } catch (error) {
-    logger.error('Failed to cancel agent run', { runId, error });
+    logger.error({ runId: runId ?? 'unknown', error }, 'Failed to cancel agent run');
     res["status"](500)["json"]({
       error: 'Failed to cancel run',
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -49,7 +49,7 @@ export async function isCancelled(runId: string): Promise<boolean> {
 
     return false; // Mock: always return false in development
   } catch (error) {
-    logger.error('Failed to check cancellation status', { runId, error });
+    logger.error({ runId, error }, 'Failed to check cancellation status');
     return false; // Fail-safe: don't block execution
   }
 }

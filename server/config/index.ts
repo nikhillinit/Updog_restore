@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 /**
  * Environment Configuration with Zod Validation
  * Fail-fast on invalid configuration
@@ -76,6 +76,27 @@ const envSchema = z.object({
   RELEASE: z.string().optional(),
   GIT_SHA: z.string().optional(),
   APP_VERSION: z.string().default('dev'),
+
+  // Application Defaults (previously hardcoded)
+  DEFAULT_FUND_ID: z.coerce.number().int().positive().default(1),
+  DEFAULT_USER_ID: z.coerce.number().int().positive().default(1),
+  DEFAULT_FUND_SIZE: z.coerce.number().positive().default(50000000), // $50M
+  TARGET_PORTFOLIO_SIZE: z.coerce.number().int().positive().default(30), // 30 companies
+
+  // Monte Carlo Settings
+  MONTE_CARLO_DEFAULT_RUNS: z.coerce.number().int().min(100).max(100000).default(10000),
+  MONTE_CARLO_BATCH_SIZE: z.coerce.number().int().min(100).max(10000).default(1000),
+  MONTE_CARLO_TIME_HORIZON_YEARS: z.coerce.number().min(1).max(20).default(8),
+
+  // API/Processing Timeouts
+  API_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  STREAM_BUFFER_SIZE_BYTES: z.coerce.number().int().positive().default(10485760), // 10MB
+
+  // Time Period Settings (for calculations)
+  PERIOD_DAYS_MONTH: z.coerce.number().int().positive().default(30),
+  PERIOD_DAYS_YEAR: z.coerce.number().positive().default(365.25),
 });
 
 // Validate and export configuration with fail-fast behavior

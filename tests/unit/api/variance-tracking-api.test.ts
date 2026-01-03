@@ -10,47 +10,54 @@ import express from 'express';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 
-// Mock the variance tracking service
-const mockVarianceTrackingService = {
-  baselines: {
-    createBaseline: vi.fn(),
-    getBaselines: vi.fn(),
-    setDefaultBaseline: vi.fn(),
-    deactivateBaseline: vi.fn()
-  },
-  calculations: {
-    generateVarianceReport: vi.fn()
-  },
-  alerts: {
-    createAlertRule: vi.fn(),
-    getActiveAlerts: vi.fn(),
-    acknowledgeAlert: vi.fn(),
-    resolveAlert: vi.fn()
-  },
-  performCompleteVarianceAnalysis: vi.fn()
-};
-
-// Mock the service module
+// Mock the service module (mock object inside factory to avoid hoisting violations)
 vi.mock('../../../server/services/variance-tracking', () => ({
-  varianceTrackingService: mockVarianceTrackingService
+  varianceTrackingService: {
+    baselines: {
+      createBaseline: vi.fn(),
+      getBaselines: vi.fn(),
+      setDefaultBaseline: vi.fn(),
+      deactivateBaseline: vi.fn(),
+    },
+    calculations: {
+      generateVarianceReport: vi.fn(),
+    },
+    alerts: {
+      createAlertRule: vi.fn(),
+      getActiveAlerts: vi.fn(),
+      acknowledgeAlert: vi.fn(),
+      resolveAlert: vi.fn(),
+    },
+    performCompleteVarianceAnalysis: vi.fn(),
+  },
 }));
 
 // Mock middleware
 vi.mock('../../../server/middleware/idempotency', () => ({
-  idempotency: (req: any, res: any, next: any) => next()
+  idempotency: (req: any, res: any, next: any) => next(),
 }));
 
 // Mock shared utilities
-vi.mock('@shared/number', () => ({
-  toNumber: (value: string, name: string, options?: any) => {
-    const num = parseInt(value);
-    if (isNaN(num)) throw new Error(`Invalid ${name}`);
-    return num;
-  },
-  NumberParseError: class NumberParseError extends Error {}
-}));
+vi.mock('@shared/number', () => {
+  class NumberParseErrorMock extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NumberParseError';
+    }
+  }
 
-// Import the router after mocking
+  return {
+    toNumber: (value: string, name: string, _options?: any) => {
+      const num = parseInt(value);
+      if (isNaN(num)) throw new NumberParseErrorMock(`Invalid ${name}`);
+      return num;
+    },
+    NumberParseError: NumberParseErrorMock,
+  };
+});
+
+// Import the mocked service and router after mocking
+import { varianceTrackingService as mockVarianceTrackingService } from '../../../server/services/variance-tracking';
 import varianceRouter from '../../../server/routes/variance';
 
 describe('Variance Tracking API', () => {
@@ -91,7 +98,7 @@ describe('Variance Tracking API', () => {
           baselineType: 'quarterly',
           periodStart: '2024-10-01T00:00:00Z',
           periodEnd: '2024-12-31T23:59:59Z',
-          tags: ['quarterly', 'high-confidence']
+          tags: ['quarterly', 'high-confidence'],
         };
 
         const response = await request(app)
@@ -111,7 +118,7 @@ describe('Variance Tracking API', () => {
           periodStart: new Date('2024-10-01T00:00:00Z'),
           periodEnd: new Date('2024-12-31T23:59:59Z'),
           createdBy: 1,
-          tags: ['quarterly', 'high-confidence']
+          tags: ['quarterly', 'high-confidence'],
         });
       });
 
@@ -120,7 +127,7 @@ describe('Variance Tracking API', () => {
           // Missing name
           baselineType: 'quarterly',
           periodStart: '2024-10-01T00:00:00Z',
-          periodEnd: '2024-12-31T23:59:59Z'
+          periodEnd: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -138,7 +145,7 @@ describe('Variance Tracking API', () => {
           name: 'Test Baseline',
           baselineType: 'invalid_type',
           periodStart: '2024-10-01T00:00:00Z',
-          periodEnd: '2024-12-31T23:59:59Z'
+          periodEnd: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -154,7 +161,7 @@ describe('Variance Tracking API', () => {
           name: 'Test Baseline',
           baselineType: 'quarterly',
           periodStart: 'invalid-date',
-          periodEnd: '2024-12-31T23:59:59Z'
+          periodEnd: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -170,7 +177,7 @@ describe('Variance Tracking API', () => {
           name: 'Test Baseline',
           baselineType: 'quarterly',
           periodStart: '2024-10-01T00:00:00Z',
-          periodEnd: '2024-12-31T23:59:59Z'
+          periodEnd: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -190,7 +197,7 @@ describe('Variance Tracking API', () => {
           name: 'Test Baseline',
           baselineType: 'quarterly',
           periodStart: '2024-10-01T00:00:00Z',
-          periodEnd: '2024-12-31T23:59:59Z'
+          periodEnd: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -207,13 +214,11 @@ describe('Variance Tracking API', () => {
       it('should retrieve baselines for a fund', async () => {
         const mockBaselines = [
           varianceTrackingFixtures.baselines.quarterly,
-          varianceTrackingFixtures.baselines.annual
+          varianceTrackingFixtures.baselines.annual,
         ];
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
 
-        const response = await request(app)
-          .get('/api/funds/1/baselines')
-          .expect(200);
+        const response = await request(app).get('/api/funds/1/baselines').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toEqual(mockBaselines);
@@ -222,7 +227,7 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
           baselineType: undefined,
           isDefault: undefined,
-          limit: undefined
+          limit: undefined,
         });
       });
 
@@ -240,14 +245,12 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
           baselineType: 'quarterly',
           isDefault: true,
-          limit: 10
+          limit: 10,
         });
       });
 
       it('should handle invalid fund ID', async () => {
-        const response = await request(app)
-          .get('/api/funds/invalid/baselines')
-          .expect(400);
+        const response = await request(app).get('/api/funds/invalid/baselines').expect(400);
 
         expect(response.body.error).toBe('Invalid fund ID');
       });
@@ -271,7 +274,7 @@ describe('Variance Tracking API', () => {
       });
 
       it('should handle missing baseline ID', async () => {
-        const response = await request(app)
+        const _response = await request(app)
           .post('/api/funds/1/baselines//set-default')
           .expect(404); // Express router would return 404 for empty path segment
       });
@@ -299,13 +302,15 @@ describe('Variance Tracking API', () => {
     describe('POST /api/funds/:id/variance-reports', () => {
       it('should generate variance report successfully', async () => {
         const mockReport = { id: 'report-id', ...varianceTrackingFixtures.reports.periodicReport };
-        mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(mockReport);
+        mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(
+          mockReport
+        );
 
         const reportData = {
           reportName: 'December 2024 Variance Analysis',
           reportType: 'periodic',
           reportPeriod: 'monthly',
-          asOfDate: '2024-12-31T23:59:59Z'
+          asOfDate: '2024-12-31T23:59:59Z',
         };
 
         const response = await request(app)
@@ -317,21 +322,23 @@ describe('Variance Tracking API', () => {
         expect(response.body.data).toEqual(mockReport);
         expect(response.body.message).toBe('Variance report generated successfully');
 
-        expect(mockVarianceTrackingService.calculations.generateVarianceReport).toHaveBeenCalledWith({
+        expect(
+          mockVarianceTrackingService.calculations.generateVarianceReport
+        ).toHaveBeenCalledWith({
           fundId: 1,
           baselineId: '',
           reportName: 'December 2024 Variance Analysis',
           reportType: 'periodic',
           reportPeriod: 'monthly',
           asOfDate: new Date('2024-12-31T23:59:59Z'),
-          generatedBy: 1
+          generatedBy: 1,
         });
       });
 
       it('should validate report type enum', async () => {
         const invalidData = {
           reportName: 'Test Report',
-          reportType: 'invalid_type'
+          reportType: 'invalid_type',
         };
 
         const response = await request(app)
@@ -346,7 +353,7 @@ describe('Variance Tracking API', () => {
         const invalidData = {
           baselineId: 'invalid-uuid',
           reportName: 'Test Report',
-          reportType: 'periodic'
+          reportType: 'periodic',
         };
 
         const response = await request(app)
@@ -360,9 +367,7 @@ describe('Variance Tracking API', () => {
 
     describe('GET /api/funds/:id/variance-reports', () => {
       it('should retrieve variance reports list', async () => {
-        const response = await request(app)
-          .get('/api/funds/1/variance-reports')
-          .expect(200);
+        const response = await request(app).get('/api/funds/1/variance-reports').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toEqual([]);
@@ -383,9 +388,12 @@ describe('Variance Tracking API', () => {
       });
 
       it('should handle missing report ID', async () => {
-        const response = await request(app)
-          .get('/api/funds/1/variance-reports/')
-          .expect(404); // Express router would return 404
+        // Test that trailing slash matches the list endpoint (GET /api/funds/:id/variance-reports)
+        // instead of the specific report endpoint
+        const response = await request(app).get('/api/funds/1/variance-reports/').expect(200);
+        // This should return the list endpoint response
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe('Variance reports endpoint implemented');
       });
     });
   });
@@ -405,7 +413,7 @@ describe('Variance Tracking API', () => {
           thresholdValue: -0.05,
           severity: 'critical',
           category: 'performance',
-          checkFrequency: 'daily'
+          checkFrequency: 'daily',
         };
 
         const response = await request(app)
@@ -429,7 +437,7 @@ describe('Variance Tracking API', () => {
           severity: 'critical',
           category: 'performance',
           checkFrequency: 'daily',
-          createdBy: 1
+          createdBy: 1,
         });
       });
 
@@ -442,7 +450,7 @@ describe('Variance Tracking API', () => {
           ruleType: 'threshold',
           metricName: 'totalValue',
           operator: 'lt',
-          thresholdValue: -0.1
+          thresholdValue: -0.1,
         };
 
         const response = await request(app)
@@ -464,7 +472,7 @@ describe('Variance Tracking API', () => {
           ruleType: 'threshold',
           metricName: 'irr',
           operator: 'invalid_operator',
-          thresholdValue: -0.05
+          thresholdValue: -0.05,
         };
 
         const response = await request(app)
@@ -480,13 +488,11 @@ describe('Variance Tracking API', () => {
       it('should retrieve active alerts', async () => {
         const mockAlerts = [
           varianceTrackingFixtures.alerts.irrDeclineAlert,
-          varianceTrackingFixtures.alerts.criticalValueAlert
+          varianceTrackingFixtures.alerts.criticalValueAlert,
         ];
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
 
-        const response = await request(app)
-          .get('/api/funds/1/alerts')
-          .expect(200);
+        const response = await request(app).get('/api/funds/1/alerts').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toEqual(mockAlerts);
@@ -495,7 +501,7 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           severity: undefined,
           category: undefined,
-          limit: undefined
+          limit: undefined,
         });
       });
 
@@ -513,7 +519,7 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           severity: ['critical', 'warning'],
           category: ['performance'],
-          limit: 20
+          limit: 20,
         });
       });
     });
@@ -523,7 +529,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.alerts.acknowledgeAlert.mockResolvedValue(undefined);
 
         const acknowledgeData = {
-          notes: 'Investigating the issue'
+          notes: 'Investigating the issue',
         };
 
         const response = await request(app)
@@ -576,7 +582,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.alerts.resolveAlert.mockResolvedValue(undefined);
 
         const resolveData = {
-          notes: 'Issue resolved after portfolio rebalancing'
+          notes: 'Issue resolved after portfolio rebalancing',
         };
 
         const response = await request(app)
@@ -603,14 +609,14 @@ describe('Variance Tracking API', () => {
           report: { id: 'report-id', ...varianceTrackingFixtures.reports.periodicReport },
           alertsGenerated: [
             { id: 'alert-1', severity: 'warning' },
-            { id: 'alert-2', severity: 'critical' }
-          ]
+            { id: 'alert-2', severity: 'critical' },
+          ],
         };
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue(mockResult);
 
         const analysisData = {
-          baselineId: 'baseline-123',
-          reportName: 'Complete Analysis Report'
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'Complete Analysis Report',
         };
 
         const response = await request(app)
@@ -626,21 +632,21 @@ describe('Variance Tracking API', () => {
 
         expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).toHaveBeenCalledWith({
           fundId: 1,
-          baselineId: 'baseline-123',
+          baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'Complete Analysis Report',
-          userId: 1
+          userId: 1,
         });
       });
 
       it('should perform analysis without baseline ID (use default)', async () => {
         const mockResult = {
           report: { id: 'report-id' },
-          alertsGenerated: []
+          alertsGenerated: [],
         };
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue(mockResult);
 
         const analysisData = {
-          reportName: 'Default Baseline Analysis'
+          reportName: 'Default Baseline Analysis',
         };
 
         const response = await request(app)
@@ -650,7 +656,8 @@ describe('Variance Tracking API', () => {
 
         expect(response.body.success).toBe(true);
 
-        const callArgs = mockVarianceTrackingService.performCompleteVarianceAnalysis.mock.calls[0][0];
+        const callArgs =
+          mockVarianceTrackingService.performCompleteVarianceAnalysis.mock.calls[0][0];
         expect(callArgs.baselineId).toBeUndefined();
         expect(callArgs.reportName).toBe('Default Baseline Analysis');
       });
@@ -658,7 +665,7 @@ describe('Variance Tracking API', () => {
       it('should validate baseline ID format when provided', async () => {
         const invalidData = {
           baselineId: 'invalid-uuid',
-          reportName: 'Test Analysis'
+          reportName: 'Test Analysis',
         };
 
         const response = await request(app)
@@ -674,19 +681,17 @@ describe('Variance Tracking API', () => {
       it('should retrieve variance dashboard data', async () => {
         const mockBaselines = [
           { ...varianceTrackingFixtures.baselines.quarterly, isDefault: true },
-          varianceTrackingFixtures.baselines.annual
+          varianceTrackingFixtures.baselines.annual,
         ];
         const mockAlerts = [
           { ...varianceTrackingFixtures.alerts.irrDeclineAlert, severity: 'warning' },
-          { ...varianceTrackingFixtures.alerts.criticalValueAlert, severity: 'critical' }
+          { ...varianceTrackingFixtures.alerts.criticalValueAlert, severity: 'critical' },
         ];
 
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
 
-        const response = await request(app)
-          .get('/api/funds/1/variance-dashboard')
-          .expect(200);
+        const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data.defaultBaseline).toEqual(mockBaselines[0]);
@@ -695,13 +700,17 @@ describe('Variance Tracking API', () => {
         expect(response.body.data.alertsByseverity).toEqual({
           critical: 1,
           warning: 1,
-          info: 0
+          info: 0,
         });
         expect(response.body.data.summary.totalBaselines).toBe(2);
         expect(response.body.data.summary.totalActiveAlerts).toBe(2);
 
-        expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, { limit: 5 });
-        expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, { limit: 10 });
+        expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
+          limit: 5,
+        });
+        expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
+          limit: 10,
+        });
       });
 
       it('should handle no default baseline', async () => {
@@ -711,9 +720,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
 
-        const response = await request(app)
-          .get('/api/funds/1/variance-dashboard')
-          .expect(200);
+        const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data.defaultBaseline).toBeUndefined();
@@ -723,21 +730,25 @@ describe('Variance Tracking API', () => {
   });
 
   describe('Authentication and Authorization', () => {
-    it('should require authentication for creating baselines', async () => {
-      // Override middleware to simulate no auth
-      app.use((req: any, res, next) => {
-        req.user = undefined;
-        next();
-      });
+    let unauthApp: express.Express;
 
+    beforeEach(() => {
+      // Create app without authentication middleware
+      unauthApp = express();
+      unauthApp.use(express.json());
+      // Don't add req.user middleware
+      unauthApp.use(varianceRouter);
+    });
+
+    it('should require authentication for creating baselines', async () => {
       const baselineData = {
         name: 'Test Baseline',
         baselineType: 'quarterly',
         periodStart: '2024-10-01T00:00:00Z',
-        periodEnd: '2024-12-31T23:59:59Z'
+        periodEnd: '2024-12-31T23:59:59Z',
       };
 
-      const response = await request(app)
+      const response = await request(unauthApp)
         .post('/api/funds/1/baselines')
         .send(baselineData)
         .expect(401);
@@ -746,13 +757,7 @@ describe('Variance Tracking API', () => {
     });
 
     it('should require authentication for alert operations', async () => {
-      // Override middleware to simulate no auth
-      app.use((req: any, res, next) => {
-        req.user = undefined;
-        next();
-      });
-
-      const response = await request(app)
+      const response = await request(unauthApp)
         .post('/api/alerts/alert-123/acknowledge')
         .send({})
         .expect(401);
@@ -771,7 +776,7 @@ describe('Variance Tracking API', () => {
         name: 'Test Baseline',
         baselineType: 'quarterly',
         periodStart: '2024-10-01T00:00:00Z',
-        periodEnd: '2024-12-31T23:59:59Z'
+        periodEnd: '2024-12-31T23:59:59Z',
       };
 
       const response = await request(app)
@@ -786,9 +791,7 @@ describe('Variance Tracking API', () => {
     it('should handle unknown errors gracefully', async () => {
       mockVarianceTrackingService.alerts.getActiveAlerts.mockRejectedValue('Unexpected error');
 
-      const response = await request(app)
-        .get('/api/funds/1/alerts')
-        .expect(500);
+      const response = await request(app).get('/api/funds/1/alerts').expect(500);
 
       expect(response.body.error).toBe('Failed to fetch alerts');
       expect(response.body.message).toBe('Unknown error');
@@ -799,7 +802,7 @@ describe('Variance Tracking API', () => {
         { method: 'get', path: '/api/funds/abc/baselines' },
         { method: 'post', path: '/api/funds/abc/variance-reports' },
         { method: 'get', path: '/api/funds/abc/alerts' },
-        { method: 'get', path: '/api/funds/abc/variance-dashboard' }
+        { method: 'get', path: '/api/funds/abc/variance-dashboard' },
       ];
 
       for (const endpoint of endpoints) {
@@ -812,10 +815,7 @@ describe('Variance Tracking API', () => {
 
   describe('Input Validation Edge Cases', () => {
     it('should handle empty request bodies gracefully', async () => {
-      const response = await request(app)
-        .post('/api/funds/1/baselines')
-        .send({})
-        .expect(400);
+      const response = await request(app).post('/api/funds/1/baselines').send({}).expect(400);
 
       expect(response.body.error).toBe('Validation failed');
     });
@@ -826,7 +826,7 @@ describe('Variance Tracking API', () => {
         baselineType: 'quarterly',
         periodStart: '2024-10-01T00:00:00Z',
         periodEnd: '2024-12-31T23:59:59Z',
-        tags: Array(11).fill('tag') // Exceed 10 tag limit
+        tags: Array(11).fill('tag'), // Exceed 10 tag limit
       };
 
       const response = await request(app)
@@ -842,7 +842,7 @@ describe('Variance Tracking API', () => {
         name: 'a'.repeat(101), // Exceed 100 character limit
         baselineType: 'quarterly',
         periodStart: '2024-10-01T00:00:00Z',
-        periodEnd: '2024-12-31T23:59:59Z'
+        periodEnd: '2024-12-31T23:59:59Z',
       };
 
       const response = await request(app)
@@ -854,7 +854,7 @@ describe('Variance Tracking API', () => {
     });
 
     it('should handle malformed JSON gracefully', async () => {
-      const response = await request(app)
+      const _response = await request(app)
         .post('/api/funds/1/baselines')
         .type('json')
         .send('{"invalid": json}')
@@ -866,9 +866,7 @@ describe('Variance Tracking API', () => {
 
   describe('Query Parameter Validation', () => {
     it('should handle invalid limit parameters', async () => {
-      const response = await request(app)
-        .get('/api/funds/1/baselines?limit=abc')
-        .expect(200); // Service would handle this, not the route validation
+      const _response = await request(app).get('/api/funds/1/baselines?limit=abc').expect(200); // Service would handle this, not the route validation
 
       // The service would receive NaN and handle it appropriately
     });
@@ -876,24 +874,20 @@ describe('Variance Tracking API', () => {
     it('should handle boolean query parameters correctly', async () => {
       mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([]);
 
-      await request(app)
-        .get('/api/funds/1/baselines?isDefault=true')
-        .expect(200);
+      await request(app).get('/api/funds/1/baselines?isDefault=true').expect(200);
 
       expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
         baselineType: undefined,
         isDefault: true,
-        limit: undefined
+        limit: undefined,
       });
 
-      await request(app)
-        .get('/api/funds/1/baselines?isDefault=false')
-        .expect(200);
+      await request(app).get('/api/funds/1/baselines?isDefault=false').expect(200);
 
       expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
         baselineType: undefined,
         isDefault: false,
-        limit: undefined
+        limit: undefined,
       });
     });
   });

@@ -16,14 +16,15 @@ incrementally for validation.**
 
 ## Quick Reference
 
-| Phase                       | Key Activities                   | Tool Usage                             | Output                               |
-| --------------------------- | -------------------------------- | -------------------------------------- | ------------------------------------ |
-| **1. Understanding**        | Ask questions (one at a time)    | AskUserQuestion for choices            | Purpose, constraints, criteria       |
-| **2. Exploration**          | Propose 2-3 approaches           | AskUserQuestion for approach selection | Architecture options with trade-offs |
-| **3. Design Presentation**  | Present in 200-300 word sections | Open-ended questions                   | Complete design with validation      |
-| **4. Design Documentation** | Write design document            | writing-clearly-and-concisely skill    | Design doc in docs/plans/            |
-| **5. Worktree Setup**       | Set up isolated workspace        | using-git-worktrees skill              | Ready development environment        |
-| **6. Planning Handoff**     | Create implementation plan       | writing-plans skill                    | Detailed task breakdown              |
+| Phase                       | Key Activities                   | Tool Usage                               | Output                               |
+| --------------------------- | -------------------------------- | ---------------------------------------- | ------------------------------------ |
+| **1. Understanding**        | Ask questions (one at a time)    | AskUserQuestion for choices              | Purpose, constraints, criteria       |
+| **2. Exploration**          | Propose 2-3 approaches           | AskUserQuestion for approach selection   | Architecture options with trade-offs |
+| **3. Design Presentation**  | Present in 200-300 word sections | Open-ended questions                     | Complete design with validation      |
+| **3.5. Design Refinement**  | Critique & multi-AI validation   | extended-thinking, multi-ai-collab tools | Refined, validated design            |
+| **4. Design Documentation** | Write design document            | writing-clearly-and-concisely skill      | Design doc in docs/plans/            |
+| **5. Worktree Setup**       | Set up isolated workspace        | using-git-worktrees skill                | Ready development environment        |
+| **6. Planning Handoff**     | Create implementation plan       | writing-plans skill                      | Detailed task breakdown              |
 
 ## The Process
 
@@ -249,6 +250,226 @@ User validates: "Perfect"
 [Continue until design complete]
 ```
 
+### Phase 3.5: Design Refinement (Optional)
+
+**Goal**: Validate and refine design through structured critique and
+multi-perspective analysis
+
+#### When to Use
+
+Use this refinement phase for:
+
+- Complex features with multiple stakeholders
+- High-stakes architectural decisions
+- Unclear trade-offs requiring deeper analysis
+- Designs that benefit from diverse AI perspectives
+- Documents requiring quality validation before finalization
+
+#### Refinement Process
+
+**Step 1: Generate Structured Critique**
+
+Use **extended-thinking-framework** to analyze the design:
+
+```markdown
+Let me apply structured critique to this design...
+
+**Strengths**: [What works well] **Weaknesses**: [Potential issues or gaps]
+**Risks**: [What could go wrong] **Alternatives**: [Other approaches to
+consider] **Missing Context**: [What's not addressed]
+```
+
+**Step 2: Multi-AI Validation (When Available)**
+
+Leverage **multi-ai-collab MCP tools** for diverse perspectives:
+
+```typescript
+// Get multiple AI perspectives on the design
+ask_all_ais({
+  prompt:
+    'Review this caching design for Monte Carlo simulations. Focus on: architecture soundness, edge cases, performance implications, and maintainability.',
+  temperature: 0.7,
+});
+```
+
+**When to use each tool**:
+
+- **ask_all_ais**: Get diverse perspectives on design approach or architecture
+- **ai_debate**: Explore trade-offs between 2-3 specific architectural choices
+- **ai_consensus**: Validate critical design decisions with multiple models
+- **gemini_brainstorm** / **openai_brainstorm**: Generate creative alternatives
+
+**Step 3: Debate Trade-Offs**
+
+For critical decisions with unclear trade-offs:
+
+```typescript
+ai_debate({
+  topic:
+    'Redis-backed caching vs. Hybrid (memoization + Redis) for Monte Carlo simulations',
+  ai1: 'gemini', // Argues for simplicity
+  ai2: 'openai', // Argues for performance
+});
+```
+
+**Step 4: Consensus on Critical Decisions**
+
+For high-stakes choices:
+
+```typescript
+ai_consensus({
+  question:
+    'Should we implement European waterfall as discriminated union extension or separate class?',
+  options:
+    'Option 1: Discriminated union (type-safe, follows patterns)\nOption 2: Separate class (clean separation, easier testing)',
+});
+```
+
+**Step 5: Update Design Based on Feedback**
+
+Synthesize insights and revise design:
+
+```markdown
+Based on multi-AI feedback:
+
+**Changes Made**:
+
+- Added cache stampede mitigation (jitter to TTL)
+- Clarified error handling for Redis connection failures
+- Added monitoring metrics for cache hit rate
+
+**Issues Addressed**:
+
+- Risk of stale data → Documented TTL tuning strategy
+- Memory pressure → Added eviction policy recommendation
+```
+
+**Step 6: Re-Validate**
+
+Present revised design to user:
+
+```markdown
+I've refined the design based on structured critique and multi-AI validation.
+Key improvements:
+
+1. [Improvement 1]
+2. [Improvement 2]
+3. [Improvement 3]
+
+**Does this revised design address your concerns?**
+```
+
+#### Example: Refining Handoff Memo
+
+**Scenario**: Refining test remediation handoff memo
+
+**Step 1: Structured Critique**
+
+```markdown
+Analyzing handoff memo structure...
+
+**Strengths**:
+
+- Comprehensive accomplishments documented
+- Clear test baseline metrics
+- Good code references with line numbers
+
+**Weaknesses**:
+
+- Critical blocker buried at bottom (seed script bugs)
+- Priorities misaligned with blockers
+- Missing risk assessment
+- No rollback procedures
+
+**Risks**:
+
+- LP tests cannot run until seed script fixed (1-2 hour delay minimum)
+- Feature test assumptions not verified (61 tests assumed new features)
+- No contingency if seed fix takes longer than expected
+
+**Missing Context**:
+
+- Success criteria for LP security tests
+- Decision criteria for feature deployment
+- Rollback plan if changes break tests
+```
+
+**Step 2: Multi-AI Perspective** (if MCP available)
+
+```typescript
+ask_all_ais({
+  prompt:
+    'Review this test remediation handoff memo. Assess: document structure, prioritization accuracy, missing risks, and actionability of next steps.',
+});
+```
+
+**Step 3: Apply Refinements**
+
+Based on critique:
+
+- Move CRITICAL BLOCKER to top
+- Reorder priorities: Fix seed script → Quick wins → LP tests
+- Add risk matrix
+- Define clear success criteria
+- Add rollback procedures
+
+#### Integration with Multi-AI Collaboration
+
+**When to Use Multi-AI Tools in Design Workflow**:
+
+| Scenario                        | Tool                | Purpose                            |
+| ------------------------------- | ------------------- | ---------------------------------- |
+| Get diverse design perspectives | ask_all_ais         | Compare approaches across models   |
+| Debate architecture trade-offs  | ai_debate           | Explore pros/cons with opposition  |
+| Validate critical decisions     | ai_consensus        | Ensure alignment on key choices    |
+| Generate creative alternatives  | gemini_brainstorm   | Explore novel approaches           |
+| Deep technical analysis         | gemini_think_deep   | Extended reasoning on complexity   |
+| Code-specific review            | gemini_code_review  | Security, performance, readability |
+| Architecture design validation  | gemini_architecture | System design soundness            |
+| Debugging complex issues        | openai_debug        | Error analysis and resolution      |
+| Get OpenAI perspective          | openai_think_deep   | Alternative deep analysis          |
+| Collaborative problem-solving   | collaborative_solve | Multi-AI approach to complex issue |
+
+**Example Workflow: Caching Design Refinement**
+
+```markdown
+1. **Initial Design** (Phase 3) Present: Redis-backed caching architecture User:
+   "Looks good, but worried about edge cases"
+
+2. **Refinement** (Phase 3.5) Action: Generate structured critique Result:
+   Identified cache stampede risk, stale data concerns
+
+3. **Multi-AI Validation** Tool: ask_all_ais Prompt: "Review Redis caching
+   design for edge cases and risks" Result: All models recommend TTL jitter,
+   monitoring metrics
+
+4. **Trade-off Debate** Tool: ai_debate (gemini vs openai) Topic: "Simple Redis
+   vs Hybrid caching approach" Result: Consensus on simple Redis for v1, hybrid
+   for v2 if needed
+
+5. **Final Validation** Present: Revised design with improvements User:
+   "Perfect, addresses all concerns"
+
+6. **Proceed** → Phase 4 (Documentation)
+```
+
+#### When to Skip Refinement
+
+**Skip Phase 3.5 if**:
+
+- Design is straightforward and user already validated
+- No complex trade-offs or high-stakes decisions
+- Time-sensitive implementation
+- Incremental changes to existing patterns
+
+**Use Phase 3.5 when**:
+
+- Complex architectural changes
+- Multiple valid approaches with unclear winner
+- High-stakes features (security, data integrity, financial calculations)
+- User expresses uncertainty or concerns
+- Design documents need quality validation
+
 ### Phase 4: Design Documentation
 
 **Goal**: Create written design document for reference
@@ -394,14 +615,18 @@ Then use **writing-plans** skill:
 **Plan saved to**: `docs/plans/2025-11-06-monte-carlo-caching.md`
 ```
 
+**Note**: Phases renumbered after Phase 3.5 addition. Original Phase 4-6 are now
+Phase 5-7 in the process flow, but retain original numbering in headers for
+backward compatibility.
+
 ## When to Use AskUserQuestion Tool
 
 ### Use For:
 
-✅ **Phase 1 clarifying questions** with 2-4 clear options ✅ **Phase 2
-architectural approach selection** (2-3 alternatives) ✅ Any decision with
-**distinct, mutually exclusive choices** ✅ When options have **clear
-trade-offs** to present
+- **Phase 1 clarifying questions** with 2-4 clear options
+- **Phase 2 architectural approach selection** (2-3 alternatives)
+- Any decision with **distinct, mutually exclusive choices**
+- When options have **clear trade-offs** to present
 
 **Example**:
 
@@ -418,9 +643,10 @@ AskUserQuestion({
 
 ### Use Open-Ended Questions For:
 
-✅ **Phase 3 design validation** ("Does this look right?") ✅ When you need
-**detailed feedback** ✅ When structured options would **limit creative input**
-✅ Gathering requirements that aren't multiple-choice
+- **Phase 3 design validation** ("Does this look right?")
+- When you need **detailed feedback**
+- When structured options would **limit creative input**
+- Gathering requirements that aren't multiple-choice
 
 **Example**:
 
@@ -434,31 +660,30 @@ AskUserQuestion({
 
 ### One Question at a Time (Phase 1)
 
-❌ **Bad**: "What's the goal? What are the constraints? How much time do you
-have? What's your budget?"
+**Bad**: "What's the goal? What are the constraints? How much time do you have?
+What's your budget?"
 
-✅ **Good**: "What's the primary goal for this feature?" [Wait for answer, then
-ask next]
+**Good**: "What's the primary goal for this feature?" [Wait for answer, then ask
+next]
 
 ### Explore Alternatives (Phase 2)
 
-❌ **Bad**: "Here's how we'll implement it: [single approach]"
+**Bad**: "Here's how we'll implement it: [single approach]"
 
-✅ **Good**: "I see three approaches: [A, B, C with trade-offs]. Which
-resonates?"
+**Good**: "I see three approaches: [A, B, C with trade-offs]. Which resonates?"
 
 ### YAGNI Ruthlessly
 
-❌ **Bad**: "Let's add analytics, A/B testing, and multi-region support"
+**Bad**: "Let's add analytics, A/B testing, and multi-region support"
 
-✅ **Good**: "For v1, focus on core caching. Analytics can be added later if
+**Good**: "For v1, focus on core caching. Analytics can be added later if
 needed."
 
 ### Incremental Validation (Phase 3)
 
-❌ **Bad**: [Dumps 2000-word design in one message]
+**Bad**: [Dumps 2000-word design in one message]
 
-✅ **Good**: [Presents 200-300 word sections, validates each before continuing]
+**Good**: [Presents 200-300 word sections, validates each before continuing]
 
 ### Flexible Progression
 
@@ -624,6 +849,18 @@ types safely with type-specific signatures.
 - [ ] Covered: architecture, components, data flow, errors, testing
 - [ ] Used open-ended questions for validation
 
+### Phase 3.5: Design Refinement (Optional)
+
+- [ ] Generated structured critique (strengths, weaknesses, risks, missing
+      context)
+- [ ] Applied extended-thinking-framework for deep analysis
+- [ ] Used multi-AI tools for validation (if appropriate)
+  - [ ] ask_all_ais for diverse perspectives
+  - [ ] ai_debate for trade-off exploration
+  - [ ] ai_consensus for critical decisions
+- [ ] Synthesized feedback and updated design
+- [ ] Re-validated with user
+
 ### Phase 4: Documentation
 
 - [ ] Used writing-clearly-and-concisely skill
@@ -714,19 +951,27 @@ Next time:
 
 ## Summary
 
-**Six Phases**:
+**Seven Phases** (3.5 is optional):
 
 1. Understanding - Ask questions one at a time (AskUserQuestion for choices)
 2. Exploration - Propose 2-3 approaches with trade-offs
 3. Design Presentation - Present incrementally, validate each section
-4. Documentation - Write design doc (writing-clearly-and-concisely)
-5. Worktree Setup - Isolated workspace (using-git-worktrees)
-6. Planning - Implementation plan (writing-plans)
+4. **3.5. Design Refinement** - Structured critique + multi-AI validation
+   (optional)
+5. Documentation - Write design doc (writing-clearly-and-concisely)
+6. Worktree Setup - Isolated workspace (using-git-worktrees)
+7. Planning - Implementation plan (writing-plans)
 
 **Tool Usage**:
 
 - AskUserQuestion: Phase 1 choices, Phase 2 approach selection
 - Open-ended: Phase 3 validation, detailed feedback
+- Multi-AI tools: Phase 3.5 refinement (ask_all_ais, ai_debate, ai_consensus)
+- Extended thinking: Phase 3.5 critique generation
 
 **Key Principles**: One question at a time, explore alternatives, YAGNI,
-incremental validation
+incremental validation, structured refinement for complex decisions
+
+---
+
+_Last Updated: 2025-11-07_ _Version: 3.5 (multi-AI refinement phase added)_

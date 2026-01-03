@@ -15,17 +15,37 @@ import { transaction } from '../db/pg-circuit';
 import type { PoolClient } from 'pg';
 import { db } from '../db';
 import { portfolioCompanies } from '@shared/schema';
-import { eq, and, lt, sql, desc, asc } from 'drizzle-orm';
+import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-// TODO: Re-enable when stage-normalization PR is merged
-// import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
-// import { getStageValidationMode } from '../lib/stage-validation-mode';
-// import {
-//   recordValidationDuration,
-//   recordValidationSuccess,
-//   recordUnknownStage,
-// } from '../observability/stage-metrics';
-// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// Stage normalization and validation
+import { normalizeStage, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+
+// Custom error type for HTTP status codes
+interface HttpError extends Error {
+  statusCode: number;
+  conflicts?: Array<{ company_id: number; expected_version: number; actual_version: number }>;
+}
+
+// Request type with user context
+interface RequestContext {
+  rid?: string;
+  user?: { id?: number };
+}
+
+// Type guard for HttpError
+const isHttpError = (error: unknown): error is HttpError => {
+  if (!error || typeof error !== 'object') return false;
+  return (
+    'statusCode' in error && typeof (error as { statusCode?: unknown }).statusCode === 'number'
+  );
+};
 
 const router = Router();
 
@@ -47,23 +67,25 @@ const CompanyAllocationUpdateSchema = z.object({
  * Schema for POST /api/funds/:fundId/allocations request body
  * Includes optimistic locking with expected_version
  */
-const UpdateAllocationRequestSchema = z.object({
-  expected_version: z.number().int().min(1),
-  updates: z.array(CompanyAllocationUpdateSchema).min(1).max(100),
-}).refine(
-  (data) => {
-    // Validate that allocation_cap >= planned_reserves when cap is set
-    return data.updates.every(update => {
-      if (update.allocation_cap_cents !== null && update.allocation_cap_cents !== undefined) {
-        return update.allocation_cap_cents >= update.planned_reserves_cents;
-      }
-      return true;
-    });
-  },
-  {
-    message: "allocation_cap_cents must be >= planned_reserves_cents when set",
-  }
-);
+const UpdateAllocationRequestSchema = z
+  .object({
+    expected_version: z.number().int().min(1),
+    updates: z.array(CompanyAllocationUpdateSchema).min(1).max(100),
+  })
+  .refine(
+    (data) => {
+      // Validate that allocation_cap >= planned_reserves when cap is set
+      return data.updates.every((update) => {
+        if (update.allocation_cap_cents !== null && update.allocation_cap_cents !== undefined) {
+          return update.allocation_cap_cents >= update.planned_reserves_cents;
+        }
+        return true;
+      });
+    },
+    {
+      message: 'allocation_cap_cents must be >= planned_reserves_cents when set',
+    }
+  );
 
 /**
  * Schema for validating fundId path parameter
@@ -77,12 +99,13 @@ const FundIdParamSchema = z.object({
  */
 const CompanyListQuerySchema = z.object({
   cursor: z.string().regex(/^\d+$/).transform(Number).optional(),
-  limit: z.string()
+  limit: z
+    .string()
     .regex(/^\d+$/)
     .transform(Number)
     .default('50')
-    .refine(val => val >= 1 && val <= 200, {
-      message: 'Limit must be between 1 and 200'
+    .refine((val) => val >= 1 && val <= 200, {
+      message: 'Limit must be between 1 and 200',
     }),
   q: z.string().max(255).optional(), // Search query
   status: z.enum(['active', 'exited', 'written-off']).optional(),
@@ -96,7 +119,7 @@ const CompanyListQuerySchema = z.object({
 // ============================================================================
 
 type CompanyAllocationUpdate = z.infer<typeof CompanyAllocationUpdateSchema>;
-type UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
+type _UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
 
 interface CompanyAllocationRow {
   company_id: number;
@@ -109,7 +132,7 @@ interface CompanyAllocationRow {
   last_allocation_at: Date | null;
 }
 
-interface LatestAllocationResponse {
+interface _LatestAllocationResponse {
   fund_id: number;
   companies: Array<{
     company_id: number;
@@ -129,7 +152,7 @@ interface LatestAllocationResponse {
   };
 }
 
-interface UpdateAllocationResponse {
+interface _UpdateAllocationResponse {
   success: boolean;
   new_version: number;
   updated_count: number;
@@ -180,13 +203,10 @@ interface CompanyListResponse {
  * @throws {Error} with 404 status if fund not found
  */
 async function verifyFundExists(client: PoolClient, fundId: number): Promise<void> {
-  const fundCheck = await client.query(
-    'SELECT id FROM funds WHERE id = $1',
-    [fundId]
-  );
+  const fundCheck = await client.query('SELECT id FROM funds WHERE id = $1', [fundId]);
 
   if (fundCheck.rows.length === 0) {
-    const error: any = new Error(`Fund ${fundId} not found`);
+    const error = new Error(`Fund ${fundId} not found`) as HttpError;
     error.statusCode = 404;
     throw error;
   }
@@ -208,11 +228,11 @@ async function verifyCompaniesInFund(
   );
 
   if (companyCheck.rows.length !== companyIds.length) {
-    const foundIds = companyCheck.rows.map((r: any) => r.id);
-    const missingIds = companyIds.filter(id => !foundIds.includes(id));
-    const error: any = new Error(
+    const foundIds = companyCheck.rows.map((r: { id: number }) => r.id);
+    const missingIds = companyIds.filter((id) => !foundIds.includes(id));
+    const error = new Error(
       `Companies not found in fund ${fundId}: ${missingIds.join(', ')}`
-    );
+    ) as HttpError;
     error.statusCode = 404;
     throw error;
   }
@@ -227,10 +247,10 @@ async function updateCompanyAllocation(
   fundId: number,
   expectedVersion: number,
   update: CompanyAllocationUpdate,
-  userId: number | null
+  _userId: number | null
 ): Promise<ConflictInfo | null> {
   // First, check the current version with row lock
-  const versionCheck = await client.query(
+  const versionCheck = await client.query<{ allocation_version: number }>(
     `SELECT allocation_version
      FROM portfoliocompanies
      WHERE fund_id = $1 AND id = $2
@@ -239,12 +259,14 @@ async function updateCompanyAllocation(
   );
 
   if (versionCheck.rows.length === 0) {
-    const error: any = new Error(`Company ${update.company_id} not found in fund ${fundId}`);
+    const error = new Error(
+      `Company ${update.company_id} not found in fund ${fundId}`
+    ) as HttpError;
     error.statusCode = 404;
     throw error;
   }
 
-  const currentVersion = versionCheck.rows[0].allocation_version;
+  const currentVersion = versionCheck.rows[0]!.allocation_version;
 
   // Check for version conflict
   if (currentVersion !== expectedVersion) {
@@ -343,220 +365,208 @@ async function logAllocationEvent(
  * @throws {400} Invalid parameters
  * @throws {404} Fund not found
  */
-router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  const requestId = (req as any).rid || 'unknown';
+router['get'](
+  '/funds/:fundId/companies',
+  asyncHandler(async (req: Request, res: Response) => {
+    const startTime = Date.now();
+    const requestId = (req as unknown as RequestContext).rid ?? 'unknown';
 
-  // Validate fundId parameter
-  const paramValidation = FundIdParamSchema.safeParse(req.params);
-  if (!paramValidation.success) {
-    return res["status"](400)["json"]({
-      error: 'invalid_fund_id',
-      message: 'Fund ID must be a positive integer',
-      details: paramValidation.error.format()
-    });
-  }
-
-  const { fundId } = paramValidation.data;
-
-  // Validate query parameters
-  const queryResult = CompanyListQuerySchema.safeParse(req.query);
-  if (!queryResult.success) {
-    return res["status"](400)["json"]({
-      error: 'invalid_query_parameters',
-      message: 'Invalid query parameters',
-      details: queryResult.error.format()
-    });
-  }
-
-  const query = queryResult.data;
-
-  // TODO: Re-enable when stage-normalization PR is merged
-  // Validate and normalize stage filter if provided
-  let normalizedStage: string | undefined;
-  if (query.stage) {
-    // Temporarily disabled - requires stage-normalization dependencies
-    normalizedStage = query.stage; // Pass-through without validation
-    /*
-    const startTime = performance.now();
-    const result = normalizeInvestmentStage(query.stage);
-    const duration = (performance.now() - startTime) / 1000;
-    recordValidationDuration('GET /api/funds/:fundId/companies', duration);
-
-    if (!result.ok) {
-      const mode = getStageValidationMode();
-      recordUnknownStage('GET /api/funds/:fundId/companies', mode);
-      setStageWarningHeaders(res, [query.stage]);
-
-      if (mode === 'enforce') {
-        return res.status(400).json({
-          error: 'invalid_query_parameters',
-          message: 'Invalid investment stage in query parameters',
-          details: {
-            code: 'INVALID_STAGE',
-            invalid: [query.stage],
-            validStages: [
-              'pre-seed',
-              'seed',
-              'series-a',
-              'series-b',
-              'series-c',
-              'series-c+',
-            ],
-          }
-        });
-      }
-    } else {
-      normalizedStage = result.value;
-      recordValidationSuccess('GET /api/funds/:fundId/companies');
-    }
-    */
-  }
-
-  // Build WHERE conditions
-  const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
-
-  // Cursor pagination (id < cursor for DESC ordering)
-  if (query.cursor !== undefined) {
-    conditions.push(lt(portfolioCompanies.id, query.cursor));
-  }
-
-  // Status filter
-  if (query.status) {
-    conditions.push(eq(portfolioCompanies.status, query.status));
-  }
-
-  // Sector filter
-  if (query.sector) {
-    conditions.push(eq(portfolioCompanies.sector, query.sector));
-  }
-
-  // Stage filter (using normalized stage)
-  if (normalizedStage) {
-    conditions.push(eq(portfolioCompanies.stage, normalizedStage));
-  }
-
-  // Search filter (case-insensitive LIKE)
-  if (query.q) {
-    conditions.push(sql`LOWER(${portfolioCompanies.name}) LIKE LOWER(${'%' + query.q + '%'})`);
-  }
-
-  // Build ORDER BY clause based on sortBy
-  let orderBy: SQL[];
-  switch (query.sortBy) {
-    case 'exit_moic_desc':
-      // Sort by exit MOIC descending (nulls last), then by id DESC for cursor pagination
-      orderBy = [
-        sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
-        desc(portfolioCompanies.id)
-      ];
-      break;
-    case 'planned_reserves_desc':
-      // Sort by planned reserves descending, then by id DESC
-      orderBy = [
-        desc(portfolioCompanies.plannedReservesCents),
-        desc(portfolioCompanies.id)
-      ];
-      break;
-    case 'name_asc':
-      // Sort by name ascending, then by id DESC
-      orderBy = [
-        asc(portfolioCompanies.name),
-        desc(portfolioCompanies.id)
-      ];
-      break;
-    default:
-      // Default to exit MOIC desc
-      orderBy = [
-        sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
-        desc(portfolioCompanies.id)
-      ];
-  }
-
-  // Fetch limit + 1 to detect if there are more results
-  const fetchLimit = query.limit + 1;
-
-  // Execute query
-  const results = await db
-    .select({
-      id: portfolioCompanies.id,
-      name: portfolioCompanies.name,
-      sector: portfolioCompanies.sector,
-      stage: portfolioCompanies.stage,
-      status: portfolioCompanies.status,
-      investmentAmount: portfolioCompanies.investmentAmount,
-      deployedReservesCents: portfolioCompanies.deployedReservesCents,
-      plannedReservesCents: portfolioCompanies.plannedReservesCents,
-      exitMoicBps: portfolioCompanies.exitMoicBps,
-      ownershipCurrentPct: portfolioCompanies.ownershipCurrentPct,
-      allocationCapCents: portfolioCompanies.allocationCapCents,
-      allocationReason: portfolioCompanies.allocationReason,
-      lastAllocationAt: portfolioCompanies.lastAllocationAt,
-    })
-    .from(portfolioCompanies)
-    .where(and(...conditions))
-    .orderBy(...orderBy)
-    .limit(fetchLimit);
-
-  // Check if we have more results
-  const hasMore = results.length > query.limit;
-  const companies = hasMore ? results.slice(0, query.limit) : results;
-
-  // Get next cursor (last company ID)
-  const nextCursor = hasMore && companies.length > 0
-    ? companies[companies.length - 1].id.toString()
-    : null;
-
-  // Convert database results to response format
-  const responseCompanies: CompanyListItem[] = companies.map((row: typeof results[number]) => ({
-    id: row.id,
-    name: row.name,
-    sector: row.sector,
-    stage: row.stage,
-    status: row.status as 'active' | 'exited' | 'written-off',
-    invested_cents: Math.round(parseFloat(row.investmentAmount || '0') * 100), // Convert decimal dollars to cents
-    deployed_reserves_cents: Number(row.deployedReservesCents || 0),
-    planned_reserves_cents: Number(row.plannedReservesCents || 0),
-    exit_moic_bps: row.exitMoicBps,
-    ownership_pct: parseFloat(row.ownershipCurrentPct || '0'),
-    allocation_cap_cents: row.allocationCapCents ? Number(row.allocationCapCents) : null,
-    allocation_reason: row.allocationReason,
-    last_allocation_at: row.lastAllocationAt ? row.lastAllocationAt.toISOString() : null,
-  }));
-
-  // Check if fund exists (if no results and no cursor, fund might not exist)
-  if (companies.length === 0 && !query.cursor) {
-    // Verify fund exists by checking if any companies exist for this fund
-    const fundCheck = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(portfolioCompanies)
-      .where(eq(portfolioCompanies.fundId, fundId));
-
-    const totalCompanies = fundCheck[0]?.count || 0;
-
-    if (totalCompanies === 0) {
-      return res["status"](404)["json"]({
-        error: 'fund_not_found',
-        message: `Fund with ID ${fundId} not found or has no companies`
+    // Validate fundId parameter
+    const paramValidation = FundIdParamSchema.safeParse(req.params);
+    if (!paramValidation.success) {
+      return res['status'](400)['json']({
+        error: 'invalid_fund_id',
+        message: 'Fund ID must be a positive integer',
+        details: paramValidation.error.format(),
       });
     }
-  }
 
-  const response: CompanyListResponse = {
-    companies: responseCompanies,
-    pagination: {
-      next_cursor: nextCursor,
-      has_more: hasMore,
-      // Note: total_count is optional and expensive - omitted for performance
+    const { fundId } = paramValidation.data;
+
+    // Validate query parameters
+    const queryResult = CompanyListQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      return res['status'](400)['json']({
+        error: 'invalid_query_parameters',
+        message: 'Invalid query parameters',
+        details: queryResult.error.format(),
+      });
     }
-  };
 
-  // Log request metrics
-  const duration = Date.now() - startTime;
-  console.log(`[${requestId}] GET /api/funds/${fundId}/companies - ${companies.length} results in ${duration}ms`);
+    const query = queryResult.data;
 
-  return res["status"](200)["json"](response);
-}));
+    // Validate and normalize stage filter if provided
+    let normalizedStage: string | undefined;
+    if (query.stage) {
+      const validationStart = performance.now();
+      const normalized = normalizeStage(query.stage);
+      const duration = (performance.now() - validationStart) / 1000;
+      recordValidationDuration('GET /api/funds/:fundId/companies', duration);
+
+      if (!normalized) {
+        const mode = await getStageValidationMode();
+        recordUnknownStage('GET /api/funds/:fundId/companies', mode);
+        setStageWarningHeaders(res, [query.stage]);
+
+        if (mode === 'enforce') {
+          return res['status'](400)['json']({
+            error: 'invalid_query_parameters',
+            message: 'Invalid investment stage in query parameters',
+            details: {
+              code: 'INVALID_STAGE',
+              invalid: [query.stage],
+              validStages: [...CANONICAL_STAGES],
+            },
+          });
+        }
+        // In 'warn' mode, pass through the original stage value
+        normalizedStage = query.stage;
+      } else {
+        normalizedStage = normalized;
+        recordValidationSuccess('GET /api/funds/:fundId/companies');
+      }
+    }
+
+    // Build WHERE conditions
+    const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
+
+    // Cursor pagination (id < cursor for DESC ordering)
+    if (query.cursor !== undefined) {
+      conditions.push(lt(portfolioCompanies.id, query.cursor));
+    }
+
+    // Status filter
+    if (query.status) {
+      conditions.push(eq(portfolioCompanies.status, query.status));
+    }
+
+    // Sector filter
+    if (query.sector) {
+      conditions.push(eq(portfolioCompanies.sector, query.sector));
+    }
+
+    // Stage filter (using normalized stage)
+    if (normalizedStage) {
+      conditions.push(eq(portfolioCompanies.stage, normalizedStage));
+    }
+
+    // Search filter (case-insensitive LIKE)
+    if (query.q) {
+      conditions.push(sql`LOWER(${portfolioCompanies.name}) LIKE LOWER(${`%${query.q}%`})`);
+    }
+
+    // Build ORDER BY clause based on sortBy
+    let orderBy;
+    switch (query.sortBy) {
+      case 'exit_moic_desc':
+        // Sort by exit MOIC descending (nulls last), then by id DESC for cursor pagination
+        orderBy = [
+          sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
+          desc(portfolioCompanies.id),
+        ];
+        break;
+      case 'planned_reserves_desc':
+        // Sort by planned reserves descending, then by id DESC
+        orderBy = [desc(portfolioCompanies.plannedReservesCents), desc(portfolioCompanies.id)];
+        break;
+      case 'name_asc':
+        // Sort by name ascending, then by id DESC
+        orderBy = [asc(portfolioCompanies.name), desc(portfolioCompanies.id)];
+        break;
+      default:
+        // Default to exit MOIC desc
+        orderBy = [
+          sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
+          desc(portfolioCompanies.id),
+        ];
+    }
+
+    // Fetch limit + 1 to detect if there are more results
+    const fetchLimit = query.limit + 1;
+
+    // Execute query using and() which properly preserves the query builder chain
+    const results = await db
+      .select({
+        id: portfolioCompanies.id,
+        name: portfolioCompanies.name,
+        sector: portfolioCompanies.sector,
+        stage: portfolioCompanies.stage,
+        status: portfolioCompanies.status,
+        investmentAmount: portfolioCompanies.investmentAmount,
+        deployedReservesCents: portfolioCompanies.deployedReservesCents,
+        plannedReservesCents: portfolioCompanies.plannedReservesCents,
+        exitMoicBps: portfolioCompanies.exitMoicBps,
+        ownershipCurrentPct: portfolioCompanies.ownershipCurrentPct,
+        allocationCapCents: portfolioCompanies.allocationCapCents,
+        allocationReason: portfolioCompanies.allocationReason,
+        lastAllocationAt: portfolioCompanies.lastAllocationAt,
+      })
+      .from(portfolioCompanies)
+      .where(and(...conditions))
+      .orderBy(...orderBy)
+      .limit(fetchLimit);
+
+    // Check if we have more results
+    const hasMore = results.length > query.limit;
+    const companies = hasMore ? results.slice(0, query.limit) : results;
+
+    // Get next cursor (last company ID)
+    const nextCursor =
+      hasMore && companies.length > 0 ? companies[companies.length - 1]!.id.toString() : null;
+
+    // Convert database results to response format
+    const responseCompanies: CompanyListItem[] = companies.map((row: (typeof results)[number]) => ({
+      id: row.id,
+      name: row.name,
+      sector: row.sector,
+      stage: row.stage,
+      status: row.status as 'active' | 'exited' | 'written-off',
+      invested_cents: Math.round(parseFloat(row.investmentAmount || '0') * 100), // Convert decimal dollars to cents
+      deployed_reserves_cents: Number(row.deployedReservesCents || 0),
+      planned_reserves_cents: Number(row.plannedReservesCents || 0),
+      exit_moic_bps: row.exitMoicBps,
+      ownership_pct: parseFloat(row.ownershipCurrentPct || '0'),
+      allocation_cap_cents: row.allocationCapCents ? Number(row.allocationCapCents) : null,
+      allocation_reason: row.allocationReason,
+      last_allocation_at: row.lastAllocationAt ? row.lastAllocationAt.toISOString() : null,
+    }));
+
+    // Check if fund exists (if no results and no cursor, fund might not exist)
+    if (companies.length === 0 && !query.cursor) {
+      // Verify fund exists by checking if any companies exist for this fund
+      const fundCheck = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.fundId, fundId));
+
+      const totalCompanies = fundCheck[0]?.count || 0;
+
+      if (totalCompanies === 0) {
+        return res['status'](404)['json']({
+          error: 'fund_not_found',
+          message: `Fund with ID ${fundId} not found or has no companies`,
+        });
+      }
+    }
+
+    const response: CompanyListResponse = {
+      companies: responseCompanies,
+      pagination: {
+        next_cursor: nextCursor,
+        has_more: hasMore,
+        // Note: total_count is optional and expensive - omitted for performance
+      },
+    };
+
+    // Log request metrics
+    const duration = Date.now() - startTime;
+    console.log(
+      `[${requestId}] GET /api/funds/${fundId}/companies - ${companies.length} results in ${duration}ms`
+    );
+
+    return res['status'](200)['json'](response);
+  })
+);
 
 /**
  * GET /api/funds/:fundId/allocations/latest
@@ -567,13 +577,13 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
  * @throws {404} Fund not found
  * @throws {500} Database error
  */
-router["get"](
+router['get'](
   '/funds/:fundId/allocations/latest',
   asyncHandler(async (req: Request, res: Response) => {
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -604,31 +614,28 @@ router["get"](
       );
 
       // Convert database strings to numbers
-      const companies = companiesResult.rows.map(row => ({
+      const companies = companiesResult.rows.map((row) => ({
         company_id: row.company_id,
         company_name: row.company_name,
         planned_reserves_cents: parseInt(row.planned_reserves_cents, 10),
         deployed_reserves_cents: parseInt(row.deployed_reserves_cents, 10),
-        allocation_cap_cents: row.allocation_cap_cents ? parseInt(row.allocation_cap_cents, 10) : null,
+        allocation_cap_cents: row.allocation_cap_cents
+          ? parseInt(row.allocation_cap_cents, 10)
+          : null,
         allocation_reason: row.allocation_reason,
         allocation_version: row.allocation_version,
         last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
       }));
 
       // Calculate metadata
-      const total_planned_cents = companies.reduce(
-        (sum, c) => sum + c.planned_reserves_cents,
-        0
-      );
-      const total_deployed_cents = companies.reduce(
-        (sum, c) => sum + c.deployed_reserves_cents,
-        0
-      );
-      const last_updated_at = companies
-        .map(c => c.last_allocation_at)
-        .filter((d): d is string => d !== null)
-        .sort()
-        .reverse()[0] || null;
+      const total_planned_cents = companies.reduce((sum, c) => sum + c.planned_reserves_cents, 0);
+      const total_deployed_cents = companies.reduce((sum, c) => sum + c.deployed_reserves_cents, 0);
+      const last_updated_at =
+        companies
+          .map((c) => c.last_allocation_at)
+          .filter((d): d is string => d !== null)
+          .sort()
+          .reverse()[0] || null;
 
       return {
         fund_id: fundId,
@@ -642,7 +649,7 @@ router["get"](
       };
     });
 
-    return res["status"](200)["json"](result);
+    return res['status'](200)['json'](result);
   })
 );
 
@@ -658,13 +665,13 @@ router["get"](
  * @throws {409} Version conflict (optimistic lock failure)
  * @throws {500} Database error
  */
-router["post"](
+router['post'](
   '/funds/:fundId/allocations',
   asyncHandler(async (req: Request, res: Response) => {
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -673,7 +680,7 @@ router["post"](
     // Validate request body
     const bodyValidation = UpdateAllocationRequestSchema.safeParse(req.body);
     if (!bodyValidation.success) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'Invalid request body',
         details: bodyValidation.error.format(),
       });
@@ -683,7 +690,7 @@ router["post"](
     const { expected_version, updates } = bodyValidation.data;
 
     // Get user ID from auth context (if available)
-    const userId = (req as any).user?.id || null;
+    const userId = (req as unknown as RequestContext).user?.id ?? null;
 
     // Execute updates in transaction
     const result = await transaction(async (client) => {
@@ -691,7 +698,7 @@ router["post"](
       await verifyFundExists(client, fundId);
 
       // Verify all companies belong to the fund
-      const companyIds = updates.map(u => u.company_id);
+      const companyIds = updates.map((u) => u.company_id);
       await verifyCompaniesInFund(client, fundId, companyIds);
 
       // Update each company and collect conflicts
@@ -734,7 +741,7 @@ router["post"](
       };
     });
 
-    return res["status"](200)["json"](result);
+    return res['status'](200)['json'](result);
   })
 );
 
@@ -746,10 +753,10 @@ router["post"](
  * Custom error handler for allocation routes
  * Handles optimistic locking conflicts (409) and other errors
  */
-router["use"]((err: any, req: Request, res: Response, next: NextFunction) => {
+router['use']((err: unknown, req: Request, res: Response, next: NextFunction) => {
   // Handle optimistic locking conflicts
-  if (err.statusCode === 409 && err.conflicts) {
-    return res["status"](409)["json"]({
+  if (isHttpError(err) && err.statusCode === 409 && err.conflicts) {
+    return res['status'](409)['json']({
       error: 'Version conflict',
       message: err.message,
       conflicts: err.conflicts,
@@ -757,8 +764,8 @@ router["use"]((err: any, req: Request, res: Response, next: NextFunction) => {
   }
 
   // Handle other HTTP errors
-  if (err.statusCode) {
-    return res["status"](err.statusCode)["json"]({
+  if (isHttpError(err) && err.statusCode) {
+    return res['status'](err.statusCode)['json']({
       error: err.message,
     });
   }

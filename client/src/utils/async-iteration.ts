@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * Async iteration utilities to replace problematic forEach patterns
  */
@@ -10,7 +10,7 @@
 import { logger } from '../lib/logger';
 
 // Compile-time flag for metrics collection - dead-stripped in production builds
-const withMetrics: boolean = import.meta.env?.MODE !== 'production';
+const withMetrics: boolean = import.meta.env?.['MODE'] !== 'production';
 
 export interface ProcessingOptions {
   parallel?: boolean;
@@ -49,8 +49,8 @@ export async function processAsync<T>(
         // Handle errors from Promise.allSettled
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === 'rejected') {
-            logger.error(`Failed to process item ${i}:`, result.reason);
+          if (result && result['status'] === 'rejected') {
+            logger.error(`Failed to process item ${i}:`, result['reason']);
           }
         }
       } else {
@@ -64,7 +64,10 @@ export async function processAsync<T>(
     // Sequential processing
     for (let i = 0; i < items.length; i++) {
       try {
-        await processor(items[i], i);
+        const item = items[i];
+        if (item !== undefined) {
+          await processor(item, i);
+        }
       } catch (error) {
         if (!continueOnError) throw error;
         logger.error(`Processing error at index ${i}:`, error as Error);
@@ -92,11 +95,11 @@ async function processBatches<T>(
         const results = await Promise.allSettled(
           batch.map((item: any, batchIndex: any) => processor(item, batchStart + batchIndex))
         );
-        
+
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === 'rejected') {
-            logger.error(`Failed to process item ${batchStart + i}:`, result.reason);
+          if (result && result['status'] === 'rejected') {
+            logger.error(`Failed to process item ${batchStart + i}:`, result['reason']);
           }
         }
       } else {
@@ -128,9 +131,12 @@ export async function forEachAsync<T>(
   if (!Array.isArray(items)) return;
   
   const start = withMetrics ? performance.now() : 0;
-  
+
   for (let i = 0; i < items.length; i++) {
-    await callback(items[i], i, items);
+    const item = items[i];
+    if (item !== undefined) {
+      await callback(item, i, items);
+    }
   }
   
   if (withMetrics && items.length > 100) {
@@ -179,8 +185,11 @@ export async function mapAsync<T, R>(
     // Sequential processing
     results = [];
     for (let i = 0; i < items.length; i++) {
-      const result = await callback(items[i], i, items);
-      results.push(result);
+      const item = items[i];
+      if (item !== undefined) {
+        const result = await callback(item, i, items);
+        results.push(result);
+      }
     }
   }
   
@@ -201,9 +210,9 @@ export async function filterAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<T[]> {
   if (!Array.isArray(items)) return [];
-  
+
   const results = await mapAsync(items, predicate);
-  return items.filter((_: any, index: any) => results[index]);
+  return items.filter((_: any, index: any) => results[index] === true);
 }
 
 /**
@@ -214,10 +223,11 @@ export async function findAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<T | undefined> {
   if (!Array.isArray(items)) return undefined;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (await predicate(items[i], i, items)) {
-      return items[i];
+    const item = items[i];
+    if (item !== undefined && await predicate(item, i, items)) {
+      return item;
     }
   }
   return undefined;
@@ -232,10 +242,13 @@ export async function reduceAsync<T, R>(
   initialValue: R
 ): Promise<R> {
   if (!Array.isArray(items)) return initialValue;
-  
+
   let accumulator = initialValue;
   for (let i = 0; i < items.length; i++) {
-    accumulator = await reducer(accumulator, items[i], i, items);
+    const item = items[i];
+    if (item !== undefined) {
+      accumulator = await reducer(accumulator, item, i, items);
+    }
   }
   return accumulator;
 }
@@ -248,9 +261,10 @@ export async function someAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return false;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (await predicate(items[i], i, items)) {
+    const item = items[i];
+    if (item !== undefined && await predicate(item, i, items)) {
       return true;
     }
   }
@@ -265,9 +279,10 @@ export async function everyAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return true;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (!(await predicate(items[i], i, items))) {
+    const item = items[i];
+    if (item === undefined || !(await predicate(item, i, items))) {
       return false;
     }
   }

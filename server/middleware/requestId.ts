@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { randomUUID } from 'node:crypto';
-import type { Request, Response, NextFunction } from '../types/request-response';
+import type { Request, Response, NextFunction } from 'express';
 
 // Request interface augmentation is now centralized in types/express.d.ts
 
@@ -26,7 +26,7 @@ export function requestId() {
     // Use server ID as authoritative
     req.requestId = serverRid;
     res['setHeader']('X-Request-ID', serverRid);
-    res.locals.requestId = serverRid;
+    res.locals['requestId'] = serverRid;
 
     // If logger exists, create child logger with request context
     if ((global as any).logger) {
@@ -39,7 +39,7 @@ export function requestId() {
 
     // Log request completion
     res['on']('finish', () => {
-      const duration = Date.now() - (res.locals.startTime || Date.now());
+      const duration = Date.now() - ((res.locals['startTime'] as number) || Date.now());
       if (req.log) {
         req.log.info({
           status: res.statusCode,
@@ -52,7 +52,7 @@ export function requestId() {
     });
 
     // Track start time for duration calculation
-    res.locals.startTime = Date.now();
+    res.locals['startTime'] = Date.now();
 
     next();
   };

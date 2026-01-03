@@ -126,7 +126,7 @@ async function _query<T extends QueryResultRow = any>(
       query: text,
       duration,
       rowCount: result?.rowCount || 0,
-      error,
+      ...(error && { error }),
     });
   }
 }
@@ -152,9 +152,9 @@ export async function query<T extends QueryResultRow = any>(
 /**
  * Shorthand query function (returns rows only)
  */
-export async function q<T = any>(
+export async function q<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<T[]> {
   const result = await query<T>(text, params);
   return result.rows;
@@ -174,15 +174,16 @@ export async function queryOne<T extends QueryResultRow = any>(
 /**
  * Execute a query and return a single value
  */
-export async function queryScalar<T extends QueryResultRow = any>(
+export async function queryScalar<T = unknown>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<T | null> {
   const row = await queryOne<Record<string, T>>(text, params);
   if (!row) return null;
-  
+
   const keys = Object.keys(row);
-  return keys.length > 0 ? row[keys[0]] : null;
+  const firstKey = keys[0];
+  return firstKey !== undefined ? row[firstKey] ?? null : null;
 }
 
 /**

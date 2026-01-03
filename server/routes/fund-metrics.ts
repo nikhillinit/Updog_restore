@@ -15,8 +15,7 @@ import type { Request, Response } from 'express';
 import { metricsAggregator } from '../services/metrics-aggregator';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber, NumberParseError } from '@shared/number';
-import { requireAuth } from '../lib/auth/jwt';
-import { requireFundAccess } from '../middleware/requireAuth';
+import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -70,7 +69,7 @@ router["get"](
   async (req: Request, res: Response) => {
   try {
     // Parse and validate fund ID
-    const fundIdParam = req.params.fundId;
+    const fundIdParam = req.params['fundId'];
     const fundId = toNumber(fundIdParam, 'fundId');
 
     if (fundId <= 0) {
@@ -81,8 +80,8 @@ router["get"](
     }
 
     // Parse query options
-    const skipCache = req.query.skipCache === 'true';
-    const skipProjections = req.query.skipProjections === 'true';
+    const skipCache = req.query['skipCache'] === 'true';
+    const skipProjections = req.query['skipProjections'] === 'true';
 
     // Log skipCache usage for operational visibility
     if (skipCache) {
@@ -91,7 +90,7 @@ router["get"](
         user: (req as any).user?.id || 'unknown',
         fundId,
         ip: req.ip,
-        reason: req.query.reason || 'manual',
+        reason: req.query['reason'] || 'manual',
         timestamp: new Date().toISOString(),
       }));
     }
@@ -159,7 +158,7 @@ router["post"](
   invalidateLimiter,
   async (req: Request, res: Response) => {
   try {
-    const fundIdParam = req.params.fundId;
+    const fundIdParam = req.params['fundId'];
     const fundId = toNumber(fundIdParam, 'fundId');
 
     if (fundId <= 0) {

@@ -6,12 +6,11 @@
  */
 
 import { db } from '../db';
-import {
-  funds,
-  fundMetrics,
-  performanceForecasts
-} from '@shared/schema';
+import { funds, fundMetrics, performanceForecasts, type FundMetrics } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
+
+// Type for fund data returned from query
+type FundRecord = typeof funds.$inferSelect;
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -30,7 +29,7 @@ export interface PredictionConfig {
 export interface TimeSeriesData {
   timestamp: Date;
   value: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PredictionResult {
@@ -51,7 +50,7 @@ export interface PredictionResult {
   };
   modelMetadata: {
     type: string;
-    parameters: Record<string, any>;
+    parameters: Record<string, unknown>;
     trainingDataPoints: number;
     executionTimeMs: number;
   };
@@ -98,7 +97,6 @@ export interface CohortAnalysis {
 // ============================================================================
 
 export class PerformancePredictionEngine {
-
   /**
    * Generate comprehensive performance predictions
    */
@@ -113,11 +111,11 @@ export class PerformancePredictionEngine {
         throw new Error('Insufficient historical data for predictions');
       }
 
-      // Prepare time series for each metric
-      const metrics = ['irr', 'multiple', 'dpi', 'tvpi', 'rvpi'];
+      // Prepare time series for each metric (only metrics that exist in FundMetrics schema)
+      const metricKeys: (keyof FundMetrics)[] = ['irr', 'multiple', 'dpi', 'tvpi'];
       const predictions: PredictionResult[] = [];
 
-      for (const metric of metrics) {
+      for (const metric of metricKeys) {
         const timeSeries = this.extractTimeSeries(historicalData, metric);
 
         if (timeSeries.length < 2) continue;
@@ -152,9 +150,8 @@ export class PerformancePredictionEngine {
       }
 
       return predictions;
-
     } catch (error) {
-      throw new Error(`Performance prediction failed: ${error.message}`);
+      throw new Error(`Performance prediction failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -173,13 +170,13 @@ export class PerformancePredictionEngine {
 
     // Calculate trend metrics
     const trendCoefficient = this.calculateTrendCoefficient(timeSeries);
-    const volatility = this.calculateVolatility(timeSeries);
+    const _volatility = this.calculateVolatility(timeSeries);
     const inflectionPoints = this.detectInflectionPoints(timeSeries);
     const seasonality = this.detectSeasonality(timeSeries);
 
     // Determine trend characteristics
-    const trendDirection = trendCoefficient > 0.01 ? 'upward' :
-                          trendCoefficient < -0.01 ? 'downward' : 'stable';
+    const trendDirection =
+      trendCoefficient > 0.01 ? 'upward' : trendCoefficient < -0.01 ? 'downward' : 'stable';
 
     const trendStrength = Math.min(Math.abs(trendCoefficient) * 10, 1);
 
@@ -187,9 +184,11 @@ export class PerformancePredictionEngine {
       trendDirection,
       trendStrength,
       trendVelocity: trendCoefficient,
-      inflectionPoints: inflectionPoints.map(idx => timeSeries[idx].timestamp),
+      inflectionPoints: inflectionPoints
+        .filter((idx) => idx < timeSeries.length && timeSeries[idx])
+        .map((idx) => timeSeries[idx]!.timestamp),
       seasonalityDetected: seasonality.detected,
-      cyclePeriod: seasonality.period
+      ...(seasonality.period !== undefined && { cyclePeriod: seasonality.period }),
     };
   }
 
@@ -201,15 +200,15 @@ export class PerformancePredictionEngine {
     const timeSeries = this.extractTimeSeries(historicalData, 'irr');
 
     // Calculate statistical boundaries
-    const values = timeSeries.map(d => d.value);
-    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const values = timeSeries.map((d) => d.value);
+    const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
     const stdDev = Math.sqrt(
-      values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / values.length
+      values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / values.length
     );
 
     // Detect anomalies using z-score
     const anomalies = timeSeries
-      .map((point: any, idx: any) => {
+      .map((point: TimeSeriesData, _idx: number) => {
         const zScore = Math.abs((point.value - mean) / stdDev);
         const isAnomaly = zScore > sensitivity;
 
@@ -219,18 +218,21 @@ export class PerformancePredictionEngine {
             value: point.value,
             expectedValue: mean,
             deviation: zScore,
-            severity: (zScore > 3 ? 'high' : zScore > 2.5 ? 'medium' : 'low') as 'low' | 'medium' | 'high'
+            severity: (zScore > 3 ? 'high' : zScore > 2.5 ? 'medium' : 'low') as
+              | 'low'
+              | 'medium'
+              | 'high',
           };
         }
         return null;
       })
-      .filter(a => a !== null);
+      .filter((a) => a !== null);
 
     const anomalyScore = Math.min(anomalies.length / timeSeries.length, 1);
 
     return {
       anomalies,
-      anomalyScore
+      anomalyScore,
     };
   }
 
@@ -240,33 +242,37 @@ export class PerformancePredictionEngine {
   async analyzeCohort(fundId: number): Promise<CohortAnalysis> {
     // Get fund details
     const fund = await db.query.funds.findFirst({
-      where: eq(funds.id, fundId)
+      where: eq(funds.id, fundId),
     });
 
     if (!fund) {
       throw new Error(`Fund ${fundId} not found`);
     }
 
-    const vintageYear = new Date(fund.createdAt).getFullYear();
+    const fundCreatedAt = fund.createdAt ? new Date(fund.createdAt) : new Date();
+    const vintageYear = fundCreatedAt.getFullYear();
 
     // Get cohort funds (same vintage year)
     const cohortFunds = await db.query.funds.findMany({
       where: and(
         sql`EXTRACT(YEAR FROM ${funds.createdAt}) = ${vintageYear}`,
         eq(funds.isActive, true)
-      )
+      ),
     });
 
     // Calculate J-curve profile
     const monthlyPerformance = await this.calculateJCurve(fundId);
 
     // Determine current stage based on fund age and performance
-    const fundAgeYears = (Date.now() - new Date(fund.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 365);
+    const fundAgeYears =
+      (Date.now() - fundCreatedAt.getTime()) / (1000 * 60 * 60 * 24 * 365);
     const currentStage = this.determineFundStage(fundAgeYears, monthlyPerformance);
 
     // Calculate comparative metrics
-    const cohortPerformance = await this.getCohortPerformance(cohortFunds.map((f: any) => f.id));
-    const fundPerformance = monthlyPerformance[monthlyPerformance.length - 1] || 0;
+    const cohortPerformance = await this.getCohortPerformance(
+      cohortFunds.map((f: FundRecord) => f.id)
+    );
+    const fundPerformance = monthlyPerformance[monthlyPerformance.length - 1] ?? 0;
 
     const percentileRank = this.calculatePercentileRank(fundPerformance, cohortPerformance);
 
@@ -276,14 +282,14 @@ export class PerformancePredictionEngine {
       performanceProfile: {
         jCurve: monthlyPerformance,
         peakIRR: Math.max(...monthlyPerformance),
-        timeToBreakeven: monthlyPerformance.findIndex(v => v > 0) || -1,
-        currentStage
+        timeToBreakeven: monthlyPerformance.findIndex((v) => v > 0),
+        currentStage,
       },
       comparisons: {
         vsMedian: fundPerformance - this.calculateMedian(cohortPerformance),
         vsTopQuartile: fundPerformance - this.calculatePercentile(cohortPerformance, 75),
-        percentileRank
-      }
+        percentileRank,
+      },
     };
   }
 
@@ -292,7 +298,7 @@ export class PerformancePredictionEngine {
    */
   async generateScenarios(
     fundId: number,
-    scenarios: Array<{name: string; adjustments: Record<string, number>}>
+    scenarios: Array<{ name: string; adjustments: Record<string, number> }>
   ): Promise<Map<string, PredictionResult[]>> {
     const results = new Map<string, PredictionResult[]>();
 
@@ -302,24 +308,24 @@ export class PerformancePredictionEngine {
         predictionHorizon: 36,
         modelType: 'ensemble',
         confidenceLevel: 0.95,
-        includeMarketFactors: true
+        includeMarketFactors: true,
       };
 
       // Apply scenario adjustments
       const predictions = await this.generatePredictions(adjustedConfig);
 
       // Adjust predictions based on scenario parameters
-      const adjustedPredictions = predictions.map(pred => ({
+      const adjustedPredictions = predictions.map((pred) => ({
         ...pred,
-        predictions: pred.predictions.map(p => ({
+        predictions: pred.predictions.map((p) => ({
           ...p,
-          value: p.value * (1 + (scenario.adjustments[pred.metric] || 0)),
-          lowerBound: p.lowerBound * (1 + (scenario.adjustments[pred.metric] || 0)),
-          upperBound: p.upperBound * (1 + (scenario.adjustments[pred.metric] || 0))
-        }))
+          value: p.value * (1 + (scenario.adjustments[pred.metric] ?? 0)),
+          lowerBound: p.lowerBound * (1 + (scenario.adjustments[pred.metric] ?? 0)),
+          upperBound: p.upperBound * (1 + (scenario.adjustments[pred.metric] ?? 0)),
+        })),
       }));
 
-      results['set'](scenario.name, adjustedPredictions);
+      results.set(scenario.name, adjustedPredictions);
     }
 
     return results;
@@ -329,27 +335,27 @@ export class PerformancePredictionEngine {
   // PRIVATE HELPER METHODS
   // ============================================================================
 
-  private async fetchHistoricalData(fundId: number, lookbackMonths?: number): Promise<any[]> {
+  private async fetchHistoricalData(
+    fundId: number,
+    lookbackMonths?: number
+  ): Promise<FundMetrics[]> {
     const cutoffDate = lookbackMonths
       ? new Date(Date.now() - lookbackMonths * 30 * 24 * 60 * 60 * 1000)
       : new Date(0);
 
     return await db.query.fundMetrics.findMany({
-      where: and(
-        eq(fundMetrics.fundId, fundId),
-        gte(fundMetrics.asOfDate, cutoffDate)
-      ),
-      orderBy: fundMetrics.asOfDate
+      where: and(eq(fundMetrics.fundId, fundId), gte(fundMetrics.asOfDate, cutoffDate)),
+      orderBy: fundMetrics.asOfDate,
     });
   }
 
-  private extractTimeSeries(data: any[], metric: string): TimeSeriesData[] {
+  private extractTimeSeries(data: FundMetrics[], metric: keyof FundMetrics): TimeSeriesData[] {
     return data
-      .filter(d => d[metric] !== null && d[metric] !== undefined)
-      .map(d => ({
+      .filter((d) => d[metric] !== null && d[metric] !== undefined)
+      .map((d) => ({
         timestamp: d.asOfDate,
-        value: parseFloat(d[metric].toString()),
-        metadata: { id: d.id }
+        value: parseFloat(String(d[metric])),
+        metadata: { id: d.id },
       }));
   }
 
@@ -359,21 +365,21 @@ export class PerformancePredictionEngine {
     config: PredictionConfig
   ): Promise<PredictionResult> {
     const n = timeSeries.length;
-    const x = timeSeries.map((_: any, i: any) => i);
-    const y = timeSeries.map(d => d.value);
+    const x = timeSeries.map((_: TimeSeriesData, i: number) => i);
+    const y = timeSeries.map((d) => d.value);
 
     // Calculate regression coefficients
-    const sumX = x.reduce((a: any, b: any) => a + b, 0);
-    const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
+    const sumX = x.reduce((a: number, b: number) => a + b, 0);
+    const sumY = y.reduce((a: number, b: number) => a + b, 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
+    const sumX2 = x.reduce((sum: number, xi: number) => sum + xi * xi, 0);
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -382,21 +388,24 @@ export class PerformancePredictionEngine {
       const timestamp = new Date(lastTimestamp.getTime() + i * monthMs);
 
       // Calculate confidence intervals
-      const stdError = this.calculateStandardError(y, x.map(xi => slope * xi + intercept));
-      const confidenceMultiplier = config.confidenceLevel === 0.95 ? 1.96 :
-                                   config.confidenceLevel === 0.99 ? 2.58 : 1;
+      const stdError = this.calculateStandardError(
+        y,
+        x.map((xi) => slope * xi + intercept)
+      );
+      const confidenceMultiplier =
+        config.confidenceLevel === 0.95 ? 1.96 : config.confidenceLevel === 0.99 ? 2.58 : 1;
 
       predictions.push({
         timestamp,
         value: predictedValue,
         lowerBound: predictedValue - confidenceMultiplier * stdError,
         upperBound: predictedValue + confidenceMultiplier * stdError,
-        confidence: config.confidenceLevel
+        confidence: config.confidenceLevel,
       });
     }
 
     // Calculate accuracy metrics
-    const predicted = x.map(xi => slope * xi + intercept);
+    const predicted = x.map((xi) => slope * xi + intercept);
     const accuracy = this.calculateAccuracyMetrics(y, predicted);
 
     return {
@@ -408,8 +417,8 @@ export class PerformancePredictionEngine {
         type: 'linear',
         parameters: { slope, intercept },
         trainingDataPoints: n,
-        executionTimeMs: 0
-      }
+        executionTimeMs: 0,
+      },
     };
   }
 
@@ -419,21 +428,21 @@ export class PerformancePredictionEngine {
     config: PredictionConfig
   ): Promise<PredictionResult> {
     const alpha = 0.3; // Smoothing parameter
-    const values = timeSeries.map(d => d.value);
+    const values = timeSeries.map((d) => d.value);
 
     // Apply exponential smoothing
-    const smoothed = [values[0]];
+    const smoothed = [values[0] ?? 0];
     for (let i = 1; i < values.length; i++) {
-      smoothed.push(alpha * values[i] + (1 - alpha) * smoothed[i - 1]);
+      smoothed.push(alpha * (values[i] ?? 0) + (1 - alpha) * (smoothed[i - 1] ?? 0));
     }
 
     // Calculate trend
-    const trend = (smoothed[smoothed.length - 1] - smoothed[0]) / smoothed.length;
+    const trend = ((smoothed[smoothed.length - 1] ?? 0) - (smoothed[0] ?? 0)) / smoothed.length;
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
-    const lastValue = smoothed[smoothed.length - 1];
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
+    const lastValue = smoothed[smoothed.length - 1] ?? 0;
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -450,7 +459,7 @@ export class PerformancePredictionEngine {
         value: predictedValue,
         lowerBound: predictedValue - confidenceMultiplier * stdDev,
         upperBound: predictedValue + confidenceMultiplier * stdDev,
-        confidence: config.confidenceLevel
+        confidence: config.confidenceLevel,
       });
     }
 
@@ -465,8 +474,8 @@ export class PerformancePredictionEngine {
         type: 'exponential',
         parameters: { alpha, trend },
         trainingDataPoints: values.length,
-        executionTimeMs: 0
-      }
+        executionTimeMs: 0,
+      },
     };
   }
 
@@ -477,37 +486,60 @@ export class PerformancePredictionEngine {
   ): Promise<PredictionResult> {
     // Simplified polynomial regression (quadratic)
     const n = timeSeries.length;
-    const x = timeSeries.map((_: any, i: any) => i);
-    const y = timeSeries.map(d => d.value);
+    const x = timeSeries.map((_: TimeSeriesData, i: number) => i);
+    const y = timeSeries.map((d) => d.value);
 
     // Calculate coefficients for y = ax^2 + bx + c
-    const sumX = x.reduce((a: any, b: any) => a + b, 0);
-    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
-    const sumX3 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi, 0);
-    const sumX4 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi * xi, 0);
-    const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * y[i], 0);
+    const sumX = x.reduce((a: number, b: number) => a + b, 0);
+    const sumX2 = x.reduce((sum: number, xi: number) => sum + xi * xi, 0);
+    const sumX3 = x.reduce((sum: number, xi: number) => sum + xi * xi * xi, 0);
+    const sumX4 = x.reduce((sum: number, xi: number) => sum + xi * xi * xi * xi, 0);
+    const sumY = y.reduce((a: number, b: number) => a + b, 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
+    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * (y[i] ?? 0), 0);
 
     // Solve system of equations using Cramer's rule (simplified)
-    const det = n * sumX2 * sumX4 + sumX * sumX3 * sumX2 + sumX2 * sumX * sumX3
-               - sumX2 * sumX2 * sumX2 - n * sumX3 * sumX3 - sumX * sumX * sumX4;
+    const det =
+      n * sumX2 * sumX4 +
+      sumX * sumX3 * sumX2 +
+      sumX2 * sumX * sumX3 -
+      sumX2 * sumX2 * sumX2 -
+      n * sumX3 * sumX3 -
+      sumX * sumX * sumX4;
 
     if (Math.abs(det) < 0.0001) {
       // Fall back to linear if determinant is too small
       return this.linearRegression(timeSeries, metric, config);
     }
 
-    const a = (sumY * sumX2 * sumX4 + sumXY * sumX3 * sumX2 + sumX2Y * sumX * sumX3
-             - sumX2Y * sumX2 * sumX2 - sumY * sumX3 * sumX3 - sumXY * sumX * sumX4) / det;
-    const b = (n * sumXY * sumX4 + sumY * sumX3 * sumX2 + sumX2Y * sumX * sumX2
-             - sumX2Y * sumX * sumX2 - n * sumX3 * sumX2Y - sumY * sumX * sumX4) / det;
-    const c = (n * sumX2 * sumX2Y + sumX * sumXY * sumX2 + sumX2 * sumX * sumXY
-             - sumX2 * sumX2 * sumY - n * sumXY * sumX3 - sumX * sumX * sumX2Y) / det;
+    const a =
+      (sumY * sumX2 * sumX4 +
+        sumXY * sumX3 * sumX2 +
+        sumX2Y * sumX * sumX3 -
+        sumX2Y * sumX2 * sumX2 -
+        sumY * sumX3 * sumX3 -
+        sumXY * sumX * sumX4) /
+      det;
+    const b =
+      (n * sumXY * sumX4 +
+        sumY * sumX3 * sumX2 +
+        sumX2Y * sumX * sumX2 -
+        sumX2Y * sumX * sumX2 -
+        n * sumX3 * sumX2Y -
+        sumY * sumX * sumX4) /
+      det;
+    const c =
+      (n * sumX2 * sumX2Y +
+        sumX * sumXY * sumX2 +
+        sumX2 * sumX * sumXY -
+        sumX2 * sumX2 * sumY -
+        n * sumXY * sumX3 -
+        sumX * sumX * sumX2Y) /
+      det;
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastTimestamp = timeSeries[timeSeries.length - 1]?.timestamp ?? new Date();
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -516,7 +548,7 @@ export class PerformancePredictionEngine {
       const timestamp = new Date(lastTimestamp.getTime() + i * monthMs);
 
       // Calculate confidence intervals
-      const predicted = x.map(xi => a * xi * xi + b * xi + c);
+      const predicted = x.map((xi) => a * xi * xi + b * xi + c);
       const stdError = this.calculateStandardError(y, predicted);
       const confidenceMultiplier = config.confidenceLevel === 0.95 ? 1.96 : 1;
 
@@ -525,11 +557,11 @@ export class PerformancePredictionEngine {
         value: predictedValue,
         lowerBound: predictedValue - confidenceMultiplier * stdError,
         upperBound: predictedValue + confidenceMultiplier * stdError,
-        confidence: config.confidenceLevel
+        confidence: config.confidenceLevel,
       });
     }
 
-    const predicted = x.map(xi => a * xi * xi + b * xi + c);
+    const predicted = x.map((xi) => a * xi * xi + b * xi + c);
     const accuracy = this.calculateAccuracyMetrics(y, predicted);
 
     return {
@@ -541,8 +573,8 @@ export class PerformancePredictionEngine {
         type: 'polynomial',
         parameters: { a, b, c, degree: 2 },
         trainingDataPoints: n,
-        executionTimeMs: 0
-      }
+        executionTimeMs: 0,
+      },
     };
   }
 
@@ -555,13 +587,13 @@ export class PerformancePredictionEngine {
     const models = await Promise.all([
       this.linearRegression(timeSeries, metric, config),
       this.exponentialSmoothing(timeSeries, metric, config),
-      this.polynomialRegression(timeSeries, metric, config)
+      this.polynomialRegression(timeSeries, metric, config),
     ]);
 
     // Combine predictions using weighted average based on accuracy
-    const weights = models.map(m => m.accuracy.r2Score);
-    const totalWeight = weights.reduce((sum: any, w: any) => sum + Math.max(0, w), 0);
-    const normalizedWeights = weights.map(w => Math.max(0, w) / totalWeight);
+    const weights = models.map((m) => m.accuracy.r2Score);
+    const totalWeight = weights.reduce((sum: number, w: number) => sum + Math.max(0, w), 0);
+    const normalizedWeights = weights.map((w) => Math.max(0, w) / totalWeight);
 
     const ensemblePredictions = [];
 
@@ -570,29 +602,37 @@ export class PerformancePredictionEngine {
       let lowerBound = 0;
       let upperBound = 0;
 
-      models.forEach((model: any, mi: any) => {
+      models.forEach((model: PredictionResult, mi: number) => {
         if (model.predictions[i]) {
-          value += model.predictions[i].value * normalizedWeights[mi];
-          lowerBound += model.predictions[i].lowerBound * normalizedWeights[mi];
-          upperBound += model.predictions[i].upperBound * normalizedWeights[mi];
+          value += model.predictions[i]!.value * normalizedWeights[mi]!;
+          lowerBound += model.predictions[i]!.lowerBound * normalizedWeights[mi]!;
+          upperBound += model.predictions[i]!.upperBound * normalizedWeights[mi]!;
         }
       });
 
       ensemblePredictions.push({
-        timestamp: models[0].predictions[i].timestamp,
+        timestamp: models[0]?.predictions[i]?.timestamp ?? new Date(),
         value,
         lowerBound,
         upperBound,
-        confidence: config.confidenceLevel
+        confidence: config.confidenceLevel,
       });
     }
 
     // Calculate ensemble accuracy (average of individual model accuracies)
     const ensembleAccuracy = {
-      mae: models.reduce((sum: any, m: any) => sum + m.accuracy.mae, 0) / models.length,
-      rmse: models.reduce((sum: any, m: any) => sum + m.accuracy.rmse, 0) / models.length,
-      mape: models.reduce((sum: any, m: any) => sum + m.accuracy.mape, 0) / models.length,
-      r2Score: models.reduce((sum: any, m: any) => sum + m.accuracy.r2Score, 0) / models.length
+      mae:
+        models.reduce((sum: number, m: PredictionResult) => sum + m.accuracy.mae, 0) /
+        models.length,
+      rmse:
+        models.reduce((sum: number, m: PredictionResult) => sum + m.accuracy.rmse, 0) /
+        models.length,
+      mape:
+        models.reduce((sum: number, m: PredictionResult) => sum + m.accuracy.mape, 0) /
+        models.length,
+      r2Score:
+        models.reduce((sum: number, m: PredictionResult) => sum + m.accuracy.r2Score, 0) /
+        models.length,
     };
 
     return {
@@ -602,72 +642,81 @@ export class PerformancePredictionEngine {
       accuracy: ensembleAccuracy,
       modelMetadata: {
         type: 'ensemble',
-        parameters: { models: models.map(m => m.modelMetadata.type), weights: normalizedWeights },
+        parameters: { models: models.map((m) => m.modelMetadata.type), weights: normalizedWeights },
         trainingDataPoints: timeSeries.length,
-        executionTimeMs: 0
-      }
+        executionTimeMs: 0,
+      },
     };
   }
 
-  private calculateAccuracyMetrics(actual: number[], predicted: number[]): PredictionResult['accuracy'] {
+  private calculateAccuracyMetrics(
+    actual: number[],
+    predicted: number[]
+  ): PredictionResult['accuracy'] {
     const n = actual.length;
 
     // Mean Absolute Error
-    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - predicted[i]), 0) / n;
+    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - (predicted[i] ?? 0)), 0) / n;
 
     // Root Mean Square Error
-    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0) / n;
+    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0) / n;
     const rmse = Math.sqrt(mse);
 
     // Mean Absolute Percentage Error
-    const mape = actual.reduce((sum, a, i) => {
-      if (a !== 0) {
-        return sum + Math.abs((a - predicted[i]) / a);
-      }
-      return sum;
-    }, 0) / n;
+    const mape =
+      actual.reduce((sum, a, i) => {
+        if (a !== 0) {
+          return sum + Math.abs((a - (predicted[i] ?? 0)) / a);
+        }
+        return sum;
+      }, 0) / n;
 
     // R-squared
-    const meanActual = actual.reduce((sum: any, a: any) => sum + a, 0) / n;
-    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0);
-    const ssTot = actual.reduce((sum: any, a: any) => sum + Math.pow(a - meanActual, 2), 0);
-    const r2Score = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
+    const meanActual = actual.reduce((sum: number, a: number) => sum + a, 0) / n;
+    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0);
+    const ssTot = actual.reduce((sum: number, a: number) => sum + Math.pow(a - meanActual, 2), 0);
+    const r2Score = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
 
     return { mae, rmse, mape, r2Score };
   }
 
   private calculateStandardError(actual: number[], predicted: number[]): number {
     const n = actual.length;
-    const residuals = actual.map((a: any, i: any) => a - predicted[i]);
-    const sse = residuals.reduce((sum: any, r: any) => sum + r * r, 0);
+    const residuals = actual.map((a: number, i: number) => a - (predicted[i] ?? 0));
+    const sse = residuals.reduce((sum: number, r: number) => sum + r * r, 0);
     return Math.sqrt(sse / (n - 2));
   }
 
   private calculateVariance(values: number[]): number {
-    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
-    return values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
+    return (
+      values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) /
+      (values.length - 1)
+    );
   }
 
   private calculateTrendCoefficient(timeSeries: TimeSeriesData[]): number {
     const n = timeSeries.length;
-    const x = timeSeries.map((_: any, i: any) => i);
-    const y = timeSeries.map(d => d.value);
+    const x = timeSeries.map((_: TimeSeriesData, i: number) => i);
+    const y = timeSeries.map((d) => d.value);
 
-    const sumX = x.reduce((a: any, b: any) => a + b, 0);
-    const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
+    const sumX = x.reduce((a: number, b: number) => a + b, 0);
+    const sumY = y.reduce((a: number, b: number) => a + b, 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
+    const sumX2 = x.reduce((sum: number, xi: number) => sum + xi * xi, 0);
 
     return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
   }
 
   private calculateVolatility(timeSeries: TimeSeriesData[]): number {
-    const values = timeSeries.map(d => d.value);
+    const values = timeSeries.map((d) => d.value);
     const returns = [];
 
     for (let i = 1; i < values.length; i++) {
-      if (values[i - 1] !== 0) {
-        returns.push((values[i] - values[i - 1]) / values[i - 1]);
+      const prevVal = values[i - 1];
+      const currVal = values[i];
+      if (prevVal !== undefined && currVal !== undefined && prevVal !== 0) {
+        returns.push((currVal - prevVal) / prevVal);
       }
     }
 
@@ -678,7 +727,7 @@ export class PerformancePredictionEngine {
   }
 
   private detectInflectionPoints(timeSeries: TimeSeriesData[]): number[] {
-    const values = timeSeries.map(d => d.value);
+    const values = timeSeries.map((d) => d.value);
     const inflectionPoints = [];
 
     for (let i = 1; i < values.length - 1; i++) {
@@ -687,8 +736,10 @@ export class PerformancePredictionEngine {
       const next = values[i + 1];
 
       // Check for local maxima or minima
-      if ((curr > prev && curr > next) || (curr < prev && curr < next)) {
-        inflectionPoints.push(i);
+      if (prev !== undefined && curr !== undefined && next !== undefined) {
+        if ((curr > prev && curr > next) || (curr < prev && curr < next)) {
+          inflectionPoints.push(i);
+        }
       }
     }
 
@@ -700,7 +751,7 @@ export class PerformancePredictionEngine {
       return { detected: false };
     }
 
-    const values = timeSeries.map(d => d.value);
+    const values = timeSeries.map((d) => d.value);
 
     // Simple autocorrelation check for seasonality
     for (let lag = 3; lag <= 12; lag++) {
@@ -716,17 +767,24 @@ export class PerformancePredictionEngine {
 
   private calculateAutocorrelation(values: number[], lag: number): number {
     const n = values.length - lag;
-    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
 
     let numerator = 0;
     let denominator = 0;
 
     for (let i = 0; i < n; i++) {
-      numerator += (values[i] - mean) * (values[i + lag] - mean);
+      const vi = values[i];
+      const viLag = values[i + lag];
+      if (vi !== undefined && viLag !== undefined) {
+        numerator += (vi - mean) * (viLag - mean);
+      }
     }
 
     for (let i = 0; i < values.length; i++) {
-      denominator += Math.pow(values[i] - mean, 2);
+      const vi = values[i];
+      if (vi !== undefined) {
+        denominator += Math.pow(vi - mean, 2);
+      }
     }
 
     return denominator === 0 ? 0 : numerator / denominator;
@@ -735,14 +793,17 @@ export class PerformancePredictionEngine {
   private async calculateJCurve(fundId: number): Promise<number[]> {
     const metrics = await db.query.fundMetrics.findMany({
       where: eq(fundMetrics.fundId, fundId),
-      orderBy: fundMetrics.asOfDate
+      orderBy: fundMetrics.asOfDate,
     });
 
-    return metrics.map((m: any) => parseFloat(m.irr?.toString() || '0'));
+    return metrics.map((m: FundMetrics) => parseFloat(m.irr?.toString() ?? '0'));
   }
 
-  private determineFundStage(ageYears: number, performance: number[]): 'investment' | 'growth' | 'harvest' | 'mature' {
-    const currentPerformance = performance[performance.length - 1] || 0;
+  private determineFundStage(
+    ageYears: number,
+    performance: number[]
+  ): 'investment' | 'growth' | 'harvest' | 'mature' {
+    const currentPerformance = performance[performance.length - 1] ?? 0;
 
     if (ageYears < 2) return 'investment';
     if (ageYears < 5 && currentPerformance < 0.1) return 'investment';
@@ -754,14 +815,15 @@ export class PerformancePredictionEngine {
   private async getCohortPerformance(fundIds: number[]): Promise<number[]> {
     const metrics = await db.query.fundMetrics.findMany({
       where: inArray(fundMetrics.fundId, fundIds),
-      orderBy: desc(fundMetrics.asOfDate)
+      orderBy: desc(fundMetrics.asOfDate),
     });
 
     const latestByFund = new Map<number, number>();
 
     for (const metric of metrics) {
-      if (!latestByFund.has(metric.fundId)) {
-        latestByFund['set'](metric.fundId, parseFloat(metric.irr?.toString() || '0'));
+      const fundId = metric.fundId;
+      if (fundId !== null && !latestByFund.has(fundId)) {
+        latestByFund.set(fundId, parseFloat(metric.irr?.toString() ?? '0'));
       }
     }
 
@@ -769,36 +831,41 @@ export class PerformancePredictionEngine {
   }
 
   private calculateMedian(values: number[]): number {
-    const sorted = values.slice().sort((a: any, b: any) => a - b);
+    if (values.length === 0) return 0;
+    const sorted = values.slice().sort((a: number, b: number) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
   }
 
   private calculatePercentile(values: number[], percentile: number): number {
-    const sorted = values.slice().sort((a: any, b: any) => a - b);
+    if (values.length === 0) return 0;
+    const sorted = values.slice().sort((a: number, b: number) => a - b);
     const index = Math.ceil((percentile / 100) * sorted.length) - 1;
-    return sorted[Math.max(0, index)];
+    return sorted[Math.max(0, index)]!;
   }
 
   private calculatePercentileRank(value: number, population: number[]): number {
-    const below = population.filter(v => v < value).length;
+    if (population.length === 0) return 0;
+    const below = population.filter((v) => v < value).length;
     return (below / population.length) * 100;
   }
 
   private async storePrediction(result: PredictionResult, config: PredictionConfig): Promise<void> {
+    // TODO: Schema needs alignment - performanceForecasts table has different structure
+    // Using createdBy: 1 as system user placeholder until proper user context is available
     await db.insert(performanceForecasts).values({
       fundId: result.fundId,
-      predictionEngine: 'performance-prediction-v1',
-      predictionType: result.metric,
-      predictionHorizon: config.predictionHorizon,
-      predictions: result.predictions,
-      confidence: config.confidenceLevel,
-      metadata: {
-        modelType: config.modelType,
+      createdBy: 1, // System-generated prediction
+      forecastName: `prediction-${result.metric}-${Date.now()}`,
+      forecastType: 'fund_level',
+      forecastHorizonYears: Math.ceil(config.predictionHorizon / 12),
+      forecastPeriods: result.predictions,
+      methodology: config.modelType,
+      modelParameters: {
         accuracy: result.accuracy,
-        parameters: result.modelMetadata.parameters
+        parameters: result.modelMetadata.parameters,
       },
-      createdAt: new Date()
+      confidenceIntervals: { level: config.confidenceLevel },
     });
   }
 }

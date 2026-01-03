@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { logger } from '@/lib/logger';
+import { config } from '../config/index.js';
 
-const MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB per stream
+const MAX_BUFFER_BYTES = config.STREAM_BUFFER_SIZE_BYTES; // Default 10 MB per stream
 const KEEPALIVE_INTERVAL_MS = 25_000; // 25 seconds
 
 /**
@@ -24,6 +25,13 @@ const KEEPALIVE_INTERVAL_MS = 25_000; // 25 seconds
 
 export async function stream(req: Request, res: Response) {
   const { runId } = req.params;
+
+  if (!runId) {
+    logger.warn('Stream endpoint called without runId', { path: req.path });
+    res.status(400).json({ error: 'Missing runId parameter' });
+    return;
+  }
+
   let bytesSent = 0;
   const startTime = Date.now();
 
@@ -94,7 +102,10 @@ export async function stream(req: Request, res: Response) {
         cleanup();
       }
     } catch (error) {
-      logger.error('SSE write error', { runId, error });
+      logger.warn('SSE write error', {
+        runId,
+        errorMsg: error instanceof Error ? error.message : String(error),
+      });
       cleanup();
     }
   });
@@ -134,32 +145,69 @@ type AgentEvent =
   | { type: 'error'; data: { message: string } };
 
 /**
- * Subscribe to agent events
- * TODO: Replace with actual Redis pubsub or BullMQ event subscription
+ * Subscribe to agent events using BullMQ simulation queue
  */
 function subscribeToAgentEvents(
   runId: string,
   callback: (evt: AgentEvent) => void
 ): () => void {
-  // Example: mock subscription for development
-  const interval = setInterval(() => {
-    callback({
-      type: 'status',
-      data: { msg: 'Processing...' },
+  // Try to use BullMQ queue subscription if available
+  let unsubscribe: (() => void) | null = null;
+
+  // Dynamically import queue module
+  import('../queues/simulation-queue')
+    .then(({ subscribeToJob, isQueueInitialized }) => {
+      if (!isQueueInitialized()) {
+        // Queue not available, use mock subscription for development
+        const interval = setInterval(() => {
+          callback({
+            type: 'status',
+            data: { msg: 'Processing (mock)...' },
+          });
+        }, 5000);
+        unsubscribe = () => clearInterval(interval);
+        return;
+      }
+
+      // Subscribe to actual job events
+      unsubscribe = subscribeToJob(runId, {
+        onProgress: (event) => {
+          callback({
+            type: 'delta',
+            data: {
+              progress: event.progress,
+              message: event.message,
+            },
+          });
+        },
+        onComplete: (event) => {
+          callback({
+            type: 'complete',
+            data: event.result,
+          });
+        },
+        onFailed: (event) => {
+          callback({
+            type: 'error',
+            data: { message: event.error },
+          });
+        },
+      });
+    })
+    .catch((err) => {
+      logger.warn('Failed to load queue module, using mock subscription', { error: err });
+      // Fallback to mock
+      const interval = setInterval(() => {
+        callback({
+          type: 'status',
+          data: { msg: 'Processing...' },
+        });
+      }, 5000);
+      unsubscribe = () => clearInterval(interval);
     });
-  }, 5000);
 
   // Return unsubscribe function
   return () => {
-    clearInterval(interval);
+    unsubscribe?.();
   };
-
-  // Production implementation would look like:
-  // const subscriber = redis.duplicate();
-  // await subscriber.subscribe(`agent:${runId}:events`);
-  // subscriber.on('message', (channel, message) => {
-  //   const evt = JSON.parse(message);
-  //   callback(evt);
-  // });
-  // return () => subscriber.unsubscribe();
 }

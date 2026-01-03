@@ -8,15 +8,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type {
+  SortableCohort} from '../sorting';
 import {
   cmp,
   cohortSortKey,
-  compareCohorts,
   sortCohorts,
   isCanonicalDate,
   validateCohortDates,
-  sortAndValidateCohorts,
-  SortableCohort,
+  sortAndValidateCohorts
 } from '../sorting';
 
 describe('Cohort Sorting', () => {
@@ -115,8 +115,8 @@ describe('Cohort Sorting', () => {
 
       const sorted = sortCohorts(cohorts);
 
-      expect(sorted[0].id).toBe('A');
-      expect(sorted[1].id).toBe('B');
+      expect(sorted[0]?.id).toBe('A');
+      expect(sorted[1]?.id).toBe('B');
     });
 
     it('2024-06-01 + A sorts third', () => {
@@ -128,8 +128,8 @@ describe('Cohort Sorting', () => {
 
       const sorted = sortCohorts(cohorts);
 
-      expect(sorted[0].start_date).toBe('2024-01-01');
-      expect(sorted[2].start_date).toBe('2024-06-01');
+      expect(sorted[0]?.start_date).toBe('2024-01-01');
+      expect(sorted[2]?.start_date).toBe('2024-06-01');
     });
 
     it('empty start_date + Z sorts last', () => {
@@ -140,8 +140,8 @@ describe('Cohort Sorting', () => {
 
       const sorted = sortCohorts(cohorts);
 
-      expect(sorted[0].id).toBe('A');
-      expect(sorted[1].id).toBe('Z');
+      expect(sorted[0]?.id).toBe('A');
+      expect(sorted[1]?.id).toBe('Z');
     });
 
     it('null start_date + Y sorts last', () => {
@@ -152,8 +152,8 @@ describe('Cohort Sorting', () => {
 
       const sorted = sortCohorts(cohorts);
 
-      expect(sorted[0].id).toBe('A');
-      expect(sorted[1].id).toBe('Y');
+      expect(sorted[0]?.id).toBe('A');
+      expect(sorted[1]?.id).toBe('Y');
     });
 
     it('numeric id 0 works (coerced to string)', () => {
@@ -165,8 +165,8 @@ describe('Cohort Sorting', () => {
       const sorted = sortCohorts(cohorts);
 
       // '0' < 'a' in ASCII, so numeric 0 sorts before 'A'
-      expect(sorted[0].id).toBe(0);
-      expect(sorted[1].id).toBe('A');
+      expect(sorted[0]?.id).toBe(0);
+      expect(sorted[1]?.id).toBe('A');
     });
   });
 
@@ -239,8 +239,8 @@ describe('Cohort Sorting', () => {
 
       const sorted = sortAndValidateCohorts(cohorts);
 
-      expect(sorted[0].id).toBe('A');
-      expect(sorted[1].id).toBe('B');
+      expect(sorted[0]?.id).toBe('A');
+      expect(sorted[1]?.id).toBe('B');
     });
 
     it('throws if validation fails', () => {

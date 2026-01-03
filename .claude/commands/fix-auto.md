@@ -23,7 +23,7 @@ Attempt to automatically fix common issues: linting errors, formatting problems,
 3. **Verify Fix**
    Run lint again to confirm resolution
 
-   **Success**: ✅ Proceed to Phase 2
+   **Success**: PASS - Proceed to Phase 2
    **Failure**: Report unfixable lint errors, require manual intervention
 
 ### Phase 2: Type Checking
@@ -43,7 +43,7 @@ Attempt to automatically fix common issues: linting errors, formatting problems,
 3. **Apply Fixes**
    Use Edit tool for each fixable error
 
-   **Success**: ✅ Proceed to Phase 3
+   **Success**: PASS - Proceed to Phase 3
    **Failure**: Report complex type errors, may need baseline update
 
 ### Phase 3: Test Failures
@@ -59,7 +59,7 @@ Attempt to automatically fix common issues: linting errors, formatting problems,
 3. **Verify Repair**
    Confirm all tests pass after repair
 
-   **Success**: ✅ Proceed to Phase 4
+   **Success**: PASS - Proceed to Phase 4
    **Failure**: Report unfixable test failures
 
 ### Phase 4: Build Validation
@@ -74,16 +74,16 @@ Attempt to automatically fix common issues: linting errors, formatting problems,
    - Bundle errors: Check for circular dependencies, missing assets
    - Vite config issues: Run `npm run doctor:links` (Windows sidecar)
 
-   **Success**: ✅ All checks passed!
+   **Success**: PASS - All checks passed!
    **Failure**: Report build errors
 
 ## Success Criteria
 
 All phases must pass:
-- [x] ✅ Lint: No ESLint errors
-- [x] ✅ Types: No TypeScript errors (or baselined)
-- [x] ✅ Tests: All tests passing
-- [x] ✅ Build: Production bundle created
+- [x] Lint: No ESLint errors
+- [x] Types: No TypeScript errors (or baselined)
+- [x] Tests: All tests passing
+- [x] Build: Production bundle created
 
 ## Auto-Fixable Patterns
 
@@ -124,24 +124,24 @@ All phases must pass:
 
 **On Success:**
 ```
-🎉 Automated Fix Complete!
+AUTOMATED FIX COMPLETE
 
-✅ Linting: Fixed X issues
-✅ Types: No errors
-✅ Tests: All passing (X tests)
-✅ Build: Success
+[PASS] Linting: Fixed X issues
+[PASS] Types: No errors
+[PASS] Tests: All passing (X tests)
+[PASS] Build: Success
 
 Ready for commit!
 ```
 
 **On Partial Success:**
 ```
-⚠️ Automated Fix Partial
+AUTOMATED FIX PARTIAL
 
-✅ Linting: Fixed X issues
-❌ Types: 3 errors require manual review
-⏸️ Tests: Skipped (fix types first)
-⏸️ Build: Skipped
+[PASS] Linting: Fixed X issues
+[FAIL] Types: 3 errors require manual review
+[SKIP] Tests: Skipped (fix types first)
+[SKIP] Build: Skipped
 
 Manual intervention required for:
 - client/src/components/Dashboard.tsx:42 - Complex type inference
@@ -150,12 +150,12 @@ Manual intervention required for:
 
 **On Failure:**
 ```
-❌ Automated Fix Failed
+AUTOMATED FIX FAILED
 
-❌ Linting: 5 unfixable errors
-❌ Types: 12 errors
-❌ Tests: 8 failing
-❌ Build: Failed
+[FAIL] Linting: 5 unfixable errors
+[FAIL] Types: 12 errors
+[FAIL] Tests: 8 failing
+[FAIL] Build: Failed
 
 Critical issues detected. Review errors above.
 Consider using /test-smart to isolate test failures.

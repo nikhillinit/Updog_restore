@@ -7,7 +7,7 @@
  */
 
 import { createClient } from 'redis';
-import sql from './db';
+import { sql } from '../db-serverless';
 
 /**
  * Validate STAGE_VALIDATION_MODE environment variable
@@ -15,7 +15,7 @@ import sql from './db';
  * @returns true if valid, false with warning if invalid
  */
 export function validateStageValidationMode(): boolean {
-  const mode = process.env.STAGE_VALIDATION_MODE;
+  const mode = process.env['STAGE_VALIDATION_MODE'];
   const validModes = ['off', 'warn', 'enforce'];
 
   if (!mode) {
@@ -66,7 +66,7 @@ export function validateStageValidationMode(): boolean {
  * @returns true if valid, false with error if invalid
  */
 export function validateWebhookSecret(): boolean {
-  const secret = process.env.ALERTMANAGER_WEBHOOK_SECRET;
+  const secret = process.env['ALERTMANAGER_WEBHOOK_SECRET'];
   const MIN_LENGTH = 32;
 
   if (!secret) {
@@ -122,11 +122,12 @@ export async function validateDatabaseFunction(): Promise<boolean> {
     // Test that normalize_stage() function exists by calling it with a known input
     const result = await sql`SELECT normalize_stage('seed') AS test_stage`;
 
-    if (!result || result.length === 0) {
+    const firstRow = result?.[0];
+    if (!firstRow) {
       throw new Error('normalize_stage() returned no results');
     }
 
-    const testStage = result[0].test_stage;
+    const testStage = firstRow['test_stage'];
     if (testStage !== 'seed') {
       console.warn(
         JSON.stringify({

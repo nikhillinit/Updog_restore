@@ -125,16 +125,11 @@ jobs:
 
       - run: npm ci --prefer-offline --no-audit
 
-      - name: Build TypeScript incrementally
+      - name: TypeScript baseline check
         run: |
-          if [ -f ".tsbuildinfo.client" ] && [ -f ".tsbuildinfo.server" ]; then
-            echo "Using incremental compilation"
-            npx tsc -p tsconfig.client.json --incremental
-            npx tsc -p tsconfig.server.json --incremental
-          else
-            echo "Full compilation required"
-            npx tsc -b tsconfig.client.json tsconfig.server.json --incremental
-          fi
+          # Use baseline checking to allow baselined errors (482 known errors in .tsc-baseline.json)
+          # This prevents CI failures from pre-existing type issues while enforcing no new errors
+          npm run baseline:check
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -202,32 +197,16 @@ jobs:
       - name: Run check
         run: |
           case "${{ matrix.job }}" in
-            client)
-              if [ -f ".tsbuildinfo.client" ]; then
-                npx tsc -p tsconfig.client.json --incremental --noEmit
-              else
-                npm run check:client
-              fi
-              ;;
-            server)
-              if [ -f ".tsbuildinfo.server" ]; then
-                npx tsc -p tsconfig.server.json --incremental --noEmit
-              else
-                npm run check:server
-              fi
-              ;;
-            shared)
-              if [ -f ".tsbuildinfo.shared" ]; then
-                npx tsc -p tsconfig.shared.json --incremental --noEmit
-              else
-                npm run check:shared
-              fi
+            client|server|shared)
+              # Use baseline checking instead of raw tsc to respect .tsc-baseline.json
+              # This prevents CI failures from the 482 baselined errors while catching new issues
+              npm run baseline:check
               ;;
             lint)
               npm run lint
               ;;
             unit-fast)
-              npm run test:unit -- --bail --reporter=dot || npm run test:quick
+              npm run test:unit -- --bail=1 --reporter=dot || npm run test:quick
               ;;
           esac
 

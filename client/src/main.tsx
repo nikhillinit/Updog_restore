@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -70,7 +70,7 @@ if (import.meta.env.PROD) {
 const rootElement = document.getElementById("root");
 if (rootElement) {
   createRoot(rootElement).render(
-    process.env.NODE_ENV === 'development' ? (
+    process.env['NODE_ENV'] === 'development' ? (
       <StrictMode>
         <App />
       </StrictMode>

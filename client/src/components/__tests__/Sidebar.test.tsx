@@ -15,6 +15,9 @@ vi.mock('@/shared/useFlags', () => ({
   useFlag: vi.fn(),
 }));
 
+// Import the mocked hook (vi.mock is hoisted)
+import { useFlag } from '@/shared/useFlags';
+
 // Mock the FundContext
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
@@ -35,13 +38,12 @@ vi.mock('wouter', () => ({
 
 describe('Sidebar', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi['resetAllMocks']();
   });
 
   describe('when NEW_IA flag is OFF (legacy mode)', () => {
     it('renders 26 navigation items', () => {
-      const { useFlag } = require('@/shared/useFlags');
-      useFlag.mockReturnValue(false);
+      vi['mocked'](useFlag).mockReturnValue(false);
 
       const { container } = render(
         <Sidebar activeModule="dashboard" onModuleChange={() => {}} />
@@ -52,8 +54,7 @@ describe('Sidebar', () => {
     });
 
     it('shows legacy navigation labels', () => {
-      const { useFlag } = require('@/shared/useFlags');
-      useFlag.mockReturnValue(false);
+      vi['mocked'](useFlag).mockReturnValue(false);
 
       render(<Sidebar activeModule="dashboard" onModuleChange={() => {}} />);
 
@@ -66,8 +67,7 @@ describe('Sidebar', () => {
 
   describe('when NEW_IA flag is ON (new IA mode)', () => {
     it('renders exactly 5 navigation items', () => {
-      const { useFlag } = require('@/shared/useFlags');
-      useFlag.mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       const { container } = render(
         <Sidebar activeModule="overview" onModuleChange={() => {}} />
@@ -78,8 +78,7 @@ describe('Sidebar', () => {
     });
 
     it('shows new IA navigation labels', () => {
-      const { useFlag } = require('@/shared/useFlags');
-      useFlag.mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
 
@@ -92,8 +91,7 @@ describe('Sidebar', () => {
     });
 
     it('does NOT show legacy-only items', () => {
-      const { useFlag } = require('@/shared/useFlags');
-      useFlag.mockReturnValue(true);
+      vi['mocked'](useFlag).mockReturnValue(true);
 
       render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
 

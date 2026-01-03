@@ -86,8 +86,8 @@ const createSnapshotSchema = z.object({
 
       // Delegate to service
       const result = await service.getTimelineEvents(fundIdNum, {
-        startTime: startTimeStr ? new Date(startTimeStr) : undefined,
-        endTime: endTimeStr ? new Date(endTimeStr) : undefined,
+        ...(startTimeStr && { startTime: new Date(startTimeStr) }),
+        ...(endTimeStr && { endTime: new Date(endTimeStr) }),
         limit: limitNum,
         offset: offsetNum,
       });
@@ -253,7 +253,7 @@ const createSnapshotSchema = z.object({
  * This factory allows cache integration when app context is available.
  */
 function createDefaultTimelineRouter(app?: Express) {
-  const cache = app ? createCacheAdapter(app['locals'].cache) : undefined;
+  const cache = app ? createCacheAdapter((app as any).locals.cache) : undefined;
   const timelineService = new TimeTravelAnalyticsService(db, cache);
   return createTimelineRouter(timelineService);
 }

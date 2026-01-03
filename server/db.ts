@@ -3,11 +3,18 @@
  * Uses HTTP driver on Vercel, WebSocket pool elsewhere
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 import * as schema from '@shared/schema';
+import * as lpSchema from '@shared/schema-lp-reporting';
+import * as lpSprint3Schema from '@shared/schema-lp-sprint3';
+import * as approvalSchema from '@shared/schemas/reserve-approvals';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+// Combined schema for LP reporting + reserve approval support + Sprint 3
+const combinedSchema = { ...schema, ...lpSchema, ...lpSprint3Schema, ...approvalSchema };
+type CombinedSchema = typeof schema &
+  typeof lpSchema &
+  typeof lpSprint3Schema &
+  typeof approvalSchema;
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
@@ -16,19 +23,28 @@ const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === '
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
 
 // Dynamic imports based on environment
-let db: any;
-let pool: any;
+let db: NodePgDatabase<CombinedSchema>;
+let pool: unknown;
 
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
-  const { databaseMock } = require('../tests/helpers/database-mock');
+  const { databaseMock } = require('../tests/helpers/database-mock') as {
+    databaseMock: NodePgDatabase<CombinedSchema>;
+  };
   db = databaseMock;
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
-  const { drizzle } = require('drizzle-orm/neon-http');
-  const { neon } = require('@neondatabase/serverless');
+  const { drizzle } = require('drizzle-orm/neon-http') as {
+    drizzle: (
+      client: unknown,
+      options: { schema: typeof combinedSchema }
+    ) => NodePgDatabase<CombinedSchema>;
+  };
+  const { neon } = require('@neondatabase/serverless') as {
+    neon: (url: string) => unknown;
+  };
 
   const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
 
@@ -37,7 +53,7 @@ if (isTest) {
   }
 
   const sql = neon(DATABASE_URL);
-  db = drizzle(sql, { schema });
+  db = drizzle(sql, { schema: combinedSchema });
 
   // No pool in HTTP mode
   pool = null;
@@ -55,7 +71,8 @@ if (isTest) {
   }
 
   pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
-  db = drizzle({ client: pool, schema });
+  // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
+  db = drizzle(pool, { schema: combinedSchema });
 }
 
 export { db, pool };

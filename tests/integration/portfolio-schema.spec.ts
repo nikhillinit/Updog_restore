@@ -8,7 +8,7 @@
  * - investments table extensions
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { db } from '../../server/db';
 import { sql } from 'drizzle-orm';
 
@@ -117,7 +117,7 @@ describe('Portfolio Route Schema - Phase 1', () => {
     });
 
     it('should enforce idempotency_key uniqueness', async () => {
-      const idempotencyKey = 'test-key-unique-' + Date.now();
+      const idempotencyKey = `test-key-unique-${  Date.now()}`;
 
       // First insert should succeed
       await db.execute(sql`

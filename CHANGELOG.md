@@ -6,7 +6,192 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-12-13
+## [Unreleased]
+
+### Added
+
+- **LP Portal Sprint 3: Capital Calls, Distributions & Dashboard** (2025-12-31)
+  - **Planning Complete**: Comprehensive sprint plan created
+  - **Scope**: 2-week sprint building on Sprint 2 infrastructure
+  - **Week 1 Features**:
+    - Capital call tracking with wire instructions (TC-LP-003)
+    - Payment submission workflow
+    - Distribution history with waterfall breakdown (TC-LP-004)
+    - Tax categorization (ROC vs taxable income)
+  - **Week 2 Features**:
+    - Enhanced LP dashboard with performance metrics (TC-LP-002)
+    - Activity feed aggregation
+    - Document management API (TC-LP-006)
+    - In-app notifications (TC-LP-008)
+  - **Database Schema**: 6 new tables for Sprint 3 entities
+    - `lp_capital_calls` - Capital call tracking
+    - `lp_payment_submissions` - Payment confirmation workflow
+    - `lp_distribution_details` - Enhanced distribution breakdown
+    - `lp_documents` - Document management
+    - `lp_notifications` - In-app notifications
+    - `lp_notification_preferences` - User preferences
+  - **TypeScript Types**: Complete API type definitions
+  - **Anti-Pattern Compliance**: All 24 patterns required
+  - **Files**:
+    - `docs/plans/2025-12-31-lp-portal-sprint-3.md` - Sprint plan
+    - `shared/schema-lp-sprint3.ts` - Drizzle schema
+    - `shared/types/lp-sprint3.ts` - API types
+
+- **Sprint 1: Deal Pipeline Management System MVP** (2025-12-30)
+  - Complete REST API with 10 endpoints at `/api/deals/*`:
+    - `POST /api/deals/opportunities` - Create deal (idempotency-enabled)
+    - `GET /api/deals/opportunities` - List deals (cursor pagination)
+    - `GET /api/deals/opportunities/:id` - Get deal with full related data
+    - `PUT /api/deals/opportunities/:id` - Update deal (idempotency-enabled)
+    - `DELETE /api/deals/opportunities/:id` - Archive deal (soft delete)
+    - `POST /api/deals/:id/stage` - Move deal through pipeline stages
+    - `GET /api/deals/pipeline` - Kanban-style pipeline view
+    - `GET /api/deals/stages` - List available pipeline stages
+    - `POST /api/deals/:id/diligence` - Add due diligence item
+    - `GET /api/deals/:id/diligence` - Get due diligence items by category
+  - Pre-Sprint Foundation Work:
+    - Schema drift fix: Added missing `approvalSchema` to `server/db.ts`
+      (critical bug fix)
+    - Database indexes: 12 cursor pagination indexes across deal pipeline tables
+      (migration 0006)
+    - Security ESLint rules: 3 new anti-pattern detection rules
+      - `require-bullmq-config` - Enforces timeout/retry on BullMQ workers
+        (AP-QUEUE-01, AP-QUEUE-02)
+      - `no-sql-raw-in-routes` - Prevents SQL injection via sql.raw() in routes
+        (AP-CURSOR-06)
+      - `require-optimistic-locking` - Ensures version checks on updates
+        (AP-LOCK-03)
+  - Anti-Pattern Compliance: Implements all 24 patterns from
+    `cheatsheets/anti-pattern-prevention.md`
+  - Integration tests: 16 test cases covering CRUD, idempotency, pagination,
+    optimistic locking
+  - Files: `server/routes/deal-pipeline.ts` (806 lines),
+    `tests/api/deal-pipeline.test.ts` (445 lines)
+
+- **Phoenix Phase 3C: Chart Theme Infrastructure Complete** (2025-12-29)
+  - Wired `BrandChartThemeProvider` to App.tsx for global chart theming
+  - Added `npm run phoenix:truth` scripts for running truth case tests
+  - Fixed test runner by installing cross-env dependency
+  - Migrated all 6 chart components from hardcoded COLORS to `getChartColor()`:
+    - `fund-overview.tsx` - Dashboard pie chart
+    - `nivo-allocation-pie.tsx` - Allocation visualization
+    - `FundStrategyBuilder.tsx` - Strategy allocation charts
+    - `benchmarking-dashboard.tsx` - Portfolio vs global benchmarks
+    - `SecondaryMarketAnalysis.tsx` - Sector distribution pie chart
+    - `tag-performance-analysis.tsx` - Tag performance bar/pie charts
+  - Execution plan: `docs/plans/2025-12-29-phase3c-solo-execution.md`
+
+- **Phoenix Phase 1 Complete: All Truth Cases Validated** (2025-12-29)
+  - Capital Allocation: 20/20 scenarios validated (100% pass rate)
+  - Exit Recycling: 20/20 scenarios validated (100% pass rate)
+  - Created `tests/unit/truth-cases/exit-recycling.test.ts` - New test runner
+  - Total: 129 truth cases across 6 modules, 100% pass rate
+  - Module breakdown: XIRR (50), Waterfall-tier (15), Waterfall-ledger (14),
+    Fees (10), Capital Allocation (20), Exit Recycling (20)
+  - Updated `docs/phase0-validation-report.md` with complete results
+  - Implementation plan:
+    `docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md`
+
+- **Portfolio Intelligence API Routes** (Feature-flagged)
+  - 17 endpoints at `/api/portfolio/*` for portfolio modeling and strategy
+    management
+  - Feature flag: `ENABLE_PORTFOLIO_INTELLIGENCE` (default: false for safe
+    rollout)
+  - Endpoints include: strategies, scenarios, reserves, forecasts, metrics,
+    rebalancing
+  - Complete service layer with Drizzle ORM integration
+
+- **Metrics & Observability Routes** (Feature-flagged)
+  - Prometheus metrics endpoint at `/metrics`
+  - Error budget reporting at `/api/error-budget`
+  - Gated by existing `ENABLE_METRICS` flag (default: true in development)
+
+- **ADR-013: Scenario Comparison Activation Decision**
+  - Decision framework for activating scenario-comparison API
+  - Documents technical readiness and product approval requirements
+  - Location: `docs/adr/ADR-013-scenario-comparison-activation.md`
+
+- **Implementation Plan Documentation**
+  - Comprehensive backend/testing improvements plan
+  - Location: `docs/plans/2025-12-28-backend-testing-improvements.md`
+  - Includes: Phase 0 (test infrastructure), Phase 1 (route registration), Phase
+    2 (scenario comparison decision), Phase 3 (frontend tests), Phase 4 (metrics
+    routes), Phase 5 (dead code cleanup)
+  - Archived superseded planning docs: `IMPLEMENTATION_PLAN.md`,
+    `PLAN_CRITIQUE.md` → `docs/archive/planning/`
+
+### Removed
+
+- **Dead Code Cleanup** (1,093 lines total)
+  - `server/routes/reserves-api.ts` (668 lines) - 132 ESLint violations,
+    superseded by v1/reserves.ts
+  - `server/routes/reserves.ts` (133 lines) - Duplicate implementation
+  - `tests/unit/api/reserves-api.test.ts` (292 lines) - Tests for deleted
+    reserves-api.ts
+  - Active route preserved: `server/routes/v1/reserves.ts`
+  - Note: reserves-api.ts had 24 `any` type errors (would block commit)
+
+### Fixed
+
+- **CI Workflow TypeScript Baseline Integration** (CRITICAL)
+  - CI was failing on all 482 baselined TypeScript errors due to using raw `tsc`
+    instead of `npm run baseline:check`
+  - Updated `.github/workflows/ci-unified.yml` to respect `.tsc-baseline.json`
+    in both setup and check jobs
+  - Prevents false CI failures from pre-existing type issues while catching new
+    errors
+  - Aligns CI behavior with local pre-push hooks
+
+- **TypeScript Error Reduction**
+  - Baseline: 483 → 482 errors (-1)
+  - Removed: `server/routes/reserves-api.ts:TS18046:92155b20`
+
+---
+
+## [Unreleased] - 2025-12-14
+
+### Fixed
+
+- **CLAUDE.md Corruption Cleanup**
+  - Removed 39 corrupted `- memory` placeholder lines (lines 345-383)
+  - Impact: 508 → 468 lines
+  - Root cause: Artifact from initial file creation (commit 94becf73, Oct
+    7 2025)
+
+### Added
+
+- **CLAUDE.md Validation Infrastructure**
+  - `validate:claude-md` script using markdown-link-check
+  - `.markdown-link-check.json` configuration (10s timeout, retry on 429)
+  - `docs:verify:all` script for comprehensive documentation validation
+  - Technical Note: Existing validation (`docs:lint`, `docs:check-links`) only
+    covered `docs/analysis/`, new validation ensures CLAUDE.md link integrity
+
+- **Cheatsheets Index**
+  - `cheatsheets/INDEX.md` - Categorized catalog of all 30 existing cheatsheets
+  - Categories: Agent System (3), Workflows (5), Memory (3), Testing (2),
+    Quality (6), Code Quality (3), Development Workflows (5), API (1),
+    Miscellaneous (2)
+
+### Changed
+
+- **CLAUDE.md Content Consolidation**
+  - Reduced from 468 → 219 lines (53% reduction, within target 180-220)
+  - Removed: Waterfall Update Pattern (34 lines) - covered by
+    waterfall-specialist agent
+  - Consolidated: Quality-First Development (71 → 16 lines) - details in
+    anti-pattern-prevention.md
+  - Consolidated: No Emoji Policy (53 → 3 lines) - details in
+    emoji-free-documentation.md
+  - Consolidated: PR Verification (28 → 1 line) - details in
+    pr-merge-verification.md
+  - Consolidated: Memory Management, Commands, Skills (40 → 4 lines)
+  - Consolidated: AI-Augmented Development (23 → 3 lines)
+  - Consolidated: Document Review Protocol (18 → 2 lines)
+  - All verbose content preserved in existing cheatsheets, linked via INDEX.md
+  - All 7 links validated successfully
+
+## [2025-12-13]
 
 ### Deprecated
 

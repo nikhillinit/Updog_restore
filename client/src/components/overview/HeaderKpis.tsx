@@ -16,8 +16,8 @@ export const HeaderKpis: React.FC<{ data?: FundKpis }> = ({ data }) => {
     <KpiItem label="Uncalled" value={cur(kpis.uncalled)} />
     <KpiItem label="Invested" value={cur(kpis.invested)} />
     <KpiItem label="NAV" value={cur(kpis.nav)} />
-    <KpiItem label="DPI" value={kpis.dpi.toFixed(2) + 'x'} />
-    <KpiItem label="TVPI" value={kpis.tvpi.toFixed(2) + 'x'} />
+    <KpiItem label="DPI" value={`${kpis.dpi.toFixed(2)  }x`} />
+    <KpiItem label="TVPI" value={`${kpis.tvpi.toFixed(2)  }x`} />
     <KpiItem label="IRR" value={pct(kpis.irr)} />
   </section>);
 };

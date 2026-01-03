@@ -13,7 +13,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { createClient } from 'redis';
 import RedisStore from 'rate-limit-redis';
 import { logSecurity, logContext } from '../utils/logger.js';
@@ -27,7 +27,7 @@ const SECURITY_CONFIG = {
     max: 100, // requests per window
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
-    keyGenerator: (req: Request) => req.ip || 'unknown',
+    keyGenerator: ipKeyGenerator,
     standardHeaders: true,
     legacyHeaders: false
   },
@@ -193,7 +193,7 @@ export const monteCarloRateLimit = createRateLimiter({
   max: 3, // Only 3 Monte Carlo simulations per 5 minutes
   keyGenerator: (req: Request) => {
     const userId = (req as any).user?.id;
-    return userId ? `mc:${userId}` : `mc:${req.ip}`;
+    return userId ? `mc:${userId}` : (req.ip ?? 'unknown');
   },
   handler: (req: Request, res: Response) => {
     logSecurity('Monte Carlo rate limit exceeded', {
@@ -460,12 +460,14 @@ export const getSecurityConfig = () => ({
 // COMBINED SECURITY MIDDLEWARE STACK
 // =============================================================================
 
+// CRITICAL: suspiciousActivityDetection MUST come BEFORE inputSanitization
+// to detect malicious patterns in raw input before they get sanitized away
 export const securityMiddlewareStack = [
   securityHeaders,
   ipFilter,
   generalRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];
 
@@ -473,8 +475,8 @@ export const strictSecurityMiddlewareStack = [
   securityHeaders,
   ipFilter,
   strictRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];
 
@@ -482,7 +484,7 @@ export const monteCarloSecurityStack = [
   securityHeaders,
   ipFilter,
   monteCarloRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];

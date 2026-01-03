@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { db } from "./db";
 import { funds, portfolioCompanies, investments, fundMetrics, activities } from "@schema";
 
@@ -34,6 +34,10 @@ export async function seedDatabase() {
       status: "active"
     } as any;
     const [fund] = await db.insert(funds).values(fundData).returning();
+
+    if (!fund) {
+      throw new Error("Failed to create fund");
+    }
 
     console.log("✅ Created fund:", fund.name);
 

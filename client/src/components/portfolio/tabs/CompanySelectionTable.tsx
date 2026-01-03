@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import React, { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -95,8 +95,9 @@ export function CompanySelectionTable({
     if (!selected) return '';
 
     // Use editing value if available
-    if (editingValues[company.id] !== undefined) {
-      return editingValues[company.id];
+    const editingValue = editingValues[company.id];
+    if (editingValue !== undefined) {
+      return editingValue;
     }
 
     // Otherwise format the current value

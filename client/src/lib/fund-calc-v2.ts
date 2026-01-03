@@ -20,7 +20,6 @@ import { Decimal } from 'decimal.js';
 import type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';
 import { calculateManagementFees, type FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateCapitalCall } from '@shared/schemas/capital-call-policy';
-import { calculateAmericanWaterfall } from '@shared/schemas/waterfall-policy';
 import { calculateRecyclingAvailability, shouldRecycleNow, type RecyclingContext } from '@shared/schemas/recycling-policy';
 
 /**
@@ -269,7 +268,7 @@ function simulatePeriodV2(
 
   // 4. Waterfall Distribution
   let lpDistribution = new Decimal(0);
-  let gpDistribution = new Decimal(0);
+  const gpDistribution = new Decimal(0);
 
   if (periodExitProceeds.gt(0)) {
     // American waterfall (deal-by-deal)

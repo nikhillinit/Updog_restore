@@ -1,4 +1,12 @@
 /**
+ * TEMPLATE FILE - NOT FOR PRODUCTION TEST SUITE
+ *
+ * This file serves as a template for creating new portfolio route tests.
+ * Tests in this file are skipped by default.
+ *
+ * To use: Copy this file, remove .template suffix, and adapt tests.
+ */
+/**
  * Portfolio Route API Integration Tests Template
  *
  * This template demonstrates comprehensive testing patterns for the Portfolio Route API,
@@ -7,6 +15,7 @@
  *
  * Version: 1.0.0
  * Created: 2025-11-08
+ * @group template
  *
  * @module tests/api/portfolio-route.template.test
  */
@@ -15,20 +24,16 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+// NOTE: Testcontainers imports commented out to prevent module resolution errors
+// Uncomment when using this template
+// import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+// import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Queue } from 'bullmq';
 
 // Import schemas and validators
-import {
-  validateStatusTransition,
-  type CreateLotRequest,
-  type CreateSnapshotRequest,
-  type UpdateSnapshotRequest,
-} from '@shared/schemas/portfolio-route';
 
 // Import test utilities
 import {
@@ -38,18 +43,14 @@ import {
   assertValidPagination,
   assertBigIntEquals,
   seedTestPortfolio,
-  waitFor,
   type SeedResult,
 } from '../utils/portfolio-route-test-utils';
 
 // Import test fixtures
 import {
-  createFundFactory,
   createLotRequestFactory,
   createSnapshotRequestFactory,
   createUpdateSnapshotRequestFactory,
-  getIdempotencyScenarios,
-  getVersionConflictScenarios,
   getStatusTransitionScenarios,
   generateLotBatch,
 } from '../fixtures/portfolio-route-fixtures';
@@ -58,10 +59,15 @@ import {
 // TEST INFRASTRUCTURE SETUP
 // =====================
 
-describe('Portfolio Route API - Integration Tests', () => {
+/**
+ * @group template
+ * Testcontainers integration test template - requires Docker
+ */
+describe.skip('Portfolio Route API - Integration Tests', () => {
   // Testcontainers instances
-  let pgContainer: StartedPostgreSqlContainer;
-  let redisContainer: StartedTestContainer;
+  // NOTE: Type annotations commented to prevent module resolution errors
+  let pgContainer: any; // StartedPostgreSqlContainer
+  let redisContainer: any; // StartedTestContainer
 
   // Database and queue clients
   let db: NodePgDatabase;
@@ -80,6 +86,9 @@ describe('Portfolio Route API - Integration Tests', () => {
   // =====================
 
   beforeAll(async () => {
+    // NOTE: Container startup code commented to prevent module resolution errors
+    // Uncomment when using this template
+    /*
     // Start PostgreSQL container
     pgContainer = await new PostgreSqlContainer('postgres:16-alpine')
       .withDatabase('updog_test')
@@ -89,9 +98,8 @@ describe('Portfolio Route API - Integration Tests', () => {
       .start();
 
     // Start Redis container
-    redisContainer = await new GenericContainer('redis:7-alpine')
-      .withExposedPorts(6379)
-      .start();
+    redisContainer = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start();
+    */
 
     // Initialize database connection
     const connectionString = pgContainer.getConnectionUri();
@@ -315,9 +323,9 @@ describe('Portfolio Route API - Integration Tests', () => {
 
       it('should return empty array for no matches', async () => {
         // Arrange: Ensure no error snapshots exist
-        await db.delete(db.schema.forecastSnapshots).where(
-          (snapshots, { eq }) => eq(snapshots.status, 'error')
-        );
+        await db
+          .delete(db.schema.forecastSnapshots)
+          .where((snapshots, { eq }) => eq(snapshots.status, 'error'));
 
         // Act
         const response = await apiClient.listSnapshots(seedData.fundId, {
@@ -519,9 +527,7 @@ describe('Portfolio Route API - Integration Tests', () => {
         });
 
         // Assert
-        expect(
-          response.lots.every((lot) => lot.investmentId === targetInvestmentId)
-        ).toBe(true);
+        expect(response.lots.every((lot) => lot.investmentId === targetInvestmentId)).toBe(true);
       });
 
       it('should filter by lotType', async () => {
@@ -547,8 +553,7 @@ describe('Portfolio Route API - Integration Tests', () => {
         // Assert
         expect(
           response.lots.every(
-            (lot) =>
-              lot.investmentId === targetInvestmentId && lot.lotType === 'initial'
+            (lot) => lot.investmentId === targetInvestmentId && lot.lotType === 'initial'
           )
         ).toBe(true);
       });
@@ -700,10 +705,10 @@ describe('Portfolio Route API - Integration Tests', () => {
       expect(createResp.status).toMatch(/^(pending|calculating)$/);
 
       // 2. Poll until complete
-      const finalSnapshot = await apiClient.pollSnapshotUntilComplete(
-        createResp.snapshotId,
-        { maxAttempts: 30, intervalMs: 500 }
-      );
+      const finalSnapshot = await apiClient.pollSnapshotUntilComplete(createResp.snapshotId, {
+        maxAttempts: 30,
+        intervalMs: 500,
+      });
 
       expect(finalSnapshot.status).toBe('complete');
       expect(finalSnapshot.calculatedMetrics).toBeDefined();

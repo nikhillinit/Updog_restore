@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { Router } from 'express';
 import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
 import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
 import { getVersionInfo } from '../version';
 
@@ -40,7 +40,7 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req['app'].locals.providers as any;
+  const providers = (req as any).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
@@ -50,7 +50,7 @@ router['get']('/health', (req: Request, res: Response) => {
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req['app'].locals.providers as any;
+  const providers = (req as any).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
@@ -195,7 +195,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     const start = Date.now();
     await storage.getAllFunds();
     detailed.database = "ok";
-    detailed.metrics.dbLatencyMs = Date.now() - start;
+    detailed.metrics['dbLatencyMs'] = Date.now() - start;
   } catch (error) {
     detailed.database = "fail";
   }
@@ -208,9 +208,9 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   detailed.workers = redisHealthy ? "ok" : "idle";
   
   // Memory and uptime
-  detailed.metrics.uptimeSeconds = Math.floor(process.uptime());
-  detailed.metrics.memoryMB = Math.round(process.memoryUsage().heapUsed / 1048576);
-  detailed.metrics.version = process.env["npm_package_version"] || "1.3.2";
+  detailed.metrics['uptimeSeconds'] = Math.floor(process.uptime());
+  detailed.metrics['memoryMB'] = Math.round(process.memoryUsage().heapUsed / 1048576);
+  detailed.metrics['version'] = process.env["npm_package_version"] || "1.3.2";
   
   res["json"](detailed);
 });
@@ -298,7 +298,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
     try {
       // Import Redis client to check queue status
       const IORedis = await import('ioredis');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic import type incompatibility
+       
       const Redis: any = IORedis.default;
       const redis = new Redis({
         host: process.env["REDIS_HOST"] || 'localhost',
@@ -353,8 +353,9 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
 // Schema health endpoint
 router['get']('/api/health/schema', async (req: Request, res: Response) => {
   try {
-    // Query database for table list
-    const result = await storage['query']?.(
+    // Query database for table list (dynamically access query method if available)
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const result = await storageWithQuery.query?.(
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = 'public'
@@ -382,8 +383,9 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
 // Migration status endpoint
 router['get']('/api/health/migrations', async (req: Request, res: Response) => {
   try {
-    // Query migration history
-    const result = await storage['query']?.(
+    // Query migration history (dynamically access query method if available)
+    const storageWithQuery = storage as unknown as { query?: (sql: string) => Promise<{ rows: any[] }> };
+    const result = await storageWithQuery.query?.(
       `SELECT name, hash, created_at
        FROM drizzle_migrations
        ORDER BY created_at DESC

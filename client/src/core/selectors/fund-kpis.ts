@@ -24,7 +24,7 @@ import type {
   Valuation,
   CashFlowEvent,
 } from '../types/fund-domain';
-import { calculateXIRR, XIRRCalculationError } from './xirr';
+import { safeXIRR } from '@/lib/finance/xirr';
 
 /**
  * Filter items by date ("as of" snapshot)
@@ -65,7 +65,7 @@ function filterByDate<T extends { [K in keyof T]: T[K] }>(
  * const committed = selectCommitted(fundData); // 100000000 ($100M fund)
  * ```
  */
-export function selectCommitted(data: FundData, asOf?: string): number {
+export function selectCommitted(data: FundData, _asOf?: string): number {
   // Fund size is the total committed capital
   // For historical snapshots, we assume fund size doesn't change
   // (In reality, you might have closes at different times, but that's beyond scope)
@@ -227,7 +227,9 @@ export function selectNAV(data: FundData, asOf?: string): number {
 
   // Calculate portfolio value (sum of current investment values)
   const portfolioValue = relevantInvestments
-    .filter((inv) => inv.isActive || (inv.exitDate && (!asOf || new Date(inv.exitDate) <= new Date(asOf))))
+    .filter(
+      (inv) => inv.isActive || (inv.exitDate && (!asOf || new Date(inv.exitDate) <= new Date(asOf)))
+    )
     .reduce((total, inv) => {
       return total + selectInvestmentValue(inv, data.valuations, asOf);
     }, 0);
@@ -328,8 +330,9 @@ function buildCashFlows(data: FundData, asOf?: string): CashFlowEvent[] {
   const cashFlows: CashFlowEvent[] = [];
 
   // Add capital calls (outflows)
-  const relevantCalls = filterByDate(data.capitalCalls, 'callDate', asOf)
-    .filter((call) => call.status === 'received' || call.status === 'partial');
+  const relevantCalls = filterByDate(data.capitalCalls, 'callDate', asOf).filter(
+    (call) => call.status === 'received' || call.status === 'partial'
+  );
 
   for (const call of relevantCalls) {
     cashFlows.push({
@@ -340,8 +343,9 @@ function buildCashFlows(data: FundData, asOf?: string): CashFlowEvent[] {
   }
 
   // Add distributions (inflows)
-  const relevantDistributions = filterByDate(data.distributions, 'distributionDate', asOf)
-    .filter((dist) => dist.status === 'executed');
+  const relevantDistributions = filterByDate(data.distributions, 'distributionDate', asOf).filter(
+    (dist) => dist.status === 'executed'
+  );
 
   for (const dist of relevantDistributions) {
     cashFlows.push({
@@ -398,23 +402,21 @@ function buildCashFlows(data: FundData, asOf?: string): CashFlowEvent[] {
  * ```
  */
 export function selectIRR(data: FundData, asOf?: string): number {
-  try {
-    const cashFlows = buildCashFlows(data, asOf);
+  const cashFlows = buildCashFlows(data, asOf);
 
-    // Need at least 2 cash flows for IRR
-    if (cashFlows.length < 2) {
-      return 0;
-    }
-
-    const result = calculateXIRR(cashFlows);
-    return result.converged ? result.rate : 0;
-  } catch (error) {
-    // XIRR calculation failed (invalid cash flows, no convergence, etc.)
-    if (error instanceof XIRRCalculationError) {
-      console.warn('IRR calculation failed:', error.message);
-    }
+  // Need at least 2 cash flows for IRR
+  if (cashFlows.length < 2) {
     return 0;
   }
+
+  // Use safe XIRR - never throws, returns null on failure
+  const result = safeXIRR(cashFlows);
+
+  if (result.error) {
+    console.warn('IRR calculation failed:', result.error);
+  }
+
+  return result.converged && result.irr !== null ? result.irr : 0;
 }
 
 /**
@@ -469,10 +471,7 @@ export function selectAllKPIs(data: FundData, asOf?: string): FundKPIs {
  * @param type - Type of KPI for appropriate formatting
  * @returns Formatted string
  */
-export function formatKPI(
-  value: number,
-  type: 'currency' | 'multiple' | 'percentage'
-): string {
+export function formatKPI(value: number, type: 'currency' | 'multiple' | 'percentage'): string {
   switch (type) {
     case 'currency':
       return new Intl.NumberFormat('en-US', {

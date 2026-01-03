@@ -37,9 +37,9 @@ export async function createBreakerCache(
         
         // Create Upstash-backed cache
         backingStore = {
-          async get<T>(key: string): Promise<T | undefined> {
+          async get<T>(key: string): Promise<T | null> {
             const raw = await redis['get'](`cb:${key}`);
-            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw as T) : undefined;
+            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw as T) : null;
           },
           async set<T>(key: string, value: T, ttl?: number): Promise<void> {
             const ttlSeconds = ttl ? Math.ceil(ttl / 1000) : 300; // Default 5 min
@@ -99,10 +99,10 @@ export class CircuitBreakerCache implements Cache {
   }
 
   private get maxHalfOpen(): number {
-    return this.config.halfOpenMaxConcurrent ?? 1;
+    return this.config['halfOpenMaxConcurrent'] ?? 1;
   }
   private get halfOpenSuccessTarget(): number {
-    return this.config.successThreshold ?? 1;
+    return this.config['successThreshold'] ?? 1;
   }
 
   private toOpen(now: number) {
@@ -119,12 +119,12 @@ export class CircuitBreakerCache implements Cache {
     this.halfOpenInFlight = 0;
   }
   
-  async get<T>(key: string): Promise<T | undefined> {
+  async get<T>(key: string): Promise<T | null> {
     const now = this.getCurrentTime();
 
     // If OPEN, see if the window has elapsed; if yes, move to HALF-OPEN before any early return.
     if (this.state === 'open') {
-      if (now - this.openedAt >= this.config.resetTimeout) {
+      if (now - this.openedAt >= this.config['resetTimeout']) {
         this.toHalfOpen();
       }
     }
@@ -137,7 +137,7 @@ export class CircuitBreakerCache implements Cache {
       this.halfOpenInFlight++;
       try {
         const v = await this.backingStore.get<T>(key);
-        // Treat undefined as a valid value; success means "primary responded without throwing"
+        // Treat null as a valid value; success means "primary responded without throwing"
         this.successes++;
         this.lastSuccessTime = now;
         if (this.successes >= this.halfOpenSuccessTarget) {
@@ -147,10 +147,11 @@ export class CircuitBreakerCache implements Cache {
           this.successes = 0;
         }
         return v;
-      } catch {
+      } catch (error) {
         // Probe failed -> go back to OPEN and serve fallback
         this.failures++;
         this.toOpen(now);
+        console.debug('[circuit-breaker-cache] Half-open probe failed, returning to OPEN state:', error instanceof Error ? error.message : String(error));
         return this.fallbackStore.get<T>(key);
       } finally {
         this.halfOpenInFlight = Math.max(0, this.halfOpenInFlight - 1);
@@ -169,10 +170,13 @@ export class CircuitBreakerCache implements Cache {
       this.successes++;
       this.lastSuccessTime = now;
       return v;
-    } catch {
+    } catch (error) {
       this.failures++;
       this.lastFailureTime = now;
-      if (this.failures >= this.config.failureThreshold) this.toOpen(now);
+      if (this.failures >= this.config['failureThreshold']) {
+        console.warn('[circuit-breaker-cache] Failure threshold reached, opening circuit:', error instanceof Error ? error.message : String(error));
+        this.toOpen(now);
+      }
       return this.fallbackStore.get<T>(key);
     }
   }
@@ -180,49 +184,58 @@ export class CircuitBreakerCache implements Cache {
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     // Always try to write to both stores to maintain consistency
     const promises = [];
-    
+
     if (this.state === 'closed') {
-      promises.push(this.backingStore['set'](key, value, ttl).catch(() => {}));
+      promises.push(this.backingStore['set'](key, value, ttl).catch((err) => {
+        console.debug('[circuit-breaker-cache] Primary store set failed (non-blocking):', err instanceof Error ? err.message : String(err));
+      }));
     }
-    promises.push(this.fallbackStore['set'](key, value, ttl).catch(() => {}));
-    
+    promises.push(this.fallbackStore['set'](key, value, ttl).catch((err) => {
+      console.debug('[circuit-breaker-cache] Fallback store set failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+
     await Promise.all(promises);
   }
   
   async delete(key: string): Promise<boolean> {
     let deleted = false;
-    
+
     // Try both stores
     if (this.state === 'closed') {
       try {
-        deleted = await this.backingStore.delete(key);
-      } catch {
-        // Continue to fallback
+        deleted = await this.backingStore['delete'](key);
+      } catch (error) {
+        // Continue to fallback, log for observability
+        console.debug('[circuit-breaker-cache] Primary store delete failed, trying fallback:', error instanceof Error ? error.message : String(error));
       }
     }
-    
+
     try {
-      const fallbackDeleted = await this.fallbackStore.delete(key);
+      const fallbackDeleted = await this.fallbackStore['delete'](key);
       deleted = deleted || fallbackDeleted;
-    } catch {
-      // Ignore fallback errors
+    } catch (error) {
+      // Fallback delete failed - log but don't fail
+      console.debug('[circuit-breaker-cache] Fallback store delete failed:', error instanceof Error ? error.message : String(error));
     }
-    
+
     return deleted;
   }
   
   async keys(): Promise<string[]> {
     if (this.state === 'closed') {
       try {
-        return await this.backingStore.keys();
-      } catch {
+        return await this.backingStore['keys']();
+      } catch (error) {
         // Fall back to fallback store
+        console.debug('[circuit-breaker-cache] Primary store keys() failed, trying fallback:', error instanceof Error ? error.message : String(error));
       }
     }
-    
+
     try {
-      return await this.fallbackStore.keys();
-    } catch {
+      return await this.fallbackStore['keys']();
+    } catch (error) {
+      // Both stores failed - log and return empty
+      console.warn('[circuit-breaker-cache] All stores failed for keys():', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -230,10 +243,14 @@ export class CircuitBreakerCache implements Cache {
   async clear(): Promise<void> {
     // Clear both stores regardless of circuit state
     const promises = [];
-    
-    promises.push(this.backingStore.clear().catch(() => {}));
-    promises.push(this.fallbackStore.clear().catch(() => {}));
-    
+
+    promises.push(this.backingStore.clear().catch((err) => {
+      console.debug('[circuit-breaker-cache] Primary store clear failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+    promises.push(this.fallbackStore.clear().catch((err) => {
+      console.debug('[circuit-breaker-cache] Fallback store clear failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    }));
+
     await Promise.all(promises);
   }
   

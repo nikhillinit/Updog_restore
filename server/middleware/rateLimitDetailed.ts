@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * DI-Friendly Rate Limiter for /health/detailed
  * Accepts injected store instead of creating Redis connections at import time
@@ -19,10 +19,10 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     max: 30, // 30 requests per minute
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    store: opts?.store, // Injected store (undefined => memory store)
+    ...(opts?.store !== undefined ? { store: opts.store } : {}),
     keyGenerator: (req: Request) => {
       // Use library's IPv6-safe key generator
-      return `${ipKeyGenerator(req)}:health-detailed`;
+      return `${ipKeyGenerator(req as any)}:health-detailed`;
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key

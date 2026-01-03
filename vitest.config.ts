@@ -22,6 +22,7 @@ const alias = {
   // Shared and assets
   '@shared/': resolve(projectRoot, './shared/'),
   '@shared': resolve(projectRoot, './shared'),
+  '@schema': resolve(projectRoot, './shared/schema'),
   '@assets': resolve(projectRoot, './assets'),
 
   // Test mocks
@@ -85,16 +86,32 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias }, // Explicit alias for server project (projects don't inherit root resolve)
+        esbuild: {
+          jsxInject: "import React from 'react'",
+        },
         test: {
           name: 'server',
           environment: 'node',
           // Simplified: All .test.ts files run in Node environment (including perf tests)
-          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/integration/**/*.test.ts'],
-          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts'],
+          include: [
+            'tests/unit/**/*.test.ts',
+            'tests/perf/**/*.test.ts',
+            'tests/integration/**/*.test.ts',
+            'tests/api/**/*.test.ts',
+          ],
+          setupFiles: [
+            './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
+            './tests/setup/db-delegate-link.ts', // wire delegate before any tests
+            './tests/setup/test-infrastructure.ts',
+            './tests/setup/node-setup.ts',
+          ],
         },
       },
       {
         resolve: { alias }, // Explicit alias for client project (for consistency)
+        esbuild: {
+          jsxInject: "import React from 'react'",
+        },
         test: {
           name: 'client',
           environment: 'jsdom',
@@ -118,10 +135,20 @@ export default defineConfig({
       '**/*.quarantine.{test,spec}.ts?(x)',
       'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
       'tests/e2e/**/*',
+      '**/*.template.test.ts',
+      '**/*.template.{test,spec}.ts?(x)', // Template files - not executable tests
     ],
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',
+      REDIS_URL: 'memory://', // Prevent real Redis connections in tests
+      // JWT configuration (min 32 chars required by server/config.ts:16)
+      JWT_SECRET: 'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation',
+      JWT_ALG: 'HS256',
+      JWT_ISSUER: 'updog', // CORRECTED: Must match server/config.ts:15 defaults
+      JWT_AUDIENCE: 'updog-app', // CORRECTED: Must match server/config.ts:15 defaults
+      // Alertmanager webhook signature validation
+      ALERTMANAGER_WEBHOOK_SECRET: 'test-alertmanager-webhook-secret-minimum-32-characters-long',
     },
   },
 });

@@ -1,8 +1,33 @@
 // Test Infrastructure for Reliable Testing
 // Provides state management, sandboxing, and cleanup utilities
 
-import { vi } from 'vitest';
 import crypto from 'crypto';
+import type { MemoryUsage, ProcessEnv } from 'node:process';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
+
+type TimerSnapshot = {
+  hasTimers: boolean;
+  pendingTimers: number;
+};
+
+type MockSnapshot = {
+  mockCount: number;
+};
+
+type Snapshot = {
+  env: ProcessEnv;
+  timers: TimerSnapshot;
+  mocks: MockSnapshot;
+  memory: MemoryUsage;
+  timestamp: number;
+};
+
+type CleanupFn = () => void | Promise<void>;
+
+type TestGlobal = typeof globalThis & {
+  __testNamespace__?: string;
+};
 
 /**
  * Crypto Polyfill for Node.js Test Environment
@@ -21,16 +46,23 @@ if (!globalThis.crypto) {
  * Ensures complete isolation between tests
  */
 export class TestStateManager {
-  private snapshots = new Map<string, any>();
+  private snapshots = new Map<string, Snapshot>();
 
   captureSnapshot(key: string): void {
-    this.snapshots.set(key, {
-      env: { ...process.env },
+    const envSnapshot: Snapshot['env'] = { ...process.env };
+
+    const snapshot: Snapshot = {
+      // Cloning process.env preserves string | undefined values, but eslint lacks
+      // the type refinement on spread env objects here.
+
+      env: envSnapshot,
       timers: this.captureTimers(),
       mocks: this.captureMocks(),
       memory: process.memoryUsage(),
-      timestamp: Date.now()
-    });
+      timestamp: Date.now(),
+    };
+
+    this.snapshots.set(key, snapshot);
   }
 
   restoreSnapshot(key: string): void {
@@ -38,33 +70,40 @@ export class TestStateManager {
     if (!snapshot) return;
 
     // Restore environment
-    Object.keys(process.env).forEach(key => delete process.env[key]);
+    Object.keys(process.env).forEach((key) => delete process.env[key]);
     Object.assign(process.env, snapshot.env);
 
     // Restore timers
     vi.clearAllTimers();
     vi.useRealTimers();
 
-    // Clear all mocks
+    // Clear all mocks and restore spies/stubs without reloading modules.
+    // NOTE: Avoid vi.resetModules() here because React is already loaded by the
+    // jsdom setup file; resetting modules after React loads can create multiple
+    // React singletons and corrupt the hook dispatcher between tests.
     vi.clearAllMocks();
-    vi.resetModules();
+    vi.restoreAllMocks();
 
     // Force GC if available
     if (global.gc) global.gc();
   }
 
-  private captureTimers(): any {
+  private captureTimers(): TimerSnapshot {
     // Capture current timer state
+    const getTimerCount = vi.getTimerCount;
     return {
       hasTimers: vi.isFakeTimers(),
-      pendingTimers: vi.getTimerCount ? vi.getTimerCount() : 0
+      pendingTimers: typeof getTimerCount === 'function' ? getTimerCount() : 0,
     };
   }
 
-  private captureMocks(): any {
+  private captureMocks(): MockSnapshot {
     // Capture mock state
+    const getMockedFunctions = vi.getMockedFunctions as (() => readonly Mock[]) | undefined;
+    const mockedFunctions: readonly Mock[] = getMockedFunctions?.() ?? [];
+
     return {
-      mockCount: vi.getMockedFunctions ? vi.getMockedFunctions().length : 0
+      mockCount: mockedFunctions.length,
     };
   }
 
@@ -79,7 +118,7 @@ export class TestStateManager {
  */
 export class TestSandbox {
   private namespace: string;
-  private cleanup: Array<() => void | Promise<void>> = [];
+  private cleanup: CleanupFn[] = [];
   private abortController: AbortController;
 
   constructor() {
@@ -88,19 +127,20 @@ export class TestSandbox {
   }
 
   async isolate<T>(fn: () => T | Promise<T>): Promise<T> {
-    const original = (global as any).__testNamespace__;
-    (global as any).__testNamespace__ = this.namespace;
+    const testGlobal = globalThis as TestGlobal;
+    const original = testGlobal.__testNamespace__;
+    testGlobal.__testNamespace__ = this.namespace;
 
     try {
       const result = await fn();
       return result;
     } finally {
-      (global as any).__testNamespace__ = original;
+      testGlobal.__testNamespace__ = original;
       await this.runCleanup();
     }
   }
 
-  addCleanup(fn: () => void | Promise<void>): void {
+  addCleanup(fn: CleanupFn): void {
     this.cleanup.push(fn);
   }
 
@@ -120,8 +160,8 @@ export class TestSandbox {
     for (const fn of cleanupFns) {
       try {
         await fn();
-      } catch (e) {
-        console.error('Cleanup failed:', e);
+      } catch (error: unknown) {
+        console.error('Cleanup failed:', error);
       }
     }
   }
@@ -132,9 +172,9 @@ export class TestSandbox {
  * Ensures proper async handling
  */
 export class TestTimeoutManager {
-  private timeouts = new Set<NodeJS.Timeout>();
+  private timeouts = new Set<ReturnType<typeof setTimeout>>();
 
-  setTimeout(fn: () => void, ms: number): NodeJS.Timeout {
+  setTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
     const timeout = setTimeout(() => {
       this.timeouts.delete(timeout);
       fn();
@@ -143,13 +183,13 @@ export class TestTimeoutManager {
     return timeout;
   }
 
-  clearTimeout(timeout: NodeJS.Timeout): void {
+  clearTimeout(timeout: ReturnType<typeof setTimeout>): void {
     clearTimeout(timeout);
     this.timeouts.delete(timeout);
   }
 
   clearAll(): void {
-    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.forEach((timeout) => clearTimeout(timeout));
     this.timeouts.clear();
   }
 }
@@ -159,12 +199,12 @@ export class TestTimeoutManager {
  * Prevents promise leaks and ensures proper resolution
  */
 export class TestPromiseTracker {
-  private promises = new Map<string, Promise<any>>();
+  private promises = new Map<string, Promise<unknown>>();
   private settled = new Set<string>();
 
   track<T>(id: string, promise: Promise<T>): Promise<T> {
     this.promises.set(id, promise);
-    
+
     promise
       .then(() => this.settled.add(id))
       .catch(() => this.settled.add(id))
@@ -175,14 +215,14 @@ export class TestPromiseTracker {
 
   async waitForAll(timeout = 5000): Promise<void> {
     const startTime = Date.now();
-    
+
     while (this.promises.size > 0) {
       if (Date.now() - startTime > timeout) {
         const pending = Array.from(this.promises.keys());
         throw new Error(`Promises still pending after ${timeout}ms: ${pending.join(', ')}`);
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -213,7 +253,7 @@ export async function waitFor(
   while (Date.now() - startTime < timeout) {
     const result = await condition();
     if (result) return;
-    await new Promise(resolve => setTimeout(resolve, interval));
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
 
   throw new Error(`Condition not met within ${timeout}ms`);
@@ -240,7 +280,7 @@ export async function runTestMultiple<T>(
   return {
     results,
     failures,
-    passRate: (iterations - failures) / iterations
+    passRate: (iterations - failures) / iterations,
   };
 }
 
@@ -300,9 +340,7 @@ export function assertIRREquals(
   tolerance: number = EXCEL_IRR_TOLERANCE
 ): void {
   if (actual === null) {
-    throw new Error(
-      `IRR assertion failed: actual is null, expected ${expected.toFixed(9)}`
-    );
+    throw new Error(`IRR assertion failed: actual is null, expected ${expected.toFixed(9)}`);
   }
 
   const diff = Math.abs(actual - expected);

@@ -6,8 +6,16 @@ import {
   CreateLotRequestSchema,
   ListLotsRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
+import {
+  LotService,
+  LotNotFoundError,
+  InvestmentNotFoundError,
+  InvestmentFundMismatchError,
+  CostBasisMismatchError,
+} from '../../services/lot-service';
 
 const router = Router();
+const lotService = new LotService();
 
 // ============================================================================
 // Validation Schemas (Path Params)
@@ -16,28 +24,6 @@ const router = Router();
 const FundIdParamSchema = z.object({
   fundId: z.string().regex(/^\d+$/).transform(Number),
 });
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Verify that a fund exists in the database.
- * Throws 404 error if fund not found.
- */
-async function verifyFundExists(_fundId: number): Promise<void> {
-  // TODO: Implement database query
-  throw new Error('Not implemented');
-}
-
-/**
- * Verify that an investment exists and belongs to the specified fund.
- * Throws 404 error if investment not found or doesn't belong to fund.
- */
-async function verifyInvestmentExists(_fundId: number, _investmentId: number): Promise<void> {
-  // TODO: Implement database query
-  throw new Error('Not implemented');
-}
 
 // ============================================================================
 // Route Handlers
@@ -65,28 +51,60 @@ router.post(
 
     const {
       investmentId,
-      lotType: _lotType,
-      sharePriceCents: _sharePriceCents,
-      sharesAcquired: _sharesAcquired,
-      costBasisCents: _costBasisCents,
-      idempotencyKey: _idempotencyKey,
+      lotType,
+      sharePriceCents,
+      sharesAcquired,
+      costBasisCents,
+      idempotencyKey,
     } = bodyResult.data;
 
-    // 3. Verify fund exists
-    await verifyFundExists(fundId);
+    try {
+      // 3. Create lot using service
+      const lot = await lotService.create(fundId, {
+        investmentId,
+        lotType: lotType as 'initial' | 'follow_on' | 'secondary',
+        sharePriceCents: BigInt(sharePriceCents),
+        sharesAcquired,
+        costBasisCents: BigInt(costBasisCents),
+        ...(idempotencyKey && { idempotencyKey }),
+      });
 
-    // 4. Verify investment exists and belongs to fund
-    await verifyInvestmentExists(fundId, investmentId);
-
-    // TODO: Implement lot creation logic
-    // - Check idempotency key (if provided)
-    // - Create lot record
-    // - Return 201 with lot
-
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Lot creation not yet implemented',
-    });
+      return res.status(201).json({
+        success: true,
+        data: {
+          id: lot.id,
+          investmentId: lot.investmentId,
+          lotType: lot.lotType,
+          sharePriceCents: lot.sharePriceCents.toString(),
+          sharesAcquired: lot.sharesAcquired,
+          costBasisCents: lot.costBasisCents.toString(),
+          version: lot.version.toString(),
+          createdAt: lot.createdAt,
+          updatedAt: lot.updatedAt,
+        },
+        message: 'Lot created successfully',
+      });
+    } catch (error) {
+      if (error instanceof InvestmentNotFoundError) {
+        return res.status(404).json({
+          error: 'investment_not_found',
+          message: error.message,
+        });
+      }
+      if (error instanceof InvestmentFundMismatchError) {
+        return res.status(403).json({
+          error: 'investment_fund_mismatch',
+          message: error.message,
+        });
+      }
+      if (error instanceof CostBasisMismatchError) {
+        return res.status(400).json({
+          error: 'cost_basis_mismatch',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 
@@ -110,25 +128,44 @@ router.get(
       });
     }
 
-    const {
-      cursor: _cursor,
-      limit: _limit,
-      investmentId: _investmentId,
-      lotType: _lotType,
-    } = queryResult.data;
+    const { cursor, limit, investmentId, lotType } = queryResult.data;
 
-    // 3. Verify fund exists
-    await verifyFundExists(fundId);
+    try {
+      // 3. List lots using service
+      const result = await lotService.list(fundId, {
+        limit,
+        ...(cursor && { cursor }),
+        ...(investmentId && { investmentId }),
+        ...(lotType && { lotType: lotType as 'initial' | 'follow_on' | 'secondary' }),
+      });
 
-    // TODO: Implement lot listing logic
-    // - Build query conditions (fundId, investmentId filter, lotType filter, cursor)
-    // - Fetch limit+1 rows (detect hasMore)
-    // - Return paginated response
-
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Lot listing not yet implemented',
-    });
+      return res.json({
+        success: true,
+        data: result.lots.map((lot) => ({
+          id: lot.id,
+          investmentId: lot.investmentId,
+          lotType: lot.lotType,
+          sharePriceCents: lot.sharePriceCents.toString(),
+          sharesAcquired: lot.sharesAcquired,
+          costBasisCents: lot.costBasisCents.toString(),
+          version: lot.version.toString(),
+          createdAt: lot.createdAt,
+          updatedAt: lot.updatedAt,
+        })),
+        pagination: {
+          hasMore: result.hasMore,
+          ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+        },
+      });
+    } catch (error) {
+      if (error instanceof LotNotFoundError) {
+        return res.status(404).json({
+          error: 'lot_not_found',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 

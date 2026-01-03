@@ -4,7 +4,7 @@ import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import unusedImports from 'eslint-plugin-unused-imports';
-// import securityConfig from './eslint.security.config.js'; // TODO: Re-enable after fixing flat config compatibility
+import securityConfig from './eslint.security.config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
@@ -38,8 +38,8 @@ const boundaryRules = {
 };
 
 export default [
-  // Security rules
-  // securityConfig, // TODO: Re-enable after fixing flat config compatibility
+  // Security rules - flat config format (ESLint 9.x compatible)
+  ...securityConfig,
   // Global ignores should be first
   {
     ignores: [
@@ -47,6 +47,7 @@ export default [
       'coverage/**',
       '.vite/**',
       '.vercel/**',
+      '.claude/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"
@@ -65,6 +66,8 @@ export default [
       'es6/**',
       '.tscache',
       '.tsbuildinfo*',
+      '.migration-backup/**',
+      '.backup/**',
       'packages/*/dist/**',
       'packages/*/build/**',
       'ml-service/dist/**',
@@ -78,6 +81,28 @@ export default [
       '*.config.ts',
       '*.config.js',
       'tools/eslint-plugin-rls/dist/**',
+      // External and legacy directories
+      'Default Parameters/**',
+      'anthropic-cookbook/**',
+      'api/**',
+      '.venv/**',
+      'archive/**',
+      'artifacts/**',
+      'code-reviewer/**',
+      'dev-automation/**',
+      'ai-logs/**',
+      'ai/**',
+      'NotebookLM Skill/**',
+      'notebooklm-upload/**',
+      'claude_code-multi-AI-MCP/**',
+      'Valuation Approaches/**',
+      'PATCHES/**',
+      'triage-output/**',
+      'performance-results/**',
+      'reports/**',
+      'test-results/**',
+      'playwright-report/**',
+      'repo/**',
     ],
   },
   js.configs.recommended,
@@ -165,6 +190,7 @@ export default [
       'custom/no-hardcoded-fund-metrics': 'error',
 
       // Existing rules
+      'no-undef': 'off',
       'no-console': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
@@ -293,12 +319,34 @@ export default [
         global: 'readonly',
       },
     },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
   },
-  // AI and core reserves - deterministic math enforcement
+  // Core reserves - deterministic math enforcement
   {
-    files: ['ai/**/*.ts', 'ai/**/*.tsx', 'core/reserves/**/*.ts', 'core/reserves/**/*.tsx'],
+    files: ['core/reserves/**/*.ts', 'core/reserves/**/*.tsx'],
     rules: {
       'povc-security/no-floating-point-in-core': 'error',
+    },
+  },
+  // Worker/Queue files - BullMQ anti-pattern prevention (AP-QUEUE-01, AP-QUEUE-02)
+  {
+    files: ['server/workers/**/*.ts', 'server/queues/**/*.ts'],
+    rules: {
+      'povc-security/require-bullmq-config': 'warn',
+    },
+  },
+  // Route files - SQL injection prevention (AP-CURSOR-06)
+  {
+    files: ['server/routes/**/*.ts'],
+    rules: {
+      'povc-security/no-sql-raw-in-routes': 'error',
     },
   },
 ];

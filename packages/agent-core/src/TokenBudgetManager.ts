@@ -354,17 +354,17 @@ export function truncateToTokens(
 
   switch (strategy) {
     case 'start':
-      return text.slice(0, maxChars) + '\n\n[... truncated ...]';
+      return `${text.slice(0, maxChars)  }\n\n[... truncated ...]`;
 
     case 'end':
-      return '[... truncated ...]\n\n' + text.slice(-maxChars);
+      return `[... truncated ...]\n\n${  text.slice(-maxChars)}`;
 
     case 'middle':
       const halfChars = Math.floor(maxChars / 2);
       return (
-        text.slice(0, halfChars) +
-        '\n\n[... truncated ...]\n\n' +
-        text.slice(-halfChars)
+        `${text.slice(0, halfChars) 
+        }\n\n[... truncated ...]\n\n${ 
+        text.slice(-halfChars)}`
       );
   }
 }

@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from 'react';
+import { generatePdf, downloadBlob } from '@/utils/pdf';
+import { TearSheetTemplate } from '@/utils/pdf/templates/TearSheetTemplate';
+import type { TearSheetData } from '@/utils/pdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -291,9 +290,34 @@ export default function TearSheetDashboard() {
     setSelectedTearSheet(null);
   };
 
-  const exportToPDF = (tearSheet: TearSheet) => {
-    // In real app, this would generate and download PDF
-    console.log('Exporting to PDF:', tearSheet.companyName);
+  const exportToPDF = async (tearSheet: TearSheet) => {
+    try {
+      // Convert TearSheet to TearSheetData format for PDF template
+      const pdfData: TearSheetData = {
+        companyName: tearSheet.companyName,
+        fundName: 'Press On Ventures II', // Could come from context
+        investmentDate: new Date().toISOString(), // Would come from actual data
+        metrics: {
+          totalInvested: 5000000, // Mock data - would come from actual investment data
+          currentValue: 12500000,
+          moic: 2.5,
+          irr: 0.35,
+        },
+        timeline: [
+          { date: '2023-01-15', event: 'Initial Investment', amount: 3000000 },
+          { date: '2023-09-01', event: 'Follow-on Round', amount: 2000000 },
+        ],
+        notes: tearSheet.commentary.content,
+      };
+
+      // Generate and download PDF
+      const blob = await generatePdf(<TearSheetTemplate data={pdfData} />);
+      const filename = `tear-sheet-${tearSheet.companyName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      downloadBlob(blob, filename);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      // In real app, show user-facing error toast
+    }
   };
 
   const renderTearSheetCard = (tearSheet: TearSheet) => (

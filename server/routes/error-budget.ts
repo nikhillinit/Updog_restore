@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { errorBudgetManager } from '../lib/error-budget';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 
 const router = Router();
 
@@ -21,6 +21,10 @@ router['get']('/', async (_req: Request, res: Response) => {
 router['get']('/:slo', async (req: Request, res: Response) => {
   try {
     const { slo } = req.params;
+    if (!slo) {
+      res.status(400).json({ error: 'Missing SLO parameter' });
+      return;
+    }
     const budget = await errorBudgetManager.calculateErrorBudget(slo);
     res["json"](budget);
   } catch (error) {

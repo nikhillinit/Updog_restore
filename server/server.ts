@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * DI-Friendly Express Server
  * Consumes providers instead of creating global connections
@@ -58,9 +58,9 @@ export async function createServer(
   console.log('[server] Creating Express application...');
   
   // Bind providers to app.locals for routes/services
-  app.locals.providers = providers;
-  app.locals.cache = providers.cache;
-  app.locals.config = config;
+  app.locals['providers'] = providers;
+  app.locals['cache'] = providers.cache;
+  app.locals['config'] = config;
   
   // Security first - disable version disclosure
   app['disable']('x-powered-by');
@@ -207,7 +207,9 @@ export async function createServer(
   });
   
   // Rate limiter: pass store; undefined => memory store (no redis)
-  app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
+  app.use('/health/detailed', rateLimitDetailed(
+    providers.rateLimitStore !== undefined ? { store: providers.rateLimitStore } : undefined
+  ));
   
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
@@ -237,7 +239,7 @@ export async function createServer(
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',
-        fundId: req.params.fundId || req.query.fundId as string
+        fundId: req.params['fundId'] || req.query['fundId'] as string
       };
       return next();
     }

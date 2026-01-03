@@ -233,19 +233,22 @@ export default defineConfig(({ mode }: { mode: string }) => {
       // Dev telemetry stub - always returns 204 for telemetry endpoints
       {
         name: 'dev-telemetry-stub',
-        configureServer(server) {
-          server.middlewares.use('/api/telemetry/wizard', async (req: http.IncomingMessage, res: http.ServerResponse) => {
-            try {
-              let body = '';
-              for await (const chunk of req) body += chunk;
-              if (body) JSON.parse(body); // validate JSON without crashing dev
-              res.statusCode = 204;
-              res.end();
-            } catch {
-              res.statusCode = 400;
-              res.end('Bad payload');
+        configureServer(server: { middlewares: { use: (path: string, handler: (req: http.IncomingMessage, res: http.ServerResponse) => void) => void } }) {
+          server.middlewares.use(
+            '/api/telemetry/wizard',
+            async (req: http.IncomingMessage, res: http.ServerResponse) => {
+              try {
+                let body = '';
+                for await (const chunk of req) body += chunk;
+                if (body) JSON.parse(body); // validate JSON without crashing dev
+                res.statusCode = 204;
+                res.end();
+              } catch {
+                res.statusCode = 400;
+                res.end('Bad payload');
+              }
             }
-          });
+          );
         },
       },
       // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
@@ -279,16 +282,19 @@ export default defineConfig(({ mode }: { mode: string }) => {
       minifyWhitespace: true,
       treeShaking: true,
       target: 'esnext',
+      // ESBuild transpilation settings - type checking is handled by tsc (npm run check)
+      // Keeping skipLibCheck for faster builds; strict settings enforced at tsc level
       tsconfigRaw: {
         compilerOptions: {
           skipLibCheck: true,
-          noImplicitAny: false,
-          strictNullChecks: false,
-          strictFunctionTypes: false,
-          strictPropertyInitialization: false,
-          noImplicitThis: false,
-          noImplicitReturns: false,
-          alwaysStrict: false,
+          // Align with tsconfig.json strict settings for transpilation consistency
+          noImplicitAny: true,
+          strictNullChecks: true,
+          strictFunctionTypes: true,
+          strictPropertyInitialization: true,
+          noImplicitThis: true,
+          noImplicitReturns: true,
+          alwaysStrict: true,
         },
       },
     },

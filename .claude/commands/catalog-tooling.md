@@ -1,3 +1,8 @@
+---
+description: "Comprehensive catalog of all development tooling and assets"
+allowed-tools: Read, Grep, Glob
+---
+
 # Catalog All Development Tooling
 
 Provide a comprehensive catalog of ALL development assets accessible in this

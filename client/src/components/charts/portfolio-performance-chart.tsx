@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+/**
+ * Portfolio Performance Chart
+ *
+ * Displays portfolio value and IRR over time with Press On Ventures brand styling.
+ */
+
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -11,9 +12,13 @@ import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import {
+  rechartsProps,
+  getChartColor,
+} from '@/lib/chart-theme';
 
 interface PerformanceData {
   month: string;
@@ -35,6 +40,11 @@ const sampleData: PerformanceData[] = [
 
 export default function PortfolioPerformanceChart() {
   const [timeRange, setTimeRange] = useState('YTD');
+  const timeRanges = ['YTD', '1Y', '3Y'] as const;
+
+  // Get brand colors for the two data series
+  const portfolioValueColor = getChartColor(0);
+  const irrColor = getChartColor(1);
 
   return (
     <Card className="lg:col-span-2">
@@ -44,13 +54,15 @@ export default function PortfolioPerformanceChart() {
             Portfolio Performance
           </CardTitle>
           <div className="flex space-x-2">
-            {['YTD', '1Y', '3Y'].map((range: any) => (
+            {timeRanges.map((range) => (
               <Button
                 key={range}
-                variant={timeRange === range ? "default" : "outline"}
+                variant={timeRange === range ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTimeRange(range)}
-                className={timeRange === range ? 'povc-bg-primary-light text-blue-700 border-blue-200' : ''}
+                className={
+                  timeRange === range ? 'povc-bg-primary-light text-blue-700 border-blue-200' : ''
+                }
               >
                 {range}
               </Button>
@@ -62,51 +74,40 @@ export default function PortfolioPerformanceChart() {
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={sampleData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="month" 
-                stroke="#666"
-                fontSize={12}
-              />
-              <YAxis 
+              <CartesianGrid {...rechartsProps.cartesianGrid} />
+              <XAxis dataKey="month" {...rechartsProps.xAxis} />
+              <YAxis
                 yAxisId="left"
-                stroke="#666"
-                fontSize={12}
+                {...rechartsProps.yAxis}
                 label={{ value: 'Portfolio Value (M)', angle: -90, position: 'insideLeft' }}
               />
-              <YAxis 
-                yAxisId="right" 
+              <YAxis
+                yAxisId="right"
                 orientation="right"
-                stroke="#666"
-                fontSize={12}
+                {...rechartsProps.yAxis}
                 label={{ value: 'IRR (%)', angle: 90, position: 'insideRight' }}
               />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}
-              />
-              <Legend />
-              <Line 
+              <Tooltip {...rechartsProps.tooltip()} />
+              <Legend {...rechartsProps.legend} />
+              <Line
                 yAxisId="left"
-                type="monotone" 
-                dataKey="portfolioValue" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
+                type="monotone"
+                dataKey="portfolioValue"
+                stroke={portfolioValueColor}
+                strokeWidth={2}
                 name="Portfolio Value ($M)"
-                dot={{ r: 4 }}
+                dot={{ r: 4, fill: portfolioValueColor }}
+                activeDot={{ r: 6, stroke: portfolioValueColor, strokeWidth: 2, fill: '#FFFFFF' }}
               />
-              <Line 
+              <Line
                 yAxisId="right"
-                type="monotone" 
-                dataKey="irr" 
-                stroke="#06b6d4" 
-                strokeWidth={3}
+                type="monotone"
+                dataKey="irr"
+                stroke={irrColor}
+                strokeWidth={2}
                 name="IRR (%)"
-                dot={{ r: 4 }}
+                dot={{ r: 4, fill: irrColor }}
+                activeDot={{ r: 6, stroke: irrColor, strokeWidth: 2, fill: '#FFFFFF' }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -115,4 +116,3 @@ export default function PortfolioPerformanceChart() {
     </Card>
   );
 }
-

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 // client/src/utils/array-safety-enhanced.ts
 // --------------------------------------------------
 // Comprehensive array safety utilities for null/undefined handling
@@ -238,7 +238,10 @@ export async function forEachAsync<T>(
   if (!isSafeArray(array)) return;
   
   for (let i = 0; i < array.length; i++) {
-    await callback(array[i], i);
+    const item = array[i];
+    if (item !== undefined) {
+      await callback(item, i);
+    }
   }
 }
 

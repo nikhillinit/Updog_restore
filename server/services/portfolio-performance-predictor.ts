@@ -7,11 +7,54 @@
 
 import { db } from '../db';
 import {
-  portfolioCompanies
+  portfolioCompanies,
+  investments as investmentsTable,
+  type PortfolioCompany,
+  type Investment
 } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { monteCarloSimulationService, type SimulationParameters, type MonteCarloForecast } from './monte-carlo-simulation';
 import { SafeArithmetic, toSafeNumber } from '@shared/type-safety-utils';
+
+/**
+ * Portfolio company with computed investment totals and relations
+ * Note: Overrides currentValuation from string | null to number
+ */
+interface EnrichedPortfolioCompany extends Omit<PortfolioCompany, 'currentValuation'> {
+  investments?: Investment[];
+  totalInvestment: number;
+  currentValuation: number;
+}
+
+/**
+ * Historical performance patterns for a company type
+ */
+interface HistoricalPatterns {
+  typicalMultiple: number;
+  volatility: number;
+  exitProbability: number;
+  timeToExit: number;
+}
+
+/**
+ * Individual stage prediction metrics
+ */
+interface StagePredictionMetrics {
+  expectedReturn: number;
+  expectedVolatility: number;
+  exitProbability: number;
+  averageTimeToExit: number;
+}
+
+/**
+ * Concentration risk entry for portfolio analysis
+ */
+interface ConcentrationRiskEntry {
+  type: 'sector' | 'stage' | 'vintage';
+  category: string;
+  concentration: number;
+  riskLevel: 'low' | 'medium' | 'high';
+}
 
 /**
  * Company-level performance prediction
@@ -106,12 +149,7 @@ export interface PortfolioPerformanceForecast {
   sectorPredictions: SectorPerformancePrediction[];
 
   // Stage analysis
-  stagePredictions: Record<string, {
-    expectedReturn: number;
-    expectedVolatility: number;
-    exitProbability: number;
-    averageTimeToExit: number;
-  }>;
+  stagePredictions: Record<string, StagePredictionMetrics>;
 
   // Portfolio construction insights
   constructionInsights: {
@@ -162,7 +200,7 @@ export class PortfolioPerformancePredictorService {
       scenarios: config.scenarioCount,
       timeHorizonYears: config.timeHorizonYears,
       confidenceIntervals: config.confidenceIntervals,
-      baselineId: config.baselineId
+      ...(config.baselineId && { baselineId: config.baselineId }),
     };
 
     const monteCarloForecast = await monteCarloSimulationService.generateForecast(mcParams);
@@ -204,28 +242,48 @@ export class PortfolioPerformancePredictorService {
   /**
    * Get portfolio companies with historical performance data
    */
-  private async getPortfolioCompanies(fundId: number) {
+  private async getPortfolioCompanies(fundId: number): Promise<EnrichedPortfolioCompany[]> {
+    // Query companies and investments separately since Drizzle relations are not defined
     const companies = await db.query.portfolioCompanies.findMany({
-      where: eq(portfolioCompanies.fundId, fundId),
-      with: {
-        investments: true
-      }
+      where: eq(portfolioCompanies.fundId, fundId)
     });
 
-    return companies.map((company: any) => ({
-      ...company,
-      totalInvestment: company.investments?.reduce((sum: any, inv: any) =>
-        sum + parseFloat(inv.amount.toString()), 0) || 0,
-      currentValuation: company.currentValuation ?
-        parseFloat(company.currentValuation.toString()) : 0
-    }));
+    const investmentsResult = await db.query.investments.findMany({
+      where: eq(investmentsTable.fundId, fundId)
+    });
+
+    // Group investments by company ID
+    const investmentsByCompany = investmentsResult.reduce((acc: Record<number, Investment[]>, inv: Investment) => {
+      const companyId = inv.companyId;
+      if (companyId !== null) {
+        if (!acc[companyId]) {
+          acc[companyId] = [];
+        }
+        acc[companyId].push(inv);
+      }
+      return acc;
+    }, {});
+
+    return companies.map((company) => {
+      const companyInvestments = investmentsByCompany[company.id] || [];
+      const totalInvestment = companyInvestments.reduce((sum: number, inv: Investment) =>
+        sum + parseFloat(inv.amount.toString()), 0);
+
+      return {
+        ...company,
+        investments: companyInvestments,
+        totalInvestment,
+        currentValuation: company.currentValuation ?
+          parseFloat(company.currentValuation.toString()) : 0
+      };
+    });
   }
 
   /**
    * Generate company-level performance predictions
    */
   private async generateCompanyPredictions(
-    companies: any[],
+    companies: EnrichedPortfolioCompany[],
     monteCarloForecast: MonteCarloForecast,
     config: PredictorConfig
   ): Promise<CompanyPerformancePrediction[]> {
@@ -282,9 +340,9 @@ export class PortfolioPerformancePredictorService {
    * Generate sector-level performance predictions
    */
   private async generateSectorPredictions(
-    companies: any[],
+    companies: EnrichedPortfolioCompany[],
     companyPredictions: CompanyPerformancePrediction[],
-    config: PredictorConfig
+    _config: PredictorConfig
   ): Promise<SectorPerformancePrediction[]> {
     const sectors = [...new Set(companies.map(c => c.sector))];
     const sectorPredictions: SectorPerformancePrediction[] = [];
@@ -294,10 +352,10 @@ export class PortfolioPerformancePredictorService {
       const sectorPredictionsData = companyPredictions.filter(p => p.sector === sector);
 
       // Aggregate sector metrics
-      const totalInvestment = sectorCompanies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
-      const currentValue = sectorCompanies.reduce((sum: any, c: any) => sum + c.currentValuation, 0);
-      const expectedExitValue = sectorPredictionsData.reduce((sum: any, p: any) => sum + p.expectedExitValue, 0);
-      const expectedExitCount = sectorPredictionsData.reduce((sum: any, p: any) => sum + p.exitProbability, 0);
+      const totalInvestment = sectorCompanies.reduce((sum: number, c: EnrichedPortfolioCompany) => sum + c.totalInvestment, 0);
+      const currentValue = sectorCompanies.reduce((sum: number, c: EnrichedPortfolioCompany) => sum + c.currentValuation, 0);
+      const expectedExitValue = sectorPredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) => sum + p.expectedExitValue, 0);
+      const expectedExitCount = sectorPredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) => sum + p.exitProbability, 0);
 
       // Calculate sector-level returns and volatility
       const expectedReturn = totalInvestment > 0 ? (expectedExitValue - totalInvestment) / totalInvestment : 0;
@@ -330,26 +388,26 @@ export class PortfolioPerformancePredictorService {
    * Generate stage-level performance predictions
    */
   private generateStagePredictions(
-    companies: any[],
+    companies: EnrichedPortfolioCompany[],
     companyPredictions: CompanyPerformancePrediction[]
-  ): Record<string, any> {
+  ): Record<string, StagePredictionMetrics> {
     const stages = [...new Set(companies.map(c => c.stage))];
-    const stagePredictions: Record<string, any> = {};
+    const stagePredictions: Record<string, StagePredictionMetrics> = {};
 
     for (const stage of stages) {
       const stagePredictionsData = companyPredictions.filter(p => p.stage === stage);
 
       if (stagePredictionsData.length > 0) {
-        const expectedReturn = stagePredictionsData.reduce((sum: any, p: any) =>
+        const expectedReturn = stagePredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) =>
           sum + (p.expectedExitValue - p.investmentAmount), 0) / stagePredictionsData.length;
 
-        const expectedVolatility = stagePredictionsData.reduce((sum: any, p: any) =>
+        const expectedVolatility = stagePredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) =>
           sum + p.riskMetrics.volatility, 0) / stagePredictionsData.length;
 
-        const exitProbability = stagePredictionsData.reduce((sum: any, p: any) =>
+        const exitProbability = stagePredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) =>
           sum + p.exitProbability, 0) / stagePredictionsData.length;
 
-        const averageTimeToExit = stagePredictionsData.reduce((sum: any, p: any) =>
+        const averageTimeToExit = stagePredictionsData.reduce((sum: number, p: CompanyPerformancePrediction) =>
           sum + p.timeToExit, 0) / stagePredictionsData.length;
 
         stagePredictions[stage] = {
@@ -368,12 +426,12 @@ export class PortfolioPerformancePredictorService {
    * Calculate portfolio-level summary metrics
    */
   private calculatePortfolioSummary(
-    companies: any[],
+    companies: EnrichedPortfolioCompany[],
     companyPredictions: CompanyPerformancePrediction[]
   ) {
-    const totalInvestment = companies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
-    const currentValue = companies.reduce((sum: any, c: any) => sum + c.currentValuation, 0);
-    const expectedValue = companyPredictions.reduce((sum: any, p: any) => sum + p.expectedExitValue, 0);
+    const totalInvestment = companies.reduce((sum: number, c: EnrichedPortfolioCompany) => sum + c.totalInvestment, 0);
+    const currentValue = companies.reduce((sum: number, c: EnrichedPortfolioCompany) => sum + c.currentValuation, 0);
+    const expectedValue = companyPredictions.reduce((sum: number, p: CompanyPerformancePrediction) => sum + p.expectedExitValue, 0);
 
     const expectedReturn = totalInvestment > 0 ? (expectedValue - totalInvestment) / totalInvestment : 0;
 
@@ -394,9 +452,9 @@ export class PortfolioPerformancePredictorService {
    * Generate portfolio construction insights and optimization suggestions
    */
   private async generateConstructionInsights(
-    companies: any[],
+    companies: EnrichedPortfolioCompany[],
     companyPredictions: CompanyPerformancePrediction[],
-    config: PredictorConfig
+    _config: PredictorConfig
   ) {
     // Calculate diversification score
     const diversificationScore = this.calculateDiversificationScore(companies);
@@ -421,7 +479,7 @@ export class PortfolioPerformancePredictorService {
 
   // Helper methods for company-level analysis
 
-  private async getCompanyHistoricalPatterns(company: any) {
+  private async getCompanyHistoricalPatterns(company: EnrichedPortfolioCompany): Promise<HistoricalPatterns> {
     // Simplified pattern analysis - in production, this would involve
     // extensive market data analysis
     const sectorMultiples: Record<string, number> = {
@@ -449,7 +507,7 @@ export class PortfolioPerformancePredictorService {
     };
   }
 
-  private calculateExitProbability(company: any, timeHorizon: number): number {
+  private calculateExitProbability(company: EnrichedPortfolioCompany, timeHorizon: number): number {
     // Base exit probability by stage
     const baseProbabilities: Record<string, number> = {
       'seed': 0.15,
@@ -472,7 +530,7 @@ export class PortfolioPerformancePredictorService {
     return Math.min(baseProb * timeAdjustment * ageAdjustment, 0.8); // Cap at 80%
   }
 
-  private predictExitMultiple(company: any, patterns: any, mcForecast: MonteCarloForecast): number {
+  private predictExitMultiple(company: EnrichedPortfolioCompany, patterns: HistoricalPatterns, mcForecast: MonteCarloForecast): number {
     // Base multiple from patterns
     let expectedMultiple = patterns.typicalMultiple;
 
@@ -491,7 +549,7 @@ export class PortfolioPerformancePredictorService {
     return Math.max(expectedMultiple, 0.5); // Minimum 0.5x multiple
   }
 
-  private generateCompanyScenarios(company: any, patterns: any, expectedMultiple: number) {
+  private generateCompanyScenarios(company: EnrichedPortfolioCompany, _patterns: HistoricalPatterns, expectedMultiple: number) {
     return {
       bullCase: {
         multiple: expectedMultiple * 1.8,
@@ -511,7 +569,7 @@ export class PortfolioPerformancePredictorService {
     };
   }
 
-  private calculateCompanyRiskMetrics(company: any, patterns: any, mcForecast: MonteCarloForecast) {
+  private calculateCompanyRiskMetrics(company: EnrichedPortfolioCompany, patterns: HistoricalPatterns, mcForecast: MonteCarloForecast) {
     const volatility = patterns.volatility;
     const probabilityOfLoss = company.stage.includes('seed') ? 0.6 : 0.4;
     const valueAtRisk = company.totalInvestment * 0.8; // 80% potential loss
@@ -525,7 +583,7 @@ export class PortfolioPerformancePredictorService {
     };
   }
 
-  private calculateCompanyBeta(company: any, mcForecast: MonteCarloForecast): number {
+  private calculateCompanyBeta(company: EnrichedPortfolioCompany, _mcForecast: MonteCarloForecast): number {
     // Simplified beta calculation based on sector and stage
     const sectorBetas: Record<string, number> = {
       'technology': 1.2,
@@ -539,7 +597,7 @@ export class PortfolioPerformancePredictorService {
     return sectorBetas[company.sector.toLowerCase()] || 1.0;
   }
 
-  private assessPredictionConfidence(company: any, patterns: any): number {
+  private assessPredictionConfidence(company: EnrichedPortfolioCompany, _patterns: HistoricalPatterns): number {
     let confidence = 0.5; // Base confidence
 
     // Higher confidence for later-stage companies
@@ -561,7 +619,7 @@ export class PortfolioPerformancePredictorService {
     return Math.min(confidence, 0.95);
   }
 
-  private calculateDataQualityScore(company: any): number {
+  private calculateDataQualityScore(company: EnrichedPortfolioCompany): number {
     let score = 0.3; // Base score
 
     // Score based on available data fields
@@ -573,7 +631,7 @@ export class PortfolioPerformancePredictorService {
     return Math.min(score, 1.0);
   }
 
-  private estimateTimeToExit(company: any, patterns: any): number {
+  private estimateTimeToExit(_company: EnrichedPortfolioCompany, patterns: HistoricalPatterns): number {
     return patterns.timeToExit + (Math.random() - 0.5) * 2; // Add some randomness
   }
 
@@ -583,7 +641,7 @@ export class PortfolioPerformancePredictorService {
     if (sectorPredictions.length === 0) return 0;
 
     const volatilities = sectorPredictions.map(p => p.riskMetrics.volatility);
-    const avgVolatility = volatilities.reduce((sum: any, v: any) => sum + v, 0) / volatilities.length;
+    const avgVolatility = volatilities.reduce((sum: number, v: number) => sum + v, 0) / volatilities.length;
 
     // Add diversification benefit
     const diversificationFactor = Math.max(0.7, 1 - (sectorPredictions.length * 0.05));
@@ -630,7 +688,7 @@ export class PortfolioPerformancePredictorService {
     if (companyPredictions.length === 0) return 0;
 
     // Weighted average volatility with diversification benefits
-    const totalInvestment = companyPredictions.reduce((sum: any, p: any) => sum + p.investmentAmount, 0);
+    const totalInvestment = companyPredictions.reduce((sum: number, p: CompanyPerformancePrediction) => sum + p.investmentAmount, 0);
 
     let weightedVolatility = 0;
     for (const prediction of companyPredictions) {
@@ -644,26 +702,26 @@ export class PortfolioPerformancePredictorService {
     return weightedVolatility * diversificationFactor;
   }
 
-  private calculateDiversificationScore(companies: any[]): number {
+  private calculateDiversificationScore(companies: EnrichedPortfolioCompany[]): number {
     // Simple diversification score based on sector and stage distribution
-    const sectorCounts = companies.reduce((acc: any, c: any) => {
+    const sectorCounts = companies.reduce((acc: Record<string, number>, c: EnrichedPortfolioCompany) => {
       acc[c.sector] = (acc[c.sector] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const stageCounts = companies.reduce((acc: any, c: any) => {
+    const stageCounts = companies.reduce((acc: Record<string, number>, c: EnrichedPortfolioCompany) => {
       acc[c.stage] = (acc[c.stage] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Calculate Herfindahl index (lower = more diversified)
-    const sectorHHI = Object.values(sectorCounts).reduce((sum: any, count: any) => {
+    const sectorHHI = Object.values(sectorCounts).reduce((sum: number, count: number) => {
       const safeCount = toSafeNumber(count);
       const share = companies.length > 0 ? SafeArithmetic.divide(safeCount, companies.length) : 0;
       return SafeArithmetic.add(sum, SafeArithmetic.multiply(share, share));
     }, 0);
 
-    const stageHHI = Object.values(stageCounts).reduce((sum: any, count: any) => {
+    const stageHHI = Object.values(stageCounts).reduce((sum: number, count: number) => {
       const safeCount = toSafeNumber(count);
       const share = companies.length > 0 ? SafeArithmetic.divide(safeCount, companies.length) : 0;
       return SafeArithmetic.add(sum, SafeArithmetic.multiply(share, share));
@@ -676,12 +734,12 @@ export class PortfolioPerformancePredictorService {
     return SafeArithmetic.divide(SafeArithmetic.add(sectorDiv, stageDiv), 2);
   }
 
-  private identifyConcentrationRisks(companies: any[]) {
-    const risks = [];
-    const totalInvestment = companies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
+  private identifyConcentrationRisks(companies: EnrichedPortfolioCompany[]): ConcentrationRiskEntry[] {
+    const risks: ConcentrationRiskEntry[] = [];
+    const totalInvestment = companies.reduce((sum: number, c: EnrichedPortfolioCompany) => sum + c.totalInvestment, 0);
 
     // Sector concentration
-    const sectorConcentration = companies.reduce((acc: any, c: any) => {
+    const sectorConcentration = companies.reduce((acc: Record<string, number>, c: EnrichedPortfolioCompany) => {
       acc[c.sector] = (acc[c.sector] || 0) + c.totalInvestment;
       return acc;
     }, {} as Record<string, number>);
@@ -700,7 +758,7 @@ export class PortfolioPerformancePredictorService {
     }
 
     // Stage concentration
-    const stageConcentration = companies.reduce((acc: any, c: any) => {
+    const stageConcentration = companies.reduce((acc: Record<string, number>, c: EnrichedPortfolioCompany) => {
       acc[c.stage] = (acc[c.stage] || 0) + c.totalInvestment;
       return acc;
     }, {} as Record<string, number>);
@@ -722,10 +780,10 @@ export class PortfolioPerformancePredictorService {
   }
 
   private generateOptimizationSuggestions(
-    companies: any[],
+    _companies: EnrichedPortfolioCompany[],
     companyPredictions: CompanyPerformancePrediction[],
     diversificationScore: number,
-    concentrationRisk: any[]
+    concentrationRisk: ConcentrationRiskEntry[]
   ) {
     const suggestions = [];
 

@@ -5,10 +5,9 @@
  * Run with: npm test -- tests/chaos/rls-chaos-suite.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { db } from '../../server/db';
-import { sql } from 'drizzle-orm';
-import { Pool, PoolClient } from 'pg';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { PoolClient } from 'pg';
+import { Pool } from 'pg';
 
 // Test configuration
 const CHAOS_CONFIG = {

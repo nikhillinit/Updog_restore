@@ -12,19 +12,12 @@ import {
   type CAEngineOutput,
   type InternalCohort,
   type CashLedgerState,
-  type CapacityState,
   type Violation,
   type ReserveBalancePoint,
-  createEmptyOutput,
   createViolation,
-  FAR_FUTURE,
 } from './types';
-import {
-  type NormalizedInput,
-  centsToOutputUnits,
-  formatCohortOutput,
-} from './adapter';
-import { allocateLRM, WEIGHT_SCALE } from './allocateLRM';
+import { type NormalizedInput, centsToOutputUnits, formatCohortOutput } from './adapter';
+import { allocateLRM } from './allocateLRM';
 import { roundPercentDerivedToCents } from './rounding';
 import { cmp } from './sorting';
 
@@ -96,7 +89,8 @@ export function calculateCashLedger(input: NormalizedInput): CashLedgerState {
   // In Phase 2+, this would come from allocation tracking
   const deployedCashCents = 0;
 
-  const endingCashCents = startingCashCents + contributionsCents - distributionsCents - deployedCashCents;
+  const endingCashCents =
+    startingCashCents + contributionsCents - distributionsCents - deployedCashCents;
 
   return {
     startingCashCents,
@@ -110,6 +104,19 @@ export function calculateCashLedger(input: NormalizedInput): CashLedgerState {
 // =============================================================================
 // Capacity Allocation
 // =============================================================================
+
+function withAllocation(cohort: InternalCohort, allocationCents: number): InternalCohort {
+  return {
+    id: cohort.id,
+    name: cohort.name,
+    startDate: cohort.startDate,
+    endDate: cohort.endDate,
+    weightBps: cohort.weightBps,
+    maxAllocationCents: cohort.maxAllocationCents,
+    allocationCents,
+    type: cohort.type,
+  };
+}
 
 /**
  * Allocate capacity to cohorts using Largest Remainder Method.
@@ -164,7 +171,7 @@ export function allocateCapacityToCohorts(
 
   // If nothing to allocate, set all allocations to 0
   if (allocableCapacityCents === 0) {
-    return cohorts.map((c) => ({ ...c, allocationCents: 0 }));
+    return cohorts.map((c) => withAllocation(c, 0));
   }
 
   // Extract weights in basis points
@@ -173,19 +180,22 @@ export function allocateCapacityToCohorts(
   // Allocate using LRM
   const allocations = allocateLRM(allocableCapacityCents, weightsBps);
 
+  // Convert percentage cap into cents if specified
+  const globalCapCents =
+    input.maxAllocationPerCohortPct !== null
+      ? roundPercentDerivedToCents(input.commitmentCents * input.maxAllocationPerCohortPct)
+      : null;
+
   // Apply per-cohort caps if specified (with spill-over)
-  const { finalAllocations, spilloverCents } = applyCohortCaps(
+  const { finalAllocations } = applyCohortCaps(
     cohorts,
     allocations,
     allocableCapacityCents,
-    input.maxAllocationPerCohortCents
+    globalCapCents
   );
 
   // Update cohort allocations
-  return cohorts.map((c, i) => ({
-    ...c,
-    allocationCents: finalAllocations[i],
-  }));
+  return cohorts.map((c, i) => withAllocation(c, finalAllocations[i] ?? 0));
 }
 
 /**
@@ -205,21 +215,29 @@ function applyCohortCaps(
   totalAvailable: number,
   globalCapCents: number | null
 ): { finalAllocations: number[]; spilloverCents: number } {
-  const finalAllocations = [...initialAllocations];
+  const finalAllocations = cohorts.map((_, index) => initialAllocations[index] ?? 0);
   let carryForward = 0;
 
   // Single forward pass: apply caps and carry excess to next cohort
   for (let i = 0; i < cohorts.length; i++) {
+    const cohort = cohorts[i];
+    if (!cohort) {
+      continue;
+    }
+
     // Add any carry-forward from previous capped cohorts
-    finalAllocations[i] += carryForward;
+    const currentAllocation = finalAllocations[i] ?? 0;
+    finalAllocations[i] = currentAllocation + carryForward;
     carryForward = 0;
 
     // Determine effective cap for this cohort
-    const cohortCap = cohorts[i].maxAllocationCents ?? globalCapCents ?? Infinity;
+    const resolvedCap = cohort.maxAllocationCents ?? globalCapCents;
+    const cohortCap = resolvedCap ?? Infinity;
 
     // If over cap, collect excess for next cohort
-    if (finalAllocations[i] > cohortCap) {
-      carryForward = finalAllocations[i] - cohortCap;
+    const currentAlloc = finalAllocations[i];
+    if (currentAlloc !== undefined && currentAlloc > cohortCap) {
+      carryForward = currentAlloc - cohortCap;
       finalAllocations[i] = cohortCap;
     }
   }
@@ -264,10 +282,7 @@ export function executeCapitalAllocation(input: NormalizedInput): CAEngineOutput
   );
 
   // Step 5: Calculate capacity state
-  const totalAllocatedCents = allocatedCohorts.reduce(
-    (sum, c) => sum + c.allocationCents,
-    0
-  );
+  const totalAllocatedCents = allocatedCohorts.reduce((sum, c) => sum + c.allocationCents, 0);
   const remainingCapacityCents = input.commitmentCents - totalAllocatedCents;
 
   // Step 6: Verify conservation invariants
@@ -319,7 +334,7 @@ function verifyInvariants(
   if (reserveBalanceCents < 0) {
     throw new Error(
       `Negative reserve balance: ${reserveBalanceCents} cents. ` +
-      `This indicates invalid input or calculation bug.`
+        `This indicates invalid input or calculation bug.`
     );
   }
 
@@ -330,7 +345,7 @@ function verifyInvariants(
   if (remainingCapacityCents < 0) {
     throw new Error(
       `Negative remaining capacity: ${remainingCapacityCents} cents. ` +
-      `Total allocated (${totalAllocatedCents}) exceeds commitment (${input.commitmentCents}).`
+        `Total allocated (${totalAllocatedCents}) exceeds commitment (${input.commitmentCents}).`
     );
   }
 
@@ -350,7 +365,7 @@ function verifyInvariants(
         createViolation(
           violationType,
           `Reserve balance (${reserveBalanceCents}) is below effective buffer ` +
-          `(${input.effectiveBufferCents}). Insufficient cash to meet reserve requirement.`,
+            `(${input.effectiveBufferCents}). Insufficient cash to meet reserve requirement.`,
           {
             severity: 'warning',
             expected: input.effectiveBufferCents,
@@ -384,9 +399,7 @@ function buildTimeSeries(
     ...input.distributionsCents.map((d) => d.date),
   ].filter(Boolean);
 
-  const latestDate = allDates.length > 0
-    ? allDates.sort().pop()!
-    : input.endDate;
+  const latestDate = allDates.length > 0 ? allDates.sort().pop()! : input.endDate;
 
   return [
     {

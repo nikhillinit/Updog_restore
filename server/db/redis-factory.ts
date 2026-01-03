@@ -271,9 +271,10 @@ function parseSentinelOptions(config: CreateRedisConfig): {
 } {
   // Use config sentinels if provided
   if (config.sentinels) {
+    const name = config.name || process.env['REDIS_SENTINEL_NAME'];
     return {
       sentinels: config.sentinels,
-      name: config.name || process.env['REDIS_SENTINEL_NAME'],
+      ...(name && { name }),
     };
   }
 
@@ -282,9 +283,10 @@ function parseSentinelOptions(config: CreateRedisConfig): {
   if (sentinelsEnv) {
     try {
       const sentinels = JSON.parse(sentinelsEnv) as SentinelAddress[];
+      const name = config.name || process.env['REDIS_SENTINEL_NAME'];
       return {
         sentinels,
-        name: config.name || process.env['REDIS_SENTINEL_NAME'],
+        ...(name && { name }),
       };
     } catch (error) {
       logger.error(
@@ -350,8 +352,9 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
 
       // Extract DB from pathname (e.g., /0, /1)
       const dbMatch = url.pathname.match(/^\/(\d+)$/);
-      if (dbMatch) {
-        options.db = parseInt(dbMatch[1], 10);
+      const dbNumber = dbMatch?.[1];
+      if (dbNumber !== undefined) {
+        options.db = parseInt(dbNumber, 10);
       }
 
       // Enable TLS for rediss:// URLs

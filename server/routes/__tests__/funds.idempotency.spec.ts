@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import type { Request, Response } from 'express';
@@ -20,7 +20,7 @@ app.post('/api/test', (req: Request, res: Response) => {
 
 describe('API Idempotency Contract', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi['clearAllMocks']();
   });
 
   it('returns 409 when same key used with different request body', async () => {

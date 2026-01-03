@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../db";
@@ -12,11 +12,6 @@ import type { ApiError } from "@shared/types";
 import { Queue } from "bullmq";
 import { v4 as uuidv4 } from "uuid";
 import { toNumber, NumberParseError } from "@shared/number";
-
-// Extend Request type to include user property
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
 
 // Redis connection for queue
 const connection = {
@@ -43,11 +38,11 @@ const draftConfigSchema = z.object({
 
 export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
-  app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res: Response) => {
+  app.put("/api/funds/:id/draft", async (req: Request, res: Response) => {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -124,7 +119,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -163,11 +158,11 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Publish configuration
-  app.post("/api/funds/:id/publish", async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/funds/:id/publish", async (req: Request, res: Response) => {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {
@@ -274,7 +269,7 @@ export function registerFundConfigRoutes(app: Express) {
     try {
       let fundId: number;
       try {
-        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
       } catch (err) {
         if (err instanceof NumberParseError) {
           const error: ApiError = {

@@ -86,8 +86,8 @@ interface BudgetData {
 
 const PRICING = {
   claude: {
-    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.003'),
-    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.015'),
+    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.015'),
+    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075'),
   },
   gpt: {
     input: parseFloat(process.env["GPT_INPUT_COST"] ?? '0.00015'),
@@ -125,7 +125,12 @@ async function getBudgetData(): Promise<BudgetData> {
   try {
     const data = await fs.readFile(CONFIG.budgetPath, 'utf-8');
     return JSON.parse(data);
-  } catch {
+  } catch (error) {
+    // Budget file doesn't exist or is invalid - initialize with defaults
+    // This is expected on first run
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn('[ai-orchestrator] Failed to read budget file:', error instanceof Error ? error.message : String(error));
+    }
     return { date: '', count: 0, total_cost_usd: 0 };
   }
 }
@@ -142,7 +147,7 @@ async function incrementBudget(calls: number, cost: number): Promise<number> {
   const current = await getBudgetData();
 
   const updated: BudgetData = {
-    date: today,
+    date: today ?? '',
     count: current.date === today ? current.count + calls : calls,
     total_cost_usd: current.date === today ? current.total_cost_usd + cost : cost,
   };
@@ -157,10 +162,10 @@ async function incrementBudget(calls: number, cost: number): Promise<number> {
 
 async function auditLog(entry: Record<string, unknown>) {
   await ensureLogDir();
-  const line = JSON.stringify({
+  const line = `${JSON.stringify({
     ts: new Date().toISOString(),
     ...entry,
-  }) + '\n';
+  })  }\n`;
   await fs.appendFile(CONFIG.logPath, line);
 }
 
@@ -259,12 +264,14 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
 
     const response = await withRetryAndTimeout(
       () => anthropic.messages.create({
-        model: process.env["CLAUDE_MODEL"] ?? 'claude-3-5-sonnet-latest',
+        model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
         tools: tools.length > 0 ? tools : undefined,
         betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
         ...(contextManagement ? { context_management: contextManagement as any } : {}),
+        // Opus 4.5: Set effort to 'high' for deep reasoning
+        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
       } as any),
       'claude'
     );
@@ -325,7 +332,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
     return {
       model: 'gpt',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -368,7 +375,7 @@ async function askGemini(prompt: string): Promise<AIResponse> {
     return {
       model: 'gemini',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -410,7 +417,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
     return {
       model: 'deepseek',
       text,
-      usage,
+      ...(usage && { usage }),
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -568,14 +575,14 @@ export async function aiDebate({
     askAllAIs({ prompt: counterPrompt, models: [ai2], tags: [...tags, 'debate', 'counter'] }),
   ]);
 
-  const totalCost = (opening[0].cost_usd ?? 0) + (counter[0].cost_usd ?? 0);
+  const totalCost = (opening[0]?.cost_usd ?? 0) + (counter[0]?.cost_usd ?? 0);
 
   return {
     topic,
     ai1,
     ai2,
-    opening: opening[0],
-    counter: counter[0],
+    opening: opening[0]!,
+    counter: counter[0]!,
     totalCost,
     elapsedMs: Date.now() - startTime,
   };
@@ -625,7 +632,7 @@ export async function aiConsensus({
 
   return {
     question,
-    options,
+    ...(options && { options }),
     responses,
     consensus,
     totalCost,
@@ -655,7 +662,7 @@ export async function collaborativeSolve({
     let cumulativeInsights = '';
 
     for (let i = 0; i < models.length; i++) {
-      const model = models[i];
+      const model = models[i]!;
       let prompt = `Step ${i + 1}: Analyze this problem: ${problem}.`;
 
       if (cumulativeInsights) {
@@ -671,10 +678,10 @@ export async function collaborativeSolve({
         tags: [...tags, 'collaborative', 'sequential', `step-${i + 1}`],
       });
 
-      steps.push(result[0]);
+      steps.push(result[0]!);
 
       // Accumulate insights for next AI
-      if (result[0].text) {
+      if (result[0]?.text) {
         cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${result[0].text}`;
       }
     }
@@ -703,15 +710,20 @@ export async function collaborativeSolve({
 // ============================================================================
 // Multi-AI Review Integration
 // ============================================================================
-import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; // relative import from server/
+
+/** Chat message format for multi-AI review integration */
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 // Ollama support (optional - dynamic require)
 let __ollama__: any = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
-} catch { /* not installed */ }
+} catch (error) {
+  // Ollama package not installed - this is expected in most deployments
+  // Only log at debug level since it's an optional dependency
+  console.debug('[ai-orchestrator] Ollama not available:', error instanceof Error ? error.message : String(error));
+}
 
 async function askOllama(prompt: string, model: string) {
   if (!__ollama__) throw new Error('ollama not available - install via: npm install ollama');
@@ -743,8 +755,8 @@ async function askHuggingFace(prompt: string, model: string) {
     })
   });
   if (!r.ok) throw new Error(`HF ${model} -> ${r.status}`);
-  const j = await r["json"]();
-  const text = Array.isArray(j) ? j[0]?.generated_text : j?.generated_text ?? '';
+  const j = await r.json();
+  const text = Array.isArray(j) ? (j[0]?.['generated_text'] ?? '') : (j?.['generated_text'] ?? '');
   return {
     text,
     usage: {
@@ -776,19 +788,19 @@ export const AIRouter = {
     // Wire to your existing cloud functions (budgeting/retry already there)
     if (providerId === 'gpt' || providerId === 'gpt4') {
       const r = await askGPT(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'gemini') {
       const r = await askGemini(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'deepseek') {
       const r = await askDeepSeek(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
     if (providerId === 'claude') {
       const r = await askClaude(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
     }
 
     throw new Error(`Unknown providerId: ${providerId}`);

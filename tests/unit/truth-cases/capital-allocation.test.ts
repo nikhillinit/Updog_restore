@@ -13,6 +13,8 @@ import {
   adaptTruthCaseInput,
   shouldSkipTruthCase,
   executeCapitalAllocation,
+  executePeriodLoop,
+  convertPeriodLoopOutput,
   type TruthCaseInput,
 } from '@/core/capitalAllocation';
 import capitalCases from '../../../docs/capital-allocation.truth-cases.json';
@@ -80,7 +82,7 @@ const SCALE_RAW_THRESHOLD = 10_000_000;
  * - commitment >= 10M: raw dollars
  * - 1000 to 10M: ambiguous (default to millions for backwards compatibility)
  */
-function inferTestUnitScale(commitment: number): number {
+function _inferTestUnitScale(commitment: number): number {
   if (commitment < 1000) return 1_000_000; // $M
   if (commitment >= SCALE_RAW_THRESHOLD) return 1; // raw dollars
   return 1_000_000; // fallback to $M for ambiguous zone
@@ -152,18 +154,19 @@ function convertToEngineInput(tc: CATruthCase): TruthCaseInput {
       target_reserve_pct: tc.inputs.fund.target_reserve_pct,
       vintage_year: tc.inputs.fund.vintage_year,
       reserve_policy: tc.inputs.fund.reserve_policy,
+      pacing_window_months: tc.inputs.fund.pacing_window_months,
     },
     constraints: {
       min_cash_buffer: tc.inputs.constraints.min_cash_buffer,
       max_allocation_per_cohort: tc.inputs.constraints.max_allocation_per_cohort,
-    },
-    timeline: {
-      start_date: tc.inputs.timeline.start_date,
-      end_date: tc.inputs.timeline.end_date,
       rebalance_frequency: tc.inputs.constraints.rebalance_frequency as
         | 'quarterly'
         | 'monthly'
         | 'annual',
+    },
+    timeline: {
+      start_date: tc.inputs.timeline.start_date,
+      end_date: tc.inputs.timeline.end_date,
     },
     flows: {
       contributions: tc.inputs.flows.contributions,
@@ -197,10 +200,61 @@ describe('Capital Allocation Truth Cases', () => {
       return;
     }
 
-    // Skip pacing model cases until period-loop architecture is implemented
+    // Use period-loop engine for pacing model cases
     if (PACING_MODEL_CASES.has(tc.id)) {
-      it.skip(`${tc.id}: ${tc.description} - Requires period-loop architecture (pacing model)`, () => {
-        skipped++;
+      it(`${tc.id}: ${tc.description}`, () => {
+        try {
+          // Convert and adapt input, including category for period-loop semantics
+          const rawInput = convertToEngineInput(tc);
+          // Add category to the input for period-loop engine
+          (rawInput as any).category = tc.category;
+          const normalizedInput = adaptTruthCaseInput(rawInput);
+
+          // Execute period-loop engine for pacing model
+          const periodLoopResult = executePeriodLoop(normalizedInput);
+          const result = convertPeriodLoopOutput(normalizedInput, periodLoopResult);
+
+          // Validate allocations_by_cohort
+          const expectedAllocations = tc.expected.allocations_by_cohort;
+
+          expect(result.allocations_by_cohort.length).toBe(expectedAllocations.length);
+
+          for (const expectedAlloc of expectedAllocations) {
+            const actualAlloc = result.allocations_by_cohort.find(
+              (a) => a.cohort === expectedAlloc.cohort
+            );
+
+            expect(actualAlloc).toBeDefined();
+            if (actualAlloc) {
+              assertNumericEqual(
+                actualAlloc.amount,
+                expectedAlloc.amount,
+                `allocation[${expectedAlloc.cohort}]`
+              );
+            }
+          }
+
+          // Validate pacing_targets_by_period if present (and result has the field)
+          if (tc.expected.pacing_targets_by_period && (result as any).pacing_targets_by_period) {
+            for (const expectedTarget of tc.expected.pacing_targets_by_period) {
+              const actualTarget = (result as any).pacing_targets_by_period.find(
+                (t: { period: string; target: number }) => t.period === expectedTarget.period
+              );
+              if (actualTarget) {
+                assertNumericEqual(
+                  actualTarget.target,
+                  expectedTarget.target,
+                  `pacing_target[${expectedTarget.period}]`
+                );
+              }
+            }
+          }
+
+          passed++;
+        } catch (error) {
+          failed++;
+          throw error;
+        }
       });
       return;
     }
@@ -216,7 +270,11 @@ describe('Capital Allocation Truth Cases', () => {
 
         // Validate reserve_balance if present in expected
         if (tc.expected.reserve_balance !== undefined) {
-          assertNumericEqual(result.reserve_balance, tc.expected.reserve_balance, 'reserve_balance');
+          assertNumericEqual(
+            result.reserve_balance,
+            tc.expected.reserve_balance,
+            'reserve_balance'
+          );
         }
 
         // Validate allocations_by_cohort

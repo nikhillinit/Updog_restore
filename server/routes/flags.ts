@@ -7,7 +7,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';
+import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 
 export const flagsRouter = Router();
@@ -148,7 +148,7 @@ const updateFlagSchema = z.object({
 /**
  * PATCH /api/admin/flags/:key - Update flag with versioning
  */
-adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedRequest, res: Response) => {
+adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
   try {
     const { key } = req.params;
     const validation = updateFlagSchema.safeParse(req.body);
@@ -180,7 +180,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     }
     
     const { reason, dryRun, ...updates } = validation.data;
-    
+
     // Dry run support
     if (dryRun) {
       // TODO: Preview changes without committing
@@ -189,13 +189,20 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
         preview: {
           key,
           updates,
-          actor: req.user.email,
+          actor: req.user?.email ?? 'unknown',
           timestamp: new Date().toISOString()
         }
       });
     }
-    
-    await updateFlag(key, updates, req.user, reason);
+
+    // Construct user context for audit trail
+    const userContext = {
+      sub: req.user?.id?.toString() ?? req.user?.sub ?? 'unknown',
+      email: req.user?.email ?? 'unknown',
+      ip: req.ip ?? 'unknown',
+      userAgent: req.headers['user-agent'] ?? 'unknown',
+    };
+    await updateFlag(key!, updates as any, userContext, reason!);
     
     const newVersion = await getFlagsVersion();
     

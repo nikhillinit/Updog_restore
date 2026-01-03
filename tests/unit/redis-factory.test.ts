@@ -13,7 +13,11 @@ import {
 } from '../../server/db/redis-factory';
 
 // Mock ioredis
-vi.mock('ioredis');
+const mockIORedis = vi.hoisted(() => vi.fn());
+vi.mock('ioredis', () => ({
+  __esModule: true,
+  default: mockIORedis,
+}));
 
 // Mock logger to avoid console noise during tests
 vi.mock('../../server/lib/logger', () => ({
@@ -53,7 +57,7 @@ describe('Redis Factory', () => {
     };
 
     // Mock IORedis constructor to return our mock instance
-    vi.mocked(IORedis).mockImplementation(() => mockRedisInstance);
+    mockIORedis.mockImplementation(() => mockRedisInstance);
   });
 
   afterEach(() => {
@@ -75,10 +79,13 @@ describe('Redis Factory', () => {
 
   describe('createRedis', () => {
     it('should create Redis client with default options', () => {
-      const redis = createRedis();
+      // Remove memory:// mode to test real IORedis constructor
+      delete process.env['REDIS_URL'];
 
-      expect(IORedis).toHaveBeenCalledTimes(1);
-      const options = vi.mocked(IORedis).mock.calls[0][0];
+      const _redis = createRedis();
+
+      expect(mockIORedis).toHaveBeenCalledTimes(1);
+      const options = mockIORedis.mock.calls[0][0];
 
       // Check default options are set
       expect(options).toMatchObject({
@@ -351,15 +358,15 @@ describe('Redis Factory', () => {
 
       // Check that logger.info was called but doesn't contain the password
       const logCalls = vi.mocked(logger.info).mock.calls;
-      const loggedStrings = logCalls.map(call => JSON.stringify(call));
+      const loggedStrings = logCalls.map((call) => JSON.stringify(call));
 
       // Password should not appear in any logs
-      loggedStrings.forEach(str => {
+      loggedStrings.forEach((str) => {
         expect(str).not.toContain('secret123');
       });
 
       // But masked version should appear
-      const hasConnectionLog = logCalls.some(call =>
+      const hasConnectionLog = logCalls.some((call) =>
         JSON.stringify(call).includes('redis://user:***@localhost:6379')
       );
       expect(hasConnectionLog).toBe(true);

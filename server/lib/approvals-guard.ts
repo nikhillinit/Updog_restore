@@ -168,7 +168,7 @@ export async function verifyApproval(
       ok: true,
       approvalId: approval.id,
       signatures: signatures.rows as Array<{ partnerEmail: string; approvedAt: Date; }>,
-      calculationHash: approval.calculationHash || undefined
+      ...(approval.calculationHash && { calculationHash: approval.calculationHash })
     };
 
   } catch (error) {
@@ -329,7 +329,7 @@ export async function createApprovalIfNeeded(
 
   // Create new approval request
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
-  const [approval] = await db.insert(reserveApprovals)
+  const result = await db.insert(reserveApprovals)
     .values({
       strategyId,
       requestedBy,
@@ -342,6 +342,11 @@ export async function createApprovalIfNeeded(
       expiresAt
     })
     .returning();
+
+  const approval = result[0];
+  if (!approval) {
+    throw new Error('Failed to create approval request');
+  }
 
   return {
     requiresApproval: true,

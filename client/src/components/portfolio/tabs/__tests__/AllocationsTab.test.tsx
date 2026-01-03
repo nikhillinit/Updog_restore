@@ -2,7 +2,7 @@
  * Unit tests for AllocationsTab component
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AllocationsTab } from '../AllocationsTab';
@@ -90,7 +90,7 @@ function renderWithQuery(ui: React.ReactElement) {
 
 describe('AllocationsTab', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi['clearAllMocks']();
     global.fetch = vi.fn();
   });
 

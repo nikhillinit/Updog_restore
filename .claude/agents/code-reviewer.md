@@ -81,3 +81,55 @@ brief summary.
 
 Be thorough but filter aggressively - quality over quantity. Focus on issues
 that truly matter.
+
+## Quality Gate Failures
+
+When CI validators fail, delegate to the appropriate diagnoser agent:
+
+### Delegation Matrix
+
+| If This Fails | Delegate To | What They Do |
+|---------------|-------------|--------------|
+| `baseline-check.sh` | baseline-regression-explainer | Diagnose test/TS/lint/bundle regression |
+| `validate-schema-drift.sh` | schema-drift-checker | Diagnose schema layer misalignment |
+| `bench-check.sh` | perf-regression-triager | Diagnose performance regression |
+| Truth-case tests | parity-auditor | Assess Excel parity impact |
+
+### Baseline Changes
+
+When PR modifies `.baselines/`:
+
+- [ ] Baseline change documented in PR description
+- [ ] `baseline-change` label present
+- [ ] Justification is acceptable per baseline-governance skill
+
+### Delegation Pattern
+
+```
+code-reviewer sees CI failure
+       |
+       v
+Identify which validator failed
+       |
+       +-- baseline-check.sh --> baseline-regression-explainer
+       |
+       +-- validate-schema-drift.sh --> schema-drift-checker
+       |
+       +-- bench-check.sh --> perf-regression-triager
+       |
+       +-- truth-case tests --> parity-auditor
+                          |
+                          v
+                    Receive diagnosis report
+                          |
+                          v
+                    Guide developer to fix or
+                    approve baseline update
+```
+
+### Financial Calculation PRs
+
+When PR touches calculation logic:
+- Proactively delegate to `parity-auditor` for impact assessment
+- Review truth case changes carefully
+- Verify tolerance changes have documented rationale

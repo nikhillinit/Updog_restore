@@ -15,7 +15,7 @@ if (!DATABASE_URL) {
 }
 
 // Create HTTP client (no persistent connections)
-const sql = neon(DATABASE_URL);
+export const sql = neon(DATABASE_URL);
 
 // Create Drizzle instance with HTTP driver
 export const db = drizzle(sql, { schema });

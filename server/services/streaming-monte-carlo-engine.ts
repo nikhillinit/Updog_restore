@@ -21,6 +21,7 @@ import type {
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
+import { config } from '../config/index.js';
 
 // Import existing types from the original engine
 import type {
@@ -91,10 +92,18 @@ class ConnectionPoolManager {
   private pools: Map<string, Pool> = new Map();
   private readonly maxPoolSize = 10;
   private readonly idleTimeoutMs = 30000;
-  private readonly connectionTimeoutMs = 5000;
+  private readonly connectionTimeoutMs = config.CONNECTION_TIMEOUT_MS;
 
   async getPool(connectionString?: string): Promise<Pool> {
-    const connStr = connectionString || process.env['DATABASE_URL']!;
+    const connStr = connectionString || process.env['DATABASE_URL'];
+
+    if (!connStr) {
+      throw new Error(
+        'DATABASE_URL environment variable is not set. ' +
+        'StreamingMonteCarloEngine requires a database connection.'
+      );
+    }
+
     const poolKey = this.hashConnectionString(connStr);
 
     if (!this.pools.has(poolKey)) {
@@ -137,7 +146,8 @@ class ConnectionPoolManager {
 // ============================================================================
 
 class StreamingAggregator {
-  private aggregatedData: {
+  // Use definite assignment assertion since it's initialized in reset() called by constructor
+  private aggregatedData!: {
     totalScenarios: number;
     sums: Record<string, number>;
     squares: Record<string, number>;
@@ -180,14 +190,14 @@ class StreamingAggregator {
       const value = scenario[metric as keyof SingleScenario] as number;
 
       // Running sums for mean
-      this.aggregatedData.sums[metric] = (this.aggregatedData.sums[metric] || 0) + value;
+      this.aggregatedData['sums'][metric] = (this.aggregatedData['sums'][metric] || 0) + value;
 
       // Running squares for variance
-      this.aggregatedData.squares[metric] = (this.aggregatedData.squares[metric] || 0) + (value * value);
+      this.aggregatedData['squares'][metric] = (this.aggregatedData['squares'][metric] || 0) + (value * value);
 
       // Min/Max tracking
-      this.aggregatedData.mins[metric] = Math.min(this.aggregatedData.mins[metric] || value, value);
-      this.aggregatedData.maxs[metric] = Math.max(this.aggregatedData.maxs[metric] || value, value);
+      this.aggregatedData['mins'][metric] = Math.min(this.aggregatedData['mins'][metric] || value, value);
+      this.aggregatedData['maxs'][metric] = Math.max(this.aggregatedData['maxs'][metric] || value, value);
 
       // Reservoir sampling for percentiles
       this.addToReservoir(metric, value);
@@ -198,11 +208,11 @@ class StreamingAggregator {
   }
 
   private addToReservoir(metric: string, value: number): void {
-    if (!this.aggregatedData.sortedSamples[metric]) {
-      this.aggregatedData.sortedSamples[metric] = [];
+    if (!this.aggregatedData['sortedSamples'][metric]) {
+      this.aggregatedData['sortedSamples'][metric] = [];
     }
 
-    const samples = this.aggregatedData.sortedSamples[metric];
+    const samples = this.aggregatedData['sortedSamples'][metric];
     if (samples.length < this.maxSampleSize) {
       samples.push(value);
     } else {
@@ -215,16 +225,16 @@ class StreamingAggregator {
   }
 
   private addToHistogram(metric: string, value: number): void {
-    if (!this.aggregatedData.histogram[metric]) {
-      this.aggregatedData.histogram[metric] = new Map();
+    if (!this.aggregatedData['histogram'][metric]) {
+      this.aggregatedData['histogram'][metric] = new Map();
     }
 
-    const min = this.aggregatedData.mins[metric];
-    const max = this.aggregatedData.maxs[metric];
-    const binSize = (max - min) / this.histogramBins;
+    const min = this.aggregatedData['mins'][metric] ?? 0;
+    const max = this.aggregatedData['maxs'][metric] ?? 1;
+    const binSize = (max - min) / this.histogramBins || 1;
     const binIndex = Math.floor((value - min) / binSize);
 
-    const histogram = this.aggregatedData.histogram[metric];
+    const histogram = this.aggregatedData['histogram'][metric];
     histogram['set'](binIndex, (histogram['get'](binIndex) || 0) + 1);
   }
 
@@ -241,15 +251,15 @@ class StreamingAggregator {
 
   private calculateDistribution(metric: string): MemoryEfficientDistribution {
     const count = this.aggregatedData.totalScenarios;
-    const sum = this.aggregatedData.sums[metric] || 0;
-    const sumSquares = this.aggregatedData.squares[metric] || 0;
+    const sum = this.aggregatedData['sums'][metric] || 0;
+    const sumSquares = this.aggregatedData['squares'][metric] || 0;
 
     const mean = sum / count;
     const variance = (sumSquares / count) - (mean * mean);
     const standardDeviation = Math.sqrt(Math.max(0, variance));
 
     // Calculate percentiles from sorted samples
-    const samples = this.aggregatedData.sortedSamples[metric] || [];
+    const samples = this.aggregatedData['sortedSamples'][metric] || [];
     samples.sort((a: any, b: any) => a - b);
 
     const percentiles = new Map<number, number>();
@@ -261,8 +271,8 @@ class StreamingAggregator {
     }
 
     return {
-      min: this.aggregatedData.mins[metric] || 0,
-      max: this.aggregatedData.maxs[metric] || 0,
+      min: this.aggregatedData['mins'][metric] || 0,
+      max: this.aggregatedData['maxs'][metric] || 0,
       mean,
       standardDeviation,
       percentiles,
@@ -290,11 +300,30 @@ class StreamingAggregator {
 
 export class StreamingMonteCarloEngine {
   private connectionManager = new ConnectionPoolManager();
-  private db: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private db: any = null;
+  private dbInitPromise: Promise<void> | null = null;
   private currentStats: StreamingStats | null = null;
 
   constructor() {
-    this.initializeDatabase();
+    // Lazy initialization - don't connect to DB until actually needed
+    // This allows the engine to be instantiated in test environments
+    // without requiring DATABASE_URL
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async ensureDatabase(): Promise<any> {
+    if (this.db) {
+      return this.db;
+    }
+
+    // Prevent concurrent initialization
+    if (!this.dbInitPromise) {
+      this.dbInitPromise = this.initializeDatabase();
+    }
+
+    await this.dbInitPromise;
+    return this.db;
   }
 
   private async initializeDatabase(): Promise<void> {
@@ -395,7 +424,8 @@ export class StreamingMonteCarloEngine {
       return results;
 
     } catch (error) {
-      throw new Error(`Streaming Monte Carlo simulation failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Streaming Monte Carlo simulation failed: ${errorMessage}`);
     } finally {
       // Cleanup resources
       await this.cleanup();
@@ -546,31 +576,36 @@ export class StreamingMonteCarloEngine {
    * Calculate risk metrics from streaming data
    */
   private async calculateStreamingRiskMetrics(distributions: Record<string, MemoryEfficientDistribution>): Promise<RiskMetrics> {
-    const irrDist = distributions.irr;
-    const totalValueDist = distributions.totalValue;
+    const irrDist = distributions['irr'];
+    const totalValueDist = distributions['totalValue'];
+
+    // Default values for missing distributions
+    const defaultDist = { mean: 0, min: 0, max: 1, standardDeviation: 1, percentiles: new Map() };
+    const irr = irrDist ?? defaultDist;
+    const totalValue = totalValueDist ?? defaultDist;
 
     // Value at Risk from percentiles
-    const var5 = irrDist.percentiles['get'](5) || irrDist.min;
-    const var10 = irrDist.percentiles['get'](10) || irrDist.min;
+    const var5 = irr.percentiles['get'](5) ?? irr.min;
+    const var10 = irr.percentiles['get'](10) ?? irr.min;
 
     // Estimate CVaR (simplified calculation)
     const cvar5 = var5 * 0.8; // Conservative estimate
     const cvar10 = var10 * 0.85;
 
     // Probability of loss (using normal approximation)
-    const probabilityOfLoss = this.normalCDF(0, irrDist.mean, irrDist.standardDeviation);
+    const probabilityOfLoss = this.normalCDF(0, irr.mean, irr.standardDeviation);
 
     // Downside risk (simplified calculation)
-    const downsideRisk = irrDist.standardDeviation * 0.7; // Approximate
+    const downsideRisk = irr.standardDeviation * 0.7; // Approximate
 
     // Risk ratios
     const riskFreeRate = 0.02;
-    const excessReturn = irrDist.mean - riskFreeRate;
-    const sharpeRatio = excessReturn / irrDist.standardDeviation;
-    const sortinoRatio = excessReturn / downsideRisk;
+    const excessReturn = irr.mean - riskFreeRate;
+    const sharpeRatio = irr.standardDeviation !== 0 ? excessReturn / irr.standardDeviation : 0;
+    const sortinoRatio = downsideRisk !== 0 ? excessReturn / downsideRisk : 0;
 
     // Max drawdown (estimated)
-    const maxDrawdown = (totalValueDist.max - totalValueDist.min) / totalValueDist.max;
+    const maxDrawdown = totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
 
     return {
       valueAtRisk: { var5, var10 },
@@ -603,8 +638,9 @@ export class StreamingMonteCarloEngine {
 
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
-      const expectedIRR = this.estimateReserveImpact(distributions.irr.mean, ratio, portfolioInputs);
-      const riskAdjustedReturn = expectedIRR / distributions.irr.standardDeviation;
+      const irrDistribution = distributions['irr'];
+      const expectedIRR = this.estimateReserveImpact(irrDistribution?.mean ?? 0, ratio, portfolioInputs);
+      const riskAdjustedReturn = expectedIRR / (irrDistribution?.standardDeviation ?? 1);
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
       allocationAnalysis.push({
@@ -624,7 +660,7 @@ export class StreamingMonteCarloEngine {
       currentReserveRatio,
       optimalReserveRatio: optimal.reserveRatio,
       improvementPotential: optimal.expectedIRR -
-        allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0,
+        (allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0),
       coverageScenarios: {
         p25: 0.6,
         p50: 0.75,
@@ -739,10 +775,11 @@ export class StreamingMonteCarloEngine {
   // Reuse existing methods from the original engine
   private async getBaselineData(fundId: number, baselineId?: string): Promise<FundBaseline> {
     // Implementation same as original engine
+    const db = await this.ensureDatabase();
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await this.db.query.fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.id, baselineId),
           eq(schema.fundBaselines.fundId, fundId),
@@ -750,7 +787,7 @@ export class StreamingMonteCarloEngine {
         )
       });
     } else {
-      baseline = await this.db.query.fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isDefault, true),
@@ -768,7 +805,8 @@ export class StreamingMonteCarloEngine {
 
   private async getPortfolioInputs(fundId: number, baseline: FundBaseline): Promise<PortfolioInputs> {
     // Implementation same as original engine
-    const fund = await this.db.query.funds.findFirst({
+    const db = await this.ensureDatabase();
+    const fund = await db.query.funds.findFirst({
       where: eq(schema.funds.id, fundId)
     });
 
@@ -809,7 +847,8 @@ export class StreamingMonteCarloEngine {
 
   private async calibrateDistributions(fundId: number, baseline: FundBaseline): Promise<DistributionParameters> {
     // Implementation same as original engine
-    const reports = await this.db.query.varianceReports.findMany({
+    const db = await this.ensureDatabase();
+    const reports = await db.query.varianceReports.findMany({
       where: and(
         eq(schema.varianceReports.fundId, fundId),
         eq(schema.varianceReports.baselineId, baseline.id)
@@ -949,6 +988,7 @@ export class StreamingMonteCarloEngine {
   }
 
   private async storeResults(results: SimulationResults): Promise<void> {
+    const db = await this.ensureDatabase();
     const simulationData: InsertMonteCarloSimulation = {
       fundId: results.config.fundId,
       simulationName: `Streaming Monte Carlo Simulation ${new Date().toISOString()}`,
@@ -959,7 +999,7 @@ export class StreamingMonteCarloEngine {
       createdBy: 1, // TODO: Get from context
     };
 
-    await this.db.insert(schema.monteCarloSimulations).values(simulationData);
+    await db.insert(schema.monteCarloSimulations).values(simulationData);
   }
 
   private setRandomSeed(seed: number): void {

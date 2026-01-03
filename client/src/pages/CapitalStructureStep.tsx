@@ -8,7 +8,8 @@ import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
-import { AllocationSliders, Allocation } from '@/components/ui/AllocationSliders';
+import type { Allocation } from '@/components/ui/AllocationSliders';
+import { AllocationSliders } from '@/components/ui/AllocationSliders';
 import { WizardCard } from '@/components/wizard/WizardCard';
 
 // Capital Allocation interface

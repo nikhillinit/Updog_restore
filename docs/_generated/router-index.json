@@ -1,16 +1,9 @@
 {
-  "generatedAt": "2025-12-14T02:00:53.582Z",
+  "generatedAt": "2026-01-02T00:23:05.749Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
-    "generic_terms": [
-      "test",
-      "error",
-      "fix",
-      "update",
-      "change",
-      "help"
-    ]
+    "generic_terms": ["test", "error", "fix", "update", "change", "help"]
   },
   "decision_tree": {
     "Q0": {
@@ -26,13 +19,7 @@
     "Q1": {
       "id": "capability_check",
       "question": "Does this involve implementing something NEW?",
-      "keywords": [
-        "implement",
-        "create",
-        "add",
-        "build",
-        "new feature"
-      ],
+      "keywords": ["implement", "create", "add", "build", "new feature"],
       "next": "Q2",
       "action_if_true": {
         "route": "CAPABILITIES.md",
@@ -77,13 +64,7 @@
     "Q4": {
       "id": "history_check",
       "question": "Is this about recent changes or history?",
-      "keywords": [
-        "changed",
-        "history",
-        "changelog",
-        "recent",
-        "update"
-      ],
+      "keywords": ["changed", "history", "changelog", "recent", "update"],
       "next": "Q5",
       "action_if_true": {
         "route": "CHANGELOG.md"
@@ -93,12 +74,7 @@
     "Q5": {
       "id": "category_routing",
       "question": "Which category does this fall into?",
-      "keywords": [
-        "develop",
-        "code",
-        "implement",
-        "feature"
-      ],
+      "keywords": ["develop", "code", "implement", "feature"],
       "next": "Q6",
       "branches": {
         "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"SIDECAR_GUIDE.md\""
@@ -195,13 +171,7 @@
       "id": "phoenix_xirr",
       "priority": 14,
       "category": "Phoenix",
-      "keywords": [
-        "xirr",
-        "irr",
-        "fees",
-        "management fee",
-        "carry fee"
-      ],
+      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
       "target": ".claude/agents/xirr-fees-validator.md",
       "agent": "xirr-fees-validator"
     },
@@ -303,13 +273,7 @@
       "id": "ci_cd",
       "priority": 31,
       "category": "CI/CD",
-      "keywords": [
-        "ci",
-        "cd",
-        "github actions",
-        "workflow",
-        "pipeline"
-      ],
+      "keywords": ["ci", "cd", "github actions", "workflow", "pipeline"],
       "target": "docs/workflows/README.md"
     },
     {
@@ -505,13 +469,7 @@
       "id": "quality_gates",
       "priority": 94,
       "category": "Quality",
-      "keywords": [
-        "gate",
-        "quality gate",
-        "raci",
-        "gate tracking",
-        "approval"
-      ],
+      "keywords": ["gate", "quality gate", "raci", "gate tracking", "approval"],
       "target": "docs/gates/"
     },
     {
@@ -585,13 +543,7 @@
       "id": "troubleshooting",
       "priority": 100,
       "category": "Troubleshooting",
-      "keywords": [
-        "error",
-        "broken",
-        "issue",
-        "problem",
-        "not working"
-      ],
+      "keywords": ["error", "broken", "issue", "problem", "not working"],
       "target": "SIDECAR_GUIDE.md"
     }
   ],
@@ -599,68 +551,47 @@
     {
       "name": "phoenix-truth-case-runner",
       "skill": "phoenix-truth-case-orchestrator",
-      "phase": [
-        "0"
-      ]
+      "phase": ["0"]
     },
     {
       "name": "phoenix-precision-guardian",
       "skill": "phoenix-precision-guard",
-      "phase": [
-        "1A"
-      ]
+      "phase": ["1A"]
     },
     {
       "name": "waterfall-specialist",
       "skill": "phoenix-waterfall-ledger-semantics",
-      "phase": [
-        "0",
-        "1B"
-      ]
+      "phase": ["0", "1B"]
     },
     {
       "name": "xirr-fees-validator",
       "skill": "phoenix-xirr-fees-validator",
-      "phase": [
-        "0",
-        "1B"
-      ]
+      "phase": ["0", "1B"]
     },
     {
       "name": "phoenix-capital-allocation-analyst",
       "skill": "phoenix-capital-exit-investigator",
-      "phase": [
-        "0",
-        "1A"
-      ]
+      "phase": ["0", "1A"]
     },
     {
       "name": "phoenix-docs-scribe",
       "skill": "phoenix-docs-sync",
-      "phase": [
-        "1A"
-      ]
+      "phase": ["1A"]
     },
     {
       "name": "phoenix-probabilistic-engineer",
       "skill": "phoenix-advanced-forecasting",
-      "phase": [
-        "2"
-      ]
+      "phase": ["2"]
     },
     {
       "name": "phoenix-reserves-optimizer",
       "skill": "phoenix-reserves-optimizer",
-      "phase": [
-        "2"
-      ]
+      "phase": ["2"]
     },
     {
       "name": "phoenix-brand-reporting-stylist",
       "skill": "phoenix-brand-reporting",
-      "phase": [
-        "3"
-      ]
+      "phase": ["3"]
     }
   ],
   "docs": [
@@ -713,6 +644,18 @@
       "owner": null
     },
     {
+      "path": "BASELINE-SNAPSHOT-20251215.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md",
       "exists": true,
       "docType": "doc",
@@ -732,10 +675,7 @@
         "status": "ACTIVE",
         "audience": "both",
         "last_updated": "2025-12-12",
-        "categories": [
-          "development",
-          "skills-tools"
-        ],
+        "categories": ["development", "skills-tools"],
         "keywords": [
           "capabilities",
           "agents",
@@ -746,20 +686,17 @@
         ],
         "source_of_truth": true,
         "priority": 1,
-        "route_hint": "Read this FIRST before implementing anything new.",
-        "use_cases": [
-          "capability_discovery",
-          "feature_planning"
-        ],
-        "owner": "Core Team",
-        "review_cadence": "P90D"
+        "route_hint": "'Read this FIRST before implementing anything new.'",
+        "use_cases": ["capability_discovery", "feature_planning"],
+        "owner": "'Core Team'",
+        "review_cadence": "'P90D'"
       },
       "isStale": false,
-      "staleDays": 2,
+      "staleDays": 21,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
-      "owner": "Core Team"
+      "owner": "'Core Team'"
     },
     {
       "path": "CHANGELOG.md",
@@ -871,6 +808,49 @@
     },
     {
       "path": "FEATURE_FLAGS_READY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "FOUNDATION-HARDENING-EXECUTION-PLAN.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-16",
+        "categories": ["testing", "quality", "sprint-planning"],
+        "keywords": [
+          "foundation-hardening",
+          "test-repair",
+          "quality-gates",
+          "v4-infrastructure"
+        ],
+        "source_of_truth": true,
+        "priority": 1,
+        "route_hint": "'Execution-ready plan for Foundation Hardening Sprint'",
+        "use_cases": ["test_repair", "quality_improvement", "sprint_execution"],
+        "owner": "'Core Team'",
+        "review_cadence": "'Post-sprint'",
+        "supersedes": "FOUNDATION-HARDENING-PLAN.md",
+        "related_prs": ["282"]
+      },
+      "isStale": false,
+      "staleDays": 17,
+      "hasExecutionClaims": true,
+      "lastUpdated": "2025-12-16",
+      "status": "ACTIVE",
+      "owner": "'Core Team'"
+    },
+    {
+      "path": "FOUNDATION-HARDENING-PLAN.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -1057,6 +1037,18 @@
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "KICKOFF-HYGIENE-SPRINT.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
@@ -1602,6 +1594,18 @@
       "owner": null
     },
     {
+      "path": "SESSION_V5_COMPLETE_SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "SIDECAR_GUIDE.md",
       "exists": true,
       "docType": "doc",
@@ -1639,6 +1643,42 @@
     },
     {
       "path": "SUPERPOWERS-INTEGRATION-SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "TEST_FIX_SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "TEST_REPAIR_SESSION_SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "TEST_REPAIR_SUMMARY.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -1734,6 +1774,18 @@
       "owner": null
     },
     {
+      "path": "WORKTREE-INVENTORY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "plan.md",
       "exists": true,
       "docType": "doc",
@@ -1818,6 +1870,18 @@
       "owner": null
     },
     {
+      "path": "docs/ARCHITECTURAL-DEBT.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/BUILD_READINESS.md",
       "exists": true,
       "docType": "doc",
@@ -1830,7 +1894,43 @@
       "owner": null
     },
     {
+      "path": "docs/CA-IMPLEMENTATION-PLAN.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/CA-SEMANTIC-LOCK.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/CI_GATING_TEST.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/CLAUDE-INFRA-V4-INTEGRATION-PLAN.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -1962,6 +2062,18 @@
       "owner": null
     },
     {
+      "path": "docs/DEVELOPMENT-STRATEGY-2025-12-14.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
       "exists": true,
       "docType": "doc",
@@ -1969,11 +2081,7 @@
         "status": "ACTIVE",
         "audience": "both",
         "last_updated": "2025-12-12",
-        "categories": [
-          "development",
-          "skills-tools",
-          "ai-automation"
-        ],
+        "categories": ["development", "skills-tools", "ai-automation"],
         "keywords": [
           "agents",
           "tools",
@@ -1986,15 +2094,12 @@
         "source_of_truth": true,
         "priority": 2,
         "route_hint": "Complete inventory of AI tools and automation.",
-        "use_cases": [
-          "tool_discovery",
-          "agent_selection"
-        ],
+        "use_cases": ["tool_discovery", "agent_selection"],
         "owner": "Core Team",
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 2,
+      "staleDays": 21,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -2067,34 +2172,22 @@
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "both",
-        "last_updated": "2025-12-14",
-        "categories": [
-          "documentation",
-          "navigation"
-        ],
-        "keywords": [
-          "index",
-          "docs",
-          "navigation",
-          "routing",
-          "documentation"
-        ],
+        "last_updated": "2025-12-16",
+        "categories": ["documentation", "navigation"],
+        "keywords": ["index", "docs", "navigation", "routing", "documentation"],
         "source_of_truth": true,
         "priority": 2,
-        "route_hint": "Central navigation for all documentation.",
-        "use_cases": [
-          "doc_discovery",
-          "onboarding"
-        ],
-        "owner": "Core Team",
-        "review_cadence": "P90D"
+        "route_hint": "'Central navigation for all documentation.'",
+        "use_cases": ["doc_discovery", "onboarding"],
+        "owner": "'Core Team'",
+        "review_cadence": "'P90D'"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 17,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-14",
+      "lastUpdated": "2025-12-16",
       "status": "ACTIVE",
-      "owner": "Core Team"
+      "owner": "'Core Team'"
     },
     {
       "path": "docs/INFRASTRUCTURE_REMEDIATION.md",
@@ -2344,11 +2437,7 @@
         "status": "ACTIVE",
         "audience": "both",
         "last_updated": "2025-12-14",
-        "categories": [
-          "phoenix",
-          "validation",
-          "vc-modeling"
-        ],
+        "categories": ["phoenix", "validation", "vc-modeling"],
         "keywords": [
           "phoenix",
           "truth-case",
@@ -2363,19 +2452,28 @@
         "phase2_docs": "COMPLETE",
         "priority": 1,
         "route_hint": "Entry point for all Phoenix project work.",
-        "use_cases": [
-          "phoenix_validation",
-          "vc_modeling"
-        ],
+        "use_cases": ["phoenix_validation", "vc_modeling"],
         "owner": "Phoenix Team",
         "review_cadence": "P30D"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 19,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-14",
       "status": "ACTIVE",
       "owner": "Phoenix Team"
+    },
+    {
+      "path": "docs/PHOENIX-SOT/brand-bridge.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
     },
     {
       "path": "docs/PHOENIX-SOT/deferred-vesting-plan.md",
@@ -2391,6 +2489,18 @@
     },
     {
       "path": "docs/PHOENIX-SOT/execution-plan-v2.34.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -2931,6 +3041,18 @@
     },
     {
       "path": "docs/adr/ADR-012-mem0-integration.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-013-scenario-comparison-activation.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -3870,6 +3992,78 @@
       "owner": null
     },
     {
+      "path": "docs/foundation/PHASE0.5-TEST-DATA-INFRASTRUCTURE.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/foundation/PHASE2-ROADMAP-IMPROVEMENTS.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/foundation/PHASE2-ROADMAP.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/foundation/PHASE3-KICKOFF.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/foundation/PHASE4-KICKOFF.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/foundation/PHASE4-SESSION1-SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/fund-allocation-phase1b.md",
       "exists": true,
       "docType": "doc",
@@ -4219,6 +4413,59 @@
     },
     {
       "path": "docs/iterations/iteration-a-implementation-guide.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/lp-deployment-checklist.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/lp-observability-implementation.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/lp-reporting-database-optimization.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "title": "LP Reporting Dashboard - Database Optimization Guide",
+        "status": "active",
+        "last_updated": "2025-12-23",
+        "categories": ["database", "performance", "architecture"]
+      },
+      "isStale": false,
+      "staleDays": 10,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-23",
+      "status": "active",
+      "owner": null
+    },
+    {
+      "path": "docs/lp-slo-definitions.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -4902,6 +5149,328 @@
       "owner": null
     },
     {
+      "path": "docs/plans/2025-12-28-backend-testing-improvements.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-phase2-planning-REVIEW.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-phase2-planning.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-phase3c-solo-execution.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-phoenix-phase3-planning.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-plan-review-and-refinements.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-29-pr-318-merge-validation-plan.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/2025-12-31-lp-portal-sprint-3.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/FOUNDATION-HARDENING-STRATEGY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/HANDOFF-SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-16",
+        "categories": ["phoenix", "foundation-hardening", "coordination"],
+        "source_of_truth": true,
+        "priority": 1,
+        "use_cases": ["phoenix_hardening_coordination", "divergence_triage"],
+        "owner": "'Core Team'",
+        "review_cadence": "'P30D'"
+      },
+      "isStale": false,
+      "staleDays": 17,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-16",
+      "status": "ACTIVE",
+      "owner": "'Core Team'"
+    },
+    {
+      "path": "docs/plans/WEEK1-TOOL-ROUTING-EXECUTION.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2-TOOL-ROUTING-EXECUTION.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-FOUNDATION-HARDENING-RESULTS.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-INDEX.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-PHASE2-AGENT-STRATEGY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-PHASE2-COMPLETE-GUIDE.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-PHASE2-JSDOM-RTL-KICKOFF.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-PHASE2-SUCCESS.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WEEK2.5-PHASE3-PR-SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/WORKFLOW-ENGINE-INTEGRATION-PLAN.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/plans/xstate-persistence-implementation.md",
       "exists": true,
       "docType": "doc",
@@ -5478,6 +6047,30 @@
       "owner": null
     },
     {
+      "path": "docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/reviews/CA-IMPLEMENTATION-EVALUATION-REFINED.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "docs/rollback-playbook.md",
       "exists": true,
       "docType": "doc",
@@ -5826,18 +6419,6 @@
       "owner": null
     },
     {
-      "path": "docs/stakeholder-memo.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
       "path": "docs/standards.md",
       "exists": true,
       "docType": "doc",
@@ -5860,6 +6441,33 @@
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
+    },
+    {
+      "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "both",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Developer'",
+        "review_cadence": "P90D",
+        "categories": ["tech-debt", "development", "type-safety"],
+        "keywords": [
+          "typescript",
+          "any-elimination",
+          "type-guards",
+          "branded-types"
+        ],
+        "priority": 2,
+        "use_cases": ["task_execution"]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Developer'"
     },
     {
       "path": "docs/templates/README.md",
@@ -6054,30 +6662,6 @@
       "owner": null
     },
     {
-      "path": "docs/workflows/CONSOLIDATION_FINAL_VALIDATED.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": true,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": "docs/workflows/CONSOLIDATION_PLAN_FINAL.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
       "path": "docs/workflows/CONSOLIDATION_PLAN_V2.md",
       "exists": true,
       "docType": "doc",
@@ -6138,6 +6722,57 @@
       "owner": null
     },
     {
+      "path": "docs/xirr-consolidation-roadmap.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "both",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Developer'",
+        "review_cadence": "P60D",
+        "categories": ["tech-debt", "architecture", "financial-calculations"],
+        "keywords": [
+          "xirr",
+          "consolidation",
+          "excel-parity",
+          "financial-accuracy"
+        ],
+        "priority": 1,
+        "use_cases": ["task_execution", "capability_discovery"],
+        "- event": "'xirr_consolidation_complete'",
+        "action": "'Update status to REFERENCE'"
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": true,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Developer'"
+    },
+    {
+      "path": "docs/xirr-consolidation-summary.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "both",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Developer'",
+        "review_cadence": "P90D",
+        "categories": ["tech-debt", "architecture", "documentation"],
+        "keywords": ["xirr", "executive-summary", "consolidation"],
+        "priority": 1,
+        "use_cases": ["capability_discovery"]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": true,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Developer'"
+    },
+    {
       "path": "docs/xirr-excel-validation.md",
       "exists": true,
       "docType": "doc",
@@ -6175,6 +6810,18 @@
     },
     {
       "path": "docs/zen-mcp-integration-summary.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/INDEX.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -6258,7 +6905,31 @@
       "owner": null
     },
     {
+      "path": "cheatsheets/baseline-governance.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "cheatsheets/capability-checklist.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/ci-validator-guide.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -6438,6 +7109,33 @@
       "owner": null
     },
     {
+      "path": "cheatsheets/lp-deployment-quick-reference.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/lp-reporting-quick-reference.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "title": "LP Reporting Dashboard - Quick Reference",
+        "status": "active"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "active",
+      "owner": null
+    },
+    {
       "path": "cheatsheets/memory-commands.md",
       "exists": true,
       "docType": "doc",
@@ -6534,7 +7232,43 @@
       "owner": null
     },
     {
+      "path": "cheatsheets/schema-alignment.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": "cheatsheets/service-testing-patterns.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/test-pyramid.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/testcontainers-guide.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -6558,6 +7292,55 @@
       "owner": null
     },
     {
+      "path": ".claude/AGENT-DIRECTORY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P30D",
+        "categories": ["agents", "routing", "discovery"],
+        "keywords": [
+          "agent-directory",
+          "agent-selection",
+          "canonical-locations"
+        ]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
+    },
+    {
+      "path": ".claude/AGENT-METRICS.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P7D",
+        "categories": ["agents", "metrics", "performance"],
+        "keywords": [
+          "agent-metrics",
+          "usage-tracking",
+          "performance",
+          "success-rate"
+        ]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
+    },
+    {
       "path": ".claude/ANTI-DRIFT-CHECKLIST.md",
       "exists": true,
       "docType": "doc",
@@ -6570,20 +7353,28 @@
       "owner": null
     },
     {
+      "path": ".claude/DELIVERY-SUMMARY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/DISCOVERY-MAP.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "agents",
-        "last_updated": "2025-12-14",
-        "owner": "Platform Team",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
         "review_cadence": "P30D",
-        "categories": [
-          "discovery",
-          "agents",
-          "routing"
-        ],
+        "categories": ["discovery", "agents", "routing"],
         "keywords": [
           "discovery-map",
           "routing",
@@ -6592,11 +7383,11 @@
         ]
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 4,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-14",
+      "lastUpdated": "2025-12-29",
       "status": "ACTIVE",
-      "owner": "Platform Team"
+      "owner": "'Platform Team'"
     },
     {
       "path": ".claude/PHOENIX-TOOL-ROUTING.md",
@@ -6639,6 +7430,25 @@
       "exists": true,
       "docType": "agent",
       "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/baseline-regression-explainer.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "baseline-regression-explainer",
+        "description": "Diagnose quality metric regressions detected by baseline-check. Determine root cause and whether baseline update or fix is required.",
+        "model": "sonnet",
+        "tools": "Read, Grep, Glob, Bash",
+        "skills": "baseline-governance, systematic-debugging",
+        "permissionMode": "default"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -6896,6 +7706,25 @@
       "owner": null
     },
     {
+      "path": ".claude/agents/parity-auditor.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "parity-auditor",
+        "description": "Assess impact of calculation changes on Excel parity and truth cases. Invoked when PRs touch financial calculation logic.",
+        "model": "sonnet",
+        "tools": "Read, Grep, Glob, Bash",
+        "skills": "financial-calc-correctness, systematic-debugging",
+        "permissionMode": "default"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/agents/perf-guard.md",
       "exists": true,
       "docType": "agent",
@@ -6903,6 +7732,25 @@
         "name": "perf-guard",
         "tools": "Read, Bash, Grep, Glob, Write",
         "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/perf-regression-triager.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "perf-regression-triager",
+        "description": "Diagnose performance regressions detected by bench-check. Determine if algorithmic, environmental, or data-dependent.",
+        "model": "sonnet",
+        "tools": "Read, Grep, Glob, Bash",
+        "skills": "systematic-debugging, statistical-testing",
+        "permissionMode": "default"
       },
       "isStale": true,
       "staleDays": 999,
@@ -7046,6 +7894,25 @@
       "owner": null
     },
     {
+      "path": ".claude/agents/playwright-test-author.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "playwright-test-author",
+        "description": "Create Playwright E2E tests for browser-only behaviors. Invoked by test-repair when jsdom is insufficient.",
+        "model": "sonnet",
+        "tools": "Read, Write, Edit, Bash, Glob",
+        "skills": "test-pyramid, react-hook-form-stability, systematic-debugging",
+        "permissionMode": "default"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/agents/pr-test-analyzer.md",
       "exists": true,
       "docType": "agent",
@@ -7054,6 +7921,25 @@
         "description": "Use this agent when you need to review a pull request for test coverage quality and completeness. This agent should be invoked after a PR is created or updated to ensure tests adequately cover new functionality and edge cases. Examples:\\n\\n<example>\\nContext: Daisy has just created a pull request with new functionality.\\nuser: \"I've created the PR. Can you check if the tests are thorough?\"\\nassistant: \"I'll use the pr-test-analyzer agent to review the test coverage and identify any critical gaps.\"\\n<commentary>\\nSince Daisy is asking about test thoroughness in a PR, use the Task tool to launch the pr-test-analyzer agent.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: A pull request has been updated with new code changes.\\nuser: \"The PR is ready for review - I added the new validation logic we discussed\"\\nassistant: \"Let me analyze the PR to ensure the tests adequately cover the new validation logic and edge cases.\"\\n<commentary>\\nThe PR has new functionality that needs test coverage analysis, so use the pr-test-analyzer agent.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: Reviewing PR feedback before marking as ready.\\nuser: \"Before I mark this PR as ready, can you double-check the test coverage?\"\\nassistant: \"I'll use the pr-test-analyzer agent to thoroughly review the test coverage and identify any critical gaps before you mark it ready.\"\\n<commentary>\\nDaisy wants a final test coverage check before marking PR ready, use the pr-test-analyzer agent.\\n</commentary>\\n</example>",
         "model": "inherit",
         "color": "cyan"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/schema-drift-checker.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "schema-drift-checker",
+        "description": "Diagnose schema alignment across migration -> Drizzle -> Zod -> mock layers. Invoked by parent agents when schema changes detected.",
+        "model": "sonnet",
+        "tools": "Read, Grep, Glob, Bash",
+        "skills": "systematic-debugging, root-cause-tracing",
+        "permissionMode": "default"
       },
       "isStale": true,
       "staleDays": 999,
@@ -7112,6 +7998,22 @@
       "owner": null
     },
     {
+      "path": ".claude/agents/test-scaffolder.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "test-scaffolder",
+        "tools": "Read, Write, Edit, Bash, Grep, Glob",
+        "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/agents/type-design-analyzer.md",
       "exists": true,
       "docType": "agent",
@@ -7147,6 +8049,22 @@
       "owner": null
     },
     {
+      "path": ".claude/agents/workflow-orchestrator.md",
+      "exists": true,
+      "docType": "agent",
+      "frontmatter": {
+        "name": "workflow-orchestrator",
+        "description": "Auto-chain related agents based on code changes. Analyzes what files changed and automatically invokes the appropriate sequence of validation agents. Use when you want comprehensive validation without manually invoking each agent.",
+        "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/agents/xirr-fees-validator.md",
       "exists": true,
       "docType": "agent",
@@ -7169,7 +8087,25 @@
       "path": ".claude/commands/catalog-tooling.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Comprehensive catalog of all development tooling and assets",
+        "allowed-tools": "Read, Grep, Glob"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/db-validate.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Pre-deployment database schema validation",
+        "allowed-tools": "Read, Bash, Grep, Glob"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -7195,7 +8131,11 @@
       "path": ".claude/commands/enable-agent-memory.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Guide for enabling native memory capabilities in agents",
+        "argument-hint": "[agent-name]",
+        "allowed-tools": "Read, Write, Edit, Grep, Glob"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -7225,6 +8165,38 @@
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/log-change.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Guided changelog entry for CHANGELOG.md",
+        "argument-hint": "[type=feat|fix|chore|refactor|docs|test] [description]",
+        "allowed-tools": "Read, Write, Edit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/log-decision.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Guided ADR (Architecture Decision Record) entry for DECISIONS.md",
+        "argument-hint": "[title]",
+        "allowed-tools": "Read, Write, Edit, Grep"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
@@ -7279,10 +8251,42 @@
       "owner": null
     },
     {
+      "path": ".claude/commands/pr-ready.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Single command for full pre-PR validation workflow",
+        "allowed-tools": "Read, Write, Edit, Bash, Grep, Glob"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/pre-commit-check.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {
+        "description": "Validate code quality before committing (lint, typecheck, tests)"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/commands/session-start.md",
       "exists": true,
       "docType": "command",
-      "frontmatter": {},
+      "frontmatter": {
+        "description": "Initialize session context with Memory Manager integration",
+        "allowed-tools": "Read, Bash"
+      },
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": false,
@@ -7311,6 +8315,365 @@
       "frontmatter": {
         "description": "Interactive helper showing available tools and when to use them"
       },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/wshobson/deps-audit.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/wshobson/tech-debt.md",
+      "exists": true,
+      "docType": "command",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/docs/TEST-STRATEGY.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "agents",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Team'",
+        "review_cadence": "P30D",
+        "categories": ["testing", "agents", "routing"],
+        "keywords": ["test-strategy", "test-agents", "test-selection"]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": false,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Team'"
+    },
+    {
+      "path": ".claude/integration-test-execution-summary.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/integration-test-final-report.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/integration-test-plan-comparison.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/integration-test-reenable-plan-v2.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/integration-test-reenable-plan.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/plan.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "both",
+        "last_updated": "2025-12-29",
+        "owner": "'Platform Developer'",
+        "review_cadence": "P30D",
+        "categories": ["tech-debt", "planning", "architecture"],
+        "priority": 2,
+        "use_cases": ["task_execution", "capability_discovery"]
+      },
+      "isStale": false,
+      "staleDays": 4,
+      "hasExecutionClaims": true,
+      "lastUpdated": "2025-12-29",
+      "status": "ACTIVE",
+      "owner": "'Platform Developer'"
+    },
+    {
+      "path": ".claude/plans/2025-12-30-sprint2-quality-improvements.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/integration-test-continuation-prompt.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/portfolio-intelligence-timeout-fix.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-next-session-kickoff.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase2-quickstart.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v10.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v2.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v3.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v4.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v5.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v6.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "session": "week2.5-phase3-continuation-v6",
+        "date": "2025-12-21",
+        "status": "ready",
+        "goal": "Continue test failure reduction from 82 to 0",
+        "previous_session": "week2.5-phase3-continuation-v5"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "ready",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v8.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "session": "week2.5-phase3-continuation-v8",
+        "date": "2025-12-21",
+        "status": "ready",
+        "goal": "Final push - reduce from 36 to <10 failures (target 93%+ total reduction)",
+        "previous_sessions": "v6 (152→47), v7 (47→36)"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "ready",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation-v9.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {
+        "session": "week2.5-phase3-continuation-v9",
+        "date": "2025-12-21",
+        "status": "ready",
+        "goal": "Final push - reduce from 16 to <10 failures (target 94%+ total reduction)",
+        "previous_sessions": "v6 (152→47), v7 (47→36), v8 (35→16)"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "ready",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase3-continuation.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/prompts/week2.5-phase4-next-steps.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/security-fixes-lp-reporting.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/session-summary-portfolio-intelligence-implementation.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/sessions/PHASE4-CONTINUATION-KICKOFF.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": true,
@@ -7379,6 +8742,30 @@
       "owner": null
     },
     {
+      "path": ".claude/skills/async-error-resilience.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/baseline-governance/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/skills/brainstorming.md",
       "exists": true,
       "docType": "skill",
@@ -7391,7 +8778,31 @@
       "owner": null
     },
     {
+      "path": ".claude/skills/claude-infra-integrity/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/skills/continuous-improvement.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/database-schema-evolution.md",
       "exists": true,
       "docType": "skill",
       "frontmatter": {},
@@ -7416,6 +8827,18 @@
     },
     {
       "path": ".claude/skills/extended-thinking-framework.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/financial-calc-correctness/SKILL.md",
       "exists": true,
       "docType": "skill",
       "frontmatter": {},
@@ -7624,6 +9047,18 @@
       "owner": null
     },
     {
+      "path": ".claude/skills/phoenix-workflow-orchestrator/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/skills/phoenix-xirr-fees-validator/SKILL.md",
       "exists": true,
       "docType": "skill",
@@ -7650,7 +9085,43 @@
       "owner": null
     },
     {
+      "path": ".claude/skills/react-hook-form-stability/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/react-performance-optimization.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/skills/root-cause-tracing.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/statistical-testing/SKILL.md",
       "exists": true,
       "docType": "skill",
       "frontmatter": {},
@@ -7686,6 +9157,260 @@
       "owner": null
     },
     {
+      "path": ".claude/skills/test-fixture-generator/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/test-pyramid/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/code-formatter/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "code-formatter",
+        "description": "Multi-language code formatting and style enforcement with automatic linting fixes",
+        "version": "1.0.0",
+        "author": "Claude Memory System",
+        "tags": ["formatting", "linting", "code-quality", "style", "automation"]
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/code-formatter/examples/usage.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/code-formatter/references/style-guides.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/dependency-guardian/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "dependency-guardian",
+        "description": "Automated dependency management with security scanning, update orchestration, and compatibility validation",
+        "version": "1.0.0",
+        "author": "Claude Memory System",
+        "tags": [
+          "dependencies",
+          "security",
+          "vulnerabilities",
+          "updates",
+          "automation",
+          "npm",
+          "pip",
+          "cargo"
+        ]
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/dependency-guardian/examples/usage.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/dependency-guardian/references/vulnerability-databases.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/documentation-sync/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "documentation-sync",
+        "description": "Detects code/documentation drift, validates examples, generates diagrams, auto-updates documentation",
+        "version": "1.0.0",
+        "tags": [
+          "documentation",
+          "validation",
+          "sync",
+          "architecture",
+          "diagrams"
+        ]
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/documentation-sync/examples/usage.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/security-scanner/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "security-scanner",
+        "description": "Comprehensive security scanning for SAST, secrets, OWASP vulnerabilities, container and IaC security",
+        "version": "1.0.0",
+        "tags": [
+          "security",
+          "scanning",
+          "vulnerabilities",
+          "secrets",
+          "owasp",
+          "sast",
+          "iac"
+        ]
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/security-scanner/examples/usage.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/tech-debt-tracker/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "tech-debt-tracker",
+        "description": "Automated technical debt identification, tracking, and prioritization system",
+        "version": "1.0.0",
+        "author": "Claude Memory Tool",
+        "created": "2025-10-20",
+        "tags": [
+          "technical-debt",
+          "code-quality",
+          "refactoring",
+          "metrics",
+          "prioritization"
+        ],
+        "category": "code-quality",
+        "trigger_keywords": [
+          "tech debt",
+          "technical debt",
+          "code quality",
+          "refactoring",
+          "complexity",
+          "code smell"
+        ],
+        "execution_time": "~35ms",
+        "token_savings": "75%"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/tech-debt-tracker/examples/usage.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/workflow-engine/test-first-change/SKILL.md",
+      "exists": true,
+      "docType": "skill",
+      "frontmatter": {
+        "name": "test-first-change",
+        "description": "Reduce regressions by discovering tests, running them, then editing code",
+        "version": "1.0.0",
+        "tags": ["testing", "tdd", "quality", "regression"]
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
       "path": ".claude/skills/writing-plans.md",
       "exists": true,
       "docType": "skill",
@@ -7708,15 +9433,233 @@
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
+    },
+    {
+      "path": ".claude/testing/HANDOFF-MEMO-v2.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/HANDOFF-MEMO.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/immediate-actions-summary.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/lp-test-status-report.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/platform-test-checklist.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/platform-testing-rubric-index.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-analytics-reporting.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-api-integration.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-calculation-engines.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-cross-cutting.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-fund-setup.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-lp-portal.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/rubric-portfolio-management.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/scenario-comparison-manual-test-rubric.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/seed-script-remaining-fixes.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/test-baseline-report-2025-12-23.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/test-remediation-summary.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/testing/week2-execution-report.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
     }
   ],
   "stats": {
-    "total_docs": 560,
-    "stale_docs": 555,
-    "missing_frontmatter": 508,
+    "total_docs": 707,
+    "stale_docs": 692,
+    "missing_frontmatter": 620,
     "by_status": {
-      "UNKNOWN": 555,
-      "ACTIVE": 5
+      "UNKNOWN": 688,
+      "ACTIVE": 14,
+      "active": 2,
+      "ready": 3
     }
   }
 }

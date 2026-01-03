@@ -37,7 +37,69 @@ const WEIGHT_SCALE_BIG = BigInt(WEIGHT_SCALE);
  * @returns Array of integer basis points summing to exactly WEIGHT_SCALE
  * @throws If weights are invalid per semantic lock rules
  */
-export function normalizeWeightsToBps(weights: number[]): number[] {
+export function normalizeWeightsToBps(weights: Array<number | null | undefined>): number[] {
+  if (weights.length === 0) {
+    throw new Error('Weights array cannot be empty');
+  }
+
+  const sanitizedWeights = weights.map((weight) => {
+    if (weight == null || Number.isNaN(weight)) {
+      return 0;
+    }
+    return weight;
+  });
+
+  // Rule 1: No negative weights
+  if (sanitizedWeights.some((w) => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  const sum = sanitizedWeights.reduce((a, b) => a + b, 0);
+
+  // Rule 2: Sum must be positive
+  if (sum <= 0) {
+    throw new Error('Sum of cohort weights must be positive');
+  }
+
+  // Rule 3: Only normalize if within 0.1% tolerance
+  const tolerance = 0.001;
+  if (Math.abs(sum - 1.0) > tolerance) {
+    throw new Error(
+      `Cohort weights sum to ${sum}, which differs from 1.0 by more than ${tolerance * 100}%`
+    );
+  }
+
+  // Convert to integer basis points
+  const rawBps = sanitizedWeights.map((w) => Math.round((w / sum) * WEIGHT_SCALE));
+  const bpsSum = rawBps.reduce((a, b) => a + b, 0);
+
+  // Adjust last element to ensure exact sum = WEIGHT_SCALE
+  // This handles rounding accumulation
+  if (bpsSum !== WEIGHT_SCALE) {
+    if (rawBps.length === 0) {
+      throw new Error('Cannot adjust normalized weights because array is empty');
+    }
+    const lastIndex = rawBps.length - 1;
+    const lastValue = rawBps[lastIndex];
+    if (lastValue === undefined) {
+      throw new Error('Last element in rawBps is undefined');
+    }
+    rawBps[lastIndex] = lastValue + (WEIGHT_SCALE - bpsSum);
+  }
+
+  return rawBps;
+}
+
+/**
+ * Normalize weights to basis points with lenient sum handling.
+ *
+ * For lifecycle cohorts with different date ranges, weights may not sum to 1.0
+ * globally because only a subset is active at any time. This function scales
+ * the weights proportionally to sum to 1.0 regardless of input sum.
+ *
+ * Use this when cohorts have varying lifecycles (CA-016 pattern).
+ */
+export function normalizeWeightsLenient(weights: number[]): number[] {
   if (weights.length === 0) {
     throw new Error('Weights array cannot be empty');
   }
@@ -54,22 +116,18 @@ export function normalizeWeightsToBps(weights: number[]): number[] {
     throw new Error('Sum of cohort weights must be positive');
   }
 
-  // Rule 3: Only normalize if within 0.1% tolerance
-  const tolerance = 0.001;
-  if (Math.abs(sum - 1.0) > tolerance) {
-    throw new Error(
-      `Cohort weights sum to ${sum}, which differs from 1.0 by more than ${tolerance * 100}%`
-    );
-  }
-
-  // Convert to integer basis points
+  // Scale proportionally to sum = WEIGHT_SCALE (no tolerance check)
   const rawBps = weights.map((w) => Math.round((w / sum) * WEIGHT_SCALE));
   const bpsSum = rawBps.reduce((a, b) => a + b, 0);
 
-  // Adjust last element to ensure exact sum = WEIGHT_SCALE
-  // This handles rounding accumulation
+  // Adjust last element to ensure exact sum
   if (bpsSum !== WEIGHT_SCALE) {
-    rawBps[rawBps.length - 1] += WEIGHT_SCALE - bpsSum;
+    const lastIndex = rawBps.length - 1;
+    const lastValue = rawBps[lastIndex];
+    if (lastValue === undefined) {
+      throw new Error('Last element in rawBps is undefined');
+    }
+    rawBps[lastIndex] = lastValue + (WEIGHT_SCALE - bpsSum);
   }
 
   return rawBps;
@@ -127,7 +185,11 @@ export function allocateLRM(totalCents: number, weightsBps: number[]): number[] 
 
   // Step 1 & 2: Calculate base allocations and integer remainders using BigInt
   for (let i = 0; i < weightsBps.length; i++) {
-    const weightBig = BigInt(weightsBps[i]);
+    const weight = weightsBps[i];
+    if (weight === undefined) {
+      throw new Error(`Weight at index ${i} is undefined`);
+    }
+    const weightBig = BigInt(weight);
 
     // CRITICAL: BigInt arithmetic prevents overflow
     // product can be up to 10^17 which exceeds Number.MAX_SAFE_INTEGER
@@ -153,7 +215,15 @@ export function allocateLRM(totalCents: number, weightsBps: number[]): number[] 
   let shortfall = totalCents - sumBase;
 
   for (let j = 0; shortfall > 0 && j < remainders.length; j++) {
-    allocations[remainders[j].index] += 1;
+    const remainderEntry = remainders[j];
+    if (!remainderEntry) {
+      break;
+    }
+    const targetIndex = remainderEntry.index;
+    if (allocations[targetIndex] == null) {
+      allocations[targetIndex] = 0;
+    }
+    allocations[targetIndex] += 1;
     shortfall--;
   }
 

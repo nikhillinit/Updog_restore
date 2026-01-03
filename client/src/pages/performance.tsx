@@ -1,21 +1,67 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
-import IRRSummary from "@/components/performance/irr-summary";
+/**
+ * Performance Page
+ *
+ * Comprehensive portfolio performance analysis with:
+ * - Time-series IRR, TVPI, DPI charts
+ * - Breakdown by sector/stage/company
+ * - Point-in-time comparisons
+ *
+ * @module client/pages/performance
+ */
+
+import PerformanceDashboard from '@/components/performance/PerformanceDashboard';
+import { POVBrandHeader } from '@/components/ui/POVLogo';
+import { useFundContext } from '@/contexts/FundContext';
 
 export default function Performance() {
-  return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold font-inter text-[#292929]">Fund Performance</h1>
-        <p className="font-poppins text-[#292929]/70">
-          Comprehensive performance analysis including IRR calculations and realized returns
-        </p>
-      </div>
+  const { currentFund, isLoading: fundLoading } = useFundContext();
 
-      <IRRSummary />
+  if (fundLoading) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <POVBrandHeader
+          title="Fund Performance"
+          subtitle="Comprehensive performance analysis"
+          variant="light"
+        />
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-32 bg-white rounded-lg shadow-card" />
+            <div className="h-96 bg-white rounded-lg shadow-card" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentFund) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <POVBrandHeader
+          title="Fund Performance"
+          subtitle="Comprehensive performance analysis"
+          variant="light"
+        />
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="text-center py-12 text-[#292929]/70">
+            Please select a fund to view performance metrics.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <POVBrandHeader
+        title="Fund Performance"
+        subtitle={`Performance analysis for ${currentFund.name}`}
+        variant="light"
+      />
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <PerformanceDashboard />
+      </div>
     </div>
   );
 }

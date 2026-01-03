@@ -124,7 +124,7 @@ export function ScenarioCard({
             max={5.0}
             step={0.1}
             value={[scenario.moicMultiplier]}
-            onValueChange={(value) => handleFieldChange('moicMultiplier', value[0])}
+            onValueChange={(value) => handleFieldChange('moicMultiplier', value[0] ?? 1)}
             className="mt-2"
           />
           <p className="text-xs text-charcoal-500 mt-2">
@@ -147,7 +147,7 @@ export function ScenarioCard({
             max={48}
             step={1}
             value={[scenario.exitTimingDelta]}
-            onValueChange={(value) => handleFieldChange('exitTimingDelta', value[0])}
+            onValueChange={(value) => handleFieldChange('exitTimingDelta', value[0] ?? 0)}
             className="mt-2"
           />
           <p className="text-xs text-charcoal-500 mt-2">
@@ -170,7 +170,7 @@ export function ScenarioCard({
             max={50}
             step={1}
             value={[scenario.lossRateDelta]}
-            onValueChange={(value) => handleFieldChange('lossRateDelta', value[0])}
+            onValueChange={(value) => handleFieldChange('lossRateDelta', value[0] ?? 0)}
             className="mt-2"
           />
           <p className="text-xs text-charcoal-500 mt-2">
@@ -193,7 +193,7 @@ export function ScenarioCard({
             max={50}
             step={1}
             value={[scenario.participationRateDelta]}
-            onValueChange={(value) => handleFieldChange('participationRateDelta', value[0])}
+            onValueChange={(value) => handleFieldChange('participationRateDelta', value[0] ?? 0)}
             className="mt-2"
           />
           <p className="text-xs text-charcoal-500 mt-2">

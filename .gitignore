@@ -58,6 +58,9 @@ jspm_packages/
 # Optional eslint cache
 .eslintcache
 
+# Local baseline backups (development artifacts)
+.baselines/
+
 # Optional REPL history
 .node_repl_history
 
@@ -111,7 +114,7 @@ PR_CREATED*.md
 .claude/settings.local.json
 
 # TypeScript cache files
-.tscache
+.tscache*
 
 # Code quality and analysis tools
 .codacy/
@@ -151,6 +154,17 @@ Default Parameters/
 playwright-report/
 test-results/
 coverage/
+
+# Test baseline artifacts (ephemeral - regenerated per run)
+artifacts/test-results.json
+artifacts/test-results-*.json
+artifacts/test-run.stderr.txt
+artifacts/test-summary.json
+artifacts/cluster-analysis.json
+artifacts/cluster-analysis.txt
+
+# Baseline files (MUST COMMIT for CI ratchet enforcement)
+!.test-baseline.json
 
 # Waterfall evaluator test output logs (regenerated per run)
 waterfall-baseline.txt
@@ -219,3 +233,8 @@ branch_cleanup_reports/
 backups/
 .branch_cleanup_safety_token
 cleanup_*.log
+
+# Sidecar migration artifacts
+.migration-backup/
+.npm-cache/
+.npm-tmp/

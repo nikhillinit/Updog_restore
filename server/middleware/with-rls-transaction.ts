@@ -70,23 +70,23 @@ export function withRLSTransaction() {
       let transactionCompleted = false;
 
       // Auto-commit on successful response
-      const originalEnd = res.end;
-      res.end = function(...args: any[]) {
+      const originalEnd = res.end.bind(res);
+      res.end = function(this: Response, ...args: Parameters<Response['end']>) {
         if (!transactionCompleted) {
           transactionCompleted = true;
-          
+
           // Commit or rollback based on response status
           const shouldCommit = res.statusCode < 400;
-          
+
           client.query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
             .catch(err => console.error('Transaction finalization error:', err))
             .finally(() => {
               client.release();
             });
         }
-        
-        return originalEnd.apply(res, args);
-      };
+
+        return originalEnd(...args);
+      } as Response['end'];
 
       // Handle premature close
       res['on']('close', () => {

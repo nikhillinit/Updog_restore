@@ -7,9 +7,12 @@ const ResponsiveContainer = React.lazy(() =>
   }))
 );
 
+// Recharts ResponsiveContainer expects number or percentage string
+type Dimension = number | `${number}%`;
+
 interface LazyResponsiveContainerProps {
-  width?: string | number;
-  height?: string | number;
+  width?: Dimension;
+  height?: Dimension;
   aspect?: number;
   minWidth?: number;
   minHeight?: number;
@@ -18,19 +21,23 @@ interface LazyResponsiveContainerProps {
   className?: string;
 }
 
-export function LazyResponsiveContainer({ 
-  children, 
+export function LazyResponsiveContainer({
+  children,
   height = 300,
-  width = "100%",
-  ...props 
+  width = '100%' as const,
+  ...props
 }: LazyResponsiveContainerProps) {
+  // Convert dimension to CSS-compatible string
+  const toCss = (dim: Dimension): string =>
+    typeof dim === 'number' ? `${dim}px` : dim;
+
   return (
-    <Suspense 
+    <Suspense
       fallback={
-        <div 
-          style={{ 
-            width: typeof width === 'number' ? `${width}px` : width, 
-            height: typeof height === 'number' ? `${height}px` : height 
+        <div
+          style={{
+            width: toCss(width),
+            height: toCss(height)
           }}
           className="animate-pulse bg-gray-100 rounded"
         />

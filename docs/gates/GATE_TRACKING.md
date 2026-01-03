@@ -4,28 +4,30 @@
 
 ### Gate Progress Overview
 
-| Gate | Status | Completion | Blockers | Owner |
-|------|--------|------------|----------|-------|
-| Gate 0: Triage & Baselines | ✅ Complete | 100% | None | Platform Team |
-| Gate A: Critical Path | ✅ Complete | 100% | None | Platform Team |
-| Gate C1: Feature Flags | ⏸️ Pending | 0% | Gate A completion | Platform Team |
-| Gate B1: Wizard Completion | ⏸️ Pending | 0% | Gate C1 completion | Product Team |
-| Gate B2: Reserves v1.1 | ⏸️ Pending | 0% | Gate B1 completion | Product Team |
-| Gate C2: Infrastructure | ⏸️ Pending | 0% | Gate B2 completion | Platform Team |
-| Gate D: Snapshots | ⏸️ Pending | 0% | Gate C2 completion | Data Team |
-| Gate E: API Versioning | ⏸️ Pending | 0% | Gate D completion | Platform Team |
-| Gate F: Performance Gates | ⏸️ Pending | 0% | Gate E completion | Platform Team |
+| Gate                       | Status       | Completion | Blockers           | Owner         |
+| -------------------------- | ------------ | ---------- | ------------------ | ------------- |
+| Gate 0: Triage & Baselines | [x] Complete | 100%       | None               | Platform Team |
+| Gate A: Critical Path      | [x] Complete | 100%       | None               | Platform Team |
+| Gate C1: Feature Flags     | ⏸️ Pending   | 0%         | Gate A completion  | Platform Team |
+| Gate B1: Wizard Completion | ⏸️ Pending   | 0%         | Gate C1 completion | Product Team  |
+| Gate B2: Reserves v1.1     | ⏸️ Pending   | 0%         | Gate B1 completion | Product Team  |
+| Gate C2: Infrastructure    | ⏸️ Pending   | 0%         | Gate B2 completion | Platform Team |
+| Gate D: Snapshots          | ⏸️ Pending   | 0%         | Gate C2 completion | Data Team     |
+| Gate E: API Versioning     | ⏸️ Pending   | 0%         | Gate D completion  | Platform Team |
+| Gate F: Performance Gates  | ⏸️ Pending   | 0%         | Gate E completion  | Platform Team |
 
 ---
 
 ## Gate 0: Repository Triage & Baselines
 
 ### Entry Criteria
+
 - [x] Current repo state assessed
 - [x] Build improvements implemented (security scanning, monitoring)
 
 ### Actions Required
-1. **Label and batch blockers** 
+
+1. **Label and batch blockers**
    - [x] Failing synthetics identified (synthetics-e2e.yml needs fixing)
    - [x] Security header PRs cataloged (CSP/HSTS implementation pending)
    - [ ] Idempotency implementation status checked
@@ -48,6 +50,7 @@
    - [x] Reserves engine owner assigned (Backend Engineer)
 
 ### Exit Criteria
+
 - [ ] "BLOCKERS" label applied to critical issues
 - [ ] Owners assigned and documented
 - [ ] Baseline metrics dashboard created and populated
@@ -55,10 +58,10 @@
 - [ ] Test flake rate < 2%
 
 ### Current Blockers
-1. **Test Failures**: 
+
+1. **Test Failures**:
    - `tests/security/injection.spec.ts` - URL validation issue
    - `tests/unit/reserves-v11.test.ts` - Date to quarter conversion failing
-   
 2. **Missing Infrastructure**:
    - No centralized testIds.ts file
    - No baseline metrics dashboard
@@ -66,19 +69,21 @@
 
 ---
 
-## Gate A: Critical Path Resolution ✅ COMPLETE
+## Gate A: Critical Path Resolution [x] COMPLETE
 
 ### Entry Criteria
+
 - [x] Gate 0 complete
 
 ### Actions Required
+
 1. **Synthetics Stabilization**
    - [x] Create centralized `testIds.ts`
    - [x] Implement auto-wait and retry with backoff
    - [x] Create synthetics-debug runbook
    - [x] Add trace/video artifact upload on failure
 
-2. **Security Posture Hardening**  
+2. **Security Posture Hardening**
    - [x] Add SECURITY.md
    - [x] Finalize CSP/HSTS configuration
    - [x] Add security-headers CI check
@@ -91,6 +96,7 @@
    - [x] Create vitest multi-project configuration
 
 ### Exit Criteria
+
 - [x] Synthetics configured with artifacts
 - [x] SECURITY.md merged
 - [x] CSP/HSTS enforced
@@ -102,9 +108,11 @@
 ## Gate C1: Feature Flag Foundation
 
 ### Entry Criteria
+
 - [ ] Gate A complete
 
 ### Actions Required
+
 1. **Basic Feature Flag Service**
    - [ ] Implement file-based config for MVP
    - [ ] Prove propagation < 30s
@@ -116,6 +124,7 @@
    - [ ] Validate with synthetic monitoring
 
 ### Exit Criteria
+
 - [ ] Kill switch demo successful
 - [ ] Audit log functional
 - [ ] Canary pattern validated
@@ -125,6 +134,7 @@
 ## Baseline Metrics (To Be Captured)
 
 ### API Performance Baseline
+
 ```json
 {
   "routes": {
@@ -152,6 +162,7 @@
 ```
 
 ### Frontend Performance Baseline
+
 ```json
 {
   "lighthouse": {
@@ -167,23 +178,25 @@
 
 ## Risk Register
 
-| Risk | Impact | Likelihood | Mitigation | Status |
-|------|--------|------------|------------|--------|
-| Failing synthetics block deploys | High | High | Centralize testIds, add retry logic | 🔴 Active |
-| Test flakiness | Medium | High | Fix async patterns, categorize tests | 🟡 In Progress |
-| Missing security policy | Medium | Certain | Create SECURITY.md | ⏸️ Planned |
-| No baseline metrics | Low | Certain | Capture current performance | 🟡 In Progress |
+| Risk                             | Impact | Likelihood | Mitigation                           | Status            |
+| -------------------------------- | ------ | ---------- | ------------------------------------ | ----------------- |
+| Failing synthetics block deploys | High   | High       | Centralize testIds, add retry logic  | FAIL: Active      |
+| Test flakiness                   | Medium | High       | Fix async patterns, categorize tests | WARN: In Progress |
+| Missing security policy          | Medium | Certain    | Create SECURITY.md                   | ⏸️ Planned        |
+| No baseline metrics              | Low    | Certain    | Capture current performance          | WARN: In Progress |
 
 ---
 
 ## Communication Plan
 
 ### Weekly Updates
+
 - **Format**: Gate status, blockers, resource needs
 - **Audience**: Engineering team, product stakeholders
 - **Frequency**: Every Monday
 
 ### Gate Completion Demos
+
 - **Format**: Live demonstration of exit criteria
 - **Audience**: Full team
 - **Timing**: Upon gate completion
@@ -193,11 +206,13 @@
 ## Resource Allocation
 
 ### Current Allocation
+
 - **Available**: 1-2 developers
 - **Focus**: Sequential execution through gates
 - **Strategy**: Complete Gate 0 → A → C1 before any feature work
 
 ### Recommended Allocation
+
 - **Primary**: Platform engineer on Gate 0 and A
 - **Support**: Product engineer shadowing for knowledge transfer
 - **Next**: Product engineer leads B1 after C1 complete
@@ -222,5 +237,5 @@
 
 ---
 
-*Last Updated: 2025-08-26*
-*Next Review: Upon Gate 0 completion*
+_Last Updated: 2025-10-06_ _Next Review: Upon Gate C1 completion_ _Note: Gate A
+marked complete, all critical path resolution items finished_

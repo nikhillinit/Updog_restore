@@ -252,3 +252,36 @@ export const RATIONALE_TEMPLATES = {
   proRataOnly: (company: string, ownership: number) =>
     `${company} allocated pro-rata reserves to maintain ${ownership.toFixed(1)}% ownership. No super pro-rata due to balanced portfolio strategy.`,
 } as const;
+
+// ============================================================================
+// CANONICAL STAGE ADAPTERS (for interoperability)
+// ============================================================================
+
+import {
+  type CanonicalStage,
+  normalizeStage as canonicalNormalizeStage,
+  toHyphenatedStage,
+} from '../schemas/stage';
+
+/**
+ * Convert canonical stage to reserve-engine hyphenated format.
+ *
+ * @param stage - Canonical stage (snake_case)
+ * @returns Hyphenated stage for this contract
+ */
+export function toContractStage(stage: CanonicalStage): CompanyStage {
+  return toHyphenatedStage(stage) as CompanyStage;
+}
+
+/**
+ * Convert reserve-engine hyphenated stage to canonical format.
+ *
+ * @param stage - Hyphenated stage from this contract
+ * @returns Canonical stage (snake_case)
+ */
+export function fromContractStage(stage: CompanyStage): CanonicalStage {
+  return canonicalNormalizeStage(stage);
+}
+
+// Re-export canonical types for consumers who need both formats
+export { type CanonicalStage };

@@ -43,3 +43,13 @@ intelligent test design, TDD validation, and thorough coverage analysis.
 3. **Security Testing**: Identify security vulnerabilities in test scenarios
 4. **Performance Testing**: Include performance benchmarks and load tests
 5. **Coverage Analysis**: Identify critical gaps in test coverage
+
+## Related Agents & Skills
+
+- **test-scaffolder** - Delegate when new test infrastructure needed for modules
+- **test-repair** - Delegate for fixing failing tests and flakiness detection
+- **test-fixture-generator skill** - Use patterns for factory functions and
+  golden datasets
+- **test-pyramid skill** - Follow for E2E scope control and test level
+  governance
+- **playwright-test-author** - Delegate for browser-only E2E tests

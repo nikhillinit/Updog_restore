@@ -1,7 +1,7 @@
-> **DEPRECATED - 2025-12-13** Phoenix v3.0 (infrastructure modernization)
-> was superseded by Phoenix v2.34 (validation-first execution). Infrastructure
-> goals (pnpm, sidecar, TS baseline cleanup) were NOT executed.
-> For current Phoenix work: `docs/PHOENIX-SOT/execution-plan-v2.34.md`
+> **DEPRECATED - 2025-12-13** Phoenix v3.0 (infrastructure modernization) was
+> superseded by Phoenix v2.34 (validation-first execution). Infrastructure goals
+> (pnpm, sidecar, TS baseline cleanup) were NOT executed. For current Phoenix
+> work: `docs/PHOENIX-SOT/execution-plan-v2.34.md`
 >
 > **Note:** Wizard Step 4 work from this plan is under active development on
 > `phoenix/phase-1-wizard-fees` branch with open PR #227 (as of 2025-12-01).
@@ -27,28 +27,28 @@ CI-enforced. Ready to proceed with feature delivery tracks.
 
 **Phase 0.0 - Current State Verification**
 
-- ✅ Verified Phoenix docs supersession status
-- ✅ Confirmed MOIC features accessible at `/moic-analysis` route
-- ✅ Captured test baseline: 74.2% pass rate (1005/1354 tests, 269 known
-  failures)
-- ✅ Validated TS baseline system operational
+- [x] Verified Phoenix docs supersession status
+- [x] Confirmed MOIC features accessible at `/moic-analysis` route
+- [x] Captured test baseline: 74.2% pass rate (1005/1354 tests, 269 known
+      failures)
+- [x] Validated TS baseline system operational
 
 **Phase 0.1 - Lock Baseline & CI Ratchet**
 
-- ✅ Locked TypeScript baseline at **452 errors** (58 client, 392 server, 1
-  shared, 1 unknown)
-- ✅ Committed `.tsc-baseline.json` (commit: b073b723)
-- ✅ Verified CI enforces `npm run check` in
-  `.github/workflows/code-quality.yml:40`
-- ✅ Tagged ground zero: `phoenix-ground-zero-2025-11-30`
+- [x] Locked TypeScript baseline at **452 errors** (58 client, 392 server, 1
+      shared, 1 unknown)
+- [x] Committed `.tsc-baseline.json` (commit: b073b723)
+- [x] Verified CI enforces `npm run check` in
+      `.github/workflows/code-quality.yml:40`
+- [x] Tagged ground zero: `phoenix-ground-zero-2025-11-30`
 
 **Phase 0.2 - Documentation Updates**
 
-- ✅ Added supersession banners to legacy Phoenix strategy documents:
+- [x] Added supersession banners to legacy Phoenix strategy documents:
   - `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
   - `docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md`
-- ✅ Updated pre-commit hook to exempt legacy docs from emoji checks
-- ✅ Logged Phase 0 completion in `CHANGELOG.md`
+- [x] Updated pre-commit hook to exempt legacy docs from emoji checks
+- [x] Logged Phase 0 completion in `CHANGELOG.md`
 
 ### Key Commits
 
@@ -72,9 +72,9 @@ Test Baseline: 74.2% pass rate
 └── Total:    1354 tests
 
 CI Enforcement:
-✅ code-quality.yml runs `npm run check` (baseline ratchet)
-✅ Pre-commit hook validates emoji-free documentation
-✅ Baseline comparison prevents new TS errors
+[x] code-quality.yml runs `npm run check` (baseline ratchet)
+[x] Pre-commit hook validates emoji-free documentation
+[x] Baseline comparison prevents new TS errors
 ```
 
 ---
@@ -295,27 +295,27 @@ Phoenix v3.0 Phase 1 is complete when:
 
 ### IA Consolidation
 
-- ✅ Modern Portfolio shell created at `/portfolio-modern`
-- ✅ Existing portfolio components reused
-- ✅ MOIC views integrated into unified shell
-- ✅ Navigation updated with route
-- ✅ `npm run dev` renders new route without errors
-- ✅ `npm run check` shows no NEW TS errors
+- [x] Modern Portfolio shell created at `/portfolio-modern`
+- [x] Existing portfolio components reused
+- [x] MOIC views integrated into unified shell
+- [x] Navigation updated with route
+- [x] `npm run dev` renders new route without errors
+- [x] `npm run check` shows no NEW TS errors
 
 ### Wizard Step 4
 
-- ✅ Fees & Expenses step implemented
-- ✅ Wizard flow works: Fund → Sector → Allocations → Fees & Expenses
-- ✅ Form state persists across wizard steps
-- ✅ Validation works for fee inputs
-- ✅ Tests cover new wizard step
+- [x] Fees & Expenses step implemented
+- [x] Wizard flow works: Fund → Sector → Allocations → Fees & Expenses
+- [x] Form state persists across wizard steps
+- [x] Validation works for fee inputs
+- [x] Tests cover new wizard step
 
 ### Quality Gates
 
-- ✅ Test pass rate ≥ 73.7% (baseline - 1%)
-- ✅ No new TS errors beyond 452 baseline
-- ✅ CI passes on feature branches
-- ✅ Changes logged in CHANGELOG.md
+- [x] Test pass rate ≥ 73.7% (baseline - 1%)
+- [x] No new TS errors beyond 452 baseline
+- [x] CI passes on feature branches
+- [x] Changes logged in CHANGELOG.md
 
 ---
 
@@ -352,5 +352,6 @@ anything!
 
 ---
 
-**Handoff Date**: 2025-11-30 **Phase 0 Status**: COMPLETE **Phase 1 Status**:
-READY TO BEGIN **Baseline State**: LOCKED & ENFORCED
+**Handoff Date**: 2025-11-30 **Last Updated**: 2025-12-13 **Phase 0 Status**:
+COMPLETE **Phase 1 Status**: READY TO BEGIN **Baseline State**: LOCKED &
+ENFORCED **Document Status**: ARCHIVED - Historical handoff document

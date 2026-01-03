@@ -257,7 +257,7 @@ export function CapitalAllocationStep({
           periods={formValues.pacingHorizon}
           fundFinancials={fundFinancials}
           onChange={(periods) => setValue('pacingHorizon', periods)}
-          errors={errors.pacingHorizon}
+          {...(errors.pacingHorizon && { errors: errors.pacingHorizon })}
         />
       </div>
 

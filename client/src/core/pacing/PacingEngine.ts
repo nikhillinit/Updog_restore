@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 // PacingEngine.ts - Type-safe fund deployment pacing engine
 
 import type {
@@ -59,7 +59,8 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
     'neutral': { early: 1.0, mid: 1.0, late: 1.0 }  // Even distribution
   };
   
-  const adjustment = marketAdjustments[marketCondition] ?? marketAdjustments['neutral'];
+  const defaultAdjustment = { early: 1.0, mid: 1.0, late: 1.0 };
+  const adjustment = marketAdjustments[marketCondition] ?? defaultAdjustment;
   const baseAmount = fundSize / 8; // 8 quarters deployment
 
   return Array.from({ length: 8 }, (_: any, i: any) => {

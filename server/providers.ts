@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 /**
  * Centralized Providers System - Single source of truth for Redis/memory decisions
  * The "valve" that controls all Redis access throughout the application
@@ -58,7 +58,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
       await client.connect();
       rateLimitStore = new RedisStore({
         sendCommand: (command: string, ...args: string[]) => client.call(command, ...args),
-      });
+      }) as unknown as RateLimitStore;
       console.log('[providers] Redis rate limit store enabled');
     } catch (error) {
       console.warn(`[providers] Redis rate limit store failed, using memory: ${error instanceof Error ? error.message : String(error)}`);
@@ -85,7 +85,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
   return {
     mode,
     cache,
-    rateLimitStore, // undefined => express-rate-limit uses memory store
+    ...(rateLimitStore !== undefined ? { rateLimitStore } : {}),
     queue,
     sessions,
     teardown: async () => {
@@ -161,7 +161,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
         await withCircuitBreaker(
           async () => {
             if (ttlSeconds) {
-              await redis.setex(key, ttlSeconds, value);
+              await redis['setex'](key, ttlSeconds, value);
             } else {
               await redis['set'](key, value);
             }
@@ -189,11 +189,45 @@ async function buildCache(redisUrl: string): Promise<Cache> {
   }
 }
 
-async function buildQueue(_cfg: any): Promise<{ enabled: boolean; close(): Promise<void> }> {
-  // Placeholder for queue implementation
-  // Only implement if you need queues right now
-  return {
-    enabled: false,
-    close: async () => {}
-  };
+async function buildQueue(cfg: ReturnType<typeof import('./config/index.js').loadEnv>): Promise<{ enabled: boolean; close(): Promise<void> }> {
+  // Check if queues should be enabled
+  if (cfg.ENABLE_QUEUES !== '1' || !cfg.REDIS_URL || cfg.REDIS_URL === 'memory://') {
+    console.log('[providers] Queue disabled (ENABLE_QUEUES not set or no Redis)');
+    return {
+      enabled: false,
+      close: async () => {}
+    };
+  }
+
+  try {
+    console.log('[providers] Initializing BullMQ simulation queue...');
+    const { default: IORedis } = await import('ioredis');
+    const { initializeSimulationQueue } = await import('./queues/simulation-queue');
+
+    const redis = new IORedis(cfg.REDIS_URL, {
+      lazyConnect: true,
+      maxRetriesPerRequest: 3,
+      connectTimeout: 5000
+    });
+
+    await redis.connect();
+
+    const { close } = await initializeSimulationQueue(redis);
+
+    console.log('[providers] BullMQ queue initialized successfully');
+
+    return {
+      enabled: true,
+      close: async () => {
+        await close();
+        await redis.quit();
+      }
+    };
+  } catch (error) {
+    console.warn(`[providers] Queue initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+    return {
+      enabled: false,
+      close: async () => {}
+    };
+  }
 }

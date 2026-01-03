@@ -7,11 +7,11 @@ keywords: [capabilities, agents, skills, tools, scripts, existing-solutions]
 source_of_truth: true
 agent_routing:
   priority: 1
-  route_hint: "Read this FIRST before implementing anything new."
+  route_hint: 'Read this FIRST before implementing anything new.'
   use_cases: [capability_discovery, feature_planning]
 maintenance:
-  owner: "Core Team"
-  review_cadence: "P90D"
+  owner: 'Core Team'
+  review_cadence: 'P90D'
 ---
 
 # Claude Code Capability Inventory
@@ -27,8 +27,9 @@ complete infrastructure understanding, also read:
 1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
    Complete infrastructure reference (permanent guide)
 2. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
-   Phoenix validation-first execution plan (current)
-   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
+   Phoenix validation-first execution plan (current) _(Note:
+   PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see
+   docs/archive/phoenix/)_
 3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
    agents, orchestration patterns
 4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
@@ -80,7 +81,7 @@ maintenance:
 
 - **test-automator** - Comprehensive test generation, TDD, coverage
 
-#### **Project-Level Agents (22)** - Updog_restore specific
+#### **Project-Level Agents (23)** - Updog_restore specific
 
 **Location:** `.claude\agents\`
 
@@ -91,7 +92,9 @@ maintenance:
 
 **Testing & Quality:**
 
-- **test-repair** - Fix failing tests
+- **test-repair** - Fix failing tests, flakiness detection and management
+- **test-scaffolder** - Scaffold test infrastructure for new modules/packages
+  (NEW)
 - **pr-test-analyzer** - PR test coverage review
 - **code-reviewer** - Code quality and style checking
 - **code-simplifier** - Simplify complex code
@@ -104,6 +107,19 @@ maintenance:
 - **db-migration** - Schema migrations
 - **perf-guard** - Performance regression detection
 - **general-purpose** - Research and exploration
+
+**CI Quality Gate Diagnosers (v4 optimal):**
+
+- **schema-drift-checker** - Diagnose schema alignment across
+  Migration/Drizzle/Zod/Mock layers
+- **playwright-test-author** - Create E2E tests for browser-only behaviors
+  (invoked by test-repair)
+- **parity-auditor** - Assess Excel parity impact for financial calculation
+  changes
+- **perf-regression-triager** - Diagnose performance regressions from
+  bench-check
+- **baseline-regression-explainer** - Diagnose quality metric regressions
+  (tests, TS, lint, bundle)
 
 **Shared with User-Level (Project overrides):**
 
@@ -314,6 +330,23 @@ Integration (+46% growth from 13 baseline)
   golden testing (always use formulas, not hardcoded values)
 - **api-design-principles** - REST API design for Express + TypeScript + Zod +
   BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
+
+### Quality Gate & Infrastructure Skills (7) - UPDATED 2025-12-20
+
+- **test-pyramid** - E2E scope control, test level governance (unit vs
+  integration vs E2E)
+- **test-fixture-generator** - Factory functions, golden datasets, batch
+  generators, schema sync (NEW)
+- **statistical-testing** - Monte Carlo validation patterns, seeded testing, CI
+  stability
+- **react-hook-form-stability** - RHF infinite loop prevention, autosave
+  patterns
+- **baseline-governance** - Quality gate policies, ratcheting strategy, baseline
+  change approval
+- **financial-calc-correctness** - Excel parity methodology, truth case
+  validation, tolerance norms
+- **claude-infra-integrity** - .claude/ directory consistency, agent naming,
+  skill references
 
 ### Superpowers Slash Commands
 
@@ -899,6 +932,48 @@ tests:
 
 **See:** [cheatsheets/agent-architecture.md](cheatsheets/agent-architecture.md)
 for detailed cookbook workflow documentation
+
+## Application Features & API Capabilities
+
+### Deal Pipeline Management System (Sprint 1)
+
+**Status**: Active (2025-12-30) **Route**: `/api/deals/*`
+
+Complete REST API for venture capital deal tracking and pipeline management:
+
+**Deal CRUD Operations:**
+
+- `POST /api/deals/opportunities` - Create deal (idempotency-enabled)
+- `GET /api/deals/opportunities` - List deals with cursor pagination
+- `GET /api/deals/opportunities/:id` - Get deal with full related data
+- `PUT /api/deals/opportunities/:id` - Update deal (idempotency-enabled,
+  optimistic locking)
+- `DELETE /api/deals/opportunities/:id` - Archive deal (soft delete)
+
+**Pipeline Management:**
+
+- `POST /api/deals/:id/stage` - Move deal through pipeline stages
+- `GET /api/deals/pipeline` - Kanban-style pipeline view
+- `GET /api/deals/stages` - List available pipeline stages
+
+**Due Diligence:**
+
+- `POST /api/deals/:id/diligence` - Add due diligence item
+- `GET /api/deals/:id/diligence` - Get due diligence items by category
+
+**Technical Features:**
+
+- Cursor pagination with compound keys (createdAt + id)
+- Idempotency middleware for create/update operations
+- Base64url-encoded cursors
+- Zod validation schemas
+- Comprehensive anti-pattern compliance (all 24 patterns)
+- 12 database indexes for optimal query performance
+- 16 integration tests
+
+**Implementation**:
+[server/routes/deal-pipeline.ts](server/routes/deal-pipeline.ts),
+[tests/api/deal-pipeline.test.ts](tests/api/deal-pipeline.test.ts)
 
 ## Quick Reference Questions
 

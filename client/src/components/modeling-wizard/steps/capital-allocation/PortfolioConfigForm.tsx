@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 /**
  * Portfolio Configuration Form Component
  * Reserve ratio configuration with slider and dollar display
@@ -32,7 +32,7 @@ export function PortfolioConfigForm({
   };
 
   const handleSliderChange = (values: number[]) => {
-    const newRatio = values[0] / 100; // Convert from percentage to decimal
+    const newRatio = (values[0] ?? 0) / 100; // Convert from percentage to decimal
     onReserveRatioChange(newRatio);
   };
 

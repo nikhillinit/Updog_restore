@@ -106,7 +106,6 @@ export function createMinimalSchemaMock() {
 export async function createStrictSchemaMock(allowedTables: string[] = []) {
   const actual = await vi.importActual<typeof import('@shared/schema')>('@shared/schema');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const strictMock: any = { ...actual };
 
   // Create proxies that throw for unmocked table access
@@ -130,10 +129,8 @@ export async function createStrictSchemaMock(allowedTables: string[] = []) {
 
   allTables.forEach((table) => {
     if (allowedTables.includes(table)) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       strictMock[table] = vi.fn();
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       strictMock[table] = () => {
         throw new Error(
           `Unmocked schema access: ${table}. Add to allowedTables or use createSharedSchemaMock().`
@@ -142,6 +139,5 @@ export async function createStrictSchemaMock(allowedTables: string[] = []) {
     }
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return strictMock;
 }

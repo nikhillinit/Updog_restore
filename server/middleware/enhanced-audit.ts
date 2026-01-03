@@ -411,7 +411,7 @@ function determineRiskLevel(req: Request, res: Response, executionTime: number):
 function extractEntityType(path: string): string {
   const segments = path.split('/').filter(Boolean);
   if (segments.length >= 2 && segments[0] === 'api') {
-    return segments[1];
+    return segments[1] ?? 'unknown';
   }
   return 'unknown';
 }
@@ -425,7 +425,7 @@ function extractEntityId(path: string): string | null {
   if (uuidMatch) return uuidMatch[0];
 
   const numericMatch = path.match(numericPattern);
-  if (numericMatch) return numericMatch[1];
+  if (numericMatch) return numericMatch[1] ?? null;
 
   return null;
 }
@@ -441,7 +441,9 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       changes: auditData.encryptedData || {
         requestBody: auditData.requestBody,
         responseBody: auditData.responseBody,
-        metadata: auditData.metadata
+        // Store execution metrics in JSON field (Decision 1)
+        executionTimeMs: auditData.executionTimeMs,
+        riskLevel: auditData.riskLevel,
       },
       ipAddress: auditData.ipAddress,
       userAgent: auditData.userAgent,
@@ -450,14 +452,6 @@ async function storeAuditRecord(auditData: any): Promise<void> {
       requestPath: auditData.requestPath,
       httpMethod: auditData.httpMethod,
       statusCode: auditData.statusCode,
-      metadata: {
-        executionTimeMs: auditData.executionTimeMs,
-        riskLevel: auditData.riskLevel,
-        requestSize: auditData.requestSize,
-        responseSize: auditData.responseSize,
-        integrityHash: auditData.integrityHash,
-        encrypted: !!auditData.encryptedData
-      }
     });
   } catch (error) {
     // Log to file as fallback
@@ -476,7 +470,7 @@ async function logFinancialOperation(
   correlationId: string
 ): Promise<void> {
   try {
-    const fundId = req.body?.fundId || req.params?.fundId || responseBody?.fundId;
+    const fundId = req.body?.fundId || req.params?.['fundId'] || responseBody?.fundId;
     if (!fundId) return;
 
     const operation = determineFinancialOperation(req.path, req.method);

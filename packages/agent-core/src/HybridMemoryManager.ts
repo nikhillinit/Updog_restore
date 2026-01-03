@@ -30,9 +30,9 @@
  * ```
  */
 
-import { ConversationStorage } from './ConversationMemory.js';
-import { MemoryEventBus, getEventBus } from './MemoryEventBus.js';
-import { TenantContextProvider } from './TenantContext.js';
+import type { ConversationStorage } from './ConversationMemory.js';
+import type { MemoryEventBus} from './MemoryEventBus.js';
+import { getEventBus } from './MemoryEventBus.js';
 import { logger } from './Logger.js';
 
 /**

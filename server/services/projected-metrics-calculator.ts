@@ -15,12 +15,49 @@
 
 import type { ProjectedMetrics } from '@shared/types/metrics';
 import type { Fund, PortfolioCompany } from '@shared/schema';
+// TODO: Issue #309 - Move core engines to shared package
+// These engines contain deterministic calculation logic used by both client and server
+// For now, import from client (ESLint boundary violation - tracked for refactoring)
+// eslint-disable-next-line no-restricted-imports
 import { generateReserveSummary } from '../../client/src/core/reserves/ReserveEngine.js';
+// eslint-disable-next-line no-restricted-imports
 import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine.js';
+// eslint-disable-next-line no-restricted-imports
 import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
-import type { ReserveInput, PacingInput, CohortInput } from '@shared/types';
+import type {
+  ReserveInput,
+  ReserveSummary,
+  PacingInput,
+  PacingSummary,
+  CohortInput,
+  CohortSummary,
+} from '@shared/types';
 import { ConstructionForecastCalculator } from './construction-forecast-calculator';
 import Decimal from 'decimal.js';
+
+// Local interface for reserve calculation results used by this service
+interface ReserveResults {
+  totalReserves: number;
+  allocatedReserves: number;
+  reserveByCompany: Array<{ companyId: number; reserveAmount: number }>;
+}
+
+// Local interface for pacing calculation results
+interface PacingResults {
+  pace: 'ahead' | 'on-track' | 'behind';
+  quartersRemaining: number;
+  recommendedQuarterlyDeployment: number;
+  projectedDeploymentSchedule: number[];
+}
+
+// Local interface for cohort calculation results
+interface CohortResults {
+  expectedTVPI: number;
+  expectedIRR: number;
+  expectedDPI: number;
+  distributionSchedule: number[];
+  navProgression: number[];
+}
 
 interface FundConfig {
   targetIRR?: number;
@@ -47,7 +84,7 @@ export class ProjectedMetricsCalculator {
    */
   async calculate(
     fund: Fund,
-    companies: PortfolioCompany[],
+    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct' | 'investmentDate'>[],
     config: FundConfig,
     options: CalculationOptions = {}
   ): Promise<ProjectedMetrics> {
@@ -111,36 +148,28 @@ export class ProjectedMetricsCalculator {
    */
   private async calculateReserves(
     fund: Fund,
-    companies: PortfolioCompany[],
-    config: FundConfig
-  ): Promise<{
-    totalReserves: number;
-    allocatedReserves: number;
-    reserveByCompany: Array<{ companyId: number; reserveAmount: number }>;
-  } | null> {
+    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct'>[],
+    _config: FundConfig
+  ): Promise<ReserveResults | null> {
     try {
-      // Build input for reserve engine
-      const reserveInput: ReserveInput = {
-        fundSize: parseFloat(fund.size.toString()),
-        deployedCapital: parseFloat(fund.deployedCapital?.toString() || '0'),
-        companies: companies.map((c) => ({
-          id: c.id,
-          name: c.name,
-          currentStage: c.currentStage || 'seed',
-          initialInvestment: parseFloat(c.initialInvestment?.toString() || '0'),
-          currentValuation: parseFloat(c.currentValuation?.toString() || '0'),
-          ownershipPercent: parseFloat(c.ownershipPercent?.toString() || '0'),
-        })),
-        reserveRatio: config.reserveRatio || 0.5,
-        graduationMatrix: config.graduationMatrix,
-      };
+      // Build input for reserve engine - each company is a separate ReserveInput
+      const portfolio: ReserveInput[] = companies.map((c) => ({
+        id: c.id,
+        invested: parseFloat(c.investmentAmount?.toString() || '0'),
+        stage: c.stage || c.currentStage || 'Seed',
+        sector: c.sector || 'SaaS',
+        ownership: parseFloat(c.ownershipCurrentPct?.toString() || '0.1'),
+      }));
 
-      const summary = await generateReserveSummary(reserveInput);
+      const summary: ReserveSummary = generateReserveSummary(fund.id, portfolio);
 
       return {
-        totalReserves: summary.totalReserves,
-        allocatedReserves: summary.allocatedReserves,
-        reserveByCompany: summary.companyReserves || [],
+        totalReserves: summary.totalAllocation,
+        allocatedReserves: summary.totalAllocation * summary.avgConfidence,
+        reserveByCompany: summary.allocations.map((a, i) => ({
+          companyId: portfolio[i]?.id ?? i,
+          reserveAmount: a.allocation,
+        })),
       };
     } catch (error) {
       console.error('Reserve calculation failed:', error);
@@ -153,14 +182,9 @@ export class ProjectedMetricsCalculator {
    */
   private async calculatePacing(
     fund: Fund,
-    companies: PortfolioCompany[],
+    _companies: Pick<PortfolioCompany, 'id'>[],
     config: FundConfig
-  ): Promise<{
-    pace: 'ahead' | 'on-track' | 'behind';
-    quartersRemaining: number;
-    recommendedQuarterlyDeployment: number;
-    projectedDeploymentSchedule: number[];
-  } | null> {
+  ): Promise<PacingResults | null> {
     try {
       const investmentPeriodYears = config.investmentPeriodYears || 3;
       const fundSize = parseFloat(fund.size.toString());
@@ -169,17 +193,18 @@ export class ProjectedMetricsCalculator {
         ? this.monthsSince(new Date(fund.establishmentDate))
         : 0;
 
+      // Calculate current deployment quarter
+      const deploymentQuarter = Math.max(1, Math.floor(fundAgeMonths / 3) + 1);
+
       const pacingInput: PacingInput = {
         fundSize,
-        deployedCapital: deployed,
-        investmentPeriodYears,
-        currentFundAgeMonths: fundAgeMonths,
-        targetCompanyCount: config.investmentPeriodYears ? Math.round(fundSize / 2000000) : 20,
+        deploymentQuarter,
+        marketCondition: 'neutral', // Default to neutral market conditions
       };
 
-      const summary = await generatePacingSummary(pacingInput);
+      const summary: PacingSummary = generatePacingSummary(pacingInput);
 
-      // Determine pace status
+      // Determine pace status based on actual vs expected deployment
       const expectedDeploymentRate = fundAgeMonths / (investmentPeriodYears * 12);
       const actualDeploymentRate = fundSize > 0 ? deployed / fundSize : 0;
       const deviation = actualDeploymentRate - expectedDeploymentRate;
@@ -202,7 +227,7 @@ export class ProjectedMetricsCalculator {
         pace,
         quartersRemaining,
         recommendedQuarterlyDeployment,
-        projectedDeploymentSchedule: summary.deploymentSchedule || [],
+        projectedDeploymentSchedule: summary.deployments.map((d) => d.deployment),
       };
     } catch (error) {
       console.error('Pacing calculation failed:', error);
@@ -215,41 +240,74 @@ export class ProjectedMetricsCalculator {
    */
   private async calculateCohorts(
     fund: Fund,
-    companies: PortfolioCompany[],
+    companies: Pick<PortfolioCompany, 'investmentDate'>[],
     config: FundConfig
-  ): Promise<{
-    expectedTVPI: number;
-    expectedIRR: number;
-    expectedDPI: number;
-    distributionSchedule: number[];
-    navProgression: number[];
-  } | null> {
+  ): Promise<CohortResults | null> {
     try {
+      // Use first company's investment date to determine vintage year
+      const firstInvestmentDate = companies[0]?.investmentDate;
+      const vintageYear = firstInvestmentDate
+        ? new Date(firstInvestmentDate).getFullYear()
+        : new Date().getFullYear();
+
       const cohortInput: CohortInput = {
-        fundSize: parseFloat(fund.size.toString()),
-        companies: companies.map((c) => ({
-          id: c.id,
-          name: c.name,
-          cohort: new Date(c.investmentDate || new Date()).getFullYear(),
-          currentStage: c.currentStage || 'seed',
-          currentValuation: parseFloat(c.currentValuation?.toString() || '0'),
-        })),
-        fundTermYears: config.fundTermYears || 10,
+        fundId: fund.id,
+        vintageYear,
+        cohortSize: companies.length || 10,
       };
 
-      const summary = await generateCohortSummary(cohortInput);
+      const summary: CohortSummary = generateCohortSummary(cohortInput);
+
+      // Map engine output to expected format
+      const fundTermYears = config.fundTermYears || 10;
+      const quarters = fundTermYears * 4;
 
       return {
-        expectedTVPI: summary.expectedTVPI || config.targetTVPI || 2.5,
-        expectedIRR: summary.expectedIRR || config.targetIRR || 0.25,
-        expectedDPI: summary.expectedDPI || 1.0,
-        distributionSchedule: summary.distributionSchedule || [],
-        navProgression: summary.navProgression || [],
+        expectedTVPI: summary.performance.multiple || config.targetTVPI || 2.5,
+        expectedIRR: summary.performance.irr || config.targetIRR || 0.25,
+        expectedDPI: summary.performance.dpi || 1.0,
+        // Generate synthetic schedules based on performance data
+        distributionSchedule: this.generateDistributionSchedule(summary, quarters),
+        navProgression: this.generateNAVProgression(summary, quarters),
       };
     } catch (error) {
       console.error('Cohort calculation failed:', error);
       return null;
     }
+  }
+
+  /**
+   * Generate distribution schedule from cohort summary
+   */
+  private generateDistributionSchedule(summary: CohortSummary, quarters: number): number[] {
+    const totalValue = summary.avgValuation * summary.totalCompanies;
+    const dpi = summary.performance.dpi;
+
+    // J-curve pattern: minimal distributions early, increasing later
+    return Array(quarters)
+      .fill(0)
+      .map((_, i) => {
+        if (i < quarters * 0.4) return 0; // No distributions first 40% of fund life
+        const progress = (i - quarters * 0.4) / (quarters * 0.6);
+        return totalValue * dpi * progress * (1 / quarters);
+      });
+  }
+
+  /**
+   * Generate NAV progression from cohort summary
+   */
+  private generateNAVProgression(summary: CohortSummary, quarters: number): number[] {
+    const startNAV = summary.avgValuation * summary.totalCompanies * 0.5;
+    const endNAV = summary.avgValuation * summary.totalCompanies * summary.performance.multiple;
+
+    return Array(quarters)
+      .fill(0)
+      .map((_, i) => {
+        const progress = i / (quarters - 1);
+        // J-curve shape: dip early, then growth
+        const jCurveMultiplier = i < quarters * 0.25 ? 0.8 + 0.2 * (i / (quarters * 0.25)) : 1;
+        return startNAV + (endNAV - startNAV) * progress * jCurveMultiplier;
+      });
   }
 
   /**
@@ -343,10 +401,13 @@ export class ProjectedMetricsCalculator {
     const investmentPeriodYears = config.investmentPeriodYears || 5;
     const fundLifeYears = config.fundTermYears || 10;
 
+    // Ensure we have a valid establishment date
+    const establishmentDate = fund.establishmentDate ?? fund.createdAt ?? new Date();
+
     // Generate J-curve construction forecast
     const forecast = ConstructionForecastCalculator.generateForecast({
       fundSize,
-      establishmentDate: fund.establishmentDate || fund.createdAt,
+      establishmentDate,
       targetTVPI,
       investmentPeriodYears,
       fundLifeYears,
@@ -355,25 +416,29 @@ export class ProjectedMetricsCalculator {
     });
 
     // Convert J-curve path to quarterly arrays
+    // JCurvePath has separate arrays: nav[], dpi[], calls[], etc.
     const numQuarters = fundLifeYears * 4;
     const projectedDeployment: number[] = [];
     const projectedDistributions: number[] = [];
     const projectedNAV: number[] = [];
 
     for (let i = 0; i < numQuarters; i++) {
-      const point = forecast.jCurvePath.mainPath[i];
-      if (point) {
-        // Deployment decreases over investment period
-        const inInvestmentPeriod = i < (investmentPeriodYears * 4);
-        const deploymentAmount = inInvestmentPeriod
-          ? fundSize.div(investmentPeriodYears * 4).toNumber()
-          : 0;
-        projectedDeployment.push(deploymentAmount);
+      const nav = forecast.jCurvePath.nav[i];
+      const dpi = forecast.jCurvePath.dpi[i];
+      const calls = forecast.jCurvePath.calls[i];
 
-        // Use J-curve projections
-        projectedDistributions.push(parseFloat(point.distributions.toString()));
-        projectedNAV.push(parseFloat(point.nav.toString()));
-      }
+      // Deployment based on calls (capital called)
+      const inInvestmentPeriod = i < (investmentPeriodYears * 4);
+      const deploymentAmount = inInvestmentPeriod && calls
+        ? parseFloat(calls.toString())
+        : (inInvestmentPeriod ? fundSize.div(investmentPeriodYears * 4).toNumber() : 0);
+      projectedDeployment.push(deploymentAmount);
+
+      // Use J-curve projections - DPI represents distributions as % of calls
+      const navValue = nav ? parseFloat(nav.toString()) : 0;
+      const dpiValue = dpi ? parseFloat(dpi.toString()) : 0;
+      projectedDistributions.push(dpiValue * fundSize.toNumber());
+      projectedNAV.push(navValue);
     }
 
     return {

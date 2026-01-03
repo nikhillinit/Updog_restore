@@ -11,7 +11,6 @@ import {
   MILLION,
   SCALE_MILLIONS_THRESHOLD,
   SCALE_RAW_THRESHOLD,
-  MISMATCH_RATIO_THRESHOLD,
   inferUnitScale,
   inferUnitScaleType,
   toCentsWithInference,

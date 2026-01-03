@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 import { storage } from '../storage';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 
 const router = Router();
 const execAsync = promisify(exec);
@@ -74,9 +74,9 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
 
     while ((match = errorRegex.exec(output)) !== null) {
       errors.push({
-        file: match[1],
-        line: parseInt(match[2]),
-        message: match[3].trim()
+        file: match[1] ?? '',
+        line: parseInt(match[2] ?? '0'),
+        message: (match[3] ?? '').trim()
       });
     }
 

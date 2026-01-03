@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -14,7 +9,6 @@ import { WizardProgress } from '../wizard/WizardProgress';
 import { WizardHeader } from '../wizard/WizardHeader';
 
 describe('POV Design System Components', () => {
-  
   describe('PremiumCard', () => {
     it('renders with correct POV styling', () => {
       render(
@@ -22,7 +16,7 @@ describe('POV Design System Components', () => {
           <div>Card Content</div>
         </PremiumCard>
       );
-      
+
       expect(screen.getByText('Test Card')).toBeInTheDocument();
       expect(screen.getByText('Test Subtitle')).toBeInTheDocument();
       expect(screen.getByText('Card Content')).toBeInTheDocument();
@@ -34,7 +28,7 @@ describe('POV Design System Components', () => {
           <div>Content</div>
         </PremiumCard>
       );
-      
+
       expect(screen.getByText('Hover Test')).toBeInTheDocument();
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
@@ -52,25 +46,20 @@ describe('POV Design System Components', () => {
           type="currency"
         />
       );
-      
+
       expect(screen.getByText('Fund Size')).toBeInTheDocument();
       const input = screen.getByPlaceholderText('Enter amount');
       expect(input).toBeInTheDocument();
-      
+
       fireEvent.change(input, { target: { value: '2500000' } });
       expect(handleChange).toHaveBeenCalled();
     });
 
     it('shows currency prefix by default', () => {
       render(
-        <FinancialInput
-          label="Investment"
-          value="100000"
-          onChange={() => {}}
-          type="currency"
-        />
+        <FinancialInput label="Investment" value="100000" onChange={() => {}} type="currency" />
       );
-      
+
       expect(screen.getByText('$')).toBeInTheDocument();
     });
 
@@ -84,7 +73,7 @@ describe('POV Design System Components', () => {
           suffix="%"
         />
       );
-      
+
       expect(screen.getByText('GP Commitment')).toBeInTheDocument();
     });
   });
@@ -93,7 +82,7 @@ describe('POV Design System Components', () => {
     const mockOptions = [
       { value: 'option1', label: 'Option 1' },
       { value: 'option2', label: 'Option 2' },
-      { value: 'option3', label: 'Option 3' }
+      { value: 'option3', label: 'Option 3' },
     ];
 
     it('renders with label and options', () => {
@@ -107,7 +96,7 @@ describe('POV Design System Components', () => {
           placeholder="Select strategy"
         />
       );
-      
+
       expect(screen.getByText('Investment Strategy')).toBeInTheDocument();
     });
 
@@ -121,7 +110,7 @@ describe('POV Design System Components', () => {
           options={mockOptions}
         />
       );
-      
+
       // Component should render without errors
       expect(screen.getByText('Fund Type')).toBeInTheDocument();
     });
@@ -136,7 +125,7 @@ describe('POV Design System Components', () => {
           required={true}
         />
       );
-      
+
       expect(screen.getByText('Required Field')).toBeInTheDocument();
     });
   });
@@ -152,57 +141,36 @@ describe('POV Design System Components', () => {
           onChange={handleChange}
         />
       );
-      
+
       expect(screen.getByText('Evergreen Fund')).toBeInTheDocument();
       expect(screen.getByText('Fund with no end date')).toBeInTheDocument();
     });
 
     it('shows checked state correctly', () => {
-      render(
-        <PremiumToggle
-          label="Active Status"
-          checked={true}
-          onChange={vi.fn()}
-        />
-      );
-      
+      render(<PremiumToggle label="Active Status" checked={true} onChange={vi.fn()} />);
+
       expect(screen.getByText('Active Status')).toBeInTheDocument();
     });
 
     it('handles disabled state', () => {
       render(
-        <PremiumToggle
-          label="Disabled Toggle"
-          checked={false}
-          onChange={vi.fn()}
-          disabled={true}
-        />
+        <PremiumToggle label="Disabled Toggle" checked={false} onChange={vi.fn()} disabled={true} />
       );
-      
+
       expect(screen.getByText('Disabled Toggle')).toBeInTheDocument();
     });
   });
 
   describe('WizardHeader', () => {
     it('renders with title and subtitle', () => {
-      render(
-        <WizardHeader 
-          title="Fund Setup Wizard"
-          subtitle="Create your investment fund"
-        />
-      );
-      
+      render(<WizardHeader title="Fund Setup Wizard" subtitle="Create your investment fund" />);
+
       expect(screen.getByText('Fund Setup Wizard')).toBeInTheDocument();
     });
 
     it('displays POV logo', () => {
-      const { container } = render(
-        <WizardHeader 
-          title="Test Title"
-          subtitle="Test Subtitle"
-        />
-      );
-      
+      const { container } = render(<WizardHeader title="Test Title" subtitle="Test Subtitle" />);
+
       // Check that the header container exists
       expect(container.querySelector('.bg-white')).toBeInTheDocument();
     });
@@ -212,12 +180,12 @@ describe('POV Design System Components', () => {
     const mockSteps = [
       { id: 'step1', label: 'Fund Basics', description: 'Basic info', icon: '1' },
       { id: 'step2', label: 'Capital Structure', description: 'LP classes', icon: '2' },
-      { id: 'step3', label: 'Investment Strategy', description: 'Strategy', icon: '3' }
+      { id: 'step3', label: 'Investment Strategy', description: 'Strategy', icon: '3' },
     ];
 
     it('renders all steps', () => {
       render(<WizardProgress steps={mockSteps} currentStep="step1" completedSteps={[]} />);
-      
+
       expect(screen.getByText('Fund Basics')).toBeInTheDocument();
       expect(screen.getByText('Capital Structure')).toBeInTheDocument();
       expect(screen.getByText('Investment Strategy')).toBeInTheDocument();
@@ -225,7 +193,7 @@ describe('POV Design System Components', () => {
 
     it('shows progress bar', () => {
       render(<WizardProgress steps={mockSteps} currentStep="step2" completedSteps={['step1']} />);
-      
+
       // Check if progress bar exists by looking for the container
       const progressContainer = document.querySelector('.bg-slate-200');
       expect(progressContainer).toBeInTheDocument();
@@ -236,10 +204,10 @@ describe('POV Design System Components', () => {
     it('calculates GP/LP split correctly', () => {
       const totalCommitment = 100000000; // $100M
       const gpPercentage = 2; // 2%
-      
+
       const gpCommitment = (totalCommitment * gpPercentage) / 100;
       const lpCommitment = totalCommitment - gpCommitment;
-      
+
       expect(gpCommitment).toBe(2000000); // $2M
       expect(lpCommitment).toBe(98000000); // $98M
     });
@@ -248,7 +216,7 @@ describe('POV Design System Components', () => {
       const validateCommitmentPercentage = (percentage: number) => {
         return percentage >= 0 && percentage <= 100;
       };
-      
+
       expect(validateCommitmentPercentage(2)).toBe(true);
       expect(validateCommitmentPercentage(-1)).toBe(false);
       expect(validateCommitmentPercentage(101)).toBe(false);
@@ -258,19 +226,19 @@ describe('POV Design System Components', () => {
   describe('LP Classes Management', () => {
     it('adds new LP class correctly', () => {
       const lpClasses: any[] = [];
-      
+
       const addLPClass = (lpClass: any) => {
         lpClasses.push(lpClass);
       };
-      
+
       addLPClass({
         name: 'Class A - Institutional',
         commitment: 50000000,
         numberOfLPs: 5,
         managementFee: 2.0,
-        carriedInterest: 20.0
+        carriedInterest: 20.0,
       });
-      
+
       expect(lpClasses).toHaveLength(1);
       expect(lpClasses[0].name).toBe('Class A - Institutional');
       expect(lpClasses[0].commitment).toBe(50000000);
@@ -280,19 +248,21 @@ describe('POV Design System Components', () => {
       const lpClasses = [
         { commitment: 50000000, managementFee: 2.0, carriedInterest: 20.0 },
         { commitment: 30000000, managementFee: 1.5, carriedInterest: 15.0 },
-        { commitment: 20000000, managementFee: 1.0, carriedInterest: 10.0 }
+        { commitment: 20000000, managementFee: 1.0, carriedInterest: 10.0 },
       ];
-      
+
       const totalCommitment = lpClasses.reduce((sum, lp) => sum + lp.commitment, 0);
-      
-      const weightedMgmtFee = lpClasses.reduce((sum, lp) => 
-        sum + (lp.commitment * lp.managementFee / totalCommitment), 0
+
+      const weightedMgmtFee = lpClasses.reduce(
+        (sum, lp) => sum + (lp.commitment * lp.managementFee) / totalCommitment,
+        0
       );
-      
-      const weightedCarry = lpClasses.reduce((sum, lp) => 
-        sum + (lp.commitment * lp.carriedInterest / totalCommitment), 0
+
+      const weightedCarry = lpClasses.reduce(
+        (sum, lp) => sum + (lp.commitment * lp.carriedInterest) / totalCommitment,
+        0
       );
-      
+
       expect(weightedMgmtFee).toBeCloseTo(1.65, 2);
       expect(weightedCarry).toBeCloseTo(16.5, 1);
     });
@@ -302,10 +272,10 @@ describe('POV Design System Components', () => {
     it('validates fund dates correctly', () => {
       const startDate = new Date('2023-04-15');
       const endDate = new Date('2033-04-15');
-      
-      const fundTerm = (endDate.getFullYear() - startDate.getFullYear());
+
+      const fundTerm = endDate.getFullYear() - startDate.getFullYear();
       expect(fundTerm).toBe(10);
-      
+
       // Validate end date is after start date
       expect(endDate > startDate).toBe(true);
     });
@@ -313,11 +283,11 @@ describe('POV Design System Components', () => {
     it('handles evergreen fund toggle', () => {
       let isEvergreen = false;
       let fundEndDate: Date | null = new Date('2033-04-15');
-      
+
       // Toggle to evergreen
       isEvergreen = true;
       fundEndDate = null;
-      
+
       expect(isEvergreen).toBe(true);
       expect(fundEndDate).toBeNull();
     });
@@ -330,14 +300,14 @@ describe('POV Design System Components', () => {
         { percentage: 25, date: '2023-04-15' },
         { percentage: 25, date: '2023-10-15' },
         { percentage: 25, date: '2024-04-15' },
-        { percentage: 25, date: '2024-10-15' }
+        { percentage: 25, date: '2024-10-15' },
       ];
-      
-      const callAmounts = callSchedule.map(call => ({
+
+      const callAmounts = callSchedule.map((call) => ({
         ...call,
-        amount: (totalCommitment * call.percentage) / 100
+        amount: (totalCommitment * call.percentage) / 100,
       }));
-      
+
       expect(callAmounts[0]!.amount).toBe(25000000);
       expect(callAmounts.reduce((sum, call) => sum + call.amount, 0)).toBe(totalCommitment);
     });
@@ -347,12 +317,12 @@ describe('POV Design System Components', () => {
         { percentage: 25, date: '2023-04-15' },
         { percentage: 25, date: '2023-10-15' },
         { percentage: 25, date: '2024-04-15' },
-        { percentage: 25, date: '2024-10-15' }
+        { percentage: 25, date: '2024-10-15' },
       ];
-      
-      const dates = callSchedule.map(call => new Date(call.date));
+
+      const dates = callSchedule.map((call) => new Date(call.date));
       for (let i = 1; i < dates.length; i++) {
-        expect(dates[i]! > dates[i-1]!).toBe(true);
+        expect(dates[i]! > dates[i - 1]!).toBe(true);
       }
     });
   });
@@ -365,9 +335,9 @@ describe('POV Design System Components', () => {
         configurable: true,
         value: 375,
       });
-      
+
       window.dispatchEvent(new Event('resize'));
-      
+
       // Test that mobile breakpoint is handled
       expect(window.innerWidth).toBe(375);
     });
@@ -379,9 +349,9 @@ describe('POV Design System Components', () => {
         configurable: true,
         value: 768,
       });
-      
+
       window.dispatchEvent(new Event('resize'));
-      
+
       expect(window.innerWidth).toBe(768);
     });
   });
@@ -391,7 +361,7 @@ describe('POV Design System Components', () => {
       const validateFundName = (name: string) => {
         return name.trim().length > 0;
       };
-      
+
       expect(validateFundName('')).toBe(false);
       expect(validateFundName('  ')).toBe(false);
       expect(validateFundName('Press On Ventures Fund I')).toBe(true);
@@ -402,7 +372,7 @@ describe('POV Design System Components', () => {
         const num = parseFloat(value);
         return !isNaN(num) && num >= 0;
       };
-      
+
       expect(validateNumericInput('100000')).toBe(true);
       expect(validateNumericInput('-100')).toBe(false);
       expect(validateNumericInput('abc')).toBe(false);
@@ -420,7 +390,7 @@ describe('Fund Setup Wizard Integration', () => {
         endDate: '2033-04-15',
         isEvergreen: false,
         totalCommitment: 100000000,
-        gpCommitmentPercentage: 2
+        gpCommitmentPercentage: 2,
       },
       step2: {
         lpClasses: [
@@ -429,9 +399,9 @@ describe('Fund Setup Wizard Integration', () => {
             commitment: 98000000,
             numberOfLPs: 20,
             managementFee: 2.0,
-            carriedInterest: 20.0
-          }
-        ]
+            carriedInterest: 20.0,
+          },
+        ],
       },
       step3: {
         numberOfInvestments: 30,
@@ -439,15 +409,14 @@ describe('Fund Setup Wizard Integration', () => {
         graduationRates: {
           seedToA: 40,
           aToB: 35,
-          bToC: 30
-        }
-      }
+          bToC: 30,
+        },
+      },
     };
-    
+
     // Validate complete fund data
     expect(fundData.step1.fundName).toBeTruthy();
     expect(fundData.step2.lpClasses.length).toBeGreaterThan(0);
     expect(fundData.step3.graduationRates.seedToA).toBeLessThanOrEqual(100);
   });
 });
-

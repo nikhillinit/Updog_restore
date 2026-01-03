@@ -1,4 +1,7 @@
 import { storage } from '../storage';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
+import { fundDistributions } from '@shared/schema';
 
 /**
  * Calculated fund metrics interface
@@ -20,13 +23,13 @@ export interface CalculatedFundMetrics {
   /** Deployment rate as percentage of committed capital */
   deploymentRate: number;
 
-  /** Internal Rate of Return (placeholder - requires distributions data) */
+  /** Internal Rate of Return */
   irr: number;
 
   /** Multiple on Invested Capital (MOIC) */
   moic: number;
 
-  /** Distributions to Paid-In capital (DPI) - requires distributions */
+  /** Distributions to Paid-In capital (DPI) */
   dpi: number;
 
   /** Total Value to Paid-In capital (TVPI) */
@@ -40,14 +43,40 @@ export interface CalculatedFundMetrics {
 
   /** Average initial check size per company */
   avgCheckSize: number;
+
+  /** Total distributions returned to LPs */
+  totalDistributions: number;
+}
+
+/**
+ * Simple IRR approximation using modified Dietz method
+ * This is a simplified calculation suitable for display purposes
+ * For precise IRR, use the client-side xirrNewtonBisection function
+ */
+function calculateSimpleIRR(
+  totalInvested: number,
+  totalValue: number,
+  totalDistributions: number,
+  yearsInvested: number
+): number {
+  if (totalInvested <= 0 || yearsInvested <= 0) return 0;
+
+  // Total return = (Current Value + Distributions - Initial Investment) / Initial Investment
+  const totalReturn = (totalValue + totalDistributions - totalInvested) / totalInvested;
+
+  // Annualized return (compound annual growth rate approximation)
+  // IRR ≈ (1 + totalReturn)^(1/years) - 1
+  const annualizedReturn = Math.pow(1 + totalReturn, 1 / yearsInvested) - 1;
+
+  // Cap at reasonable bounds (-50% to 200%)
+  return Math.max(-0.5, Math.min(2.0, annualizedReturn));
 }
 
 /**
  * Calculate comprehensive fund metrics for a given fund
  *
- * This function aggregates data from the fund, portfolio companies, and investments
- * to compute key venture capital performance metrics including MOIC, TVPI, deployment
- * rate, and portfolio statistics.
+ * This function aggregates data from the fund, portfolio companies, investments,
+ * and distributions to compute key venture capital performance metrics.
  *
  * @param fundId - The unique identifier of the fund
  * @returns Promise resolving to calculated fund metrics
@@ -57,7 +86,8 @@ export interface CalculatedFundMetrics {
  * ```typescript
  * const metrics = await calculateFundMetrics(1);
  * console.log(`Fund MOIC: ${metrics.moic.toFixed(2)}x`);
- * console.log(`Deployment Rate: ${metrics.deploymentRate.toFixed(1)}%`);
+ * console.log(`IRR: ${(metrics.irr * 100).toFixed(1)}%`);
+ * console.log(`DPI: ${metrics.dpi.toFixed(2)}x`);
  * ```
  */
 export async function calculateFundMetrics(fundId: number): Promise<CalculatedFundMetrics> {
@@ -70,6 +100,28 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
   // Fetch portfolio companies and investments
   const portfolioCompanies = await storage.getPortfolioCompanies(fundId);
   const investments = await storage.getInvestments(fundId);
+
+  // Fetch distributions from database
+  let distributions: Array<{ amount: string; distributionDate: Date }> = [];
+  try {
+    distributions = await db
+      .select({
+        amount: fundDistributions.amount,
+        distributionDate: fundDistributions.distributionDate,
+      })
+      .from(fundDistributions)
+      .where(eq(fundDistributions.fundId, fundId));
+  } catch (error) {
+    // If table doesn't exist yet, use empty array
+    // Log for observability but don't fail - distributions are optional
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes('does not exist') || errorMsg.includes('relation')) {
+      console.debug('[fund-metrics] Distributions table not yet created, using empty array');
+    } else {
+      console.warn('[fund-metrics] Failed to fetch distributions:', errorMsg);
+    }
+    distributions = [];
+  }
 
   // Extract and validate fund size (handle decimal/string conversion)
   const totalCommitted = parseFloat(fund.size) || 0;
@@ -86,6 +138,11 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
   const totalValue = portfolioCompanies.reduce((sum, company) => {
     const valuation = parseFloat(company.currentValuation || '0') || 0;
     return sum + valuation;
+  }, 0);
+
+  // Calculate total distributions
+  const totalDistributions = distributions.reduce((sum, dist) => {
+    return sum + (parseFloat(dist.amount) || 0);
   }, 0);
 
   // Count active investments
@@ -109,9 +166,20 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
 
   // Calculate Multiple on Invested Capital (MOIC)
   // MOIC = Total Value / Total Invested
-  // Returns 0 if no capital has been invested
   const moic = totalInvested > 0
     ? totalValue / totalInvested
+    : 0;
+
+  // Calculate DPI (Distributions to Paid-In)
+  // DPI = Total Distributions / Total Invested (Paid-In Capital)
+  const dpi = totalInvested > 0
+    ? totalDistributions / totalInvested
+    : 0;
+
+  // Calculate TVPI (Total Value to Paid-In)
+  // TVPI = (Total Distributions + Residual Value) / Paid-In Capital
+  const tvpi = totalInvested > 0
+    ? (totalDistributions + totalValue) / totalInvested
     : 0;
 
   // Calculate deployment rate
@@ -123,17 +191,15 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
   // Calculate remaining capital
   const remainingCapital = totalCommitted - totalInvested;
 
-  // Placeholder metrics requiring distributions data
-  // IRR calculation requires cash flow timeline (investments and distributions)
-  // DPI calculation requires distributions data: DPI = Distributions / Paid-In Capital
-  // For now, we return 0 and use TVPI as approximation of TVPI
-  const irr = 0;  // TODO: Implement IRR calculation when distributions data is available
-  const dpi = 0;  // TODO: Implement DPI calculation when distributions data is available
+  // Calculate IRR (approximation)
+  // Get fund vintage year or creation date for time calculation
+  const fundStartDate = fund.createdAt || new Date();
+  const yearsInvested = Math.max(
+    0.5, // Minimum 6 months to avoid division issues
+    (Date.now() - new Date(fundStartDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  );
 
-  // TVPI approximation
-  // TVPI = (Distributions + Residual Value) / Paid-In Capital
-  // Without distributions, we use MOIC as an approximation
-  const tvpi = moic;
+  const irr = calculateSimpleIRR(totalInvested, totalValue, totalDistributions, yearsInvested);
 
   return {
     totalCommitted,
@@ -148,5 +214,6 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
     activeInvestments,
     exited,
     avgCheckSize,
+    totalDistributions,
   };
 }
