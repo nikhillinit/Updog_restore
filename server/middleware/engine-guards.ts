@@ -137,7 +137,9 @@ export function assertFiniteDeep(
         const entries = Object.entries(o);
         if (entries.length > maxBreadth) {
           for (let i = 0; i < Math.min(entries.length, maxBreadth); i++) {
-            const [k, val] = entries[i];
+            const entry = entries[i];
+            if (!entry) continue;
+            const [k, val] = entry;
             stack.push({ v: val, path: `${path}.${k}`, depth: depth + 1 });
           }
           return { ok: false, path, value: v, reason: 'too-broad' };

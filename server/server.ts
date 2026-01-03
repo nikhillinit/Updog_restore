@@ -207,7 +207,9 @@ export async function createServer(
   });
   
   // Rate limiter: pass store; undefined => memory store (no redis)
-  app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
+  app.use('/health/detailed', rateLimitDetailed(
+    providers.rateLimitStore !== undefined ? { store: providers.rateLimitStore } : undefined
+  ));
   
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);

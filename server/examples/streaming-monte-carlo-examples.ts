@@ -143,7 +143,9 @@ export async function batchProcessingExample() {
 
   // Analyze results
   results.forEach((result: any, index: any) => {
-    console.log(`\nFund ${batchConfigs[index].fundId}:`);
+    const config = batchConfigs[index];
+    if (!config) return;
+    console.log(`\nFund ${config.fundId}:`);
     console.log(`  Expected IRR: ${(result.irr.statistics.mean * 100).toFixed(2)}%`);
     console.log(`  Expected Multiple: ${result.multiple.statistics.mean.toFixed(2)}x`);
     console.log(`  Engine used: ${result.performance.engineUsed}`);
@@ -495,11 +497,12 @@ export async function stressTest(fundId: number, startRuns: number = 1000, maxRu
   console.log('\n📊 Stress Test Summary:');
   const successful = results.filter(r => !r.error);
   if (successful.length > 0) {
-    const avgThroughput = successful.reduce((sum: any, r: any) => sum + r.scenariosPerSecond, 0) / successful.length;
-    const peakMemory = Math.max(...successful.map(r => r.memoryUsageMB));
+    const avgThroughput = successful.reduce((sum: any, r: any) => sum + (r.scenariosPerSecond ?? 0), 0) / successful.length;
+    const memoryValues = successful.map(r => r.memoryUsageMB ?? 0);
+    const peakMemory = Math.max(...memoryValues);
     console.log(`Average throughput: ${avgThroughput.toFixed(0)} scenarios/sec`);
     console.log(`Peak memory usage: ${peakMemory.toFixed(2)}MB`);
-    console.log(`Engine transitions: ${successful.filter((r: any, i: any) => i > 0 && r.engineUsed !== successful[i-1].engineUsed).length}`);
+    console.log(`Engine transitions: ${successful.filter((r: any, i: any) => { const prev = successful[i-1]; return i > 0 && prev && r.engineUsed !== prev.engineUsed; }).length}`);
   }
 
   return results;

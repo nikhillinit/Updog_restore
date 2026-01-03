@@ -710,7 +710,9 @@ export async function collaborativeSolve({
 // ============================================================================
 // Multi-AI Review Integration
 // ============================================================================
-import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; // relative import from server/
+
+/** Chat message format for multi-AI review integration */
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 // Ollama support (optional - dynamic require)
 let __ollama__: any = null;

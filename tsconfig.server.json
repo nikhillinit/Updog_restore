@@ -47,6 +47,8 @@
     "client/src/stores/**/*",
     "client/src/types/**/*",
     "client/src/monitoring/**/*",
+    "client/src/machines/**/*",
+    "client/src/adapters/**/*",
     "vite.config.ts"
   ],
   "exclude": [

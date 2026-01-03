@@ -160,13 +160,13 @@ export class LPBusinessMetrics {
   // Performance by customer tier
   static async recordTieredPerformance(endpoint: string, duration: number, tier: string) {
     // Different SLOs for different tiers
-    const slos = {
+    const slos: Record<string, number> = {
       enterprise: 200,
       growth: 400,
       startup: 1000
     };
-    
-    const sloTarget = slos[tier] || 1000;
+
+    const sloTarget = slos[tier] ?? 1000;
     const sloViolation = duration > sloTarget;
     
     endpointDuration.observe({
@@ -290,13 +290,13 @@ export class LPBusinessMetrics {
   }
   
   private static async calculateRevenueImpact(tier: string, overage: number): Promise<number> {
-    const impactRates = {
+    const impactRates: Record<string, number> = {
       enterprise: 100, // $100 per second of SLO violation
       growth: 10,      // $10 per second
       startup: 1       // $1 per second
     };
-    
-    return (overage / 1000) * (impactRates[tier] || 1);
+
+    return (overage / 1000) * (impactRates[tier] ?? 1);
   }
   
   private static updateCustomerHealthScore(context: BusinessContext) {

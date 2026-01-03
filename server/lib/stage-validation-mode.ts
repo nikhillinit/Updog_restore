@@ -22,7 +22,7 @@ let redisConnectPromise: Promise<void> | null = null;
 async function getRedisClient() {
   if (!redis && process.env.REDIS_URL && process.env.REDIS_URL !== 'memory://') {
     redis = createClient({ url: process.env.REDIS_URL });
-    redisConnectPromise = redis.connect().catch((err) => {
+    redisConnectPromise = redis.connect().then(() => undefined).catch((err) => {
       console.error('[stage-mode] Redis connect failed; using cache/default', err);
       redis = null; // Mark as failed
       redisConnectPromise = null;

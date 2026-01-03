@@ -4,7 +4,7 @@
  */
 
 import fetch, { AbortError } from 'node-fetch';
-import type { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions } from './ports.js';
+import type { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions, ReservePrediction } from './ports.js';
 import { logger } from '../../lib/logger.js';
 
 export interface MLServiceConfig {
@@ -133,22 +133,32 @@ export class MlClient {
         latencyMs?: number;
       };
 
+      // Build prediction with conditional optional properties
+      const prediction: ReservePrediction = {
+        recommendedReserve: Math.max(0, body.prediction.recommendedReserve),
+        notes: body.prediction.notes || [],
+      };
+      if (body.prediction.perRound !== undefined) {
+        prediction.perRound = body.prediction.perRound;
+      }
+      if (body.prediction.confidence !== undefined) {
+        prediction.confidence = body.prediction.confidence;
+      }
+
+      // Build decision with conditional explanation
       const decision: ReserveDecision = {
-        prediction: {
-          recommendedReserve: Math.max(0, body.prediction.recommendedReserve),
-          perRound: body.prediction.perRound,
-          confidence: body.prediction.confidence,
-          notes: body.prediction.notes || [],
-        },
-        explanation: body.explanation ? {
-          method: body.explanation.method as any,
-          details: body.explanation.details,
-          topFactors: this.extractTopFactors(body.explanation.details),
-        } : undefined,
+        prediction,
         engineType: 'ml',
         engineVersion: body.modelVersion,
-        latencyMs: body.latencyMs || (Date.now() - startTime),
+        latencyMs: body.latencyMs ?? (Date.now() - startTime),
       };
+      if (body.explanation !== undefined) {
+        decision.explanation = {
+          method: body.explanation.method as 'rules' | 'shap' | 'permutation' | 'feature_importance' | 'hybrid',
+          details: body.explanation.details,
+          topFactors: this.extractTopFactors(body.explanation.details),
+        };
+      }
 
       logger.debug({
         companyId: company.id,

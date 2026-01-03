@@ -19,7 +19,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     max: 30, // 30 requests per minute
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    store: opts?.store, // Injected store (undefined => memory store)
+    ...(opts?.store !== undefined ? { store: opts.store } : {}),
     keyGenerator: (req: Request) => {
       // Use library's IPv6-safe key generator
       return `${ipKeyGenerator(req as any)}:health-detailed`;

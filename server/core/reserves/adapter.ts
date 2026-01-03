@@ -285,10 +285,11 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       ].slice(0, 8),
     };
 
+    const combinedPerRound = ml.prediction.perRound ?? rules.prediction.perRound;
     const hybridDecision: ReserveDecision = {
       prediction: {
         recommendedReserve: Math.max(0, combinedReserve),
-        perRound: ml.prediction.perRound || rules.prediction.perRound,
+        ...(combinedPerRound !== undefined ? { perRound: combinedPerRound } : {}),
         confidence: {
           low: Math.min(
             ml.prediction.confidence?.low || combinedReserve,

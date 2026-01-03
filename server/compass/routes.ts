@@ -41,6 +41,10 @@ router["get"]('/health', (_req: Request, res: Response) => {
 router["get"]('/portfolio-companies/:id/valuation-context', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Missing company ID' });
+      return;
+    }
 
     // TODO: Fetch from database
     // const company = await db.query('SELECT * FROM compass.portfolio_company_metrics WHERE id = $1', [id]);

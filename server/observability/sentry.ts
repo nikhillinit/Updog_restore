@@ -4,6 +4,7 @@
  */
 
 import * as Sentry from '@sentry/node';
+import type { Event } from '@sentry/types';
 
 const sentryDSN = process.env['SENTRY_DSN'];
 
@@ -13,18 +14,18 @@ if (sentryDSN) {
     environment: process.env['NODE_ENV'] || 'development',
     release: process.env['GIT_SHA'] || 'unknown',
     tracesSampleRate: Number(process.env['SENTRY_TRACES_RATE'] || '0.1'),
-    
+
     // Performance monitoring
     integrations: [
       Sentry.httpIntegration(),
     ],
-    
+
     // Privacy: Scrub sensitive data
-    beforeSend(event: Sentry.ErrorEvent) {
+    beforeSend(event: Event) {
       // Remove auth headers
       if (event.request?.headers) {
-        delete event.request.headers.authorization;
-        delete event.request.headers.cookie;
+        delete event.request.headers['authorization'];
+        delete event.request.headers['cookie'];
         delete event.request.headers['x-auth-token'];
       }
       

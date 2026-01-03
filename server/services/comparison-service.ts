@@ -231,7 +231,9 @@ export class ComparisonService {
       follow_ons: summary.follow_ons,
       exit_proceeds: summary.exit_proceeds,
       exit_valuation: summary.exit_valuation,
-      months_to_exit: summary.months_to_exit,
+      ...(summary.months_to_exit !== undefined
+        ? { months_to_exit: summary.months_to_exit }
+        : {}),
     };
   }
 

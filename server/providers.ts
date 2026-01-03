@@ -85,7 +85,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
   return {
     mode,
     cache,
-    rateLimitStore, // undefined => express-rate-limit uses memory store
+    ...(rateLimitStore !== undefined ? { rateLimitStore } : {}),
     queue,
     sessions,
     teardown: async () => {

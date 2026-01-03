@@ -193,7 +193,7 @@ export const monteCarloRateLimit = createRateLimiter({
   max: 3, // Only 3 Monte Carlo simulations per 5 minutes
   keyGenerator: (req: Request) => {
     const userId = (req as any).user?.id;
-    return userId ? `mc:${userId}` : ipKeyGenerator(req);
+    return userId ? `mc:${userId}` : (req.ip ?? 'unknown');
   },
   handler: (req: Request, res: Response) => {
     logSecurity('Monte Carlo rate limit exceeded', {
