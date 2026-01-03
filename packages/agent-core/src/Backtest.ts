@@ -54,7 +54,7 @@ export interface BacktestResult {
   metadata?: {
     agentModel?: AIModel;
     timestamp?: string;
-    executionDetails?: any;
+    executionDetails?: unknown;
   };
 }
 
@@ -196,7 +196,7 @@ export class BacktestRunner {
    * Evaluate a single backtest case
    */
   async evaluateSingleCase(testCase: BacktestCase): Promise<BacktestResult> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
     this.logger.debug(`Evaluating case ${testCase.id}`, { testCase });
 
     try {
@@ -261,7 +261,7 @@ export class BacktestRunner {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Case ${testCase.id} failed`, error);
 
       return {
@@ -331,7 +331,6 @@ export class BacktestRunner {
     const similarityFactor = similarityScore * 40;
 
     // 2. Efficiency (number of iterations) (20%)
-    const optimalIterations = 1;
     const maxIterations = 5;
     const iterationsFactor =
       Math.max(0, (maxIterations - agentResult.iterations) / maxIterations) * 20;
@@ -374,7 +373,7 @@ export class BacktestRunner {
 
     return {
       name: routingDecision.model,
-      execute: async (tc: BacktestCase, context: WorktreeContext): Promise<AgentExecutionResult> => {
+      execute: async (tc: BacktestCase, _context: WorktreeContext): Promise<AgentExecutionResult> => {
         const startTime = Date.now();
 
         if (this.config.dryRun) {
@@ -451,7 +450,7 @@ export class BacktestRunner {
         ['worktree', 'remove', worktreePath, '--force'],
         this.config.projectRoot
       );
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn(`Failed to remove worktree: ${error}`);
       // Try to prune in case of stale worktrees
       await this.executeGitCommand(['worktree', 'prune'], this.config.projectRoot);
@@ -467,7 +466,7 @@ export class BacktestRunner {
     const cleanupPromises = Array.from(this.worktrees.values()).map(async (context) => {
       try {
         await context.cleanup();
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn(`Failed to cleanup worktree: ${error}`);
       }
     });
@@ -478,7 +477,7 @@ export class BacktestRunner {
     // Prune any remaining stale worktrees
     try {
       await this.executeGitCommand(['worktree', 'prune'], this.config.projectRoot);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn(`Failed to prune worktrees: ${error}`);
     }
   }

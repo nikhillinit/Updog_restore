@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
@@ -44,11 +39,11 @@ type StrategySlice = {
 
 // helper functions
 const enforceLast = (rows: StrategyStage[]) =>
-  rows.map((r: any, i: any) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
+  rows.map((r, i) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
 const generateStableId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return (crypto as any).randomUUID();
+    return crypto.randomUUID();
   }
   return `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
@@ -91,26 +86,26 @@ export const useFundStore = create<StrategySlice>()(
         ],
         followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
-        addStage: () => set((s: any) => {
+        addStage: () => set((s) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
-        
+
         const id = generateStableId();
         const next = [...s.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
         return { stages: enforceLast(next) };
         }),
 
-        removeStage: (idx: number) => set((s: any) => {
+        removeStage: (idx: number) => set((s) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
-        
-        const next = s.stages.filter((_: any, i: any) => i !== idx);
+
+        const next = s.stages.filter((_, i) => i !== idx);
         return { stages: enforceLast(next) };
         }),
 
-        updateStageName: (idx: number, name: string) => set((s: any) => {
+        updateStageName: (idx: number, name: string) => set((s) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -122,7 +117,7 @@ export const useFundStore = create<StrategySlice>()(
         return { stages };
         }),
 
-        updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => set((s: any) => {
+        updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => set((s) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -157,14 +152,14 @@ export const useFundStore = create<StrategySlice>()(
           }
 
           // Compute new validation result
-          const errors = stages.map((r: StrategyStage, i: number) => {
+          const errors = stages.map((r, i) => {
             if (!r.name?.trim()) return 'Stage name required';
             if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
             if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
             return null;
           });
 
-          const result = { allValid: errors.every((e: string | null) => !e), errorsByRow: errors };
+          const result = { allValid: errors.every((e) => !e), errorsByRow: errors };
 
           // Cache the result
           cachedStagesState = stages;
@@ -197,42 +192,42 @@ export const useFundStore = create<StrategySlice>()(
           name: s.name,
           graduate: normalizeNumber(s.graduationRate),
           exit: normalizeNumber(s.exitRate),
-          months: (s as any).months ?? 12 // Only default when undefined/null (months not in base type)
+          months: (s as {months?: number}).months ?? 12 // Only default when undefined/null (months not in base type)
         }));
         
         // 2) Sort before compare & write (order-agnostic)
         const newStages = enforceLast(mappedStages).sort(sortById);
         const prevStages = current.stages.slice().sort(sortById);
-        
+
         // 3) Deep equality check for stages (using NaN-safe equality)
-        const stagesEqual = 
+        const stagesEqual =
           prevStages.length === newStages.length &&
-          prevStages.every((a: any, i: any) => 
+          prevStages.every((a, i) =>
             a.id === newStages[i].id &&
             a.name === newStages[i].name &&
             eq(a.graduate, newStages[i].graduate) &&
             eq(a.exit, newStages[i].exit) &&
             eq(a.months, newStages[i].months)
           );
-        
+
         // Sort and compare profiles (with normalized percentages)
         const nextProfiles = strategy.sectorProfiles.slice().sort(sortById);
         const prevProfiles = current.sectorProfiles.slice().sort(sortById);
-        const profilesEqual = 
+        const profilesEqual =
           prevProfiles.length === nextProfiles.length &&
-          prevProfiles.every((a: any, i: any) => 
+          prevProfiles.every((a, i) =>
             a.id === nextProfiles[i]?.id &&
             a.name === nextProfiles[i]?.name &&
             eq(a.targetPercentage, normalizeNumber(nextProfiles[i]?.targetPercentage)) &&
             a.description === nextProfiles[i]?.description
           );
-        
+
         // Sort and compare allocations (with normalized percentages)
         const nextAllocs = strategy.allocations.slice().sort(sortById);
         const prevAllocs = current.allocations.slice().sort(sortById);
-        const allocsEqual = 
+        const allocsEqual =
           prevAllocs.length === nextAllocs.length &&
-          prevAllocs.every((a: any, i: any) => 
+          prevAllocs.every((a, i) =>
             a.id === nextAllocs[i]?.id &&
             a.category === nextAllocs[i]?.category &&
             eq(a.percentage, normalizeNumber(nextAllocs[i]?.percentage)) &&
@@ -259,7 +254,7 @@ export const useFundStore = create<StrategySlice>()(
   {
       name: 'investment-strategy',
       version: 2, // Bump version for new structure
-      partialize: (s: any) => ({
+      partialize: (s) => ({
         // Only persist primitive inputs (no derived remain)
         stages: s.stages.map((r: StrategyStage) => ({
           id: r.id, name: r.name, graduate: r.graduate, exit: r.exit, months: r.months
@@ -269,13 +264,13 @@ export const useFundStore = create<StrategySlice>()(
         followOnChecks: s.followOnChecks,
         modelVersion: 'reserves-ev1',
       }),
-      migrate: (state: any, from: number) => {
+      migrate: (state, from: number) => {
         if (from < 2) {
-          state.stages = (state.stages ?? []).map((r: any) => ({ months: 12, ...r }));
+          state.stages = (state.stages ?? []).map((r: {months?: number}) => ({ months: 12, ...r }));
         }
         return state;
       },
-      onRehydrateStorage: () => (_state: any, err: any) => {
+      onRehydrateStorage: () => (_state, err) => {
         if (err) console.error('[fund-store] rehydrate error', err);
         // Flip on next microtask so subscribers see the final rehydrated values
         Promise.resolve().then(() => useFundStore.getState().setHydrated(true));
@@ -285,9 +280,9 @@ export const useFundStore = create<StrategySlice>()(
 );
 
 // Dev-only store tracer for debugging state updates
-if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1' && typeof window !== 'undefined' && !(window as any).__fundStoreTracer) {
-  (window as any).__fundStoreTracer = true;
-  const unsub = useFundStore.subscribe((state: any, prev: any) => {
+if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1' && typeof window !== 'undefined' && !(window as Window & {__fundStoreTracer?: boolean}).__fundStoreTracer) {
+  (window as Window & {__fundStoreTracer?: boolean; __unsubFundStoreTracer?: () => void}).__fundStoreTracer = true;
+  const unsub = useFundStore.subscribe((state, prev) => {
     const changed: string[] = [];
     if (state.hydrated !== prev.hydrated) changed.push('hydrated');
     if (state.stages !== prev.stages) changed.push('stages');
@@ -303,6 +298,6 @@ if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1' && typeo
     }
   });
   // Store unsubscribe function for cleanup if needed
-  (window as any).__unsubFundStoreTracer = unsub;
+  (window as Window & {__unsubFundStoreTracer?: () => void}).__unsubFundStoreTracer = unsub;
 }
 

@@ -11,7 +11,7 @@ import {
   createEvaluator,
   type GeneratorFunction,
   type EvaluatorFunction,
-} from '@povc/agent-core';
+} from '../src/EvaluatorOptimizer';
 
 /**
  * Mock LLM call function
@@ -99,10 +99,10 @@ function findMax(arr: number[]): number {
 /**
  * Example 1: Basic usage with helper functions
  */
-async function basicExample() {
+async function basicExample(): Promise<void> {
   console.log('\n=== EXAMPLE 1: Basic Usage ===\n');
 
-  const workflow = new EvaluatorOptimizer({
+  const workflow: EvaluatorOptimizer<string> = new EvaluatorOptimizer<string>({
     maxIterations: 5,
     verbose: true,
   });
@@ -135,8 +135,8 @@ Detailed feedback on what needs improvement
 </feedback>
   `;
 
-  const generator = createGenerator(generatorPrompt, mockLlmCall);
-  const evaluator = createEvaluator(evaluatorPrompt, mockLlmCall);
+  const generator: GeneratorFunction<string> = createGenerator<string>(generatorPrompt, mockLlmCall);
+  const evaluator: EvaluatorFunction<string> = createEvaluator<string>(evaluatorPrompt, mockLlmCall);
 
   const task = 'Implement a function that finds the maximum value in an array of numbers';
 
@@ -153,16 +153,16 @@ Detailed feedback on what needs improvement
 /**
  * Example 2: Custom generator and evaluator functions
  */
-async function customFunctionsExample() {
+async function customFunctionsExample(): Promise<void> {
   console.log('\n\n=== EXAMPLE 2: Custom Functions ===\n');
 
-  const workflow = new EvaluatorOptimizer({
+  const workflow: EvaluatorOptimizer<string> = new EvaluatorOptimizer<string>({
     maxIterations: 3,
     verbose: false,
   });
 
   // Custom generator with specific logic
-  const customGenerator: GeneratorFunction = async (task: string, context?: string) => {
+  const customGenerator: GeneratorFunction<string> = async (task, context?) => {
     const prompt = context ? `${task}\n\n${context}` : task;
     const response = await mockLlmCall(prompt);
 
@@ -177,8 +177,8 @@ async function customFunctionsExample() {
   };
 
   // Custom evaluator with specific criteria
-  const customEvaluator: EvaluatorFunction = async (content: string, task: string) => {
-    const prompt = `Evaluate this code:\n${content}\n\nFor task: ${task}`;
+  const customEvaluator: EvaluatorFunction<string> = async (content, _task) => {
+    const prompt = `Evaluate this code:\n${content}\n\nFor task: ${_task}`;
     const response = await mockLlmCall(prompt);
 
     const statusMatch = response.match(/<evaluation>(.*?)<\/evaluation>/i);
@@ -214,18 +214,18 @@ interface CodeArtifact {
   documentation: string;
 }
 
-async function typedContentExample() {
+async function typedContentExample(): Promise<void> {
   console.log('\n\n=== EXAMPLE 3: Typed Content ===\n');
 
-  const workflow = new EvaluatorOptimizer<CodeArtifact>({
+  const workflow: EvaluatorOptimizer<CodeArtifact> = new EvaluatorOptimizer<CodeArtifact>({
     maxIterations: 3,
     verbose: false,
   });
 
-  const generator = async (
-    task: string,
-    context?: string
-  ): Promise<{ thoughts: string; result: CodeArtifact }> => {
+  const generator: GeneratorFunction<CodeArtifact> = async (
+    _task,
+    _context?
+  ) => {
     return {
       thoughts: 'Creating code with tests and docs',
       result: {
@@ -236,10 +236,10 @@ async function typedContentExample() {
     };
   };
 
-  const evaluator = async (
-    content: CodeArtifact,
-    task: string
-  ): Promise<{ status: 'PASS' | 'NEEDS_IMPROVEMENT' | 'FAIL'; feedback: string }> => {
+  const evaluator: EvaluatorFunction<CodeArtifact> = async (
+    content,
+    _task
+  ) => {
     // Check if all required parts are present
     const hasCode = content.code.length > 0;
     const hasTests = content.tests.length > 0;
@@ -267,16 +267,16 @@ async function typedContentExample() {
 /**
  * Example 4: Analyzing the workflow steps
  */
-async function analyzeStepsExample() {
+async function analyzeStepsExample(): Promise<void> {
   console.log('\n\n=== EXAMPLE 4: Step Analysis ===\n');
 
-  const workflow = new EvaluatorOptimizer({
+  const workflow: EvaluatorOptimizer<string> = new EvaluatorOptimizer<string>({
     maxIterations: 5,
     verbose: false,
   });
 
-  const generator = createGenerator('Generate code', mockLlmCall);
-  const evaluator = createEvaluator('Evaluate code', mockLlmCall);
+  const generator: GeneratorFunction<string> = createGenerator<string>('Generate code', mockLlmCall);
+  const evaluator: EvaluatorFunction<string> = createEvaluator<string>('Evaluate code', mockLlmCall);
 
   const task = 'Implement a binary search function';
   const result = await workflow.run(task, generator, evaluator);
@@ -286,11 +286,14 @@ async function analyzeStepsExample() {
 
   result.steps.forEach((step, index) => {
     console.log(`\nStep ${index + 1}:`);
-    console.log(`  Thoughts: ${step.generation.thoughts.substring(0, 50)}...`);
-    console.log(`  Result length: ${step.generation.result.length} chars`);
+    const thoughts = String(step.generation.thoughts);
+    const resultStr = String(step.generation.result);
+    console.log(`  Thoughts: ${thoughts.substring(0, 50)}...`);
+    console.log(`  Result length: ${resultStr.length} chars`);
     if (step.evaluation) {
+      const feedback = String(step.evaluation.feedback);
       console.log(`  Evaluation: ${step.evaluation.status}`);
-      console.log(`  Feedback: ${step.evaluation.feedback.substring(0, 50)}...`);
+      console.log(`  Feedback: ${feedback.substring(0, 50)}...`);
     }
   });
 
@@ -306,15 +309,15 @@ async function main() {
     await customFunctionsExample();
     await typedContentExample();
     await analyzeStepsExample();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error running examples:', error);
     process.exit(1);
   }
 }
 
 // Run if called directly
-if (require.main === module) {
-  main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(console.error);
 }
 
 export { main };

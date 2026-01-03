@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -253,7 +248,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     });
 
     // Sort investments
-    filtered.sort((a: any, b: any) => {
+    filtered.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
       
@@ -331,7 +326,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
   };
 
   // Bulk operations handlers
-  const handleBulkImport = async (newInvestments: any[]) => {
+  const handleBulkImport = async (newInvestments: unknown[]) => {
     console.log('Importing investments:', newInvestments);
     // In real implementation, this would call an API
     // setInvestments(prev => [...prev, ...newInvestments]);
@@ -398,7 +393,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
               <Input
                 placeholder="Search investments, sectors, or partners..."
                 value={searchTerm}
-                onChange={(e: any) => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
@@ -501,7 +496,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                         <Checkbox
                           id={key}
                           checked={visible}
-                          onCheckedChange={(checked: any) =>
+                          onCheckedChange={(checked) =>
                             setVisibleColumns(prev => ({ ...prev, [key]: checked }))
                           }
                         />
@@ -609,7 +604,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredInvestments.map((investment: any) => (
+                {filteredInvestments.map((investment) => (
                   <tr key={investment.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <Checkbox
@@ -653,7 +648,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                     {visibleColumns.tags && (
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
-                          {investment.tags.slice(0, 2).map((tag: any, idx: any) => (
+                          {investment.tags.slice(0, 2).map((tag, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700">
                               {tag}
                             </Badge>

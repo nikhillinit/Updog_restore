@@ -116,8 +116,7 @@ export class HybridMemoryManager {
   async store(key: string, value: string, metadata: MemoryMetadata): Promise<void> {
     const fullKey = this.buildStorageKey(key, metadata);
 
-    logger.debug({
-      msg: 'Storing memory',
+    logger.debug('Storing memory', {
       key: fullKey,
       scope: metadata.scope,
       tenantId: metadata.tenantId,
@@ -144,9 +143,7 @@ export class HybridMemoryManager {
           await this.storeInNativeMemory(fullKey, value, metadata);
         } else {
           // Fallback to Redis with long expiry
-          logger.warn({
-            msg: 'Native memory not enabled, falling back to Redis for long-term storage',
-            key: fullKey,
+          logger.warn('Native memory not enabled, falling back to Redis for long-term storage', {key: fullKey,
           });
           await this.storeInRedis(fullKey, value, metadata.expiryMs ?? 86400000); // 24 hours
         }
@@ -175,9 +172,7 @@ export class HybridMemoryManager {
   async retrieve(key: string, metadata: MemoryMetadata): Promise<string | null> {
     const fullKey = this.buildStorageKey(key, metadata);
 
-    logger.debug({
-      msg: 'Retrieving memory',
-      key: fullKey,
+    logger.debug('Retrieving memory', {key: fullKey,
       scope: metadata.scope,
       tenantId: metadata.tenantId,
     });
@@ -185,9 +180,7 @@ export class HybridMemoryManager {
     // Try Redis first (fast)
     const redisValue = await this.redisStorage.get(fullKey);
     if (redisValue) {
-      logger.debug({
-        msg: 'Memory cache hit (Redis)',
-        key: fullKey,
+      logger.debug('Memory cache hit (Redis)', {key: fullKey,
       });
       return redisValue;
     }
@@ -197,9 +190,7 @@ export class HybridMemoryManager {
       this.nativeMemoryEnabled &&
       (metadata.scope === 'longterm' || metadata.scope === 'project')
     ) {
-      logger.debug({
-        msg: 'Memory cache miss (Redis), trying native memory',
-        key: fullKey,
+      logger.debug('Memory cache miss (Redis), trying native memory', {key: fullKey,
       });
       return await this.retrieveFromNativeMemory(fullKey, metadata);
     }
@@ -216,9 +207,7 @@ export class HybridMemoryManager {
   async delete(key: string, metadata: MemoryMetadata): Promise<void> {
     const fullKey = this.buildStorageKey(key, metadata);
 
-    logger.debug({
-      msg: 'Deleting memory',
-      key: fullKey,
+    logger.debug('Deleting memory', {key: fullKey,
       tenantId: metadata.tenantId,
     });
 
@@ -244,9 +233,7 @@ export class HybridMemoryManager {
    * @returns Array of matching memory entries
    */
   async searchByTenant(tenantId: string, tags?: string[]): Promise<MemoryEntry[]> {
-    logger.debug({
-      msg: 'Searching memories',
-      tenantId,
+    logger.debug('Searching memories', {tenantId,
       tags,
     });
 
@@ -266,9 +253,7 @@ export class HybridMemoryManager {
   private async storeInRedis(key: string, value: string, expiryMs?: number): Promise<void> {
     await this.redisStorage.set(key, value, expiryMs);
 
-    logger.debug({
-      msg: 'Stored in Redis',
-      key,
+    logger.debug('Stored in Redis', {key,
       expiryMs,
     });
   }
@@ -289,9 +274,7 @@ export class HybridMemoryManager {
     // Native memory tool is executed by Claude during conversation
     // We can't directly write to it - only coordinate via events
 
-    logger.debug({
-      msg: 'Native memory storage requested (requires tool_use)',
-      key,
+    logger.debug('Native memory storage requested (requires tool_use)', {key,
       tenantId: metadata.tenantId,
     });
 
@@ -317,9 +300,7 @@ export class HybridMemoryManager {
     // Native memory retrieval happens via Claude's tool_use
     // For now, return null - full implementation requires conversation context
 
-    logger.debug({
-      msg: 'Native memory retrieval requested (requires tool_use)',
-      key,
+    logger.debug('Native memory retrieval requested (requires tool_use)', {key,
       tenantId: metadata.tenantId,
     });
 

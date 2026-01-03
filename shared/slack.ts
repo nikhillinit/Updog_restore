@@ -24,11 +24,11 @@ if (process.env['SLACK_WEBHOOK_URL'] || process.env['SLACK_TOKEN']) {
     .then(({ IncomingWebhook }) => {
       const url = process.env['SLACK_WEBHOOK_URL'] ?? '';
       const webhook = new IncomingWebhook(url);
-      postImpl = async (payload: any) => {
+      postImpl = async (payload: SlackPayload) => {
         await webhook.send(payload);
       };
     })
-    .catch((_err: any) => {
+    .catch((_err: unknown) => {
       // Package not installed or import failed - continue as no-op
       if (process.env['NODE_ENV'] === 'production' && process.env['SLACK_WEBHOOK_URL']) {
         console.warn('[slack] @slack/webhook not installed, Slack notifications disabled');

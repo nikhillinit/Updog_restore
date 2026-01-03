@@ -115,7 +115,7 @@ const validateRequest = (schema: z.ZodSchema) => {
 // Response guard middleware
 const guardResponse = (req: Request, res: Response, next: NextFunction) => {
   const originalJson = res.json;
-  (res as any).json = function(data: any) {
+  (res as unknown as { json: (data: unknown) => Response }).json = function(data: unknown) {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
       const failure = guard as { ok: false; path: string | string[]; value: unknown; reason: string };
@@ -200,7 +200,7 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
     // Create simulation config with normalized stages if validation passed
     const simulationConfig = req.body;
     if (normalizedStages && Object.keys(normalizedStages).length > 0) {
-      (simulationConfig as any).stageDistribution = normalizedStages;
+      (simulationConfig as { stageDistribution?: Record<string, number> }).stageDistribution = normalizedStages;
     }
 
     console.log(`[MONTE_CARLO] Starting simulation ${correlationId} with ${simulationConfig.runs} scenarios`);
@@ -416,8 +416,8 @@ router["post"]('/batch', validateRequest(batchSimulationSchema), async (req: Req
 
     const results = await unifiedMonteCarloService.runBatchSimulations(req.body.simulations);
 
-    const totalExecutionTime = results.reduce((sum: any, r: any) => sum + r.executionTimeMs, 0);
-    const engineUsage = results.reduce((acc: any, r: any) => {
+    const totalExecutionTime = results.reduce((sum, r) => sum + r.executionTimeMs, 0);
+    const engineUsage = results.reduce((acc, r) => {
       acc[r.performance.engineUsed] = (acc[r.performance.engineUsed] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -479,10 +479,10 @@ router["post"]('/multi-environment', validateRequest(multiEnvironmentSchema), as
         environments: environmentSummary,
         totalEnvironments: req.body.environments.length,
         comparison: {
-          bestCase: environmentSummary.reduce((best: any, env: any) =>
+          bestCase: environmentSummary.reduce((best, env) =>
             env.expectedIRR > best.expectedIRR ? env : best
           ),
-          worstCase: environmentSummary.reduce((worst: any, env: any) =>
+          worstCase: environmentSummary.reduce((worst, env) =>
             env.expectedIRR < worst.expectedIRR ? env : worst
           )
         }

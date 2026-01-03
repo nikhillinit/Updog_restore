@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -221,7 +216,7 @@ export default function MOICAnalysis() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {moicDefinitions.map((def: any, index: any) => (
+            {moicDefinitions.map((def, index) => (
               <div key={index} className="p-4 border border-gray-200 rounded-lg">
                 <div className="font-medium text-gray-900 mb-2">{def.name}</div>
                 <div className="text-sm text-blue-600 font-mono mb-2 bg-blue-50 p-2 rounded">
@@ -259,7 +254,7 @@ export default function MOICAnalysis() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="name" stroke="#666" fontSize={12} />
                       <YAxis stroke="#666" fontSize={12} />
-                      <Tooltip formatter={(value: any, name: any) => [`${value}x`, name]} />
+                      <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
                       <Bar dataKey="Current MOIC" fill="#3b82f6" />
                       <Bar dataKey="Current MOIC on Initial" fill="#06b6d4" />
                       <Bar dataKey="Current MOIC on Deployed Reserves" fill="#10b981" />
@@ -275,7 +270,7 @@ export default function MOICAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {sampleMOICData.map((company: any, index: any) => (
+                  {sampleMOICData.map((company, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <div className="font-medium">{company.companyName}</div>
@@ -312,7 +307,7 @@ export default function MOICAnalysis() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="name" stroke="#666" fontSize={12} />
                     <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip formatter={(value: any, name: any) => [`${value}x`, name]} />
+                    <Tooltip formatter={(value) => [`${value}x`, String(value)]} />
                     <Bar dataKey="Exit MOIC" fill="#8b5cf6" />
                     <Bar dataKey="Exit MOIC on Initial" fill="#f59e0b" />
                     <Bar dataKey="Exit MOIC on Follow-Ons" fill="#ef4444" />
@@ -349,12 +344,16 @@ export default function MOICAnalysis() {
                       fontSize={12}
                       label={{ value: 'Expected MOIC', angle: -90, position: 'insideLeft' }}
                     />
-                    <Tooltip 
-                      formatter={(value, name, _props) => {
+                    <Tooltip
+                      formatter={(value, name) => {
                         if (name === 'expectedMOIC') return [`${value}x`, 'Expected MOIC on Reserves'];
                         return [value, name];
                       }}
-                      labelFormatter={(value: any, payload: any) => `${payload?.[0]?.payload?.name}`}
+                      labelFormatter={(_value, payload) => {
+                        if (!Array.isArray(payload) || payload.length === 0) return '';
+                        const data = payload[0]?.payload as { name?: string } | undefined;
+                        return data?.name ?? '';
+                      }}
                       contentStyle={{ 
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
@@ -376,8 +375,8 @@ export default function MOICAnalysis() {
               <CardContent>
                 <div className="space-y-3">
                   {sampleMOICData
-                    .sort((a: any, b: any) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
-                    .map((company: any, index: any) => (
+                    .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
+                    .map((company, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                         <div>
                           <div className="font-medium">{company.companyName}</div>
@@ -421,7 +420,7 @@ export default function MOICAnalysis() {
                   <div className="p-4 bg-amber-50 rounded-lg">
                     <div className="font-medium text-amber-900 mb-2">Average Expected MOIC</div>
                     <div className="text-2xl font-bold text-amber-600">
-                      {(sampleMOICData.reduce((sum: any, c: any) => sum + c.exitMOICOnPlannedReserves, 0) / sampleMOICData.length).toFixed(1)}x
+                      {(sampleMOICData.reduce((sum, c) => sum + c.exitMOICOnPlannedReserves, 0) / sampleMOICData.length).toFixed(1)}x
                     </div>
                     <div className="text-sm text-amber-700">across all planned reserves</div>
                   </div>
@@ -429,7 +428,7 @@ export default function MOICAnalysis() {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <div className="font-medium text-gray-900 mb-2">Total Planned Reserves</div>
                     <div className="text-2xl font-bold text-gray-700">
-                      {formatCurrency(sampleMOICData.reduce((sum: any, c: any) => sum + c.plannedReserves, 0))}
+                      {formatCurrency(sampleMOICData.reduce((sum, c) => sum + c.plannedReserves, 0))}
                     </div>
                     <div className="text-sm text-gray-600">across {sampleMOICData.length} companies</div>
                   </div>
@@ -461,7 +460,7 @@ export default function MOICAnalysis() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sampleMOICData.map((company: any, index: any) => (
+                    {sampleMOICData.map((company, index) => (
                       <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-3">
                           <div className="font-medium">{company.companyName}</div>

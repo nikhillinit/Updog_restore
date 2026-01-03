@@ -1,6 +1,7 @@
-import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
-import { BaseAgent } from '@povc/agent-core';
-import { withThinking } from '@povc/agent-core/ThinkingMixin';
+import type { AgentConfig, AgentExecutionContext } from '../../agent-core/src/BaseAgent';
+import { BaseAgent } from '../../agent-core/src/BaseAgent';
+import { withThinking } from '../../agent-core/src/ThinkingMixin';
+import type { FSWatcher } from 'fs';
 import { watch } from 'fs';
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -48,7 +49,7 @@ export interface ReviewIssue {
  */
 export class CodexReviewAgent extends withThinking(BaseAgent)<FileChangeEvent, ReviewResult> {
   protected readonly reviewConfig: CodexReviewConfig;
-  private watchers: Map<string, ReturnType<typeof watch>> = new Map();
+  private watchers: Map<string, FSWatcher> = new Map();
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private lastReviewTimes: Map<string, number> = new Map();
 
@@ -58,7 +59,7 @@ export class CodexReviewAgent extends withThinking(BaseAgent)<FileChangeEvent, R
       // Enable native memory integration
       enableNativeMemory: true,
       enablePatternLearning: true,
-      tenantId: config.tenantId || 'agent:codex-review',
+      tenantId: (config.tenantId as string | undefined) || 'agent:codex-review',
       memoryScope: 'project', // Remember code review patterns and common issues
     });
     this.reviewConfig = {
@@ -196,7 +197,7 @@ export class CodexReviewAgent extends withThinking(BaseAgent)<FileChangeEvent, R
         const issues = await this.callMCPCodeReview(provider, filePath, content);
 
         reviews.push({ provider, issues });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn(`Failed to get review from ${provider}`, {
           error: error instanceof Error ? error.message : String(error),
         });
@@ -247,11 +248,11 @@ Format each issue as: [SEVERITY] Message`,
         throw new Error(`AI orchestrator returned ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as unknown as { results?: Array<{ error?: string; text?: string }> };
       const result = data.results?.[0];
 
       if (result?.error) {
-        this.logger.warn(`${provider} returned error: ${result.error}`);
+        this.logger.warn(`${provider} returned error: ${String(result.error)}`);
         return [];
       }
 
@@ -260,8 +261,8 @@ Format each issue as: [SEVERITY] Message`,
       }
 
       // Parse AI response into structured issues
-      return this.parseAIResponse(result.text, provider);
-    } catch (error) {
+      return this.parseAIResponse(String(result.text), provider);
+    } catch (error: unknown) {
       this.logger.error(`Failed to get ${provider} review`, {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -386,7 +387,7 @@ Format each issue as: [SEVERITY] Message`,
     try {
       const absolutePath = path.resolve(process.cwd(), filePath);
       return await readFile(absolutePath, 'utf-8');
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to read file', {
         filePath,
         error: error instanceof Error ? error.message : String(error),
@@ -426,7 +427,7 @@ Format each issue as: [SEVERITY] Message`,
 
     try {
       await this.execute(event, 'file-review');
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Review failed', {
         filePath,
         error: error instanceof Error ? error.message : String(error),

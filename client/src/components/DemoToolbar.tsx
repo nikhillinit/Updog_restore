@@ -2,7 +2,7 @@ import React from 'react';
 import { setDemoPersona, getDemoPersona, resetDemo, isDemoMode, type Persona } from '../core/demo/persona';
 
 export function DemoToolbar() {
-  if (!isDemoMode()) return null;
+  // Call all hooks BEFORE any conditional returns
   const [visible, setVisible] = React.useState(true);
   const [role, setRole] = React.useState<Persona>(getDemoPersona() || 'GP');
   const [flags, setFlags] = React.useState({
@@ -11,6 +11,9 @@ export function DemoToolbar() {
   });
 
   React.useEffect(() => { if (visible) localStorage.setItem('DEMO_TOOLBAR','1'); }, [visible]);
+
+  // Now safe to do conditional return
+  if (!isDemoMode()) return null;
 
   const toggleFlag = (k: keyof typeof flags) => {
     const next = !flags[k];

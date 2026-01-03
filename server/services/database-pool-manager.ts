@@ -188,7 +188,7 @@ export class DatabasePoolManager extends EventEmitter {
   /**
    * Execute query with automatic connection management
    */
-  async executeQuery<T = any>(poolId: string, query: string, params?: any[]): Promise<T> {
+  async executeQuery<T = unknown>(poolId: string, query: string, params?: unknown[]): Promise<T> {
     const wrapper = await this.acquireConnection(poolId);
     const startTime = Date.now();
 
@@ -214,7 +214,7 @@ export class DatabasePoolManager extends EventEmitter {
   /**
    * Execute transaction with automatic rollback on error
    */
-  async executeTransaction<T = any>(
+  async executeTransaction<T = unknown>(
     poolId: string,
     transactionFn: (client: PoolClient) => Promise<T>
   ): Promise<T> {
@@ -383,7 +383,7 @@ export class DatabasePoolManager extends EventEmitter {
       metrics.totalConnections--;
     });
 
-    pool.on('error', (error: any) => {
+    pool.on('error', (error: unknown) => {
       this.updateErrorMetrics(poolId, error);
       this.emit('poolError', { poolId, error });
     });
@@ -429,7 +429,7 @@ export class DatabasePoolManager extends EventEmitter {
   /**
    * Update error metrics
    */
-  private updateErrorMetrics(poolId: string, error: any): void {
+  private updateErrorMetrics(poolId: string, error: unknown): void {
     const metrics = this.metrics.get(poolId)!;
     metrics.connectionErrors++;
     this.emit('error', { poolId, error });
@@ -488,11 +488,11 @@ export class DatabasePoolManager extends EventEmitter {
 
     return {
       totalPools: this.pools.size,
-      totalConnections: allMetrics.reduce((sum: any, m: any) => sum + m.totalConnections, 0),
-      totalActiveConnections: allMetrics.reduce((sum: any, m: any) => sum + m.activeConnections, 0),
-      totalErrors: allMetrics.reduce((sum: any, m: any) => sum + m.connectionErrors, 0),
-      averageQueryTime: allMetrics.reduce((sum: any, m: any) => sum + m.averageQueryTime, 0) / allMetrics.length,
-      totalMemoryUsageMB: allMetrics.reduce((sum: any, m: any) => sum + m.memoryUsageMB, 0)
+      totalConnections: allMetrics.reduce((sum, m) => sum + m.totalConnections, 0),
+      totalActiveConnections: allMetrics.reduce((sum, m) => sum + m.activeConnections, 0),
+      totalErrors: allMetrics.reduce((sum, m) => sum + m.connectionErrors, 0),
+      averageQueryTime: allMetrics.reduce((sum, m) => sum + m.averageQueryTime, 0) / allMetrics.length,
+      totalMemoryUsageMB: allMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0)
     };
   }
 }
@@ -504,11 +504,11 @@ export class DatabasePoolManager extends EventEmitter {
 export const databasePoolManager = new DatabasePoolManager();
 
 // Setup global error handling
-databasePoolManager.on('error', (error: any) => {
+databasePoolManager.on('error', (error: unknown) => {
   console.error('Database Pool Error:', error);
 });
 
-databasePoolManager.on('poolError', ({ poolId, error }) => {
+databasePoolManager.on('poolError', ({ poolId, error }: { poolId: string; error: unknown }) => {
   console.error(`Pool ${poolId} Error:`, error);
 });
 

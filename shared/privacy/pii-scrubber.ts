@@ -5,10 +5,10 @@ const patterns: Record<string, RegExp> = {
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
 };
 
-export function scrubPII(value: unknown): any {
+export function scrubPII(value: unknown): unknown {
   if (value == null) return value;
   if (typeof value === 'string') {
-    return Object.values(patterns).reduce((s: any, re: any) => s.replace(re, '[REDACTED]'), value);
+    return Object.values(patterns).reduce((s: string, re: RegExp) => s.replace(re, '[REDACTED]'), value);
   }
   if (Array.isArray(value)) return value.map(scrubPII);
   if (typeof value === 'object') {

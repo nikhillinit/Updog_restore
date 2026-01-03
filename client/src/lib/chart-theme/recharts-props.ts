@@ -22,7 +22,6 @@
  */
 
 import { colors, chart as chartTokens } from '@/lib/brand-tokens';
-import { BRAND_CHART_THEME_LIGHT } from './brand-chart-theme';
 
 /**
  * Brand color palette for chart lines/bars

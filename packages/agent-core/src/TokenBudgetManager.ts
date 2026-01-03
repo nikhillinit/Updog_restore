@@ -159,8 +159,7 @@ export class TokenBudgetManager {
       buffer,
     };
 
-    logger.debug({
-      msg: 'Token budget allocated',
+    logger.debug('Token budget allocated', {
       budget,
     });
 
@@ -182,8 +181,7 @@ export class TokenBudgetManager {
     this.usageTracking.push({ component, estimated, actual });
 
     if (actual && actual > estimated) {
-      logger.warn({
-        msg: 'Component exceeded token budget',
+      logger.warn('Component exceeded token budget', {
         component,
         estimated,
         actual,
@@ -262,8 +260,7 @@ export class TokenBudgetManager {
 
     // Warn if sum is much less than 1.0 (wasted tokens)
     if (sum < 0.90) {
-      logger.warn({
-        msg: 'Token allocation strategy may be inefficient',
+      logger.warn('Token allocation strategy may be inefficient', {
         totalAllocated: `${(sum * 100).toFixed(0)}%`,
         wasted: `${((1 - sum) * 100).toFixed(0)}%`,
       });
@@ -287,10 +284,9 @@ export class TokenBudgetManager {
       if (data.efficiency < 0.70 && data.actual > 0) {
         const key = `${component}Percent` as keyof AllocationStrategy;
         const current = this.strategy[key] as number;
-        suggestions[key] = current * 0.85 as any; // Reduce by 15%
+        (suggestions[key] as number) = current * 0.85; // Reduce by 15%
 
-        logger.info({
-          msg: 'Suggesting token reallocation',
+        logger.info('Suggesting token reallocation', {
           component,
           currentAllocation: `${(current * 100).toFixed(0)}%`,
           suggestedAllocation: `${(suggestions[key] as number * 100).toFixed(0)}%`,
@@ -302,10 +298,9 @@ export class TokenBudgetManager {
       if (data.efficiency > 0.90 && data.actual > 0) {
         const key = `${component}Percent` as keyof AllocationStrategy;
         const current = this.strategy[key] as number;
-        suggestions[key] = current * 1.15 as any; // Increase by 15%
+        (suggestions[key] as number) = current * 1.15; // Increase by 15%
 
-        logger.info({
-          msg: 'Suggesting token reallocation',
+        logger.info('Suggesting token reallocation', {
           component,
           currentAllocation: `${(current * 100).toFixed(0)}%`,
           suggestedAllocation: `${(suggestions[key] as number * 100).toFixed(0)}%`,
@@ -359,12 +354,13 @@ export function truncateToTokens(
     case 'end':
       return `[... truncated ...]\n\n${  text.slice(-maxChars)}`;
 
-    case 'middle':
+    case 'middle': {
       const halfChars = Math.floor(maxChars / 2);
       return (
-        `${text.slice(0, halfChars) 
-        }\n\n[... truncated ...]\n\n${ 
+        `${text.slice(0, halfChars)
+        }\n\n[... truncated ...]\n\n${
         text.slice(-halfChars)}`
       );
+    }
   }
 }

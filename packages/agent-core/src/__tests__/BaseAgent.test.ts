@@ -50,8 +50,9 @@ describe('BaseAgent', () => {
 
     // First attempt fails, advance timer for first retry
     await vi.advanceTimersByTimeAsync(10);
-    
+
     // Second attempt will now succeed
+    // eslint-disable-next-line require-atomic-updates
     agent.shouldFail = false;
     await vi.runAllTimersAsync();
 

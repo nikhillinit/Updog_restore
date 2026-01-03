@@ -10,7 +10,7 @@
  */
 
 import { PRNG } from '@shared/utils/prng';
-import type { GraduationStep, FundDataForReserves } from '../reserves/computeReservesFromGraduation';
+import type { FundDataForReserves } from '../reserves/computeReservesFromGraduation';
 
 // Stage definitions
 export type Stage = 'seed' | 'series_a' | 'series_b' | 'series_c' | 'exit' | 'failed';

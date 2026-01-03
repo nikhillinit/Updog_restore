@@ -37,20 +37,20 @@ interface FundMetrics {
 }
 
 export default function DynamicFundHeader() {
-  // If KPI selector flag is enabled, use new compact header
-  if (FLAGS.ENABLE_SELECTOR_KPIS) {
-    return <HeaderKpis />;
-  }
-
-  // Otherwise, existing full metrics header
+  // Call all hooks BEFORE any conditional returns
   const { currentFund } = useFundContext();
 
   // Fetch real-time fund metrics from calculated-metrics endpoint
   const { data: metrics, isLoading } = useQuery<FundMetrics>({
     queryKey: ['/api/funds', currentFund?.id, 'calculated-metrics'],
-    enabled: !!currentFund?.id,
+    enabled: !!currentFund?.id && !FLAGS.ENABLE_SELECTOR_KPIS, // Only fetch if not using compact header
     refetchInterval: 30000, // Refresh every 30 seconds
   });
+
+  // If KPI selector flag is enabled, use new compact header
+  if (FLAGS.ENABLE_SELECTOR_KPIS) {
+    return <HeaderKpis />;
+  }
 
   // Default metrics for new fund (no investments yet)
   const sampleMetrics: FundMetrics = {

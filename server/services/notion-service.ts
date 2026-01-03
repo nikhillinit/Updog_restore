@@ -225,7 +225,7 @@ export class NotionService {
     connection: NotionWorkspaceConnection,
     databaseId: string
   ): Promise<{
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     suggestedMappings: Record<string, string>;
     dataTypes: Record<string, string>;
   }> {
@@ -243,7 +243,7 @@ export class NotionService {
 
       Object.entries(properties).forEach(([name, property]) => {
         const lowerName = name.toLowerCase();
-        dataTypes[name] = property.type;
+        dataTypes[name] = (property as { type: string }).type;
 
         // Mapping suggestions based on common field names
         if (lowerName.includes('company') || lowerName.includes('name')) {
@@ -283,13 +283,17 @@ export class NotionService {
     connection: NotionWorkspaceConnection,
     mapping: NotionDatabaseMapping
   ): Promise<NotionSyncJob> {
+    const direction = mapping.syncSettings.direction === 'bidirectional'
+      ? 'pull'
+      : (mapping.syncSettings.direction.replace('_only', '') as 'pull' | 'push');
+
     const job: NotionSyncJob = {
       id: crypto.randomUUID(),
       connectionId: connection.id,
       mappingId: mapping.id,
       type: 'full_sync',
       status: 'queued',
-      direction: mapping.syncSettings.direction === 'bidirectional' ? 'pull' : mapping.syncSettings.direction.replace('_only', '') as any,
+      direction,
       progress: {
         total: 0,
         processed: 0,
@@ -307,8 +311,8 @@ export class NotionService {
       const pages = await this.fetchAllPages(connection, mapping.notionDatabaseId);
       job.progress.total = pages.length;
 
-      const extractedData: any[] = [];
-      const errors: any[] = [];
+      const extractedData: Array<Record<string, unknown>> = [];
+      const errors: Array<{ type: string; message: string; notionPageId?: string }> = [];
 
       for (const page of pages) {
         try {
@@ -401,8 +405,8 @@ export class NotionService {
   private async extractDataFromPage(
     page: NotionPage,
     mapping: NotionDatabaseMapping
-  ): Promise<any | null> {
-    const extracted: any = {
+  ): Promise<Record<string, unknown> | null> {
+    const extracted: Record<string, unknown> = {
       notionPageId: page.id,
       notionUrl: page.url,
       lastModified: new Date(page.last_edited_time),
@@ -414,7 +418,7 @@ export class NotionService {
       const notionProperty = page.properties[mappingConfig.notionProperty];
       if (!notionProperty) return;
 
-      let value: any = null;
+      let value: unknown = null;
 
       switch (notionProperty.type) {
         case 'title':
@@ -469,7 +473,7 @@ export class NotionService {
    * Process extracted data and save to appropriate system entities
    */
   private async processExtractedData(
-    data: any[],
+    data: Array<Record<string, unknown>>,
     mapping: NotionDatabaseMapping
   ): Promise<{ created: number; updated: number }> {
     let created = 0;
@@ -510,19 +514,20 @@ export class NotionService {
   // DATA PROCESSING METHODS
   // =============================================================================
 
-  private async processPortfolioCompanyData(data: any): Promise<void> {
+  private async processPortfolioCompanyData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract company data from Notion page properties
+      const properties = data.properties as Record<string, unknown> | undefined;
       const companyData = {
-        name: extractPlainText(data.properties?.Name || data.properties?.name),
-        stage: parseNotionSelect(data.properties?.Stage || data.properties?.stage),
-        sector: parseNotionSelect(data.properties?.Sector || data.properties?.sector),
-        location: extractPlainText(data.properties?.Location || data.properties?.location),
-        website: extractPlainText(data.properties?.Website || data.properties?.website),
-        founded: parseNotionDate(data.properties?.Founded || data.properties?.founded),
-        employees: parseNotionNumber(data.properties?.Employees || data.properties?.employees),
-        description: extractPlainText(data.properties?.Description || data.properties?.description),
-        notionPageId: data.id,
+        name: extractPlainText(properties?.Name || properties?.name),
+        stage: parseNotionSelect(properties?.Stage || properties?.stage),
+        sector: parseNotionSelect(properties?.Sector || properties?.sector),
+        location: extractPlainText(properties?.Location || properties?.location),
+        website: extractPlainText(properties?.Website || properties?.website),
+        founded: parseNotionDate(properties?.Founded || properties?.founded),
+        employees: parseNotionNumber(properties?.Employees || properties?.employees),
+        description: extractPlainText(properties?.Description || properties?.description),
+        notionPageId: data.id as string,
       };
 
       if (!companyData.name) {
@@ -561,17 +566,18 @@ export class NotionService {
     }
   }
 
-  private async processInvestmentData(data: any): Promise<void> {
+  private async processInvestmentData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract investment data from Notion page properties
+      const properties = data.properties as Record<string, unknown> | undefined;
       const investmentData = {
-        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
-        amount: parseNotionNumber(data.properties?.Amount || data.properties?.amount),
-        date: parseNotionDate(data.properties?.Date || data.properties?.date),
-        round: parseNotionSelect(data.properties?.Round || data.properties?.round),
-        valuation: parseNotionNumber(data.properties?.Valuation || data.properties?.valuation),
-        ownership: parseNotionNumber(data.properties?.Ownership || data.properties?.ownership),
-        notionPageId: data.id,
+        companyName: extractPlainText(properties?.Company || properties?.company),
+        amount: parseNotionNumber(properties?.Amount || properties?.amount),
+        date: parseNotionDate(properties?.Date || properties?.date),
+        round: parseNotionSelect(properties?.Round || properties?.round),
+        valuation: parseNotionNumber(properties?.Valuation || properties?.valuation),
+        ownership: parseNotionNumber(properties?.Ownership || properties?.ownership),
+        notionPageId: data.id as string,
       };
 
       if (!investmentData.companyName || !investmentData.amount) {
@@ -627,17 +633,18 @@ export class NotionService {
     }
   }
 
-  private async processKPIData(data: any): Promise<void> {
+  private async processKPIData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract KPI data from Notion page properties
+      const properties = data.properties as Record<string, unknown> | undefined;
       const kpiData = {
-        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
-        metric: extractPlainText(data.properties?.Metric || data.properties?.metric),
-        value: parseNotionNumber(data.properties?.Value || data.properties?.value),
-        period: extractPlainText(data.properties?.Period || data.properties?.period),
-        date: parseNotionDate(data.properties?.Date || data.properties?.date),
-        category: parseNotionSelect(data.properties?.Category || data.properties?.category),
-        notionPageId: data.id,
+        companyName: extractPlainText(properties?.Company || properties?.company),
+        metric: extractPlainText(properties?.Metric || properties?.metric),
+        value: parseNotionNumber(properties?.Value || properties?.value),
+        period: extractPlainText(properties?.Period || properties?.period),
+        date: parseNotionDate(properties?.Date || properties?.date),
+        category: parseNotionSelect(properties?.Category || properties?.category),
+        notionPageId: data.id as string,
       };
 
       if (!kpiData.companyName || !kpiData.metric) {
@@ -660,18 +667,19 @@ export class NotionService {
     }
   }
 
-  private async processBoardReportData(data: any): Promise<void> {
+  private async processBoardReportData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract board report data from Notion page properties
+      const properties = data.properties as Record<string, unknown> | undefined;
       const reportData = {
-        companyName: extractPlainText(data.properties?.Company || data.properties?.company),
-        reportDate: parseNotionDate(data.properties?.Date || data.properties?.date),
-        reportType: parseNotionSelect(data.properties?.Type || data.properties?.type),
-        status: parseNotionSelect(data.properties?.Status || data.properties?.status),
-        summary: extractPlainText(data.properties?.Summary || data.properties?.summary),
-        highlights: parseNotionMultiSelect(data.properties?.Highlights || data.properties?.highlights),
-        concerns: parseNotionMultiSelect(data.properties?.Concerns || data.properties?.concerns),
-        notionPageId: data.id,
+        companyName: extractPlainText(properties?.Company || properties?.company),
+        reportDate: parseNotionDate(properties?.Date || properties?.date),
+        reportType: parseNotionSelect(properties?.Type || properties?.type),
+        status: parseNotionSelect(properties?.Status || properties?.status),
+        summary: extractPlainText(properties?.Summary || properties?.summary),
+        highlights: parseNotionMultiSelect(properties?.Highlights || properties?.highlights),
+        concerns: parseNotionMultiSelect(properties?.Concerns || properties?.concerns),
+        notionPageId: data.id as string,
       };
 
       if (!reportData.companyName) {
@@ -718,8 +726,8 @@ export class NotionService {
       sharedDatabases: sharedDatabaseConfigs.map(db => ({
         databaseId: db.databaseId,
         databaseName: 'Database', // TODO: Fetch actual name
-        purpose: db.purpose as any,
-        accessLevel: db.accessLevel as any
+        purpose: db.purpose,
+        accessLevel: db.accessLevel
       })),
       automationRules: [],
       communicationSettings: {
