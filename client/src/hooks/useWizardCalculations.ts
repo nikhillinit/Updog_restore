@@ -41,7 +41,7 @@ export function useWizardCalculations(
   );
 
   // Get enriched metrics if reserves are calculated
-  // OPTIMIZED: Specific dependencies - not entire context!
+  // Keep deps narrow but include the context reference to avoid stale closures.
   const reserveAllocation = wizardContext?.calculations?.reserves;
   const generalInfo = wizardContext?.steps?.generalInfo;
   const capitalAllocation = wizardContext?.steps?.capitalAllocation;
@@ -53,7 +53,8 @@ export function useWizardCalculations(
   }, [
     reserveAllocation,
     generalInfo,
-    capitalAllocation
+    capitalAllocation,
+    wizardContext
   ]);
 
   // Check if portfolio is ready for calculation

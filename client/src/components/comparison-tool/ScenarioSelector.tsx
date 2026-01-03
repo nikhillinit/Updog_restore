@@ -60,9 +60,11 @@ export function ScenarioSelector(props: ScenarioSelectorProps) {
 
   // Extract props for complex mode (with defaults to avoid runtime errors in simple mode)
   const complexProps = isSimple ? null : props;
-  const scenarios = complexProps?.scenarios ?? [];
+  const rawScenarios = complexProps?.scenarios;
+  const rawComparisonScenarioIds = complexProps?.comparisonScenarioIds;
+  const scenarios = useMemo(() => rawScenarios ?? [], [rawScenarios]);
+  const comparisonScenarioIds = useMemo(() => rawComparisonScenarioIds ?? [], [rawComparisonScenarioIds]);
   const baseScenarioId = complexProps?.baseScenarioId;
-  const comparisonScenarioIds = complexProps?.comparisonScenarioIds ?? [];
 
   const baseScenario = useMemo(
     () => scenarios.find((s) => s.id === baseScenarioId),

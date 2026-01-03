@@ -52,7 +52,7 @@ export function useWorkerMemo<TIn, TOut>(
         setLoading(false);
         if (e.data.timing && import.meta.env.DEV) {
           setTiming(e.data.timing);
-          console.log(`🔧 Worker computation took ${e.data.timing.toFixed(2)}ms`);
+          console.log(`[WORKER] Computation took ${e.data.timing.toFixed(2)}ms`);
         }
       } else {
         setError(new Error(e.data.error || 'Worker error'));
@@ -70,8 +70,8 @@ export function useWorkerMemo<TIn, TOut>(
     w.postMessage(input);
 
     return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
+      w.terminate();
+      if (workerRef.current === w) {
         workerRef.current = null;
       }
     };

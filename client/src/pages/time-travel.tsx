@@ -99,28 +99,31 @@ export default function TimeTravelPage() {
   const restoreSnapshotMutation = useRestoreSnapshot();
 
   // Process timeline data for visualization
-  const timelineChartData = useMemo(() => {
-    if (!timelineData?.events) return [];
+  const timelineEvents = timelineData?.events;
+  const timelineSnapshots = timelineData?.snapshots;
 
-    return timelineData.events.map((event, index) => ({
+  const timelineChartData = useMemo(() => {
+    if (!timelineEvents) return [];
+
+    return timelineEvents.map((event, index) => ({
       timestamp: event.eventTime,
       value: index + 1, // Simple sequential value for visualization
       label: event.eventType,
       type: event.operation as 'event' | 'snapshot' | 'milestone',
       metadata: event.metadata
     }));
-  }, [timelineData?.events]);
+  }, [timelineEvents]);
 
   const snapshotEvents = useMemo(() => {
-    if (!timelineData?.snapshots) return [];
+    if (!timelineSnapshots) return [];
 
-    return timelineData.snapshots.map(snapshot => ({
+    return timelineSnapshots.map(snapshot => ({
       timestamp: snapshot.snapshotTime,
       type: 'snapshot',
       label: `Snapshot ${snapshot.id}`,
       value: snapshot.eventCount
     }));
-  }, [timelineData?.snapshots]);
+  }, [timelineSnapshots]);
 
   // Handle snapshot creation
   const handleCreateSnapshot = async (type: 'manual' | 'scheduled' | 'auto' = 'manual', description?: string) => {

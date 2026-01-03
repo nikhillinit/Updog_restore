@@ -30,7 +30,7 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
       }
     });
     return () => { cancelled = true; cancel(id); };
-  }, [cashFlows]);
+  }, [cashFlows, calculateXIRR, cancel]);
 
   // Monte Carlo (debounced)
   useEffect(() => {
@@ -47,7 +47,7 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
       });
     }, 600);
     return () => { clearTimeout(t); cancel(id); };
-  }, [cashFlows]);
+  }, [cashFlows, runMonteCarlo, cancel]);
 
   // Waterfall preview
   useEffect(() => {
@@ -66,7 +66,7 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
       }
     });
     return () => { cancelled = true; cancel(id); };
-  }, [wConfig, contributions, exits]);
+  }, [wConfig, contributions, exits, calculateWaterfall, cancel]);
 
   const isCalculating = activeCalculations.size > 0;
 
