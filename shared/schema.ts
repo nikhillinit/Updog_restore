@@ -2908,3 +2908,225 @@ export type InvestmentOverride = typeof investmentOverrides.$inferSelect;
 export type InsertInvestmentOverride = typeof investmentOverrides.$inferInsert;
 export type CohortDefinition = typeof cohortDefinitions.$inferSelect;
 export type InsertCohortDefinition = typeof cohortDefinitions.$inferInsert;
+
+// =============================================================================
+// PORTFOLIO CONSTRUCTION & OPTIMIZATION TABLES
+// Phase 1: Database Schema for job_outbox, scenario_matrices, optimization_sessions
+// =============================================================================
+
+// Status enum for job outbox
+export const jobOutboxStatusEnum = pgEnum('job_outbox_status', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+// Job outbox table for transactional outbox pattern
+// Corrections applied: #3 (make_interval), #6 (ORDER BY), #7 (no NOW()), #8 (BullMQ deduplication)
+export const jobOutbox = pgTable(
+  'job_outbox',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    jobType: text('job_type').notNull(),
+    payload: jsonb('payload').notNull().$type<Record<string, unknown>>(),
+    status: jobOutboxStatusEnum('status').notNull().default('pending'),
+    priority: integer('priority').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(3),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // Index for processing pending jobs (correction #6: ORDER BY matches index column order)
+    pendingPriorityIdx: index('idx_job_outbox_pending_priority').on(
+      table.status,
+      table.priority,
+      table.createdAt
+    ),
+    // Index for cleanup of old completed jobs (correction #7: removed NOW() from partial index)
+    completedCleanupIdx: index('idx_job_outbox_completed_cleanup').on(table.createdAt),
+    // Index for BullMQ deduplication by job_type (correction #8)
+    dedupIdx: index('idx_job_outbox_dedup').on(table.jobType, table.status),
+    // Check constraint for priority
+    priorityCheck: check('job_outbox_priority_check', sql`${table.priority} >= 0`),
+  })
+);
+
+// Status enum for scenario matrices
+export const scenarioMatrixStatusEnum = pgEnum('scenario_matrix_status', [
+  'pending',
+  'processing',
+  'complete',
+  'failed',
+]);
+
+// Matrix type enum
+export const matrixTypeEnum = pgEnum('matrix_type', ['moic', 'tvpi', 'dpi', 'irr']);
+
+// Scenario matrices table for Monte Carlo simulation results
+// Correction #2: moic_matrix stored as text (base64 encoded binary) for Drizzle compatibility
+// Note: In production, consider using Buffer.toString('base64') for encoding
+export const scenarioMatrices = pgTable(
+  'scenario_matrices',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    scenarioId: uuid('scenario_id')
+      .notNull()
+      .references(() => portfolioScenarios.id, { onDelete: 'cascade' }),
+    matrixType: matrixTypeEnum('matrix_type').notNull(),
+
+    // Payload fields (required when status='complete')
+    moicMatrix: text('moic_matrix'), // Base64 encoded binary data for MOIC matrix
+    scenarioStates: jsonb('scenario_states').$type<{
+      scenarios: Array<{
+        id: number;
+        params: Record<string, unknown>;
+      }>;
+    }>(),
+    bucketParams: jsonb('bucket_params').$type<{
+      min: number;
+      max: number;
+      count: number;
+      distribution: string;
+    }>(),
+    compressionCodec: text('compression_codec'), // 'zstd', 'lz4', 'none'
+    matrixLayout: text('matrix_layout'), // 'row-major', 'column-major'
+    bucketCount: integer('bucket_count'),
+    sOpt: jsonb('s_opt').$type<{
+      algorithm: string;
+      params: Record<string, unknown>;
+      convergence: Record<string, unknown>;
+    }>(),
+
+    // Status tracking
+    status: scenarioMatrixStatusEnum('status').notNull().default('pending'),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // Index for scenario lookups
+    scenarioIdIdx: index('idx_scenario_matrices_scenario_id').on(table.scenarioId),
+    // Index for status filtering
+    statusIdx: index('idx_scenario_matrices_status').on(table.status),
+    // Composite index for scenario + matrix type lookups
+    scenarioTypeIdx: index('idx_scenario_matrices_scenario_type').on(
+      table.scenarioId,
+      table.matrixType
+    ),
+    // Check constraint: All payload fields required when complete
+    completePayloadCheck: check(
+      'scenario_matrices_complete_payload_check',
+      sql`${table.status} != 'complete' OR (
+        ${table.moicMatrix} IS NOT NULL AND
+        ${table.scenarioStates} IS NOT NULL AND
+        ${table.bucketParams} IS NOT NULL AND
+        ${table.compressionCodec} IS NOT NULL AND
+        ${table.matrixLayout} IS NOT NULL AND
+        ${table.bucketCount} IS NOT NULL AND
+        ${table.sOpt} IS NOT NULL
+      )`
+    ),
+  })
+);
+
+// Status enum for optimization sessions
+export const optimizationSessionStatusEnum = pgEnum('optimization_session_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+// Optimization sessions table for optimization workflow state
+// Correction #9: Includes pass1_E_star and primary_lock_epsilon for deterministic tie-break
+export const optimizationSessions = pgTable(
+  'optimization_sessions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    matrixId: uuid('matrix_id')
+      .notNull()
+      .references(() => scenarioMatrices.id, { onDelete: 'cascade' }),
+
+    // Optimization configuration (JSON)
+    optimizationConfig: jsonb('optimization_config')
+      .notNull()
+      .$type<{
+        objective: 'maximize_return' | 'minimize_risk' | 'risk_adjusted';
+        constraints: Record<string, unknown>;
+        algorithm: string;
+        maxIterations?: number;
+        convergenceTolerance?: number;
+      }>(),
+
+    // Tie-break state from first pass (correction #9)
+    pass1EStar: decimal('pass1_e_star', { precision: 20, scale: 10 }), // Best objective from first pass
+    primaryLockEpsilon: decimal('primary_lock_epsilon', { precision: 20, scale: 10 }), // Tolerance for deterministic tie-break
+
+    // Results
+    resultWeights: jsonb('result_weights').$type<Record<string, number>>(),
+    resultMetrics: jsonb('result_metrics').$type<{
+      expectedReturn: number;
+      risk: number;
+      sharpeRatio?: number;
+      cvar?: number;
+    }>(),
+
+    // Workflow status
+    status: optimizationSessionStatusEnum('status').notNull().default('pending'),
+    errorMessage: text('error_message'),
+
+    // Iteration tracking
+    currentIteration: integer('current_iteration').default(0),
+    totalIterations: integer('total_iterations'),
+
+    // Timestamps
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // Index for querying sessions by matrix
+    matrixIdIdx: index('idx_optimization_sessions_matrix_id').on(table.matrixId),
+    // Index for querying sessions by status
+    statusIdx: index('idx_optimization_sessions_status').on(table.status),
+    // Composite index for status + created lookups
+    statusCreatedIdx: index('idx_optimization_sessions_status_created').on(
+      table.status,
+      table.createdAt.desc()
+    ),
+  })
+);
+
+// Insert schemas for portfolio optimization tables
+export const insertJobOutboxSchema = createInsertSchema(jobOutbox).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScenarioMatrixSchema = createInsertSchema(scenarioMatrices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOptimizationSessionSchema = createInsertSchema(optimizationSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for portfolio optimization tables
+export type JobOutbox = typeof jobOutbox.$inferSelect;
+export type InsertJobOutbox = typeof jobOutbox.$inferInsert;
+export type ScenarioMatrix = typeof scenarioMatrices.$inferSelect;
+export type InsertScenarioMatrix = typeof scenarioMatrices.$inferInsert;
+export type OptimizationSession = typeof optimizationSessions.$inferSelect;
+export type InsertOptimizationSession = typeof optimizationSessions.$inferInsert;
