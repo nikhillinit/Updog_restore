@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -276,6 +277,65 @@ export const forecastSnapshots = pgTable(
 
 export type ForecastSnapshot = typeof forecastSnapshots.$inferSelect;
 export type InsertForecastSnapshot = typeof forecastSnapshots.$inferInsert;
+
+// ============================================================================
+// SNAPSHOT VERSIONS - Version history with auto-pruning support
+// ============================================================================
+export const snapshotVersions = pgTable(
+  'snapshot_versions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => forecastSnapshots.id, { onDelete: 'cascade' }),
+
+    // Version tracking (simple sequential)
+    versionNumber: integer('version_number').notNull(),
+    parentVersionId: uuid('parent_version_id').references(
+      (): AnyPgColumn => snapshotVersions.id
+    ),
+
+    // Named versions for what-if scenarios
+    versionName: varchar('version_name', { length: 100 }),
+    isCurrent: boolean('is_current').default(false).notNull(),
+
+    // Immutable state capture
+    stateSnapshot: jsonb('state_snapshot').notNull(),
+    calculatedMetrics: jsonb('calculated_metrics'),
+    sourceHash: varchar('source_hash', { length: 64 }).notNull(),
+
+    // Metadata
+    description: text('description'),
+    createdBy: uuid('created_by'),
+    tags: text('tags').array(),
+
+    // Retention policy (90 days default)
+    expiresAt: timestamp('expires_at', { withTimezone: true }).default(
+      sql`NOW() + INTERVAL '90 days'`
+    ),
+    isPinned: boolean('is_pinned').default(false).notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueVersion: unique().on(table.snapshotId, table.versionNumber),
+    snapshotVersionIdx: index('idx_snapshot_versions_snapshot_id').on(
+      table.snapshotId,
+      table.versionNumber.desc()
+    ),
+    currentIdx: index('idx_snapshot_versions_current')
+      .on(table.snapshotId)
+      .where(sql`${table.isCurrent} = true`),
+    parentIdx: index('idx_snapshot_versions_parent').on(table.parentVersionId),
+    sourceHashIdx: index('idx_snapshot_versions_source_hash').on(table.sourceHash),
+    expiresIdx: index('idx_snapshot_versions_expires')
+      .on(table.expiresAt)
+      .where(sql`${table.isPinned} = false`),
+  })
+);
+
+export type SnapshotVersion = typeof snapshotVersions.$inferSelect;
+export type InsertSnapshotVersion = typeof snapshotVersions.$inferInsert;
 
 // ============================================================================
 // RESERVE ALLOCATIONS - Links reserve decisions to snapshots
