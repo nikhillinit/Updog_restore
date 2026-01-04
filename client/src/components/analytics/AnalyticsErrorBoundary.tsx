@@ -22,7 +22,7 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
@@ -30,14 +30,14 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
     // Log error to external service
@@ -69,7 +69,7 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 }
@@ -84,33 +84,33 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
   const isAuthError = error?.message?.includes('401') || error?.message?.includes('unauthorized');
   const isDataError = error?.message?.includes('data') || error?.message?.includes('parse');
 
-  let title = "Analytics Error";
-  let message = "Something went wrong while loading the analytics feature.";
+  let title = 'Analytics Error';
+  let message = 'Something went wrong while loading the analytics feature.';
   let suggestions: string[] = [];
 
   if (isNetworkError) {
-    title = "Connection Error";
-    message = "Unable to connect to the analytics service.";
+    title = 'Connection Error';
+    message = 'Unable to connect to the analytics service.';
     suggestions = [
-      "Check your internet connection",
-      "Verify the API service is running",
-      "Try refreshing the page"
+      'Check your internet connection',
+      'Verify the API service is running',
+      'Try refreshing the page',
     ];
   } else if (isAuthError) {
-    title = "Authentication Error";
+    title = 'Authentication Error';
     message = "You don't have permission to access this analytics feature.";
     suggestions = [
-      "Log out and log back in",
-      "Contact your administrator for access",
-      "Check your fund permissions"
+      'Log out and log back in',
+      'Contact your administrator for access',
+      'Check your fund permissions',
     ];
   } else if (isDataError) {
-    title = "Data Processing Error";
-    message = "There was an issue processing the analytics data.";
+    title = 'Data Processing Error';
+    message = 'There was an issue processing the analytics data.';
     suggestions = [
-      "Try selecting a different time range",
-      "Check if the fund data is valid",
-      "Contact support if the issue persists"
+      'Try selecting a different time range',
+      'Check if the fund data is valid',
+      'Contact support if the issue persists',
     ];
   }
 
@@ -133,11 +133,7 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
               </summary>
               <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-auto">
                 {error.message}
-                {error.stack && (
-                  <div className="mt-2 pt-2 border-t">
-                    {error.stack}
-                  </div>
-                )}
+                {error.stack && <div className="mt-2 pt-2 border-t">{error.stack}</div>}
               </pre>
             </details>
           )}
@@ -146,7 +142,7 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">Try these solutions:</h4>
               <ul className="space-y-1 text-sm text-blue-800">
-                {suggestions.map((suggestion: any, index: any) => (
+                {suggestions.map((suggestion: string, index: number) => (
                   <li key={index} className="flex items-start">
                     <span className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0" />
                     {suggestion}
@@ -165,7 +161,7 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
             )}
             <Button
               variant="outline"
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => (window.location.href = '/dashboard')}
               className="flex items-center space-x-2"
             >
               <Home className="w-4 h-4" />
@@ -188,7 +184,7 @@ export function withAnalyticsErrorBoundary<P extends object>(
 ) {
   return function WrappedComponent(props: P) {
     return (
-      <AnalyticsErrorBoundary 
+      <AnalyticsErrorBoundary
         {...(options?.fallback !== undefined ? { fallback: options.fallback } : {})}
         {...(options?.onError !== undefined ? { onError: options.onError } : {})}
       >
