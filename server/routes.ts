@@ -63,6 +63,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const monteCarloRoutes = await import('./routes/monte-carlo.js');
   app.use('/api/monte-carlo', monteCarloRoutes.default);
 
+  // Backtesting routes (Monte Carlo validation)
+  const backtestingRoutes = await import('./routes/backtesting.js');
+  app.use('/api/backtesting', backtestingRoutes.default);
+
   // MOIC Calculator routes
   const moicRoutes = await import('./routes/moic.js');
   app.use('/api/moic', moicRoutes.default);

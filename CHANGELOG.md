@@ -10,6 +10,38 @@ and this project adheres to
 
 ### Added
 
+- **Monte Carlo Backtesting System** (2026-01-04)
+  - Complete backtesting infrastructure for Monte Carlo simulation validation
+  - **API Endpoints** (5 new endpoints at `/api/backtesting/*`):
+    - `POST /run` - Run backtest against historical fund performance
+    - `GET /fund/:fundId/history` - Retrieve backtest history with pagination
+    - `GET /result/:backtestId` - Get specific backtest result by UUID
+    - `POST /compare-scenarios` - Compare multiple historical scenarios
+    - `GET /scenarios` - List available historical scenarios
+  - **Historical Scenarios** (5 predefined market conditions):
+    - Financial Crisis 2008 (higher failures, lower exits)
+    - Dotcom Bust 2000 (extreme volatility)
+    - COVID-19 2020 (moderate stress, quick recovery)
+    - Bull Market 2021 (optimistic conditions)
+    - Rate Hikes 2022 (compressed valuations)
+  - **Validation Metrics**:
+    - Percentile hit rates (p50, p90, p100 confidence intervals)
+    - Mean Absolute Error (MAE) and RMSE per metric
+    - Model quality score (0-100)
+    - Calibration status assessment
+  - **Database Schema**: `backtest_results` table with JSONB columns
+    - Full audit trail with user tracking
+    - Automatic 90-day expiration for results
+    - Indexes for fund, status, baseline, and snapshot queries
+  - **Files**:
+    - `shared/types/backtesting.ts` - Type definitions
+    - `shared/validation/backtesting-schemas.ts` - Zod schemas
+    - `shared/data/historical-scenarios.ts` - Scenario data
+    - `server/services/backtesting-service.ts` - Core service
+    - `server/routes/backtesting.ts` - API routes
+    - `tests/integration/backtesting-api.test.ts` - 28 integration tests
+    - `tests/unit/services/backtesting-service.test.ts` - 19 unit tests
+
 - **LP Portal Sprint 3: Capital Calls, Distributions & Dashboard** (2025-12-31)
   - **Planning Complete**: Comprehensive sprint plan created
   - **Scope**: 2-week sprint building on Sprint 2 infrastructure

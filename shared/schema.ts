@@ -291,9 +291,7 @@ export const snapshotVersions = pgTable(
 
     // Version tracking (simple sequential)
     versionNumber: integer('version_number').notNull(),
-    parentVersionId: uuid('parent_version_id').references(
-      (): AnyPgColumn => snapshotVersions.id
-    ),
+    parentVersionId: uuid('parent_version_id').references((): AnyPgColumn => snapshotVersions.id),
 
     // Named versions for what-if scenarios
     versionName: varchar('version_name', { length: 100 }),
@@ -2541,3 +2539,141 @@ export type ComparisonConfiguration = typeof comparisonConfigurations.$inferSele
 export type InsertComparisonConfiguration = typeof comparisonConfigurations.$inferInsert;
 export type ComparisonAccessHistory = typeof comparisonAccessHistory.$inferSelect;
 export type InsertComparisonAccessHistory = typeof comparisonAccessHistory.$inferInsert;
+
+// ============================================================================
+// BACKTEST RESULTS TABLE
+// ============================================================================
+
+// Backtest Results - Store Monte Carlo simulation backtesting results for validation
+export const backtestResults = pgTable(
+  'backtest_results',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+
+    // Backtest configuration (stored as JSON for flexibility)
+    config: jsonb('config').notNull().$type<{
+      fundId: number;
+      startDate: string;
+      endDate: string;
+      simulationRuns: number;
+      comparisonMetrics: string[];
+      includeHistoricalScenarios?: boolean;
+      historicalScenarios?: string[];
+      baselineId?: string;
+      snapshotId?: string;
+      randomSeed?: number;
+    }>(),
+
+    // Simulation results
+    simulationSummary: jsonb('simulation_summary').notNull().$type<{
+      runs: number;
+      metrics: Record<string, unknown>;
+      engineUsed: 'streaming' | 'traditional';
+      executionTimeMs: number;
+    }>(),
+
+    // Actual performance data used for comparison
+    actualPerformance: jsonb('actual_performance').notNull().$type<{
+      asOfDate: string;
+      irr: number | null;
+      tvpi: number | null;
+      dpi: number | null;
+      multiple: number | null;
+      deployedCapital: number;
+      distributedCapital: number;
+      residualValue: number;
+      dataSource: 'baseline' | 'variance_report' | 'snapshot';
+      dataFreshness: 'fresh' | 'stale' | 'unknown';
+    }>(),
+
+    // Validation metrics (how well simulation matched reality)
+    validationMetrics: jsonb('validation_metrics').notNull().$type<{
+      meanAbsoluteError: Record<string, number | null>;
+      rootMeanSquareError: Record<string, number | null>;
+      percentileHitRates: {
+        p50: Record<string, boolean | null>;
+        p90: Record<string, boolean | null>;
+        p100: Record<string, boolean | null>;
+      };
+      modelQualityScore: number;
+      calibrationStatus:
+        | 'well-calibrated'
+        | 'under-predicting'
+        | 'over-predicting'
+        | 'insufficient-data';
+      incalculableMetrics: string[];
+    }>(),
+
+    // Data quality assessment
+    dataQuality: jsonb('data_quality').notNull().$type<{
+      hasBaseline: boolean;
+      baselineAgeInDays: number | null;
+      varianceHistoryCount: number;
+      snapshotAvailable: boolean;
+      isStale: boolean;
+      warnings: string[];
+      overallQuality: 'good' | 'acceptable' | 'poor';
+    }>(),
+
+    // Historical scenario comparisons (optional)
+    scenarioComparisons: jsonb('scenario_comparisons').$type<
+      Array<{
+        scenario: string;
+        simulatedPerformance: Record<string, unknown>;
+        description: string;
+        keyInsights: string[];
+        marketParameters: Record<string, unknown>;
+      }>
+    >(),
+
+    // Recommendations generated from analysis
+    recommendations: text('recommendations').array().notNull().default([]),
+
+    // Execution metadata
+    executionTimeMs: integer('execution_time_ms').notNull(),
+    status: text('status').notNull().default('completed'), // 'pending', 'running', 'completed', 'failed'
+    errorMessage: text('error_message'),
+
+    // References to source data
+    baselineId: uuid('baseline_id').references(() => fundBaselines.id),
+    snapshotId: uuid('snapshot_id').references(() => fundStateSnapshots.id),
+
+    // User context
+    createdBy: integer('created_by').references(() => users.id),
+    tags: text('tags').array().default([]),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }), // For cleanup of old results
+  },
+  (table) => ({
+    // Primary lookups
+    fundIdx: index('backtest_results_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    statusIdx: index('backtest_results_status_idx')['on'](table.status, table.createdAt.desc()),
+
+    // Source data lookups
+    baselineIdx: index('backtest_results_baseline_idx')['on'](table.baselineId),
+    snapshotIdx: index('backtest_results_snapshot_idx')['on'](table.snapshotId),
+
+    // Cleanup query support
+    expiryIdx: index('backtest_results_expiry_idx')['on'](table.expiresAt),
+
+    // User-based queries
+    userIdx: index('backtest_results_user_idx')['on'](table.createdBy, table.createdAt.desc()),
+
+    // Tag-based filtering
+    tagsGinIdx: index('backtest_results_tags_gin_idx').using('gin', table.tags),
+  })
+);
+
+// Insert schema for backtest results
+export const insertBacktestResultSchema = createInsertSchema(backtestResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type exports for backtest results
+export type BacktestResultRecord = typeof backtestResults.$inferSelect;
+export type InsertBacktestResultRecord = typeof backtestResults.$inferInsert;
