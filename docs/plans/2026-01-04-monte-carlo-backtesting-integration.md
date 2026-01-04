@@ -42,35 +42,76 @@ validation, Express routes, Vitest tests
 
 ---
 
-## Critical Implementation Notes (from ultrathink review)
+## Critical Implementation Notes (from ultrathink reviews)
 
-### Must Address:
+### PRIORITY 0 - Must Fix Before Implementation
 
-1. **Real Fund Data Integration (P0)**: The `getActualPerformance()` method MUST query
-   actual fund baselines and variance reports, not return mock data. Without this,
-   validation metrics are meaningless.
+1. **Percentile Hit Rate Logic ERROR**: Current p75 check uses 90% CI range (p5-p95).
+   Must rename to p90 or compute proper 75% CI with p12.5/p87.5.
 
-2. **Market Parameter Application (P0)**: The `runScenarioComparisons()` method MUST
-   modify the simulation config to use scenario-specific market parameters. Otherwise
-   all scenarios produce identical results.
+2. **Division by Zero Risk**: `normalizedError = error / Math.abs(actualValue || 1)`
+   is a hack. Must properly handle null/zero actual values.
 
-3. **Database Persistence (P1)**: Add a `backtest_results` table to persist backtest
-   history across server restarts.
+3. **Missing Authorization**: All endpoints need `requireAuth` + `validateFundAccess`
+   middleware to prevent cross-fund data access.
 
-4. **Async Job Queue (P1)**: Add `/run/async` endpoint for large backtests (>10k runs)
-   to prevent HTTP timeouts.
+### PRIORITY 1 - High Impact Additions
+
+4. **Real Fund Data Integration (P0)**: The `getActualPerformance()` method MUST query
+   actual fund baselines and variance reports, not return mock data.
+
+5. **Market Parameter Application (P0)**: The `runScenarioComparisons()` method MUST
+   modify the simulation config to use scenario-specific market parameters.
+
+6. **Database Persistence (P1)**: Add a `backtest_results` table to persist history.
+
+7. **Async Job Queue (P1)**: Add `/run/async` endpoint for large backtests (>10k runs).
+
+8. **Rate Limiting**: Add rate limiter (5 backtests/minute per fund) to prevent DoS.
+
+9. **Variance Tracking Integration**: Store backtest deviations in existing variance
+   tracking system for unified reporting.
+
+10. **Snapshot Versioning**: Link backtests to fund snapshots via new versioning service.
+
+11. **Phoenix Validation**: Run `/phoenix-truth focus=all` after implementation.
+
+### PRIORITY 2 - Medium Impact Improvements
+
+12. **Data Quality Checks**: Validate baseline freshness, variance history availability.
+
+13. **Batch Endpoint**: Add `/batch` for multi-fund backtests.
+
+14. **LRU Cache**: Replace Map with LRU cache to prevent memory leak.
+
+15. **Prometheus Metrics**: Add backtest duration, success rate metrics.
+
+16. **Winston Logging**: Replace console.log with structured logging.
 
 ### Implementation Order:
 
 Execute tasks in this order to address dependencies:
-1. Types & Schemas
+1. Types & Schemas (+ fix percentile types)
 2. Historical Scenarios
-3. **Database Schema (NEW)** - Add before service implementation
-4. Backtesting Service - WITH real data queries
-5. API Routes - WITH async endpoint
+3. **Database Schema (NEW)** - Add backtest_results table
+4. Backtesting Service
+   - WITH real data queries
+   - WITH fixed percentile logic
+   - WITH safe error handling
+   - WITH variance tracking integration
+   - WITH snapshot versioning
+   - WITH LRU cache
+   - WITH Winston logging
+5. API Routes
+   - WITH authorization middleware
+   - WITH rate limiting
+   - WITH async endpoint
+   - WITH batch endpoint
+   - WITH Prometheus metrics
 6. Route Registration
-7. Integration Tests
-8. Documentation
+7. Integration Tests (real + mocked)
+8. **Phoenix Validation (NEW)** - Run truth cases
+9. Documentation
 
 ---
 
