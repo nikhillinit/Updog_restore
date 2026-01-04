@@ -28,7 +28,7 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
               Preview of waterfall structure and example distribution
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="font-poppins">
+          <Badge variant="secondary" className="font-poppins bg-blue-100 text-blue-800">
             {waterfall.type}
           </Badge>
         </div>
@@ -36,18 +36,14 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
 
       <CardContent className="space-y-6">
         {/* Waterfall Configuration Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-charcoal-500">
               <TrendingUp className="h-4 w-4" />
               <span className="text-xs font-poppins">Distribution Model</span>
             </div>
-            <p className="text-lg font-inter font-semibold text-pov-charcoal">
-              American
-            </p>
-            <p className="text-xs text-charcoal-500">
-              Deal-by-deal
-            </p>
+            <p className="text-lg font-inter font-semibold text-pov-charcoal">American</p>
+            <p className="text-xs text-charcoal-500">Deal-by-deal</p>
           </div>
 
           <div className="space-y-1">
@@ -58,9 +54,7 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
             <p className="text-lg font-inter font-semibold text-pov-charcoal">
               {waterfall.carryVesting.cliffYears}y + {waterfall.carryVesting.vestingYears}y
             </p>
-            <p className="text-xs text-charcoal-500">
-              Cliff + vesting period
-            </p>
+            <p className="text-xs text-charcoal-500">Cliff + vesting period</p>
           </div>
         </div>
 
@@ -77,7 +71,9 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
                   <Users className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-poppins font-medium text-pov-charcoal">Limited Partners (LPs)</p>
+                  <p className="font-poppins font-medium text-pov-charcoal">
+                    Limited Partners (LPs)
+                  </p>
                   <p className="text-xs text-charcoal-500">
                     {exampleDistribution.lpPercentage.toFixed(1)}% of profits
                   </p>
@@ -99,7 +95,9 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
                   <DollarSign className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-poppins font-medium text-pov-charcoal">General Partners (GPs)</p>
+                  <p className="font-poppins font-medium text-pov-charcoal">
+                    General Partners (GPs)
+                  </p>
                   <p className="text-xs text-charcoal-500">
                     {exampleDistribution.gpPercentage.toFixed(1)}% of profits
                   </p>
@@ -109,16 +107,15 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
                 <p className="text-lg font-inter font-semibold text-pov-charcoal">
                   ${exampleDistribution.gpDistribution.toFixed(1)}M
                 </p>
-                <p className="text-xs text-charcoal-500">
-                  Carried interest
-                </p>
+                <p className="text-xs text-charcoal-500">Carried interest</p>
               </div>
             </div>
           </div>
 
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> This example assumes $100M fund size and $250M total value (2.5x MOIC).
+              <strong>Note:</strong> This example assumes $100M fund size and $250M total value
+              (2.5x MOIC).
             </p>
           </div>
         </div>

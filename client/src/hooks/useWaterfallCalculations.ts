@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import { type Waterfall } from '@shared/types';
 
-interface WaterfallDistributionExample {
+export interface WaterfallDistributionExample {
   lpDistribution: number;
   gpDistribution: number;
   lpPercentage: number;
@@ -32,8 +32,9 @@ export function useWaterfallCalculations(
     const totalValue = fundSize * moic;
     const totalProfit = totalValue - fundSize;
 
-    // American waterfall: Deal-by-deal (simplified to 20% carry)
-    return calculateAmericanDistribution(fundSize, totalValue, totalProfit);
+    return calculateAmericanDistribution(fundSize, totalProfit);
+    // Note: waterfall is included in signature for API consistency but
+    // American waterfall calculation uses fixed 20% carry rate
   }, [moic]);
 }
 
@@ -44,13 +45,12 @@ export function useWaterfallCalculations(
  */
 function calculateAmericanDistribution(
   fundSize: number,
-  totalValue: number,
   totalProfit: number
 ): WaterfallDistributionExample {
   const carryRate = 0.2; // 20% standard carry
 
   // Simple split: LPs get capital back + 80% of profits
-  const lpDistribution = fundSize + (totalProfit * (1 - carryRate));
+  const lpDistribution = fundSize + totalProfit * (1 - carryRate);
   const gpDistribution = totalProfit * carryRate;
 
   return {
@@ -59,6 +59,6 @@ function calculateAmericanDistribution(
     lpPercentage: (1 - carryRate) * 100,
     gpPercentage: carryRate * 100,
     lpMoic: lpDistribution / fundSize,
-    totalProfit
+    totalProfit,
   };
 }
