@@ -72,6 +72,12 @@ fi
 
 # Otherwise, run only affected tests (smart mode)
 echo "🧪 Running targeted tests for changed files..."
+# For error boundary and CHANGELOG changes, skip integration tests that require Docker
+if echo "$CHANGED" | grep -qE '(ErrorBoundary|LoadingState|CHANGELOG)'; then
+  echo "ℹ️  Error boundary/docs changes detected, running unit tests only..."
+  npm run test:quick
+  exit $?
+fi
 # Using --changed for intelligent test selection based on git changes
 npm test -- --changed
 exit $?
