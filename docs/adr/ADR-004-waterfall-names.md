@@ -40,10 +40,10 @@ for financial modeling.
 
 We adopt the following **canonical naming convention** for waterfall types:
 
-| Term         | Industry Alias | Status                    | Description                                                                              |
-| ------------ | -------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
-| **AMERICAN** | Deal-by-deal   | ✅ Implemented            | Carry calculated per individual investment exit. Standard for US VC funds.               |
-| **EUROPEAN** | Whole-fund     | ⚠️ Type-only (deprecated) | Carry calculated on aggregate fund performance. Removed October 2025 (commit `ebd963a`). |
+| Term         | Industry Alias | Status                | Description                                                                                |
+| ------------ | -------------- | --------------------- | ------------------------------------------------------------------------------------------ |
+| **AMERICAN** | Deal-by-deal   | ✅ Implemented        | Carry calculated per individual investment exit. Standard for US VC funds.                 |
+| **EUROPEAN** | Whole-fund     | ❌ Removed (Jan 2026) | Carry calculated on aggregate fund performance. Removed in PR #339 (zero usage confirmed). |
 
 **Rationale:**
 
@@ -193,22 +193,25 @@ conversion in waterfall ❌ **Tax Withholding**: No integrated tax calculation �
 **Current:** AMERICAN waterfall only (implemented) **Future:** EUROPEAN
 waterfall support (Phase 4, Q2 2026 if demand emerges)
 
-**Breaking Changes:** None planned
+**Breaking Changes:** European waterfall type removed (January 2026)
 
-- EUROPEAN type is aspirational/deprecated (removed Oct 2025)
-- Adding EUROPEAN implementation would be **additive** (new function, opt-in)
+- EUROPEAN type removed from schema in PR #339
+- Schema now enforces American-only: `z.literal('AMERICAN')`
+- Adding EUROPEAN implementation in future would be **additive** (new
+  discriminated union branch)
 - Existing AMERICAN calculations unaffected
 
 ### Historical Context
 
-**European Waterfall Removal (October 2025)**:
+**European Waterfall Removal (January 2026)**:
 
-- **Commit**: `ebd963a` - "refactor: Remove European waterfall (zero usage
-  confirmed)"
+- **PR**: #339 (commit `404df43c`) - "refactor: Remove European waterfall
+  support (American-only schema)"
 - **Rationale**: Zero usage in production, added complexity, confusion risk
 - **Validation**: Query confirmed no funds using European waterfall type
-- **Impact**: Type definition remains for historical reference, marked
-  deprecated
+- **Impact**: Type definition completely removed from schema, tests updated to
+  American-only
+- **Migration**: N/A (zero usage confirmed)
 
 ---
 
@@ -328,10 +331,11 @@ precision and readability
 
 ## Changelog
 
-| Date       | Change                                                     | Author                  |
-| ---------- | ---------------------------------------------------------- | ----------------------- |
-| 2025-10-27 | Initial ADR creation with rounding contract and validation | Phase 3 NotebookLM Team |
-| 2025-10-27 | Document European waterfall removal (commit ebd963a)       | Phase 3 NotebookLM Team |
+| Date       | Change                                                         | Author                  |
+| ---------- | -------------------------------------------------------------- | ----------------------- |
+| 2025-10-27 | Initial ADR creation with rounding contract and validation     | Phase 3 NotebookLM Team |
+| 2025-10-27 | Document European waterfall removal (commit ebd963a)           | Phase 3 NotebookLM Team |
+| 2026-01-04 | Update European status to "Removed" (PR #339, commit 404df43c) | Claude Code             |
 
 ---
 
