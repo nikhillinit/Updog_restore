@@ -1,657 +1,680 @@
-# TypeScript Error Resolution Plan - Final 200 Errors
+# API-Engine Integration Project (Revised Plan)
 
 ## Executive Summary
 
-| Metric           | Value       |
-| ---------------- | ----------- |
-| Baseline Errors  | 200         |
-| Current Errors   | 200         |
-| Target           | 0           |
-| Estimated Effort | 16-20 hours |
+This plan corrects significant oversights in the original API-Engine Integration proposal. The primary finding is that **three routes already exist** with boundary violations (ESLint disabled), and the real work involves fixing these violations plus creating only **four new routes**.
 
-**Status**: Ready for systematic fix implementation
+**Corrected Scope:**
+- Fix 3 existing routes with boundary violations (not create from scratch)
+- Create 4 genuinely missing routes
+- Migrate 4 utility files to shared as prerequisites
+- Migrate engines in dependency order (easy to hard)
+- Add full middleware stack to all routes
+- Migrate 13 test files alongside engines
 
-## Error Distribution
+**Not In Scope (from original plan):**
+- Creating `/api/reserves/:fundId` - already exists at server/routes.ts:604
+- Creating `/api/pacing/summary` - already exists at server/routes.ts:680
+- Creating `/api/cohorts/analysis` - already exists at server/routes.ts:718
 
-### By Project
+---
 
-| Project | Errors | % of Total |
-| ------- | ------ | ---------- |
-| Server  | 170    | 85%        |
-| Client  | 28     | 14%        |
-| Shared  | 1      | 0.5%       |
-| Other   | 1      | 0.5%       |
+## Current State Analysis
 
-### By Error Type (Primary Categories)
+### Existing Routes with Boundary Violations
 
-| Error Code           | Count | Description                           | Fix Strategy                        |
-| -------------------- | ----- | ------------------------------------- | ----------------------------------- |
-| TS2375/TS2379        | ~50   | exactOptionalPropertyTypes violations | Filter undefined or adjust types    |
-| TS18048/TS2532       | ~45   | Possibly undefined access             | Optional chaining, type guards      |
-| TS2322/TS2345        | ~40   | Type assignment mismatches            | Guards, assertions, type widening   |
-| TS2339/TS2353        | ~35   | Schema/property mismatches            | Align schemas, type transformations |
-| TS4111/TS7017/TS7053 | ~15   | Index signature issues                | Bracket notation, add signatures    |
-| TS6307/TS7016/TS2307 | ~10   | Config/declaration issues             | Update tsconfig, install @types     |
-| TS2683               | ~5    | 'this' implicitly any                 | Add type annotations                |
-
-### By File (Top 10 - 62% of all errors)
-
-| File                                                | Errors | Root Cause                             |
-| --------------------------------------------------- | ------ | -------------------------------------- |
-| server/services/notion-service.ts                   | 34     | Schema type mismatches with Notion API |
-| server/services/performance-prediction.ts           | 14     | Missing FundMetrics schema fields      |
-| server/services/projected-metrics-calculator.ts     | 17     | PortfolioCompany type alignment        |
-| server/services/streaming-monte-carlo-engine.ts     | 10     | FundBaseline schema mismatches         |
-| server/lib/flags.ts                                 | 6      | Drizzle query builder types            |
-| server/services/time-travel-analytics.ts            | 5      | Return type mismatches                 |
-| server/services/construction-forecast-calculator.ts | 5      | JCurve API parameter mismatch          |
-| server/services/actual-metrics-calculator.ts        | 5      | Schema field access                    |
-| server/routes/scenario-comparison.ts                | 5      | Type parameter inference               |
-| server/middleware/idempotency.ts                    | 3      | exactOptionalPropertyTypes             |
-
-## Root Cause Analysis
-
-### 1. exactOptionalPropertyTypes (tsconfig strict mode)
-
-TypeScript's `exactOptionalPropertyTypes` flag treats these as different:
-
-- `{ prop: string | undefined }` - property exists with undefined value
-- `{ prop?: string }` - property may not exist
-
-**Common Pattern**:
+The following routes exist in `server/routes.ts` but import directly from client code with ESLint disabled:
 
 ```typescript
-// ERROR: TS2375
-const result = {
-  name: getValue(), // returns string | undefined
-};
-// Not assignable to { name?: string }
+// Lines 16-23 in server/routes.ts
+// TODO: Issue #309 - Move core engines to shared package
+// eslint-disable-next-line no-restricted-imports
+import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generateCohortSummary } from '../client/src/core/cohorts/CohortEngine.js';
+```
 
-// FIX OPTION 1: Filter undefined
-const result = {
-  ...(getValue() !== undefined && { name: getValue() }),
-};
+**Route Locations:**
 
-// FIX OPTION 2: Adjust return type explicitly
-const result: { name?: string } = {};
-if (getValue() !== undefined) {
-  result.name = getValue();
+| Route | Line | Current State |
+|-------|------|---------------|
+| `GET /api/reserves/:fundId` | 604 | Imports from client, loads fixture data |
+| `GET /api/pacing/summary` | 680 | Imports from client, uses query params |
+| `GET /api/cohorts/analysis` | 718 | Imports from client, scaffold with defaults |
+
+### Missing Middleware on Existing Routes
+
+Current routes lack production-grade middleware:
+- No authentication (`requireAuth()`)
+- No authorization (`requireFundAccess()`)
+- No rate limiting (tiered configs available in `server/middleware/rateLimits.ts`)
+- No request validation beyond basic type coercion
+- No caching (Redis + memory fallback available in `server/cache/index.ts`)
+- No idempotency (available in `server/middleware/idempotency.ts`)
+
+### Routes That Are Actually Missing
+
+Only these four routes need to be created:
+
+| Route | Engine | Priority |
+|-------|--------|----------|
+| `POST /api/moic/calculate` | MOICCalculator | HIGH |
+| `GET /api/liquidity/forecast/:fundId` | LiquidityEngine | HIGH |
+| `POST /api/capital-allocation/calculate` | CapitalAllocationEngine | HIGH |
+| `POST /api/graduation/project` | GraduationRateEngine | MEDIUM |
+
+### Duplicate Engine Issue
+
+Two DeterministicReserveEngine implementations exist:
+- `client/src/core/reserves/DeterministicReserveEngine.ts` (960 lines)
+- `shared/core/reserves/DeterministicReserveEngine.ts` (copy)
+
+**Decision:** Use shared version and deprecate client version.
+
+---
+
+## Phase 0: Prerequisites (Utility Extraction)
+
+Before any engine migration, these utilities MUST move to `shared/`:
+
+### 0.1 Array Safety Utilities
+
+**Source:** `client/src/utils/array-safety.ts`
+**Target:** `shared/utils/array-safety.ts`
+**Used By:** CohortEngine, PacingEngine, ReserveEngine
+
+```typescript
+// Functions to migrate
+export const safeArray = <T>(arr?: T[] | null): T[] => ...
+export const forEach = <T>(...) => ...
+export const map = <T, U>(...) => ...
+export const filter = <T>(...) => ...
+export const reduce = <T, U>(...) => ...
+```
+
+### 0.2 isDefined Type Guard
+
+**Source:** `client/src/lib/isDefined.ts`
+**Target:** `shared/utils/isDefined.ts`
+**Used By:** LiquidityEngine
+
+```typescript
+export function isDefined<T>(v: T | null | undefined): v is T {
+  return v !== null && v !== undefined;
 }
 ```
 
-### 2. Schema Divergence
+### 0.3 Environment-Aware Logger
 
-Two schema layers with different field definitions:
+**Source:** `client/src/lib/logger.ts`
+**Issue:** Browser-specific (uses `import.meta.env`, `window.location`)
+**Used By:** DeterministicReserveEngine
+**Solution:** Create isomorphic version in `shared/utils/logger.ts`
 
-- `/schema/src/tables.ts` - Storage layer (Drizzle ORM)
-- `/shared/schema.ts` - Application layer (extended with computed fields)
+### 0.4 Performance Monitor Abstraction
 
-**Example**: `PortfolioCompany` in shared/schema.ts has fields like
-`initialInvestment`, `ownershipPercent` that the storage layer may not have.
+**Source:** `client/src/lib/performance-monitor.ts`
+**Issue:** Browser-specific (uses `PerformanceObserver`, `navigator.sendBeacon`)
+**Used By:** DeterministicReserveEngine
+**Solution:** Create abstract interface in `shared/utils/performance-monitor.ts`
 
-### 3. Nullable vs Undefined
+### Phase 0 Verification
 
-Services returning `undefined` for missing data, but types expect `null`:
+```bash
+npm run build        # Verify shared exports correctly
+npm test -- --project=server  # Verify server can import from shared
+npm test -- --project=client  # Verify client still works
+```
+
+---
+
+## Phase 1: Fix Existing Routes (Boundary Violations + Middleware)
+
+### 1.1 Migrate ReserveEngine to Shared
+
+**Current Location:** `client/src/core/reserves/ReserveEngine.ts`
+**Target Location:** `shared/core/reserves/ReserveEngine.ts`
+**Lines:** 190
+
+**Dependencies to Update:**
+```typescript
+// Before (client)
+import { map, reduce } from '@/utils/array-safety';
+
+// After (shared)
+import { map, reduce } from '../../utils/array-safety';
+```
+
+### 1.2 Update Reserve Route with Full Middleware Stack
+
+**File:** `server/routes.ts` line 604
+
+**Before:**
+```typescript
+// eslint-disable-next-line no-restricted-imports
+import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
+
+app.get('/api/reserves/:fundId', async (req, res) => {
+  // No auth, no validation, loads fixture data
+});
+```
+
+**After:**
+```typescript
+import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
+import { requireAuth, requireFundAccess } from './lib/auth/jwt';
+import { validateRequest } from './middleware/validation';
+import { rateLimiters } from './middleware/rateLimits';
+import { getCache } from './cache';
+
+const ReserveParamsSchema = z.object({
+  fundId: z.string().regex(/^\d+$/).transform(Number),
+});
+
+app.get('/api/reserves/:fundId',
+  rateLimiters.api,
+  requireAuth(),
+  requireFundAccess,
+  validateRequest({ params: ReserveParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { fundId } = req.params;
+      const cache = await getCache();
+      const cacheKey = `reserves:${fundId}`;
+
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+
+      const portfolio = await storage.getPortfolioForReserves(fundId);
+      const summary = generateReserveSummary(fundId, portfolio);
+
+      await cache.set(cacheKey, JSON.stringify(summary), 300);
+      res.json(summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+```
+
+### 1.3 Migrate PacingEngine and Update Route
+
+**Current Location:** `client/src/core/pacing/PacingEngine.ts`
+**Target Location:** `shared/core/pacing/PacingEngine.ts`
+**Lines:** 162
+
+### 1.4 Migrate CohortEngine and Update Route
+
+**Current Location:** `client/src/core/cohorts/CohortEngine.ts`
+**Target Location:** `shared/core/cohorts/CohortEngine.ts`
+**Lines:** 252
+
+---
+
+## Phase 2: Easy Engine Migrations
+
+Engines with minimal dependencies, ordered by complexity:
+
+### 2.1 MOICCalculator (Complexity: 2/10)
+
+**Source:** `client/src/core/moic/MOICCalculator.ts`
+**Target:** `shared/core/moic/MOICCalculator.ts`
+**Lines:** 522
+**Dependencies:** Only `decimal.js` (already in server dependencies)
+
+**Characteristics:**
+- Pure static methods
+- No client-specific dependencies
+- Ideal first migration candidate
+
+**New Route:**
+```typescript
+app.post('/api/moic/calculate',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: MOICInputSchema }),
+  async (req, res, next) => {
+    const { investments } = req.body;
+    const result = MOICCalculator.generatePortfolioSummary(investments);
+    res.json(result);
+  }
+);
+```
+
+### 2.2 GraduationRateEngine (Complexity: 3/10)
+
+**Source:** `client/src/core/graduation/GraduationRateEngine.ts`
+**Target:** `shared/core/graduation/GraduationRateEngine.ts`
+**Lines:** 493
+**Dependencies:** `@shared/utils/prng` (already in shared)
+
+**New Route:**
+```typescript
+app.post('/api/graduation/project',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: GraduationInputSchema }),
+  async (req, res, next) => {
+    const { config, initialCompanies, horizonQuarters } = req.body;
+    const engine = new GraduationRateEngine(config);
+    const summary = engine.getSummary(initialCompanies, horizonQuarters);
+    res.json(summary);
+  }
+);
+```
+
+---
+
+## Phase 3: Create Missing Routes
+
+### 3.1 Liquidity Forecast Route
 
 ```typescript
-// ERROR
-return { userId: req.user?.id }; // string | undefined
-// Expected: { userId: string | null }
+app.get('/api/liquidity/forecast/:fundId',
+  rateLimiters.api,
+  requireAuth(),
+  requireFundAccess,
+  validateRequest({
+    params: FundIdSchema,
+    query: LiquidityQuerySchema
+  }),
+  async (req, res, next) => {
+    const { fundId } = req.params;
+    const { months = 12 } = req.query;
+
+    const fund = await storage.getFund(fundId);
+    const engine = new LiquidityEngine(fundId, fund.size);
+
+    const position = await storage.getCashPosition(fundId);
+    const transactions = await storage.getTransactions(fundId);
+    const expenses = await storage.getRecurringExpenses(fundId);
+
+    const forecast = engine.generateLiquidityForecast(
+      position, transactions, expenses, months
+    );
+
+    res.json(forecast);
+  }
+);
 ```
 
-## Prioritized Fix Batches
-
-### Batch 1: Quick Wins (35 errors) - LOW RISK
-
-**Time**: ~1 hour
-
-Config changes and mechanical fixes:
-
-```
-1. npm install -D @types/node-fetch (1 error - TS7016)
-2. tsconfig.server.json - add missing includes (2 errors - TS6307)
-3. Bracket notation fixes (4 errors - TS4111):
-   - server/lib/locks.ts
-   - server/queues/simulation-queue.ts
-   - server/routes/__tests__/funds.idempotency.spec.ts
-4. 'this' type annotations (2 errors - TS2683):
-   - server/core/market/score.ts
-5. Simple null checks with optional chaining (~26 errors)
-```
-
-### Batch 2: Server lib/ Null Safety (30 errors) - LOW RISK
-
-**Time**: ~2 hours
-
-Safe null checks and type guards:
-
-| File                              | Errors | Fix Type                           |
-| --------------------------------- | ------ | ---------------------------------- |
-| server/lib/flags.ts               | 6      | Optional chaining for state access |
-| server/lib/locks.ts               | 3      | globalThis access patterns         |
-| server/lib/approvals-guard.ts     | 2      | Approval undefined checks          |
-| server/lib/http-preconditions.ts  | 2      | exactOptionalPropertyTypes         |
-| server/lib/secure-context.ts      | 1      | partnerId filtering                |
-| server/lib/tracing.ts             | 2      | parentId, fields filtering         |
-| server/lib/logger.ts              | 1      | transport conditional              |
-| server/lib/rateLimitStore.ts      | 1      | store undefined handling           |
-| server/lib/redis/cluster.ts       | 1      | url undefined check                |
-| server/lib/stage-validation-\*.ts | 2      | Module resolution                  |
-
-### Batch 3: Server middleware/ (15 errors) - LOW RISK
-
-**Time**: ~1.5 hours
-
-Isolated middleware fixes:
-
-| File                                      | Errors | Fix Type                  |
-| ----------------------------------------- | ------ | ------------------------- |
-| server/middleware/idempotency.ts          | 3      | generateKey function type |
-| server/middleware/enhanced-audit.ts       | 3      | Schema field alignment    |
-| server/middleware/auditLog.ts             | 2      | null vs undefined         |
-| server/middleware/dedupe.ts               | 1      | Request key extraction    |
-| server/middleware/engine-guards.ts        | 1      | Iterator type guard       |
-| server/middleware/rateLimitDetailed.ts    | 1      | Store type                |
-| server/middleware/security.ts             | 1      | Request type assertion    |
-| server/middleware/with-rls-transaction.ts | 1      | Tuple spread type         |
-
-### Batch 4: Client lib/ (28 errors) - LOW RISK
-
-**Time**: ~2 hours
-
-Client-side null safety (no server impact):
-
-| File                                                   | Errors | Fix Type                 |
-| ------------------------------------------------------ | ------ | ------------------------ |
-| client/src/core/pacing/PacingEngine.ts                 | 3      | adjustment undefined     |
-| client/src/core/reserves/DeterministicReserveEngine.ts | 3      | MOICCalculation guards   |
-| client/src/lib/capital-calculations.ts                 | 2      | Object undefined         |
-| client/src/lib/fund-calc.ts                            | 2      | Exit type, Decimal       |
-| client/src/lib/validation\*.ts                         | 5      | String undefined         |
-| client/src/lib/wizard-\*.ts                            | 5      | Machine imports, schemas |
-| client/src/lib/xirr.ts                                 | 2      | Date string params       |
-| Other client/src/lib files                             | 6      | Various undefined checks |
-
-### Batch 5: Server Services - Schema Alignment (70 errors) - HIGH RISK
-
-**Time**: ~6 hours
-
-**WARNING**: These changes touch core business logic. Requires careful testing.
-
-#### notion-service.ts (34 errors)
-
-Primary issues:
-
-- Notion API response types vs expected types
-- Database mapping field mismatches
-- Encrypted token type handling
-
-Strategy:
-
-1. Create proper Notion API response types
-2. Add runtime validation for API responses
-3. Use type guards for database operations
-
-#### performance-prediction.ts (14 errors)
-
-Primary issues:
-
-- FundMetrics field access (missing fields)
-- Undefined array access in time series
-
-Strategy:
-
-1. Add proper type guards for metrics access
-2. Use optional chaining for array access
-3. Add fallback values for missing metrics
-
-#### projected-metrics-calculator.ts (17 errors)
-
-Primary issues:
-
-- PortfolioCompany missing: initialInvestment, ownershipPercent
-- Engine input type mismatches
-
-Strategy:
-
-1. Create adapter function to transform Company types
-2. Add computed field defaults
-3. Validate inputs before engine calls
-
-#### streaming-monte-carlo-engine.ts (10 errors)
-
-Primary issues:
-
-- Map/pool access patterns
-- Schema type assertions
-
-Strategy:
-
-1. Add proper Map access guards
-2. Type narrow schema responses
-
-#### Other services (22 errors total)
-
-- time-travel-analytics.ts (5)
-- construction-forecast-calculator.ts (5)
-- actual-metrics-calculator.ts (5)
-- metrics-aggregator.ts (4)
-- comparison-service.ts, power-law-distribution.ts,
-  portfolio-performance-predictor.ts (3)
-
-### Batch 6: Infrastructure (22 errors) - MEDIUM RISK
-
-**Time**: ~3 hours
-
-| File                                 | Errors | Fix Type                          |
-| ------------------------------------ | ------ | --------------------------------- |
-| server/db/pg-circuit.ts              | 3      | Generic constraints, error typing |
-| server/db/redis-factory.ts           | 3      | Sentinel config types             |
-| server/db.ts                         | 1      | Drizzle config typing             |
-| server/db/index.ts                   | 1      | Export resolution                 |
-| server/routes/scenario-comparison.ts | 5      | Type inference                    |
-| server/routes/flags.ts               | 2      | User type checks                  |
-| server/routes/health.ts              | 1      | Storage query typing              |
-| server/routes/error-budget.ts        | 1      | String undefined                  |
-| server/agents/\*                     | 4      | Error type extensions             |
-| server/otel.ts                       | 1      | URL config                        |
-| server/observability/sentry.ts       | 1      | ErrorEvent export                 |
-
-## Execution Strategy
-
-### Recommended Order
-
-```
-Week 1, Day 1-2:
-  - Batch 1: Quick Wins (35 errors)
-  - Batch 2: Server lib/ (30 errors)
-
-Week 1, Day 3:
-  - Batch 3: Server middleware/ (15 errors)
-  - Batch 4: Client lib/ (28 errors)
-
-Week 1, Day 4-5:
-  - Batch 5: Server Services (70 errors)
-
-Week 2, Day 1:
-  - Batch 6: Infrastructure (22 errors)
-  - Final testing and validation
-```
-
-### Testing Protocol
-
-After each batch:
-
-1. `npm run baseline:check` - Verify error count reduction
-2. `npm test -- --project=server` - Server tests
-3. `npm test -- --project=client` - Client tests
-4. `npm run build` - Full build verification
-5. Manual smoke test of affected endpoints
-
-### Rollback Strategy
-
-If batch introduces runtime errors:
-
-1. `git stash` current changes
-2. Revert to last working state
-3. Isolate problematic fix
-4. Apply more conservative fix
-
-## Existing Utilities (LEVERAGE THESE)
-
-The codebase already has type-safety utilities that can accelerate fixes:
-
-### 1. `shared/utils/type-safety.ts`
+### 3.2 Capital Allocation Calculate Route
 
 ```typescript
-import {
-  optionalProp,
-  optionalProps,
-  isDefined,
-  filterDefined,
-  withDefault,
-  safeString,
-} from '@shared/utils/type-safety';
-
-// For single optional property (TS2375 fix)
-return { required: 'value', ...optionalProp('name', maybeValue) };
-
-// For multiple optional properties
-return { required: 'value', ...optionalProps({ opt1, opt2, opt3 }) };
-
-// Type guard for undefined checks
-if (isDefined(value)) {
-  /* value is T, not T | undefined */
-}
-
-// Filter undefined from arrays
-const clean = filterDefined([item1, item2, maybeItem3]);
+app.post('/api/capital-allocation/calculate',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: CapitalAllocationInputSchema }),
+  idempotency({ ttl: 3600 }),
+  async (req, res, next) => {
+    const normalized = adaptTruthCaseInput(req.body);
+    const result = calculateCapitalAllocation(normalized);
+    res.json(result);
+  }
+);
 ```
 
-### 2. `client/src/lib/ts/spreadIfDefined.ts`
+---
+
+## Phase 4: Complex Engine Migrations
+
+### 4.1 LiquidityEngine (Complexity: 7/10)
+
+**Source:** `client/src/core/LiquidityEngine.ts`
+**Target:** `shared/core/liquidity/LiquidityEngine.ts`
+**Lines:** 1007
+
+**Challenges:**
+- Large file (900+ lines)
+- Many internal types (should extract to separate types file)
+- Complex cash flow calculations
+
+**Recommended Refactoring:**
+1. Extract types to `shared/types/liquidity.ts`
+2. Split into smaller modules:
+   - `LiquidityEngine.ts` (main class)
+   - `cashflow-analysis.ts` (grouping functions)
+   - `stress-testing.ts` (stress test methods)
+   - `capital-call-optimization.ts` (optimization logic)
+
+### 4.2 CapitalAllocationEngine (Complexity: 6/10)
+
+**Source Directory:** `client/src/core/capitalAllocation/`
+**Target Directory:** `shared/core/capitalAllocation/`
+
+**All Files Must Move Together (14 files):**
+
+| File | Purpose |
+|------|---------|
+| `CapitalAllocationEngine.ts` | Main engine |
+| `adapter.ts` | Input normalization |
+| `allocateLRM.ts` | Largest Remainder Method |
+| `cohorts.ts` | Cohort handling |
+| `invariants.ts` | Conservation checks |
+| `pacing.ts` | Pacing integration |
+| `periodLoop.ts` | Period iteration |
+| `periodLoopEngine.ts` | Engine wrapper |
+| `periods.ts` | Period utilities |
+| `rounding.ts` | Cent rounding |
+| `sorting.ts` | Canonical ordering |
+| `types.ts` | Type definitions |
+| `units.ts` | Unit conversions |
+| `index.ts` | Exports |
+
+### 4.3 DeterministicReserveEngine (Complexity: 8/10)
+
+**Status:** Already exists in `shared/core/reserves/DeterministicReserveEngine.ts`
+**Action:** Update to use shared logger/monitor, deprecate client version
+
+---
+
+## Phase 5: Worker Integration for Expensive Operations
+
+### 5.1 Identify Expensive Operations
+
+Operations requiring background processing:
+1. **Monte Carlo Simulations** - Already uses `server/queues/simulation-queue.ts`
+2. **Large Capital Allocation** - Cohort calculations with many periods
+3. **Liquidity Stress Tests** - Multiple scenario calculations
+4. **Batch Reserve Calculations** - Portfolio-wide reserve rebalancing
+
+### 5.2 Async Queue Pattern
 
 ```typescript
-import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+app.post('/api/capital-allocation/async',
+  rateLimiters.simulation,
+  requireAuth(),
+  validateRequest({ body: CapitalAllocationInputSchema }),
+  idempotency(),
+  async (req, res) => {
+    const { jobId, estimatedWaitMs } = await enqueueCapitalAllocation({
+      fundId: req.body.fundId,
+      input: adaptTruthCaseInput(req.body),
+      userId: req.user.id,
+      requestId: req.requestId,
+    });
 
-// For component props (JSX)
-<Input {...spreadIfDefined("error", errorMessage)} />
-
-// For object construction
-return { required, ...spreadIfDefined('optional', maybeValue) };
+    res.status(202).json({
+      jobId,
+      statusUrl: `/api/operations/${jobId}`,
+      estimatedWaitMs,
+    });
+  }
+);
 ```
 
-### 3. `shared/type-safety-utils.ts`
+### 5.3 SSE Progress Streaming
 
 ```typescript
-import {
-  toSafeNumber,
-  isSafeNumber,
-  SafeArithmetic,
-} from '@shared/type-safety-utils';
+app.get('/api/operations/:jobId/stream',
+  requireAuth(),
+  async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
 
-// Safe number conversion
-const num = toSafeNumber(maybeValue, 0); // returns 0 if invalid
+    const unsubscribe = subscribeToJob(req.params.jobId, {
+      onProgress: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`),
+      onComplete: (event) => { res.write(`data: ${JSON.stringify(event)}\n\n`); res.end(); },
+      onFailed: (event) => { res.write(`data: ${JSON.stringify(event)}\n\n`); res.end(); },
+    });
 
-// Type guard for numbers
-if (isSafeNumber(value)) {
-  /* value is number */
-}
-
-// Safe arithmetic with fallbacks
-SafeArithmetic.divide(a, b, { allowZero: true });
+    req.on('close', unsubscribe);
+  }
+);
 ```
 
-**Recommendation**: Use these utilities instead of writing inline checks. This:
+---
 
-- Reduces code duplication
-- Ensures consistent patterns
-- Makes future refactoring easier
-- Already tested and proven
+## Complete File Manifest
 
-## Technical Patterns
+### Phase 0: Utilities to Create/Move
 
-### Pattern 1: Filtering undefined from objects (USE `optionalProp` UTILITY)
+| Source | Target | Action |
+|--------|--------|--------|
+| `client/src/utils/array-safety.ts` | `shared/utils/array-safety.ts` | Move |
+| `client/src/lib/isDefined.ts` | `shared/utils/isDefined.ts` | Move |
+| `client/src/lib/logger.ts` | `shared/utils/logger.ts` | Create isomorphic |
+| `client/src/lib/performance-monitor.ts` | `shared/utils/performance-monitor.ts` | Create abstract |
+
+### Phase 1: Engines to Move (Existing Routes)
+
+| Source | Target | Lines |
+|--------|--------|-------|
+| `client/src/core/reserves/ReserveEngine.ts` | `shared/core/reserves/ReserveEngine.ts` | 190 |
+| `client/src/core/pacing/PacingEngine.ts` | `shared/core/pacing/PacingEngine.ts` | 162 |
+| `client/src/core/cohorts/CohortEngine.ts` | `shared/core/cohorts/CohortEngine.ts` | 252 |
+
+### Phase 2: Easy Engines to Move (New Routes)
+
+| Source | Target | Lines |
+|--------|--------|-------|
+| `client/src/core/moic/MOICCalculator.ts` | `shared/core/moic/MOICCalculator.ts` | 522 |
+| `client/src/core/graduation/GraduationRateEngine.ts` | `shared/core/graduation/GraduationRateEngine.ts` | 493 |
+
+### Phase 4: Complex Engines
+
+| Source | Target | Files |
+|--------|--------|-------|
+| `client/src/core/capitalAllocation/*` | `shared/core/capitalAllocation/*` | 14 |
+| `client/src/core/LiquidityEngine.ts` | `shared/core/liquidity/LiquidityEngine.ts` | 1 (split to 4) |
+
+### Routes to Modify
+
+| Route | File | Line | Action |
+|-------|------|------|--------|
+| `GET /api/reserves/:fundId` | `server/routes.ts` | 604 | Fix import + add middleware |
+| `GET /api/pacing/summary` | `server/routes.ts` | 680 | Fix import + add middleware |
+| `GET /api/cohorts/analysis` | `server/routes.ts` | 718 | Fix import + add middleware |
+
+### Routes to Create
+
+| Route | Method | Handler |
+|-------|--------|---------|
+| `/api/moic/calculate` | POST | MOICCalculator.generatePortfolioSummary |
+| `/api/graduation/project` | POST | GraduationRateEngine.getSummary |
+| `/api/liquidity/forecast/:fundId` | GET | LiquidityEngine.generateLiquidityForecast |
+| `/api/capital-allocation/calculate` | POST | calculateCapitalAllocation |
+
+---
+
+## Testing Strategy
+
+### Test Files to Migrate (13 Total)
+
+**Capital Allocation Tests (8 files):**
+- `client/src/core/capitalAllocation/__tests__/CapitalAllocationEngine.test.ts`
+- `client/src/core/capitalAllocation/__tests__/adapter.test.ts`
+- `client/src/core/capitalAllocation/__tests__/allocateLRM.test.ts`
+- `client/src/core/capitalAllocation/__tests__/invariants.test.ts`
+- `client/src/core/capitalAllocation/__tests__/rounding.test.ts`
+- `client/src/core/capitalAllocation/__tests__/sorting.test.ts`
+- `client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts`
+- `client/src/core/capitalAllocation/__tests__/units.test.ts`
+
+**Reserves Tests (3 files):**
+- `client/src/core/reserves/__tests__/reserves.spec.ts`
+- `client/src/core/reserves/__tests__/reserves.property.test.ts`
+- `client/src/core/reserves/adapter/__tests__/finalizePayload.spec.ts`
+
+**Selectors Tests (2 files):**
+- `client/src/core/selectors/__tests__/fund-kpis.test.ts`
+- `client/src/core/selectors/__tests__/fundKpis.test.ts`
+
+### API Integration Tests to Create
+
+```
+tests/api/
+  reserves.api.test.ts
+  pacing.api.test.ts
+  cohorts.api.test.ts
+  moic.api.test.ts
+  graduation.api.test.ts
+  liquidity.api.test.ts
+  capital-allocation.api.test.ts
+```
+
+---
+
+## Middleware Patterns Reference
+
+### Authentication
 
 ```typescript
-// Before (TS2375 error)
-return { name: value }; // value is string | undefined
+import { requireAuth, requireRole, requireFundAccess } from './lib/auth/jwt';
 
-// After - Using existing utility (PREFERRED)
-import { optionalProp } from '@shared/utils/type-safety';
-return { ...optionalProp('name', value) };
+// Authenticated route
+app.get('/api/funds', requireAuth(), ...);
 
-// After - Manual (if utility not importable)
-return {
-  ...(value !== undefined && { name: value }),
-};
+// Role-restricted route
+app.post('/api/admin/settings', requireAuth(), requireRole('admin'), ...);
 
-// For multiple optional fields - Using utility
-import { optionalProps } from '@shared/utils/type-safety';
-return { required: 'value', ...optionalProps({ optional1, optional2 }) };
+// Fund-scoped route
+app.get('/api/reserves/:fundId', requireAuth(), requireFundAccess, ...);
 ```
 
-### Pattern 2: Type guards for schema access
+### Validation
 
 ```typescript
-// Before (TS2339 error)
-const val = company.initialInvestment; // Property doesn't exist
+import { validateRequest } from './middleware/validation';
 
-// After - type guard function
-function hasInitialInvestment(
-  c: PortfolioCompany
-): c is PortfolioCompany & { initialInvestment: number } {
-  return 'initialInvestment' in c && typeof c.initialInvestment === 'number';
-}
+const Schema = z.object({
+  body: z.object({ name: z.string().min(1) }),
+  params: z.object({ id: z.string().uuid() }),
+});
 
-if (hasInitialInvestment(company)) {
-  const val = company.initialInvestment; // Now typed
-}
+app.post('/api/resource/:id', validateRequest(Schema), handler);
 ```
 
-### Pattern 3: Bracket notation for index signatures
+### Rate Limiting
 
 ```typescript
-// Before (TS4111 error)
-const val = obj.property; // Property comes from index signature
+import { rateLimiters, costBasedRateLimit } from './middleware/rateLimits';
 
-// After
-const val = obj['property'];
+// Standard (100/min)
+app.get('/api/funds', rateLimiters.api, ...);
+
+// Simulation (10/hour)
+app.post('/api/simulations', rateLimiters.simulation, ...);
+
+// Cost-based
+app.post('/api/expensive', costBasedRateLimit(req => req.body.items.length), ...);
 ```
 
-### Pattern 4: Optional chaining cascade
+### Caching
 
 ```typescript
-// Before (TS18048 error)
-const val = state.flags.enabled; // state possibly undefined
+import { getCache } from './cache';
 
-// After
-const val = state?.flags?.enabled ?? false;
+const cache = await getCache();
+const cached = await cache.get(cacheKey);
+if (cached) return res.json(JSON.parse(cached));
+
+const result = await compute();
+await cache.set(cacheKey, JSON.stringify(result), 300); // 5 min TTL
 ```
+
+### Idempotency
+
+```typescript
+import { idempotency } from './middleware/idempotency';
+
+app.post('/api/mutations', idempotency({ ttl: 300 }), handler);
+// Client sends: Idempotency-Key: abc123
+```
+
+---
+
+## Risk Assessment
+
+### High Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Breaking existing routes during migration | Feature flag: `ENABLE_SHARED_ENGINES=false` to fall back |
+| Test failures from path changes | Run tests after each file move, not batch |
+| Cache invalidation issues | Clear cache on deploy, monitor cache hit rates |
+
+### Medium Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Performance regression from shared imports | Benchmark before/after, lazy load heavy modules |
+| Type mismatches between client/server | Shared types are source of truth |
+| Logger/monitor not isomorphic | Extensive testing in both environments |
+
+### Low Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Missing auth on new routes | ESLint rule requiring auth middleware |
+| Rate limit bypass | Integration tests for rate limiting |
+| Queue job failures | Dead letter queue, retry with backoff |
+
+---
 
 ## Success Criteria
 
-| Metric          | Requirement            |
-| --------------- | ---------------------- |
-| Baseline Errors | 0                      |
-| Test Suite      | All pass               |
-| Build           | Success                |
-| Runtime Errors  | None introduced        |
-| Type Coverage   | Maintained or improved |
+### Phase 0 Complete When:
+- [ ] All 4 utility files exist in `shared/utils/`
+- [ ] `npm run build` succeeds with no errors
+- [ ] `npm test` passes in both server and client projects
 
-## Commands Reference
+### Phase 1 Complete When:
+- [ ] No `eslint-disable` comments for boundary violations in routes.ts
+- [ ] All 3 existing routes have full middleware stack
+- [ ] All 3 existing routes load data from database (not fixtures)
+- [ ] Cache hit/miss headers present on responses
 
-```bash
-# Check current error state
-npm run baseline:check
+### Phase 2 Complete When:
+- [ ] MOICCalculator available at `@shared/core/moic/`
+- [ ] GraduationRateEngine available at `@shared/core/graduation/`
+- [ ] Both new routes respond correctly
+- [ ] Rate limiting active on new routes
 
-# Save baseline after fixes
-npm run baseline:save
+### Phase 3 Complete When:
+- [ ] All 4 new routes implemented and documented
+- [ ] OpenAPI spec updated with new endpoints
+- [ ] Integration tests pass for all routes
 
-# Run all tests
-npm test
+### Phase 4 Complete When:
+- [ ] CapitalAllocationEngine migrated (14 files)
+- [ ] LiquidityEngine migrated and refactored
+- [ ] Client DeterministicReserveEngine deprecated
+- [ ] All 13 test files migrated and passing
 
-# Run server tests only
-npm test -- --project=server
+### Phase 5 Complete When:
+- [ ] Expensive operations use queue pattern
+- [ ] SSE progress streaming works for async operations
+- [ ] Job status polling endpoint functional
 
-# Run client tests only
-npm test -- --project=client
+### Overall Project Complete When:
+- [ ] Zero ESLint boundary violations
+- [ ] All routes have auth + validation + rate limiting
+- [ ] Cache layer active for read operations
+- [ ] Idempotency active for mutations
+- [ ] Test coverage >= 80% for all engines
+- [ ] Type checking passes (`npm run check`)
+- [ ] All tests pass (`npm test`)
+- [ ] Lint passes (`npm run lint`)
 
-# Type check only (raw tsc)
-npx tsc --noEmit -p tsconfig.server.json
+---
 
-# Build verification
-npm run build
-```
+## Critical Files for Implementation
 
-## Optimization Opportunities
+1. **`server/routes.ts`** - Contains all 3 existing routes with boundary violations (lines 19-23, 604, 680, 718)
 
-### Parallel Fix Execution
+2. **`client/src/utils/array-safety.ts`** - Must move to shared first; blocks CohortEngine, PacingEngine, ReserveEngine migrations
 
-Files within the same batch can be fixed in parallel since they have no
-dependencies:
+3. **`server/middleware/validation.ts`** - Pattern to follow for request validation
 
-| Parallel Group | Files                                                     | Estimated Speedup |
-| -------------- | --------------------------------------------------------- | ----------------- |
-| lib-group-1    | flags.ts, locks.ts, logger.ts                             | 3x                |
-| lib-group-2    | tracing.ts, secure-context.ts, rateLimitStore.ts          | 3x                |
-| middleware-all | idempotency.ts, enhanced-audit.ts, dedupe.ts, security.ts | 4x                |
-| client-core    | PacingEngine.ts, DeterministicReserveEngine.ts            | 2x                |
-| client-lib     | All client/src/lib files                                  | 10x               |
+4. **`server/lib/auth/jwt.ts`** - Authentication middleware required for all routes
 
-### High-Impact Single Fixes
+5. **`client/src/core/capitalAllocation/CapitalAllocationEngine.ts`** - Most complex engine (14 files must move together)
 
-These single changes could resolve multiple errors:
+---
 
-1. **Add `@types/node-fetch`** (1 change, 2 errors fixed)
-
-   ```bash
-   npm install -D @types/node-fetch
-   ```
-
-2. **Create shared `PortfolioCompanyWithComputed` type** (1 type, ~15 errors
-   fixed)
-   - Fixes projected-metrics-calculator.ts property errors
-   - Fixes actual-metrics-calculator.ts property errors
-   - Add to `shared/types/portfolio.ts`
-
-3. **Update `shared/utils/type-safety.ts` exports** (1 change, ~50 errors
-   easier)
-   - Re-export from `@shared/` for easier imports
-   - All exactOptionalPropertyTypes fixes become one-liners
-
-### Schema Alignment Strategy
-
-Instead of fixing 35 schema-related errors individually, consider:
-
-1. **Create adapter types** in `shared/types/adapters.ts`:
-
-   ```typescript
-   // Transform storage layer to application layer
-   export type PortfolioCompanyApp = PortfolioCompanyStorage & {
-     initialInvestment: number;
-     ownershipPercent: number;
-   };
-
-   export function toAppCompany(
-     storage: PortfolioCompanyStorage
-   ): PortfolioCompanyApp;
-   ```
-
-2. **Centralize transformation** in service layer
-3. **Fix once, apply everywhere**
-
-### Time Estimate Refinement
-
-With utilities and parallelization:
-
-| Batch     | Original       | Optimized      | Savings |
-| --------- | -------------- | -------------- | ------- |
-| 1         | 1 hour         | 30 min         | 50%     |
-| 2         | 2 hours        | 1 hour         | 50%     |
-| 3         | 1.5 hours      | 45 min         | 50%     |
-| 4         | 2 hours        | 1 hour         | 50%     |
-| 5         | 6 hours        | 4 hours        | 33%     |
-| 6         | 3 hours        | 2 hours        | 33%     |
-| **Total** | **15.5 hours** | **9.25 hours** | **40%** |
-
-## Appendix: Full Error List by File
-
-<details>
-<summary>Server Errors (170)</summary>
-
-### server/lib/ (18 errors)
-
-- flags.ts: 6 (TS18048)
-- locks.ts: 3 (TS2412, TS7017)
-- approvals-guard.ts: 2 (TS18048, TS2375)
-- http-preconditions.ts: 2 (TS2412)
-- tracing.ts: 2 (TS2375, TS2379)
-- logger.ts: 1 (TS2769)
-- rateLimitStore.ts: 1 (TS2375)
-- redis/cluster.ts: 1 (TS2379)
-- secure-context.ts: 1 (TS2375)
-- stage-validation-mode.ts: 1 (TS2322)
-- stage-validation-startup.ts: 1 (TS2307)
-
-### server/middleware/ (13 errors)
-
-- idempotency.ts: 3 (TS2345, TS2379)
-- enhanced-audit.ts: 3 (TS2322, TS2769)
-- auditLog.ts: 2 (TS2322)
-- dedupe.ts: 1 (TS2345)
-- engine-guards.ts: 1 (TS2488)
-- rateLimitDetailed.ts: 1 (TS2379)
-- security.ts: 1 (TS2345)
-- with-rls-transaction.ts: 1 (TS2345)
-
-### server/services/ (86 errors)
-
-- notion-service.ts: 34 (TS18046, TS2322, TS2339, TS2353, TS2379, TS2551,
-  TS2552, TS2769)
-- projected-metrics-calculator.ts: 17 (TS2322, TS2339, TS2353, TS2554)
-- performance-prediction.ts: 14 (TS18048, TS2345, TS2375, TS2532, TS2769)
-- streaming-monte-carlo-engine.ts: 10 (TS18048, TS2564)
-- time-travel-analytics.ts: 5 (TS2322, TS2375)
-- actual-metrics-calculator.ts: 5 (TS2339, TS2345)
-- construction-forecast-calculator.ts: 5 (TS2322, TS2339, TS2554)
-- metrics-aggregator.ts: 4 (TS2339, TS2345)
-- ai-orchestrator.ts: 1 (TS6307)
-- comparison-service.ts: 1 (TS2375)
-- power-law-distribution.ts: 2 (TS2322, TS2412)
-- portfolio-performance-predictor.ts: 1 (TS2375)
-
-### server/db/ (8 errors)
-
-- pg-circuit.ts: 3 (TS2344, TS2379, TS2538)
-- redis-factory.ts: 3 (TS2345, TS2375)
-- db.ts: 1 (TS2345)
-- index.ts: 1 (TS2459)
-
-### server/routes/ (11 errors)
-
-- scenario-comparison.ts: 5 (TS2345, TS7006)
-- flags.ts: 2 (TS18048, TS2345)
-- health.ts: 1 (TS7053)
-- error-budget.ts: 1 (TS2345)
-- compass/routes.ts: 1 (TS2322)
-
-### server/other (34 errors)
-
-- agents/cancel.ts: 2 (TS2353)
-- agents/stream.ts: 2 (TS2345, TS2353)
-- core/market/score.ts: 2 (TS2683)
-- core/reserves/adapter.ts: 1 (TS2375)
-- core/reserves/mlClient.ts: 2 (TS7016, TS2375)
-- examples/streaming-monte-carlo-examples.ts: 3 (TS2345, TS2532)
-- infra/circuit-breaker/CircuitBreaker.ts: 1 (TS2532)
-- metrics/lpBusinessMetrics.ts: 2 (TS7053)
-- observability/sentry.ts: 1 (TS2694)
-- otel.ts: 1 (TS2379)
-- providers.ts: 1 (TS2375)
-- queues/simulation-queue.ts: 3 (TS4111)
-- routes/**tests**/funds.idempotency.spec.ts: 1 (TS4111)
-- server.ts: 1 (TS2379)
-- websocket/portfolio-metrics.ts: 2 (TS18046, TS2339)
-
-</details>
-
-<details>
-<summary>Client Errors (28)</summary>
-
-### client/src/core/ (6 errors)
-
-- pacing/PacingEngine.ts: 3 (TS18048)
-- reserves/DeterministicReserveEngine.ts: 3 (TS18048, TS2345)
-
-### client/src/lib/ (20 errors)
-
-- capital-calculations.ts: 2 (TS2532)
-- fund-calc.ts: 2 (TS2322)
-- validation.ts: 2 (TS2322, TS2538)
-- validation-helpers.ts: 2 (TS2322)
-- wizard-calculations.ts: 1 (TS6307)
-- wizard-reserve-bridge.ts: 1 (TS6307)
-- wizard-schemas.ts: 1 (TS2769)
-- wizard-types.ts: 1 (TS2322)
-- xirr.ts: 2 (TS2345)
-- capital-first.ts: 1 (TS2322)
-- demo-data.ts: 1 (TS2322)
-- inflight.ts: 1 (TS2322)
-- nav.ts: 1 (TS2532)
-- rollout-orchestrator.ts: 1 (TS2345)
-- schema-adapter.ts: 1 (TS2532)
-
-### client/src/other (2 errors)
-
-- **tests**/type-guards.spec.ts: 1 (TS2532)
-- utils/array-safety-enhanced.ts: 1 (TS2345)
-
-</details>
-
-<details>
-<summary>Other Errors (2)</summary>
-
-- shared/schemas/parse-stage-distribution.ts: 1 (TS2345)
-- vite.config.ts: 1 (TS7006)
-
-</details>
+**Awaiting approval to proceed with Phase 0 implementation.**
