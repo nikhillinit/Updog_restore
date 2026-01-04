@@ -10,6 +10,62 @@ and this project adheres to
 
 ### Added
 
+- **Advanced Cohort Analysis** (2026-01-04)
+  - Multi-dimensional portfolio analysis by vintage year and sector
+  - **Data Layer** (5 new schema tables):
+    - `sector_taxonomy` - Standardized sector/subsector definitions with
+      user-defined support
+    - `sector_mappings` - Automatic sector classification mappings
+    - `company_overrides` - Manual company-level sector and vintage overrides
+    - `investment_overrides` - Manual investment-level overrides for share-based
+      attribution
+    - `cohort_definitions` - Reusable cohort configurations with filter
+      persistence
+  - **CohortEngine V2 Refactor**:
+    - Company-level (vintage = first investment) and investment-level (vintage =
+      each check) views
+    - 4-tier sector resolution: override → mapping → source → unmapped
+    - 3-tier vintage resolution: override → derived → missing
+    - Aggregated cash-flow IRR (XIRR of dated flows, not averaged IRRs)
+    - Option B exclusion semantics (excluded investments filtered from metrics)
+    - Lots-based attribution with dilution support
+  - **Visualization Components**:
+    - Multi-view charts: Line (default), Bar, Heatmap with toggle
+    - Triple metric support: IRR/TVPI/DPI with toggle
+    - Coverage indicator showing data quality thresholds
+    - Sector mapping UI for user-defined taxonomy management
+    - Cohort definition selector with saved configuration support
+  - **API Endpoints** (3 new endpoints at `/api/cohort-analysis/*`):
+    - `GET /advanced` - Run cohort analysis with filters and aggregation
+      parameters
+    - `POST /sector-mappings` - Create/update sector mappings
+    - `GET /coverage` - Get data coverage statistics for quality assessment
+  - **Testing**: 44 comprehensive unit tests covering resolution logic,
+    cash-flow aggregation, and edge cases
+  - **Phase 1 Rollout**: V1 with company-level analysis only (investment-level
+    gated by 90% coverage + feature flag)
+  - **Files**:
+    - `client/src/core/cohorts/advanced-engine.ts` - V2 engine with dual-view
+      support
+    - `client/src/core/cohorts/cash-flows.ts` - Aggregated cash-flow utilities
+    - `client/src/core/cohorts/company-cohorts.ts` - Company-level cohorting
+      logic
+    - `client/src/core/cohorts/resolvers.ts` - 4-tier sector and 3-tier vintage
+      resolution
+    - `client/src/core/cohorts/metrics.ts` - IRR/TVPI/DPI calculation with
+      Option B handling
+    - `client/src/components/analytics/cohorts/CohortHeatMap.tsx` - Heatmap
+      visualization
+    - `client/src/components/analytics/cohorts/CohortDefinitionSelector.tsx` -
+      Saved cohort UI
+    - `client/src/components/analytics/cohorts/SectorMappingUI.tsx` - Taxonomy
+      management
+    - `client/src/components/analytics/cohorts/CoverageIndicator.tsx` - Quality
+      threshold display
+    - `shared/schema.ts` - Extended with 5 new cohort tables (+231 lines)
+    - `server/routes/cohort-analysis.ts` - API route handlers
+    - `tests/unit/cohorts/advanced-cohort-analysis.test.ts` - 44 unit tests
+
 - **Monte Carlo Backtesting System** (2026-01-04)
   - Complete backtesting infrastructure for Monte Carlo simulation validation
   - **API Endpoints** (5 new endpoints at `/api/backtesting/*`):

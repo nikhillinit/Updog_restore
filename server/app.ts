@@ -25,6 +25,7 @@ import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import allocationsRouter from './routes/allocations.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
+import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -160,6 +161,9 @@ export function makeApp() {
 
   // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
   app.use('/api/deals', dealPipelineRouter);
+
+  // Cohort Analysis API (Advanced cohort analysis with sector/vintage normalization)
+  app.use('/api/cohorts', cohortAnalysisRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
