@@ -2677,3 +2677,234 @@ export const insertBacktestResultSchema = createInsertSchema(backtestResults).om
 // Type exports for backtest results
 export type BacktestResultRecord = typeof backtestResults.$inferSelect;
 export type InsertBacktestResultRecord = typeof backtestResults.$inferInsert;
+
+// ============================================================================
+// ADVANCED COHORT ANALYSIS - Normalization Layer
+// ============================================================================
+
+// Enums for cohort analysis
+export const vintageGranularityEnum = pgEnum('vintage_granularity', ['year', 'quarter']);
+export const cohortUnitEnum = pgEnum('cohort_unit', ['company', 'investment']);
+export const mappingSourceEnum = pgEnum('mapping_source', [
+  'seed_identity',
+  'manual',
+  'suggested',
+  'imported',
+]);
+
+// Sector Taxonomy - Canonical sectors (scoped + versioned)
+export const sectorTaxonomy = pgTable(
+  'sector_taxonomy',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    name: varchar('name', { length: 100 }).notNull(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    parentSectorId: uuid('parent_sector_id').references((): AnyPgColumn => sectorTaxonomy.id),
+    sortOrder: integer('sort_order').default(0),
+    isSystem: boolean('is_system').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueSlug: unique('sector_taxonomy_fund_version_slug_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.slug
+    ),
+    fundVersionIdx: index('sector_taxonomy_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    parentIdx: index('sector_taxonomy_parent_idx').on(table.parentSectorId),
+  })
+);
+
+// Sector Mappings - Raw → Canonical (confidence-scored)
+export const sectorMappings = pgTable(
+  'sector_mappings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    rawValue: varchar('raw_value', { length: 255 }).notNull(),
+    rawValueNormalized: varchar('raw_value_normalized', { length: 255 }).notNull(),
+    canonicalSectorId: uuid('canonical_sector_id')
+      .notNull()
+      .references(() => sectorTaxonomy.id, { onDelete: 'cascade' }),
+    confidenceScore: decimal('confidence_score', { precision: 3, scale: 2 })
+      .notNull()
+      .default('1.00'),
+    source: mappingSourceEnum('source').notNull().default('manual'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueMapping: unique('sector_mappings_fund_version_normalized_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.rawValueNormalized
+    ),
+    fundVersionIdx: index('sector_mappings_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    canonicalSectorIdx: index('sector_mappings_canonical_sector_idx').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.canonicalSectorId
+    ),
+  })
+);
+
+// Company Overrides - Per-company sector override + exclusion
+export const companyOverrides = pgTable(
+  'company_overrides',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id, { onDelete: 'cascade' }),
+    canonicalSectorId: uuid('canonical_sector_id').references(() => sectorTaxonomy.id),
+    excludeFromCohorts: boolean('exclude_from_cohorts').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueOverride: unique('company_overrides_fund_version_company_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.companyId
+    ),
+    fundVersionIdx: index('company_overrides_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    companyIdx: index('company_overrides_company_idx').on(table.companyId),
+  })
+);
+
+// Investment Overrides - Vintage override + exclusion
+export const investmentOverrides = pgTable(
+  'investment_overrides',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    investmentId: integer('investment_id')
+      .notNull()
+      .references(() => investments.id, { onDelete: 'cascade' }),
+    excludeFromCohorts: boolean('exclude_from_cohorts').default(false).notNull(),
+    vintageYear: integer('vintage_year'),
+    vintageQuarter: integer('vintage_quarter'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueOverride: unique('investment_overrides_fund_investment_unique').on(
+      table.fundId,
+      table.investmentId
+    ),
+    fundIdx: index('investment_overrides_fund_idx').on(table.fundId),
+    investmentIdx: index('investment_overrides_investment_idx').on(table.investmentId),
+    vintageQuarterCheck: check(
+      'investment_overrides_vintage_quarter_check',
+      sql`${table.vintageQuarter} IS NULL OR (${table.vintageQuarter} >= 1 AND ${table.vintageQuarter} <= 4)`
+    ),
+    vintageYearCheck: check(
+      'investment_overrides_vintage_year_check',
+      sql`${table.vintageYear} IS NULL OR (${table.vintageYear} >= 1990 AND ${table.vintageYear} <= 2100)`
+    ),
+  })
+);
+
+// Cohort Definitions - Reproducible cohort configurations
+export const cohortDefinitions = pgTable(
+  'cohort_definitions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    vintageGranularity: vintageGranularityEnum('vintage_granularity').notNull().default('year'),
+    sectorTaxonomyVersion: varchar('sector_taxonomy_version', { length: 20 })
+      .notNull()
+      .default('v1'),
+    unit: cohortUnitEnum('unit').notNull().default('company'),
+    isDefault: boolean('is_default').default(false).notNull(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueName: unique('cohort_definitions_fund_name_unique').on(table.fundId, table.name),
+    fundIdx: index('cohort_definitions_fund_idx').on(table.fundId),
+    defaultIdx: index('cohort_definitions_default_idx')
+      .on(table.fundId, table.isDefault)
+      .where(sql`${table.isDefault} = true AND ${table.archivedAt} IS NULL`),
+  })
+);
+
+// Insert schemas for cohort normalization tables
+export const insertSectorTaxonomySchema = createInsertSchema(sectorTaxonomy).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSectorMappingSchema = createInsertSchema(sectorMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCompanyOverrideSchema = createInsertSchema(companyOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInvestmentOverrideSchema = createInsertSchema(investmentOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCohortDefinitionSchema = createInsertSchema(cohortDefinitions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for cohort normalization tables
+export type SectorTaxonomy = typeof sectorTaxonomy.$inferSelect;
+export type InsertSectorTaxonomy = typeof sectorTaxonomy.$inferInsert;
+export type SectorMapping = typeof sectorMappings.$inferSelect;
+export type InsertSectorMapping = typeof sectorMappings.$inferInsert;
+export type CompanyOverride = typeof companyOverrides.$inferSelect;
+export type InsertCompanyOverride = typeof companyOverrides.$inferInsert;
+export type InvestmentOverride = typeof investmentOverrides.$inferSelect;
+export type InsertInvestmentOverride = typeof investmentOverrides.$inferInsert;
+export type CohortDefinition = typeof cohortDefinitions.$inferSelect;
+export type InsertCohortDefinition = typeof cohortDefinitions.$inferInsert;

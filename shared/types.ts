@@ -426,3 +426,163 @@ export {
   type DistributionWaterfall,
   type FundCashflowConfig,
 } from './schemas/cashflow-schema';
+
+// =============================================================================
+// ADVANCED COHORT ANALYSIS TYPES
+// =============================================================================
+
+// Vintage granularity options
+export type VintageGranularity = 'year' | 'quarter';
+
+// Cohort unit (company vs investment)
+export type CohortUnit = 'company' | 'investment';
+
+// Source of sector resolution
+export type SectorSource = 'company_override' | 'mapping' | 'unmapped';
+
+// Source of vintage resolution
+export type VintageSource = 'override_full' | 'override_year' | 'derived' | 'missing';
+
+// Coverage summary for data quality
+export const CoverageSummarySchema = z.object({
+  paidInPct: z.number().min(0).max(1),
+  distributionsPct: z.number().min(0).max(1),
+  vintagePct: z.number().min(0).max(1),
+  marksPct: z.number().min(0).max(1).optional(),
+  overallPct: z.number().min(0).max(1),
+});
+
+// Advanced Cohort Analysis Request
+export const CohortAnalyzeRequestSchema = z.object({
+  fundId: z.number().int().positive(),
+  cohortDefinitionId: z.string().uuid().optional(),
+  dateRange: z
+    .object({
+      start: z.string().optional(),
+      end: z.string().optional(),
+    })
+    .optional(),
+  sectorIds: z.array(z.string().uuid()).optional(),
+  stages: z.array(z.string()).optional(),
+});
+
+// Cohort row with performance and provenance
+export const CohortRowSchema = z.object({
+  cohortKey: z.string(),
+  sectorId: z.string().uuid(),
+  sectorName: z.string(),
+  counts: z.object({
+    companies: z.number().int().min(0),
+    investments: z.number().int().min(0),
+  }),
+  exposure: z.object({
+    paidIn: z.number(),
+    distributions: z.number(),
+    residualValue: z.number().optional(),
+  }),
+  performance: z
+    .object({
+      dpi: z.number().nullable(),
+      tvpi: z.number().nullable(),
+      irr: z.number().nullable(),
+    })
+    .optional(),
+  coverage: CoverageSummarySchema,
+  provenance: z.object({
+    sectorSourceBreakdown: z.record(z.enum(['company_override', 'mapping', 'unmapped']), z.number()),
+    vintageSourceBreakdown: z.record(z.string(), z.number()),
+    shiftedCompanies: z.number().optional(),
+  }),
+});
+
+// Unmapped sector info
+export const UnmappedSectorSchema = z.object({
+  rawValue: z.string(),
+  rawValueNormalized: z.string(),
+  companyCount: z.number().int().min(0),
+  investmentCount: z.number().int().min(0).optional(),
+  totalInvested: z.number().optional(),
+});
+
+// Advanced Cohort Analysis Response
+export const CohortAnalyzeResponseSchema = z.object({
+  cohortDefinition: z.object({
+    id: z.string().uuid(),
+    fundId: z.number().int().positive(),
+    name: z.string(),
+    vintageGranularity: z.enum(['year', 'quarter']),
+    sectorTaxonomyVersion: z.string(),
+    unit: z.enum(['company', 'investment']),
+  }),
+  rows: z.array(CohortRowSchema),
+  unmapped: z.array(UnmappedSectorSchema).optional(),
+  coverage: CoverageSummarySchema,
+  provenance: z
+    .object({
+      shiftedCompanyCount: z.number().int().min(0),
+      examples: z
+        .array(
+          z.object({
+            companyId: z.string(),
+            from: z.string(),
+            to: z.string(),
+            reason: z.enum(['first_check_excluded', 'override']),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
+// Resolved investment (internal type for pipeline)
+export const ResolvedInvestmentSchema = z.object({
+  investmentId: z.number().int().positive(),
+  companyId: z.number().int().positive(),
+  companyName: z.string(),
+  rawSector: z.string().nullable(),
+  rawSectorNormalized: z.string(),
+  canonicalSectorId: z.string().uuid(),
+  canonicalSectorName: z.string(),
+  sectorSource: z.enum(['company_override', 'mapping', 'unmapped']),
+  companyExcluded: z.boolean(),
+  investmentExcluded: z.boolean(),
+  resolvedVintageKey: z.string().nullable(),
+  vintageSource: z.enum(['override_full', 'override_year', 'derived', 'missing']),
+  investmentDate: z.date().nullable(),
+  investmentAmount: z.number().nullable(),
+  stage: z.string().nullable(),
+});
+
+// Cash flow event for IRR/TVPI/DPI calculations
+export const CashFlowEventSchema = z.object({
+  date: z.date(),
+  amount: z.number(), // negative = paid-in, positive = distribution
+  investmentId: z.number().int().positive(),
+  companyId: z.number().int().positive(),
+  lotId: z.string().uuid().optional(),
+  cohortKey: z.string(),
+  sectorId: z.string().uuid(),
+  eventType: z.enum(['paid_in', 'distribution', 'residual']),
+});
+
+// Company cohort key with provenance
+export const CompanyCohortKeySchema = z.object({
+  companyId: z.number().int().positive(),
+  companyCohortKey: z.string().nullable(),
+  earliestAnyKey: z.string().nullable(),
+  earliestIncludedKey: z.string().nullable(),
+  wasShifted: z.boolean(),
+  shiftReason: z.enum(['first_check_excluded', 'override']).nullable(),
+  includedInvestmentCount: z.number().int().min(0),
+  excludedInvestmentCount: z.number().int().min(0),
+});
+
+// Inferred TypeScript types for advanced cohort analysis
+export type CoverageSummaryType = z.infer<typeof CoverageSummarySchema>;
+export type CohortAnalyzeRequest = z.infer<typeof CohortAnalyzeRequestSchema>;
+export type CohortRow = z.infer<typeof CohortRowSchema>;
+export type UnmappedSector = z.infer<typeof UnmappedSectorSchema>;
+export type CohortAnalyzeResponse = z.infer<typeof CohortAnalyzeResponseSchema>;
+export type ResolvedInvestment = z.infer<typeof ResolvedInvestmentSchema>;
+export type CashFlowEvent = z.infer<typeof CashFlowEventSchema>;
+export type CompanyCohortKey = z.infer<typeof CompanyCohortKeySchema>;
