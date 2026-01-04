@@ -1,368 +1,680 @@
-# API-Engine Integration Development Plan
+# API-Engine Integration Project (Revised Plan)
 
 ## Executive Summary
 
-This plan provides a complete roadmap for wiring all existing engines to their API endpoints. The codebase contains **9 analytics engines**, of which only **2 are properly wired** (Monte Carlo suite and ConstrainedReserveEngine). The remaining **7 engines require API integration**.
+This plan corrects significant oversights in the original API-Engine Integration proposal. The primary finding is that **three routes already exist** with boundary violations (ESLint disabled), and the real work involves fixing these violations plus creating only **four new routes**.
+
+**Corrected Scope:**
+- Fix 3 existing routes with boundary violations (not create from scratch)
+- Create 4 genuinely missing routes
+- Migrate 4 utility files to shared as prerequisites
+- Migrate engines in dependency order (easy to hard)
+- Add full middleware stack to all routes
+- Migrate 13 test files alongside engines
+
+**Not In Scope (from original plan):**
+- Creating `/api/reserves/:fundId` - already exists at server/routes.ts:604
+- Creating `/api/pacing/summary` - already exists at server/routes.ts:680
+- Creating `/api/cohorts/analysis` - already exists at server/routes.ts:718
 
 ---
 
-## 1. Complete Engine Inventory
+## Current State Analysis
 
-### Currently WIRED Engines (No Work Needed)
+### Existing Routes with Boundary Violations
 
-| Engine | Location | API Endpoint | Status |
-|--------|----------|--------------|--------|
-| **ConstrainedReserveEngine** | `shared/core/reserves/ConstrainedReserveEngine.ts` | `POST /api/v1/reserves/calculate` | COMPLETE |
-| **Monte Carlo Suite** | `server/services/monte-carlo-*.ts` | `/api/monte-carlo/*` | COMPLETE |
-
-### Engines Requiring API Integration
-
-| Engine | Location | Needed Endpoint | Priority |
-|--------|----------|-----------------|----------|
-| **ReserveEngine** (client) | `client/src/core/reserves/ReserveEngine.ts` | `/api/reserves/:fundId` | HIGH |
-| **PacingEngine** | `client/src/core/pacing/PacingEngine.ts` | `/api/pacing/*` | HIGH |
-| **CohortEngine** | `client/src/core/cohorts/CohortEngine.ts` | `/api/cohorts/*` | MEDIUM |
-| **CapitalAllocationEngine** | `client/src/core/capitalAllocation/CapitalAllocationEngine.ts` | `/api/capital-allocation/*` | HIGH |
-| **MOICCalculator** | `client/src/core/moic/MOICCalculator.ts` | `/api/moic/*` | MEDIUM |
-| **LiquidityEngine** | `client/src/core/LiquidityEngine.ts` | `/api/liquidity/*` | HIGH |
-| **DeterministicReserveEngine** | `shared/core/reserves/DeterministicReserveEngine.ts` | `/api/reserves/optimal` | MEDIUM |
-
----
-
-## 2. Gap Analysis
-
-### Critical Gaps Identified
-
-1. **Client engines live in `client/src/core/`** - Need server-side equivalents in `shared/core/` for API access
-2. **Existing hooks expect endpoints that don't exist** - `useReserveData` and `usePacingData` return 404
-3. **No MOIC or Cohort API surface** - These engines are isolated to client
-4. **LiquidityEngine not connected** - Cashflow routes return mock/stub data
-
-### Endpoints with Mock/Incomplete Data
-
-| Route File | Endpoints | Issue |
-|------------|-----------|-------|
-| `server/routes/cashflow.ts` | `/api/cashflow/*` | Serves mock data, not LiquidityEngine |
-| `server/routes/scenario-analysis.ts` | `/api/companies/:id/reserves/optimize` | TODO placeholder, not DeterministicReserveEngine |
-
----
-
-## 3. Architectural Approach
-
-**Strategy: Move engines to `shared/` directory**
-
-- Copy client engines to `shared/core/`
-- Server imports from `shared/`, instantiates engine, returns results
-- Client can use API or import directly for offline capability
-- Follows existing pattern (ConstrainedReserveEngine is already in `shared/core/`)
-
----
-
-## 4. Implementation Phases
-
-### Phase 1: Critical Fixes (Broken Hooks) - HIGH PRIORITY
-
-#### 1.1 Create Pacing API Routes
-
-**New File**: `server/routes/pacing.ts`
+The following routes exist in `server/routes.ts` but import directly from client code with ESLint disabled:
 
 ```typescript
-import { Router } from 'express';
-import { PacingEngine } from '@shared/core/pacing/PacingEngine';
-import { validatePacingInput } from '@shared/schemas/pacing';
-
-export const pacingRouter = Router();
-
-pacingRouter.post('/calculate', (req, res) => {
-  const input = validatePacingInput(req.body);
-  const result = PacingEngine(input);
-  res.json(result);
-});
-
-pacingRouter.get('/summary/:fundId', async (req, res) => {
-  const summary = generatePacingSummary(req.params.fundId);
-  res.json(summary);
-});
+// Lines 16-23 in server/routes.ts
+// TODO: Issue #309 - Move core engines to shared package
+// eslint-disable-next-line no-restricted-imports
+import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generateCohortSummary } from '../client/src/core/cohorts/CohortEngine.js';
 ```
 
-**Files to Modify**:
-- `server/routes.ts` - Register pacingRouter
-- Move `client/src/core/pacing/PacingEngine.ts` to `shared/core/pacing/PacingEngine.ts`
+**Route Locations:**
 
-#### 1.2 Create Reserve Summary Route
+| Route | Line | Current State |
+|-------|------|---------------|
+| `GET /api/reserves/:fundId` | 604 | Imports from client, loads fixture data |
+| `GET /api/pacing/summary` | 680 | Imports from client, uses query params |
+| `GET /api/cohorts/analysis` | 718 | Imports from client, scaffold with defaults |
 
-**New File**: `server/routes/reserves-summary.ts`
+### Missing Middleware on Existing Routes
 
-```typescript
-import { Router } from 'express';
+Current routes lack production-grade middleware:
+- No authentication (`requireAuth()`)
+- No authorization (`requireFundAccess()`)
+- No rate limiting (tiered configs available in `server/middleware/rateLimits.ts`)
+- No request validation beyond basic type coercion
+- No caching (Redis + memory fallback available in `server/cache/index.ts`)
+- No idempotency (available in `server/middleware/idempotency.ts`)
 
-export const reserveSummaryRouter = Router();
+### Routes That Are Actually Missing
 
-reserveSummaryRouter.get('/:fundId', async (req, res) => {
-  const portfolio = await fetchPortfolio(req.params.fundId);
-  const summary = generateReserveSummary(req.params.fundId, portfolio);
-  res.json(summary);
-});
-```
+Only these four routes need to be created:
+
+| Route | Engine | Priority |
+|-------|--------|----------|
+| `POST /api/moic/calculate` | MOICCalculator | HIGH |
+| `GET /api/liquidity/forecast/:fundId` | LiquidityEngine | HIGH |
+| `POST /api/capital-allocation/calculate` | CapitalAllocationEngine | HIGH |
+| `POST /api/graduation/project` | GraduationRateEngine | MEDIUM |
+
+### Duplicate Engine Issue
+
+Two DeterministicReserveEngine implementations exist:
+- `client/src/core/reserves/DeterministicReserveEngine.ts` (960 lines)
+- `shared/core/reserves/DeterministicReserveEngine.ts` (copy)
+
+**Decision:** Use shared version and deprecate client version.
 
 ---
 
-### Phase 2: High-Value Integrations
+## Phase 0: Prerequisites (Utility Extraction)
 
-#### 2.1 Wire LiquidityEngine to Cashflow Routes
+Before any engine migration, these utilities MUST move to `shared/`:
 
-**File to Modify**: `server/routes/cashflow.ts`
+### 0.1 Array Safety Utilities
 
-Replace mock implementations with actual LiquidityEngine calls:
+**Source:** `client/src/utils/array-safety.ts`
+**Target:** `shared/utils/array-safety.ts`
+**Used By:** CohortEngine, PacingEngine, ReserveEngine
 
 ```typescript
-// Before (current mock)
-router.get('/forecast/:fundId', (req, res) => {
-  res.json({ /* mock */ });
-});
-
-// After (wired to engine)
-router.get('/forecast/:fundId', async (req, res) => {
-  const { fundId } = req.params;
-  const fund = await getFund(fundId);
-  const engine = new LiquidityEngine(fundId, fund.size);
-  const forecast = engine.generateLiquidityForecast(position, transactions, expenses);
-  res.json(forecast);
-});
+// Functions to migrate
+export const safeArray = <T>(arr?: T[] | null): T[] => ...
+export const forEach = <T>(...) => ...
+export const map = <T, U>(...) => ...
+export const filter = <T>(...) => ...
+export const reduce = <T, U>(...) => ...
 ```
 
-#### 2.2 Create Capital Allocation API
+### 0.2 isDefined Type Guard
 
-**New File**: `server/routes/capital-allocation.ts`
+**Source:** `client/src/lib/isDefined.ts`
+**Target:** `shared/utils/isDefined.ts`
+**Used By:** LiquidityEngine
 
 ```typescript
-import { Router } from 'express';
-import { calculateCapitalAllocation } from '@shared/core/capitalAllocation/CapitalAllocationEngine';
-
-export const capitalAllocationRouter = Router();
-
-capitalAllocationRouter.post('/calculate', async (req, res) => {
-  const normalized = adaptInputFormat(req.body);
-  const result = calculateCapitalAllocation(normalized);
-  res.json(result);
-});
+export function isDefined<T>(v: T | null | undefined): v is T {
+  return v !== null && v !== undefined;
+}
 ```
 
-#### 2.3 Wire DeterministicReserveEngine
+### 0.3 Environment-Aware Logger
 
-**File to Modify**: `server/routes/scenario-analysis.ts` (lines 533-587)
+**Source:** `client/src/lib/logger.ts`
+**Issue:** Browser-specific (uses `import.meta.env`, `window.location`)
+**Used By:** DeterministicReserveEngine
+**Solution:** Create isomorphic version in `shared/utils/logger.ts`
 
-Replace TODO placeholder with actual engine call:
+### 0.4 Performance Monitor Abstraction
 
-```typescript
-const engine = new DeterministicReserveEngine();
-const result = await engine.calculateOptimalReserveAllocation({
-  portfolio: companies,
-  graduationMatrix: fetchGraduationMatrix(),
-  stageStrategies: fetchStageStrategies(),
-  availableReserves: fund.reserves,
-});
-res.json(result);
+**Source:** `client/src/lib/performance-monitor.ts`
+**Issue:** Browser-specific (uses `PerformanceObserver`, `navigator.sendBeacon`)
+**Used By:** DeterministicReserveEngine
+**Solution:** Create abstract interface in `shared/utils/performance-monitor.ts`
+
+### Phase 0 Verification
+
+```bash
+npm run build        # Verify shared exports correctly
+npm test -- --project=server  # Verify server can import from shared
+npm test -- --project=client  # Verify client still works
 ```
 
 ---
 
-### Phase 3: Medium-Priority Engines
+## Phase 1: Fix Existing Routes (Boundary Violations + Middleware)
 
-#### 3.1 Create MOIC API Routes
+### 1.1 Migrate ReserveEngine to Shared
 
-**New File**: `server/routes/moic.ts`
+**Current Location:** `client/src/core/reserves/ReserveEngine.ts`
+**Target Location:** `shared/core/reserves/ReserveEngine.ts`
+**Lines:** 190
 
+**Dependencies to Update:**
 ```typescript
-import { Router } from 'express';
-import { MOICCalculator } from '@shared/core/moic/MOICCalculator';
+// Before (client)
+import { map, reduce } from '@/utils/array-safety';
 
-export const moicRouter = Router();
+// After (shared)
+import { map, reduce } from '../../utils/array-safety';
+```
 
-moicRouter.post('/calculate', (req, res) => {
-  const { investments } = req.body;
-  const summary = MOICCalculator.generatePortfolioSummary(investments);
-  res.json(summary);
-});
+### 1.2 Update Reserve Route with Full Middleware Stack
 
-moicRouter.post('/rank', (req, res) => {
-  const { investments } = req.body;
-  const ranked = MOICCalculator.rankByReservesMOIC(investments);
-  res.json(ranked);
+**File:** `server/routes.ts` line 604
+
+**Before:**
+```typescript
+// eslint-disable-next-line no-restricted-imports
+import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
+
+app.get('/api/reserves/:fundId', async (req, res) => {
+  // No auth, no validation, loads fixture data
 });
 ```
 
-#### 3.2 Create Cohort API Routes
-
-**New File**: `server/routes/cohorts.ts`
-
+**After:**
 ```typescript
-import { Router } from 'express';
-import { generateCohortSummary, compareCohorts } from '@shared/core/cohorts/CohortEngine';
+import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
+import { requireAuth, requireFundAccess } from './lib/auth/jwt';
+import { validateRequest } from './middleware/validation';
+import { rateLimiters } from './middleware/rateLimits';
+import { getCache } from './cache';
 
-export const cohortRouter = Router();
-
-cohortRouter.post('/analyze', (req, res) => {
-  const input = validateCohortInput(req.body);
-  const summary = generateCohortSummary(input);
-  res.json(summary);
+const ReserveParamsSchema = z.object({
+  fundId: z.string().regex(/^\d+$/).transform(Number),
 });
 
-cohortRouter.post('/compare', (req, res) => {
-  const { cohorts } = req.body;
-  const comparison = compareCohorts(cohorts);
-  res.json(comparison);
-});
+app.get('/api/reserves/:fundId',
+  rateLimiters.api,
+  requireAuth(),
+  requireFundAccess,
+  validateRequest({ params: ReserveParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { fundId } = req.params;
+      const cache = await getCache();
+      const cacheKey = `reserves:${fundId}`;
+
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+
+      const portfolio = await storage.getPortfolioForReserves(fundId);
+      const summary = generateReserveSummary(fundId, portfolio);
+
+      await cache.set(cacheKey, JSON.stringify(summary), 300);
+      res.json(summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+```
+
+### 1.3 Migrate PacingEngine and Update Route
+
+**Current Location:** `client/src/core/pacing/PacingEngine.ts`
+**Target Location:** `shared/core/pacing/PacingEngine.ts`
+**Lines:** 162
+
+### 1.4 Migrate CohortEngine and Update Route
+
+**Current Location:** `client/src/core/cohorts/CohortEngine.ts`
+**Target Location:** `shared/core/cohorts/CohortEngine.ts`
+**Lines:** 252
+
+---
+
+## Phase 2: Easy Engine Migrations
+
+Engines with minimal dependencies, ordered by complexity:
+
+### 2.1 MOICCalculator (Complexity: 2/10)
+
+**Source:** `client/src/core/moic/MOICCalculator.ts`
+**Target:** `shared/core/moic/MOICCalculator.ts`
+**Lines:** 522
+**Dependencies:** Only `decimal.js` (already in server dependencies)
+
+**Characteristics:**
+- Pure static methods
+- No client-specific dependencies
+- Ideal first migration candidate
+
+**New Route:**
+```typescript
+app.post('/api/moic/calculate',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: MOICInputSchema }),
+  async (req, res, next) => {
+    const { investments } = req.body;
+    const result = MOICCalculator.generatePortfolioSummary(investments);
+    res.json(result);
+  }
+);
+```
+
+### 2.2 GraduationRateEngine (Complexity: 3/10)
+
+**Source:** `client/src/core/graduation/GraduationRateEngine.ts`
+**Target:** `shared/core/graduation/GraduationRateEngine.ts`
+**Lines:** 493
+**Dependencies:** `@shared/utils/prng` (already in shared)
+
+**New Route:**
+```typescript
+app.post('/api/graduation/project',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: GraduationInputSchema }),
+  async (req, res, next) => {
+    const { config, initialCompanies, horizonQuarters } = req.body;
+    const engine = new GraduationRateEngine(config);
+    const summary = engine.getSummary(initialCompanies, horizonQuarters);
+    res.json(summary);
+  }
+);
 ```
 
 ---
 
-## 5. Complete File Manifest
+## Phase 3: Create Missing Routes
 
-### New Files to Create
+### 3.1 Liquidity Forecast Route
+
+```typescript
+app.get('/api/liquidity/forecast/:fundId',
+  rateLimiters.api,
+  requireAuth(),
+  requireFundAccess,
+  validateRequest({
+    params: FundIdSchema,
+    query: LiquidityQuerySchema
+  }),
+  async (req, res, next) => {
+    const { fundId } = req.params;
+    const { months = 12 } = req.query;
+
+    const fund = await storage.getFund(fundId);
+    const engine = new LiquidityEngine(fundId, fund.size);
+
+    const position = await storage.getCashPosition(fundId);
+    const transactions = await storage.getTransactions(fundId);
+    const expenses = await storage.getRecurringExpenses(fundId);
+
+    const forecast = engine.generateLiquidityForecast(
+      position, transactions, expenses, months
+    );
+
+    res.json(forecast);
+  }
+);
+```
+
+### 3.2 Capital Allocation Calculate Route
+
+```typescript
+app.post('/api/capital-allocation/calculate',
+  rateLimiters.api,
+  requireAuth(),
+  validateRequest({ body: CapitalAllocationInputSchema }),
+  idempotency({ ttl: 3600 }),
+  async (req, res, next) => {
+    const normalized = adaptTruthCaseInput(req.body);
+    const result = calculateCapitalAllocation(normalized);
+    res.json(result);
+  }
+);
+```
+
+---
+
+## Phase 4: Complex Engine Migrations
+
+### 4.1 LiquidityEngine (Complexity: 7/10)
+
+**Source:** `client/src/core/LiquidityEngine.ts`
+**Target:** `shared/core/liquidity/LiquidityEngine.ts`
+**Lines:** 1007
+
+**Challenges:**
+- Large file (900+ lines)
+- Many internal types (should extract to separate types file)
+- Complex cash flow calculations
+
+**Recommended Refactoring:**
+1. Extract types to `shared/types/liquidity.ts`
+2. Split into smaller modules:
+   - `LiquidityEngine.ts` (main class)
+   - `cashflow-analysis.ts` (grouping functions)
+   - `stress-testing.ts` (stress test methods)
+   - `capital-call-optimization.ts` (optimization logic)
+
+### 4.2 CapitalAllocationEngine (Complexity: 6/10)
+
+**Source Directory:** `client/src/core/capitalAllocation/`
+**Target Directory:** `shared/core/capitalAllocation/`
+
+**All Files Must Move Together (14 files):**
 
 | File | Purpose |
 |------|---------|
-| `server/routes/pacing.ts` | Pacing engine API |
-| `server/routes/cohorts.ts` | Cohort engine API |
-| `server/routes/moic.ts` | MOIC calculator API |
-| `server/routes/capital-allocation.ts` | Capital Allocation engine API |
-| `server/routes/liquidity.ts` | Liquidity engine API |
-| `shared/core/pacing/PacingEngine.ts` | Move from client |
-| `shared/core/cohorts/CohortEngine.ts` | Move from client |
-| `shared/core/moic/MOICCalculator.ts` | Move from client |
-| `shared/core/liquidity/LiquidityEngine.ts` | Move from client |
+| `CapitalAllocationEngine.ts` | Main engine |
+| `adapter.ts` | Input normalization |
+| `allocateLRM.ts` | Largest Remainder Method |
+| `cohorts.ts` | Cohort handling |
+| `invariants.ts` | Conservation checks |
+| `pacing.ts` | Pacing integration |
+| `periodLoop.ts` | Period iteration |
+| `periodLoopEngine.ts` | Engine wrapper |
+| `periods.ts` | Period utilities |
+| `rounding.ts` | Cent rounding |
+| `sorting.ts` | Canonical ordering |
+| `types.ts` | Type definitions |
+| `units.ts` | Unit conversions |
+| `index.ts` | Exports |
 
-### Files to Modify
+### 4.3 DeterministicReserveEngine (Complexity: 8/10)
 
-| File | Changes |
-|------|---------|
-| `server/routes.ts` | Register new routers (~5 imports, ~5 app.use() calls) |
-| `server/app.ts` | Alternative registration point if routes.ts not used |
-| `server/routes/cashflow.ts` | Replace mock with LiquidityEngine calls |
-| `server/routes/scenario-analysis.ts` | Wire DeterministicReserveEngine (lines 533-587) |
-| `client/src/hooks/use-engine-data.ts` | Verify endpoint URLs match new routes |
+**Status:** Already exists in `shared/core/reserves/DeterministicReserveEngine.ts`
+**Action:** Update to use shared logger/monitor, deprecate client version
 
 ---
 
-## 6. Testing Strategy
+## Phase 5: Worker Integration for Expensive Operations
 
-### New Test Files
+### 5.1 Identify Expensive Operations
 
-```
-tests/
-  api/
-    pacing.test.ts          # Pacing API contract tests
-    cohorts.test.ts         # Cohort API contract tests
-    moic.test.ts            # MOIC API contract tests
-    capital-allocation.test.ts
-    liquidity.test.ts
-```
+Operations requiring background processing:
+1. **Monte Carlo Simulations** - Already uses `server/queues/simulation-queue.ts`
+2. **Large Capital Allocation** - Cohort calculations with many periods
+3. **Liquidity Stress Tests** - Multiple scenario calculations
+4. **Batch Reserve Calculations** - Portfolio-wide reserve rebalancing
 
-### Test Pattern (Follow Existing)
+### 5.2 Async Queue Pattern
 
 ```typescript
-describe('Pacing API', () => {
-  it('POST /api/pacing/calculate returns valid PacingOutput', async () => {
-    const input = {
-      fundSize: 100_000_000,
-      deploymentQuarter: 1,
-      marketCondition: 'neutral'
-    };
-    const res = await request(app).post('/api/pacing/calculate').send(input);
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchSchema(PacingOutputSchema);
-  });
+app.post('/api/capital-allocation/async',
+  rateLimiters.simulation,
+  requireAuth(),
+  validateRequest({ body: CapitalAllocationInputSchema }),
+  idempotency(),
+  async (req, res) => {
+    const { jobId, estimatedWaitMs } = await enqueueCapitalAllocation({
+      fundId: req.body.fundId,
+      input: adaptTruthCaseInput(req.body),
+      userId: req.user.id,
+      requestId: req.requestId,
+    });
+
+    res.status(202).json({
+      jobId,
+      statusUrl: `/api/operations/${jobId}`,
+      estimatedWaitMs,
+    });
+  }
+);
+```
+
+### 5.3 SSE Progress Streaming
+
+```typescript
+app.get('/api/operations/:jobId/stream',
+  requireAuth(),
+  async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+
+    const unsubscribe = subscribeToJob(req.params.jobId, {
+      onProgress: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`),
+      onComplete: (event) => { res.write(`data: ${JSON.stringify(event)}\n\n`); res.end(); },
+      onFailed: (event) => { res.write(`data: ${JSON.stringify(event)}\n\n`); res.end(); },
+    });
+
+    req.on('close', unsubscribe);
+  }
+);
+```
+
+---
+
+## Complete File Manifest
+
+### Phase 0: Utilities to Create/Move
+
+| Source | Target | Action |
+|--------|--------|--------|
+| `client/src/utils/array-safety.ts` | `shared/utils/array-safety.ts` | Move |
+| `client/src/lib/isDefined.ts` | `shared/utils/isDefined.ts` | Move |
+| `client/src/lib/logger.ts` | `shared/utils/logger.ts` | Create isomorphic |
+| `client/src/lib/performance-monitor.ts` | `shared/utils/performance-monitor.ts` | Create abstract |
+
+### Phase 1: Engines to Move (Existing Routes)
+
+| Source | Target | Lines |
+|--------|--------|-------|
+| `client/src/core/reserves/ReserveEngine.ts` | `shared/core/reserves/ReserveEngine.ts` | 190 |
+| `client/src/core/pacing/PacingEngine.ts` | `shared/core/pacing/PacingEngine.ts` | 162 |
+| `client/src/core/cohorts/CohortEngine.ts` | `shared/core/cohorts/CohortEngine.ts` | 252 |
+
+### Phase 2: Easy Engines to Move (New Routes)
+
+| Source | Target | Lines |
+|--------|--------|-------|
+| `client/src/core/moic/MOICCalculator.ts` | `shared/core/moic/MOICCalculator.ts` | 522 |
+| `client/src/core/graduation/GraduationRateEngine.ts` | `shared/core/graduation/GraduationRateEngine.ts` | 493 |
+
+### Phase 4: Complex Engines
+
+| Source | Target | Files |
+|--------|--------|-------|
+| `client/src/core/capitalAllocation/*` | `shared/core/capitalAllocation/*` | 14 |
+| `client/src/core/LiquidityEngine.ts` | `shared/core/liquidity/LiquidityEngine.ts` | 1 (split to 4) |
+
+### Routes to Modify
+
+| Route | File | Line | Action |
+|-------|------|------|--------|
+| `GET /api/reserves/:fundId` | `server/routes.ts` | 604 | Fix import + add middleware |
+| `GET /api/pacing/summary` | `server/routes.ts` | 680 | Fix import + add middleware |
+| `GET /api/cohorts/analysis` | `server/routes.ts` | 718 | Fix import + add middleware |
+
+### Routes to Create
+
+| Route | Method | Handler |
+|-------|--------|---------|
+| `/api/moic/calculate` | POST | MOICCalculator.generatePortfolioSummary |
+| `/api/graduation/project` | POST | GraduationRateEngine.getSummary |
+| `/api/liquidity/forecast/:fundId` | GET | LiquidityEngine.generateLiquidityForecast |
+| `/api/capital-allocation/calculate` | POST | calculateCapitalAllocation |
+
+---
+
+## Testing Strategy
+
+### Test Files to Migrate (13 Total)
+
+**Capital Allocation Tests (8 files):**
+- `client/src/core/capitalAllocation/__tests__/CapitalAllocationEngine.test.ts`
+- `client/src/core/capitalAllocation/__tests__/adapter.test.ts`
+- `client/src/core/capitalAllocation/__tests__/allocateLRM.test.ts`
+- `client/src/core/capitalAllocation/__tests__/invariants.test.ts`
+- `client/src/core/capitalAllocation/__tests__/rounding.test.ts`
+- `client/src/core/capitalAllocation/__tests__/sorting.test.ts`
+- `client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts`
+- `client/src/core/capitalAllocation/__tests__/units.test.ts`
+
+**Reserves Tests (3 files):**
+- `client/src/core/reserves/__tests__/reserves.spec.ts`
+- `client/src/core/reserves/__tests__/reserves.property.test.ts`
+- `client/src/core/reserves/adapter/__tests__/finalizePayload.spec.ts`
+
+**Selectors Tests (2 files):**
+- `client/src/core/selectors/__tests__/fund-kpis.test.ts`
+- `client/src/core/selectors/__tests__/fundKpis.test.ts`
+
+### API Integration Tests to Create
+
+```
+tests/api/
+  reserves.api.test.ts
+  pacing.api.test.ts
+  cohorts.api.test.ts
+  moic.api.test.ts
+  graduation.api.test.ts
+  liquidity.api.test.ts
+  capital-allocation.api.test.ts
+```
+
+---
+
+## Middleware Patterns Reference
+
+### Authentication
+
+```typescript
+import { requireAuth, requireRole, requireFundAccess } from './lib/auth/jwt';
+
+// Authenticated route
+app.get('/api/funds', requireAuth(), ...);
+
+// Role-restricted route
+app.post('/api/admin/settings', requireAuth(), requireRole('admin'), ...);
+
+// Fund-scoped route
+app.get('/api/reserves/:fundId', requireAuth(), requireFundAccess, ...);
+```
+
+### Validation
+
+```typescript
+import { validateRequest } from './middleware/validation';
+
+const Schema = z.object({
+  body: z.object({ name: z.string().min(1) }),
+  params: z.object({ id: z.string().uuid() }),
 });
+
+app.post('/api/resource/:id', validateRequest(Schema), handler);
 ```
 
-### Reference Test Files
+### Rate Limiting
 
-- `tests/api/reserves.test.ts` - API test pattern
-- `server/services/__tests__/unified-metrics-contract.test.ts` - Contract test pattern
+```typescript
+import { rateLimiters, costBasedRateLimit } from './middleware/rateLimits';
 
----
+// Standard (100/min)
+app.get('/api/funds', rateLimiters.api, ...);
 
-## 7. Risk Assessment
+// Simulation (10/hour)
+app.post('/api/simulations', rateLimiters.simulation, ...);
 
-### High Risks
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing hooks | Users see 404 errors | Phase 1 priority: Fix useReserveData, usePacingData first |
-| Engine behavior differs server vs client | Calculation inconsistencies | Move engines to shared/, single source of truth |
-| Performance degradation | Slow API responses | Add caching layer following MetricsAggregator pattern |
-
-### Medium Risks
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Type mismatches | Runtime errors | Use Zod validation at API boundaries |
-| Missing error handling | 500 errors exposed | Follow existing error handling patterns |
-
-### Low Risks
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| API versioning issues | Future breaking changes | Use /api/v1/ prefix for new routes |
-
----
-
-## 8. Implementation Order (Dependency-Aware)
-
+// Cost-based
+app.post('/api/expensive', costBasedRateLimit(req => req.body.items.length), ...);
 ```
-Phase 1 (No Dependencies - Start Immediately)
-+-- Pacing API routes + move engine to shared/
-+-- Reserve Summary API routes
 
-Phase 2 (After Phase 1 patterns established)
-+-- Liquidity API (wire to cashflow routes)
-+-- Capital Allocation API
-+-- DeterministicReserveEngine wiring
+### Caching
 
-Phase 3 (After Phase 2)
-+-- MOIC API
-+-- Cohort API
+```typescript
+import { getCache } from './cache';
 
-Phase 4 (After All APIs)
-+-- Comprehensive API tests
-+-- Performance testing
-+-- Documentation updates
+const cache = await getCache();
+const cached = await cache.get(cacheKey);
+if (cached) return res.json(JSON.parse(cached));
+
+const result = await compute();
+await cache.set(cacheKey, JSON.stringify(result), 300); // 5 min TTL
+```
+
+### Idempotency
+
+```typescript
+import { idempotency } from './middleware/idempotency';
+
+app.post('/api/mutations', idempotency({ ttl: 300 }), handler);
+// Client sends: Idempotency-Key: abc123
 ```
 
 ---
 
-## 9. Critical Reference Files
+## Risk Assessment
 
-1. **`server/routes.ts`** - Central route registration; add new engine routes here
-2. **`server/routes/v1/reserves.ts`** - Reference pattern for engine API routes
-3. **`client/src/hooks/use-engine-data.ts`** - Contains hooks needing endpoint fixes
-4. **`server/routes/cashflow.ts`** - Mock implementations to replace
-5. **`server/routes/scenario-analysis.ts`** - TODO placeholder to complete (lines 533-587)
+### High Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Breaking existing routes during migration | Feature flag: `ENABLE_SHARED_ENGINES=false` to fall back |
+| Test failures from path changes | Run tests after each file move, not batch |
+| Cache invalidation issues | Clear cache on deploy, monitor cache hit rates |
+
+### Medium Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Performance regression from shared imports | Benchmark before/after, lazy load heavy modules |
+| Type mismatches between client/server | Shared types are source of truth |
+| Logger/monitor not isomorphic | Extensive testing in both environments |
+
+### Low Risk
+
+| Risk | Mitigation |
+|------|------------|
+| Missing auth on new routes | ESLint rule requiring auth middleware |
+| Rate limit bypass | Integration tests for rate limiting |
+| Queue job failures | Dead letter queue, retry with backoff |
 
 ---
 
-## 10. Success Criteria
+## Success Criteria
 
-- [ ] All 7 engines have corresponding API endpoints
-- [ ] `useReserveData` and `usePacingData` hooks return 200 status
-- [ ] No mock data in production routes
-- [ ] All new endpoints have Zod input validation
-- [ ] All new endpoints have test coverage
+### Phase 0 Complete When:
+- [ ] All 4 utility files exist in `shared/utils/`
+- [ ] `npm run build` succeeds with no errors
+- [ ] `npm test` passes in both server and client projects
+
+### Phase 1 Complete When:
+- [ ] No `eslint-disable` comments for boundary violations in routes.ts
+- [ ] All 3 existing routes have full middleware stack
+- [ ] All 3 existing routes load data from database (not fixtures)
+- [ ] Cache hit/miss headers present on responses
+
+### Phase 2 Complete When:
+- [ ] MOICCalculator available at `@shared/core/moic/`
+- [ ] GraduationRateEngine available at `@shared/core/graduation/`
+- [ ] Both new routes respond correctly
+- [ ] Rate limiting active on new routes
+
+### Phase 3 Complete When:
+- [ ] All 4 new routes implemented and documented
+- [ ] OpenAPI spec updated with new endpoints
+- [ ] Integration tests pass for all routes
+
+### Phase 4 Complete When:
+- [ ] CapitalAllocationEngine migrated (14 files)
+- [ ] LiquidityEngine migrated and refactored
+- [ ] Client DeterministicReserveEngine deprecated
+- [ ] All 13 test files migrated and passing
+
+### Phase 5 Complete When:
+- [ ] Expensive operations use queue pattern
+- [ ] SSE progress streaming works for async operations
+- [ ] Job status polling endpoint functional
+
+### Overall Project Complete When:
+- [ ] Zero ESLint boundary violations
+- [ ] All routes have auth + validation + rate limiting
+- [ ] Cache layer active for read operations
+- [ ] Idempotency active for mutations
+- [ ] Test coverage >= 80% for all engines
 - [ ] Type checking passes (`npm run check`)
 - [ ] All tests pass (`npm test`)
 - [ ] Lint passes (`npm run lint`)
 
 ---
 
-## Approval Required
+## Critical Files for Implementation
 
-This plan will create approximately:
-- 5 new route files
-- 4 engine migrations (client -> shared)
-- 5 new test files
-- Modifications to 4 existing files
+1. **`server/routes.ts`** - Contains all 3 existing routes with boundary violations (lines 19-23, 604, 680, 718)
 
-Estimated scope: ~2,000-3,000 lines of new/modified code.
+2. **`client/src/utils/array-safety.ts`** - Must move to shared first; blocks CohortEngine, PacingEngine, ReserveEngine migrations
 
-**Awaiting approval to proceed with Phase 1 implementation.**
+3. **`server/middleware/validation.ts`** - Pattern to follow for request validation
+
+4. **`server/lib/auth/jwt.ts`** - Authentication middleware required for all routes
+
+5. **`client/src/core/capitalAllocation/CapitalAllocationEngine.ts`** - Most complex engine (14 files must move together)
+
+---
+
+**Awaiting approval to proceed with Phase 0 implementation.**
