@@ -15,18 +15,21 @@ import {
   VersionNotFoundError,
   SnapshotNotFoundError,
 } from '../../services/snapshot-version-service';
+import { VersionComparisonService } from '../../services/version-comparison-service';
 import {
   SnapshotIdParamSchema,
   VersionIdParamSchema,
   VersionNumberParamSchema,
   CreateVersionRequestSchema,
   RestoreVersionRequestSchema,
+  CompareVersionsRequestSchema,
   ListVersionsQuerySchema,
   HistoryQuerySchema,
 } from '../../../shared/schemas/version-schemas.js';
 
 const router = Router({ mergeParams: true });
 const versionService = new SnapshotVersionService();
+const comparisonService = new VersionComparisonService(versionService);
 
 // ============================================================================
 // Version CRUD Routes
@@ -528,6 +531,99 @@ router.get(
       }
       throw error;
     }
+  })
+);
+
+// ============================================================================
+// Version Comparison Routes
+// ============================================================================
+
+/**
+ * POST /api/snapshots/:snapshotId/versions/compare
+ * Compare two versions and get diff + metric deltas
+ */
+router.post(
+  '/compare',
+  asyncHandler(async (req: Request, res: Response) => {
+    const bodyResult = CompareVersionsRequestSchema.safeParse(req.body);
+    if (!bodyResult.success) {
+      return res.status(400).json({
+        error: 'invalid_request_body',
+        message: 'Invalid request body',
+        details: bodyResult.error.format(),
+      });
+    }
+
+    const { baseVersionId, comparisonVersionId, metrics } = bodyResult.data;
+
+    try {
+      const result = await comparisonService.compareVersions({
+        baseVersionId,
+        comparisonVersionId,
+        metrics,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: result.id,
+          baseVersionId: result.baseVersionId,
+          comparisonVersionId: result.comparisonVersionId,
+          baseVersionNumber: result.baseVersionNumber,
+          comparisonVersionNumber: result.comparisonVersionNumber,
+          diffSummary: result.diffSummary,
+          stateDiff: {
+            addedKeys: result.stateDiff.addedKeys,
+            removedKeys: result.stateDiff.removedKeys,
+            modifiedKeys: result.stateDiff.modifiedKeys,
+            totalChanges: result.stateDiff.totalChanges,
+          },
+          metricDeltas: result.metricDeltas,
+          createdAt: result.createdAt,
+          expiresAt: result.expiresAt,
+        },
+      });
+    } catch (error) {
+      if (error instanceof VersionNotFoundError) {
+        return res.status(404).json({
+          error: 'version_not_found',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+  })
+);
+
+/**
+ * GET /api/snapshots/:snapshotId/versions/compare/:comparisonId
+ * Retrieve cached comparison result
+ */
+router.get(
+  '/compare/:comparisonId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { comparisonId } = req.params;
+
+    if (!comparisonId) {
+      return res.status(400).json({
+        error: 'invalid_params',
+        message: 'Comparison ID is required',
+      });
+    }
+
+    const result = await comparisonService.getComparison(comparisonId);
+
+    if (!result) {
+      return res.status(404).json({
+        error: 'comparison_not_found',
+        message: 'Comparison not found or expired',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
   })
 );
 
