@@ -10,7 +10,7 @@
 import { v4 as uuid } from 'uuid';
 import { SnapshotVersionService, VersionNotFoundError } from './snapshot-version-service';
 import { computeDiff, getDiffSummary, type DiffResult } from '@shared/utils/diff';
-import { redisGetJSON, redisSetJSON } from '../db';
+import { redisGetJSON, redisSetJSON } from '../db/index.js';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -145,7 +145,8 @@ export class VersionComparisonService {
 
     // Compute metric deltas
     const baseMetrics = (baseVersion.calculatedMetrics as Record<string, unknown>) ?? {};
-    const comparisonMetrics = (comparisonVersion.calculatedMetrics as Record<string, unknown>) ?? {};
+    const comparisonMetrics =
+      (comparisonVersion.calculatedMetrics as Record<string, unknown>) ?? {};
     const metricDeltas = this.computeMetricDeltas(baseMetrics, comparisonMetrics, metrics);
 
     // Build result

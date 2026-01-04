@@ -26,6 +26,7 @@ import {
   ListVersionsQuerySchema,
   HistoryQuerySchema,
 } from '../../../shared/schemas/version-schemas.js';
+import { optionalProps } from '../../../shared/utils/type-safety.js';
 
 const router = Router({ mergeParams: true });
 const versionService = new SnapshotVersionService();
@@ -69,15 +70,13 @@ router.post(
       // 3. Get current snapshot state (from parent service)
       // Note: In a real implementation, we'd fetch the current snapshot state
       // For now, we'll use a placeholder - the caller should provide state
-      const stateSnapshot = req.body.stateSnapshot || {};
+      const rawStateSnapshot = req.body as { stateSnapshot?: Record<string, unknown> };
+      const stateSnapshot = rawStateSnapshot.stateSnapshot || {};
 
       const version = await versionService.createVersion({
         snapshotId,
         stateSnapshot,
-        versionName,
-        description,
-        tags,
-        isPinned,
+        ...optionalProps({ versionName, description, tags, isPinned }),
       });
 
       return res.status(201).json({
@@ -139,9 +138,7 @@ router.get(
     try {
       const result = await versionService.listVersions({
         snapshotId,
-        cursor,
-        limit,
-        includeExpired,
+        ...optionalProps({ cursor, limit, includeExpired }),
       });
 
       return res.status(200).json({
@@ -560,7 +557,7 @@ router.post(
       const result = await comparisonService.compareVersions({
         baseVersionId,
         comparisonVersionId,
-        metrics,
+        ...optionalProps({ metrics }),
       });
 
       return res.status(200).json({

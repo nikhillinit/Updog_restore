@@ -254,7 +254,9 @@ export class SnapshotVersionService {
     );
 
     if (!version) {
-      throw new VersionNotFoundError(`Version ${versionNumber} not found for snapshot ${snapshotId}`);
+      throw new VersionNotFoundError(
+        `Version ${versionNumber} not found for snapshot ${snapshotId}`
+      );
     }
 
     return version;
@@ -268,7 +270,7 @@ export class SnapshotVersionService {
     let currentVersionId: string | null = versionId;
 
     while (currentVersionId && history.length < limit) {
-      const version = await typedFindFirst<typeof snapshotVersions>(
+      const version: SnapshotVersion | undefined = await typedFindFirst<typeof snapshotVersions>(
         db.query.snapshotVersions.findFirst({
           where: eq(snapshotVersions.id, currentVersionId),
         })
@@ -316,7 +318,7 @@ export class SnapshotVersionService {
    * Pin a version (prevent auto-pruning)
    */
   async pinVersion(versionId: string): Promise<SnapshotVersion> {
-    const version = await this.getVersion(versionId);
+    const _version = await this.getVersion(versionId);
 
     const [updated] = await typedUpdate<typeof snapshotVersions>(
       db
@@ -340,7 +342,7 @@ export class SnapshotVersionService {
    * Unpin a version (allow auto-pruning)
    */
   async unpinVersion(versionId: string): Promise<SnapshotVersion> {
-    const version = await this.getVersion(versionId);
+    const _version = await this.getVersion(versionId);
 
     // Set expiration to 90 days from now
     const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -371,12 +373,7 @@ export class SnapshotVersionService {
   async pruneExpired(): Promise<number> {
     const result = await db
       .delete(snapshotVersions)
-      .where(
-        and(
-          lt(snapshotVersions.expiresAt, new Date()),
-          eq(snapshotVersions.isPinned, false)
-        )
-      )
+      .where(and(lt(snapshotVersions.expiresAt, new Date()), eq(snapshotVersions.isPinned, false)))
       .returning({ id: snapshotVersions.id });
 
     return result.length;

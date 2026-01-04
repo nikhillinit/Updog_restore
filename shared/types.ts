@@ -390,8 +390,6 @@ export type Allocation = z.infer<typeof AllocationSchema>;
 export type InvestmentStrategy = z.infer<typeof InvestmentStrategySchema>;
 export type ExitRecycling = z.infer<typeof ExitRecyclingSchema>;
 export type Waterfall = z.infer<typeof WaterfallSchema>;
-export type AmericanWaterfall = z.infer<typeof AmericanWaterfallSchema>;
-export type EuropeanWaterfall = z.infer<typeof EuropeanWaterfallSchema>;
 export type CompleteFundSetup = z.infer<typeof CompleteFundSetupSchema>;
 
 // =============================================================================
