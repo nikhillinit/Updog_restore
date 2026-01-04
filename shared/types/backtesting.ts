@@ -108,11 +108,11 @@ export interface ActualPerformance {
  */
 export interface PercentileHitRates {
   /** Within 50% CI (p25-p75) */
-  p50: Record<BacktestMetric, boolean | null>;
+  p50: Partial<Record<BacktestMetric, boolean | null>>;
   /** Within 90% CI (p5-p95) */
-  p90: Record<BacktestMetric, boolean | null>;
+  p90: Partial<Record<BacktestMetric, boolean | null>>;
   /** Within full range (min-max) */
-  p100: Record<BacktestMetric, boolean | null>;
+  p100: Partial<Record<BacktestMetric, boolean | null>>;
 }
 
 /**
