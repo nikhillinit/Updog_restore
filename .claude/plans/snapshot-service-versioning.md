@@ -679,6 +679,227 @@ describe('Version Comparison API', () => {
 
 ---
 
+## Detailed Implementation Tasks (Superpowers Format)
+
+Each task is 2-5 minutes, with exact file paths, complete code, and verification steps.
+
+### Task 1.1: Create Migration File
+
+**File**: `server/db/migrations/0007_snapshot_versioning.sql`
+
+**Action**: Create new file with SQL from Phase 1.1 section above.
+
+**Verification**:
+```bash
+# File exists and has correct structure
+head -20 server/db/migrations/0007_snapshot_versioning.sql
+# Should show: CREATE TABLE snapshot_versions (
+```
+
+---
+
+### Task 1.2: Add Drizzle Schema
+
+**File**: `shared/schema.ts`
+
+**Action**: Add `snapshotVersions` table definition after `forecastSnapshots` (around line 275).
+
+**Verification**:
+```bash
+# Check schema compiles
+npm run check
+# Should pass with no errors
+```
+
+---
+
+### Task 1.3: Create Version Types
+
+**File**: `shared/types/snapshot-version.ts` (new file)
+
+**Code**:
+```typescript
+/**
+ * Snapshot Version Types
+ */
+
+export interface VersionSummary {
+  id: string;
+  versionNumber: number;
+  versionName?: string;
+  isCurrent: boolean;
+  isPinned: boolean;
+  createdAt: string;
+}
+
+export interface VersionDiff {
+  baseVersion: VersionSummary;
+  comparisonVersion: VersionSummary;
+  addedKeys: string[];
+  removedKeys: string[];
+  modifiedKeys: string[];
+}
+
+export interface PaginatedVersions {
+  versions: VersionSummary[];
+  nextCursor?: string;
+  hasMore: boolean;
+}
+```
+
+**Verification**:
+```bash
+npm run check
+# No type errors
+```
+
+---
+
+### Task 1.4: Create Zod Schemas
+
+**File**: `shared/schemas/version-schemas.ts` (new file)
+
+**Action**: Add schemas from Phase 4 section above.
+
+**Verification**:
+```bash
+npm run check
+# Types compile correctly
+```
+
+---
+
+### Task 1.5: Create SnapshotVersionService Skeleton
+
+**File**: `server/services/snapshot-version-service.ts` (new file)
+
+**Code**:
+```typescript
+/**
+ * Snapshot Version Service
+ *
+ * Manages version history for forecast snapshots.
+ * Supports 90-day auto-pruning with pin capability.
+ */
+
+import { db } from '../db';
+import { snapshotVersions, forecastSnapshots } from '@shared/schema';
+import type { SnapshotVersion, InsertSnapshotVersion } from '@shared/schema';
+import { eq, and, desc, lt, sql } from 'drizzle-orm';
+import { createHash } from 'crypto';
+
+// Error classes
+export class VersionNotFoundError extends Error {
+  constructor(versionId: string) {
+    super(`Version not found: ${versionId}`);
+    this.name = 'VersionNotFoundError';
+  }
+}
+
+export class SnapshotNotFoundError extends Error {
+  constructor(snapshotId: string) {
+    super(`Snapshot not found: ${snapshotId}`);
+    this.name = 'SnapshotNotFoundError';
+  }
+}
+
+// Service class (methods to be implemented)
+export class SnapshotVersionService {
+  // TODO: Implement methods
+}
+```
+
+**Verification**:
+```bash
+npm run check
+# Compiles without errors
+```
+
+---
+
+### Task 1.6: Implement createVersion Method
+
+**File**: `server/services/snapshot-version-service.ts`
+
+**Test First** (RED):
+```typescript
+// tests/unit/services/snapshot-version-service.test.ts
+describe('createVersion', () => {
+  it('creates first version with version_number = 1', async () => {
+    const version = await service.createVersion({
+      snapshotId: testSnapshotId,
+      stateSnapshot: { fund: { size: 100000000 } },
+    });
+    expect(version.versionNumber).toBe(1);
+    expect(version.isCurrent).toBe(true);
+  });
+});
+```
+
+**Verification**:
+```bash
+npm test -- --grep "creates first version"
+# Should FAIL initially (RED), then PASS after implementation (GREEN)
+```
+
+---
+
+### Task 2.1: Create Version Routes File
+
+**File**: `server/routes/portfolio/versions.ts` (new file)
+
+**Skeleton**:
+```typescript
+import { Router } from 'express';
+import { SnapshotVersionService } from '../../services/snapshot-version-service';
+
+const router = Router({ mergeParams: true });
+const versionService = new SnapshotVersionService();
+
+// POST /api/snapshots/:snapshotId/versions
+router.post('/', async (req, res, next) => {
+  // TODO: Implement
+});
+
+// GET /api/snapshots/:snapshotId/versions
+router.get('/', async (req, res, next) => {
+  // TODO: Implement
+});
+
+export default router;
+```
+
+**Verification**:
+```bash
+npm run check
+# Compiles
+```
+
+---
+
+### Task 2.2: Register Routes
+
+**File**: `server/routes/index.ts`
+
+**Action**: Import and mount version routes.
+
+```typescript
+import versionRoutes from './portfolio/versions';
+
+// Mount under /api/snapshots/:snapshotId/versions
+router.use('/snapshots/:snapshotId/versions', versionRoutes);
+```
+
+**Verification**:
+```bash
+npm run dev:api
+# Server starts without errors
+curl http://localhost:5000/api/snapshots/test/versions
+# Should return 404 or 400 (route exists but validation fails)
+```
+
+---
+
 ## Anti-Pattern Compliance Checklist
 
 | Pattern | Implementation |
