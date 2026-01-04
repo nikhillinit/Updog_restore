@@ -63,6 +63,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const monteCarloRoutes = await import('./routes/monte-carlo.js');
   app.use('/api/monte-carlo', monteCarloRoutes.default);
 
+  // MOIC Calculator routes
+  const moicRoutes = await import('./routes/moic.js');
+  app.use('/api/moic', moicRoutes.default);
+
+  // Graduation Rate Engine routes
+  const graduationRoutes = await import('./routes/graduation.js');
+  app.use('/api/graduation', graduationRoutes.default);
+
+  // Capital Allocation Engine routes
+  const capitalAllocationRoutes = await import('./routes/capital-allocation.js');
+  app.use('/api/capital-allocation', capitalAllocationRoutes.default);
+
+  // Liquidity Engine routes
+  const liquidityRoutes = await import('./routes/liquidity.js');
+  app.use('/api/liquidity', liquidityRoutes.default);
+
   // Performance monitoring routes
   const performanceRoutes = await import('./routes/performance-metrics.js');
   app.use('/api/performance', performanceRoutes.default);
