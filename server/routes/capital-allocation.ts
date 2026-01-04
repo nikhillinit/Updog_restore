@@ -11,7 +11,8 @@ import {
   calculateCapitalAllocation,
   adaptTruthCaseInput,
   checkAllInvariants,
-  type CAEngineInput,
+  type TruthCaseInput,
+  type CAEngineOutput,
 } from '../../shared/core/capitalAllocation/index.js';
 
 const router = Router();
@@ -23,7 +24,7 @@ const router = Router();
 router.post(
   '/calculate',
   asyncHandler(async (req: Request, res: Response) => {
-    const input = req.body as CAEngineInput;
+    const input = req.body as TruthCaseInput;
 
     if (!input || !input.fund) {
       return res.status(400).json({
@@ -49,7 +50,10 @@ router.post(
 router.post(
   '/validate',
   asyncHandler(async (req: Request, res: Response) => {
-    const { input, output } = req.body;
+    const { input, output } = req.body as {
+      input: TruthCaseInput;
+      output: CAEngineOutput;
+    };
 
     if (!input || !output) {
       return res.status(400).json({
@@ -59,10 +63,10 @@ router.post(
     }
 
     const normalized = adaptTruthCaseInput(input);
-    const invariantResults = checkAllInvariants(output, normalized);
+    const invariantResults = checkAllInvariants(normalized, output);
 
     res.json({
-      valid: invariantResults.every(r => r.passed),
+      valid: invariantResults.allPassed,
       results: invariantResults,
     });
   })
