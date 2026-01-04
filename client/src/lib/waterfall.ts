@@ -6,13 +6,6 @@
 import { WaterfallSchema, type Waterfall } from '@shared/types';
 
 /**
- * Type guard: Check if waterfall is AMERICAN variant
- * Note: Always returns true since AMERICAN is now the only waterfall type
- */
-export const isAmerican = (w: Waterfall): w is Extract<Waterfall, { type: 'AMERICAN' }> =>
-  w.type === 'AMERICAN';
-
-/**
  * Clamp an integer to [min, max] range
  */
 const clampInt = (n: number, min: number, max: number): number =>
@@ -20,9 +13,6 @@ const clampInt = (n: number, min: number, max: number): number =>
 
 /**
  * Type guard: Validate carryVesting shape
- *
- * Extracts complex boolean checks to reduce cyclomatic complexity
- * in the main applyWaterfallChange function.
  *
  * @param value - Unknown value to validate
  * @returns True if value is a valid CarryVesting object
@@ -82,29 +72,18 @@ function updateCarryVesting(w: Waterfall, value: unknown): Waterfall {
  * @param value - New value for the field
  * @returns Updated waterfall (or unchanged if update is invalid)
  */
-
-// Overload: Type-safe carryVesting updates
 export function applyWaterfallChange(
   w: Waterfall,
-  field: 'carryVesting',
-  value: Waterfall['carryVesting']
-): Waterfall;
-
-// Fallback: Dynamic field updates
-// eslint-disable-next-line no-redeclare
-export function applyWaterfallChange(w: Waterfall, field: string, value: unknown): Waterfall;
-
-// Implementation
-// eslint-disable-next-line no-redeclare
-export function applyWaterfallChange(w: Waterfall, field: string, value: unknown): Waterfall {
-  if (field === 'carryVesting') {
-    return updateCarryVesting(w, value);
+  field: 'carryVesting' | string,
+  value: Waterfall['carryVesting'] | unknown
+): Waterfall {
+  switch (field) {
+    case 'carryVesting':
+      return updateCarryVesting(w, value);
+    default:
+      // Ignore updates to unknown fields
+      return w;
   }
-
-  // Guard: Reject all other field updates (AMERICAN waterfall only has 'type' and 'carryVesting')
-  // 'type' field is immutable (always 'AMERICAN')
-  // This prevents type-unsafe field additions that violate WaterfallSchema.strict()
-  return w;
 }
 
 /**
@@ -122,4 +101,14 @@ export function createDefaultWaterfall(overrides?: Partial<Waterfall>): Waterfal
     },
     ...overrides,
   });
+}
+
+/**
+ * Validate a waterfall object against the schema
+ *
+ * @param w - Waterfall object to validate
+ * @returns True if valid, false otherwise
+ */
+export function isValidWaterfall(w: unknown): w is Waterfall {
+  return WaterfallSchema.safeParse(w).success;
 }

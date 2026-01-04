@@ -333,12 +333,11 @@ const CarryVestingSchema = z.object({
   vestingYears: z.number().int().min(1).max(10).default(4),
 });
 
-export const WaterfallSchema = z
-  .object({
-    type: z.literal('AMERICAN'),
-    carryVesting: CarryVestingSchema,
-  })
-  .strict();
+// American waterfall (deal-by-deal) - carry distributed on each exit
+export const WaterfallSchema = z.object({
+  type: z.literal('AMERICAN'),
+  carryVesting: CarryVestingSchema,
+});
 
 // Complete Fund Setup Types (extending existing)
 export const CompleteFundSetupSchema = z.object({
@@ -391,6 +390,8 @@ export type Allocation = z.infer<typeof AllocationSchema>;
 export type InvestmentStrategy = z.infer<typeof InvestmentStrategySchema>;
 export type ExitRecycling = z.infer<typeof ExitRecyclingSchema>;
 export type Waterfall = z.infer<typeof WaterfallSchema>;
+export type AmericanWaterfall = z.infer<typeof AmericanWaterfallSchema>;
+export type EuropeanWaterfall = z.infer<typeof EuropeanWaterfallSchema>;
 export type CompleteFundSetup = z.infer<typeof CompleteFundSetupSchema>;
 
 // =============================================================================
