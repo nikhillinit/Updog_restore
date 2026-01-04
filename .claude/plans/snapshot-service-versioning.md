@@ -3,7 +3,17 @@
 **Feature**: Model versioning and scenario comparison for forecast snapshots
 **Author**: Claude Code Planning Agent
 **Date**: 2026-01-04
-**Status**: Ready for Review
+**Status**: APPROVED - Ready for Implementation
+
+---
+
+## Design Decisions (Approved)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Version semantics | **Simple named-versions** | No git-like branching complexity |
+| Retention policy | **Auto-prune after 90 days** | Balance storage vs audit needs |
+| Merge support | **Deferred to Phase 2** | Focus on core versioning first |
 
 ---
 
@@ -12,9 +22,10 @@
 This plan extends the existing `SnapshotService` to support **model versioning** and **scenario comparison**, enabling GPs to:
 
 1. Track version history of fund/portfolio snapshots
-2. Branch/fork snapshots for "what-if" analysis
+2. Create named versions for "what-if" analysis
 3. Compare versions side-by-side with delta metrics
 4. Restore or roll back to previous versions
+5. Auto-prune old versions after 90 days
 
 The design builds on existing patterns (`forecastSnapshots`, `ComparisonService`) and follows anti-pattern prevention guidelines.
 
@@ -34,6 +45,12 @@ The design builds on existing patterns (`forecastSnapshots`, `ComparisonService`
 | forecast_        |     | snapshot_versions   |     | Redis Cache        |
 | snapshots        |     | (new table)         |     | (ephemeral)        |
 +------------------+     +---------------------+     +--------------------+
+                                  |
+                                  v
+                         +--------------------+
+                         | Auto-prune job     |
+                         | (90-day retention) |
+                         +--------------------+
 ```
 
 ---
@@ -49,13 +66,13 @@ CREATE TABLE snapshot_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   snapshot_id UUID NOT NULL REFERENCES forecast_snapshots(id) ON DELETE CASCADE,
 
-  -- Version tracking
+  -- Version tracking (simple sequential numbering)
   version_number INTEGER NOT NULL,
   parent_version_id UUID REFERENCES snapshot_versions(id),
 
-  -- Fork/branch support
-  branch_name VARCHAR(100) DEFAULT 'main',
-  is_head BOOLEAN DEFAULT false,
+  -- Named version support (optional label for what-if scenarios)
+  version_name VARCHAR(100),
+  is_current BOOLEAN DEFAULT false,
 
   -- State capture (immutable after creation)
   state_snapshot JSONB NOT NULL,
@@ -63,25 +80,29 @@ CREATE TABLE snapshot_versions (
   source_hash VARCHAR(64) NOT NULL,
 
   -- Metadata
-  commit_message TEXT,
+  description TEXT,
   created_by UUID,
   tags TEXT[],
+
+  -- Retention policy
+  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '90 days'),
+  is_pinned BOOLEAN DEFAULT false,  -- Pinned versions are not auto-pruned
 
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   -- Constraints
   CONSTRAINT snapshot_versions_unique_version
-    UNIQUE (snapshot_id, branch_name, version_number)
+    UNIQUE (snapshot_id, version_number)
 );
 
 -- Indexes for efficient queries
 CREATE INDEX idx_snapshot_versions_snapshot_id
   ON snapshot_versions(snapshot_id, version_number DESC);
 
-CREATE INDEX idx_snapshot_versions_branch_head
-  ON snapshot_versions(snapshot_id, branch_name)
-  WHERE is_head = true;
+CREATE INDEX idx_snapshot_versions_current
+  ON snapshot_versions(snapshot_id)
+  WHERE is_current = true;
 
 CREATE INDEX idx_snapshot_versions_parent
   ON snapshot_versions(parent_version_id);
@@ -89,24 +110,41 @@ CREATE INDEX idx_snapshot_versions_parent
 CREATE INDEX idx_snapshot_versions_source_hash
   ON snapshot_versions(source_hash);
 
--- Function to ensure only one head per branch
-CREATE OR REPLACE FUNCTION ensure_single_head()
+CREATE INDEX idx_snapshot_versions_expires
+  ON snapshot_versions(expires_at)
+  WHERE is_pinned = false;
+
+-- Function to ensure only one current version per snapshot
+CREATE OR REPLACE FUNCTION ensure_single_current()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.is_head = true THEN
+  IF NEW.is_current = true THEN
     UPDATE snapshot_versions
-    SET is_head = false
+    SET is_current = false
     WHERE snapshot_id = NEW.snapshot_id
-      AND branch_name = NEW.branch_name
       AND id != NEW.id;
   END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER snapshot_versions_head_trigger
+CREATE TRIGGER snapshot_versions_current_trigger
 BEFORE INSERT OR UPDATE ON snapshot_versions
-FOR EACH ROW EXECUTE FUNCTION ensure_single_head();
+FOR EACH ROW EXECUTE FUNCTION ensure_single_current();
+
+-- Function to auto-prune expired versions (run via cron/scheduler)
+CREATE OR REPLACE FUNCTION prune_expired_versions()
+RETURNS INTEGER AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM snapshot_versions
+  WHERE expires_at < NOW()
+    AND is_pinned = false;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ### 1.2 Drizzle Schema Definition
@@ -115,7 +153,7 @@ FOR EACH ROW EXECUTE FUNCTION ensure_single_head();
 
 ```typescript
 // ============================================================================
-// SNAPSHOT VERSIONS - Version history with branching support
+// SNAPSHOT VERSIONS - Simple version history with auto-pruning
 // ============================================================================
 export const snapshotVersions = pgTable(
   'snapshot_versions',
@@ -125,14 +163,14 @@ export const snapshotVersions = pgTable(
       .notNull()
       .references(() => forecastSnapshots.id, { onDelete: 'cascade' }),
 
-    // Version tracking
+    // Version tracking (simple sequential)
     versionNumber: integer('version_number').notNull(),
     parentVersionId: uuid('parent_version_id')
       .references((): AnyPgColumn => snapshotVersions.id),
 
-    // Branch support
-    branchName: varchar('branch_name', { length: 100 }).default('main').notNull(),
-    isHead: boolean('is_head').default(false).notNull(),
+    // Named versions for what-if scenarios
+    versionName: varchar('version_name', { length: 100 }),
+    isCurrent: boolean('is_current').default(false).notNull(),
 
     // Immutable state capture
     stateSnapshot: jsonb('state_snapshot').notNull(),
@@ -140,23 +178,31 @@ export const snapshotVersions = pgTable(
     sourceHash: varchar('source_hash', { length: 64 }).notNull(),
 
     // Metadata
-    commitMessage: text('commit_message'),
+    description: text('description'),
     createdBy: uuid('created_by'),
     tags: text('tags').array(),
+
+    // Retention policy (90 days default)
+    expiresAt: timestamp('expires_at', { withTimezone: true })
+      .default(sql`NOW() + INTERVAL '90 days'`),
+    isPinned: boolean('is_pinned').default(false).notNull(),
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
-    uniqueVersion: unique().on(table.snapshotId, table.branchName, table.versionNumber),
+    uniqueVersion: unique().on(table.snapshotId, table.versionNumber),
     snapshotVersionIdx: index('idx_snapshot_versions_snapshot_id').on(
       table.snapshotId,
       table.versionNumber.desc()
     ),
-    branchHeadIdx: index('idx_snapshot_versions_branch_head')
-      .on(table.snapshotId, table.branchName)
-      .where(sql`${table.isHead} = true`),
+    currentIdx: index('idx_snapshot_versions_current')
+      .on(table.snapshotId)
+      .where(sql`${table.isCurrent} = true`),
     parentIdx: index('idx_snapshot_versions_parent').on(table.parentVersionId),
     sourceHashIdx: index('idx_snapshot_versions_source_hash').on(table.sourceHash),
+    expiresIdx: index('idx_snapshot_versions_expires')
+      .on(table.expiresAt)
+      .where(sql`${table.isPinned} = false`),
   })
 );
 
@@ -176,40 +222,40 @@ export type InsertSnapshotVersion = typeof snapshotVersions.$inferInsert;
 /**
  * Snapshot Version Service
  *
- * Manages version history for forecast snapshots with branching support.
- * Implements git-like semantics: commit, branch, checkout, diff.
+ * Manages version history for forecast snapshots with simple named versions.
+ * Supports 90-day auto-pruning with pin capability.
  */
 
 export interface CreateVersionData {
   snapshotId: string;
   stateSnapshot: Record<string, unknown>;
   calculatedMetrics?: Record<string, unknown>;
-  commitMessage?: string;
+  versionName?: string;      // Optional label (e.g., "Q4 Forecast", "What-if: High Growth")
+  description?: string;
   createdBy?: string;
   tags?: string[];
-  branchName?: string; // defaults to 'main'
+  isPinned?: boolean;        // Pinned = never auto-pruned
 }
 
 export interface ListVersionsFilter {
   snapshotId: string;
-  branchName?: string;
   cursor?: string;
   limit?: number;
+  includeExpired?: boolean;  // Default: false (hide expired)
 }
 
-export interface BranchData {
-  snapshotId: string;
-  sourceBranchName: string;
-  sourceVersionNumber?: number; // defaults to head
-  newBranchName: string;
+export interface PaginatedVersions {
+  versions: SnapshotVersion[];
+  nextCursor?: string;
+  hasMore: boolean;
 }
 
 export class SnapshotVersionService {
   /**
-   * Create a new version (commit)
+   * Create a new version
    *
    * Automatically increments version number, sets parent reference,
-   * and marks as new head of branch.
+   * and marks as current version. Expires in 90 days unless pinned.
    */
   async createVersion(data: CreateVersionData): Promise<SnapshotVersion>;
 
@@ -221,27 +267,22 @@ export class SnapshotVersionService {
   async listVersions(filter: ListVersionsFilter): Promise<PaginatedVersions>;
 
   /**
-   * Get a specific version
+   * Get a specific version by ID
    */
   async getVersion(versionId: string): Promise<SnapshotVersion>;
 
   /**
-   * Get head version of a branch
+   * Get current (latest) version for a snapshot
    */
-  async getHead(snapshotId: string, branchName?: string): Promise<SnapshotVersion>;
+  async getCurrent(snapshotId: string): Promise<SnapshotVersion>;
 
   /**
-   * Create a new branch from existing version
+   * Get version by number
    */
-  async createBranch(data: BranchData): Promise<SnapshotVersion>;
+  async getVersionByNumber(snapshotId: string, versionNumber: number): Promise<SnapshotVersion>;
 
   /**
-   * List all branches for a snapshot
-   */
-  async listBranches(snapshotId: string): Promise<BranchInfo[]>;
-
-  /**
-   * Get version history (ancestry chain)
+   * Get version history (ancestry chain from a version)
    */
   async getHistory(versionId: string, limit?: number): Promise<SnapshotVersion[]>;
 
@@ -253,12 +294,28 @@ export class SnapshotVersionService {
   async restore(
     snapshotId: string,
     targetVersionId: string,
-    commitMessage?: string
+    description?: string
   ): Promise<SnapshotVersion>;
+
+  /**
+   * Pin a version (prevent auto-pruning)
+   */
+  async pinVersion(versionId: string): Promise<SnapshotVersion>;
+
+  /**
+   * Unpin a version (allow auto-pruning)
+   */
+  async unpinVersion(versionId: string): Promise<SnapshotVersion>;
+
+  /**
+   * Manually prune expired versions (called by scheduler)
+   */
+  async pruneExpired(): Promise<number>;
 
   // Private helpers
   private computeSourceHash(state: Record<string, unknown>): string;
-  private getNextVersionNumber(snapshotId: string, branchName: string): Promise<number>;
+  private getNextVersionNumber(snapshotId: string): Promise<number>;
+  private verifySnapshotExists(snapshotId: string): Promise<void>;
 }
 ```
 
@@ -354,9 +411,9 @@ export class VersionComparisonService {
 
 /**
  * POST /api/snapshots/:snapshotId/versions
- * Create a new version (commit current state)
+ * Create a new version (saves current state)
  *
- * Request: { commitMessage?, tags?, branchName? }
+ * Request: { versionName?, description?, tags?, isPinned? }
  * Response: 201 { data: SnapshotVersion }
  */
 
@@ -364,22 +421,28 @@ export class VersionComparisonService {
  * GET /api/snapshots/:snapshotId/versions
  * List versions with pagination
  *
- * Query: { branch?, cursor?, limit? }
- * Response: 200 { data: SnapshotVersion[], pagination }
+ * Query: { cursor?, limit?, includeExpired? }
+ * Response: 200 { data: SnapshotVersion[], pagination: { hasMore, nextCursor } }
  */
 
 /**
- * GET /api/snapshots/:snapshotId/versions/:versionId
- * Get specific version
+ * GET /api/snapshots/:snapshotId/versions/current
+ * Get current (latest) version
  *
  * Response: 200 { data: SnapshotVersion }
  */
 
 /**
- * GET /api/snapshots/:snapshotId/versions/head
- * Get head version of branch
+ * GET /api/snapshots/:snapshotId/versions/:versionId
+ * Get specific version by ID
  *
- * Query: { branch? }
+ * Response: 200 { data: SnapshotVersion }
+ */
+
+/**
+ * GET /api/snapshots/:snapshotId/versions/number/:versionNumber
+ * Get specific version by number
+ *
  * Response: 200 { data: SnapshotVersion }
  */
 
@@ -387,42 +450,34 @@ export class VersionComparisonService {
  * POST /api/snapshots/:snapshotId/versions/:versionId/restore
  * Restore to this version (creates new version with old state)
  *
- * Request: { commitMessage? }
+ * Request: { description? }
  * Response: 201 { data: SnapshotVersion }
  */
-```
-
-### 3.2 Branch Management Routes
-
-**File**: `server/routes/portfolio/branches.ts`
-
-```typescript
-// Base path: /api/snapshots/:snapshotId/branches
 
 /**
- * GET /api/snapshots/:snapshotId/branches
- * List all branches
+ * POST /api/snapshots/:snapshotId/versions/:versionId/pin
+ * Pin version (prevent auto-pruning)
  *
- * Response: 200 { data: BranchInfo[] }
+ * Response: 200 { data: SnapshotVersion }
  */
 
 /**
- * POST /api/snapshots/:snapshotId/branches
- * Create new branch
+ * DELETE /api/snapshots/:snapshotId/versions/:versionId/pin
+ * Unpin version (allow auto-pruning)
  *
- * Request: { name, sourceVersion? }
- * Response: 201 { data: BranchInfo }
+ * Response: 200 { data: SnapshotVersion }
  */
 
 /**
- * DELETE /api/snapshots/:snapshotId/branches/:branchName
- * Delete branch (preserves versions in history)
+ * GET /api/snapshots/:snapshotId/versions/:versionId/history
+ * Get ancestry chain for a version
  *
- * Response: 204
+ * Query: { limit? }
+ * Response: 200 { data: SnapshotVersion[] }
  */
 ```
 
-### 3.3 Comparison Routes
+### 3.2 Comparison Routes
 
 **File**: `server/routes/portfolio/comparisons.ts`
 
@@ -463,20 +518,26 @@ export class VersionComparisonService {
 import { z } from 'zod';
 
 export const CreateVersionRequestSchema = z.object({
-  commitMessage: z.string().max(500).optional(),
+  versionName: z.string().max(100).optional(),
+  description: z.string().max(500).optional(),
   tags: z.array(z.string().max(50)).max(10).optional(),
-  branchName: z.string().max(100).regex(/^[a-z0-9-_]+$/).optional(),
+  isPinned: z.boolean().optional(),
 });
 
 export const ListVersionsQuerySchema = z.object({
-  branch: z.string().max(100).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  includeExpired: z.coerce.boolean().default(false),
 });
 
-export const CreateBranchRequestSchema = z.object({
-  name: z.string().max(100).regex(/^[a-z0-9-_]+$/),
-  sourceVersion: z.number().int().positive().optional(),
+export const VersionIdParamSchema = z.object({
+  snapshotId: z.string().uuid(),
+  versionId: z.string().uuid(),
+});
+
+export const VersionNumberParamSchema = z.object({
+  snapshotId: z.string().uuid(),
+  versionNumber: z.coerce.number().int().positive(),
 });
 
 export const CompareVersionsRequestSchema = z.object({
@@ -489,7 +550,11 @@ export const CompareVersionsRequestSchema = z.object({
 });
 
 export const RestoreVersionRequestSchema = z.object({
-  commitMessage: z.string().max(500).optional(),
+  description: z.string().max(500).optional(),
+});
+
+export const HistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 ```
 
@@ -506,30 +571,40 @@ describe('SnapshotVersionService', () => {
   describe('createVersion', () => {
     it('creates first version with version_number = 1');
     it('increments version_number for subsequent versions');
-    it('sets parent_version_id to previous head');
-    it('marks new version as head');
-    it('unmarks previous head');
+    it('sets parent_version_id to previous current');
+    it('marks new version as current');
+    it('unmarks previous current version');
     it('computes source_hash from state');
     it('handles concurrent version creation gracefully');
+    it('sets expires_at to 90 days from now');
+    it('does not set expires_at when isPinned is true');
   });
 
-  describe('createBranch', () => {
-    it('creates branch from head by default');
-    it('creates branch from specific version');
-    it('prevents duplicate branch names');
-    it('copies state from source version');
+  describe('pinVersion/unpinVersion', () => {
+    it('sets isPinned to true');
+    it('clears expires_at when pinned');
+    it('sets expires_at to 90 days when unpinned');
+    it('throws VersionNotFoundError for invalid ID');
   });
 
   describe('restore', () => {
     it('creates new version with restored state');
     it('preserves version history');
-    it('sets appropriate commit message');
+    it('sets appropriate description');
+    it('marks restored version as current');
   });
 
   describe('listVersions', () => {
     it('returns versions in descending order');
     it('supports cursor pagination');
-    it('filters by branch name');
+    it('excludes expired versions by default');
+    it('includes expired versions when includeExpired is true');
+  });
+
+  describe('pruneExpired', () => {
+    it('deletes versions past expires_at');
+    it('preserves pinned versions');
+    it('returns count of deleted versions');
   });
 });
 ```
@@ -563,7 +638,7 @@ describe('Version Comparison API', () => {
 
 ## Phase 6: Implementation Tasks
 
-### Sprint 1: Foundation (3-4 days)
+### Sprint 1: Foundation (2-3 days)
 
 | Task | Description | Files |
 |------|-------------|-------|
@@ -573,32 +648,34 @@ describe('Version Comparison API', () => {
 | 1.4 | Add Zod validation schemas | `shared/schemas/` |
 | 1.5 | Unit tests for SnapshotVersionService | `tests/unit/services/` |
 
-### Sprint 2: API Layer (2-3 days)
+### Sprint 2: API Layer (2 days)
 
 | Task | Description | Files |
 |------|-------------|-------|
 | 2.1 | Implement version CRUD routes | `server/routes/portfolio/versions.ts` |
-| 2.2 | Implement branch routes | `server/routes/portfolio/branches.ts` |
+| 2.2 | Add pin/unpin endpoints | `server/routes/portfolio/versions.ts` |
 | 2.3 | Integration tests for version routes | `tests/integration/` |
 | 2.4 | Register routes in app | `server/routes/index.ts` |
 
-### Sprint 3: Comparison (2-3 days)
+### Sprint 3: Comparison & Pruning (2 days)
 
 | Task | Description | Files |
 |------|-------------|-------|
 | 3.1 | Create VersionComparisonService | `server/services/` |
 | 3.2 | Implement diff computation | `shared/utils/diff.ts` |
 | 3.3 | Add comparison routes | `server/routes/portfolio/comparisons.ts` |
-| 3.4 | Integration tests for comparison | `tests/integration/` |
+| 3.4 | Add pruning scheduler job | `server/jobs/` |
+| 3.5 | Integration tests for comparison | `tests/integration/` |
 
-### Sprint 4: Polish (1-2 days)
+### Sprint 4: Polish (1 day)
 
 | Task | Description | Files |
 |------|-------------|-------|
 | 4.1 | Add audit logging for version operations | `server/middleware/` |
-| 4.2 | Performance optimization (indexes, caching) | various |
-| 4.3 | Documentation update | `CHANGELOG.md`, `DECISIONS.md` |
-| 4.4 | End-to-end testing | `tests/e2e/` |
+| 4.2 | Documentation update | `CHANGELOG.md`, `DECISIONS.md` |
+| 4.3 | Final review and cleanup | various |
+
+**Total estimated time: 7-8 days** (reduced from 8-12 days due to simpler design)
 
 ---
 
@@ -617,31 +694,37 @@ describe('Version Comparison API', () => {
 
 ---
 
-## Decision Points for Review
+## Design Decisions (Finalized)
 
-1. **Branch semantics**: Git-like branching or simpler named-versions?
-   - Recommendation: Start with branches, can simplify later
+| # | Decision | Choice | Status |
+|---|----------|--------|--------|
+| 1 | **Version semantics** | Simple named-versions (no git-like branching) | APPROVED |
+| 2 | **State storage** | Full state snapshots (no incremental diffs) | APPROVED |
+| 3 | **Retention policy** | Auto-prune after 90 days (with pin capability) | APPROVED |
+| 4 | **Merge support** | Deferred to Phase 2 | APPROVED |
 
-2. **State storage**: Full state snapshot vs incremental diffs?
-   - Recommendation: Full snapshots for simplicity, add compression if needed
+### Rationale
 
-3. **Retention policy**: Keep all versions or auto-prune?
-   - Recommendation: Keep all, add archival in Phase 2
+1. **Named versions**: Simpler mental model for GPs who aren't developers. A version is just a named checkpoint, not a branch.
 
-4. **Merge support**: Allow merging branches?
-   - Recommendation: Defer to Phase 2, focus on fork/compare first
+2. **Full snapshots**: Simpler implementation, easier debugging, no complexity around diff reconstruction. Storage is cheap.
+
+3. **90-day retention**: Balances storage costs with reasonable audit window. Pinned versions (marked important) are never pruned. Can extend to 7 years for compliance if needed.
+
+4. **No merge**: Fork-and-compare is sufficient for what-if analysis. True merging adds complexity without clear use case.
 
 ---
 
 ## Success Criteria
 
-1. Users can create versions of snapshots with commit messages
+1. Users can create named versions of snapshots with descriptions
 2. Users can view version history with pagination
 3. Users can compare any two versions with metric deltas
 4. Users can restore to any previous version
-5. Users can create branches for what-if analysis
-6. All operations follow anti-pattern prevention guidelines
-7. Test coverage >= 80% for new code
+5. Users can pin important versions to prevent auto-pruning
+6. Expired versions (>90 days, unpinned) are automatically pruned
+7. All operations follow anti-pattern prevention guidelines
+8. Test coverage >= 80% for new code
 
 ---
 
