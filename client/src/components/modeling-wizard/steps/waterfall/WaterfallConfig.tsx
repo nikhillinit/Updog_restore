@@ -17,11 +17,7 @@ interface WaterfallConfigProps {
   onFieldChange: (field: string, value: unknown) => void;
 }
 
-export function WaterfallConfig({
-  waterfall,
-  errors,
-  onFieldChange
-}: WaterfallConfigProps) {
+export function WaterfallConfig({ waterfall, errors, onFieldChange }: WaterfallConfigProps) {
   return (
     <Card>
       <CardHeader>
@@ -40,7 +36,8 @@ export function WaterfallConfig({
               American (Deal-by-Deal) Waterfall
             </p>
             <p className="text-sm text-blue-700 mt-1">
-              Carried interest is distributed on each individual exit as investments are realized
+              Carried interest is distributed on each individual exit as investments are realized.
+              This model allows GPs to receive carry earlier but may require clawback provisions.
             </p>
           </div>
         </div>
@@ -66,20 +63,18 @@ export function WaterfallConfig({
                 max="10"
                 step="1"
                 value={waterfall.carryVesting.cliffYears}
-                onChange={(e) => onFieldChange('carryVesting', {
-                  ...waterfall.carryVesting,
-                  cliffYears: parseInt(e.target.value) || 0
-                })}
+                onChange={(e) =>
+                  onFieldChange('carryVesting', {
+                    ...waterfall.carryVesting,
+                    cliffYears: parseInt(e.target.value) || 0,
+                  })
+                }
                 placeholder="e.g., 0"
                 className="mt-2"
               />
-              <p className="text-xs text-charcoal-500 mt-1">
-                Years before vesting begins (0-10)
-              </p>
+              <p className="text-xs text-charcoal-500 mt-1">Years before vesting begins (0-10)</p>
               {errors.carryVesting?.cliffYears && (
-                <p className="text-sm text-error mt-1">
-                  {errors.carryVesting.cliffYears.message}
-                </p>
+                <p className="text-sm text-error mt-1">{errors.carryVesting.cliffYears.message}</p>
               )}
             </div>
 
@@ -94,16 +89,16 @@ export function WaterfallConfig({
                 max="10"
                 step="1"
                 value={waterfall.carryVesting.vestingYears}
-                onChange={(e) => onFieldChange('carryVesting', {
-                  ...waterfall.carryVesting,
-                  vestingYears: parseInt(e.target.value) || 1
-                })}
+                onChange={(e) =>
+                  onFieldChange('carryVesting', {
+                    ...waterfall.carryVesting,
+                    vestingYears: parseInt(e.target.value) || 1,
+                  })
+                }
                 placeholder="e.g., 4"
                 className="mt-2"
               />
-              <p className="text-xs text-charcoal-500 mt-1">
-                Years over which carry vests (1-10)
-              </p>
+              <p className="text-xs text-charcoal-500 mt-1">Years over which carry vests (1-10)</p>
               {errors.carryVesting?.vestingYears && (
                 <p className="text-sm text-error mt-1">
                   {errors.carryVesting.vestingYears.message}

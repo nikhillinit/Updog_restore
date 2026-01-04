@@ -1,6 +1,6 @@
 /**
  * Waterfall Step
- * Step 6: Distribution waterfall configuration (American vs European)
+ * Step 6: Distribution waterfall configuration (American waterfall)
  *
  * Uses existing waterfall helpers from @/lib/waterfall for type-safe updates
  */
@@ -20,7 +20,7 @@ export interface WaterfallStepProps {
 }
 
 /**
- * Default waterfall configuration
+ * Default waterfall configuration (American)
  */
 const DEFAULT_WATERFALL: Waterfall = {
   type: 'AMERICAN',
@@ -44,7 +44,7 @@ export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
   const waterfall = watch();
 
   // Debounce form values to prevent watch() from defeating memoization
-  // watch() returns new object every render → breaks memoization
+  // watch() returns new object every render -> breaks memoization
   // Debouncing with deep equality ensures stable references for auto-save
   const debouncedWaterfall = useDebounceDeep(waterfall, 250);
 
@@ -58,10 +58,6 @@ export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
 
       // Only update if value changed (performance optimization)
       if (updated !== waterfall) {
-        // Apply updates with proper typing
-        if ('type' in updated) {
-          setValue('type', updated.type, { shouldValidate: true });
-        }
         if ('carryVesting' in updated) {
           setValue('carryVesting', updated.carryVesting, { shouldValidate: true });
         }
