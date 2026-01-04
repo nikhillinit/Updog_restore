@@ -72,6 +72,6 @@ fi
 
 # Otherwise, run only affected tests (smart mode)
 echo "🧪 Running targeted tests for changed files..."
-# Using --changed for intelligent test selection
-npm test -- --changed HEAD~1
+# Using --changed for intelligent test selection based on git changes
+npm test -- --changed
 exit $?
