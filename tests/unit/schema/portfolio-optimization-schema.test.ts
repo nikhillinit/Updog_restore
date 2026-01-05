@@ -127,8 +127,11 @@ describe('Portfolio Optimization Schema - Drizzle Definitions', () => {
 
       // Core columns
       expect(columnNames).toContain('id');
-      expect(columnNames).toContain('scenarioId');
+      expect(columnNames).toContain('matrixKey');
+      expect(columnNames).toContain('fundId');
+      expect(columnNames).toContain('taxonomyVersion');
       expect(columnNames).toContain('matrixType');
+      expect(columnNames).not.toContain('scenarioId');
 
       // Correction #2: BYTEA moic_matrix
       expect(columnNames).toContain('moicMatrix');
@@ -151,7 +154,9 @@ describe('Portfolio Optimization Schema - Drizzle Definitions', () => {
     it('should have correct column mappings for snake_case database columns', () => {
       const columns = getTableColumns(scenarioMatrices);
 
-      expect(columns.scenarioId.name).toBe('scenario_id');
+      expect(columns.matrixKey.name).toBe('matrix_key');
+      expect(columns.fundId.name).toBe('fund_id');
+      expect(columns.taxonomyVersion.name).toBe('taxonomy_version');
       expect(columns.matrixType.name).toBe('matrix_type');
       expect(columns.moicMatrix.name).toBe('moic_matrix');
       expect(columns.scenarioStates.name).toBe('scenario_states');
@@ -265,10 +270,15 @@ describe('Portfolio Optimization Schema - Drizzle Definitions', () => {
   });
 
   describe('Schema Relationships', () => {
-    it('should have scenarioMatrices reference portfolioScenarios', () => {
+    it('should use cache identity fields instead of a portfolioScenarios FK', () => {
       const columns = getTableColumns(scenarioMatrices);
-      expect(columns.scenarioId).toBeDefined();
-      expect(columns.scenarioId.notNull).toBe(true);
+      expect(columns.scenarioId).toBeUndefined();
+      expect(columns.matrixKey).toBeDefined();
+      expect(columns.matrixKey.notNull).toBe(true);
+      expect(columns.fundId).toBeDefined();
+      expect(columns.fundId.notNull).toBe(true);
+      expect(columns.taxonomyVersion).toBeDefined();
+      expect(columns.taxonomyVersion.notNull).toBe(true);
     });
 
     it('should have optimizationSessions reference scenarioMatrices', () => {
@@ -300,7 +310,9 @@ describe('Portfolio Optimization Schema - Drizzle Definitions', () => {
 
     it('should validate scenarioMatrix insert with required fields', () => {
       const valid = {
-        scenarioId: '123e4567-e89b-12d3-a456-426614174000',
+        matrixKey: 'fund-123|tax-v1|moic',
+        fundId: 'fund-123',
+        taxonomyVersion: 'tax-v1',
         matrixType: 'moic',
       };
 
