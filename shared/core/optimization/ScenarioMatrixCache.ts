@@ -26,6 +26,10 @@
  */
 
 import { createHash } from 'crypto';
+import { eq, and } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { RedisClientType } from 'redis';
+import { scenarioMatrices } from '@shared/schema';
 import type { CompressedMatrix } from './MatrixCompression';
 import type { ScenarioConfig, ScenarioResult } from './ScenarioGenerator';
 import { ScenarioGenerator } from './ScenarioGenerator';
@@ -46,10 +50,8 @@ export interface ScenarioConfigWithMeta extends ScenarioConfig {
  */
 export class ScenarioMatrixCache {
   constructor(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly db: any, // TODO: Type this properly with Drizzle
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly redis?: any // TODO: Type this properly with Redis client
+    private readonly db: NodePgDatabase<typeof import('@shared/schema')>,
+    private readonly redis?: RedisClientType
   ) {}
 
   /**
@@ -76,8 +78,8 @@ export class ScenarioMatrixCache {
             numScenarios: config.numScenarios,
             numBuckets: config.buckets.length,
             generatedAt: new Date().toISOString(),
-            cached: true,
-            cacheSource: 'redis',
+            durationMs: 0,
+            recyclingMultiples: [],
           },
         };
       }
@@ -98,8 +100,8 @@ export class ScenarioMatrixCache {
           numScenarios: config.numScenarios,
           numBuckets: config.buckets.length,
           generatedAt: new Date().toISOString(),
-          cached: true,
-          cacheSource: 'postgres',
+          durationMs: 0,
+          recyclingMultiples: [],
         },
       };
     }
@@ -114,14 +116,7 @@ export class ScenarioMatrixCache {
       this.redis ? this.storeRedis(matrixKey, result.compressed) : Promise.resolve(),
     ]);
 
-    return {
-      ...result,
-      metadata: {
-        ...result.metadata,
-        cached: false,
-        cacheSource: 'generated',
-      },
-    };
+    return result;
   }
 
   /**
@@ -145,14 +140,12 @@ export class ScenarioMatrixCache {
     const recycling = config.recycling.enabled
       ? {
           enabled: true,
-
+          mode: config.recycling.mode,
           reinvestmentRate: this.round(config.recycling.reinvestmentRate, 5),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          cashMultiple: this.round(config.recycling.cashMultiple, 5),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          maxRecycleDeals: config.recycling.maxRecycleDeals,
+          avgHoldingPeriod: this.round(config.recycling.avgHoldingPeriod, 5),
+          fundLifetime: this.round(config.recycling.fundLifetime, 5),
         }
-      : { enabled: false };
+      : { enabled: false, mode: 'same-bucket' as const };
 
     // Canonical configuration (sorted keys, normalized values)
     const canonical = {
@@ -189,18 +182,26 @@ export class ScenarioMatrixCache {
     if (!this.redis) return null;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const cached = await this.redis.get(`scenario-matrix:${matrixKey}`);
       if (!cached) return null;
 
       // Deserialize compressed matrix
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
-      const parsed = JSON.parse(cached);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      const parsed = JSON.parse(cached) as {
+        data: string;
+        numScenarios: number;
+        numBuckets: number;
+        version: 1;
+        uncompressedSize: number;
+        compressedSize: number;
+      };
+
       return {
-        ...parsed,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-        data: Buffer.from(parsed.data, 'base64'),
+        data: new Uint8Array(Buffer.from(parsed.data, 'base64')),
+        numScenarios: parsed.numScenarios,
+        numBuckets: parsed.numBuckets,
+        version: parsed.version,
+        uncompressedSize: parsed.uncompressedSize,
+        compressedSize: parsed.compressedSize,
       };
     } catch (error) {
       console.error('Redis cache read error:', error);
@@ -216,12 +217,15 @@ export class ScenarioMatrixCache {
 
     try {
       const serialized = JSON.stringify({
-        ...matrix,
-        data: matrix.data.toString('base64'),
+        data: Buffer.from(matrix.data).toString('base64'),
+        numScenarios: matrix.numScenarios,
+        numBuckets: matrix.numBuckets,
+        version: matrix.version,
+        uncompressedSize: matrix.uncompressedSize,
+        compressedSize: matrix.compressedSize,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await this.redis.setex(`scenario-matrix:${matrixKey}`, 86400, serialized); // 24 hours
+      await this.redis.setEx(`scenario-matrix:${matrixKey}`, 86400, serialized); // 24 hours
     } catch (error) {
       console.error('Redis cache write error:', error);
       // Non-fatal - PostgreSQL is source of truth
@@ -231,15 +235,38 @@ export class ScenarioMatrixCache {
   /**
    * Check PostgreSQL storage
    */
-  private async checkPostgres(_matrixKey: string): Promise<CompressedMatrix | null> {
-    // TODO: Implement PostgreSQL query using Drizzle
-    // SELECT moic_matrix, compression_codec, matrix_layout, bucket_count, scenario_states
-    // FROM scenario_matrices
-    // WHERE matrix_key = $1 AND status = 'complete'
-    // LIMIT 1
+  private async checkPostgres(matrixKey: string): Promise<CompressedMatrix | null> {
+    try {
+      const result = await this.db
+        .select({
+          moicMatrix: scenarioMatrices.moicMatrix,
+          scenarioStates: scenarioMatrices.scenarioStates,
+          bucketCount: scenarioMatrices.bucketCount,
+        })
+        .from(scenarioMatrices)
+        .where(
+          and(eq(scenarioMatrices.matrixKey, matrixKey), eq(scenarioMatrices.status, 'complete'))
+        )
+        .limit(1);
 
-    // For now, return null (cache miss)
-    return null;
+      if (!result[0] || !result[0].moicMatrix) return null;
+
+      const matrixBuffer = result[0].moicMatrix;
+      const numScenarios = (result[0].scenarioStates as { scenarios: unknown[] }).scenarios.length;
+      const numBuckets = result[0].bucketCount!;
+
+      return {
+        data: new Uint8Array(matrixBuffer),
+        numScenarios,
+        numBuckets,
+        version: 1,
+        uncompressedSize: numScenarios * numBuckets * 4, // Float32 = 4 bytes
+        compressedSize: matrixBuffer.length,
+      };
+    } catch (error) {
+      console.error('PostgreSQL cache read error:', error);
+      return null;
+    }
   }
 
   /**
@@ -248,19 +275,40 @@ export class ScenarioMatrixCache {
   private async storePostgres(
     matrixKey: string,
     config: ScenarioConfigWithMeta,
-    _matrix: CompressedMatrix
+    matrix: CompressedMatrix
   ): Promise<void> {
     try {
-      // TODO: Implement PostgreSQL insert using Drizzle
-      // INSERT INTO scenario_matrices (
-      //   matrix_key, fund_id, taxonomy_version, matrix_type,
-      //   moic_matrix, compression_codec, matrix_layout, bucket_count,
-      //   scenario_states, bucket_params, s_opt, status
-      // ) VALUES (...)
-      // ON CONFLICT (matrix_key) DO NOTHING
-
-      // Placeholder
-      console.log('TODO: Store matrix in PostgreSQL', { matrixKey, fundId: config.fundId });
+      await this.db
+        .insert(scenarioMatrices)
+        .values({
+          matrixKey,
+          fundId: config.fundId,
+          taxonomyVersion: config.taxonomyVersion,
+          matrixType: 'moic',
+          moicMatrix: Buffer.from(matrix.data),
+          compressionCodec: 'zstd',
+          matrixLayout: 'row-major',
+          bucketCount: matrix.numBuckets,
+          scenarioStates: {
+            scenarios: Array.from({ length: matrix.numScenarios }, (_, i) => ({
+              id: i,
+              params: {},
+            })),
+          },
+          bucketParams: {
+            min: 0,
+            max: 1,
+            count: matrix.numBuckets,
+            distribution: 'power-law',
+          },
+          sOpt: {
+            algorithm: 'correlation-structure-v1',
+            params: config.correlationWeights as unknown as Record<string, unknown>,
+            convergence: {},
+          },
+          status: 'complete',
+        })
+        .onConflictDoNothing();
     } catch (error) {
       console.error('PostgreSQL cache write error:', error);
       throw error; // Fatal - PostgreSQL is source of truth
