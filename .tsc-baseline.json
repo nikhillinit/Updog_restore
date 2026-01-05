@@ -182,7 +182,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 177,
-      "lastUpdated": "2026-01-03T23:42:13.993Z"
+      "lastUpdated": "2026-01-05T08:23:53.872Z"
     },
     "unknown": {
       "errors": [
@@ -192,7 +192,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-03T23:42:13.993Z"
+      "lastUpdated": "2026-01-05T08:23:53.872Z"
     },
     "shared": {
       "errors": [
@@ -200,6 +200,12 @@
         "shared/charting/ChartAdapter.tsx:TS2375:db570a7c",
         "shared/charting/ChartSafe.tsx:TS2345:d968b831",
         "shared/charting/polymorphic.ts:TS2345:7bd45dd0",
+        "shared/core/optimization/MatrixCompression.ts:TS2345:224e3219",
+        "shared/core/optimization/MatrixCompression.ts:TS2532:ae799a15",
+        "shared/core/optimization/MatrixCompression.ts:TS2578:ca6758c8",
+        "shared/core/optimization/ScenarioGenerator.ts:TS2532:9719e073",
+        "shared/core/optimization/SeededRNG.ts:TS2322:90d86bc6",
+        "shared/core/optimization/SeededRNG.ts:TS2322:ff5ae60e",
         "shared/fund-wire-schema.ts:TS2502:e01fe265",
         "shared/fund-wire-schema.ts:TS7022:6c8e6efa",
         "shared/portfolio-strategy-schema.ts:TS4111:052eea2c",
@@ -214,8 +220,8 @@
         "shared/portfolio-strategy-schema.ts:TS4111:f6a699c3",
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
-      "total": 17,
-      "lastUpdated": "2026-01-03T23:42:13.993Z"
+      "total": 23,
+      "lastUpdated": "2026-01-05T08:23:53.872Z"
     },
     "server": {
       "errors": [
@@ -509,11 +515,11 @@
         "server/utils/input-sanitization.ts:TS4111:fb8dc782"
       ],
       "total": 288,
-      "lastUpdated": "2026-01-03T23:42:13.993Z"
+      "lastUpdated": "2026-01-05T08:23:53.872Z"
     }
   },
-  "totalErrors": 486,
-  "timestamp": "2026-01-03T23:42:13.993Z",
+  "totalErrors": 492,
+  "timestamp": "2026-01-05T08:23:53.872Z",
   "buildMode": "per-project",
-  "elapsedMs": 24473
+  "elapsedMs": 36962
 }

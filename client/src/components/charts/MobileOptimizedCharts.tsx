@@ -16,7 +16,7 @@ export interface ChartDataPoint {
   label: string;
   value: number;
   color?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface TimeSeriesPoint {
@@ -26,10 +26,7 @@ export interface TimeSeriesPoint {
 }
 
 // Intersection Observer hook for lazy loading
-function useIntersectionObserver(
-  elementRef: React.RefObject<Element>,
-  threshold = 0.1
-): boolean {
+function useIntersectionObserver(elementRef: React.RefObject<Element>, threshold = 0.1): boolean {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -68,7 +65,7 @@ export const MobileLineChart = memo(function MobileLineChart({
   color = '#3b82f6',
   showPoints = false,
   animateOnLoad = true,
-  className
+  className,
 }: MobileLineChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const isVisible = useIntersectionObserver(chartRef);
@@ -85,30 +82,32 @@ export const MobileLineChart = memo(function MobileLineChart({
     return (
       <div
         ref={chartRef}
-        className={cn("bg-slate-100 rounded animate-pulse", className)}
+        className={cn('bg-slate-100 rounded animate-pulse', className)}
         style={{ height, width }}
       />
     );
   }
 
   const padding = 10;
-  const chartWidth = width - (padding * 2);
-  const chartHeight = height - (padding * 2);
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
 
   // Calculate scales
-  const maxValue = Math.max(...data.map(d => d.value));
-  const minValue = Math.min(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value));
+  const minValue = Math.min(...data.map((d) => d.value));
   const valueRange = maxValue - minValue || 1;
 
   // Generate path
-  const pathData = data.map((point, index) => {
-    const x = padding + (index / (data.length - 1)) * chartWidth;
-    const y = padding + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
-    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
+  const pathData = data
+    .map((point, index) => {
+      const x = padding + (index / (data.length - 1)) * chartWidth;
+      const y = padding + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
 
   return (
-    <div ref={chartRef} className={cn("touch-manipulation", className)}>
+    <div ref={chartRef} className={cn('touch-manipulation', className)}>
       {isVisible && (
         <svg
           width={width}
@@ -118,12 +117,7 @@ export const MobileLineChart = memo(function MobileLineChart({
         >
           {/* Grid lines for mobile readability */}
           <defs>
-            <pattern
-              id="grid"
-              width="20"
-              height="20"
-              patternUnits="userSpaceOnUse"
-            >
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
               <path
                 d="M 20 0 L 0 0 0 20"
                 fill="none"
@@ -134,13 +128,7 @@ export const MobileLineChart = memo(function MobileLineChart({
             </pattern>
           </defs>
 
-          <rect
-            width={chartWidth}
-            height={chartHeight}
-            x={padding}
-            y={padding}
-            fill="url(#grid)"
-          />
+          <rect width={chartWidth} height={chartHeight} x={padding} y={padding} fill="url(#grid)" />
 
           {/* Main line */}
           <path
@@ -150,31 +138,36 @@ export const MobileLineChart = memo(function MobileLineChart({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{
-              strokeDasharray: animationComplete ? 'unset' : '0',
-              transition: animateOnLoad ? 'stroke-dasharray 1s ease-in-out' : 'none',
-            } as React.CSSProperties}
+            style={
+              {
+                strokeDasharray: animationComplete ? 'unset' : '0',
+                transition: animateOnLoad ? 'stroke-dasharray 1s ease-in-out' : 'none',
+              } as React.CSSProperties
+            }
           />
 
           {/* Data points */}
-          {showPoints && animationComplete && data.map((point, index) => {
-            const x = padding + (index / (data.length - 1)) * chartWidth;
-            const y = padding + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
+          {showPoints &&
+            animationComplete &&
+            data.map((point, index) => {
+              const x = padding + (index / (data.length - 1)) * chartWidth;
+              const y =
+                padding + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
 
-            return (
-              <circle
-                key={index}
-                cx={x}
-                cy={y}
-                r="3"
-                fill={color}
-                stroke="white"
-                strokeWidth="2"
-                className="opacity-0 animate-fadeIn"
-                style={{ animationDelay: `${index * 100}ms` }}
-              />
-            );
-          })}
+              return (
+                <circle
+                  key={index}
+                  cx={x}
+                  cy={y}
+                  r="3"
+                  fill={color}
+                  stroke="white"
+                  strokeWidth="2"
+                  className="opacity-0 animate-fadeIn"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                />
+              );
+            })}
 
           {/* Touch-friendly hover areas */}
           {data.map((point, index) => {
@@ -221,7 +214,7 @@ export const MobileDonutChart = memo(function MobileDonutChart({
   strokeWidth = 12,
   showLabels = false,
   className,
-  centerContent
+  centerContent,
 }: MobileDonutChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const isVisible = useIntersectionObserver(chartRef);
@@ -231,7 +224,7 @@ export const MobileDonutChart = memo(function MobileDonutChart({
     return (
       <div
         ref={chartRef}
-        className={cn("bg-slate-100 rounded-full animate-pulse", className)}
+        className={cn('bg-slate-100 rounded-full animate-pulse', className)}
         style={{ width: size, height: size }}
       />
     );
@@ -239,13 +232,13 @@ export const MobileDonutChart = memo(function MobileDonutChart({
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
   const center = size / 2;
-  const radius = (size / 2) - (strokeWidth / 2);
+  const radius = size / 2 - strokeWidth / 2;
   const circumference = 2 * Math.PI * radius;
 
   let cumulativePercentage = 0;
 
   return (
-    <div ref={chartRef} className={cn("relative touch-manipulation", className)}>
+    <div ref={chartRef} className={cn('relative touch-manipulation', className)}>
       {isVisible && (
         <>
           <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -288,9 +281,7 @@ export const MobileDonutChart = memo(function MobileDonutChart({
           {/* Center content */}
           {centerContent && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                {centerContent}
-              </div>
+              <div className="text-center">{centerContent}</div>
             </div>
           )}
 
@@ -301,8 +292,8 @@ export const MobileDonutChart = memo(function MobileDonutChart({
                 <div
                   key={index}
                   className={cn(
-                    "flex items-center gap-2 p-2 rounded transition-colors cursor-pointer",
-                    selectedSegment === index ? "bg-slate-100" : "hover:bg-slate-50"
+                    'flex items-center gap-2 p-2 rounded transition-colors cursor-pointer',
+                    selectedSegment === index ? 'bg-slate-100' : 'hover:bg-slate-50'
                   )}
                   onClick={() => setSelectedSegment(selectedSegment === index ? null : index)}
                 >
@@ -341,8 +332,8 @@ export const MobileBarChart = memo(function MobileBarChart({
   height = 200,
   color = '#3b82f6',
   showValues = false,
-  horizontal = false,
-  className
+  horizontal: _horizontal = false,
+  className,
 }: MobileBarChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const isVisible = useIntersectionObserver(chartRef);
@@ -354,7 +345,7 @@ export const MobileBarChart = memo(function MobileBarChart({
       // Stagger animation for each bar
       for (let index = 0; index < barCount; index += 1) {
         setTimeout(() => {
-          setAnimatedBars(prev => {
+          setAnimatedBars((prev) => {
             const newState = [...prev];
             newState[index] = true;
             return newState;
@@ -368,44 +359,41 @@ export const MobileBarChart = memo(function MobileBarChart({
     return (
       <div
         ref={chartRef}
-        className={cn("bg-slate-100 rounded animate-pulse", className)}
+        className={cn('bg-slate-100 rounded animate-pulse', className)}
         style={{ height }}
       />
     );
   }
 
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value));
 
   return (
-    <div ref={chartRef} className={cn("space-y-3", className)}>
-      {isVisible && data.map((item, index) => {
-        const percentage = (item.value / maxValue) * 100;
-        const isAnimated = animatedBars[index];
+    <div ref={chartRef} className={cn('space-y-3', className)}>
+      {isVisible &&
+        data.map((item, index) => {
+          const percentage = (item.value / maxValue) * 100;
+          const isAnimated = animatedBars[index];
 
-        return (
-          <div key={index} className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="font-poppins text-sm text-slate-700 truncate">
-                {item.label}
-              </span>
-              {showValues && (
-                <span className="font-mono text-xs text-slate-500 ml-2">
-                  {item.value}
-                </span>
-              )}
+          return (
+            <div key={index} className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="font-poppins text-sm text-slate-700 truncate">{item.label}</span>
+                {showValues && (
+                  <span className="font-mono text-xs text-slate-500 ml-2">{item.value}</span>
+                )}
+              </div>
+              <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{
+                    backgroundColor: item.color || color,
+                    width: isAnimated ? `${percentage}%` : '0%',
+                  }}
+                />
+              </div>
             </div>
-            <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-1000 ease-out"
-                style={{
-                  backgroundColor: item.color || color,
-                  width: isAnimated ? `${percentage}%` : '0%'
-                }}
-              />
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
     </div>
   );
 });
@@ -426,7 +414,7 @@ export const Sparkline = memo(function Sparkline({
   height = 24,
   color = '#3b82f6',
   trend,
-  className
+  className,
 }: SparklineProps) {
   if (data.length === 0) return null;
 
@@ -434,11 +422,13 @@ export const Sparkline = memo(function Sparkline({
   const min = Math.min(...data);
   const range = max - min || 1;
 
-  const pathData = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
-    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
+  const pathData = data
+    .map((value, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - ((value - min) / range) * height;
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
 
   const trendColor = trend === 'up' ? '#10b981' : trend === 'down' ? '#ef4444' : color;
 
@@ -447,7 +437,7 @@ export const Sparkline = memo(function Sparkline({
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className={cn("overflow-visible", className)}
+      className={cn('overflow-visible', className)}
     >
       <path
         d={pathData}
@@ -473,14 +463,14 @@ export const Sparkline = memo(function Sparkline({
 export function ChartSkeleton({
   height = 200,
   type = 'line',
-  className
+  className,
 }: {
   height?: number;
   type?: 'line' | 'bar' | 'donut';
   className?: string;
 }) {
   return (
-    <div className={cn("animate-pulse", className)} style={{ height }}>
+    <div className={cn('animate-pulse', className)} style={{ height }}>
       {type === 'line' && (
         <div className="space-y-4">
           <div className="flex justify-between">
@@ -489,7 +479,7 @@ export function ChartSkeleton({
           </div>
           <div className="h-32 bg-slate-200 rounded"></div>
           <div className="flex justify-between">
-            {[...Array(5)].map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-3 bg-slate-200 rounded w-8"></div>
             ))}
           </div>
@@ -498,7 +488,7 @@ export function ChartSkeleton({
 
       {type === 'bar' && (
         <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <div className="h-3 bg-slate-200 rounded w-1/3"></div>
               <div className="h-2 bg-slate-200 rounded"></div>
@@ -511,7 +501,7 @@ export function ChartSkeleton({
         <div className="flex flex-col items-center space-y-4">
           <div className="w-32 h-32 bg-slate-200 rounded-full"></div>
           <div className="space-y-2">
-            {[...Array(3)].map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-slate-200 rounded-full"></div>
                 <div className="h-3 bg-slate-200 rounded w-16"></div>
@@ -529,5 +519,5 @@ export default {
   MobileDonutChart,
   MobileBarChart,
   Sparkline,
-  ChartSkeleton
+  ChartSkeleton,
 };

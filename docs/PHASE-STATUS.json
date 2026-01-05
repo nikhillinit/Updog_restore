@@ -44,6 +44,12 @@
       "totalTests": 73,
       "passRate": "Pending Docker availability",
       "message": "feat(foundation): Phase 4 - Testcontainers infrastructure\n\nInfrastructure (7 files):\n- tests/helpers/testcontainers.ts - Container lifecycle\n- tests/helpers/testcontainers-migration.ts - Migration utilities\n- tests/helpers/testcontainers-seeder.ts - Data seeding\n- tests/fixtures/scenario-comparison-fixtures.ts\n- tests/fixtures/rls-fixtures.ts\n- cheatsheets/testcontainers-guide.md\n- tests/integration/testcontainers-smoke.test.ts\n\nCI/CD: .github/workflows/testcontainers-ci.yml\n\nDocs: PHASE4-KICKOFF.md, PHASE4-SESSION1-SUMMARY.md\n\nStatus: Infrastructure 100% complete, 80 Priority 1 tests ready"
+    },
+    {
+      "id": "Phase 2",
+      "completedAt": "2026-01-05T08:04:04.928Z",
+      "commit": "bfd78d93b4ac67780776daf0932b199e1fbd9ea5",
+      "message": "test(phase2): add BullMQ worker integration tests\n\nCompletes Task 10 of Phase 2: Scenario Generation Engine\n\nIntegration tests verify:\n- Job processing with various configurations\n- Large scenario generation (10K scenarios)\n- Reproducibility across multiple runs\n- Error handling for invalid configurations\n- Concurrent job processing\n- Queue management and job removal\n\nKey features:\n- Handles BullMQ serialization of Uint8Array as Buffer-like objects\n- Normalizes compressed matrix data for decompression\n- Tests with Redis queue and worker lifecycle\n- Validates job states and completion\n\nAll 9 integration tests passing\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
     }
   ],
   "lastUpdated": "2025-12-26T18:00:00.000Z",
