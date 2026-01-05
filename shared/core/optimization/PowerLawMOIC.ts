@@ -272,14 +272,15 @@ export function createMOICGenerator(calibration: MOICCalibration): PowerLawMOIC 
  *
  * Based on industry benchmarks with adjusted ratio for finite mean:
  * - Median: 0.8x (moderate downside)
- * - P90: 4.5x (top 10% return 4.5x+, ~5.6x ratio for alpha > 1)
+ * - P90: 3.8x (top 10% return 3.8x+, 4.75x ratio ensures alpha > 1)
  *
+ * Mathematical constraint: p90/median < 5.0 ensures alpha > 1 for finite mean
  * Source: CB Insights, Correlation Ventures data (2015-2023)
- * Note: Adjusted from extreme tail (0.5x/5x) to ensure alpha > 1 for finite mean
+ * Note: Adjusted from 4.5x to 3.8x to ensure alpha > 1 for finite mean
  */
 export const DEFAULT_SEED_CALIBRATION: MOICCalibration = {
   median: 0.8,
-  p90: 4.5,
+  p90: 3.8,
 };
 
 /**

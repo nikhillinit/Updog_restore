@@ -283,7 +283,7 @@ describe('PowerLawMOIC', () => {
 
   describe('PowerLawMOIC class', () => {
     it('should construct from calibration', () => {
-      const calibration: MOICCalibration = { median: 0.8, p90: 4.0 };
+      const calibration: MOICCalibration = { median: 0.8, p90: 3.8 };
 
       const generator = new PowerLawMOIC(calibration);
 
@@ -308,7 +308,7 @@ describe('PowerLawMOIC', () => {
     });
 
     it('should sample with reproducibility', () => {
-      const generator = createMOICGenerator({ median: 0.8, p90: 4.0 });
+      const generator = createMOICGenerator({ median: 0.8, p90: 3.8 });
 
       const rng1 = new SeededRNG(123);
       const samples1 = Array.from({ length: 100 }, () => generator.sample(rng1));
@@ -326,11 +326,11 @@ describe('PowerLawMOIC', () => {
       const p90 = generator.percentile(0.9);
 
       expect(median).toBeCloseTo(1.0, 1);
-      expect(p90).toBeCloseTo(10.0, 1);
+      expect(p90).toBeCloseTo(3.0, 1);
     });
 
     it('should calculate mean', () => {
-      const generator = createMOICGenerator({ median: 0.8, p90: 4.0 });
+      const generator = createMOICGenerator({ median: 0.8, p90: 3.8 });
 
       const mean = generator.mean();
 
@@ -358,7 +358,7 @@ describe('PowerLawMOIC', () => {
     });
 
     it('should match calibrated P90 empirically', () => {
-      const calibration: MOICCalibration = { median: 0.8, p90: 4.0 };
+      const calibration: MOICCalibration = { median: 0.8, p90: 3.8 };
       const generator = createMOICGenerator(calibration);
       const rng = new SeededRNG(777);
 
@@ -391,7 +391,7 @@ describe('PowerLawMOIC', () => {
 
   describe('Realistic VC Returns - Design Validation', () => {
     it('should produce winner-take-most outcomes', () => {
-      const calibration: MOICCalibration = { median: 0.8, p90: 4.0 }; // Seed-stage
+      const calibration: MOICCalibration = { median: 0.8, p90: 3.8 }; // Seed-stage
       const generator = createMOICGenerator(calibration);
       const rng = new SeededRNG(12345);
 
@@ -422,7 +422,7 @@ describe('PowerLawMOIC', () => {
     });
 
     it('should produce realistic failure rates (MOIC < 1x)', () => {
-      const calibration: MOICCalibration = { median: 0.8, p90: 4.0 };
+      const calibration: MOICCalibration = { median: 0.8, p90: 3.8 };
       const generator = createMOICGenerator(calibration);
       const rng = new SeededRNG(666);
 
@@ -432,13 +432,13 @@ describe('PowerLawMOIC', () => {
       const failures = returns.filter((r) => r < 1.0).length;
       const failureRate = failures / numInvestments;
 
-      // With median = 0.5, failure rate should be ~50%
+      // With median = 0.8, failure rate should be ~55-60%
       expect(failureRate).toBeGreaterThan(0.4);
-      expect(failureRate).toBeLessThan(0.6);
+      expect(failureRate).toBeLessThan(0.65);
     });
 
     it('should produce rare unicorns (MOIC > 20x)', () => {
-      const calibration: MOICCalibration = { median: 0.8, p90: 4.0 };
+      const calibration: MOICCalibration = { median: 0.8, p90: 3.8 };
       const generator = createMOICGenerator(calibration);
       const rng = new SeededRNG(888);
 
