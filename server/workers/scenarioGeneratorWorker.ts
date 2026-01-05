@@ -19,15 +19,24 @@
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import type Redis from 'ioredis';
-import type { ScenarioConfig, ScenarioResult } from '@shared/core/optimization/ScenarioGenerator';
-import { ScenarioGenerator } from '@shared/core/optimization/ScenarioGenerator';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { RedisClientType } from 'redis';
+import type { ScenarioResult } from '@shared/core/optimization/ScenarioGenerator';
+import { ScenarioMatrixCache } from '@shared/core/optimization/ScenarioMatrixCache';
+import type { ScenarioConfigWithMeta } from '@shared/core/optimization/ScenarioMatrixCache';
 
 /**
  * Worker configuration
  */
 export interface WorkerConfig {
-  /** Redis connection */
+  /** Redis connection for BullMQ (ioredis) */
   connection: Redis;
+
+  /** PostgreSQL database connection (Drizzle ORM) */
+  db: NodePgDatabase<typeof import('@shared/schema')>;
+
+  /** Redis client for cache (redis package) - optional for cache support */
+  redis?: RedisClientType;
 
   /** Worker concurrency (number of parallel jobs) */
   concurrency?: number;
@@ -54,67 +63,84 @@ interface JobProgress {
 }
 
 /**
- * Process scenario generation job
+ * Process scenario generation job with caching
  *
- * @param job - BullMQ job with ScenarioConfig data
+ * @param job - BullMQ job with ScenarioConfigWithMeta data
+ * @param cache - ScenarioMatrixCache instance
  * @returns ScenarioResult with compressed matrix
  */
-async function processScenarioJob(job: Job<ScenarioConfig>): Promise<ScenarioResult> {
+async function processScenarioJob(
+  job: Job<ScenarioConfigWithMeta>,
+  cache: ScenarioMatrixCache
+): Promise<ScenarioResult> {
   const { data: config } = job;
 
-  // Report progress: Starting
+  // Report progress: Cache lookup
   await job.updateProgress({
     percent: 0,
-    step: 'Initializing generator',
+    step: 'Checking cache',
   } as JobProgress);
 
-  // Create generator
-  const generator = new ScenarioGenerator(config);
-
-  // Report progress: Generation started
-  await job.updateProgress({
-    percent: 10,
-    step: 'Generating scenarios',
-  } as JobProgress);
-
-  // Generate matrix (this is the heavy computation)
+  // Use cache (will check Redis -> PostgreSQL -> generate on miss)
   const startTime = Date.now();
-  const result = await generator.generate();
-  const durationMs = Date.now() - startTime;
+  const result = await cache.getOrGenerate(config);
+  const totalDurationMs = Date.now() - startTime;
 
-  // Report progress: Compression complete
-  await job.updateProgress({
-    percent: 90,
-    step: 'Finalizing result',
-  } as JobProgress);
+  // Determine if cache hit or miss
+  const cacheHit = result.metadata.durationMs === 0;
 
-  // Log generation stats
-  console.log(
-    `[ScenarioWorker] Generated ${result.metadata.numScenarios}×${result.metadata.numBuckets} matrix in ${durationMs}ms ` +
-    `(compressed: ${(result.compressed.compressedSize / 1024).toFixed(1)}KB)`
-  );
+  if (cacheHit) {
+    // Cache hit - fast path
+    await job.updateProgress({
+      percent: 100,
+      step: 'Retrieved from cache',
+    } as JobProgress);
 
-  // Report progress: Complete
-  await job.updateProgress({
-    percent: 100,
-    step: 'Complete',
-  } as JobProgress);
+    console.log(
+      `[ScenarioWorker] Cache HIT - Job ${job.id} retrieved ${result.metadata.numScenarios}×${result.metadata.numBuckets} matrix in ${totalDurationMs}ms ` +
+        `(key: ${result.metadata.configHash.substring(0, 8)}...)`
+    );
+  } else {
+    // Cache miss - generation occurred
+    await job.updateProgress({
+      percent: 90,
+      step: 'Generated and cached',
+    } as JobProgress);
+
+    console.log(
+      `[ScenarioWorker] Cache MISS - Job ${job.id} generated ${result.metadata.numScenarios}×${result.metadata.numBuckets} matrix in ${result.metadata.durationMs}ms ` +
+        `(total: ${totalDurationMs}ms, compressed: ${(result.compressed.compressedSize / 1024).toFixed(1)}KB, key: ${result.metadata.configHash.substring(0, 8)}...)`
+    );
+
+    await job.updateProgress({
+      percent: 100,
+      step: 'Complete',
+    } as JobProgress);
+  }
 
   return result;
 }
 
 /**
- * Create and start scenario generation worker
+ * Create and start scenario generation worker with cache support
  *
  * @param config - Worker configuration
  * @returns BullMQ Worker instance
  */
-export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfig, ScenarioResult> {
-  const worker = new Worker<ScenarioConfig, ScenarioResult>(
+export function createScenarioWorker(
+  config: WorkerConfig
+): Worker<ScenarioConfigWithMeta, ScenarioResult> {
+  // Initialize cache with database + Redis connections
+  const cache = new ScenarioMatrixCache(config.db, config.redis);
+  console.log(
+    `[ScenarioWorker] Cache initialized (Redis: ${config.redis ? 'enabled' : 'disabled'})`
+  );
+
+  const worker = new Worker<ScenarioConfigWithMeta, ScenarioResult>(
     'scenario-generation',
     async (job) => {
       try {
-        return await processScenarioJob(job);
+        return await processScenarioJob(job, cache);
       } catch (error) {
         console.error(`[ScenarioWorker] Job ${job.id} failed:`, error);
         throw error;
@@ -126,6 +152,7 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
 
       // Job timeout (default: 5 minutes) - AP-QUEUE-02 compliance
       lockDuration: config.timeout ?? 5 * 60 * 1000,
+      timeout: config.timeout ?? 5 * 60 * 1000, // Explicit timeout for lint rule
 
       // Retry configuration
       settings: {
@@ -138,13 +165,22 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
     }
   );
 
-  // Event listeners for monitoring
+  // Event listeners for monitoring with cache metrics
   worker.on('completed', (job) => {
-    console.log(`[ScenarioWorker] Job ${job.id} completed successfully`);
+    const result = job.returnvalue as ScenarioResult | undefined;
+    const cacheHit = result?.metadata.durationMs === 0;
+
+    console.log(
+      `[ScenarioWorker] Job ${job.id} completed successfully - ` +
+        `Cache: ${cacheHit ? 'HIT' : 'MISS'}${result ? `, Matrix: ${result.compressed.numScenarios}x${result.compressed.numBuckets}` : ''}`
+    );
   });
 
   worker.on('failed', (job, error) => {
-    console.error(`[ScenarioWorker] Job ${job?.id} failed after ${job?.attemptsMade} attempts:`, error);
+    console.error(
+      `[ScenarioWorker] Job ${job?.id} failed after ${job?.attemptsMade} attempts:`,
+      error
+    );
   });
 
   worker.on('error', (error) => {
@@ -164,7 +200,9 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
     process.exit(0);
   });
 
-  console.log(`[ScenarioWorker] Started with concurrency=${config.concurrency ?? 2}`);
+  console.log(
+    `[ScenarioWorker] Started with concurrency=${config.concurrency ?? 2}, cache=${config.redis ? 'enabled' : 'PostgreSQL-only'}`
+  );
 
   return worker;
 }
@@ -173,25 +211,64 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
  * Standalone worker entry point (when run directly)
  */
 if (require.main === module) {
-  // Load Redis connection from environment
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   const Redis = require('ioredis').default;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const { Pool } = require('pg');
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const { drizzle } = require('drizzle-orm/node-postgres');
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const { createClient } = require('redis');
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const redisConnection = new Redis({
-    host: process.env['REDIS_HOST'] ?? 'localhost',
-    port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
-    password: process.env['REDIS_PASSWORD'],
-    maxRetriesPerRequest: null, // Required for BullMQ
+  (async () => {
+    // BullMQ Redis connection (ioredis)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const bullmqRedis = new Redis({
+      host: process.env['REDIS_HOST'] ?? 'localhost',
+      port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+      password: process.env['REDIS_PASSWORD'],
+      maxRetriesPerRequest: null, // Required for BullMQ
+    });
+
+    // PostgreSQL connection
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const pool = new Pool({
+      connectionString: process.env['DATABASE_URL'] ?? 'postgresql://localhost:5432/updog',
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const db = drizzle(pool);
+
+    // Cache Redis connection (redis package) - optional
+    let cacheRedis: RedisClientType | undefined;
+    try {
+      const redisUrl =
+        process.env['REDIS_URL'] ??
+        `redis://${process.env['REDIS_HOST'] ?? 'localhost'}:${process.env['REDIS_PORT'] ?? '6379'}`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      cacheRedis = createClient({ url: redisUrl });
+
+      await cacheRedis.connect();
+      console.log('[ScenarioWorker] Cache Redis connected');
+    } catch (error) {
+      console.warn('[ScenarioWorker] Cache Redis unavailable, using PostgreSQL-only mode:', error);
+      cacheRedis = undefined;
+    }
+
+    // Create worker with cache
+    createScenarioWorker({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      connection: bullmqRedis,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      db,
+
+      redis: cacheRedis,
+      concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '2', 10),
+      timeout: parseInt(process.env['WORKER_TIMEOUT'] ?? '300000', 10), // 5 minutes
+    });
+
+    console.log('[ScenarioWorker] Standalone worker started with cache support');
+  })().catch((error) => {
+    console.error('[ScenarioWorker] Failed to start worker:', error);
+    process.exit(1);
   });
-
-  // Create worker
-  createScenarioWorker({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    connection: redisConnection,
-    concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '2', 10),
-    timeout: parseInt(process.env['WORKER_TIMEOUT'] ?? '300000', 10), // 5 minutes
-  });
-
-  console.log('[ScenarioWorker] Standalone worker started');
 }
