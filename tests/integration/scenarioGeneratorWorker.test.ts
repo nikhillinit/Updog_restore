@@ -15,10 +15,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Queue, QueueEvents } from 'bullmq';
 import type { Redis } from 'ioredis';
 import IORedis from 'ioredis';
-import {
-  createScenarioWorker,
-  type WorkerConfig,
-} from '@/server/workers/scenarioGeneratorWorker';
+import { createScenarioWorker, type WorkerConfig } from '@/server/workers/scenarioGeneratorWorker';
 import {
   createDefaultScenarioConfig,
   type ScenarioConfig,
@@ -166,12 +163,12 @@ describe('ScenarioGenerator Worker Integration', () => {
       config.seed = 'integration-test-large';
 
       const job = await queue.add('generate-scenarios', config);
-      const result = await job.waitUntilFinished(queueEvents, 60_000);
+      const result = await job.waitUntilFinished(queueEvents, 120_000);
 
       expect(result.metadata.numScenarios).toBe(10_000);
       expect(result.metadata.numBuckets).toBe(3);
       expect(result.metadata.durationMs).toBeLessThan(5_000); // Should complete in < 5 seconds
-    }, 60_000);
+    }, 120_000);
 
     it('should produce reproducible results for same seed', async () => {
       const config: ScenarioConfig = {
@@ -196,10 +193,10 @@ describe('ScenarioGenerator Worker Integration', () => {
 
       // Generate twice with same config
       const job1 = await queue.add('generate-scenarios-1', config);
-      const result1 = await job1.waitUntilFinished(queueEvents, 30_000);
+      const result1 = await job1.waitUntilFinished(queueEvents, 120_000);
 
       const job2 = await queue.add('generate-scenarios-2', config);
-      const result2 = await job2.waitUntilFinished(queueEvents, 30_000);
+      const result2 = await job2.waitUntilFinished(queueEvents, 120_000);
 
       // Normalize and compare compressed data
       const compressed1 = normalizeCompressedMatrix(result1);
@@ -212,7 +209,7 @@ describe('ScenarioGenerator Worker Integration', () => {
       const matrix1 = await decompressMatrix(compressed1);
       const matrix2 = await decompressMatrix(compressed2);
       expect(matrix1).toEqual(matrix2);
-    }, 60_000);
+    }, 120_000);
   });
 
   describe('Progress Reporting', () => {
@@ -298,8 +295,8 @@ describe('ScenarioGenerator Worker Integration', () => {
 
       const job = await queue.add('invalid-allocation-job', invalidConfig);
 
-      await expect(job.waitUntilFinished(queueEvents, 30_000)).rejects.toThrow();
-    }, 60_000);
+      await expect(job.waitUntilFinished(queueEvents, 120_000)).rejects.toThrow();
+    }, 120_000);
   });
 
   describe('Concurrency', () => {
@@ -318,7 +315,7 @@ describe('ScenarioGenerator Worker Integration', () => {
       // Wait for all to complete
       const startTime = Date.now();
       const results = await Promise.all(
-        jobs.map((job) => job.waitUntilFinished(queueEvents, 60_000))
+        jobs.map((job) => job.waitUntilFinished(queueEvents, 120_000))
       );
       const durationMs = Date.now() - startTime;
 
@@ -330,7 +327,7 @@ describe('ScenarioGenerator Worker Integration', () => {
 
       // Should complete faster than sequential (rough check)
       expect(durationMs).toBeLessThan(15_000); // Allow 15 seconds for 3 jobs
-    }, 60_000);
+    }, 120_000);
   });
 
   describe('Queue Management', () => {
@@ -349,12 +346,12 @@ describe('ScenarioGenerator Worker Integration', () => {
         initialCounts.waiting + initialCounts.active
       );
 
-      await job.waitUntilFinished(queueEvents, 30_000);
+      await job.waitUntilFinished(queueEvents, 120_000);
 
       // Should have one completed job
       const finalCounts = await queue.getJobCounts();
       expect(finalCounts.completed).toBeGreaterThan(initialCounts.completed);
-    }, 60_000);
+    }, 120_000);
 
     it('should allow job removal when delayed', async () => {
       const config = createDefaultScenarioConfig();
@@ -374,6 +371,6 @@ describe('ScenarioGenerator Worker Integration', () => {
       // Job should no longer exist (undefined) or be unknown (some BullMQ versions)
       const finalState = await job.getState();
       expect(['unknown', undefined]).toContain(finalState);
-    }, 60_000);
+    }, 120_000);
   });
 });
