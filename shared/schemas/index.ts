@@ -20,5 +20,8 @@ export * from './portfolio-route';
 // Stage normalization utilities
 export * from './parse-stage-distribution';
 
+// Portfolio optimization schemas
+export * from './portfolio-optimization';
+
 // Re-export Decimal for convenience
 export { Decimal } from 'decimal.js';
