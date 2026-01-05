@@ -6,8 +6,10 @@
 
 CREATE TABLE IF NOT EXISTS scenario_matrices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  scenario_id UUID NOT NULL
-    REFERENCES portfolio_scenarios(id) ON DELETE CASCADE,
+  -- Canonical cache key for scenario matrix (replaces scenario_id FK)
+  matrix_key TEXT NOT NULL UNIQUE,
+  fund_id TEXT NOT NULL,
+  taxonomy_version TEXT NOT NULL,
   matrix_type VARCHAR(50) NOT NULL
     CHECK (matrix_type IN ('moic', 'tvpi', 'dpi', 'irr')),
 
@@ -44,9 +46,13 @@ CREATE TABLE IF NOT EXISTS scenario_matrices (
   )
 );
 
--- Index for scenario lookup
-CREATE INDEX idx_scenario_matrices_scenario
-  ON scenario_matrices (scenario_id);
+-- Index for fund/taxonomy/status queries
+CREATE INDEX idx_scenario_matrices_fund_tax_status
+  ON scenario_matrices (fund_id, taxonomy_version, status);
+
+-- Index for matrix key lookup
+CREATE INDEX idx_scenario_matrices_matrix_key
+  ON scenario_matrices (matrix_key);
 
 -- Index for status filtering
 CREATE INDEX idx_scenario_matrices_status
