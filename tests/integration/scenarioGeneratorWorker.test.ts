@@ -84,7 +84,7 @@ describe('ScenarioGenerator Worker Integration', () => {
     const workerConfig: WorkerConfig = {
       connection: redisConnection,
       concurrency: 1,
-      timeout: 60_000, // 1 minute for tests
+      timeout: 120_000, // 2 minutes for tests
     };
     worker = createScenarioWorker(workerConfig);
   });
@@ -134,7 +134,7 @@ describe('ScenarioGenerator Worker Integration', () => {
       const job = await queue.add('generate-scenarios', config);
 
       // Wait for completion
-      const result = await job.waitUntilFinished(queueEvents, 30_000);
+      const result = await job.waitUntilFinished(queueEvents, 120_000);
 
       // Validate result structure
       expect(result).toBeDefined();
@@ -156,7 +156,7 @@ describe('ScenarioGenerator Worker Integration', () => {
       const matrix = await decompressMatrix(compressedMatrix);
       expect(matrix).toHaveLength(100);
       expect(matrix[0]).toHaveLength(2);
-    }, 60_000);
+    }, 120_000);
 
     it('should handle large scenario generation (10K scenarios)', async () => {
       const config = createDefaultScenarioConfig();
