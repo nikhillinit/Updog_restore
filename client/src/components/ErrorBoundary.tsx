@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught error:', error, errorInfo);
     this.setState({ errorInfo });
-    
+
     // Call optional error handler
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -65,12 +65,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-red-700">
               An unexpected error occurred while rendering this component.
             </p>
-            
+
             {import.meta.env.DEV && this.state.error && (
               <div className="bg-red-100 border border-red-300 rounded p-3">
-                <p className="text-sm font-mono text-red-800">
-                  {this.state.error.toString()}
-                </p>
+                <p className="text-sm font-mono text-red-800">{this.state.error.toString()}</p>
                 {this.state.errorInfo?.componentStack && (
                   <pre className="text-xs text-red-700 mt-2 overflow-x-auto">
                     {this.state.errorInfo.componentStack}
@@ -79,7 +77,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            <Button 
+            <Button
               onClick={this.handleReset}
               variant="outline"
               className="flex items-center gap-2"
@@ -112,7 +110,13 @@ export function withErrorBoundary<P extends object>(
  * Chart-specific error boundary with demo-safe fallback
  * Critical for preventing chart crashes during live demos
  */
-export function ChartErrorBoundary({ children, chartName }: { children: ReactNode; chartName?: string }) {
+export function ChartErrorBoundary({
+  children,
+  chartName,
+}: {
+  children: ReactNode;
+  chartName?: string;
+}) {
   return (
     <ErrorBoundary
       fallback={
@@ -126,7 +130,7 @@ export function ChartErrorBoundary({ children, chartName }: { children: ReactNod
           </div>
         </div>
       }
-      onError={(error: any, errorInfo: any) => {
+      onError={(error: Error, _errorInfo: React.ErrorInfo) => {
         console.error(`Chart error in ${chartName || 'unknown chart'}:`, error);
         // In production, this could report to error tracking
       }}
@@ -140,7 +144,13 @@ export function ChartErrorBoundary({ children, chartName }: { children: ReactNod
  * Form-specific error boundary that preserves user input
  * Essential for fund setup wizard where data loss would be catastrophic
  */
-export function FormErrorBoundary({ children, formName }: { children: ReactNode; formName?: string }) {
+export function FormErrorBoundary({
+  children,
+  formName,
+}: {
+  children: ReactNode;
+  formName?: string;
+}) {
   return (
     <ErrorBoundary
       fallback={
@@ -149,7 +159,8 @@ export function FormErrorBoundary({ children, formName }: { children: ReactNode;
             <div className="flex items-center space-x-2">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <p className="text-sm text-amber-800">
-                {formName ? `${formName} form` : 'Form'} encountered an error. Your data has been preserved.
+                {formName ? `${formName} form` : 'Form'} encountered an error. Your data has been
+                preserved.
               </p>
             </div>
             <Button
@@ -163,7 +174,7 @@ export function FormErrorBoundary({ children, formName }: { children: ReactNode;
           </CardContent>
         </Card>
       }
-      onError={(error: any, errorInfo: any) => {
+      onError={(error: Error, _errorInfo: React.ErrorInfo) => {
         console.error(`Form error in ${formName || 'unknown form'}:`, error);
         // Preserve form state in localStorage before refresh
         const formData = document.querySelector('form');
@@ -186,7 +197,7 @@ export function FormErrorBoundary({ children, formName }: { children: ReactNode;
 export function CalculationErrorBoundary({
   children,
   calculationType,
-  fallbackValue
+  fallbackValue,
 }: {
   children: ReactNode;
   calculationType?: string;
@@ -200,16 +211,15 @@ export function CalculationErrorBoundary({
             <div className="flex items-center space-x-2">
               <AlertCircle className="h-4 w-4 text-blue-600" />
               <p className="text-sm text-blue-800">
-                {calculationType ? `${calculationType} calculation` : 'Calculation'} temporarily unavailable
+                {calculationType ? `${calculationType} calculation` : 'Calculation'} temporarily
+                unavailable
               </p>
             </div>
-            <p className="text-xs text-blue-600 mt-1">
-              Using cached results or default values
-            </p>
+            <p className="text-xs text-blue-600 mt-1">Using cached results or default values</p>
           </div>
         )
       }
-      onError={(error: any, errorInfo: any) => {
+      onError={(error: Error, _errorInfo: React.ErrorInfo) => {
         console.error(`Calculation error in ${calculationType || 'unknown calculation'}:`, error);
         // Could trigger fallback calculation here
       }}
@@ -223,7 +233,7 @@ export function CalculationErrorBoundary({
  * Demo-safe async error handler for promises and async operations
  * Never throws, always logs gracefully
  */
-export function handleAsyncError(error: any, context: string = 'Unknown'): void {
+export function handleAsyncError(error: unknown, context: string = 'Unknown'): void {
   console.error(`Async error in ${context}:`, error);
 
   // In production, you might want to report this to an error tracking service

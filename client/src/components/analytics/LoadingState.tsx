@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface LoadingStateProps {
   title?: string;
@@ -9,10 +9,10 @@ interface LoadingStateProps {
 }
 
 export function LoadingState({
-  title = "Loading...",
+  title: _title = 'Loading...',
   description,
   height = 400,
-  className = ""
+  className = '',
 }: LoadingStateProps) {
   return (
     <Card className={className}>
@@ -44,7 +44,7 @@ export function TimelineLoadingState() {
         <Skeleton className="h-10 w-32" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_: any, i: any) => (
+        {Array.from({ length: 6 }).map((_: unknown, i: number) => (
           <Card key={i}>
             <CardHeader>
               <Skeleton className="h-5 w-24" />
@@ -71,7 +71,7 @@ export function DashboardLoadingState() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_: any, i: any) => (
+        {Array.from({ length: 4 }).map((_: unknown, i: number) => (
           <Card key={i}>
             <CardContent className="p-6">
               <div className="flex items-center space-x-4">
