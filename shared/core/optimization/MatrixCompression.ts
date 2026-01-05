@@ -79,6 +79,10 @@ export function validateMOICValues(matrix: number[][]): void {
     for (let b = 0; b < scenario.length; b++) {
       const moic = scenario[b];
 
+      if (moic === undefined) {
+        throw new Error(`Missing MOIC at scenario ${s}, bucket ${b}`);
+      }
+
       if (!Number.isFinite(moic)) {
         throw new Error(`Invalid MOIC at scenario ${s}, bucket ${b}: ${moic} (must be finite)`);
       }
@@ -104,16 +108,24 @@ export function matrixToFloat32(matrix: number[][]): Float32Array {
   }
 
   const numScenarios = matrix.length;
-  const numBuckets = matrix[0].length;
+  const firstRow = matrix[0];
+  if (!firstRow) {
+    throw new Error('Matrix first row is undefined');
+  }
+  const numBuckets = firstRow.length;
 
   validateMatrixDimensions(numScenarios, numBuckets);
   validateMOICValues(matrix);
 
   // Check all rows have same length
   for (let s = 0; s < numScenarios; s++) {
-    if (matrix[s].length !== numBuckets) {
+    const row = matrix[s];
+    if (!row) {
+      throw new Error(`Matrix row ${s} is undefined`);
+    }
+    if (row.length !== numBuckets) {
       throw new Error(
-        `Inconsistent row length at scenario ${s}: expected ${numBuckets}, got ${matrix[s].length}`
+        `Inconsistent row length at scenario ${s}: expected ${numBuckets}, got ${row.length}`
       );
     }
   }
@@ -123,8 +135,12 @@ export function matrixToFloat32(matrix: number[][]): Float32Array {
   let idx = 0;
 
   for (let s = 0; s < numScenarios; s++) {
+    const row = matrix[s];
+    if (!row) continue; // Already validated above
     for (let b = 0; b < numBuckets; b++) {
-      flat[idx++] = matrix[s][b];
+      const value = row[b];
+      if (value === undefined) continue; // Already validated above
+      flat[idx++] = value;
     }
   }
 
@@ -201,8 +217,10 @@ export async function compressMatrix(matrix: number[][]): Promise<CompressedMatr
     compressed = new Uint8Array(compressedBuffer);
   } else {
     // Browser environment - use pako
+    // @ts-expect-error - pako types not available
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pako = await import('pako');
+    // @ts-expect-error - pako types not available
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     compressed = pako.deflate(new Uint8Array(flat.buffer, flat.byteOffset, flat.byteLength));
   }
@@ -248,8 +266,10 @@ export async function decompressMatrix(compressed: CompressedMatrix): Promise<nu
     decompressed = new Uint8Array(decompressedBuffer);
   } else {
     // Browser environment - use pako
+    // @ts-expect-error - pako types not available
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pako = await import('pako');
+    // @ts-expect-error - pako types not available
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     decompressed = pako.inflate(compressed.data);
   }

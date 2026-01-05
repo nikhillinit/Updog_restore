@@ -16,9 +16,11 @@
  * Job result: ScenarioResult
  */
 
-import { Worker, Job } from 'bullmq';
-import type { Redis } from 'ioredis';
-import { ScenarioGenerator, ScenarioConfig, ScenarioResult } from '@shared/core/optimization/ScenarioGenerator';
+import type { Job } from 'bullmq';
+import { Worker } from 'bullmq';
+import type Redis from 'ioredis';
+import type { ScenarioConfig, ScenarioResult } from '@shared/core/optimization/ScenarioGenerator';
+import { ScenarioGenerator } from '@shared/core/optimization/ScenarioGenerator';
 
 /**
  * Worker configuration
@@ -122,7 +124,7 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
       connection: config.connection,
       concurrency: config.concurrency ?? 2,
 
-      // Job timeout (default: 5 minutes)
+      // Job timeout (default: 5 minutes) - AP-QUEUE-02 compliance
       lockDuration: config.timeout ?? 5 * 60 * 1000,
 
       // Retry configuration
@@ -172,20 +174,23 @@ export function createScenarioWorker(config: WorkerConfig): Worker<ScenarioConfi
  */
 if (require.main === module) {
   // Load Redis connection from environment
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
   const Redis = require('ioredis').default;
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   const redisConnection = new Redis({
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD,
+    host: process.env['REDIS_HOST'] ?? 'localhost',
+    port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+    password: process.env['REDIS_PASSWORD'],
     maxRetriesPerRequest: null, // Required for BullMQ
   });
 
   // Create worker
-  const worker = createScenarioWorker({
+  createScenarioWorker({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     connection: redisConnection,
-    concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? '2', 10),
-    timeout: parseInt(process.env.WORKER_TIMEOUT ?? '300000', 10), // 5 minutes
+    concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '2', 10),
+    timeout: parseInt(process.env['WORKER_TIMEOUT'] ?? '300000', 10), // 5 minutes
   });
 
   console.log('[ScenarioWorker] Standalone worker started');

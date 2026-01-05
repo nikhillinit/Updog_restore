@@ -229,11 +229,22 @@ export class ScenarioGenerator {
 
       for (let b = 0; b < numBuckets; b++) {
         // Sample base MOIC from power-law distribution
-        const baseMOIC = this.moicGenerators[b].sample(this.rng);
+        const generator = this.moicGenerators[b];
+        if (!generator) {
+          throw new Error(`Missing MOIC generator for bucket ${b}`);
+        }
+        const baseMOIC = generator.sample(this.rng);
 
         // Apply correlated shock (multiplicative)
         // Positive shock → higher MOIC, negative shock → lower MOIC
-        const shock = correlatedShocks[s][b];
+        const scenarioShocks = correlatedShocks[s];
+        if (!scenarioShocks) {
+          throw new Error(`Missing shocks for scenario ${s}`);
+        }
+        const shock = scenarioShocks[b];
+        if (shock === undefined) {
+          throw new Error(`Missing shock for scenario ${s}, bucket ${b}`);
+        }
         const shockedMOIC = baseMOIC * Math.exp(shock * 0.5); // 0.5 dampens shock magnitude
 
         // Ensure non-negative

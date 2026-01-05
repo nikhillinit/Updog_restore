@@ -235,9 +235,13 @@ export class RecyclingEngine {
       );
     }
 
-    return bucketCapitals.map((capital, i) =>
-      this.calculateBucketRecycling(capital, bucketMOICs[i])
-    );
+    return bucketCapitals.map((capital, i) => {
+      const moic = bucketMOICs[i];
+      if (moic === undefined) {
+        throw new Error(`Missing MOIC for bucket ${i}`);
+      }
+      return this.calculateBucketRecycling(capital, moic);
+    });
   }
 
   /**

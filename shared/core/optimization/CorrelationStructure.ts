@@ -102,10 +102,14 @@ export class CorrelationStructure {
 
     // Step 4: Combine shocks using variance decomposition
     const correlatedShocks = bucketShocks.map((bucketShock, b) => {
+      const idioShock = idioShocks[b];
+      if (idioShock === undefined) {
+        throw new Error(`Missing idiosyncratic shock for bucket ${b}`);
+      }
       return (
         this.sqrtWeights.macro * macroShock +
         this.sqrtWeights.systematic * bucketShock +
-        this.sqrtWeights.idiosyncratic * idioShocks[b]
+        this.sqrtWeights.idiosyncratic * idioShock
       );
     });
 
