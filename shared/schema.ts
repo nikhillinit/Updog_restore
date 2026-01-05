@@ -2974,10 +2974,10 @@ export const scenarioMatrices = pgTable(
   'scenario_matrices',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    // Foreign key to portfolioScenarios table
-    scenarioId: uuid('scenario_id')
-      .notNull()
-      .references(() => portfolioScenarios.id, { onDelete: 'cascade' }),
+    // Canonical cache key for scenario matrix (replaces scenarioId FK)
+    matrixKey: text('matrix_key').notNull().unique(),
+    fundId: text('fund_id').notNull(),
+    taxonomyVersion: text('taxonomy_version').notNull(),
     matrixType: varchar('matrix_type', { length: 50 })
       .notNull()
       .$type<'moic' | 'tvpi' | 'dpi' | 'irr'>(),
@@ -3010,7 +3010,12 @@ export const scenarioMatrices = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
-    scenarioIdx: index('idx_scenario_matrices_scenario').on(table.scenarioId),
+    fundTaxIdx: index('idx_scenario_matrices_fund_tax_status').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.status
+    ),
+    matrixKeyIdx: index('idx_scenario_matrices_matrix_key').on(table.matrixKey),
     statusIdx: index('idx_scenario_matrices_status').on(table.status),
     // Correction #1: CHECK constraint enforces payload completeness when status='complete'
     completePayloadCheck: check(
