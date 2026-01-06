@@ -99,13 +99,13 @@ jobs:
             comment += '|--------|---------|------|------|--------|\n';
 
             for (const item of diff) {
-              const status = item.deltaBytes > 0 ? '🔴 +' : '🟢 ';
-              comment += `| ${item.name} | ${item.current} | ${item.base} | ${status}${item.diff} | ${item.withinLimit ? '✅' : '❌'} |\n`;
+              const status = item.deltaBytes > 0 ? '[+] ' : '[-] ';
+              comment += `| ${item.name} | ${item.current} | ${item.base} | ${status}${item.diff} | ${item.withinLimit ? '[PASS]' : '[FAIL]'} |\n`;
             }
 
             comment += '\n' + (diff.some(d => !d.withinLimit)
-              ? '❌ **Some bundles exceed limits!**'
-              : '✅ All bundles within limits');
+              ? '[FAIL] **Some bundles exceed limits!**'
+              : '[PASS] All bundles within limits');
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -118,7 +118,7 @@ jobs:
         run: |
           if [ -f bundle-size-diff.json ]; then
             if grep -q '"exceedsLimit":true' bundle-size-diff.json; then
-              echo "❌ Bundle size limits exceeded!"
+              echo "[FAIL] Bundle size limits exceeded!"
               exit 1
             fi
           fi
