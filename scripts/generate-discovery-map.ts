@@ -968,15 +968,28 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove timestamps for comparison
-    if (existingParsed) {
-      delete existingParsed.generatedAt;
+    // Remove timestamps and staleness fields for comparison
+    // Staleness fields (staleDays, isStale, stats.stale_docs) use mode-specific timestamps
+    function stripNonStructuralFields(obj: any): void {
+      if (!obj || typeof obj !== 'object') return;
+      delete obj.generatedAt;
+      delete obj.staleDays;
+      delete obj.isStale;
+      if (obj.stats) {
+        delete obj.stats.stale_docs;
+      }
+      if (Array.isArray(obj.docs)) {
+        obj.docs.forEach((doc: any) => {
+          delete doc.staleDays;
+          delete doc.isStale;
+        });
+      }
     }
-    delete newParsed.generatedAt;
-    if (existingFastParsed) {
-      delete existingFastParsed.generatedAt;
-    }
-    delete newFastParsed.generatedAt;
+
+    if (existingParsed) stripNonStructuralFields(existingParsed);
+    stripNonStructuralFields(newParsed);
+    if (existingFastParsed) stripNonStructuralFields(existingFastParsed);
+    stripNonStructuralFields(newFastParsed);
 
     const jsonMatch = stableStringify(existingParsed) === stableStringify(newParsed);
     const fastMatch = stableStringify(existingFastParsed) === stableStringify(newFastParsed);
