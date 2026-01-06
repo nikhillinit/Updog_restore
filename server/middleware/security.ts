@@ -286,14 +286,22 @@ export const inputSanitization = (req: Request, res: Response, next: NextFunctio
       req.body = sanitizeObject(req.body);
     }
 
-    // Sanitize query parameters (check for specific properties)
+    // Sanitize query parameters (Express 5: req.query is read-only, modify in place)
     if (Object.keys(req.query).length > 0) {
-      req.query = sanitizeObject(req.query);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const sanitizedQuery = sanitizeObject(req.query);
+      const queryObj = req.query as Record<string, unknown>;
+      Object.keys(queryObj).forEach(key => delete queryObj[key]);
+      Object.assign(req.query, sanitizedQuery);
     }
 
-    // Sanitize route parameters (check for specific properties)
+    // Sanitize route parameters (Express 5: req.params is read-only, modify in place)
     if (Object.keys(req.params).length > 0) {
-      req.params = sanitizeObject(req.params);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const sanitizedParams = sanitizeObject(req.params);
+      const paramsObj = req.params as Record<string, string>;
+      Object.keys(paramsObj).forEach(key => delete paramsObj[key]);
+      Object.assign(req.params, sanitizedParams);
     }
 
     next();

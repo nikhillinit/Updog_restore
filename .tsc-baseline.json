@@ -182,7 +182,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 177,
-      "lastUpdated": "2026-01-05T08:23:53.872Z"
+      "lastUpdated": "2026-01-07T00:00:45.608Z"
     },
     "unknown": {
       "errors": [
@@ -192,7 +192,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-05T08:23:53.872Z"
+      "lastUpdated": "2026-01-07T00:00:45.608Z"
     },
     "shared": {
       "errors": [
@@ -221,7 +221,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 23,
-      "lastUpdated": "2026-01-05T08:23:53.872Z"
+      "lastUpdated": "2026-01-07T00:00:45.608Z"
     },
     "server": {
       "errors": [
@@ -493,7 +493,6 @@
         "server/utils/input-sanitization.ts:TS4111:22625ebc",
         "server/utils/input-sanitization.ts:TS4111:32576b82",
         "server/utils/input-sanitization.ts:TS4111:57aea1f0",
-        "server/utils/input-sanitization.ts:TS4111:64ed0358",
         "server/utils/input-sanitization.ts:TS4111:735f9724",
         "server/utils/input-sanitization.ts:TS4111:749816bb",
         "server/utils/input-sanitization.ts:TS4111:86fb4e98",
@@ -507,19 +506,16 @@
         "server/utils/input-sanitization.ts:TS4111:c111cfa9",
         "server/utils/input-sanitization.ts:TS4111:c76d6b74",
         "server/utils/input-sanitization.ts:TS4111:caa31322",
-        "server/utils/input-sanitization.ts:TS4111:dfc626e4",
-        "server/utils/input-sanitization.ts:TS4111:e97b9e33",
         "server/utils/input-sanitization.ts:TS4111:eeed7a8f",
         "server/utils/input-sanitization.ts:TS4111:f196250b",
-        "server/utils/input-sanitization.ts:TS4111:f814abcc",
-        "server/utils/input-sanitization.ts:TS4111:fb8dc782"
+        "server/utils/input-sanitization.ts:TS4111:f814abcc"
       ],
-      "total": 288,
-      "lastUpdated": "2026-01-05T08:23:53.872Z"
+      "total": 284,
+      "lastUpdated": "2026-01-07T00:00:45.608Z"
     }
   },
-  "totalErrors": 492,
-  "timestamp": "2026-01-05T08:23:53.872Z",
+  "totalErrors": 488,
+  "timestamp": "2026-01-07T00:00:45.608Z",
   "buildMode": "per-project",
-  "elapsedMs": 36962
+  "elapsedMs": 30182
 }

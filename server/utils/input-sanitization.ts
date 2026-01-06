@@ -513,20 +513,26 @@ export function createSanitizationMiddleware(options: {
         }
       }
 
-      // Sanitize query parameters
-      if (opts.sanitizeQuery && req.query) {
-        req.query = sanitizeObject(req.query, {
+      // Sanitize query parameters (Express 5: req.query is read-only, modify in place)
+      if (opts.sanitizeQuery && req['query']) {
+        const sanitizedQuery = sanitizeObject(req['query'], {
           strictMode: opts.strictMode,
           maxDepth: 3
         });
+        const queryObj = req['query'] as Record<string, unknown>;
+        Object.keys(queryObj).forEach(key => delete queryObj[key]);
+        Object.assign(req['query'], sanitizedQuery);
       }
 
-      // Sanitize route parameters
-      if (opts.sanitizeParams && req.params) {
-        req.params = sanitizeObject(req.params, {
+      // Sanitize route parameters (Express 5: req.params is read-only, modify in place)
+      if (opts.sanitizeParams && req['params']) {
+        const sanitizedParams = sanitizeObject(req['params'], {
           strictMode: opts.strictMode,
           maxDepth: 2
         });
+        const paramsObj = req['params'] as Record<string, string>;
+        Object.keys(paramsObj).forEach(key => delete paramsObj[key]);
+        Object.assign(req['params'], sanitizedParams);
       }
 
       next();

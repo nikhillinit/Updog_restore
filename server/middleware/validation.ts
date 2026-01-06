@@ -64,8 +64,11 @@ export function validateRequest(schemas: ValidationSchemas) {
           };
           return res.status(400).json(error);
         }
-        // Use type-safe conversion instead of direct cast
-        req.query = toQueryParams(result.data);
+        // Express 5: req.query is read-only, modify in place
+        const validatedQuery = toQueryParams(result.data);
+        const queryObj = req.query as Record<string, unknown>;
+        Object.keys(queryObj).forEach(key => delete queryObj[key]);
+        Object.assign(req.query, validatedQuery);
       }
 
       // Validate route parameters
@@ -79,8 +82,11 @@ export function validateRequest(schemas: ValidationSchemas) {
           };
           return res.status(400).json(error);
         }
-        // Use type-safe conversion instead of direct cast
-        req.params = toRouteParams(result.data);
+        // Express 5: req.params is read-only, modify in place
+        const validatedParams = toRouteParams(result.data);
+        const paramsObj = req.params as Record<string, string>;
+        Object.keys(paramsObj).forEach(key => delete paramsObj[key]);
+        Object.assign(req.params, validatedParams);
       }
 
       next();
