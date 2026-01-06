@@ -12,9 +12,9 @@ let server: any;
 beforeAll(async () => {
   // Create a simplified test server
   const app = express();
-  
+
   // Core hardening
-  app.set('trust proxy', true);
+  app.set('trust proxy', false);
   app.use(express.json({ limit: '1mb' }));
 
   // Routes first
@@ -43,12 +43,12 @@ describe('Fund calculation endpoint', () => {
     const r = await Promise.all([
       request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload),
       request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload),
-      request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload)
+      request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload),
     ]);
 
-    const created = r.filter(x => x.headers['idempotency-status'] === 'created');
+    const created = r.filter((x) => x.headers['idempotency-status'] === 'created');
     expect(created.length).toBe(1);
-    r.forEach(x => expect([200,201,202]).toContain(x.status));
+    r.forEach((x) => expect([200, 201, 202]).toContain(x.status));
   });
 
   it('returns 201 with result on first calculation without key, subsequent returns 202 joined/in-progress', async () => {
@@ -59,7 +59,7 @@ describe('Fund calculation endpoint', () => {
     expect(first.status).toBe(201);
 
     const again = await request(server).post('/api/funds/calculate').send(payload);
-    expect(['joined','created']).toContain(again.headers['idempotency-status']);
-    expect([200,202,201]).toContain(again.status);
+    expect(['joined', 'created']).toContain(again.headers['idempotency-status']);
+    expect([200, 202, 201]).toContain(again.status);
   });
 });

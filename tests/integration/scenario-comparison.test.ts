@@ -39,10 +39,7 @@ describe.skip('Scenario Comparison API', () => {
   const validConfigRequest = {
     fundId: 1,
     configName: 'Test Configuration',
-    scenarioIds: [
-      '00000000-0000-0000-0000-000000000001',
-      '00000000-0000-0000-0000-000000000002',
-    ],
+    scenarioIds: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
     scenarioTypes: {
       '00000000-0000-0000-0000-000000000001': 'deal',
       '00000000-0000-0000-0000-000000000002': 'deal',
@@ -53,7 +50,7 @@ describe.skip('Scenario Comparison API', () => {
 
   beforeAll(async () => {
     app = express();
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     server = await registerRoutes(app);
@@ -76,9 +73,7 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('POST /api/portfolio/comparisons', () => {
     it('should validate required fields', async () => {
-      const response = await request(server)
-        .post('/api/portfolio/comparisons')
-        .send({});
+      const response = await request(server).post('/api/portfolio/comparisons').send({});
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
@@ -146,17 +141,14 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('GET /api/portfolio/comparisons', () => {
     it('should require fundId query parameter', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparisons');
+      const response = await request(server).get('/api/portfolio/comparisons');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should accept valid fundId and return list', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparisons')
-        .query({ fundId: 1 });
+      const response = await request(server).get('/api/portfolio/comparisons').query({ fundId: 1 });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -187,16 +179,16 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('GET /api/portfolio/comparisons/:comparisonId', () => {
     it('should return 400 for invalid UUID', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparisons/not-a-uuid');
+      const response = await request(server).get('/api/portfolio/comparisons/not-a-uuid');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should return 404 for non-existent comparison', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparisons/00000000-0000-0000-0000-000000000099');
+      const response = await request(server).get(
+        '/api/portfolio/comparisons/00000000-0000-0000-0000-000000000099'
+      );
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('NOT_FOUND');
@@ -205,16 +197,16 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('DELETE /api/portfolio/comparisons/:comparisonId', () => {
     it('should return 400 for invalid UUID', async () => {
-      const response = await request(server)
-        .delete('/api/portfolio/comparisons/not-a-uuid');
+      const response = await request(server).delete('/api/portfolio/comparisons/not-a-uuid');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should return 404 for non-existent comparison', async () => {
-      const response = await request(server)
-        .delete('/api/portfolio/comparisons/00000000-0000-0000-0000-000000000099');
+      const response = await request(server).delete(
+        '/api/portfolio/comparisons/00000000-0000-0000-0000-000000000099'
+      );
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('NOT_FOUND');
@@ -227,8 +219,9 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('GET /api/portfolio/comparisons/:comparisonId/export', () => {
     it('should return 400 for missing format', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparisons/00000000-0000-0000-0000-000000000001/export');
+      const response = await request(server).get(
+        '/api/portfolio/comparisons/00000000-0000-0000-0000-000000000001/export'
+      );
 
       expect(response.status).toBe(400);
     });
@@ -249,9 +242,7 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('POST /api/portfolio/comparison-configs', () => {
     it('should validate required fields', async () => {
-      const response = await request(server)
-        .post('/api/portfolio/comparison-configs')
-        .send({});
+      const response = await request(server).post('/api/portfolio/comparison-configs').send({});
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
@@ -292,8 +283,7 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('GET /api/portfolio/comparison-configs', () => {
     it('should require fundId query parameter', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparison-configs');
+      const response = await request(server).get('/api/portfolio/comparison-configs');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
@@ -312,8 +302,9 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('GET /api/portfolio/comparison-configs/:configId', () => {
     it('should return 404 for non-existent config', async () => {
-      const response = await request(server)
-        .get('/api/portfolio/comparison-configs/00000000-0000-0000-0000-000000000099');
+      const response = await request(server).get(
+        '/api/portfolio/comparison-configs/00000000-0000-0000-0000-000000000099'
+      );
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('NOT_FOUND');
@@ -333,8 +324,9 @@ describe.skip('Scenario Comparison API', () => {
 
   describe('DELETE /api/portfolio/comparison-configs/:configId', () => {
     it('should return 404 for non-existent config', async () => {
-      const response = await request(server)
-        .delete('/api/portfolio/comparison-configs/00000000-0000-0000-0000-000000000099');
+      const response = await request(server).delete(
+        '/api/portfolio/comparison-configs/00000000-0000-0000-0000-000000000099'
+      );
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('NOT_FOUND');
@@ -362,13 +354,11 @@ describe.skip('Scenario Comparison API', () => {
     });
 
     it('should return 400 for invalid access type', async () => {
-      const response = await request(server)
-        .post('/api/portfolio/comparison-access')
-        .send({
-          fundId: 1,
-          accessType: 'invalid_type',
-          scenariosCompared: [],
-        });
+      const response = await request(server).post('/api/portfolio/comparison-access').send({
+        fundId: 1,
+        accessType: 'invalid_type',
+        scenariosCompared: [],
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
@@ -386,9 +376,7 @@ describe.skip('Scenario Comparison API', () => {
         description: 'x'.repeat(10000), // Very large description
       };
 
-      const response = await request(server)
-        .post('/api/portfolio/comparisons')
-        .send(largePayload);
+      const response = await request(server).post('/api/portfolio/comparisons').send(largePayload);
 
       // Should either reject or truncate - not crash
       expect([400, 201]).toContain(response.status);

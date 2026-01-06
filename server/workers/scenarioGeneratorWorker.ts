@@ -63,6 +63,60 @@ interface JobProgress {
 }
 
 /**
+ * Persist cache metrics to Redis (atomic operations)
+ *
+ * Uses HINCRBY for atomic counters to prevent race conditions.
+ * Stores 24-hour and 7-day metrics with TTL.
+ */
+async function persistMetrics(
+  redis: RedisClientType | undefined,
+  data: {
+    cacheHit: boolean;
+    latency: number;
+    matrixKey: string;
+    tier: 'redis' | 'postgres' | 'generation';
+  }
+): Promise<void> {
+  if (!redis) return; // Graceful degradation if Redis unavailable
+
+  try {
+    const metricsKey24h = 'cache:metrics:24h';
+    const metricsKey7d = 'cache:metrics:7d';
+
+    // Atomic counter updates (HINCRBY)
+    await redis.hIncrBy(metricsKey24h, 'totalRequests', 1);
+    await redis.hIncrBy(metricsKey7d, 'totalRequests', 1);
+
+    if (data.cacheHit) {
+      await redis.hIncrBy(metricsKey24h, 'cacheHits', 1);
+      await redis.hIncrBy(metricsKey7d, 'cacheHits', 1);
+    } else {
+      await redis.hIncrBy(metricsKey24h, 'cacheMisses', 1);
+      await redis.hIncrBy(metricsKey7d, 'cacheMisses', 1);
+    }
+
+    // Store latency record (list with max 1000 entries)
+    const latencyRecord = JSON.stringify({
+      tier: data.tier,
+      latency: data.latency,
+      timestamp: new Date().toISOString(),
+      matrixKey: data.matrixKey,
+    });
+
+    await redis.lPush(`${metricsKey24h}:latencies`, latencyRecord);
+    await redis.lTrim(`${metricsKey24h}:latencies`, 0, 999); // Keep last 1000
+
+    // Set TTLs
+    await redis.expire(metricsKey24h, 86400); // 24 hours
+    await redis.expire(`${metricsKey24h}:latencies`, 86400);
+    await redis.expire(metricsKey7d, 604800); // 7 days
+  } catch (error) {
+    console.error('[ScenarioWorker] Metrics persistence error:', error);
+    // Non-fatal - don't throw
+  }
+}
+
+/**
  * Process scenario generation job with caching
  *
  * @param job - BullMQ job with ScenarioConfigWithMeta data
@@ -88,6 +142,14 @@ async function processScenarioJob(
 
   // Determine if cache hit or miss
   const cacheHit = result.metadata.durationMs === 0;
+
+  // Store metrics in Redis (atomic operations)
+  await persistMetrics(cache['redis'], {
+    cacheHit,
+    latency: totalDurationMs,
+    matrixKey: result.metadata.configHash,
+    tier: cacheHit ? 'redis' : result.metadata.durationMs < 100 ? 'postgres' : 'generation',
+  });
 
   if (cacheHit) {
     // Cache hit - fast path

@@ -49,7 +49,7 @@ describe('Backtesting API', () => {
 
   beforeAll(async () => {
     app = express();
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     server = await registerRoutes(app);

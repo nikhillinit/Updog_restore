@@ -14,14 +14,14 @@ describe('Operations Endpoint', () => {
   beforeAll(async () => {
     // Create a simplified test server
     const app = express();
-    
+
     // Core hardening
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     // Register all routes including the main API routes
     server = await registerRoutes(app);
-    
+
     // Additional test-specific routes
     app.use(healthRouter);
     app.use(fundsRouter);
@@ -51,7 +51,7 @@ describe('Operations Endpoint', () => {
     ]);
     expect([201, 202]).toContain(r1.status);
     expect([201, 202]).toContain(r2.status);
-    
+
     // Check for proper headers on 202 response
     const joinedResponse = r1.status === 202 ? r1 : r2;
     if (joinedResponse.status === 202) {
@@ -103,22 +103,21 @@ describe('Operations Endpoint', () => {
 
   it('concurrent idempotent requests do not cause unhandled rejections', async () => {
     const payload = { fundSize: 5e7 };
-    const key = `itest-concurrent-${  Date.now()}`;
-    
+    const key = `itest-concurrent-${Date.now()}`;
+
     // Fire 5 concurrent requests with same key
-    const requests = Array(5).fill(null).map(() => 
-      request(server)
-        .post('/api/funds/calculate')
-        .set('Idempotency-Key', key)
-        .send(payload)
-    );
-    
+    const requests = Array(5)
+      .fill(null)
+      .map(() =>
+        request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload)
+      );
+
     const responses = await Promise.all(requests);
-    
+
     // Should have exactly one 201 and rest should be 202
-    const createdCount = responses.filter(r => r.status === 201).length;
-    const joinedCount = responses.filter(r => r.status === 202).length;
-    
+    const createdCount = responses.filter((r) => r.status === 201).length;
+    const joinedCount = responses.filter((r) => r.status === 202).length;
+
     expect(createdCount).toBeLessThanOrEqual(1);
     expect(joinedCount).toBeGreaterThanOrEqual(responses.length - 1);
     expect(createdCount + joinedCount).toBe(responses.length);
@@ -126,14 +125,14 @@ describe('Operations Endpoint', () => {
 
   it('polling operations endpoint eventually returns success', async () => {
     const payload = { fundSize: 2e7 };
-    const key = `itest-poll-${  Date.now()}`;
-    
+    const key = `itest-poll-${Date.now()}`;
+
     // Start calculation
     const initRes = await request(server)
       .post('/api/funds/calculate')
       .set('Idempotency-Key', key)
       .send(payload);
-    
+
     if (initRes.status === 201) {
       // Already complete
       expect(initRes.body).toBeDefined();
@@ -141,11 +140,11 @@ describe('Operations Endpoint', () => {
       // Poll for completion (max 10 attempts)
       let attempts = 0;
       let completed = false;
-      
+
       while (attempts < 10 && !completed) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const pollRes = await request(server).get(`/api/operations/${key}`);
-        
+
         if (pollRes.status === 200) {
           completed = true;
           expect(pollRes.body.status).toBe('succeeded');
@@ -154,10 +153,10 @@ describe('Operations Endpoint', () => {
           completed = true;
           expect(pollRes.body.status).toBe('failed');
         }
-        
+
         attempts++;
       }
-      
+
       expect(completed).toBe(true);
     }
   });

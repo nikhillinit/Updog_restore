@@ -43,7 +43,7 @@ describe('Performance Dashboard API', () => {
 
   beforeAll(async () => {
     app = express();
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     server = await registerRoutes(app);
@@ -70,79 +70,82 @@ describe('Performance Dashboard API', () => {
 
   describe('GET /api/funds/:fundId/performance/timeseries', () => {
     it('should require startDate parameter', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({ endDate: '2024-12-31', granularity: 'monthly' });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        endDate: '2024-12-31',
+        granularity: 'monthly',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should require endDate parameter', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({ startDate: '2024-01-01', granularity: 'monthly' });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: '2024-01-01',
+        granularity: 'monthly',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should require granularity parameter', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({ startDate: '2024-01-01', endDate: '2024-12-31' });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: '2024-01-01',
+        endDate: '2024-12-31',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject invalid date format', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          startDate: '01-01-2024',
-          endDate: '2024-12-31',
-          granularity: 'monthly',
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: '01-01-2024',
+        endDate: '2024-12-31',
+        granularity: 'monthly',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject invalid granularity', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          ...validTimeseriesQuery,
-          granularity: 'hourly',
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        ...validTimeseriesQuery,
+        granularity: 'hourly',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject startDate after endDate', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          startDate: '2024-12-31',
-          endDate: '2024-01-01',
-          granularity: 'monthly',
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: '2024-12-31',
+        endDate: '2024-01-01',
+        granularity: 'monthly',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject daily granularity for more than 2 years', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          startDate: '2020-01-01',
-          endDate: '2024-12-31',
-          granularity: 'daily',
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: '2020-01-01',
+        endDate: '2024-12-31',
+        granularity: 'daily',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject invalid fundId (non-numeric)', async () => {
-      const response = await authGet('/api/funds/abc/performance/timeseries')
-        .query(validTimeseriesQuery);
+      const response = await authGet('/api/funds/abc/performance/timeseries').query(
+        validTimeseriesQuery
+      );
 
       expect(response.status).toBe(400);
       // Error code may be 'Bad Request' (from middleware) or 'INVALID_PARAMETER' (from route)
@@ -150,8 +153,9 @@ describe('Performance Dashboard API', () => {
     });
 
     it('should reject invalid fundId (zero)', async () => {
-      const response = await authGet('/api/funds/0/performance/timeseries')
-        .query(validTimeseriesQuery);
+      const response = await authGet('/api/funds/0/performance/timeseries').query(
+        validTimeseriesQuery
+      );
 
       // fundId=0 is not in user's access list [1,2,3], so middleware returns 403 first
       // This is correct security behavior - don't reveal that 0 is invalid vs unauthorized
@@ -160,16 +164,18 @@ describe('Performance Dashboard API', () => {
 
     it('should return 403 for fund user does not have access to', async () => {
       // User only has access to funds [1, 2, 3] - fund 99999 returns 403
-      const response = await authGet('/api/funds/99999/performance/timeseries')
-        .query(validTimeseriesQuery);
+      const response = await authGet('/api/funds/99999/performance/timeseries').query(
+        validTimeseriesQuery
+      );
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Forbidden');
     });
 
     it('should accept valid query and return timeseries structure', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query(validTimeseriesQuery);
+      const response = await authGet('/api/funds/1/performance/timeseries').query(
+        validTimeseriesQuery
+      );
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('fundId');
@@ -202,16 +208,18 @@ describe('Performance Dashboard API', () => {
     });
 
     it('should reject invalid groupBy value', async () => {
-      const response = await authGet('/api/funds/1/performance/breakdown')
-        .query({ groupBy: 'invalid' });
+      const response = await authGet('/api/funds/1/performance/breakdown').query({
+        groupBy: 'invalid',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should accept sector groupBy', async () => {
-      const response = await authGet('/api/funds/1/performance/breakdown')
-        .query({ groupBy: 'sector' });
+      const response = await authGet('/api/funds/1/performance/breakdown').query({
+        groupBy: 'sector',
+      });
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('breakdown');
@@ -225,16 +233,18 @@ describe('Performance Dashboard API', () => {
 
     it('should return 403 for fund user does not have access to', async () => {
       // User only has access to funds [1, 2, 3] - fund 99999 returns 403
-      const response = await authGet('/api/funds/99999/performance/breakdown')
-        .query(validBreakdownQuery);
+      const response = await authGet('/api/funds/99999/performance/breakdown').query(
+        validBreakdownQuery
+      );
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Forbidden');
     });
 
     it('should return correct breakdown structure', async () => {
-      const response = await authGet('/api/funds/1/performance/breakdown')
-        .query(validBreakdownQuery);
+      const response = await authGet('/api/funds/1/performance/breakdown').query(
+        validBreakdownQuery
+      );
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('fundId');
@@ -265,28 +275,27 @@ describe('Performance Dashboard API', () => {
     });
 
     it('should reject more than 5 dates', async () => {
-      const response = await authGet('/api/funds/1/performance/comparison')
-        .query({
-          dates: '2024-01-31,2024-02-28,2024-03-31,2024-04-30,2024-05-31,2024-06-30',
-        });
+      const response = await authGet('/api/funds/1/performance/comparison').query({
+        dates: '2024-01-31,2024-02-28,2024-03-31,2024-04-30,2024-05-31,2024-06-30',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should reject invalid date format in dates list', async () => {
-      const response = await authGet('/api/funds/1/performance/comparison')
-        .query({
-          dates: '2024-03-31,invalid-date,2024-09-30',
-        });
+      const response = await authGet('/api/funds/1/performance/comparison').query({
+        dates: '2024-03-31,invalid-date,2024-09-30',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     it('should accept valid dates and return comparison structure', async () => {
-      const response = await authGet('/api/funds/1/performance/comparison')
-        .query(validComparisonQuery);
+      const response = await authGet('/api/funds/1/performance/comparison').query(
+        validComparisonQuery
+      );
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('fundId');
@@ -306,8 +315,9 @@ describe('Performance Dashboard API', () => {
 
     it('should return 403 for fund user does not have access to', async () => {
       // User only has access to funds [1, 2, 3] - fund 99999 returns 403
-      const response = await authGet('/api/funds/99999/performance/comparison')
-        .query(validComparisonQuery);
+      const response = await authGet('/api/funds/99999/performance/comparison').query(
+        validComparisonQuery
+      );
 
       expect(response.status).toBe(403);
       expect(response.body.error).toBe('Forbidden');
@@ -321,22 +331,20 @@ describe('Performance Dashboard API', () => {
   describe('Security', () => {
     it('should handle oversized metrics parameter', async () => {
       const longMetrics = Array(100).fill('irr').join(',');
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          ...validTimeseriesQuery,
-          metrics: longMetrics,
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        ...validTimeseriesQuery,
+        metrics: longMetrics,
+      });
 
       // Accept 200 (success), 400 (validation), 404 (not found), or 500 (server error)
       expect([200, 400, 404, 500]).toContain(response.status);
     });
 
     it('should sanitize potential injection in metric names', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({
-          ...validTimeseriesQuery,
-          metrics: '__proto__,constructor,prototype',
-        });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        ...validTimeseriesQuery,
+        metrics: '__proto__,constructor,prototype',
+      });
 
       // Accept 200 (success), 400 (validation), 404 (not found), or 500 (server error)
       expect([200, 400, 404, 500]).toContain(response.status);
@@ -349,8 +357,9 @@ describe('Performance Dashboard API', () => {
 
   describe('Error Response Format', () => {
     it('should return consistent error format for validation errors', async () => {
-      const response = await authGet('/api/funds/1/performance/timeseries')
-        .query({ startDate: 'invalid' });
+      const response = await authGet('/api/funds/1/performance/timeseries').query({
+        startDate: 'invalid',
+      });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -360,8 +369,9 @@ describe('Performance Dashboard API', () => {
 
     it('should return consistent error format for forbidden access', async () => {
       // Fund 99999 is not in user's access list, so returns 403 Forbidden
-      const response = await authGet('/api/funds/99999/performance/breakdown')
-        .query(validBreakdownQuery);
+      const response = await authGet('/api/funds/99999/performance/breakdown').query(
+        validBreakdownQuery
+      );
 
       expect(response.status).toBe(403);
       expect(response.body).toHaveProperty('error', 'Forbidden');

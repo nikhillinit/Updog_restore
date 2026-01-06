@@ -188,13 +188,12 @@ export const strictRateLimit = createRateLimiter({
 });
 
 // Monte Carlo specific rate limiting (compute-intensive operations)
+// Note: We don't use custom keyGenerator here to allow express-rate-limit
+// to handle IPv6 properly. User-based rate limiting should be implemented
+// at the authentication middleware level if needed.
 export const monteCarloRateLimit = createRateLimiter({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 3, // Only 3 Monte Carlo simulations per 5 minutes
-  keyGenerator: (req: Request) => {
-    const userId = (req as any).user?.id;
-    return userId ? `mc:${userId}` : (req.ip ?? 'unknown');
-  },
   handler: (req: Request, res: Response) => {
     logSecurity('Monte Carlo rate limit exceeded', {
       ...logContext.addRequestContext(req),
