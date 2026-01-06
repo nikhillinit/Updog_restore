@@ -213,6 +213,11 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value, (_key, val) => sortObjectKeys(val), 2);
 }
 
+function normalizeLineEndings(content: string): string {
+  // Cross-platform determinism: normalize CRLF to LF before parsing.
+  return content.replace(/\r\n/g, '\n');
+}
+
 /**
  * Determine document type from path
  */
@@ -251,7 +256,7 @@ function parseYaml(content: string): unknown {
   // For now, we'll use a basic approach that handles our config structure
   try {
     // Remove comments
-    const lines = content.split('\n').filter(line => !line.trim().startsWith('#'));
+    const lines = content.split('\n').filter((line) => !line.trim().startsWith('#'));
     const cleanContent = lines.join('\n');
 
     // Use Function constructor to safely evaluate YAML-like structure
@@ -302,7 +307,10 @@ function parseFrontmatter(content: string): { data: Record<string, unknown>; con
           continue;
         }
         if (value.startsWith('[') && value.endsWith(']')) {
-          value = value.slice(1, -1).split(',').map(s => s.trim().replace(/"/g, ''));
+          value = value
+            .slice(1, -1)
+            .split(',')
+            .map((s) => s.trim().replace(/"/g, ''));
         }
         // Handle booleans
         else if (value === 'true') value = true;
@@ -340,7 +348,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
         const relativePath = normalizePath(fullPath);
 
         // Check excludes
-        const isExcluded = excludes.some(exc => {
+        const isExcluded = excludes.some((exc) => {
           const pattern = normalizePath(exc).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
           return new RegExp(pattern).test(relativePath);
         });
@@ -350,7 +358,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
           await walkDir(fullPath);
         } else if (entry.name.endsWith('.md')) {
           // Check if matches any pattern
-          const matches = patterns.some(pat => {
+          const matches = patterns.some((pat) => {
             const pattern = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
             return new RegExp(pattern).test(relativePath);
           });
@@ -384,7 +392,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
         if (!entry.isDirectory() && entry.name.endsWith('.md')) {
-          const matches = patterns.some(pat => {
+          const matches = patterns.some((pat) => {
             const patternRegex = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
             return new RegExp(`^${patternRegex}$`).test(entry.name);
           });
@@ -410,7 +418,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
  */
 function hasExecutionClaims(content: string, patterns: string[]): boolean {
   const lowerContent = content.toLowerCase();
-  return patterns.some(pattern => lowerContent.includes(pattern.toLowerCase()));
+  return patterns.some((pattern) => lowerContent.includes(pattern.toLowerCase()));
 }
 
 /**
@@ -499,9 +507,7 @@ function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
   for (let i = 0; i < nodePositions.length; i++) {
     const nodeId = nodePositions[i].id;
     const contentStart = nodePositions[i].matchEnd;
-    const contentEnd = i < nodePositions.length - 1
-      ? nodePositions[i + 1].start
-      : dtBlock.length;
+    const contentEnd = i < nodePositions.length - 1 ? nodePositions[i + 1].start : dtBlock.length;
 
     const nodeContent = dtBlock.slice(contentStart, contentEnd);
 
@@ -515,8 +521,8 @@ function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
     if (keywordsMatch) {
       node.keywords = keywordsMatch[1]
         .split(',')
-        .map(k => k.trim().replace(/"/g, ''))
-        .filter(k => k.length > 0);
+        .map((k) => k.trim().replace(/"/g, ''))
+        .filter((k) => k.length > 0);
     }
 
     // Extract next
@@ -535,7 +541,9 @@ function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
       node.action_if_true = actionTrueSimpleMatch[1];
     } else {
       // Check for nested object (route/message/warning on subsequent lines)
-      const actionTrueObjMatch = nodeContent.match(/action_if_true:\s*\n([\s\S]*?)(?=\n {4}action_if_false:|\n {4}next:|\n {2}Q\d+:|\n\n {2}Q|$)/);
+      const actionTrueObjMatch = nodeContent.match(
+        /action_if_true:\s*\n([\s\S]*?)(?=\n {4}action_if_false:|\n {4}next:|\n {2}Q\d+:|\n\n {2}Q|$)/
+      );
       if (actionTrueObjMatch) {
         const nested = actionTrueObjMatch[1];
         const route = extractField(nested, 'route');
@@ -558,15 +566,19 @@ function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
     }
 
     // Extract condition if present (nested structure)
-    const conditionMatch = nodeContent.match(/condition:\s*\n([\s\S]*?)(?=\n {4}action_|\n {4}next:)/);
+    const conditionMatch = nodeContent.match(
+      /condition:\s*\n([\s\S]*?)(?=\n {4}action_|\n {4}next:)/
+    );
     if (conditionMatch) {
-      node.condition = { raw: conditionMatch[1].trim() };
+      node.condition = { raw: normalizeLineEndings(conditionMatch[1].trim()) };
     }
 
     // Extract branches if present
-    const branchesMatch = nodeContent.match(/branches:\s*\n([\s\S]*?)(?=\n {4}default_route:|\n {4}next:)/);
+    const branchesMatch = nodeContent.match(
+      /branches:\s*\n([\s\S]*?)(?=\n {4}default_route:|\n {4}next:)/
+    );
     if (branchesMatch) {
-      node.branches = { raw: branchesMatch[1].trim() };
+      node.branches = { raw: normalizeLineEndings(branchesMatch[1].trim()) };
     }
 
     tree[nodeId] = node;
@@ -607,7 +619,7 @@ async function main(): Promise<void> {
   // 1. Load Source Config
   let rawConfig: string;
   try {
-    rawConfig = await fs.readFile(SOURCE_FILE, 'utf8');
+    rawConfig = normalizeLineEndings(await fs.readFile(SOURCE_FILE, 'utf8'));
   } catch {
     console.error(`ERROR: Source file not found: ${SOURCE_FILE}`);
     process.exit(1);
@@ -621,9 +633,9 @@ async function main(): Promise<void> {
       min_score_to_route: 2,
       staleness_cadence_default: 'P180D',
       scan_paths: [
-        '*.md',              // Root-level docs (CAPABILITIES.md, etc.)
-        'docs/*.md',         // Top-level docs/ files (INDEX.md, etc.)
-        'docs/**/*.md',      // Nested docs/ subdirectories
+        '*.md', // Root-level docs (CAPABILITIES.md, etc.)
+        'docs/*.md', // Top-level docs/ files (INDEX.md, etc.)
+        'docs/**/*.md', // Nested docs/ subdirectories
         'cheatsheets/**/*.md',
         '.claude/agents/*.md',
         '.claude/skills/**/*.md',
@@ -661,7 +673,7 @@ async function main(): Promise<void> {
 
   for (const match of patternMatches) {
     const keywordsBlock = match[4];
-    const keywords = [...keywordsBlock.matchAll(/- "([^"]+)"/g)].map(m => m[1]);
+    const keywords = [...keywordsBlock.matchAll(/- "([^"]+)"/g)].map((m) => m[1]);
 
     config.patterns.push({
       id: match[1],
@@ -683,7 +695,7 @@ async function main(): Promise<void> {
     config.agents.phoenix.push({
       name: match[1],
       skill: match[2],
-      phase: match[3].split(',').map(s => s.trim()),
+      phase: match[3].split(',').map((s) => s.trim()),
     });
   }
 
@@ -702,8 +714,9 @@ async function main(): Promise<void> {
 
   // 3. Scan Files
   console.log('Scanning documentation files...');
-  const files = (await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths))
-    .sort(compareStrings);
+  const files = (
+    await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths)
+  ).sort(compareStrings);
 
   if (isVerbose) {
     console.log(`Found ${files.length} files`);
@@ -720,7 +733,7 @@ async function main(): Promise<void> {
   for (const file of files) {
     try {
       const normalizedFile = normalizePath(file);
-      const content = await fs.readFile(normalizedFile, 'utf8');
+      const content = normalizeLineEndings(await fs.readFile(normalizedFile, 'utf8'));
       const parsed = parseFrontmatter(content);
 
       const lastUpdatedStr = parsed.data.last_updated as string | undefined;
@@ -732,11 +745,13 @@ async function main(): Promise<void> {
         config.configuration.staleness_cadence_default
       );
 
+      // Cross-platform determinism: freeze "now" during check mode.
+      const now = isCheckMode ? new Date('2000-01-01T00:00:00.000Z').getTime() : Date.now();
       const staleDays = lastUpdated
-        ? Math.floor((Date.now() - lastUpdated.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor((now - lastUpdated.getTime()) / (24 * 60 * 60 * 1000))
         : 999;
 
-      const isStale = lastUpdated ? Date.now() - lastUpdated.getTime() > cadence : true;
+      const isStale = lastUpdated ? now - lastUpdated.getTime() > cadence : true;
 
       const execClaims = hasExecutionClaims(content, config.staleness.execution_claim_patterns);
 
@@ -863,7 +878,7 @@ Documents that need review (older than their cadence threshold):
 
 `;
 
-  const staleDocs = docsData.filter(d => d.isStale).sort((a, b) => b.staleDays - a.staleDays);
+  const staleDocs = docsData.filter((d) => d.isStale).sort((a, b) => b.staleDays - a.staleDays);
 
   if (staleDocs.length === 0) {
     mdOutput += '*No stale documents found.*\n';
@@ -890,7 +905,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 
 `;
 
-  const execClaimDocs = docsData.filter(d => d.hasExecutionClaims && d.isStale);
+  const execClaimDocs = docsData.filter((d) => d.hasExecutionClaims && d.isStale);
   if (execClaimDocs.length === 0) {
     mdOutput += '*No stale documents with execution claims.*\n';
   } else {
@@ -906,7 +921,7 @@ Documents without proper YAML frontmatter:
 
 `;
 
-  const missingFm = docsData.filter(d => Object.keys(d.frontmatter).length === 0);
+  const missingFm = docsData.filter((d) => Object.keys(d.frontmatter).length === 0);
   if (missingFm.length === 0) {
     mdOutput += '*All documents have frontmatter.*\n';
   } else {
@@ -953,15 +968,28 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove timestamps for comparison
-    if (existingParsed) {
-      delete existingParsed.generatedAt;
+    // Remove timestamps and staleness fields for comparison
+    // Staleness fields (staleDays, isStale, stats.stale_docs) use mode-specific timestamps
+    function stripNonStructuralFields(obj: any): void {
+      if (!obj || typeof obj !== 'object') return;
+      delete obj.generatedAt;
+      delete obj.staleDays;
+      delete obj.isStale;
+      if (obj.stats) {
+        delete obj.stats.stale_docs;
+      }
+      if (Array.isArray(obj.docs)) {
+        obj.docs.forEach((doc: any) => {
+          delete doc.staleDays;
+          delete doc.isStale;
+        });
+      }
     }
-    delete newParsed.generatedAt;
-    if (existingFastParsed) {
-      delete existingFastParsed.generatedAt;
-    }
-    delete newFastParsed.generatedAt;
+
+    if (existingParsed) stripNonStructuralFields(existingParsed);
+    stripNonStructuralFields(newParsed);
+    if (existingFastParsed) stripNonStructuralFields(existingFastParsed);
+    stripNonStructuralFields(newFastParsed);
 
     const jsonMatch = stableStringify(existingParsed) === stableStringify(newParsed);
     const fastMatch = stableStringify(existingFastParsed) === stableStringify(newFastParsed);
@@ -993,11 +1021,13 @@ Documents without proper YAML frontmatter:
     console.log(`  - ${OUT_FAST}`);
     console.log(`  - ${OUT_STALENESS}`);
     console.log('');
-    console.log(`Stats: ${stats.total_docs} docs, ${stats.stale_docs} stale, ${stats.missing_frontmatter} missing frontmatter`);
+    console.log(
+      `Stats: ${stats.total_docs} docs, ${stats.stale_docs} stale, ${stats.missing_frontmatter} missing frontmatter`
+    );
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('ERROR:', err.message);
   process.exit(1);
 });
