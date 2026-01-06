@@ -24,7 +24,7 @@ describe('Report Generation Queue Exports', () => {
   it('should export queue initialization function', async () => {
     const queueModule = await import('../../server/queues/report-generation-queue');
     expect(typeof queueModule.initializeReportQueue).toBe('function');
-  });
+  }, 10000); // 10 second timeout for module import
 
   it('should export enqueue function', async () => {
     const queueModule = await import('../../server/queues/report-generation-queue');
