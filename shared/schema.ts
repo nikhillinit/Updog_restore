@@ -3004,7 +3004,7 @@ export const scenarioMatrices = pgTable(
     status: varchar('status', { length: 50 })
       .notNull()
       .default('pending')
-      .$type<'pending' | 'processing' | 'complete' | 'failed'>(),
+      .$type<'pending' | 'processing' | 'complete' | 'failed' | 'invalidated'>(),
     errorMessage: text('error_message'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

@@ -1,11 +1,10 @@
 name: Testcontainers Integration Tests
 
-# Run on main pushes, PRs, or manual triggers.
+# Run on label trigger (test:docker or test:integration) or manual dispatch.
+# This workflow requires Docker, which may not be available in all environments.
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    types: [labeled]
   workflow_dispatch:
 
 jobs:
@@ -13,6 +12,13 @@ jobs:
     name: Testcontainers
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Only run if labeled with test:docker or test:integration
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && (
+        contains(github.event.pull_request.labels.*.name, 'test:docker') ||
+        contains(github.event.pull_request.labels.*.name, 'test:integration')
+      ))
     # No services section: testcontainers manages Docker services itself.
     env:
       ENABLE_PHASE4_TESTS: 'true'

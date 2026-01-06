@@ -499,7 +499,7 @@ describe('Critical Middleware Tests', () => {
 
     it('should handle IPv6 addresses in rate limiting', async () => {
       const testApp = express();
-      testApp.set('trust proxy', true);
+      testApp.set('trust proxy', 1);
       testApp.use(rateLimitDetailed());
       testApp.get('/test', (req, res) => res.json({ ip: req.ip }));
 
