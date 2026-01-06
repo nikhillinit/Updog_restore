@@ -7990,6 +7990,18 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/PHASE3-SESSION5-KICKOFF.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {
         "audience": "agents",
         "categories": [
@@ -9618,7 +9630,7 @@
       "status": "UNKNOWN"
     }
   ],
-  "generatedAt": "2026-01-06T07:26:21.131Z",
+  "generatedAt": "2026-01-06T07:53:00.467Z",
   "patterns": [
     {
       "category": "Security",
@@ -10100,13 +10112,13 @@
   "stats": {
     "by_status": {
       "ACTIVE": 14,
-      "UNKNOWN": 710,
+      "UNKNOWN": 711,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 642,
-    "stale_docs": 714,
-    "total_docs": 729
+    "missing_frontmatter": 643,
+    "stale_docs": 715,
+    "total_docs": 730
   },
   "version": "2.0"
 }

@@ -1,21 +1,21 @@
 # Staleness Report
 
-*Generated: 2026-01-06T07:26:22.188Z*
+*Generated: 2026-01-06T07:53:01.144Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 729 |
-| Stale Documents | 714 |
-| Missing Frontmatter | 642 |
+| Total Documents | 730 |
+| Stale Documents | 715 |
+| Missing Frontmatter | 643 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| UNKNOWN | 710 |
+| UNKNOWN | 711 |
 | ACTIVE | 14 |
 | ready | 3 |
 | active | 2 |
@@ -77,7 +77,7 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/enable-agent-memory.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/evaluate-tools.md` | Never | 999 | No | Unassigned |
 
-*...and 664 more stale documents.*
+*...and 665 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -235,6 +235,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/plans/PHASE3-SESSION2-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION3-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION4-KICKOFF.md** (999 days old)
+- [ ] **docs/plans/PHASE3-SESSION5-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-AGENT-STRATEGY.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-COMPLETE-GUIDE.md** (999 days old)
@@ -783,6 +784,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/PHASE3-SESSION2-KICKOFF.md`
 - [ ] `docs/plans/PHASE3-SESSION3-KICKOFF.md`
 - [ ] `docs/plans/PHASE3-SESSION4-KICKOFF.md`
+- [ ] `docs/plans/PHASE3-SESSION5-KICKOFF.md`
 - [ ] `docs/plans/WEEK1-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md`

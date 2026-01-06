@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-06T07:26:21.131Z",
+  "generatedAt": "2026-01-06T07:53:00.467Z",
   "keyword_to_docs": {
     "adr": [
       "docs/adr/"
