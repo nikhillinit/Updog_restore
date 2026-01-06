@@ -136,6 +136,7 @@ export function createScenarioWorker(
     `[ScenarioWorker] Cache initialized (Redis: ${config.redis ? 'enabled' : 'disabled'})`
   );
 
+  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration, not timeout
   const worker = new Worker<ScenarioConfigWithMeta, ScenarioResult>(
     'scenario-generation',
     async (job) => {
@@ -152,7 +153,6 @@ export function createScenarioWorker(
 
       // Job timeout (default: 5 minutes) - AP-QUEUE-02 compliance
       lockDuration: config.timeout ?? 5 * 60 * 1000,
-      timeout: config.timeout ?? 5 * 60 * 1000, // Explicit timeout for lint rule
 
       // Retry configuration
       settings: {
@@ -245,9 +245,10 @@ if (require.main === module) {
         process.env['REDIS_URL'] ??
         `redis://${process.env['REDIS_HOST'] ?? 'localhost'}:${process.env['REDIS_PORT'] ?? '6379'}`;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      cacheRedis = createClient({ url: redisUrl });
-
-      await cacheRedis.connect();
+      const client = createClient({ url: redisUrl });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      await client.connect();
+      cacheRedis = client as RedisClientType;
       console.log('[ScenarioWorker] Cache Redis connected');
     } catch (error) {
       console.warn('[ScenarioWorker] Cache Redis unavailable, using PostgreSQL-only mode:', error);
@@ -260,8 +261,7 @@ if (require.main === module) {
       connection: bullmqRedis,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       db,
-
-      redis: cacheRedis,
+      ...(cacheRedis ? { redis: cacheRedis } : {}),
       concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '2', 10),
       timeout: parseInt(process.env['WORKER_TIMEOUT'] ?? '300000', 10), // 5 minutes
     });
