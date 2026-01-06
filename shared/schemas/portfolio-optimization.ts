@@ -58,7 +58,13 @@ export type UpdateJobOutboxInput = z.infer<typeof updateJobOutboxSchema>;
 /**
  * Valid status values for scenario matrices
  */
-export const scenarioMatrixStatusSchema = z.enum(['pending', 'processing', 'complete', 'failed']);
+export const scenarioMatrixStatusSchema = z.enum([
+  'pending',
+  'processing',
+  'complete',
+  'failed',
+  'invalidated',
+]);
 
 export type ScenarioMatrixStatus = z.infer<typeof scenarioMatrixStatusSchema>;
 
