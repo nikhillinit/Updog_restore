@@ -236,10 +236,13 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     // Configure tools (native memory tool)
     const tools: Anthropic.Tool[] = [];
     if (options?.enableMemory) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+       
       tools.push({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: 'memory_20250818' as any, // Native memory tool (beta feature)
         name: 'memory',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     }
 
@@ -630,11 +633,11 @@ export async function aiConsensus({
 
   let consensus = '';
   if (successfulResponses.length === 0) {
-    consensus = '❌ No successful responses from AIs';
+    consensus = 'FAIL: No successful responses from AIs';
   } else if (successfulResponses.length === models.length) {
-    consensus = `✅ All ${models.length} AIs provided recommendations`;
+    consensus = `SUCCESS: All ${models.length} AIs provided recommendations`;
   } else {
-    consensus = `⚠️ ${successfulResponses.length}/${models.length} AIs responded successfully`;
+    consensus = `WARNING: ${successfulResponses.length}/${models.length} AIs responded successfully`;
   }
 
   return {

@@ -184,6 +184,35 @@ function normalize(s: string): string {
   return s.trim().toLowerCase();
 }
 
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+function compareStrings(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+function sortObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortObjectKeys);
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort(compareStrings)) {
+      sorted[key] = sortObjectKeys(record[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => sortObjectKeys(val), 2);
+}
+
 /**
  * Determine document type from path
  */
@@ -305,13 +334,14 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
   async function walkDir(dir: string): Promise<void> {
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
+      entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-        const relativePath = fullPath;
+        const relativePath = normalizePath(fullPath);
 
         // Check excludes
         const isExcluded = excludes.some(exc => {
-          const pattern = exc.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+          const pattern = normalizePath(exc).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
           return new RegExp(pattern).test(relativePath);
         });
         if (isExcluded) continue;
@@ -321,7 +351,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
         } else if (entry.name.endsWith('.md')) {
           // Check if matches any pattern
           const matches = patterns.some(pat => {
-            const pattern = pat.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+            const pattern = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
             return new RegExp(pattern).test(relativePath);
           });
           if (matches) {
@@ -351,10 +381,11 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
   if (hasRootPattern) {
     try {
       const entries = await fs.readdir('.', { withFileTypes: true });
+      entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
         if (!entry.isDirectory() && entry.name.endsWith('.md')) {
           const matches = patterns.some(pat => {
-            const patternRegex = pat.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+            const patternRegex = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
             return new RegExp(`^${patternRegex}$`).test(entry.name);
           });
           if (matches) {
@@ -371,7 +402,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
     await walkDir(dir);
   }
 
-  return results;
+  return results.sort(compareStrings);
 }
 
 /**
@@ -568,6 +599,7 @@ function extractField(content: string, field: string): string | null {
 async function main(): Promise<void> {
   const isCheckMode = process.argv.includes('--check');
   const isVerbose = process.argv.includes('--verbose');
+  const generatedAt = isCheckMode ? '1970-01-01T00:00:00.000Z' : new Date().toISOString();
 
   console.log(`Discovery Map Generator ${isCheckMode ? '(check mode)' : '(generate mode)'}`);
   console.log('---');
@@ -670,7 +702,8 @@ async function main(): Promise<void> {
 
   // 3. Scan Files
   console.log('Scanning documentation files...');
-  const files = await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths);
+  const files = (await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths))
+    .sort(compareStrings);
 
   if (isVerbose) {
     console.log(`Found ${files.length} files`);
@@ -686,14 +719,15 @@ async function main(): Promise<void> {
 
   for (const file of files) {
     try {
-      const content = await fs.readFile(file, 'utf8');
+      const normalizedFile = normalizePath(file);
+      const content = await fs.readFile(normalizedFile, 'utf8');
       const parsed = parseFrontmatter(content);
 
       const lastUpdatedStr = parsed.data.last_updated as string | undefined;
       const lastUpdated = lastUpdatedStr ? new Date(lastUpdatedStr) : null;
 
       const cadence = getStaleCadence(
-        file,
+        normalizedFile,
         config.staleness.cadence_overrides,
         config.configuration.staleness_cadence_default
       );
@@ -709,9 +743,9 @@ async function main(): Promise<void> {
       const status = (parsed.data.status as string) || 'UNKNOWN';
 
       docsData.push({
-        path: file,
+        path: normalizedFile,
         exists: true,
-        docType: getDocType(file),
+        docType: getDocType(normalizedFile),
         frontmatter: parsed.data,
         isStale,
         staleDays,
@@ -732,9 +766,11 @@ async function main(): Promise<void> {
     }
   }
 
+  docsData.sort((a, b) => compareStrings(a.path, b.path));
+
   // 4. Generate JSON Index
   const routerIndex: RouterIndex = {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     version: config.version,
     config: {
       min_score_to_route: config.configuration.min_score_to_route,
@@ -747,7 +783,7 @@ async function main(): Promise<void> {
     stats,
   };
 
-  const jsonOutput = JSON.stringify(routerIndex, null, 2);
+  const jsonOutput = stableStringify(routerIndex);
 
   // 4b. Generate Router-Fast JSON (consumer-optimized schema)
   // Build keyword_to_docs map for fallback routing (with limit to prevent bloat)
@@ -784,7 +820,7 @@ async function main(): Promise<void> {
 
   const routerFast: RouterFast = {
     version: config.version,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     scoring: {
       generic_terms: config.configuration.generic_terms,
       min_score: config.configuration.min_score_to_route,
@@ -796,7 +832,7 @@ async function main(): Promise<void> {
     keyword_to_docs: keywordToDocs,
   };
 
-  const fastOutput = JSON.stringify(routerFast, null, 2);
+  const fastOutput = stableStringify(routerFast);
 
   // 5. Generate Staleness Report
   let mdOutput = `# Staleness Report
@@ -927,8 +963,8 @@ Documents without proper YAML frontmatter:
     }
     delete newFastParsed.generatedAt;
 
-    const jsonMatch = JSON.stringify(existingParsed) === JSON.stringify(newParsed);
-    const fastMatch = JSON.stringify(existingFastParsed) === JSON.stringify(newFastParsed);
+    const jsonMatch = stableStringify(existingParsed) === stableStringify(newParsed);
+    const fastMatch = stableStringify(existingFastParsed) === stableStringify(newFastParsed);
 
     // For staleness report, just check if it exists (content will differ due to timestamps)
     const stalenessExists = existingStaleness.length > 0;

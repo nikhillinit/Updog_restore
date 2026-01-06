@@ -1,88 +1,124 @@
 # Staleness Report
 
-_Generated: 2026-01-02T00:23:05.753Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+*Generated: 2026-01-06T07:26:22.188Z*
+*Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
-| Metric              | Value |
-| ------------------- | ----- |
-| Total Documents     | 707   |
-| Stale Documents     | 692   |
-| Missing Frontmatter | 620   |
+| Metric | Value |
+|--------|-------|
+| Total Documents | 729 |
+| Stale Documents | 714 |
+| Missing Frontmatter | 642 |
 
 ### By Status
 
-| Status  | Count |
-| ------- | ----- |
-| UNKNOWN | 688   |
-| ACTIVE  | 14    |
-| ready   | 3     |
-| active  | 2     |
+| Status | Count |
+|--------|-------|
+| UNKNOWN | 710 |
+| ACTIVE | 14 |
+| ready | 3 |
+| active | 2 |
 
 ## Stale Documents
 
 Documents that need review (older than their cadence threshold):
 
-| Document                                                 | Last Updated | Days Old | Has Execution Claims | Owner      |
-| -------------------------------------------------------- | ------------ | -------- | -------------------- | ---------- |
-| `.agents-feedback.md`                                    | Never        | 999      | No                   | Unassigned |
-| `.agents-metrics.md`                                     | Never        | 999      | No                   | Unassigned |
-| `AI-WORKFLOW-COMPLETE-GUIDE.md`                          | Never        | 999      | No                   | Unassigned |
-| `ANTI_PATTERNS.md`                                       | Never        | 999      | YES - verify!        | Unassigned |
-| `BASELINE-SNAPSHOT-20251215.md`                          | Never        | 999      | No                   | Unassigned |
-| `BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md`            | Never        | 999      | YES - verify!        | Unassigned |
-| `CHANGELOG.md`                                           | Never        | 999      | YES - verify!        | Unassigned |
-| `CLAUDE.md`                                              | Never        | 999      | No                   | Unassigned |
-| `CLAUDE_COOKBOOK_INTEGRATION.md`                         | Never        | 999      | No                   | Unassigned |
-| `CLAUDE_PROJECT_INSTRUCTIONS.md`                         | Never        | 999      | No                   | Unassigned |
-| `COMPREHENSIVE-WORKFLOW-GUIDE.md`                        | Never        | 999      | YES - verify!        | Unassigned |
-| `DECISIONS.md`                                           | Never        | 999      | YES - verify!        | Unassigned |
-| `DEV_BOOTSTRAP_README.md`                                | Never        | 999      | No                   | Unassigned |
-| `DOCUMENTATION-NAVIGATION-GUIDE.md`                      | Never        | 999      | No                   | Unassigned |
-| `ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md`               | Never        | 999      | No                   | Unassigned |
-| `FEATURE_FLAGS_READY.md`                                 | Never        | 999      | No                   | Unassigned |
-| `FOUNDATION-HARDENING-PLAN.md`                           | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-2025-10-30.md`                             | Never        | 999      | YES - verify!        | Unassigned |
-| `HANDOFF-MEMO-CAPITAL-ALLOCATION-COMPLETE-2025-11-05.md` | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-PHASE-2-STRATEGY-2025-11-05.md`            | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-PHASE1D-EXPANSION-2025-11-04.md`           | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-PHASE2-MERGED-2025-11-06.md`               | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-PHASE2-READY-2025-11-06.md`                | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md`             | Never        | 999      | YES - verify!        | Unassigned |
-| `HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md`                   | Never        | 999      | YES - verify!        | Unassigned |
-| `HANDOFF-SKILLS-APPLICATION-2025-11-29.md`               | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md`               | Never        | 999      | No                   | Unassigned |
-| `HANDOFF-WEEK-2-SKILLS-2025-11-29.md`                    | Never        | 999      | No                   | Unassigned |
-| `IMPLEMENTATION-SUMMARY-WATCH-DEBOUNCE-FIX.md`           | Never        | 999      | No                   | Unassigned |
-| `IMPLEMENTATION_SYNTHESIS.md`                            | Never        | 999      | YES - verify!        | Unassigned |
-| `ITERATION-A-QUICKSTART.md`                              | Never        | 999      | YES - verify!        | Unassigned |
-| `JSDOM-FIX-SUMMARY-2025-12-01.md`                        | Never        | 999      | YES - verify!        | Unassigned |
-| `KICKOFF-HYGIENE-SPRINT.md`                              | Never        | 999      | No                   | Unassigned |
-| `KICKOFF-SKILLS-APPLICATION.md`                          | Never        | 999      | YES - verify!        | Unassigned |
-| `MERGE_RISK_ANALYSIS.md`                                 | Never        | 999      | YES - verify!        | Unassigned |
-| `MIGRATION-NATIVE-MEMORY.md`                             | Never        | 999      | YES - verify!        | Unassigned |
-| `MIGRATION-QUICK-START.md`                               | Never        | 999      | No                   | Unassigned |
-| `NATIVE-MEMORY-INTEGRATION.md`                           | Never        | 999      | No                   | Unassigned |
-| `NEXT-SESSION-KICKOFF-PROMPT.md`                         | Never        | 999      | No                   | Unassigned |
-| `NEXT_ACTIONS.md`                                        | Never        | 999      | YES - verify!        | Unassigned |
-| `NEXT_STEPS_CHECKLIST.md`                                | Never        | 999      | YES - verify!        | Unassigned |
-| `PHASE-0A-MIDDLEWARE-PLAN.md`                            | Never        | 999      | YES - verify!        | Unassigned |
-| `PHASE-0A-STATUS-ASSESSMENT.md`                          | Never        | 999      | No                   | Unassigned |
-| `PHASE0-DATA-MIGRATION-STRATEGY.md`                      | Never        | 999      | No                   | Unassigned |
-| `PHASE0-FEATURE-FLAG-DEPLOYMENT-PLAN.md`                 | Never        | 999      | YES - verify!        | Unassigned |
-| `PHASE0-FRONTEND-INTEGRATION-SCOPE.md`                   | Never        | 999      | No                   | Unassigned |
-| `PHASE0B-QUICK-REFERENCE.md`                             | Never        | 999      | No                   | Unassigned |
-| `PHASE0B-SERVICE-ARCHITECTURE-REVIEW.md`                 | Never        | 999      | YES - verify!        | Unassigned |
-| `PHASE2_HANDOFF_MEMO.md`                                 | Never        | 999      | No                   | Unassigned |
-| `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md`            | Never        | 999      | No                   | Unassigned |
+| Document | Last Updated | Days Old | Has Execution Claims | Owner |
+|----------|--------------|----------|---------------------|-------|
+| `.agents-feedback.md` | Never | 999 | No | Unassigned |
+| `.agents-metrics.md` | Never | 999 | No | Unassigned |
+| `.claude/ANTI-DRIFT-CHECKLIST.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/DELIVERY-SUMMARY.md` | Never | 999 | No | Unassigned |
+| `.claude/PHOENIX-TOOL-ROUTING.md` | Never | 999 | No | Unassigned |
+| `.claude/PROJECT-UNDERSTANDING.md` | Never | 999 | No | Unassigned |
+| `.claude/WORKFLOW.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/PHOENIX-AGENTS.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/baseline-regression-explainer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/chaos-engineer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-explorer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-reviewer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-simplifier.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/comment-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/context-orchestrator.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/database-expert.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/db-migration.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/debug-expert.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/devops-troubleshooter.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/docs-architect.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/dx-optimizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/general-purpose.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/incident-responder.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/legacy-modernizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/parity-auditor.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/perf-guard.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/perf-regression-triager.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-brand-reporting-stylist.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-capital-allocation-analyst.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-docs-scribe.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-precision-guardian.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/agents/phoenix-probabilistic-engineer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-reserves-optimizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-truth-case-runner.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/playwright-test-author.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/pr-test-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/schema-drift-checker.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/silent-failure-hunter.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-automator.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-repair.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-scaffolder.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/type-design-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/waterfall-specialist.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/workflow-orchestrator.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/agents/xirr-fees-validator.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/catalog-tooling.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/db-validate.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/deploy-check.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/commands/enable-agent-memory.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/evaluate-tools.md` | Never | 999 | No | Unassigned |
 
-_...and 642 more stale documents._
+*...and 664 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
-These documents contain phrases like "tests pass", "PR merged", etc. and should
-be verified:
+These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
+- [ ] **.claude/ANTI-DRIFT-CHECKLIST.md** (999 days old)
+- [ ] **.claude/agents/phoenix-precision-guardian.md** (999 days old)
+- [ ] **.claude/agents/workflow-orchestrator.md** (999 days old)
+- [ ] **.claude/commands/deploy-check.md** (999 days old)
+- [ ] **.claude/commands/fix-auto.md** (999 days old)
+- [ ] **.claude/commands/pr-ready.md** (999 days old)
+- [ ] **.claude/commands/pre-commit-check.md** (999 days old)
+- [ ] **.claude/commands/workflows.md** (999 days old)
+- [ ] **.claude/commands/wshobson/deps-audit.md** (999 days old)
+- [ ] **.claude/integration-test-execution-summary.md** (999 days old)
+- [ ] **.claude/integration-test-final-report.md** (999 days old)
+- [ ] **.claude/integration-test-reenable-plan-v2.md** (999 days old)
+- [ ] **.claude/plans/2025-12-30-sprint2-quality-improvements.md** (999 days old)
+- [ ] **.claude/prompts/integration-test-continuation-prompt.md** (999 days old)
+- [ ] **.claude/prompts/portfolio-intelligence-timeout-fix.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-next-session-kickoff.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v10.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v2.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v3.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v6.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v9.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation.md** (999 days old)
+- [ ] **.claude/prompts/week2.5-phase4-next-steps.md** (999 days old)
+- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (999 days old)
+- [ ] **.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md** (999 days old)
+- [ ] **.claude/skills/README.md** (999 days old)
+- [ ] **.claude/skills/dispatching-parallel-agents.md** (999 days old)
+- [ ] **.claude/skills/iterative-improvement.md** (999 days old)
+- [ ] **.claude/skills/task-decomposition.md** (999 days old)
+- [ ] **.claude/testing/HANDOFF-MEMO-v2.md** (999 days old)
+- [ ] **.claude/testing/HANDOFF-MEMO.md** (999 days old)
+- [ ] **.claude/testing/rubric-calculation-engines.md** (999 days old)
+- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (999 days old)
+- [ ] **.claude/testing/seed-script-remaining-fixes.md** (999 days old)
+- [ ] **.claude/testing/test-baseline-report-2025-12-23.md** (999 days old)
+- [ ] **.claude/testing/week2-execution-report.md** (999 days old)
 - [ ] **ANTI_PATTERNS.md** (999 days old)
 - [ ] **BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md** (999 days old)
 - [ ] **CHANGELOG.md** (999 days old)
@@ -115,7 +151,11 @@ be verified:
 - [ ] **SESSION-HANDOFF-PHASE0-PORTFOLIO-2025-11-10.md** (999 days old)
 - [ ] **SESSION-HANDOFF-PORTFOLIO-PARALLEL-2025-11-10.md** (999 days old)
 - [ ] **UX_INTEGRATION_CONSENSUS.md** (999 days old)
-- [ ] **triage-interleaved-thinking-failures.md** (999 days old)
+- [ ] **cheatsheets/baseline-governance.md** (999 days old)
+- [ ] **cheatsheets/daily-workflow.md** (999 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (999 days old)
+- [ ] **cheatsheets/pr-merge-verification.md** (999 days old)
+- [ ] **cheatsheets/schema-alignment.md** (999 days old)
 - [ ] **docs/ARCHITECTURAL-DEBT.md** (999 days old)
 - [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (999 days old)
 - [ ] **docs/CA-SEMANTIC-LOCK.md** (999 days old)
@@ -146,8 +186,7 @@ be verified:
 - [ ] **docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md** (999 days old)
 - [ ] **docs/api/architecture/portfolio-route-api.md** (999 days old)
 - [ ] **docs/api/testing/portfolio-route-test-strategy.md** (999 days old)
-- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days
-      old)
+- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days old)
 - [ ] **docs/chaos-engineering/README.md** (999 days old)
 - [ ] **docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md** (999 days old)
 - [ ] **docs/chart-migration-decision.md** (999 days old)
@@ -169,12 +208,9 @@ be verified:
 - [ ] **docs/npm-bin-resolution-investigation.md** (999 days old)
 - [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (999 days old)
 - [ ] **docs/observability/README.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999
-      days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md**
-      (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days
-      old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md** (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days old)
 - [ ] **docs/phase0-validation-report.md** (999 days old)
 - [ ] **docs/phase0-xirr-analysis-eda20590.md** (999 days old)
 - [ ] **docs/phase1-1-1-analysis.md** (999 days old)
@@ -188,14 +224,17 @@ be verified:
 - [ ] **docs/plans/2025-12-29-phase2-planning-REVIEW.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase2-planning.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase3c-solo-execution.md** (999 days old)
-- [ ] **docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md** (999 days
-      old)
+- [ ] **docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-pr-318-merge-validation-plan.md** (999 days old)
+- [ ] **docs/plans/2026-01-04-phase1-implementation-plan.md** (999 days old)
+- [ ] **docs/plans/2026-01-04-portfolio-optimization-design.md** (999 days old)
 - [ ] **docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-STRATEGY.md** (999 days old)
-- [ ] **docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days
-      old)
+- [ ] **docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days old)
+- [ ] **docs/plans/PHASE3-SESSION2-KICKOFF.md** (999 days old)
+- [ ] **docs/plans/PHASE3-SESSION3-KICKOFF.md** (999 days old)
+- [ ] **docs/plans/PHASE3-SESSION4-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-AGENT-STRATEGY.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-COMPLETE-GUIDE.md** (999 days old)
@@ -215,51 +254,13 @@ be verified:
 - [ ] **docs/schemas/schema-mapping.md** (999 days old)
 - [ ] **docs/skills-application-log.md** (999 days old)
 - [ ] **docs/sprint-g2c-backlog.md** (999 days old)
+- [ ] **docs/staging/phase2.1/cluster-b-stage-validation-prep.md** (999 days old)
+- [ ] **docs/staging/phase2.1/cluster-c-APPLY-PATCHES.md** (999 days old)
+- [ ] **docs/staging/phase2.1/cluster-c-batch-gate-results.md** (999 days old)
+- [ ] **docs/staging/phase2.1/cluster-c-modeling-wizard-prep.md** (999 days old)
+- [ ] **docs/staging/phase2.1/seams/redis-webhook-contract.md** (999 days old)
 - [ ] **docs/xirr-excel-validation.md** (999 days old)
-- [ ] **cheatsheets/baseline-governance.md** (999 days old)
-- [ ] **cheatsheets/daily-workflow.md** (999 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (999 days old)
-- [ ] **cheatsheets/pr-merge-verification.md** (999 days old)
-- [ ] **cheatsheets/schema-alignment.md** (999 days old)
-- [ ] **.claude/ANTI-DRIFT-CHECKLIST.md** (999 days old)
-- [ ] **.claude/agents/phoenix-precision-guardian.md** (999 days old)
-- [ ] **.claude/agents/workflow-orchestrator.md** (999 days old)
-- [ ] **.claude/commands/deploy-check.md** (999 days old)
-- [ ] **.claude/commands/fix-auto.md** (999 days old)
-- [ ] **.claude/commands/pr-ready.md** (999 days old)
-- [ ] **.claude/commands/pre-commit-check.md** (999 days old)
-- [ ] **.claude/commands/workflows.md** (999 days old)
-- [ ] **.claude/commands/wshobson/deps-audit.md** (999 days old)
-- [ ] **.claude/integration-test-execution-summary.md** (999 days old)
-- [ ] **.claude/integration-test-final-report.md** (999 days old)
-- [ ] **.claude/integration-test-reenable-plan-v2.md** (999 days old)
-- [ ] **.claude/plans/2025-12-30-sprint2-quality-improvements.md** (999 days
-      old)
-- [ ] **.claude/prompts/integration-test-continuation-prompt.md** (999 days old)
-- [ ] **.claude/prompts/portfolio-intelligence-timeout-fix.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-next-session-kickoff.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v10.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v2.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v3.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v6.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v9.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation.md** (999 days old)
-- [ ] **.claude/prompts/week2.5-phase4-next-steps.md** (999 days old)
-- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (999
-      days old)
-- [ ] **.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md** (999 days old)
-- [ ] **.claude/skills/README.md** (999 days old)
-- [ ] **.claude/skills/dispatching-parallel-agents.md** (999 days old)
-- [ ] **.claude/skills/iterative-improvement.md** (999 days old)
-- [ ] **.claude/skills/task-decomposition.md** (999 days old)
-- [ ] **.claude/testing/HANDOFF-MEMO-v2.md** (999 days old)
-- [ ] **.claude/testing/HANDOFF-MEMO.md** (999 days old)
-- [ ] **.claude/testing/rubric-calculation-engines.md** (999 days old)
-- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (999 days
-      old)
-- [ ] **.claude/testing/seed-script-remaining-fixes.md** (999 days old)
-- [ ] **.claude/testing/test-baseline-report-2025-12-23.md** (999 days old)
-- [ ] **.claude/testing/week2-execution-report.md** (999 days old)
+- [ ] **triage-interleaved-thinking-failures.md** (999 days old)
 
 ## Missing Frontmatter
 
@@ -267,6 +268,96 @@ Documents without proper YAML frontmatter:
 
 - [ ] `.agents-feedback.md`
 - [ ] `.agents-metrics.md`
+- [ ] `.claude/ANTI-DRIFT-CHECKLIST.md`
+- [ ] `.claude/DELIVERY-SUMMARY.md`
+- [ ] `.claude/PHOENIX-TOOL-ROUTING.md`
+- [ ] `.claude/PROJECT-UNDERSTANDING.md`
+- [ ] `.claude/WORKFLOW.md`
+- [ ] `.claude/agents/PHOENIX-AGENTS.md`
+- [ ] `.claude/commands/evaluate-tools.md`
+- [ ] `.claude/commands/wshobson/deps-audit.md`
+- [ ] `.claude/commands/wshobson/tech-debt.md`
+- [ ] `.claude/integration-test-execution-summary.md`
+- [ ] `.claude/integration-test-final-report.md`
+- [ ] `.claude/integration-test-plan-comparison.md`
+- [ ] `.claude/integration-test-reenable-plan-v2.md`
+- [ ] `.claude/integration-test-reenable-plan.md`
+- [ ] `.claude/plans/2025-12-30-sprint2-quality-improvements.md`
+- [ ] `.claude/plans/snapshot-service-versioning.md`
+- [ ] `.claude/plans/typescript-error-elimination-debugging-report.md`
+- [ ] `.claude/plans/typescript-error-elimination.md`
+- [ ] `.claude/prompts/integration-test-continuation-prompt.md`
+- [ ] `.claude/prompts/portfolio-intelligence-timeout-fix.md`
+- [ ] `.claude/prompts/week2.5-next-session-kickoff.md`
+- [ ] `.claude/prompts/week2.5-phase2-quickstart.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation-v10.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation-v2.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation-v3.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation-v4.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation-v5.md`
+- [ ] `.claude/prompts/week2.5-phase3-continuation.md`
+- [ ] `.claude/prompts/week2.5-phase4-next-steps.md`
+- [ ] `.claude/security-fixes-lp-reporting.md`
+- [ ] `.claude/session-summary-portfolio-intelligence-implementation.md`
+- [ ] `.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md`
+- [ ] `.claude/skills/README.md`
+- [ ] `.claude/skills/ai-model-selection.md`
+- [ ] `.claude/skills/analogical-thinking.md`
+- [ ] `.claude/skills/api-design-principles.md`
+- [ ] `.claude/skills/architecture-patterns.md`
+- [ ] `.claude/skills/async-error-resilience.md`
+- [ ] `.claude/skills/baseline-governance/SKILL.md`
+- [ ] `.claude/skills/brainstorming.md`
+- [ ] `.claude/skills/claude-infra-integrity/SKILL.md`
+- [ ] `.claude/skills/continuous-improvement.md`
+- [ ] `.claude/skills/database-schema-evolution.md`
+- [ ] `.claude/skills/dispatching-parallel-agents.md`
+- [ ] `.claude/skills/extended-thinking-framework.md`
+- [ ] `.claude/skills/financial-calc-correctness/SKILL.md`
+- [ ] `.claude/skills/integration-with-other-skills.md`
+- [ ] `.claude/skills/inversion-thinking.md`
+- [ ] `.claude/skills/iterative-improvement.md`
+- [ ] `.claude/skills/memory-management.md`
+- [ ] `.claude/skills/multi-model-consensus.md`
+- [ ] `.claude/skills/notebooklm.md`
+- [ ] `.claude/skills/pattern-recognition.md`
+- [ ] `.claude/skills/phoenix-workflow-orchestrator/SKILL.md`
+- [ ] `.claude/skills/prompt-caching-usage.md`
+- [ ] `.claude/skills/react-hook-form-stability/SKILL.md`
+- [ ] `.claude/skills/react-performance-optimization.md`
+- [ ] `.claude/skills/root-cause-tracing.md`
+- [ ] `.claude/skills/statistical-testing/SKILL.md`
+- [ ] `.claude/skills/systematic-debugging.md`
+- [ ] `.claude/skills/task-decomposition.md`
+- [ ] `.claude/skills/test-fixture-generator/SKILL.md`
+- [ ] `.claude/skills/test-pyramid/SKILL.md`
+- [ ] `.claude/skills/workflow-engine/code-formatter/examples/usage.md`
+- [ ] `.claude/skills/workflow-engine/code-formatter/references/style-guides.md`
+- [ ] `.claude/skills/workflow-engine/dependency-guardian/examples/usage.md`
+- [ ] `.claude/skills/workflow-engine/dependency-guardian/references/vulnerability-databases.md`
+- [ ] `.claude/skills/workflow-engine/documentation-sync/examples/usage.md`
+- [ ] `.claude/skills/workflow-engine/security-scanner/examples/usage.md`
+- [ ] `.claude/skills/workflow-engine/tech-debt-tracker/examples/usage.md`
+- [ ] `.claude/skills/writing-plans.md`
+- [ ] `.claude/skills/xlsx.md`
+- [ ] `.claude/testing/HANDOFF-MEMO-v2.md`
+- [ ] `.claude/testing/HANDOFF-MEMO.md`
+- [ ] `.claude/testing/immediate-actions-summary.md`
+- [ ] `.claude/testing/lp-test-status-report.md`
+- [ ] `.claude/testing/platform-test-checklist.md`
+- [ ] `.claude/testing/platform-testing-rubric-index.md`
+- [ ] `.claude/testing/rubric-analytics-reporting.md`
+- [ ] `.claude/testing/rubric-api-integration.md`
+- [ ] `.claude/testing/rubric-calculation-engines.md`
+- [ ] `.claude/testing/rubric-cross-cutting.md`
+- [ ] `.claude/testing/rubric-fund-setup.md`
+- [ ] `.claude/testing/rubric-lp-portal.md`
+- [ ] `.claude/testing/rubric-portfolio-management.md`
+- [ ] `.claude/testing/scenario-comparison-manual-test-rubric.md`
+- [ ] `.claude/testing/seed-script-remaining-fixes.md`
+- [ ] `.claude/testing/test-baseline-report-2025-12-23.md`
+- [ ] `.claude/testing/test-remediation-summary.md`
+- [ ] `.claude/testing/week2-execution-report.md`
 - [ ] `AI-WORKFLOW-COMPLETE-GUIDE.md`
 - [ ] `ANTI_PATTERNS.md`
 - [ ] `BASELINE-SNAPSHOT-20251215.md`
@@ -319,6 +410,7 @@ Documents without proper YAML frontmatter:
 - [ ] `PHASE3-STRATEGY-FINAL-2025-11-06.md`
 - [ ] `PHASE3-STRATEGY-HANDOFF-2025-11-06.md`
 - [ ] `PHASE3-WEEK46-COMPLETE.md`
+- [ ] `PLAN.md`
 - [ ] `PORTFOLIO-API-STRATEGY-UPDATED.md`
 - [ ] `PORTFOLIO-SCHEMA-MIGRATION-ANALYSIS.md`
 - [ ] `PR-201-MERGE-ANALYSIS.md`
@@ -359,8 +451,44 @@ Documents without proper YAML frontmatter:
 - [ ] `VERCEL_SOLUTION.md`
 - [ ] `WEEK_1_FINAL_VALIDATED.md`
 - [ ] `WORKTREE-INVENTORY.md`
-- [ ] `plan.md`
-- [ ] `triage-interleaved-thinking-failures.md`
+- [ ] `cheatsheets/INDEX.md`
+- [ ] `cheatsheets/agent-architecture.md`
+- [ ] `cheatsheets/agent-memory-integration.md`
+- [ ] `cheatsheets/agent-memory/database-expert-schema-tdd.md`
+- [ ] `cheatsheets/ai-code-review.md`
+- [ ] `cheatsheets/anti-pattern-prevention.md`
+- [ ] `cheatsheets/api.md`
+- [ ] `cheatsheets/baseline-governance.md`
+- [ ] `cheatsheets/capability-checklist.md`
+- [ ] `cheatsheets/ci-validator-guide.md`
+- [ ] `cheatsheets/claude-code-best-practices.md`
+- [ ] `cheatsheets/claude-commands.md`
+- [ ] `cheatsheets/claude-md-guidelines.md`
+- [ ] `cheatsheets/coding-pairs-playbook.md`
+- [ ] `cheatsheets/command-summary.md`
+- [ ] `cheatsheets/correct-workflow-example.md`
+- [ ] `cheatsheets/daily-workflow.md`
+- [ ] `cheatsheets/document-review-workflow.md`
+- [ ] `cheatsheets/documentation-validation.md`
+- [ ] `cheatsheets/emoji-free-documentation.md`
+- [ ] `cheatsheets/evaluator-optimizer-workflow.md`
+- [ ] `cheatsheets/exact-optional-property-types.md`
+- [ ] `cheatsheets/extended-thinking.md`
+- [ ] `cheatsheets/init-vs-update.md`
+- [ ] `cheatsheets/lp-deployment-quick-reference.md`
+- [ ] `cheatsheets/memory-commands.md`
+- [ ] `cheatsheets/memory-commit-strategy.md`
+- [ ] `cheatsheets/memory-patterns.md`
+- [ ] `cheatsheets/multi-agent-orchestration.md`
+- [ ] `cheatsheets/pr-merge-verification.md`
+- [ ] `cheatsheets/pr-review-workflow.md`
+- [ ] `cheatsheets/prompt-improver-hook.md`
+- [ ] `cheatsheets/react-performance-patterns.md`
+- [ ] `cheatsheets/schema-alignment.md`
+- [ ] `cheatsheets/service-testing-patterns.md`
+- [ ] `cheatsheets/test-pyramid.md`
+- [ ] `cheatsheets/testcontainers-guide.md`
+- [ ] `cheatsheets/testing.md`
 - [ ] `docs/.templates/DEPRECATION-HEADER.md`
 - [ ] `docs/.templates/DOC-FRONTMATTER-SCHEMA.md`
 - [ ] `docs/ADR-00X-resilience-circuit-breaker.md`
@@ -488,13 +616,13 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/array-safety-adoption-guide.md`
 - [ ] `docs/auth/RS256-SETUP.md`
 - [ ] `docs/behavioral-specs/time-travel-analytics-service-specs.md`
-- [ ] `docs/chaos/catalog.md`
 - [ ] `docs/chaos-and-retention.md`
 - [ ] `docs/chaos-engineering/QUICK-REFERENCE.md`
 - [ ] `docs/chaos-engineering/README.md`
 - [ ] `docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md`
 - [ ] `docs/chaos-engineering/RLS-GAME-DAY-RUNBOOK.md`
 - [ ] `docs/chaos-engineering/RLS-MONITORING-SPECS.md`
+- [ ] `docs/chaos/catalog.md`
 - [ ] `docs/chart-migration-decision.md`
 - [ ] `docs/circuit-notion-checklist.md`
 - [ ] `docs/code-review/CODEX-BOT-FINDINGS-SUMMARY.md`
@@ -511,17 +639,18 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md`
 - [ ] `docs/debugging/profiling-playbook.md`
 - [ ] `docs/debugging/triage-guide.md`
+- [ ] `docs/deployment-audit.md`
 - [ ] `docs/deployment/CODEX-FIXES-DEPLOYMENT-STATUS.md`
+- [ ] `docs/deployment/MEMORY_PHASE2_DEPLOYMENT.md`
 - [ ] `docs/deployment/ROLLBACK_PLAN.md`
 - [ ] `docs/deployment/STAGING_CHECKLIST.md`
 - [ ] `docs/deployment/STAGING_DEPLOYMENT_SUMMARY.md`
 - [ ] `docs/deployment/STAGING_METRICS.md`
 - [ ] `docs/deployment/vercel-setup.md`
-- [ ] `docs/deployment-audit.md`
+- [ ] `docs/dev-environment-reset.md`
 - [ ] `docs/dev/foreach-fix-improved.md`
 - [ ] `docs/dev/foreach-fix.md`
 - [ ] `docs/dev/wsl2-quickstart.md`
-- [ ] `docs/dev-environment-reset.md`
 - [ ] `docs/development/windows-setup.md`
 - [ ] `docs/enhanced-design-system-guide.md`
 - [ ] `docs/extended-thinking-integration.md`
@@ -596,6 +725,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/notebooklm-sources/waterfall.md`
 - [ ] `docs/notebooklm-sources/xirr.md`
 - [ ] `docs/npm-bin-resolution-investigation.md`
+- [ ] `docs/observability.md`
 - [ ] `docs/observability/EDITORIAL-V2-CHANGELOG.md`
 - [ ] `docs/observability/README.md`
 - [ ] `docs/observability/ai-metrics.md`
@@ -610,7 +740,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/observability/fundcalc-comment.md`
 - [ ] `docs/observability/rum.md`
 - [ ] `docs/observability/split-plan-comment.md`
-- [ ] `docs/observability.md`
 - [ ] `docs/perf-baseline.md`
 - [ ] `docs/performance-logging-automation.md`
 - [ ] `docs/phase0-validation-report.md`
@@ -638,11 +767,22 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/2025-12-29-plan-review-and-refinements.md`
 - [ ] `docs/plans/2025-12-29-pr-318-merge-validation-plan.md`
 - [ ] `docs/plans/2025-12-31-lp-portal-sprint-3.md`
+- [ ] `docs/plans/2026-01-04-advanced-cohort-analysis-design.md`
+- [ ] `docs/plans/2026-01-04-api-engine-integration-design.md`
+- [ ] `docs/plans/2026-01-04-critical-corrections.md`
+- [ ] `docs/plans/2026-01-04-monte-carlo-backtesting-integration.md`
+- [ ] `docs/plans/2026-01-04-phase1-implementation-plan.md`
+- [ ] `docs/plans/2026-01-04-portfolio-optimization-design.md`
+- [ ] `docs/plans/2026-01-04-portfolio-optimization-handoff.md`
 - [ ] `docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md`
 - [ ] `docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md`
 - [ ] `docs/plans/FOUNDATION-HARDENING-STRATEGY.md`
 - [ ] `docs/plans/HANDOFF-SUMMARY.md`
 - [ ] `docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md`
+- [ ] `docs/plans/PHASE3-SESSION1-SUMMARY.md`
+- [ ] `docs/plans/PHASE3-SESSION2-KICKOFF.md`
+- [ ] `docs/plans/PHASE3-SESSION3-KICKOFF.md`
+- [ ] `docs/plans/PHASE3-SESSION4-KICKOFF.md`
 - [ ] `docs/plans/WEEK1-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md`
@@ -733,6 +873,13 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/sprint-g2c-stakeholder-summary.md`
 - [ ] `docs/stage-normalization-scripts.md`
 - [ ] `docs/stage-normalization-v3.4.md`
+- [ ] `docs/staging/phase2.1/README.md`
+- [ ] `docs/staging/phase2.1/cluster-a-partial-success-report.md`
+- [ ] `docs/staging/phase2.1/cluster-b-stage-validation-prep.md`
+- [ ] `docs/staging/phase2.1/cluster-c-APPLY-PATCHES.md`
+- [ ] `docs/staging/phase2.1/cluster-c-batch-gate-results.md`
+- [ ] `docs/staging/phase2.1/cluster-c-modeling-wizard-prep.md`
+- [ ] `docs/staging/phase2.1/seams/redis-webhook-contract.md`
 - [ ] `docs/standards.md`
 - [ ] `docs/strategies/PHOENIX-PLAN-2025-11-30.md`
 - [ ] `docs/templates/README.md`
@@ -745,12 +892,12 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/validation/DeterministicReserveEngine.md`
 - [ ] `docs/validation/stage-validation-patched.md`
 - [ ] `docs/validation/stage-validation-v3.md`
+- [ ] `docs/wizard-calculations-integration.md`
 - [ ] `docs/wizard/COMPLETION_SUMMARY.md`
 - [ ] `docs/wizard/MIGRATION_GUIDE.md`
 - [ ] `docs/wizard/RESERVES_CARD_IMPROVEMENTS.md`
 - [ ] `docs/wizard/WIZARD_INTEGRATION.md`
 - [ ] `docs/wizard/modeling-wizard-design.md`
-- [ ] `docs/wizard-calculations-integration.md`
 - [ ] `docs/workflows/CONSOLIDATION_PLAN_V2.md`
 - [ ] `docs/workflows/CONSOLIDATION_PLAN_V3_FINAL.md`
 - [ ] `docs/workflows/PAIRED-AGENT-VALIDATION.md`
@@ -760,134 +907,10 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/xirr-golden-set-addition-summary.md`
 - [ ] `docs/xirr-golden-set-migration-plan.md`
 - [ ] `docs/zen-mcp-integration-summary.md`
-- [ ] `cheatsheets/INDEX.md`
-- [ ] `cheatsheets/agent-architecture.md`
-- [ ] `cheatsheets/agent-memory/database-expert-schema-tdd.md`
-- [ ] `cheatsheets/agent-memory-integration.md`
-- [ ] `cheatsheets/ai-code-review.md`
-- [ ] `cheatsheets/anti-pattern-prevention.md`
-- [ ] `cheatsheets/api.md`
-- [ ] `cheatsheets/baseline-governance.md`
-- [ ] `cheatsheets/capability-checklist.md`
-- [ ] `cheatsheets/ci-validator-guide.md`
-- [ ] `cheatsheets/claude-code-best-practices.md`
-- [ ] `cheatsheets/claude-commands.md`
-- [ ] `cheatsheets/claude-md-guidelines.md`
-- [ ] `cheatsheets/coding-pairs-playbook.md`
-- [ ] `cheatsheets/command-summary.md`
-- [ ] `cheatsheets/correct-workflow-example.md`
-- [ ] `cheatsheets/daily-workflow.md`
-- [ ] `cheatsheets/document-review-workflow.md`
-- [ ] `cheatsheets/documentation-validation.md`
-- [ ] `cheatsheets/emoji-free-documentation.md`
-- [ ] `cheatsheets/evaluator-optimizer-workflow.md`
-- [ ] `cheatsheets/exact-optional-property-types.md`
-- [ ] `cheatsheets/extended-thinking.md`
-- [ ] `cheatsheets/init-vs-update.md`
-- [ ] `cheatsheets/lp-deployment-quick-reference.md`
-- [ ] `cheatsheets/memory-commands.md`
-- [ ] `cheatsheets/memory-commit-strategy.md`
-- [ ] `cheatsheets/memory-patterns.md`
-- [ ] `cheatsheets/multi-agent-orchestration.md`
-- [ ] `cheatsheets/pr-merge-verification.md`
-- [ ] `cheatsheets/pr-review-workflow.md`
-- [ ] `cheatsheets/prompt-improver-hook.md`
-- [ ] `cheatsheets/react-performance-patterns.md`
-- [ ] `cheatsheets/schema-alignment.md`
-- [ ] `cheatsheets/service-testing-patterns.md`
-- [ ] `cheatsheets/test-pyramid.md`
-- [ ] `cheatsheets/testcontainers-guide.md`
-- [ ] `cheatsheets/testing.md`
-- [ ] `.claude/ANTI-DRIFT-CHECKLIST.md`
-- [ ] `.claude/DELIVERY-SUMMARY.md`
-- [ ] `.claude/PHOENIX-TOOL-ROUTING.md`
-- [ ] `.claude/PROJECT-UNDERSTANDING.md`
-- [ ] `.claude/WORKFLOW.md`
-- [ ] `.claude/agents/PHOENIX-AGENTS.md`
-- [ ] `.claude/commands/evaluate-tools.md`
-- [ ] `.claude/commands/wshobson/deps-audit.md`
-- [ ] `.claude/commands/wshobson/tech-debt.md`
-- [ ] `.claude/integration-test-execution-summary.md`
-- [ ] `.claude/integration-test-final-report.md`
-- [ ] `.claude/integration-test-plan-comparison.md`
-- [ ] `.claude/integration-test-reenable-plan-v2.md`
-- [ ] `.claude/integration-test-reenable-plan.md`
-- [ ] `.claude/plans/2025-12-30-sprint2-quality-improvements.md`
-- [ ] `.claude/prompts/integration-test-continuation-prompt.md`
-- [ ] `.claude/prompts/portfolio-intelligence-timeout-fix.md`
-- [ ] `.claude/prompts/week2.5-next-session-kickoff.md`
-- [ ] `.claude/prompts/week2.5-phase2-quickstart.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation-v10.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation-v2.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation-v3.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation-v4.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation-v5.md`
-- [ ] `.claude/prompts/week2.5-phase3-continuation.md`
-- [ ] `.claude/prompts/week2.5-phase4-next-steps.md`
-- [ ] `.claude/security-fixes-lp-reporting.md`
-- [ ] `.claude/session-summary-portfolio-intelligence-implementation.md`
-- [ ] `.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md`
-- [ ] `.claude/skills/README.md`
-- [ ] `.claude/skills/ai-model-selection.md`
-- [ ] `.claude/skills/analogical-thinking.md`
-- [ ] `.claude/skills/api-design-principles.md`
-- [ ] `.claude/skills/architecture-patterns.md`
-- [ ] `.claude/skills/async-error-resilience.md`
-- [ ] `.claude/skills/baseline-governance/SKILL.md`
-- [ ] `.claude/skills/brainstorming.md`
-- [ ] `.claude/skills/claude-infra-integrity/SKILL.md`
-- [ ] `.claude/skills/continuous-improvement.md`
-- [ ] `.claude/skills/database-schema-evolution.md`
-- [ ] `.claude/skills/dispatching-parallel-agents.md`
-- [ ] `.claude/skills/extended-thinking-framework.md`
-- [ ] `.claude/skills/financial-calc-correctness/SKILL.md`
-- [ ] `.claude/skills/integration-with-other-skills.md`
-- [ ] `.claude/skills/inversion-thinking.md`
-- [ ] `.claude/skills/iterative-improvement.md`
-- [ ] `.claude/skills/memory-management.md`
-- [ ] `.claude/skills/multi-model-consensus.md`
-- [ ] `.claude/skills/notebooklm.md`
-- [ ] `.claude/skills/pattern-recognition.md`
-- [ ] `.claude/skills/phoenix-workflow-orchestrator/SKILL.md`
-- [ ] `.claude/skills/prompt-caching-usage.md`
-- [ ] `.claude/skills/react-hook-form-stability/SKILL.md`
-- [ ] `.claude/skills/react-performance-optimization.md`
-- [ ] `.claude/skills/root-cause-tracing.md`
-- [ ] `.claude/skills/statistical-testing/SKILL.md`
-- [ ] `.claude/skills/systematic-debugging.md`
-- [ ] `.claude/skills/task-decomposition.md`
-- [ ] `.claude/skills/test-fixture-generator/SKILL.md`
-- [ ] `.claude/skills/test-pyramid/SKILL.md`
-- [ ] `.claude/skills/workflow-engine/code-formatter/examples/usage.md`
-- [ ] `.claude/skills/workflow-engine/code-formatter/references/style-guides.md`
-- [ ] `.claude/skills/workflow-engine/dependency-guardian/examples/usage.md`
-- [ ] `.claude/skills/workflow-engine/dependency-guardian/references/vulnerability-databases.md`
-- [ ] `.claude/skills/workflow-engine/documentation-sync/examples/usage.md`
-- [ ] `.claude/skills/workflow-engine/security-scanner/examples/usage.md`
-- [ ] `.claude/skills/workflow-engine/tech-debt-tracker/examples/usage.md`
-- [ ] `.claude/skills/writing-plans.md`
-- [ ] `.claude/skills/xlsx.md`
-- [ ] `.claude/testing/HANDOFF-MEMO-v2.md`
-- [ ] `.claude/testing/HANDOFF-MEMO.md`
-- [ ] `.claude/testing/immediate-actions-summary.md`
-- [ ] `.claude/testing/lp-test-status-report.md`
-- [ ] `.claude/testing/platform-test-checklist.md`
-- [ ] `.claude/testing/platform-testing-rubric-index.md`
-- [ ] `.claude/testing/rubric-analytics-reporting.md`
-- [ ] `.claude/testing/rubric-api-integration.md`
-- [ ] `.claude/testing/rubric-calculation-engines.md`
-- [ ] `.claude/testing/rubric-cross-cutting.md`
-- [ ] `.claude/testing/rubric-fund-setup.md`
-- [ ] `.claude/testing/rubric-lp-portal.md`
-- [ ] `.claude/testing/rubric-portfolio-management.md`
-- [ ] `.claude/testing/scenario-comparison-manual-test-rubric.md`
-- [ ] `.claude/testing/seed-script-remaining-fixes.md`
-- [ ] `.claude/testing/test-baseline-report-2025-12-23.md`
-- [ ] `.claude/testing/test-remediation-summary.md`
-- [ ] `.claude/testing/week2-execution-report.md`
+- [ ] `triage-interleaved-thinking-failures.md`
 
 ---
 
-_To fix staleness: Update `last_updated` field in document frontmatter._ _To set
-owner: Add `owner` field in document frontmatter._ _See:
-docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details._
+*To fix staleness: Update `last_updated` field in document frontmatter.*
+*To set owner: Add `owner` field in document frontmatter.*
+*See: docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details.*

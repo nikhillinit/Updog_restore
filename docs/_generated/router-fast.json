@@ -1,17 +1,593 @@
 {
-  "version": "2.0",
-  "generatedAt": "2026-01-02T00:23:05.752Z",
-  "scoring": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
-    "min_score": 2
-  },
   "config": {
     "max_docs_per_keyword": 25
+  },
+  "generatedAt": "2026-01-06T07:26:21.131Z",
+  "keyword_to_docs": {
+    "adr": [
+      "docs/adr/"
+    ],
+    "agent": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "agent architecture": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent core": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent framework": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent memory": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "ai": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "alerting": [
+      "docs/observability/"
+    ],
+    "already built": [
+      "CAPABILITIES.md"
+    ],
+    "approval": [
+      "docs/gates/"
+    ],
+    "architecture decision": [
+      "docs/adr/"
+    ],
+    "auth": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "base agent": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "baseline": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "benchmark": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "blue green": [
+      "docs/runbooks/"
+    ],
+    "broken": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "broken test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "bundle": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "bundle optimization": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "bundle size": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "calibration": [
+      "docs/forecasting/"
+    ],
+    "canary": [
+      "docs/runbooks/"
+    ],
+    "canonical": [
+      "docs/notebooklm-sources/"
+    ],
+    "capability": [
+      "CAPABILITIES.md"
+    ],
+    "capital allocation": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "carry": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "carry fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "cd": [
+      "docs/workflows/README.md"
+    ],
+    "chaos": [
+      "docs/chaos-engineering/"
+    ],
+    "chaos engineering": [
+      "docs/chaos-engineering/"
+    ],
+    "check code": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "ci": [
+      "docs/workflows/README.md"
+    ],
+    "claude": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "clawback": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "clean up": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "code review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "code splitting": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "cohort engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "cohorts": [
+      "docs/notebooklm-sources/"
+    ],
+    "context": [
+      "docs/INDEX.md"
+    ],
+    "coverage": [
+      "docs/INDEX.md"
+    ],
+    "credential": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "dashboard": [
+      "docs/observability/"
+    ],
+    "database": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "db": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "debug": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "debugging": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "decimal": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "deploy": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "deployment": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "deterministic": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "disaster recovery": [
+      "docs/runbooks/"
+    ],
+    "distribution": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "document": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "documentation": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "domain knowledge": [
+      "docs/notebooklm-sources/"
+    ],
+    "dr": [
+      "docs/runbooks/"
+    ],
+    "drizzle": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "e2e": [
+      "docs/INDEX.md"
+    ],
+    "embedding": [
+      "docs/INDEX.md"
+    ],
+    "env": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "error": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "existing solution": [
+      "CAPABILITIES.md"
+    ],
+    "exit recycling": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "expectation mode": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "failing test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "failure injection": [
+      "docs/chaos-engineering/"
+    ],
+    "feature": [
+      "CAPABILITIES.md"
+    ],
+    "fees": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "fix test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "forecasting": [
+      "docs/forecasting/"
+    ],
+    "fund calculations": [
+      "docs/notebooklm-sources/"
+    ],
+    "game day": [
+      "docs/chaos-engineering/"
+    ],
+    "gate": [
+      "docs/gates/"
+    ],
+    "gate tracking": [
+      "docs/gates/"
+    ],
+    "github actions": [
+      "docs/workflows/README.md"
+    ],
+    "gp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "grafana": [
+      "docs/observability/"
+    ],
+    "hybrid memory": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "improve code": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "incident": [
+      "docs/runbooks/"
+    ],
+    "inference": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "integration": [
+      "docs/INDEX.md"
+    ],
+    "investigate": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "irr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "issue": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "jest": [
+      "docs/INDEX.md"
+    ],
+    "jsdoc": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "json schema": [
+      "docs/schemas/"
+    ],
+    "key": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "kpi": [
+      "docs/observability/"
+    ],
+    "latency": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "lazy loading": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "ledger": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "llm": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "lp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "management fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "mem0": [
+      "docs/adr/"
+    ],
+    "memory": [
+      "docs/INDEX.md"
+    ],
+    "memory integration": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "memory scope": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "metrics": [
+      "docs/observability/"
+    ],
+    "migration": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "model": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "modeling wizard": [
+      "docs/wizard/"
+    ],
+    "monitoring": [
+      "docs/observability/"
+    ],
+    "monte carlo": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "multi-agent": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "not working": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "notebooklm": [
+      "docs/notebooklm-sources/"
+    ],
+    "numeric drift": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "optimization": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "orchestration": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "pacing": [
+      "docs/notebooklm-sources/"
+    ],
+    "pacing engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "parsefloat": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "pass rate": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "password": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "pattern learning": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "perf": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "performance": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "pgvector": [
+      "docs/INDEX.md"
+    ],
+    "phase 2": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "pipeline": [
+      "docs/workflows/README.md"
+    ],
+    "postgres": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "power law": [
+      "docs/forecasting/"
+    ],
+    "pr review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "precision": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "probabilistic": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "problem": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "prod": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "production": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "prometheus": [
+      "docs/observability/"
+    ],
+    "prompt": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "pull request": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "quality gate": [
+      "docs/gates/"
+    ],
+    "raci": [
+      "docs/gates/"
+    ],
+    "readme": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "reduce complexity": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "refactor": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "release": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "repair test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "reserve engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "reserves": [
+      "docs/notebooklm-sources/"
+    ],
+    "review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "rls testing": [
+      "docs/chaos-engineering/"
+    ],
+    "rollback": [
+      "docs/runbooks/"
+    ],
+    "rollout": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "root cause": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "rounding": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "runbook": [
+      "docs/runbooks/"
+    ],
+    "schema": [
+      "docs/schemas/",
+      "SIDECAR_GUIDE.md"
+    ],
+    "secret": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "security": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "seeded": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "semantic search": [
+      "docs/INDEX.md"
+    ],
+    "shipping": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "simplify": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "slow": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "sql": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "stack trace": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "stage allocation": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "stage normalization": [
+      "docs/adr/"
+    ],
+    "state machine": [
+      "docs/wizard/"
+    ],
+    "streaming": [
+      "docs/adr/"
+    ],
+    "streaming monte carlo": [
+      "docs/forecasting/"
+    ],
+    "tenant": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "test": [
+      "docs/INDEX.md"
+    ],
+    "test fail": [
+      ".claude/agents/test-repair.md"
+    ],
+    "tier": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "token": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "token budgeting": [
+      "docs/adr/"
+    ],
+    "trace": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "tree shaking": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "truth case": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "truth case schema": [
+      "docs/schemas/"
+    ],
+    "truth source": [
+      "docs/notebooklm-sources/"
+    ],
+    "unit test": [
+      "docs/INDEX.md"
+    ],
+    "validation": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "validation schema": [
+      "docs/schemas/"
+    ],
+    "vc modeling": [
+      "docs/notebooklm-sources/"
+    ],
+    "vector": [
+      "docs/INDEX.md"
+    ],
+    "vitest": [
+      "docs/INDEX.md"
+    ],
+    "waterfall": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "what can": [
+      "CAPABILITIES.md"
+    ],
+    "wizard": [
+      "docs/wizard/"
+    ],
+    "wizard step": [
+      "docs/wizard/"
+    ],
+    "workflow": [
+      "docs/workflows/README.md"
+    ],
+    "write docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "xirr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "xstate": [
+      "docs/wizard/"
+    ]
   },
   "patterns": [
     {
       "id": "security",
-      "priority": 5,
       "match_any": [
         "secret",
         "key",
@@ -32,12 +608,12 @@
         "credential",
         "env"
       ],
+      "priority": 5,
       "route_to": "SIDECAR_GUIDE.md",
       "why": "Security routing (priority 5)"
     },
     {
       "id": "phoenix_truth",
-      "priority": 10,
       "match_any": [
         "truth case",
         "validation",
@@ -52,12 +628,12 @@
         "pass rate",
         "baseline"
       ],
+      "priority": 10,
       "route_to": ".claude/commands/phoenix-truth.md",
       "why": "Phoenix routing (priority 10)"
     },
     {
       "id": "phoenix_phase2",
-      "priority": 11,
       "match_any": [
         "monte carlo",
         "probabilistic",
@@ -74,12 +650,13 @@
         "distribution",
         "phase 2"
       ],
+      "priority": 11,
       "route_to": ".claude/commands/phoenix-phase2.md",
       "why": "Phoenix routing (priority 11)"
     },
     {
+      "agent": "waterfall-specialist",
       "id": "phoenix_waterfall",
-      "priority": 12,
       "match_any": [
         "waterfall",
         "clawback",
@@ -98,13 +675,13 @@
         "gp",
         "lp"
       ],
+      "priority": 12,
       "route_to": ".claude/agents/waterfall-specialist.md",
-      "why": "Phoenix routing (priority 12)",
-      "agent": "waterfall-specialist"
+      "why": "Phoenix routing (priority 12)"
     },
     {
+      "agent": "phoenix-precision-guardian",
       "id": "phoenix_precision",
-      "priority": 13,
       "match_any": [
         "precision",
         "parseFloat",
@@ -119,14 +696,20 @@
         "numeric drift",
         "rounding"
       ],
+      "priority": 13,
       "route_to": ".claude/agents/phoenix-precision-guardian.md",
-      "why": "Phoenix routing (priority 13)",
-      "agent": "phoenix-precision-guardian"
+      "why": "Phoenix routing (priority 13)"
     },
     {
+      "agent": "xirr-fees-validator",
       "id": "phoenix_xirr",
-      "priority": 14,
-      "match_any": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "match_any": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "match_any_normalized": [
         "xirr",
         "irr",
@@ -134,13 +717,13 @@
         "management fee",
         "carry fee"
       ],
+      "priority": 14,
       "route_to": ".claude/agents/xirr-fees-validator.md",
-      "why": "Phoenix routing (priority 14)",
-      "agent": "xirr-fees-validator"
+      "why": "Phoenix routing (priority 14)"
     },
     {
+      "agent": "phoenix-capital-allocation-analyst",
       "id": "phoenix_allocation",
-      "priority": 15,
       "match_any": [
         "capital allocation",
         "exit recycling",
@@ -153,13 +736,12 @@
         "deployment",
         "stage allocation"
       ],
+      "priority": 15,
       "route_to": ".claude/agents/phoenix-capital-allocation-analyst.md",
-      "why": "Phoenix routing (priority 15)",
-      "agent": "phoenix-capital-allocation-analyst"
+      "why": "Phoenix routing (priority 15)"
     },
     {
       "id": "domain_knowledge",
-      "priority": 16,
       "match_any": [
         "domain knowledge",
         "vc modeling",
@@ -176,12 +758,12 @@
         "truth source",
         "canonical"
       ],
+      "priority": 16,
       "route_to": "docs/notebooklm-sources/",
       "why": "Domain Knowledge routing (priority 16)"
     },
     {
       "id": "phoenix_engines",
-      "priority": 17,
       "match_any": [
         "reserve engine",
         "pacing engine",
@@ -198,12 +780,12 @@
         "pacing",
         "cohorts"
       ],
+      "priority": 17,
       "route_to": "docs/notebooklm-sources/",
       "why": "Phoenix routing (priority 17)"
     },
     {
       "id": "adr_directory",
-      "priority": 18,
       "match_any": [
         "adr",
         "architecture decision",
@@ -220,12 +802,12 @@
         "token budgeting",
         "streaming"
       ],
+      "priority": 18,
       "route_to": "docs/adr/",
       "why": "Architecture routing (priority 18)"
     },
     {
       "id": "truth_schemas",
-      "priority": 19,
       "match_any": [
         "schema",
         "json schema",
@@ -238,12 +820,12 @@
         "truth case schema",
         "validation schema"
       ],
+      "priority": 19,
       "route_to": "docs/schemas/",
       "why": "Phoenix routing (priority 19)"
     },
     {
       "id": "capabilities",
-      "priority": 20,
       "match_any": [
         "capability",
         "feature",
@@ -258,12 +840,12 @@
         "already built",
         "what can"
       ],
+      "priority": 20,
       "route_to": "CAPABILITIES.md",
       "why": "Capabilities routing (priority 20)"
     },
     {
       "id": "production",
-      "priority": 30,
       "match_any": [
         "deploy",
         "release",
@@ -280,13 +862,19 @@
         "rollout",
         "shipping"
       ],
+      "priority": 30,
       "route_to": "docs/workflows/PRODUCTION_SCRIPTS.md",
       "why": "Production routing (priority 30)"
     },
     {
       "id": "ci_cd",
-      "priority": 31,
-      "match_any": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "match_any": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "match_any_normalized": [
         "ci",
         "cd",
@@ -294,12 +882,12 @@
         "workflow",
         "pipeline"
       ],
+      "priority": 31,
       "route_to": "docs/workflows/README.md",
       "why": "CI/CD routing (priority 31)"
     },
     {
       "id": "testing",
-      "priority": 40,
       "match_any": [
         "test",
         "unit test",
@@ -318,12 +906,13 @@
         "vitest",
         "coverage"
       ],
+      "priority": 40,
       "route_to": "docs/INDEX.md",
       "why": "Testing routing (priority 40)"
     },
     {
+      "agent": "database-expert",
       "id": "database",
-      "priority": 50,
       "match_any": [
         "database",
         "db",
@@ -342,13 +931,12 @@
         "postgres",
         "drizzle"
       ],
+      "priority": 50,
       "route_to": "SIDECAR_GUIDE.md",
-      "why": "Database routing (priority 50)",
-      "agent": "database-expert"
+      "why": "Database routing (priority 50)"
     },
     {
       "id": "memory",
-      "priority": 60,
       "match_any": [
         "memory",
         "context",
@@ -365,12 +953,12 @@
         "semantic search",
         "pgvector"
       ],
+      "priority": 60,
       "route_to": "docs/INDEX.md",
       "why": "Memory routing (priority 60)"
     },
     {
       "id": "ai_tools",
-      "priority": 70,
       "match_any": [
         "ai",
         "llm",
@@ -389,12 +977,12 @@
         "agent",
         "claude"
       ],
+      "priority": 70,
       "route_to": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
       "why": "AI Tools routing (priority 70)"
     },
     {
       "id": "performance",
-      "priority": 80,
       "match_any": [
         "perf",
         "performance",
@@ -411,77 +999,78 @@
         "benchmark",
         "optimization"
       ],
+      "priority": 80,
       "route_to": "cheatsheets/pr-merge-verification.md",
       "why": "Performance routing (priority 80)"
     },
     {
+      "agent": "debug-expert",
       "id": "debugging",
+      "match_any": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
+      "match_any_normalized": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
       "priority": 85,
-      "match_any": [
-        "debug",
-        "debugging",
-        "investigate",
-        "root cause",
-        "trace",
-        "stack trace"
-      ],
-      "match_any_normalized": [
-        "debug",
-        "debugging",
-        "investigate",
-        "root cause",
-        "trace",
-        "stack trace"
-      ],
       "route_to": ".claude/agents/debug-expert.md",
-      "why": "Development routing (priority 85)",
-      "agent": "debug-expert"
+      "why": "Development routing (priority 85)"
     },
     {
+      "agent": "code-reviewer",
       "id": "code_review",
+      "match_any": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
+      "match_any_normalized": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
       "priority": 86,
-      "match_any": [
-        "review",
-        "code review",
-        "pr review",
-        "pull request",
-        "check code"
-      ],
-      "match_any_normalized": [
-        "review",
-        "code review",
-        "pr review",
-        "pull request",
-        "check code"
-      ],
       "route_to": ".claude/agents/code-reviewer.md",
-      "why": "Development routing (priority 86)",
-      "agent": "code-reviewer"
+      "why": "Development routing (priority 86)"
     },
     {
+      "agent": "code-simplifier",
       "id": "refactoring",
+      "match_any": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
+      "match_any_normalized": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
       "priority": 87,
-      "match_any": [
-        "refactor",
-        "simplify",
-        "clean up",
-        "improve code",
-        "reduce complexity"
-      ],
-      "match_any_normalized": [
-        "refactor",
-        "simplify",
-        "clean up",
-        "improve code",
-        "reduce complexity"
-      ],
       "route_to": ".claude/agents/code-simplifier.md",
-      "why": "Development routing (priority 87)",
-      "agent": "code-simplifier"
+      "why": "Development routing (priority 87)"
     },
     {
+      "agent": "test-repair",
       "id": "test_repair",
-      "priority": 88,
       "match_any": [
         "fix test",
         "test fail",
@@ -496,13 +1085,13 @@
         "repair test",
         "broken test"
       ],
+      "priority": 88,
       "route_to": ".claude/agents/test-repair.md",
-      "why": "Testing routing (priority 88)",
-      "agent": "test-repair"
+      "why": "Testing routing (priority 88)"
     },
     {
+      "agent": "docs-architect",
       "id": "documentation",
-      "priority": 89,
       "match_any": [
         "document",
         "documentation",
@@ -519,13 +1108,12 @@
         "readme",
         "write docs"
       ],
+      "priority": 89,
       "route_to": ".claude/agents/docs-architect.md",
-      "why": "Documentation routing (priority 89)",
-      "agent": "docs-architect"
+      "why": "Documentation routing (priority 89)"
     },
     {
       "id": "runbooks",
-      "priority": 91,
       "match_any": [
         "runbook",
         "incident",
@@ -544,12 +1132,12 @@
         "disaster recovery",
         "dr"
       ],
+      "priority": 91,
       "route_to": "docs/runbooks/",
       "why": "Operations routing (priority 91)"
     },
     {
       "id": "observability",
-      "priority": 92,
       "match_any": [
         "metrics",
         "prometheus",
@@ -568,12 +1156,12 @@
         "dashboard",
         "kpi"
       ],
+      "priority": 92,
       "route_to": "docs/observability/",
       "why": "Operations routing (priority 92)"
     },
     {
       "id": "chaos_engineering",
-      "priority": 93,
       "match_any": [
         "chaos",
         "chaos engineering",
@@ -588,12 +1176,12 @@
         "game day",
         "failure injection"
       ],
+      "priority": 93,
       "route_to": "docs/chaos-engineering/",
       "why": "Testing routing (priority 93)"
     },
     {
       "id": "quality_gates",
-      "priority": 94,
       "match_any": [
         "gate",
         "quality gate",
@@ -608,12 +1196,12 @@
         "gate tracking",
         "approval"
       ],
+      "priority": 94,
       "route_to": "docs/gates/",
       "why": "Quality routing (priority 94)"
     },
     {
       "id": "wizard",
-      "priority": 95,
       "match_any": [
         "wizard",
         "modeling wizard",
@@ -628,12 +1216,12 @@
         "state machine",
         "wizard step"
       ],
+      "priority": 95,
       "route_to": "docs/wizard/",
       "why": "Implementation routing (priority 95)"
     },
     {
       "id": "forecasting",
-      "priority": 96,
       "match_any": [
         "forecasting",
         "power law",
@@ -646,12 +1234,12 @@
         "calibration",
         "streaming monte carlo"
       ],
+      "priority": 96,
       "route_to": "docs/forecasting/",
       "why": "Phoenix routing (priority 96)"
     },
     {
       "id": "agent_memory",
-      "priority": 97,
       "match_any": [
         "agent memory",
         "memory integration",
@@ -668,12 +1256,12 @@
         "memory scope",
         "tenant"
       ],
+      "priority": 97,
       "route_to": "cheatsheets/agent-memory-integration.md",
       "why": "AI Agents routing (priority 97)"
     },
     {
       "id": "agent_architecture",
-      "priority": 98,
       "match_any": [
         "agent architecture",
         "base agent",
@@ -690,12 +1278,12 @@
         "multi-agent",
         "orchestration"
       ],
+      "priority": 98,
       "route_to": "cheatsheets/agent-architecture.md",
       "why": "AI Agents routing (priority 98)"
     },
     {
       "id": "bundle_optimization",
-      "priority": 99,
       "match_any": [
         "bundle",
         "bundle size",
@@ -712,13 +1300,19 @@
         "code splitting",
         "lazy loading"
       ],
+      "priority": 99,
       "route_to": "packages/bundle-optimization-agents.md",
       "why": "Performance routing (priority 99)"
     },
     {
       "id": "troubleshooting",
-      "priority": 100,
-      "match_any": ["error", "broken", "issue", "problem", "not working"],
+      "match_any": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
       "match_any_normalized": [
         "error",
         "broken",
@@ -726,207 +1320,21 @@
         "problem",
         "not working"
       ],
+      "priority": 100,
       "route_to": "SIDECAR_GUIDE.md",
       "why": "Troubleshooting routing (priority 100)"
     }
   ],
-  "keyword_to_docs": {
-    "secret": ["SIDECAR_GUIDE.md"],
-    "key": ["SIDECAR_GUIDE.md"],
-    "token": ["SIDECAR_GUIDE.md"],
-    "password": ["SIDECAR_GUIDE.md"],
-    "auth": ["SIDECAR_GUIDE.md"],
-    "security": ["SIDECAR_GUIDE.md"],
-    "credential": ["SIDECAR_GUIDE.md"],
-    "env": ["SIDECAR_GUIDE.md"],
-    "truth case": [".claude/commands/phoenix-truth.md"],
-    "validation": [".claude/commands/phoenix-truth.md"],
-    "deterministic": [".claude/commands/phoenix-truth.md"],
-    "pass rate": [".claude/commands/phoenix-truth.md"],
-    "baseline": [".claude/commands/phoenix-truth.md"],
-    "monte carlo": [".claude/commands/phoenix-phase2.md"],
-    "probabilistic": [".claude/commands/phoenix-phase2.md"],
-    "expectation mode": [".claude/commands/phoenix-phase2.md"],
-    "seeded": [".claude/commands/phoenix-phase2.md"],
-    "distribution": [".claude/commands/phoenix-phase2.md"],
-    "phase 2": [".claude/commands/phoenix-phase2.md"],
-    "waterfall": [".claude/agents/waterfall-specialist.md"],
-    "clawback": [".claude/agents/waterfall-specialist.md"],
-    "carry": [".claude/agents/waterfall-specialist.md"],
-    "ledger": [".claude/agents/waterfall-specialist.md"],
-    "tier": [".claude/agents/waterfall-specialist.md"],
-    "gp": [".claude/agents/waterfall-specialist.md"],
-    "lp": [".claude/agents/waterfall-specialist.md"],
-    "precision": [".claude/agents/phoenix-precision-guardian.md"],
-    "parsefloat": [".claude/agents/phoenix-precision-guardian.md"],
-    "decimal": [".claude/agents/phoenix-precision-guardian.md"],
-    "numeric drift": [".claude/agents/phoenix-precision-guardian.md"],
-    "rounding": [".claude/agents/phoenix-precision-guardian.md"],
-    "xirr": [".claude/agents/xirr-fees-validator.md"],
-    "irr": [".claude/agents/xirr-fees-validator.md"],
-    "fees": [".claude/agents/xirr-fees-validator.md"],
-    "management fee": [".claude/agents/xirr-fees-validator.md"],
-    "carry fee": [".claude/agents/xirr-fees-validator.md"],
-    "capital allocation": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
+  "scoring": {
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
     ],
-    "exit recycling": [".claude/agents/phoenix-capital-allocation-analyst.md"],
-    "deployment": [".claude/agents/phoenix-capital-allocation-analyst.md"],
-    "stage allocation": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
-    ],
-    "domain knowledge": ["docs/notebooklm-sources/"],
-    "vc modeling": ["docs/notebooklm-sources/"],
-    "fund calculations": ["docs/notebooklm-sources/"],
-    "notebooklm": ["docs/notebooklm-sources/"],
-    "truth source": ["docs/notebooklm-sources/"],
-    "canonical": ["docs/notebooklm-sources/"],
-    "reserve engine": ["docs/notebooklm-sources/"],
-    "pacing engine": ["docs/notebooklm-sources/"],
-    "cohort engine": ["docs/notebooklm-sources/"],
-    "reserves": ["docs/notebooklm-sources/"],
-    "pacing": ["docs/notebooklm-sources/"],
-    "cohorts": ["docs/notebooklm-sources/"],
-    "adr": ["docs/adr/"],
-    "architecture decision": ["docs/adr/"],
-    "mem0": ["docs/adr/"],
-    "stage normalization": ["docs/adr/"],
-    "token budgeting": ["docs/adr/"],
-    "streaming": ["docs/adr/"],
-    "schema": ["docs/schemas/", "SIDECAR_GUIDE.md"],
-    "json schema": ["docs/schemas/"],
-    "truth case schema": ["docs/schemas/"],
-    "validation schema": ["docs/schemas/"],
-    "capability": ["CAPABILITIES.md"],
-    "feature": ["CAPABILITIES.md"],
-    "existing solution": ["CAPABILITIES.md"],
-    "already built": ["CAPABILITIES.md"],
-    "what can": ["CAPABILITIES.md"],
-    "deploy": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "release": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "prod": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "production": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "rollout": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "shipping": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "ci": ["docs/workflows/README.md"],
-    "cd": ["docs/workflows/README.md"],
-    "github actions": ["docs/workflows/README.md"],
-    "workflow": ["docs/workflows/README.md"],
-    "pipeline": ["docs/workflows/README.md"],
-    "test": ["docs/INDEX.md"],
-    "unit test": ["docs/INDEX.md"],
-    "integration": ["docs/INDEX.md"],
-    "e2e": ["docs/INDEX.md"],
-    "jest": ["docs/INDEX.md"],
-    "vitest": ["docs/INDEX.md"],
-    "coverage": ["docs/INDEX.md"],
-    "database": ["SIDECAR_GUIDE.md"],
-    "db": ["SIDECAR_GUIDE.md"],
-    "sql": ["SIDECAR_GUIDE.md"],
-    "migration": ["SIDECAR_GUIDE.md"],
-    "postgres": ["SIDECAR_GUIDE.md"],
-    "drizzle": ["SIDECAR_GUIDE.md"],
-    "memory": ["docs/INDEX.md"],
-    "context": ["docs/INDEX.md"],
-    "vector": ["docs/INDEX.md"],
-    "embedding": ["docs/INDEX.md"],
-    "semantic search": ["docs/INDEX.md"],
-    "pgvector": ["docs/INDEX.md"],
-    "ai": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "llm": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "model": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "inference": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "prompt": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "agent": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "claude": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "perf": ["cheatsheets/pr-merge-verification.md"],
-    "performance": ["cheatsheets/pr-merge-verification.md"],
-    "slow": ["cheatsheets/pr-merge-verification.md"],
-    "latency": ["cheatsheets/pr-merge-verification.md"],
-    "benchmark": ["cheatsheets/pr-merge-verification.md"],
-    "optimization": ["cheatsheets/pr-merge-verification.md"],
-    "debug": [".claude/agents/debug-expert.md"],
-    "debugging": [".claude/agents/debug-expert.md"],
-    "investigate": [".claude/agents/debug-expert.md"],
-    "root cause": [".claude/agents/debug-expert.md"],
-    "trace": [".claude/agents/debug-expert.md"],
-    "stack trace": [".claude/agents/debug-expert.md"],
-    "review": [".claude/agents/code-reviewer.md"],
-    "code review": [".claude/agents/code-reviewer.md"],
-    "pr review": [".claude/agents/code-reviewer.md"],
-    "pull request": [".claude/agents/code-reviewer.md"],
-    "check code": [".claude/agents/code-reviewer.md"],
-    "refactor": [".claude/agents/code-simplifier.md"],
-    "simplify": [".claude/agents/code-simplifier.md"],
-    "clean up": [".claude/agents/code-simplifier.md"],
-    "improve code": [".claude/agents/code-simplifier.md"],
-    "reduce complexity": [".claude/agents/code-simplifier.md"],
-    "fix test": [".claude/agents/test-repair.md"],
-    "test fail": [".claude/agents/test-repair.md"],
-    "failing test": [".claude/agents/test-repair.md"],
-    "repair test": [".claude/agents/test-repair.md"],
-    "broken test": [".claude/agents/test-repair.md"],
-    "document": [".claude/agents/docs-architect.md"],
-    "documentation": [".claude/agents/docs-architect.md"],
-    "docs": [".claude/agents/docs-architect.md"],
-    "jsdoc": [".claude/agents/docs-architect.md"],
-    "readme": [".claude/agents/docs-architect.md"],
-    "write docs": [".claude/agents/docs-architect.md"],
-    "runbook": ["docs/runbooks/"],
-    "incident": ["docs/runbooks/"],
-    "rollback": ["docs/runbooks/"],
-    "canary": ["docs/runbooks/"],
-    "blue green": ["docs/runbooks/"],
-    "disaster recovery": ["docs/runbooks/"],
-    "dr": ["docs/runbooks/"],
-    "metrics": ["docs/observability/"],
-    "prometheus": ["docs/observability/"],
-    "grafana": ["docs/observability/"],
-    "monitoring": ["docs/observability/"],
-    "alerting": ["docs/observability/"],
-    "dashboard": ["docs/observability/"],
-    "kpi": ["docs/observability/"],
-    "chaos": ["docs/chaos-engineering/"],
-    "chaos engineering": ["docs/chaos-engineering/"],
-    "rls testing": ["docs/chaos-engineering/"],
-    "game day": ["docs/chaos-engineering/"],
-    "failure injection": ["docs/chaos-engineering/"],
-    "gate": ["docs/gates/"],
-    "quality gate": ["docs/gates/"],
-    "raci": ["docs/gates/"],
-    "gate tracking": ["docs/gates/"],
-    "approval": ["docs/gates/"],
-    "wizard": ["docs/wizard/"],
-    "modeling wizard": ["docs/wizard/"],
-    "xstate": ["docs/wizard/"],
-    "state machine": ["docs/wizard/"],
-    "wizard step": ["docs/wizard/"],
-    "forecasting": ["docs/forecasting/"],
-    "power law": ["docs/forecasting/"],
-    "calibration": ["docs/forecasting/"],
-    "streaming monte carlo": ["docs/forecasting/"],
-    "agent memory": ["cheatsheets/agent-memory-integration.md"],
-    "memory integration": ["cheatsheets/agent-memory-integration.md"],
-    "pattern learning": ["cheatsheets/agent-memory-integration.md"],
-    "hybrid memory": ["cheatsheets/agent-memory-integration.md"],
-    "memory scope": ["cheatsheets/agent-memory-integration.md"],
-    "tenant": ["cheatsheets/agent-memory-integration.md"],
-    "agent architecture": ["cheatsheets/agent-architecture.md"],
-    "base agent": ["cheatsheets/agent-architecture.md"],
-    "agent core": ["cheatsheets/agent-architecture.md"],
-    "agent framework": ["cheatsheets/agent-architecture.md"],
-    "multi-agent": ["cheatsheets/agent-architecture.md"],
-    "orchestration": ["cheatsheets/agent-architecture.md"],
-    "bundle": ["packages/bundle-optimization-agents.md"],
-    "bundle size": ["packages/bundle-optimization-agents.md"],
-    "bundle optimization": ["packages/bundle-optimization-agents.md"],
-    "tree shaking": ["packages/bundle-optimization-agents.md"],
-    "code splitting": ["packages/bundle-optimization-agents.md"],
-    "lazy loading": ["packages/bundle-optimization-agents.md"],
-    "error": ["SIDECAR_GUIDE.md"],
-    "broken": ["SIDECAR_GUIDE.md"],
-    "issue": ["SIDECAR_GUIDE.md"],
-    "problem": ["SIDECAR_GUIDE.md"],
-    "not working": ["SIDECAR_GUIDE.md"]
-  }
+    "min_score": 2
+  },
+  "version": "2.0"
 }
