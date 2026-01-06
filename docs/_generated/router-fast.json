@@ -2,588 +2,205 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-06T07:26:21.131Z",
+  "generatedAt": "2026-01-06T08:35:31.071Z",
   "keyword_to_docs": {
-    "adr": [
-      "docs/adr/"
-    ],
-    "agent": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "agent architecture": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "agent core": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "agent framework": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "agent memory": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "ai": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "alerting": [
-      "docs/observability/"
-    ],
-    "already built": [
-      "CAPABILITIES.md"
-    ],
-    "approval": [
-      "docs/gates/"
-    ],
-    "architecture decision": [
-      "docs/adr/"
-    ],
-    "auth": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "base agent": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "baseline": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "benchmark": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "blue green": [
-      "docs/runbooks/"
-    ],
-    "broken": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "broken test": [
-      ".claude/agents/test-repair.md"
-    ],
-    "bundle": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "bundle optimization": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "bundle size": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "calibration": [
-      "docs/forecasting/"
-    ],
-    "canary": [
-      "docs/runbooks/"
-    ],
-    "canonical": [
-      "docs/notebooklm-sources/"
-    ],
-    "capability": [
-      "CAPABILITIES.md"
-    ],
+    "adr": ["docs/adr/"],
+    "agent": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "agent architecture": ["cheatsheets/agent-architecture.md"],
+    "agent core": ["cheatsheets/agent-architecture.md"],
+    "agent framework": ["cheatsheets/agent-architecture.md"],
+    "agent memory": ["cheatsheets/agent-memory-integration.md"],
+    "ai": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "alerting": ["docs/observability/"],
+    "already built": ["CAPABILITIES.md"],
+    "approval": ["docs/gates/"],
+    "architecture decision": ["docs/adr/"],
+    "auth": ["SIDECAR_GUIDE.md"],
+    "base agent": ["cheatsheets/agent-architecture.md"],
+    "baseline": [".claude/commands/phoenix-truth.md"],
+    "benchmark": ["cheatsheets/pr-merge-verification.md"],
+    "blue green": ["docs/runbooks/"],
+    "broken": ["SIDECAR_GUIDE.md"],
+    "broken test": [".claude/agents/test-repair.md"],
+    "bundle": ["packages/bundle-optimization-agents.md"],
+    "bundle optimization": ["packages/bundle-optimization-agents.md"],
+    "bundle size": ["packages/bundle-optimization-agents.md"],
+    "calibration": ["docs/forecasting/"],
+    "canary": ["docs/runbooks/"],
+    "canonical": ["docs/notebooklm-sources/"],
+    "capability": ["CAPABILITIES.md"],
     "capital allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "carry": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "carry fee": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "cd": [
-      "docs/workflows/README.md"
-    ],
-    "chaos": [
-      "docs/chaos-engineering/"
-    ],
-    "chaos engineering": [
-      "docs/chaos-engineering/"
-    ],
-    "check code": [
-      ".claude/agents/code-reviewer.md"
-    ],
-    "ci": [
-      "docs/workflows/README.md"
-    ],
-    "claude": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "clawback": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "clean up": [
-      ".claude/agents/code-simplifier.md"
-    ],
-    "code review": [
-      ".claude/agents/code-reviewer.md"
-    ],
-    "code splitting": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "cohort engine": [
-      "docs/notebooklm-sources/"
-    ],
-    "cohorts": [
-      "docs/notebooklm-sources/"
-    ],
-    "context": [
-      "docs/INDEX.md"
-    ],
-    "coverage": [
-      "docs/INDEX.md"
-    ],
-    "credential": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "dashboard": [
-      "docs/observability/"
-    ],
-    "database": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "db": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "debug": [
-      ".claude/agents/debug-expert.md"
-    ],
-    "debugging": [
-      ".claude/agents/debug-expert.md"
-    ],
-    "decimal": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "deploy": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "deployment": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
-    ],
-    "deterministic": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "disaster recovery": [
-      "docs/runbooks/"
-    ],
-    "distribution": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "docs": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "document": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "documentation": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "domain knowledge": [
-      "docs/notebooklm-sources/"
-    ],
-    "dr": [
-      "docs/runbooks/"
-    ],
-    "drizzle": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "e2e": [
-      "docs/INDEX.md"
-    ],
-    "embedding": [
-      "docs/INDEX.md"
-    ],
-    "env": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "error": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "existing solution": [
-      "CAPABILITIES.md"
-    ],
-    "exit recycling": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
-    ],
-    "expectation mode": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "failing test": [
-      ".claude/agents/test-repair.md"
-    ],
-    "failure injection": [
-      "docs/chaos-engineering/"
-    ],
-    "feature": [
-      "CAPABILITIES.md"
-    ],
-    "fees": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "fix test": [
-      ".claude/agents/test-repair.md"
-    ],
-    "forecasting": [
-      "docs/forecasting/"
-    ],
-    "fund calculations": [
-      "docs/notebooklm-sources/"
-    ],
-    "game day": [
-      "docs/chaos-engineering/"
-    ],
-    "gate": [
-      "docs/gates/"
-    ],
-    "gate tracking": [
-      "docs/gates/"
-    ],
-    "github actions": [
-      "docs/workflows/README.md"
-    ],
-    "gp": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "grafana": [
-      "docs/observability/"
-    ],
-    "hybrid memory": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "improve code": [
-      ".claude/agents/code-simplifier.md"
-    ],
-    "incident": [
-      "docs/runbooks/"
-    ],
-    "inference": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "integration": [
-      "docs/INDEX.md"
-    ],
-    "investigate": [
-      ".claude/agents/debug-expert.md"
-    ],
-    "irr": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "issue": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "jest": [
-      "docs/INDEX.md"
-    ],
-    "jsdoc": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "json schema": [
-      "docs/schemas/"
-    ],
-    "key": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "kpi": [
-      "docs/observability/"
-    ],
-    "latency": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "lazy loading": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "ledger": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "llm": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "lp": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "management fee": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "mem0": [
-      "docs/adr/"
-    ],
-    "memory": [
-      "docs/INDEX.md"
-    ],
-    "memory integration": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "memory scope": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "metrics": [
-      "docs/observability/"
-    ],
-    "migration": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "model": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "modeling wizard": [
-      "docs/wizard/"
-    ],
-    "monitoring": [
-      "docs/observability/"
-    ],
-    "monte carlo": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "multi-agent": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "not working": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "notebooklm": [
-      "docs/notebooklm-sources/"
-    ],
-    "numeric drift": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "optimization": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "orchestration": [
-      "cheatsheets/agent-architecture.md"
-    ],
-    "pacing": [
-      "docs/notebooklm-sources/"
-    ],
-    "pacing engine": [
-      "docs/notebooklm-sources/"
-    ],
-    "parsefloat": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "pass rate": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "password": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "pattern learning": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "perf": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "performance": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "pgvector": [
-      "docs/INDEX.md"
-    ],
-    "phase 2": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "pipeline": [
-      "docs/workflows/README.md"
-    ],
-    "postgres": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "power law": [
-      "docs/forecasting/"
-    ],
-    "pr review": [
-      ".claude/agents/code-reviewer.md"
-    ],
-    "precision": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "probabilistic": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "problem": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "prod": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "production": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "prometheus": [
-      "docs/observability/"
-    ],
-    "prompt": [
-      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    ],
-    "pull request": [
-      ".claude/agents/code-reviewer.md"
-    ],
-    "quality gate": [
-      "docs/gates/"
-    ],
-    "raci": [
-      "docs/gates/"
-    ],
-    "readme": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "reduce complexity": [
-      ".claude/agents/code-simplifier.md"
-    ],
-    "refactor": [
-      ".claude/agents/code-simplifier.md"
-    ],
-    "release": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "repair test": [
-      ".claude/agents/test-repair.md"
-    ],
-    "reserve engine": [
-      "docs/notebooklm-sources/"
-    ],
-    "reserves": [
-      "docs/notebooklm-sources/"
-    ],
-    "review": [
-      ".claude/agents/code-reviewer.md"
-    ],
-    "rls testing": [
-      "docs/chaos-engineering/"
-    ],
-    "rollback": [
-      "docs/runbooks/"
-    ],
-    "rollout": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "root cause": [
-      ".claude/agents/debug-expert.md"
-    ],
-    "rounding": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "runbook": [
-      "docs/runbooks/"
-    ],
-    "schema": [
-      "docs/schemas/",
-      "SIDECAR_GUIDE.md"
-    ],
-    "secret": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "security": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "seeded": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "semantic search": [
-      "docs/INDEX.md"
-    ],
-    "shipping": [
-      "docs/workflows/PRODUCTION_SCRIPTS.md"
-    ],
-    "simplify": [
-      ".claude/agents/code-simplifier.md"
-    ],
-    "slow": [
-      "cheatsheets/pr-merge-verification.md"
-    ],
-    "sql": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "stack trace": [
-      ".claude/agents/debug-expert.md"
-    ],
+    "carry": [".claude/agents/waterfall-specialist.md"],
+    "carry fee": [".claude/agents/xirr-fees-validator.md"],
+    "cd": ["docs/workflows/README.md"],
+    "chaos": ["docs/chaos-engineering/"],
+    "chaos engineering": ["docs/chaos-engineering/"],
+    "check code": [".claude/agents/code-reviewer.md"],
+    "ci": ["docs/workflows/README.md"],
+    "claude": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "clawback": [".claude/agents/waterfall-specialist.md"],
+    "clean up": [".claude/agents/code-simplifier.md"],
+    "code review": [".claude/agents/code-reviewer.md"],
+    "code splitting": ["packages/bundle-optimization-agents.md"],
+    "cohort engine": ["docs/notebooklm-sources/"],
+    "cohorts": ["docs/notebooklm-sources/"],
+    "context": ["docs/INDEX.md"],
+    "coverage": ["docs/INDEX.md"],
+    "credential": ["SIDECAR_GUIDE.md"],
+    "dashboard": ["docs/observability/"],
+    "database": ["SIDECAR_GUIDE.md"],
+    "db": ["SIDECAR_GUIDE.md"],
+    "debug": [".claude/agents/debug-expert.md"],
+    "debugging": [".claude/agents/debug-expert.md"],
+    "decimal": [".claude/agents/phoenix-precision-guardian.md"],
+    "deploy": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "deployment": [".claude/agents/phoenix-capital-allocation-analyst.md"],
+    "deterministic": [".claude/commands/phoenix-truth.md"],
+    "disaster recovery": ["docs/runbooks/"],
+    "distribution": [".claude/commands/phoenix-phase2.md"],
+    "docs": [".claude/agents/docs-architect.md"],
+    "document": [".claude/agents/docs-architect.md"],
+    "documentation": [".claude/agents/docs-architect.md"],
+    "domain knowledge": ["docs/notebooklm-sources/"],
+    "dr": ["docs/runbooks/"],
+    "drizzle": ["SIDECAR_GUIDE.md"],
+    "e2e": ["docs/INDEX.md"],
+    "embedding": ["docs/INDEX.md"],
+    "env": ["SIDECAR_GUIDE.md"],
+    "error": ["SIDECAR_GUIDE.md"],
+    "existing solution": ["CAPABILITIES.md"],
+    "exit recycling": [".claude/agents/phoenix-capital-allocation-analyst.md"],
+    "expectation mode": [".claude/commands/phoenix-phase2.md"],
+    "failing test": [".claude/agents/test-repair.md"],
+    "failure injection": ["docs/chaos-engineering/"],
+    "feature": ["CAPABILITIES.md"],
+    "fees": [".claude/agents/xirr-fees-validator.md"],
+    "fix test": [".claude/agents/test-repair.md"],
+    "forecasting": ["docs/forecasting/"],
+    "fund calculations": ["docs/notebooklm-sources/"],
+    "game day": ["docs/chaos-engineering/"],
+    "gate": ["docs/gates/"],
+    "gate tracking": ["docs/gates/"],
+    "github actions": ["docs/workflows/README.md"],
+    "gp": [".claude/agents/waterfall-specialist.md"],
+    "grafana": ["docs/observability/"],
+    "hybrid memory": ["cheatsheets/agent-memory-integration.md"],
+    "improve code": [".claude/agents/code-simplifier.md"],
+    "incident": ["docs/runbooks/"],
+    "inference": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "integration": ["docs/INDEX.md"],
+    "investigate": [".claude/agents/debug-expert.md"],
+    "irr": [".claude/agents/xirr-fees-validator.md"],
+    "issue": ["SIDECAR_GUIDE.md"],
+    "jest": ["docs/INDEX.md"],
+    "jsdoc": [".claude/agents/docs-architect.md"],
+    "json schema": ["docs/schemas/"],
+    "key": ["SIDECAR_GUIDE.md"],
+    "kpi": ["docs/observability/"],
+    "latency": ["cheatsheets/pr-merge-verification.md"],
+    "lazy loading": ["packages/bundle-optimization-agents.md"],
+    "ledger": [".claude/agents/waterfall-specialist.md"],
+    "llm": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "lp": [".claude/agents/waterfall-specialist.md"],
+    "management fee": [".claude/agents/xirr-fees-validator.md"],
+    "mem0": ["docs/adr/"],
+    "memory": ["docs/INDEX.md"],
+    "memory integration": ["cheatsheets/agent-memory-integration.md"],
+    "memory scope": ["cheatsheets/agent-memory-integration.md"],
+    "metrics": ["docs/observability/"],
+    "migration": ["SIDECAR_GUIDE.md"],
+    "model": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "modeling wizard": ["docs/wizard/"],
+    "monitoring": ["docs/observability/"],
+    "monte carlo": [".claude/commands/phoenix-phase2.md"],
+    "multi-agent": ["cheatsheets/agent-architecture.md"],
+    "not working": ["SIDECAR_GUIDE.md"],
+    "notebooklm": ["docs/notebooklm-sources/"],
+    "numeric drift": [".claude/agents/phoenix-precision-guardian.md"],
+    "optimization": ["cheatsheets/pr-merge-verification.md"],
+    "orchestration": ["cheatsheets/agent-architecture.md"],
+    "pacing": ["docs/notebooklm-sources/"],
+    "pacing engine": ["docs/notebooklm-sources/"],
+    "parsefloat": [".claude/agents/phoenix-precision-guardian.md"],
+    "pass rate": [".claude/commands/phoenix-truth.md"],
+    "password": ["SIDECAR_GUIDE.md"],
+    "pattern learning": ["cheatsheets/agent-memory-integration.md"],
+    "perf": ["cheatsheets/pr-merge-verification.md"],
+    "performance": ["cheatsheets/pr-merge-verification.md"],
+    "pgvector": ["docs/INDEX.md"],
+    "phase 2": [".claude/commands/phoenix-phase2.md"],
+    "pipeline": ["docs/workflows/README.md"],
+    "postgres": ["SIDECAR_GUIDE.md"],
+    "power law": ["docs/forecasting/"],
+    "pr review": [".claude/agents/code-reviewer.md"],
+    "precision": [".claude/agents/phoenix-precision-guardian.md"],
+    "probabilistic": [".claude/commands/phoenix-phase2.md"],
+    "problem": ["SIDECAR_GUIDE.md"],
+    "prod": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "production": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "prometheus": ["docs/observability/"],
+    "prompt": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
+    "pull request": [".claude/agents/code-reviewer.md"],
+    "quality gate": ["docs/gates/"],
+    "raci": ["docs/gates/"],
+    "readme": [".claude/agents/docs-architect.md"],
+    "reduce complexity": [".claude/agents/code-simplifier.md"],
+    "refactor": [".claude/agents/code-simplifier.md"],
+    "release": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "repair test": [".claude/agents/test-repair.md"],
+    "reserve engine": ["docs/notebooklm-sources/"],
+    "reserves": ["docs/notebooklm-sources/"],
+    "review": [".claude/agents/code-reviewer.md"],
+    "rls testing": ["docs/chaos-engineering/"],
+    "rollback": ["docs/runbooks/"],
+    "rollout": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "root cause": [".claude/agents/debug-expert.md"],
+    "rounding": [".claude/agents/phoenix-precision-guardian.md"],
+    "runbook": ["docs/runbooks/"],
+    "schema": ["docs/schemas/", "SIDECAR_GUIDE.md"],
+    "secret": ["SIDECAR_GUIDE.md"],
+    "security": ["SIDECAR_GUIDE.md"],
+    "seeded": [".claude/commands/phoenix-phase2.md"],
+    "semantic search": ["docs/INDEX.md"],
+    "shipping": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
+    "simplify": [".claude/agents/code-simplifier.md"],
+    "slow": ["cheatsheets/pr-merge-verification.md"],
+    "sql": ["SIDECAR_GUIDE.md"],
+    "stack trace": [".claude/agents/debug-expert.md"],
     "stage allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "stage normalization": [
-      "docs/adr/"
-    ],
-    "state machine": [
-      "docs/wizard/"
-    ],
-    "streaming": [
-      "docs/adr/"
-    ],
-    "streaming monte carlo": [
-      "docs/forecasting/"
-    ],
-    "tenant": [
-      "cheatsheets/agent-memory-integration.md"
-    ],
-    "test": [
-      "docs/INDEX.md"
-    ],
-    "test fail": [
-      ".claude/agents/test-repair.md"
-    ],
-    "tier": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "token": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "token budgeting": [
-      "docs/adr/"
-    ],
-    "trace": [
-      ".claude/agents/debug-expert.md"
-    ],
-    "tree shaking": [
-      "packages/bundle-optimization-agents.md"
-    ],
-    "truth case": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "truth case schema": [
-      "docs/schemas/"
-    ],
-    "truth source": [
-      "docs/notebooklm-sources/"
-    ],
-    "unit test": [
-      "docs/INDEX.md"
-    ],
-    "validation": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "validation schema": [
-      "docs/schemas/"
-    ],
-    "vc modeling": [
-      "docs/notebooklm-sources/"
-    ],
-    "vector": [
-      "docs/INDEX.md"
-    ],
-    "vitest": [
-      "docs/INDEX.md"
-    ],
-    "waterfall": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "what can": [
-      "CAPABILITIES.md"
-    ],
-    "wizard": [
-      "docs/wizard/"
-    ],
-    "wizard step": [
-      "docs/wizard/"
-    ],
-    "workflow": [
-      "docs/workflows/README.md"
-    ],
-    "write docs": [
-      ".claude/agents/docs-architect.md"
-    ],
-    "xirr": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "xstate": [
-      "docs/wizard/"
-    ]
+    "stage normalization": ["docs/adr/"],
+    "state machine": ["docs/wizard/"],
+    "streaming": ["docs/adr/"],
+    "streaming monte carlo": ["docs/forecasting/"],
+    "tenant": ["cheatsheets/agent-memory-integration.md"],
+    "test": ["docs/INDEX.md"],
+    "test fail": [".claude/agents/test-repair.md"],
+    "tier": [".claude/agents/waterfall-specialist.md"],
+    "token": ["SIDECAR_GUIDE.md"],
+    "token budgeting": ["docs/adr/"],
+    "trace": [".claude/agents/debug-expert.md"],
+    "tree shaking": ["packages/bundle-optimization-agents.md"],
+    "truth case": [".claude/commands/phoenix-truth.md"],
+    "truth case schema": ["docs/schemas/"],
+    "truth source": ["docs/notebooklm-sources/"],
+    "unit test": ["docs/INDEX.md"],
+    "validation": [".claude/commands/phoenix-truth.md"],
+    "validation schema": ["docs/schemas/"],
+    "vc modeling": ["docs/notebooklm-sources/"],
+    "vector": ["docs/INDEX.md"],
+    "vitest": ["docs/INDEX.md"],
+    "waterfall": [".claude/agents/waterfall-specialist.md"],
+    "what can": ["CAPABILITIES.md"],
+    "wizard": ["docs/wizard/"],
+    "wizard step": ["docs/wizard/"],
+    "workflow": ["docs/workflows/README.md"],
+    "write docs": [".claude/agents/docs-architect.md"],
+    "xirr": [".claude/agents/xirr-fees-validator.md"],
+    "xstate": ["docs/wizard/"]
   },
   "patterns": [
     {
@@ -703,13 +320,7 @@
     {
       "agent": "xirr-fees-validator",
       "id": "phoenix_xirr",
-      "match_any": [
-        "xirr",
-        "irr",
-        "fees",
-        "management fee",
-        "carry fee"
-      ],
+      "match_any": ["xirr", "irr", "fees", "management fee", "carry fee"],
       "match_any_normalized": [
         "xirr",
         "irr",
@@ -868,13 +479,7 @@
     },
     {
       "id": "ci_cd",
-      "match_any": [
-        "ci",
-        "cd",
-        "github actions",
-        "workflow",
-        "pipeline"
-      ],
+      "match_any": ["ci", "cd", "github actions", "workflow", "pipeline"],
       "match_any_normalized": [
         "ci",
         "cd",
@@ -1306,13 +911,7 @@
     },
     {
       "id": "troubleshooting",
-      "match_any": [
-        "error",
-        "broken",
-        "issue",
-        "problem",
-        "not working"
-      ],
+      "match_any": ["error", "broken", "issue", "problem", "not working"],
       "match_any_normalized": [
         "error",
         "broken",
@@ -1326,14 +925,7 @@
     }
   ],
   "scoring": {
-    "generic_terms": [
-      "test",
-      "error",
-      "fix",
-      "update",
-      "change",
-      "help"
-    ],
+    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
     "min_score": 2
   },
   "version": "2.0"
