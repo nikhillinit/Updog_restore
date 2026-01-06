@@ -59,7 +59,7 @@ describe('LP Reporting Dashboard API', () => {
 
   beforeAll(async () => {
     app = express();
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     server = await registerRoutes(app);
@@ -103,9 +103,7 @@ describe('LP Reporting Dashboard API', () => {
     });
 
     it('rejects LP accessing another LP report (403)', async () => {
-      const createResponse = await authPost('/api/lp/reports/generate').send(
-        validReportConfig
-      );
+      const createResponse = await authPost('/api/lp/reports/generate').send(validReportConfig);
 
       if (createResponse.status === 202) {
         const reportId = createResponse.body.reportId as string;
@@ -226,9 +224,7 @@ describe('LP Reporting Dashboard API', () => {
     });
 
     it('returns paginated transactions structure', async () => {
-      const response = await authGet('/api/lp/capital-account').query(
-        validCapitalAccountQuery
-      );
+      const response = await authGet('/api/lp/capital-account').query(validCapitalAccountQuery);
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('transactions');
@@ -414,9 +410,7 @@ describe('LP Reporting Dashboard API', () => {
     });
 
     it('returns performance timeseries structure', async () => {
-      const response = await authGet('/api/lp/performance').query(
-        validPerformanceQuery
-      );
+      const response = await authGet('/api/lp/performance').query(validPerformanceQuery);
 
       if (response.status === 200) {
         expect(response.body).toHaveProperty('performance');
@@ -526,9 +520,7 @@ describe('LP Reporting Dashboard API', () => {
     });
 
     it('returns report generation job details', async () => {
-      const response = await authPost('/api/lp/reports/generate').send(
-        validReportConfig
-      );
+      const response = await authPost('/api/lp/reports/generate').send(validReportConfig);
 
       if (response.status === 202) {
         expect(response.body).toHaveProperty('reportId');
@@ -556,9 +548,7 @@ describe('LP Reporting Dashboard API', () => {
 
   describe('GET /api/lp/reports/:reportId', () => {
     it('returns report status structure when report exists', async () => {
-      const createResponse = await authPost('/api/lp/reports/generate').send(
-        validReportConfig
-      );
+      const createResponse = await authPost('/api/lp/reports/generate').send(validReportConfig);
 
       if (createResponse.status === 202) {
         const reportId = createResponse.body.reportId as string;
@@ -595,9 +585,7 @@ describe('LP Reporting Dashboard API', () => {
     });
 
     it('rejects download when report is not ready', async () => {
-      const createResponse = await authPost('/api/lp/reports/generate').send(
-        validReportConfig
-      );
+      const createResponse = await authPost('/api/lp/reports/generate').send(validReportConfig);
 
       if (createResponse.status === 202) {
         const reportId = createResponse.body.reportId as string;
@@ -636,10 +624,7 @@ describe('LP Reporting Dashboard API', () => {
 
     it('enforces rate limit after 100 requests per minute', async () => {
       const rateLimitIp = '203.0.113.10';
-      const warmupResponse = await authGet('/api/lp/profile').set(
-        'X-Forwarded-For',
-        rateLimitIp
-      );
+      const warmupResponse = await authGet('/api/lp/profile').set('X-Forwarded-For', rateLimitIp);
 
       if (warmupResponse.status !== 200) {
         expect([404, 500]).toContain(warmupResponse.status);
@@ -650,10 +635,7 @@ describe('LP Reporting Dashboard API', () => {
         await authGet('/api/lp/profile').set('X-Forwarded-For', rateLimitIp);
       }
 
-      const response = await authGet('/api/lp/profile').set(
-        'X-Forwarded-For',
-        rateLimitIp
-      );
+      const response = await authGet('/api/lp/profile').set('X-Forwarded-For', rateLimitIp);
 
       expect(response.status).toBe(429);
       expect(response.body.error).toBe('TOO_MANY_REQUESTS');
