@@ -115,7 +115,10 @@ npm test -- --reporter=json > test-results.json
 
 ### Environment-Dependent Checks (Conditional)
 
-- **Integration tests** - Require Docker/Redis, run on label or main
+- **Testcontainers integration tests** - Require Docker (label-triggered:
+  `test:docker` or `test:integration`)
+- **Other integration tests** - May require Docker/Redis, gracefully skip when
+  unavailable
 - **Performance benchmarks** - Baseline tracking, enforced on main only
 - **E2E tests** - Full environment required
 
