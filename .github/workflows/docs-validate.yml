@@ -80,9 +80,9 @@ jobs:
           echo "### Domain Score: ${SCORE}% 🎯" >> $GITHUB_STEP_SUMMARY
 
           if [ "$PASSED" = "true" ]; then
-            echo "✅ **PASSED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
+            echo "[PASS] **PASSED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ **FAILED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
+            echo "[FAIL] **FAILED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -103,10 +103,10 @@ jobs:
             const report = JSON.parse(fs.readFileSync('validation-report.json', 'utf8'));
 
             const { summary, scores, issues, warnings } = report;
-            const passed = summary.passed ? '✅ PASSED' : '❌ FAILED';
-            const statusEmoji = summary.passed ? '✅' : '❌';
+            const passed = summary.passed ? '[PASS] PASSED' : '[FAIL] FAILED';
+            const statusIcon = summary.passed ? '[PASS]' : '[FAIL]';
 
-            let body = `## ${statusEmoji} Waterfall Documentation Validation\n\n`;
+            let body = `## ${statusIcon} Waterfall Documentation Validation\n\n`;
             body += `**Domain Score:** ${summary.percentage}% (threshold: ${summary.threshold}%)\n`;
             body += `**Status:** ${passed}\n\n`;
 
@@ -135,10 +135,10 @@ jobs:
             }
 
             body += `### Test Coverage\n\n`;
-            body += `- ✅ Excel ROUND: 30/30 (100%)\n`;
-            body += `- ✅ Truth Table: 17/17 (100%)\n`;
-            body += `- ✅ Invariants: 6/6 (100%)\n`;
-            body += `- ✅ Total: 53/53 (100%)\n\n`;
+            body += `- [PASS] Excel ROUND: 30/30 (100%)\n`;
+            body += `- [PASS] Truth Table: 17/17 (100%)\n`;
+            body += `- [PASS] Invariants: 6/6 (100%)\n`;
+            body += `- [PASS] Total: 53/53 (100%)\n\n`;
 
             body += `---\n`;
             body += `📄 [View full validation report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
@@ -153,6 +153,6 @@ jobs:
       - name: Block merge if validation fails
         if: steps.domain-score.outputs.passed != 'true'
         run: |
-          echo "❌ Documentation validation failed. Domain score ${SCORE}% is below 92% threshold."
+          echo "[FAIL] Documentation validation failed. Domain score ${SCORE}% is below 92% threshold."
           echo "Please review the validation report and address the issues before merging."
           exit 1

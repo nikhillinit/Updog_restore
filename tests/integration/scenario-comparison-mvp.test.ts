@@ -35,7 +35,7 @@ describe.skip('Scenario Comparison MVP API', () => {
   beforeAll(async () => {
     // Setup Express app
     app = express();
-    app.set('trust proxy', true);
+    app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
 
     server = await registerRoutes(app);
@@ -121,9 +121,7 @@ describe.skip('Scenario Comparison MVP API', () => {
 
   describe('POST /api/portfolio/comparisons', () => {
     it('should reject empty request body', async () => {
-      const response = await request(server)
-        .post('/api/portfolio/comparisons')
-        .send({});
+      const response = await request(server).post('/api/portfolio/comparisons').send({});
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -274,9 +272,7 @@ describe.skip('Scenario Comparison MVP API', () => {
 
     it('should return 404 for non-existent comparison', async () => {
       const fakeComparisonId = uuid();
-      const response = await request(server).get(
-        `/api/portfolio/comparisons/${fakeComparisonId}`
-      );
+      const response = await request(server).get(`/api/portfolio/comparisons/${fakeComparisonId}`);
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);

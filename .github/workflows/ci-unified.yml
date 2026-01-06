@@ -618,12 +618,12 @@ jobs:
           scanDir('.');
 
           if (broken.length > 0) {
-            console.log('❌ Found broken badge references:');
+            console.log('[FAIL] Found broken badge references:');
             broken.forEach(b => console.log(`  ${b.file}: workflows/${b.workflow}`));
             process.exit(1);
           }
 
-          console.log('✅ All badge references valid');
+          console.log('[PASS] All badge references valid');
           EOF
 
       - name: Feature flags guard
@@ -648,7 +648,7 @@ jobs:
           LABELS='${{ toJson(github.event.pull_request.labels) }}'
           HAS_APPROVAL=$(echo "$LABELS" | jq -r 'map(select(.name == "approved:perf-budget-change")) | length > 0')
           if [[ "$HAS_APPROVAL" != "true" ]]; then
-            echo "❌ Performance budget changes require 'approved:perf-budget-change' label"
+            echo "[FAIL] Performance budget changes require 'approved:perf-budget-change' label"
             exit 1
           fi
 
@@ -661,9 +661,9 @@ jobs:
             const perfBlocked = "${{ steps.perf-guard.outcome }}" === "failure";
 
             if (flagsBlocked || perfBlocked) {
-              let comment = "## 🚨 Governance Guards\n\n";
-              if (flagsBlocked) comment += "❌ **Feature flags changes blocked** - requires approval labels\n";
-              if (perfBlocked) comment += "❌ **Performance budget changes blocked** - requires approval\n";
+              let comment = "## [BLOCKED] Governance Guards\n\n";
+              if (flagsBlocked) comment += "[FAIL] **Feature flags changes blocked** - requires approval labels\n";
+              if (perfBlocked) comment += "[FAIL] **Performance budget changes blocked** - requires approval\n";
               comment += "\nSee job logs for details.";
               
               await github.rest.issues.createComment({
@@ -700,7 +700,7 @@ jobs:
             echo "Build: ${{ needs.build.result }}"
             exit 1
           fi
-          echo "✅ CI Gate Passed"
+          echo "[PASS] CI Gate Passed"
 
       - name: Comment PR status
         if: github.event_name == 'pull_request'
@@ -708,14 +708,14 @@ jobs:
         with:
           script: |
             const status = "${{ steps.status.outcome }}";
-            const emoji = status === "success" ? "✅" : "❌";
+            const statusIcon = status === "success" ? "[PASS]" : "[FAIL]";
             const testType = "${{ needs.test-affected.result }}" ? "affected" : "full";
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.pull_request.number,
-              body: `${emoji} **CI Summary**
+              body: `${statusIcon} **CI Summary**
               - Checks: ${{ needs.check.result }}
               - Tests (${testType}): ${{ needs.test-affected.result || needs.test-full.result || 'skipped' }}
               - Build: ${{ needs.build.result }}
