@@ -48,6 +48,7 @@ export default [
       '.vite/**',
       '.vercel/**',
       '.claude/**',
+      'experiments/**',
       'node_modules/**',
       'build/**',
       // Keep tests linted - removed "tests/**"

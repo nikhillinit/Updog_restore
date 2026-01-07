@@ -5,6 +5,7 @@ development of the Press On Ventures fund modeling platform.
 
 ## Table of Contents
 
+- [ADR-016: Migration from Manual MCP Multi-AI to Oh-My-OpenCode Automatic Orchestration](#adr-016-migration-from-manual-mcp-multi-ai-to-oh-my-opencode-automatic-orchestration)
 - [ADR-009: Vitest Path Alias Configuration and test.projects Migration](#adr-009-vitest-path-alias-configuration-and-testprojects-migration)
 - [ADR-010: PowerLawDistribution API Design - Constructor Over Factory Pattern](#adr-010-powerlawdistribution-api-design---constructor-over-factory-pattern)
 - [ADR-011: Anti-Pattern Prevention Strategy for Portfolio Route API](#adr-011-anti-pattern-prevention-strategy-for-portfolio-route-api)
@@ -12,6 +13,249 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-013: Multi-Tenant Isolation via PostgreSQL Row Level Security](#adr-013-multi-tenant-isolation-via-postgresql-row-level-security)
 - [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria)
 - [ADR-015: Document Restructuring Approach - Sequential Split, Parallel Refinement](#adr-015-document-restructuring-approach---sequential-split-parallel-refinement)
+
+---
+
+## ADR-016: Migration from Manual MCP Multi-AI to Oh-My-OpenCode Automatic Orchestration
+
+**Date:** 2026-01-07 **Status:** [EXPERIMENTAL] 1-week validation period
+**Decision:** Replace manual MCP multi-AI collaboration with oh-my-opencode's
+automatic task-based delegation system
+
+### Context
+
+Our current multi-AI setup (`claude_code-multi-AI-MCP`) provides access to
+Gemini, GPT, Claude, and DeepSeek but requires **manual delegation** via
+explicit tool calls:
+
+**Current Workflow (Manual):**
+
+```
+Developer: "Hey Claude, ask Gemini to review this code"
+Claude: Uses mcp__multi-ai-collab__gemini_code_review tool
+```
+
+**Problems Identified:**
+
+1. **Manual overhead** - Requires explicit "ask X" prompts for every delegation
+2. **No automatic routing** - Developer must choose optimal model for each task
+3. **Sequential execution** - No background parallelization across models
+4. **Suboptimal cost** - No automatic cheap-model-for-simple-tasks optimization
+5. **Context fragmentation** - Each query isolated, no cross-model orchestration
+
+**Business Impact:**
+
+- Increased cognitive load on developers (choosing models manually)
+- Slower iteration cycles (sequential vs. parallel delegation)
+- Higher API costs (no automatic cost optimization)
+- Inconsistent model selection (varies by developer knowledge)
+
+### Analysis of Alternatives
+
+**Option 1: Keep Current MCP (Status Quo)**
+
+- Pros: Known working system, no migration risk
+- Cons: Manual overhead persists, no parallelization
+- Cost: Development velocity impact, higher API costs
+
+**Option 2: Enhance Current MCP with Auto-Routing**
+
+- Pros: Builds on existing infrastructure
+- Cons: Significant engineering effort (4-6 weeks), reinventing solved problem
+- Cost: 2-3 developer-weeks, opportunity cost vs. features
+
+**Option 3: Adopt Oh-My-OpenCode Framework**
+
+- Pros: Automatic delegation, proven architecture, background parallelization
+- Cons: New dependency, learning curve, migration effort
+- Cost: 1-2 days setup + 1 week validation
+
+### Decision
+
+**Adopt Oh-My-OpenCode with 1-week validation period**
+
+Rationale:
+
+1. **Automatic task-based delegation** eliminates manual prompting overhead
+2. **Specialized agents** optimize for specific domains:
+   - **Sisyphus (Claude Opus)**: Main orchestrator
+   - **Oracle (GPT-5.2)**: Architecture design, debugging
+   - **Librarian (Gemini 2.5 Pro)**: Documentation, research
+   - **Explore (Gemini Flash)**: Fast codebase analysis
+   - **Frontend Engineer (Gemini Pro)**: UI/UX work
+3. **Background parallelization** - 5 concurrent tasks across providers
+4. **Cost optimization** - Automatic routing to cheap models (Gemini Flash) for
+   simple tasks
+5. **Provider concurrency control** - Respect API rate limits (3 Claude, 5
+   Google, 2 OpenAI)
+
+### Implementation Plan
+
+**Phase 1: Installation (Day 1)**
+
+- Install oh-my-opencode via `bunx oh-my-opencode install`
+- Configure authentication (Claude OAuth, Gemini/OpenAI plugins)
+- Create project config (`.opencode/oh-my-opencode.json`)
+- Migrate API keys from existing MCP credentials
+
+**Phase 2: Parallel Operation (Week 1)**
+
+- Keep both systems active
+- Compare performance on real tasks
+- Track metrics: delegation count, time savings, API costs
+- Validate automatic routing accuracy
+
+**Phase 3: Decision Gate (End of Week 1)**
+
+- **Adopt** if: 50%+ reduction in manual prompts, accurate routing, cost-neutral
+- **Reject** if: Authentication issues, wrong routing decisions, instability
+- **Iterate** if: Partially successful, needs config tuning
+
+**Phase 4: Deprecation (Week 2, if adopted)**
+
+- Remove MCP multi-AI tools
+- Update documentation
+- Document lessons learned
+
+### Configuration
+
+```json
+{
+  "agents": {
+    "Sisyphus": {
+      "model": "anthropic/claude-opus-4-5",
+      "temperature": 0.2
+    },
+    "oracle": {
+      "model": "openai/gpt-4o",
+      "temperature": 0.1,
+      "permission": { "edit": "ask", "bash": "ask" }
+    },
+    "librarian": { "model": "google/gemini-2.5-pro" },
+    "explore": { "model": "google/gemini-2.5-pro" },
+    "frontend-ui-ux-engineer": { "model": "google/gemini-2.5-pro" }
+  },
+  "background_task": {
+    "defaultConcurrency": 5,
+    "providerConcurrency": {
+      "anthropic": 3,
+      "google": 5,
+      "openai": 2
+    }
+  }
+}
+```
+
+### Success Metrics
+
+| Metric                    | Baseline (Current MCP) | Target (Oh-My-OpenCode)     |
+| ------------------------- | ---------------------- | --------------------------- |
+| Manual delegation prompts | 5-10 per task          | 1 per task (50%+ reduction) |
+| Time to delegate          | 30s (manual)           | 0s (automatic)              |
+| Parallelization           | Sequential only        | 5 concurrent agents         |
+| Model selection accuracy  | Manual (varies)        | Automatic (task-based)      |
+| API cost per task         | Baseline               | Cost-neutral or better      |
+
+### Validation Criteria (Week 1 Gate)
+
+**MUST ACHIEVE:**
+
+- [PASS/FAIL] Authentication works reliably (Claude OAuth + Gemini/OpenAI
+  plugins)
+- [PASS/FAIL] Automatic routing selects appropriate model >90% of time
+- [PASS/FAIL] No stability issues (crashes, hangs, auth failures)
+- [PASS/FAIL] API costs <= current MCP baseline
+
+**SHOULD ACHIEVE:**
+
+- [METRIC] 50%+ reduction in manual delegation prompts
+- [METRIC] Background parallelization provides measurable speedup (>20%)
+- [METRIC] Developer satisfaction (subjective, via retrospective)
+
+**ROLLBACK TRIGGERS:**
+
+- Critical authentication failures blocking development
+- Automatic routing makes consistently wrong choices (>20% error rate)
+- API costs increase >25% vs. baseline
+- Stability issues requiring >2 hours troubleshooting per week
+
+### Risks & Mitigations
+
+**Risk 1: Authentication Complexity**
+
+- Impact: HIGH - Blocks all usage
+- Probability: MEDIUM - Multiple auth systems (Claude OAuth, Gemini plugin,
+  OpenAI plugin)
+- Mitigation: Automated setup script, step-by-step guide, fallback to current
+  MCP
+
+**Risk 2: Incorrect Automatic Routing**
+
+- Impact: MEDIUM - Suboptimal model selection
+- Probability: LOW - Oh-my-opencode has 10.9k stars, proven system
+- Mitigation: 1-week validation, manual override capability, per-agent model
+  config
+
+**Risk 3: API Cost Increase**
+
+- Impact: MEDIUM - Budget overruns
+- Probability: LOW - Cost optimization is core feature
+- Mitigation: Monitor API usage daily, set provider concurrency limits, kill
+  switch
+
+**Risk 4: Dependency on External Framework**
+
+- Impact: LOW - Vendor lock-in risk
+- Probability: LOW - Open source (SUL-1.0), active maintenance
+- Mitigation: Configuration in project files (portable), keep MCP backup for 2
+  weeks
+
+### Consequences
+
+**Positive:**
+
+- Zero-overhead multi-AI collaboration (automatic delegation)
+- Faster iteration cycles (background parallelization)
+- Cost optimization (automatic cheap-model routing)
+- Consistent model selection (no manual choice required)
+- Proven architecture (10.9k stars, active community)
+
+**Negative:**
+
+- New dependency (oh-my-opencode framework)
+- Learning curve for developers (1-2 days)
+- Migration effort (1-2 days setup)
+- Potential authentication complexity (3 systems: Claude, Gemini, OpenAI)
+
+**Neutral:**
+
+- Existing MCP infrastructure remains as fallback during validation
+- API keys reused (no new accounts needed)
+- Parallel operation possible (gradual migration)
+
+### References
+
+- **Repository**:
+  [github.com/code-yeongyu/oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)
+- **Documentation**:
+  [DeepWiki - Oh-My-OpenCode](https://deepwiki.com/code-yeongyu/oh-my-opencode)
+- **Current MCP**: `claude_code-multi-AI-MCP/` (backup in place)
+- **Installation Script**: `scripts/install-oh-my-opencode.ps1`
+- **Monitoring**: `scripts/monitor-oh-my-opencode.ps1` (created in this ADR)
+
+### Related Decisions
+
+- [ADR-011: Anti-Pattern Prevention Strategy](#adr-011-anti-pattern-prevention-strategy-for-portfolio-route-api) -
+  Quality gates approach
+- [CAPABILITIES.md](CAPABILITIES.md) - Existing 250+ agent infrastructure
+  (complementary, not replaced)
+
+### Decision Log
+
+- **2026-01-07**: Initial decision to experiment with oh-my-opencode
+- **2026-01-14** (planned): Week 1 validation gate - ADOPT/REJECT/ITERATE
+  decision
+- **2026-01-21** (planned): If adopted, complete MCP deprecation
 
 ---
 
@@ -4264,16 +4508,17 @@ docs/analysis/strategic-review-2025-11-27/
 
 ## ADR-016: XState Wizard Persistence with Invoke Pattern and Automatic Retry
 
-**Date:** 2025-12-01
-**Status:** ACCEPTED - Implementation Plan Ready
-**Decision Makers:** Multi-AI collaboration (Gemini + OpenAI), context-orchestrator agent
+**Date:** 2025-12-01 **Status:** ACCEPTED - Implementation Plan Ready **Decision
+Makers:** Multi-AI collaboration (Gemini + OpenAI), context-orchestrator agent
 **Implementation Plan:** docs/plans/xstate-persistence-implementation.md
 
 ### Context
 
-The modeling wizard state machine had a critical ordering issue in navigation transitions:
+The modeling wizard state machine had a critical ordering issue in navigation
+transitions:
 
 **Problem:**
+
 ```typescript
 NEXT: {
   guard: 'isCurrentStepValid',
@@ -4283,31 +4528,43 @@ NEXT: {
 ```
 
 - Navigation (`goToNextStep`) executed before persistence (`persistToStorage`)
-- If `localStorage.setItem()` threw errors (quota exceeded, privacy mode), UI advanced but data was lost
+- If `localStorage.setItem()` threw errors (quota exceeded, privacy mode), UI
+  advanced but data was lost
 - No error state tracking or user notification on persistence failure
-- Synchronous localStorage implementation, but wrong logical ordering created data integrity risks
+- Synchronous localStorage implementation, but wrong logical ordering created
+  data integrity risks
 
 **Business Impact:**
+
 - Risk of data loss for users spending 5-10 minutes per wizard step
-- Financial modeling data (fund allocations, carry waterfall) could be lost silently
+- Financial modeling data (fund allocations, carry waterfall) could be lost
+  silently
 - No user feedback on save failures
 - Future async API migration would compound the race condition
 
 ### Multi-AI Consultation Results
 
 **Gemini Recommendation:**
-- **Strong recommendation:** Use XState `invoke` pattern with dedicated `persisting` state
+
+- **Strong recommendation:** Use XState `invoke` pattern with dedicated
+  `persisting` state
 - **Pattern:** Error → Delay → Retry loop with exponential backoff
-- **Reasoning:** Declarative statechart, handles async naturally, explicit retry visualization
-- **Quote:** "The `invoke` pattern is not just the best choice; it's the idiomatic XState solution designed specifically for these requirements."
+- **Reasoning:** Declarative statechart, handles async naturally, explicit retry
+  visualization
+- **Quote:** "The `invoke` pattern is not just the best choice; it's the
+  idiomatic XState solution designed specifically for these requirements."
 
 **OpenAI Recommendation:**
+
 - **Strong recommendation:** Use `invoke` with service pattern
 - **Pattern:** XState retry actor pattern with `onDone`/`onError` transitions
-- **Reasoning:** Scalable, future-proof for async API, handles lifecycle events gracefully
-- **Quote:** "By using `invoke` with a service, you gain better control over asynchronous operations and can more easily adapt to future changes."
+- **Reasoning:** Scalable, future-proof for async API, handles lifecycle events
+  gracefully
+- **Quote:** "By using `invoke` with a service, you gain better control over
+  asynchronous operations and can more easily adapt to future changes."
 
 **Consensus Decision (Unanimous):**
+
 - Use `invoke` pattern with dedicated `persisting` state
 - Implement automatic retry with exponential backoff (3 attempts: 1s, 2s, 4s)
 - Fallback to error state after retry exhaustion
@@ -4315,11 +4572,13 @@ NEXT: {
 
 ### Decision
 
-**Implement XState invoke-based persistence with automatic retry and error recovery:**
+**Implement XState invoke-based persistence with automatic retry and error
+recovery:**
 
 #### 1. State Machine Architecture
 
 **New State Hierarchy:**
+
 ```
 wizardMachine
   - editing (user interaction)
@@ -4383,9 +4642,11 @@ const persistDataService = fromPromise(async ({ input }) => {
 
 #### 4. Retry Logic
 
-**Pattern:** Nested states with `after` transitions (Option 2 from multi-AI analysis)
+**Pattern:** Nested states with `after` transitions (Option 2 from multi-AI
+analysis)
 
 **Implementation:**
+
 ```typescript
 delaying: {
   entry: 'incrementRetryCount',
@@ -4410,59 +4671,69 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 
 **Why Invoke Pattern Over Choose Pattern?**
 
-| Criterion | Choose Pattern (Original) | Invoke Pattern (Chosen) |
-|-----------|---------------------------|-------------------------|
-| **Visualization** | Black box (no retry states visible) | Explicit persisting → delaying → retry flow |
-| **Debuggability** | Cannot inspect retry state | retryCount in context, states match reality |
-| **Future-proof** | Breaks when migrating to async | Just swap service, state logic unchanged |
-| **Edge cases** | Component unmount leaves orphaned timers | XState auto-cancels invoke/after on exit |
+| Criterion         | Choose Pattern (Original)                | Invoke Pattern (Chosen)                     |
+| ----------------- | ---------------------------------------- | ------------------------------------------- |
+| **Visualization** | Black box (no retry states visible)      | Explicit persisting → delaying → retry flow |
+| **Debuggability** | Cannot inspect retry state               | retryCount in context, states match reality |
+| **Future-proof**  | Breaks when migrating to async           | Just swap service, state logic unchanged    |
+| **Edge cases**    | Component unmount leaves orphaned timers | XState auto-cancels invoke/after on exit    |
 
 **Why Automatic Retry?**
 
-- **Best UX for transient errors:** Most localStorage failures are temporary (browser hiccup, race condition)
+- **Best UX for transient errors:** Most localStorage failures are temporary
+  (browser hiccup, race condition)
 - **Graceful degradation:** Retry 3 times, then surface error to user
 - **Reduces user friction:** Auto-recovery without requiring manual retry click
 
 **Why NOT Optimistic UI?**
 
 - **Data integrity:** Financial data cannot tolerate optimistic assumptions
-- **localStorage failure modes:** Quota/privacy errors are not transient like network issues
+- **localStorage failure modes:** Quota/privacy errors are not transient like
+  network issues
 - **User trust:** Better to block advancement than risk silent data loss
 
 ### Implementation Plan
 
 #### Phase 1: Refactor Persistence to Service (GREEN phase)
+
 1. Wrap `persistToStorage()` in `fromPromise()` for future-proofing
 2. Add try/catch with specific error messages (quota, privacy mode)
 3. Test localStorage errors with mocked `setItem()`
 
 #### Phase 2: Add Persisting State (GREEN phase)
+
 1. Create dedicated `persisting` state with `invoke` of persistence service
-2. Refactor NEXT/BACK/GOTO to transition to `persisting` instead of calling actions
+2. Refactor NEXT/BACK/GOTO to transition to `persisting` instead of calling
+   actions
 3. Use `intent` context field to distinguish navigation vs auto-save
 
 #### Phase 3: Add Retry Logic (GREEN phase)
+
 1. Create `delaying` state with exponential backoff
 2. Add `retryCount` to context with `incrementRetryCount` action
 3. Wire `onError` from persisting → delaying → persisting loop
 
 #### Phase 4: Add Error Recovery UI (GREEN phase)
+
 1. Create `editing.persistFailed` substate
 2. Add RETRY event to retry persistence
 3. Add DISMISS event to clear error and continue editing
 4. Update UI to show error banner and retry button
 
 #### Phase 5: Testing (RED → GREEN cycle)
+
 1. **Test:** Successful persistence advances to next step
 2. **Test:** localStorage quota error triggers retry → delaying → retry loop
 3. **Test:** After 3 retries, shows persistFailed error state
 4. **Test:** RETRY event from persistFailed successfully saves and navigates
 5. **Test:** Auto-save failures don't block navigation (separate intent)
-6. **Test:** Component unmount cancels in-flight persistence (no orphaned timers)
+6. **Test:** Component unmount cancels in-flight persistence (no orphaned
+   timers)
 
 ### Consequences
 
 **Positive:**
+
 - **Data integrity:** Persistence guaranteed before navigation
 - **User confidence:** Explicit error states with retry options
 - **Future-proof:** Trivial to migrate to async API (just swap service)
@@ -4471,17 +4742,21 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 - **Edge case handling:** Component lifecycle managed by XState actor model
 
 **Negative:**
-- **Implementation time:** ~6 hours (refactor + tests) vs 1 hour for choose pattern
+
+- **Implementation time:** ~6 hours (refactor + tests) vs 1 hour for choose
+  pattern
 - **Verbosity:** More states/transitions than simple action array
 - **Learning curve:** Team must understand invoke/actors pattern
 
 **Neutral:**
+
 - **State machine complexity:** More explicit states = better clarity
 - **Test coverage:** More states = more test cases (but clearer scenarios)
 
 ### Success Metrics
 
 **Definition of Done:**
+
 1. [PENDING] All existing tests pass (no regressions)
 2. [PENDING] 7+ new test cases for persistence failure scenarios
 3. [PENDING] Manual testing: localStorage disabled → error UI → retry → success
@@ -4489,6 +4764,7 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 5. [PENDING] `/deploy-check` passes (build + bundle + smoke)
 
 **Validation Evidence:**
+
 - **Test coverage:** 100% of persistence error paths tested
 - **Manual QA:** Error recovery flow works in 3 browsers (Chrome, Firefox, Edge)
 - **Performance:** No regression (persistence still synchronous)
@@ -4497,30 +4773,38 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 **Review Date:** 2026-03-01 (after async API migration)
 
 **Review Criteria:**
+
 - Was async API migration truly "just swap the service"?
 - Did automatic retry reduce support tickets?
 - Are users satisfied with error recovery UX?
 
 ### Related Decisions
 
-- [ADR-011: Anti-Pattern Prevention Strategy](#adr-011-anti-pattern-prevention-strategy) - Race condition prevention
-- [ADR-012: Mandatory Evidence-Based Document Reviews](#adr-012-mandatory-evidence-based-document-reviews) - Code-level verification
-- [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria) - Test quality standards
+- [ADR-011: Anti-Pattern Prevention Strategy](#adr-011-anti-pattern-prevention-strategy) -
+  Race condition prevention
+- [ADR-012: Mandatory Evidence-Based Document Reviews](#adr-012-mandatory-evidence-based-document-reviews) -
+  Code-level verification
+- [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria) -
+  Test quality standards
 
 ### Multi-AI Debate Summary
 
 **Gemini (Pro-Invoke Pattern):**
+
 - "Single invoke with internal retry loop creates a black box"
 - "Nested states with `after` transitions provide excellent visualization"
 - "Option 2 (nested states) is a very strong, valid, and declarative pattern"
 
 **OpenAI (Pro-Invoke Pattern):**
+
 - "XState's actor model provides better control over running logic"
 - "Using `invoke` with a service provides maintainability and robustness"
 - "Option 3 (retry actor pattern) leverages XState's strengths"
 
 **DeepSeek (Implementation Details):**
-- "Option 2 (nested states) best represents retry logic in statechart visualizer"
+
+- "Option 2 (nested states) best represents retry logic in statechart
+  visualizer"
 - "Makes retry count/delay most debuggable via context inspection"
 - "Handles edge cases like component unmount via automatic cleanup"
 
@@ -4529,19 +4813,22 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 ### Alternatives Considered
 
 **Alternative 1: Choose Pattern with Error Flags**
+
 - Rejected: Hides retry state, poor debuggability, breaks on async
 - Reasoning: Multi-AI analysis identified as anti-pattern for this use case
 
 **Alternative 2: Optimistic UI with Background Queue**
+
 - Rejected: Unacceptable data loss risk for financial data
-- Reasoning: localStorage failure modes don't match network transience assumptions
+- Reasoning: localStorage failure modes don't match network transience
+  assumptions
 
 **Alternative 3: Synchronous Retry Loop Inside Single Invoke**
+
 - Rejected: Creates "black box" invisible to state machine
 - Reasoning: Retry count/delay not inspectable, poor visualization
 
 ---
 
-**Document Status:** ACCEPTED
-**Last Updated:** 2025-12-01
-**Next Steps:** Implement test-driven development cycle (RED → GREEN → REFACTOR)
+**Document Status:** ACCEPTED **Last Updated:** 2025-12-01 **Next Steps:**
+Implement test-driven development cycle (RED → GREEN → REFACTOR)

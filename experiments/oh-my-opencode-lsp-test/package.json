@@ -1,0 +1,24 @@
+{
+  "name": "oh-my-opencode-lsp-test",
+  "version": "1.0.0",
+  "description": "Isolated test environment for oh-my-opencode LSP capabilities",
+  "main": "src/index.ts",
+  "scripts": {
+    "test:rename": "echo 'Run LSP rename test'",
+    "test:extract": "echo 'Run LSP extract function test'",
+    "test:ast-grep": "echo 'Run AST-Grep benchmark'",
+    "test:all": "npm run test:rename && npm run test:extract && npm run:test:ast-grep"
+  },
+  "keywords": [
+    "lsp",
+    "ast-grep",
+    "refactoring",
+    "testing"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.6"
+  }
+}

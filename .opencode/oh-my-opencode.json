@@ -1,0 +1,38 @@
+{
+  "agents": {
+    "frontend-ui-ux-engineer": {
+      "model": "google/gemini-2.5-pro"
+    },
+    "librarian": {
+      "model": "google/gemini-2.5-pro"
+    },
+    "document-writer": {
+      "model": "google/gemini-2.5-pro"
+    },
+    "Sisyphus": {
+      "model": "anthropic/claude-opus-4-5",
+      "temperature": 0.2
+    },
+    "oracle": {
+      "permission": {
+        "edit": "ask",
+        "bash": "ask"
+      },
+      "model": "openai/gpt-4o",
+      "temperature": 0.1
+    },
+    "explore": {
+      "model": "google/gemini-2.5-pro"
+    }
+  },
+  "google_auth": false,
+  "$schema": "https://deepwiki.com/code-yeongyu/oh-my-opencode/schema.json",
+  "background_task": {
+    "defaultConcurrency": 5,
+    "providerConcurrency": {
+      "openai": 2,
+      "anthropic": 3,
+      "google": 5
+    }
+  }
+}

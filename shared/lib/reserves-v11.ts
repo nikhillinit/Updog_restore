@@ -80,12 +80,12 @@ export function calculateReservesSafe(
     }
     
     // Calculate total available reserves
-    const totalInitial = input.companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0);
+    const totalInitial = input.companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0);
     const available = Math.floor((totalInitial * config.reserve_bps) / 10_000);
     let remaining = available;
     
     // Rank companies by Exit MOIC (descending)
-    const ranked = [...input.companies].sort((a: any, b: any) => {
+    const ranked = [...input.companies].sort((a, b) => {
       const moicA = a.exit_moic_bps || 0;
       const moicB = b.exit_moic_bps || 0;
       if (moicB !== moicA) return moicB - moicA;
@@ -149,7 +149,7 @@ export function calculateReservesSafe(
     }
     
     // Calculate totals for invariant checking
-    const totalAllocated = allocations.reduce((sum: any, a: any) => sum + a.planned_cents, 0);
+    const totalAllocated = allocations.reduce((sum, a) => sum + a.planned_cents, 0);
     
     // Conservation invariant check
     const conservationCheck = Math.abs((totalAllocated + remaining) - available) <= 1; // Allow 1 cent rounding
@@ -215,7 +215,7 @@ export function calculateReserves(
   
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3)
   };
   

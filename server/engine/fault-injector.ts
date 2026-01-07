@@ -16,7 +16,7 @@ export interface FaultOptions {
 
 const defaultTargets = ['irr', 'moic', 'median', 'percentiles'];
 
-export function withFaults<TArgs extends any[], TResult>(
+export function withFaults<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult> | TResult,
   opt: FaultOptions = {},
 ): (...args: TArgs) => Promise<TResult> {
@@ -37,7 +37,7 @@ export function withFaults<TArgs extends any[], TResult>(
       : 1337);
 
   const targets = (opt.targetKeys?.length ? opt.targetKeys : defaultTargets).map(
-    (s: any) => s.toLowerCase(),
+    (s) => s.toLowerCase(),
   );
 
   const rng = xorshift32(seed);
@@ -81,12 +81,12 @@ type Rand = () => number;
 function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
   const seen = new WeakSet<object>();
 
-  const visit = (node: any, path: string): any => {
+  const visit = (node: unknown, path: string): unknown => {
     if (node == null) return node;
 
     // Prefer targeted keys
     const keyLower = path.toLowerCase();
-    const isTarget = targets.some((t: any) => keyLower.endsWith(`.${  t}`));
+    const isTarget = targets.some((t) => keyLower.endsWith(`.${t}`));
 
     if (typeof node === 'number') {
       if (rnd() < (isTarget ? Math.min(1, rate * 1.5) : rate)) {
@@ -96,13 +96,13 @@ function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
     }
 
     if (Array.isArray(node)) {
-      return node.map((x: any, i: any) => visit(x, `${path}[${i}]`));
+      return node.map((x, i) => visit(x, `${path}[${i}]`));
     }
 
     if (typeof node === 'object') {
       if (seen.has(node)) return node;
       seen.add(node);
-      const out: any = Array.isArray(node) ? [] : { ...node };
+      const out: Record<string, unknown> = { ...node as Record<string, unknown> };
       for (const [k, val] of Object.entries(node)) {
         out[k] = visit(val, `${path}.${k}`);
       }
@@ -112,7 +112,7 @@ function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
     return node;
   };
 
-  return visit(v, '$');
+  return visit(v, '$') as T;
 }
 
 function mutateNumber(n: number, rnd: Rand): number {

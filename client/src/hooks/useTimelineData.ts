@@ -7,7 +7,7 @@ export interface TimelineEvent {
   eventTime: string;
   operation: string;
   entityType: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export interface Snapshot {
@@ -15,7 +15,7 @@ export interface Snapshot {
   snapshotTime: string;
   eventCount: number;
   stateHash: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export interface TimelineData {
@@ -48,7 +48,7 @@ export interface StateComparison {
       eventCount: number;
     };
   };
-  differences: any[];
+  differences: Array<Record<string, unknown>>;
   summary: {
     totalChanges: number;
     timeSpan: number;
@@ -64,7 +64,7 @@ export interface PointInTimeState {
     eventCount: number;
     stateHash: string;
   };
-  state: any;
+  state: Record<string, unknown>;
   eventsApplied: number;
   events?: TimelineEvent[];
 }
@@ -191,7 +191,7 @@ export function useCreateSnapshot() {
       });
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate timeline queries for this fund
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
@@ -220,7 +220,7 @@ export function useRestoreSnapshot() {
       });
       return response.json();
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate all fund-related queries after restoration
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
