@@ -15,13 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { TrendingUp, TrendingDown, Minus, Download, Settings } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 import type { CohortRow } from '@shared/types';
 
 type MetricType = 'dpi' | 'tvpi' | 'irr';
@@ -85,8 +80,9 @@ function formatMetric(value: number | null, metric: MetricType): string {
 
 /**
  * Gets trend indicator for metric comparison
+ * Reserved for future trend comparison feature
  */
-function TrendIndicator({ trend }: { trend: 'up' | 'down' | 'flat' }) {
+function _TrendIndicator({ trend }: { trend: 'up' | 'down' | 'flat' }) {
   if (trend === 'up') {
     return <TrendingUp className="h-3 w-3 text-green-600" />;
   }
@@ -185,10 +181,7 @@ export function CohortHeatMap({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg font-semibold">Cohort Heat Map</CardTitle>
         <div className="flex items-center gap-2">
-          <Select
-            value={selectedMetric}
-            onValueChange={(v) => setSelectedMetric(v as MetricType)}
-          >
+          <Select value={selectedMetric} onValueChange={(v) => setSelectedMetric(v as MetricType)}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -230,18 +223,13 @@ export function CohortHeatMap({
               <tbody>
                 {vintageOrder.map((vintage) => {
                   const total = vintageTotals[vintage];
-                  const totalDpi =
-                    total.paidIn > 0 ? total.distributions / total.paidIn : null;
+                  const totalDpi = total.paidIn > 0 ? total.distributions / total.paidIn : null;
                   const totalTvpi =
-                    total.paidIn > 0
-                      ? (total.distributions + total.residual) / total.paidIn
-                      : null;
+                    total.paidIn > 0 ? (total.distributions + total.residual) / total.paidIn : null;
 
                   return (
                     <tr key={vintage} className="border-b border-gray-100">
-                      <td className="p-2 text-sm font-medium text-gray-700">
-                        {vintage}
-                      </td>
+                      <td className="p-2 text-sm font-medium text-gray-700">{vintage}</td>
                       {sectorOrder.map((sectorId) => {
                         const row = rowMap.get(`${vintage}:${sectorId}`);
                         const value = row?.performance?.[selectedMetric] ?? null;
@@ -274,24 +262,21 @@ export function CohortHeatMap({
                                         Companies: {row.counts.companies} | Investments:{' '}
                                         {row.counts.investments}
                                       </div>
-                                      <div>
-                                        Paid-In: $
-                                        {(row.exposure.paidIn / 1e6).toFixed(2)}M
-                                      </div>
+                                      <div>Paid-In: ${(row.exposure.paidIn / 1e6).toFixed(2)}M</div>
                                       <div>
                                         Distributions: $
                                         {(row.exposure.distributions / 1e6).toFixed(2)}M
                                       </div>
                                       {row.exposure.residualValue !== undefined && (
                                         <div>
-                                          Residual: $
-                                          {(row.exposure.residualValue / 1e6).toFixed(2)}M
+                                          Residual: ${(row.exposure.residualValue / 1e6).toFixed(2)}
+                                          M
                                         </div>
                                       )}
                                       <div className="pt-1 border-t border-gray-200">
                                         DPI: {formatMetric(row.performance?.dpi ?? null, 'dpi')} |
-                                        TVPI: {formatMetric(row.performance?.tvpi ?? null, 'tvpi')} |
-                                        IRR: {formatMetric(row.performance?.irr ?? null, 'irr')}
+                                        TVPI: {formatMetric(row.performance?.tvpi ?? null, 'tvpi')}{' '}
+                                        | IRR: {formatMetric(row.performance?.irr ?? null, 'irr')}
                                       </div>
                                     </div>
                                   </div>

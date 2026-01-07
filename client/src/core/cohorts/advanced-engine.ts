@@ -10,12 +10,11 @@ import type {
   CohortAnalyzeResponse,
   CohortRow,
   ResolvedInvestment,
-  CashFlowEvent,
   CoverageSummaryType,
   VintageGranularity,
   CohortUnit,
 } from '@shared/types';
-import { calculateCoverage, createEmptyCoverage, type CoverageData } from '@shared/utils/coverage-calculations';
+import { calculateCoverage, type CoverageData } from '@shared/utils/coverage-calculations';
 
 import { getResolvedInvestments, getUnmappedSectors, type ResolutionInput } from './resolvers';
 import { computeCompanyCohortKeys, getShiftedCompanies, countCompanies } from './company-cohorts';
@@ -54,7 +53,7 @@ export interface AnalyzeCohortInput {
  */
 function calculateProvenance(
   resolved: ResolvedInvestment[],
-  unit: CohortUnit
+  _unit: CohortUnit // Reserved for future unit-specific provenance logic
 ): {
   sectorSourceBreakdown: Record<'company_override' | 'mapping' | 'unmapped', number>;
   vintageSourceBreakdown: Record<string, number>;
@@ -212,8 +211,8 @@ export function analyzeCohorts(input: AnalyzeCohortInput): CohortAnalyzeResponse
   // Step 5: Calculate coverage
   const coverage = calculateCoverageFromData(resolved, lots);
 
-  // Step 6: Calculate overall provenance
-  const globalProvenance = calculateProvenance(resolved, unit);
+  // Step 6: Calculate overall provenance (reserved for future aggregation reporting)
+  const _globalProvenance = calculateProvenance(resolved, unit);
 
   // Step 7: Get shifted companies info
   const shiftedCompanies = getShiftedCompanies(companyCohortKeysList);

@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Discovery Map Check Mode Non-Determinism** (2026-01-06)
+  - Fixed `npm run docs:routing:check` failing immediately after
+    `npm run docs:routing:generate`
+  - Root cause: `stripNonStructuralFields()` function only handled `RouterIndex`
+    schema but was also comparing `RouterFast` schemas
+  - Added stripping of `RouterFast.scoring.generatedAt` field to ensure
+    consistent comparison
+  - Check mode now correctly ignores timestamp-only differences between generate
+    and check runs
+  - File: `scripts/generate-discovery-map.ts:992-995`
+
 ### Added
 
 - **Advanced Cohort Analysis** (2026-01-04)
