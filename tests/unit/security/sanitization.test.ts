@@ -1,6 +1,6 @@
 /**
  * Security Sanitization Tests
- * 
+ *
  * Tests for the new sanitization utilities
  */
 
@@ -52,10 +52,11 @@ describe('Security Sanitization', () => {
     });
 
     it('should validate URL schemes in links', () => {
+      // Intentionally testing malicious javascript: URL pattern for security validation
       const input = '<a href="javascript:alert(1)">Click</a>';
       const result = sanitizeHTML(input);
       // sanitize-html should remove the javascript: URL
-      expect(result).not.toContain('javascript:');
+      expect(result).not.toContain('javascript:'); // eslint-disable-line no-script-url
     });
   });
 
@@ -69,7 +70,8 @@ describe('Security Sanitization', () => {
     });
 
     it('should reject javascript URLs', () => {
-      expect(isValidUrl('javascript:alert(1)')).toBe(false);
+      // Intentionally testing malicious javascript: URL pattern for security validation
+      expect(isValidUrl('javascript:alert(1)')).toBe(false); // eslint-disable-line no-script-url
     });
 
     it('should reject vbscript URLs', () => {

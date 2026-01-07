@@ -5,8 +5,9 @@ describe('NaN-safe equality', () => {
   it('should handle NaN equality correctly', () => {
     // Object.is treats NaN as equal to NaN
     expect(eq(NaN, NaN)).toBe(true);
-    
+
     // Regular === fails for NaN
+    // eslint-disable-next-line use-isnan -- Intentionally demonstrating incorrect NaN comparison
     expect(NaN === NaN).toBe(false);
   });
 
@@ -33,14 +34,14 @@ describe('NaN-safe equality', () => {
   it('should detect NaN equality in normalized values', () => {
     const v1 = normalizeNumber('');
     const v2 = normalizeNumber(null);
-    
+
     // Both normalize to NaN
     expect(v1).toBeNaN();
     expect(v2).toBeNaN();
-    
+
     // Object.is correctly identifies them as equal
     expect(eq(v1, v2)).toBe(true);
-    
+
     // Regular === would fail
     expect(v1 === v2).toBe(false);
   });

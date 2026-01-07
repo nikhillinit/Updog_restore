@@ -1,13 +1,13 @@
 import js from '@eslint/js';
-import tsParser from '@typescript-eslint/parser';
 import ts from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import unusedImports from 'eslint-plugin-unused-imports';
-import securityConfig from './eslint.security.config.js';
+import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
+import securityConfig from './eslint.security.config.js';
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);

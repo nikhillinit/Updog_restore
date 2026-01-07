@@ -35,6 +35,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 // Note: In production, use proper packages. This is a self-contained version.
 // import glob from 'fast-glob';
@@ -218,6 +219,48 @@ function normalizeLineEndings(content: string): string {
   return content.replace(/\r\n/g, '\n');
 }
 
+function buildPatternRegexes(patterns: string[]): RegExp[] {
+  return patterns.map((pattern) => {
+    const normalized = normalizePath(pattern).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+    return new RegExp(normalized);
+  });
+}
+
+function buildPatternRegexesExact(patterns: string[]): RegExp[] {
+  return patterns.map((pattern) => {
+    const normalized = normalizePath(pattern).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+    return new RegExp(`^${normalized}$`);
+  });
+}
+
+function matchesAnyPattern(target: string, regexes: RegExp[]): boolean {
+  return regexes.some((regex) => regex.test(target));
+}
+
+function getGitTrackedFiles(): string[] | null {
+  const result = spawnSync('git', ['ls-files'], { encoding: 'utf8' });
+  if (result.status !== 0 || result.error) {
+    return null;
+  }
+  return result.stdout.split(/\r?\n/).filter(Boolean);
+}
+
+function getScanRoots(patterns: string[]): { baseDirs: Set<string>; hasRootPattern: boolean } {
+  const baseDirs = new Set<string>();
+  let hasRootPattern = false;
+
+  for (const pattern of patterns) {
+    const baseDir = normalizePath(pattern).split('/')[0];
+    if (baseDir && !baseDir.includes('*')) {
+      baseDirs.add(baseDir);
+    } else if (baseDir.includes('*')) {
+      hasRootPattern = true;
+    }
+  }
+
+  return { baseDirs, hasRootPattern };
+}
+
 /**
  * Determine document type from path
  */
@@ -338,6 +381,9 @@ function parseFrontmatter(content: string): { data: Record<string, unknown>; con
  */
 async function globFiles(patterns: string[], excludes: string[]): Promise<string[]> {
   const results: string[] = [];
+  const includeRegexes = buildPatternRegexes(patterns);
+  const includeExactRegexes = buildPatternRegexesExact(patterns);
+  const excludeRegexes = buildPatternRegexes(excludes);
 
   async function walkDir(dir: string): Promise<void> {
     try {
@@ -348,20 +394,14 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
         const relativePath = normalizePath(fullPath);
 
         // Check excludes
-        const isExcluded = excludes.some((exc) => {
-          const pattern = normalizePath(exc).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-          return new RegExp(pattern).test(relativePath);
-        });
+        const isExcluded = matchesAnyPattern(relativePath, excludeRegexes);
         if (isExcluded) continue;
 
         if (entry.isDirectory()) {
           await walkDir(fullPath);
         } else if (entry.name.endsWith('.md')) {
           // Check if matches any pattern
-          const matches = patterns.some((pat) => {
-            const pattern = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-            return new RegExp(pattern).test(relativePath);
-          });
+          const matches = matchesAnyPattern(relativePath, includeRegexes);
           if (matches) {
             results.push(relativePath);
           }
@@ -373,17 +413,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
   }
 
   // Extract base directories from patterns
-  const baseDirs = new Set<string>();
-  let hasRootPattern = false;
-  for (const pattern of patterns) {
-    const baseDir = pattern.split('/')[0];
-    if (baseDir && !baseDir.includes('*')) {
-      baseDirs.add(baseDir);
-    } else if (baseDir.includes('*')) {
-      // Pattern like "*.md" - needs to scan current directory
-      hasRootPattern = true;
-    }
-  }
+  const { baseDirs, hasRootPattern } = getScanRoots(patterns);
 
   // Scan root directory if we have root-level patterns
   if (hasRootPattern) {
@@ -392,10 +422,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
         if (!entry.isDirectory() && entry.name.endsWith('.md')) {
-          const matches = patterns.some((pat) => {
-            const patternRegex = normalizePath(pat).replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
-            return new RegExp(`^${patternRegex}$`).test(entry.name);
-          });
+          const matches = matchesAnyPattern(normalizePath(entry.name), includeExactRegexes);
           if (matches) {
             results.push(entry.name);
           }
@@ -714,9 +741,31 @@ async function main(): Promise<void> {
 
   // 3. Scan Files
   console.log('Scanning documentation files...');
-  const files = (
-    await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths)
-  ).sort(compareStrings);
+  const includeRegexes = buildPatternRegexes(config.configuration.scan_paths);
+  const includeExactRegexes = buildPatternRegexesExact(config.configuration.scan_paths);
+  const excludeRegexes = buildPatternRegexes(config.configuration.exclude_paths);
+  const { baseDirs, hasRootPattern } = getScanRoots(config.configuration.scan_paths);
+  const trackedFiles = getGitTrackedFiles();
+  const files = trackedFiles
+    ? trackedFiles
+        .map(normalizePath)
+        .filter((file) => file.endsWith('.md'))
+        .filter((file) => !matchesAnyPattern(file, excludeRegexes))
+        .filter((file) => {
+          if (!file.includes('/')) {
+            return hasRootPattern && matchesAnyPattern(file, includeExactRegexes);
+          }
+          for (const dir of baseDirs) {
+            if (file === dir || file.startsWith(`${dir}/`)) {
+              return matchesAnyPattern(file, includeRegexes);
+            }
+          }
+          return false;
+        })
+        .sort(compareStrings)
+    : (await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths)).sort(
+        compareStrings
+      );
 
   if (isVerbose) {
     console.log(`Found ${files.length} files`);
@@ -1013,8 +1062,8 @@ Documents without proper YAML frontmatter:
         for (let i = 0; i < Math.min(existingStr.length, newStr.length); i++) {
           if (existingStr[i] !== newStr[i]) {
             console.log(`First diff at position ${i}:`);
-            console.log(`  Existing: ${existingStr.substring(Math.max(0, i-50), i+50)}`);
-            console.log(`  New:      ${newStr.substring(Math.max(0, i-50), i+50)}`);
+            console.log(`  Existing: ${existingStr.substring(Math.max(0, i - 50), i + 50)}`);
+            console.log(`  New:      ${newStr.substring(Math.max(0, i - 50), i + 50)}`);
             break;
           }
         }
