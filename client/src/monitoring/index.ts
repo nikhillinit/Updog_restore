@@ -5,14 +5,15 @@
  */
 
 // Check Do Not Track setting
-const isDNT = typeof navigator !== 'undefined' && 
-  (navigator.doNotTrack === '1' || 
-   (navigator as any).msDoNotTrack === '1' ||
-   (window as any).doNotTrack === '1');
+const _isDNT =
+  typeof navigator !== 'undefined' &&
+  (navigator.doNotTrack === '1' ||
+    (navigator as unknown as { msDoNotTrack?: string }).msDoNotTrack === '1' ||
+    (window as unknown as { doNotTrack?: string }).doNotTrack === '1');
 
 // Check user opt-out preference
-const isOptedOut = typeof localStorage !== 'undefined' && 
-  localStorage.getItem('analyticsOptOut') === '1';
+const _isOptedOut =
+  typeof localStorage !== 'undefined' && localStorage.getItem('analyticsOptOut') === '1';
 
 // Compile-time flag set by Vite based on VITE_SENTRY_DSN
 declare const __SENTRY__: boolean;
@@ -21,23 +22,23 @@ declare const __SENTRY__: boolean;
 interface MockScope {
   setMeasurement: (_key: string, value: number) => void;
   setTag: (_key: string, value: string) => void;
-  setContext: (_key: string, value: any) => void;
-  setUser: (_user: any) => void;
+  setContext: (_key: string, value: unknown) => void;
+  setUser: (_user: unknown) => void;
   setLevel: (_level: string) => void;
 }
 
 interface MockSentry {
-  init: (options?: any) => void;
-  captureException: (_error: any, context?: any) => string;
+  init: (options?: unknown) => void;
+  captureException: (_error: unknown, context?: unknown) => string;
   captureMessage: (_message: string, level?: string) => string;
-  addBreadcrumb: (_breadcrumb: any) => void;
+  addBreadcrumb: (_breadcrumb: unknown) => void;
   withScope: (_callback: (_scope: MockScope) => void) => void;
-  setUser: (_user: any) => void;
+  setUser: (_user: unknown) => void;
   setTag: (_key: string, value: string) => void;
-  setContext: (_key: string, value: any) => void;
+  setContext: (_key: string, value: unknown) => void;
   configureScope: (_callback: (_scope: MockScope) => void) => void;
-  browserTracingIntegration: () => any;
-  replayIntegration: (options?: any) => any;
+  browserTracingIntegration: () => unknown;
+  replayIntegration: (options?: unknown) => unknown;
 }
 
 // No-op implementations when Sentry is excluded
@@ -54,11 +55,11 @@ const noopSentry: MockSentry = {
   captureException: () => 'noop',
   captureMessage: () => 'noop',
   addBreadcrumb: () => {},
-  withScope: (callback: any) => callback(noopScope),
+  withScope: (callback: (_scope: MockScope) => void) => callback(noopScope),
   setUser: () => {},
   setTag: () => {},
   setContext: () => {},
-  configureScope: (callback: any) => callback(noopScope),
+  configureScope: (callback: (_scope: MockScope) => void) => callback(noopScope),
   browserTracingIntegration: () => ({}),
   replayIntegration: () => ({}),
 };
@@ -150,7 +151,7 @@ export function setAnalyticsEnabled(enabled: boolean): void {
   } else {
     localStorage.setItem('analyticsOptOut', '1');
   }
-  
+
   // Reload to apply changes
   if (typeof window !== 'undefined') {
     window.location.reload();

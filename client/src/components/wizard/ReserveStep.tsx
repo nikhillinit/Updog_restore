@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
 import { calculateReserves } from '@/lib/reserves-v11';
@@ -14,9 +20,52 @@ import { metrics, auditLog } from '@/metrics/reserves-metrics';
 import { formatQuarter, getCurrentQuarter } from '@/lib/quarter-time';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
+interface ExistingFund {
+  id?: string;
+  fundSize?: number;
+  totalCommitted?: number;
+  companies?: Array<{
+    id?: string;
+    name?: string;
+    stage?: string;
+    invested?: number;
+    ownership?: number;
+  }>;
+  portfolio?: Array<{
+    id?: string;
+    name?: string;
+    stage?: string;
+    invested?: number;
+    ownership?: number;
+  }>;
+  reservePercentage?: number;
+  reserveRatio?: number;
+}
+
+interface CalculationResult {
+  ok?: boolean;
+  data?: {
+    metadata: {
+      total_available_cents: number;
+      total_allocated_cents: number;
+      companies_funded: number;
+    };
+    remaining_cents: number;
+  };
+}
+
+interface ReserveConfig {
+  reservePercent: number;
+  enableRemainPass: boolean;
+  capPolicy: 'fixed' | 'stage' | 'custom';
+  defaultCapPercent?: number | undefined;
+  stageCaps?: Record<string, number> | undefined;
+  calculationResult?: CalculationResult | null | undefined;
+}
+
 interface ReserveStepProps {
-  fund: any; // Your existing fund type
-  onComplete: (_reserveConfig: any) => void;
+  fund: ExistingFund;
+  onComplete: (_reserveConfig: ReserveConfig) => void;
   onBack?: () => void;
 }
 
@@ -26,64 +75,64 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
   const [enableRemainPass, setEnableRemainPass] = useState(false);
   const [capPolicy, setCapPolicy] = useState<'fixed' | 'stage' | 'custom'>('fixed');
   const [defaultCapPercent, setDefaultCapPercent] = useState(50); // Default 50% cap
-  
+
   // Stage-based caps
   const [stageCaps, setStageCaps] = useState({
-    'Seed': 75,
+    Seed: 75,
     'Series A': 60,
     'Series B': 50,
     'Series C': 40,
-    'Growth': 30
+    Growth: 30,
   });
-  
+
   // Results state
-  const [calculationResult, setCalculationResult] = useState<any>(null);
+  const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
-  
+
   // Preview calculation
-  const runCalculation = async () => {
+  const runCalculation = useCallback(async () => {
     setIsCalculating(true);
     setErrors([]);
     setWarnings([]);
-    
+
     const timer = metrics.startTimer('reserves.ui.calculation');
-    
+
     try {
       // Adapt fund data
       const input = adaptFundToReservesInput(fund);
-      
+
       // Build config
       const config = adaptReservesConfig({
         reservePercentage: reservePercent / 100,
         enableRemainPass,
         capPercent: defaultCapPercent / 100,
-        ...(capPolicy === 'stage' ? {
-          stageCaps: Object.fromEntries(
-            Object.entries(stageCaps).map(([k, v]) => [k, v / 100])
-          )
-        } : {}),
-        auditLevel: 'detailed'
+        ...(capPolicy === 'stage'
+          ? {
+              stageCaps: Object.fromEntries(
+                Object.entries(stageCaps).map(([k, v]) => [k, v / 100])
+              ),
+            }
+          : {}),
+        auditLevel: 'detailed',
       });
-      
+
       // Record metrics
-      metrics.recordCompanyCount(input.companies.length);
+      if (input.companies) {
+        metrics.recordCompanyCount(input.companies.length);
+      }
       metrics.recordCapPolicy(capPolicy);
-      
+
       // Run calculation
-      const result = calculateReserves(
-        input.companies,
-        reservePercent / 100,
-        enableRemainPass
-      );
-      
+      const result = calculateReserves(input.companies, reservePercent / 100, enableRemainPass);
+
       setCalculationResult(result);
-      
+
       if (result.warnings) {
         setWarnings(result.warnings);
       }
-      
+
       if (!result.ok) {
         setErrors([result.error || 'Calculation failed']);
         metrics.recordError(result.error || 'Unknown error');
@@ -95,10 +144,9 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           output: result.data,
           config,
           duration_ms: result.metrics?.duration_ms || 0,
-          ...spreadIfDefined("warnings", result.warnings)
+          ...spreadIfDefined('warnings', result.warnings),
         });
       }
-      
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       setErrors([errorMsg]);
@@ -107,15 +155,24 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
       timer.end();
       setIsCalculating(false);
     }
-  };
-  
+  }, [fund, reservePercent, enableRemainPass, capPolicy, defaultCapPercent, stageCaps]);
+
   // Run calculation on config change
   useEffect(() => {
-    if (fund?.companies?.length > 0) {
+    const companiesLength = fund?.companies?.length ?? fund?.portfolio?.length ?? 0;
+    if (companiesLength > 0) {
       runCalculation();
     }
-  }, [reservePercent, enableRemainPass, capPolicy, defaultCapPercent, stageCaps]);
-  
+  }, [
+    fund,
+    reservePercent,
+    enableRemainPass,
+    capPolicy,
+    defaultCapPercent,
+    stageCaps,
+    runCalculation,
+  ]);
+
   // Handle completion
   const handleComplete = () => {
     const config = {
@@ -124,20 +181,20 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
       capPolicy,
       defaultCapPercent,
       stageCaps: capPolicy === 'stage' ? stageCaps : undefined,
-      calculationResult
+      calculationResult,
     };
-    
+
     onComplete(config);
   };
-  
+
   // Format currency
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'USD',
     }).format(cents / 100);
   };
-  
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -152,7 +209,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           </CardDescription>
         </CardHeader>
       </Card>
-      
+
       {/* Reserve Percentage Configuration */}
       <Card>
         <CardHeader>
@@ -170,7 +227,9 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                   max="100"
                   step="1"
                   value={reservePercent}
-                  onChange={(e: any) => setReservePercent(Number(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setReservePercent(Number(e.target.value))
+                  }
                   className="w-20"
                   aria-label="Reserve percentage"
                 />
@@ -191,11 +250,13 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
               Percentage of total invested capital to reserve for follow-on investments
             </p>
           </div>
-          
+
           {/* Remain Pass Toggle */}
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-1">
-              <Label htmlFor="remain-pass" className="text-base">Enable Remain Pass</Label>
+              <Label htmlFor="remain-pass" className="text-base">
+                Enable Remain Pass
+              </Label>
               <p className="text-sm text-muted-foreground">
                 Perform an additional allocation pass for any remaining reserves
               </p>
@@ -209,7 +270,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Cap Policy Configuration */}
       <Card>
         <CardHeader>
@@ -218,7 +279,10 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="cap-policy">Cap Strategy</Label>
-            <Select value={capPolicy} onValueChange={(value: any) => setCapPolicy(value)}>
+            <Select
+              value={capPolicy}
+              onValueChange={(value: string) => setCapPolicy(value as 'fixed' | 'stage' | 'custom')}
+            >
               <SelectTrigger id="cap-policy">
                 <SelectValue />
               </SelectTrigger>
@@ -229,7 +293,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
               </SelectContent>
             </Select>
           </div>
-          
+
           {capPolicy === 'fixed' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
@@ -242,7 +306,9 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                     max="200"
                     step="5"
                     value={defaultCapPercent}
-                    onChange={(e: any) => setDefaultCapPercent(Number(e.target.value))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setDefaultCapPercent(Number(e.target.value))
+                    }
                     className="w-20"
                     aria-label="Default cap percentage"
                   />
@@ -264,12 +330,14 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
               </p>
             </div>
           )}
-          
+
           {capPolicy === 'stage' && (
             <div className="space-y-3">
               {Object.entries(stageCaps).map(([stage, cap]) => (
                 <div key={stage} className="flex items-center justify-between">
-                  <Label htmlFor={`cap-${stage}`} className="w-24">{stage}</Label>
+                  <Label htmlFor={`cap-${stage}`} className="w-24">
+                    {stage}
+                  </Label>
                   <div className="flex items-center gap-2">
                     <Slider
                       id={`cap-${stage}`}
@@ -277,7 +345,9 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                       max={200}
                       step={5}
                       value={[cap]}
-                      onValueChange={([value]) => setStageCaps(prev => ({ ...prev, [stage]: value }))}
+                      onValueChange={([value]) =>
+                        setStageCaps((prev) => ({ ...prev, [stage]: value }))
+                      }
                       className="w-40"
                       aria-label={`${stage} cap percentage`}
                     />
@@ -286,7 +356,9 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                       min="0"
                       max="200"
                       value={cap}
-                      onChange={(e: any) => setStageCaps(prev => ({ ...prev, [stage]: Number(e.target.value) }))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setStageCaps((prev) => ({ ...prev, [stage]: Number(e.target.value) }))
+                      }
                       className="w-16"
                       aria-label={`${stage} cap input`}
                     />
@@ -298,7 +370,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           )}
         </CardContent>
       </Card>
-      
+
       {/* Calculation Results Preview */}
       {calculationResult?.ok && calculationResult.data && (
         <Card>
@@ -335,42 +407,42 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                 </p>
               </div>
             </div>
-            
+
             <div className="text-sm text-muted-foreground">
               Current Quarter: {formatQuarter(getCurrentQuarter())}
             </div>
           </CardContent>
         </Card>
       )}
-      
+
       {/* Warnings */}
       {warnings.length > 0 && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {warnings.map((warning: any, i: any) => (
+              {warnings.map((warning: string, i: number) => (
                 <li key={i}>{warning}</li>
               ))}
             </ul>
           </AlertDescription>
         </Alert>
       )}
-      
+
       {/* Errors */}
       {errors.length > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {errors.map((error: any, i: any) => (
+              {errors.map((error: string, i: number) => (
                 <li key={i}>{error}</li>
               ))}
             </ul>
           </AlertDescription>
         </Alert>
       )}
-      
+
       {/* Navigation */}
       <div className="flex justify-between">
         {onBack && (
@@ -378,7 +450,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
             Back
           </Button>
         )}
-        <Button 
+        <Button
           onClick={handleComplete}
           disabled={!calculationResult?.ok || isCalculating}
           className="ml-auto"

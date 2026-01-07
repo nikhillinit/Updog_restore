@@ -24,15 +24,15 @@ export interface EngineCompany {
   id: string;
   name: string;
   stage: Stage;
-  invested: number;      // Amount already invested (in dollars)
-  ownership: number;     // Current ownership percentage (0..1)
-  reserveCap?: number;   // Optional cap on reserves for this company
+  invested: number; // Amount already invested (in dollars)
+  ownership: number; // Current ownership percentage (0..1)
+  reserveCap?: number; // Optional cap on reserves for this company
 }
 
 export interface EngineStagePolicy {
   stage: Stage;
-  reserveMultiple: number;  // Multiple of initial investment to reserve
-  weight: number;           // Relative weight for this stage (default 1)
+  reserveMultiple: number; // Multiple of initial investment to reserve
+  weight: number; // Relative weight for this stage (default 1)
 }
 
 export interface EngineConstraints {
@@ -56,7 +56,7 @@ export interface EngineAllocation {
   id: string;
   name: string;
   stage: Stage;
-  allocated: number;  // Amount allocated in dollars
+  allocated: number; // Amount allocated in dollars
 }
 
 export interface EngineResult {
@@ -68,36 +68,45 @@ export interface EngineResult {
 
 // Type guards for runtime validation
 export function isValidStage(stage: string): stage is Stage {
-  const validStages: Stage[] = ['preseed', 'seed', 'series_a', 'series_b', 'series_c', 'series_dplus'];
+  const validStages: Stage[] = [
+    'preseed',
+    'seed',
+    'series_a',
+    'series_b',
+    'series_c',
+    'series_dplus',
+  ];
   return validStages.includes(stage as Stage);
 }
 
-export function isRawCompany(obj: any): obj is {
-  id: any;
-  name?: any;
-  stage: any;
-  invested?: any;
-  ownership?: any;
-  allocated?: any;
-  reserveCap?: any;
+export function isRawCompany(obj: unknown): obj is {
+  id: unknown;
+  name?: unknown;
+  stage: unknown;
+  invested?: unknown;
+  ownership?: unknown;
+  allocated?: unknown;
+  reserveCap?: unknown;
 } {
-  return obj && 
-         typeof obj === 'object' &&
-         obj.id != null &&
-         obj.stage != null;
+  return (
+    obj != null &&
+    typeof obj === 'object' &&
+    'id' in obj &&
+    obj.id != null &&
+    'stage' in obj &&
+    obj.stage != null
+  );
 }
 
-export function isRawStagePolicy(obj: any): obj is {
-  stage: any;
-  reserveMultiple?: any;
-  weight?: any;
-  reserve_ratio?: any;
-  max_check_size_cents?: any;
-  maxInvestment?: any;
+export function isRawStagePolicy(obj: unknown): obj is {
+  stage: unknown;
+  reserveMultiple?: unknown;
+  weight?: unknown;
+  reserve_ratio?: unknown;
+  max_check_size_cents?: unknown;
+  maxInvestment?: unknown;
 } {
-  return obj && 
-         typeof obj === 'object' &&
-         obj.stage != null;
+  return obj != null && typeof obj === 'object' && 'stage' in obj && obj.stage != null;
 }
 
 /**
