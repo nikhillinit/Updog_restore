@@ -1003,6 +1003,24 @@ Documents without proper YAML frontmatter:
     const jsonMatch = stableStringify(existingParsed) === stableStringify(newParsed);
     const fastMatch = stableStringify(existingFastParsed) === stableStringify(newFastParsed);
 
+    // DEBUG: Log mismatch details if check fails
+    if (!jsonMatch && existingParsed) {
+      const existingStr = stableStringify(existingParsed);
+      const newStr = stableStringify(newParsed);
+      if (existingStr !== newStr) {
+        console.log('router-index.json mismatch detected');
+        // Find first difference
+        for (let i = 0; i < Math.min(existingStr.length, newStr.length); i++) {
+          if (existingStr[i] !== newStr[i]) {
+            console.log(`First diff at position ${i}:`);
+            console.log(`  Existing: ${existingStr.substring(Math.max(0, i-50), i+50)}`);
+            console.log(`  New:      ${newStr.substring(Math.max(0, i-50), i+50)}`);
+            break;
+          }
+        }
+      }
+    }
+
     // For staleness report, just check if it exists (content will differ due to timestamps)
     const stalenessExists = existingStaleness.length > 0;
 
