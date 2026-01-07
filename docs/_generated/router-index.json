@@ -184,7 +184,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-DIRECTORY.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -209,7 +209,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-METRICS.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -258,7 +258,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/DISCOVERY-MAP.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -1235,7 +1235,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/docs/TEST-STRATEGY.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -1316,7 +1316,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": ".claude/plan.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -2640,7 +2640,7 @@
       "lastUpdated": "2025-12-12",
       "owner": "'Core Team'",
       "path": "CAPABILITIES.md",
-      "staleDays": 25,
+      "staleDays": 26,
       "status": "ACTIVE"
     },
     {
@@ -2791,7 +2791,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "FOUNDATION-HARDENING-EXECUTION-PLAN.md",
-      "staleDays": 21,
+      "staleDays": 22,
       "status": "ACTIVE"
     },
     {
@@ -4506,7 +4506,7 @@
       "lastUpdated": "2025-12-12",
       "owner": "Core Team",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
-      "staleDays": 25,
+      "staleDays": 26,
       "status": "ACTIVE"
     },
     {
@@ -4590,7 +4590,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/INDEX.md",
-      "staleDays": 21,
+      "staleDays": 22,
       "status": "ACTIVE"
     },
     {
@@ -4864,7 +4864,7 @@
       "lastUpdated": "2025-12-14",
       "owner": "Phoenix Team",
       "path": "docs/PHOENIX-SOT/README.md",
-      "staleDays": 23,
+      "staleDays": 24,
       "status": "ACTIVE"
     },
     {
@@ -6877,7 +6877,7 @@
       "lastUpdated": "2025-12-23",
       "owner": null,
       "path": "docs/lp-reporting-database-optimization.md",
-      "staleDays": 14,
+      "staleDays": 15,
       "status": "active"
     },
     {
@@ -7867,6 +7867,18 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/PHASE3-SESSION5-KICKOFF.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {
         "audience": "agents",
         "categories": ["phoenix", "foundation-hardening", "coordination"],
@@ -7883,7 +7895,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
-      "staleDays": 21,
+      "staleDays": 22,
       "status": "ACTIVE"
     },
     {
@@ -9098,7 +9110,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -9379,7 +9391,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-roadmap.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -9401,7 +9413,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-summary.md",
-      "staleDays": 8,
+      "staleDays": 9,
       "status": "ACTIVE"
     },
     {
@@ -9465,7 +9477,7 @@
       "status": "UNKNOWN"
     }
   ],
-  "generatedAt": "2026-01-06T10:26:39.730Z",
+  "generatedAt": "2026-01-07T00:59:49.179Z",
   "patterns": [
     {
       "category": "Security",
@@ -9923,13 +9935,13 @@
   "stats": {
     "by_status": {
       "ACTIVE": 14,
-      "UNKNOWN": 710,
+      "UNKNOWN": 711,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 642,
-    "stale_docs": 714,
-    "total_docs": 729
+    "missing_frontmatter": 643,
+    "stale_docs": 715,
+    "total_docs": 730
   },
   "version": "2.0"
 }
