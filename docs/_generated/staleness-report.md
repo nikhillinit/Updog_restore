@@ -1,87 +1,87 @@
 # Staleness Report
 
-_Generated: 2026-01-07T00:59:50.436Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+*Generated: 2026-01-07T02:48:35.369Z*
+*Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
-| Metric              | Value |
-| ------------------- | ----- |
-| Total Documents     | 730   |
-| Stale Documents     | 715   |
-| Missing Frontmatter | 643   |
+| Metric | Value |
+|--------|-------|
+| Total Documents | 730 |
+| Stale Documents | 715 |
+| Missing Frontmatter | 643 |
 
 ### By Status
 
-| Status  | Count |
-| ------- | ----- |
-| UNKNOWN | 711   |
-| ACTIVE  | 14    |
-| ready   | 3     |
-| active  | 2     |
+| Status | Count |
+|--------|-------|
+| UNKNOWN | 711 |
+| ACTIVE | 14 |
+| ready | 3 |
+| active | 2 |
 
 ## Stale Documents
 
 Documents that need review (older than their cadence threshold):
 
-| Document                                               | Last Updated | Days Old | Has Execution Claims | Owner      |
-| ------------------------------------------------------ | ------------ | -------- | -------------------- | ---------- |
-| `.agents-feedback.md`                                  | Never        | 999      | No                   | Unassigned |
-| `.agents-metrics.md`                                   | Never        | 999      | No                   | Unassigned |
-| `.claude/ANTI-DRIFT-CHECKLIST.md`                      | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/DELIVERY-SUMMARY.md`                          | Never        | 999      | No                   | Unassigned |
-| `.claude/PHOENIX-TOOL-ROUTING.md`                      | Never        | 999      | No                   | Unassigned |
-| `.claude/PROJECT-UNDERSTANDING.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/WORKFLOW.md`                                  | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/PHOENIX-AGENTS.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/baseline-regression-explainer.md`      | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/chaos-engineer.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/code-explorer.md`                      | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/code-reviewer.md`                      | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/code-simplifier.md`                    | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/comment-analyzer.md`                   | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/context-orchestrator.md`               | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/database-expert.md`                    | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/db-migration.md`                       | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/debug-expert.md`                       | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/devops-troubleshooter.md`              | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/docs-architect.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/dx-optimizer.md`                       | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/general-purpose.md`                    | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/incident-responder.md`                 | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/legacy-modernizer.md`                  | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/parity-auditor.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/perf-guard.md`                         | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/perf-regression-triager.md`            | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-brand-reporting-stylist.md`    | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-capital-allocation-analyst.md` | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-docs-scribe.md`                | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-precision-guardian.md`         | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/agents/phoenix-probabilistic-engineer.md`     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-reserves-optimizer.md`         | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/phoenix-truth-case-runner.md`          | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/playwright-test-author.md`             | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/pr-test-analyzer.md`                   | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/schema-drift-checker.md`               | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/silent-failure-hunter.md`              | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/test-automator.md`                     | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/test-repair.md`                        | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/test-scaffolder.md`                    | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/type-design-analyzer.md`               | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/waterfall-specialist.md`               | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/workflow-orchestrator.md`              | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/agents/xirr-fees-validator.md`                | Never        | 999      | No                   | Unassigned |
-| `.claude/commands/catalog-tooling.md`                  | Never        | 999      | No                   | Unassigned |
-| `.claude/commands/db-validate.md`                      | Never        | 999      | No                   | Unassigned |
-| `.claude/commands/deploy-check.md`                     | Never        | 999      | YES - verify!        | Unassigned |
-| `.claude/commands/enable-agent-memory.md`              | Never        | 999      | No                   | Unassigned |
-| `.claude/commands/evaluate-tools.md`                   | Never        | 999      | No                   | Unassigned |
+| Document | Last Updated | Days Old | Has Execution Claims | Owner |
+|----------|--------------|----------|---------------------|-------|
+| `.agents-feedback.md` | Never | 999 | No | Unassigned |
+| `.agents-metrics.md` | Never | 999 | No | Unassigned |
+| `.claude/ANTI-DRIFT-CHECKLIST.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/DELIVERY-SUMMARY.md` | Never | 999 | No | Unassigned |
+| `.claude/PHOENIX-TOOL-ROUTING.md` | Never | 999 | No | Unassigned |
+| `.claude/PROJECT-UNDERSTANDING.md` | Never | 999 | No | Unassigned |
+| `.claude/WORKFLOW.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/PHOENIX-AGENTS.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/baseline-regression-explainer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/chaos-engineer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-explorer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-reviewer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/code-simplifier.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/comment-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/context-orchestrator.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/database-expert.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/db-migration.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/debug-expert.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/devops-troubleshooter.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/docs-architect.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/dx-optimizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/general-purpose.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/incident-responder.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/legacy-modernizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/parity-auditor.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/perf-guard.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/perf-regression-triager.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-brand-reporting-stylist.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-capital-allocation-analyst.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-docs-scribe.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-precision-guardian.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/agents/phoenix-probabilistic-engineer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-reserves-optimizer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/phoenix-truth-case-runner.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/playwright-test-author.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/pr-test-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/schema-drift-checker.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/silent-failure-hunter.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-automator.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-repair.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/test-scaffolder.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/type-design-analyzer.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/waterfall-specialist.md` | Never | 999 | No | Unassigned |
+| `.claude/agents/workflow-orchestrator.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/agents/xirr-fees-validator.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/catalog-tooling.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/db-validate.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/deploy-check.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/commands/enable-agent-memory.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/evaluate-tools.md` | Never | 999 | No | Unassigned |
 
-_...and 665 more stale documents._
+*...and 665 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
-These documents contain phrases like "tests pass", "PR merged", etc. and should
-be verified:
+These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
 - [ ] **.claude/ANTI-DRIFT-CHECKLIST.md** (999 days old)
 - [ ] **.claude/agents/phoenix-precision-guardian.md** (999 days old)
@@ -95,8 +95,7 @@ be verified:
 - [ ] **.claude/integration-test-execution-summary.md** (999 days old)
 - [ ] **.claude/integration-test-final-report.md** (999 days old)
 - [ ] **.claude/integration-test-reenable-plan-v2.md** (999 days old)
-- [ ] **.claude/plans/2025-12-30-sprint2-quality-improvements.md** (999 days
-      old)
+- [ ] **.claude/plans/2025-12-30-sprint2-quality-improvements.md** (999 days old)
 - [ ] **.claude/prompts/integration-test-continuation-prompt.md** (999 days old)
 - [ ] **.claude/prompts/portfolio-intelligence-timeout-fix.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-next-session-kickoff.md** (999 days old)
@@ -107,8 +106,7 @@ be verified:
 - [ ] **.claude/prompts/week2.5-phase3-continuation-v9.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-phase3-continuation.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-phase4-next-steps.md** (999 days old)
-- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (999
-      days old)
+- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (999 days old)
 - [ ] **.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md** (999 days old)
 - [ ] **.claude/skills/README.md** (999 days old)
 - [ ] **.claude/skills/dispatching-parallel-agents.md** (999 days old)
@@ -117,8 +115,7 @@ be verified:
 - [ ] **.claude/testing/HANDOFF-MEMO-v2.md** (999 days old)
 - [ ] **.claude/testing/HANDOFF-MEMO.md** (999 days old)
 - [ ] **.claude/testing/rubric-calculation-engines.md** (999 days old)
-- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (999 days
-      old)
+- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (999 days old)
 - [ ] **.claude/testing/seed-script-remaining-fixes.md** (999 days old)
 - [ ] **.claude/testing/test-baseline-report-2025-12-23.md** (999 days old)
 - [ ] **.claude/testing/week2-execution-report.md** (999 days old)
@@ -189,8 +186,7 @@ be verified:
 - [ ] **docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md** (999 days old)
 - [ ] **docs/api/architecture/portfolio-route-api.md** (999 days old)
 - [ ] **docs/api/testing/portfolio-route-test-strategy.md** (999 days old)
-- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days
-      old)
+- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days old)
 - [ ] **docs/chaos-engineering/README.md** (999 days old)
 - [ ] **docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md** (999 days old)
 - [ ] **docs/chart-migration-decision.md** (999 days old)
@@ -212,12 +208,9 @@ be verified:
 - [ ] **docs/npm-bin-resolution-investigation.md** (999 days old)
 - [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (999 days old)
 - [ ] **docs/observability/README.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999
-      days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md**
-      (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days
-      old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md** (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days old)
 - [ ] **docs/phase0-validation-report.md** (999 days old)
 - [ ] **docs/phase0-xirr-analysis-eda20590.md** (999 days old)
 - [ ] **docs/phase1-1-1-analysis.md** (999 days old)
@@ -231,16 +224,14 @@ be verified:
 - [ ] **docs/plans/2025-12-29-phase2-planning-REVIEW.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase2-planning.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase3c-solo-execution.md** (999 days old)
-- [ ] **docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md** (999 days
-      old)
+- [ ] **docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-pr-318-merge-validation-plan.md** (999 days old)
 - [ ] **docs/plans/2026-01-04-phase1-implementation-plan.md** (999 days old)
 - [ ] **docs/plans/2026-01-04-portfolio-optimization-design.md** (999 days old)
 - [ ] **docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-STRATEGY.md** (999 days old)
-- [ ] **docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days
-      old)
+- [ ] **docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION2-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION3-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION4-KICKOFF.md** (999 days old)
@@ -264,8 +255,7 @@ be verified:
 - [ ] **docs/schemas/schema-mapping.md** (999 days old)
 - [ ] **docs/skills-application-log.md** (999 days old)
 - [ ] **docs/sprint-g2c-backlog.md** (999 days old)
-- [ ] **docs/staging/phase2.1/cluster-b-stage-validation-prep.md** (999 days
-      old)
+- [ ] **docs/staging/phase2.1/cluster-b-stage-validation-prep.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-c-APPLY-PATCHES.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-c-batch-gate-results.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-c-modeling-wizard-prep.md** (999 days old)
@@ -923,6 +913,6 @@ Documents without proper YAML frontmatter:
 
 ---
 
-_To fix staleness: Update `last_updated` field in document frontmatter._ _To set
-owner: Add `owner` field in document frontmatter._ _See:
-docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details._
+*To fix staleness: Update `last_updated` field in document frontmatter.*
+*To set owner: Add `owner` field in document frontmatter.*
+*See: docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details.*

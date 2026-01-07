@@ -2,52 +2,80 @@
   "agents": [
     {
       "name": "phoenix-truth-case-runner",
-      "phase": ["0"],
+      "phase": [
+        "0"
+      ],
       "skill": "phoenix-truth-case-orchestrator"
     },
     {
       "name": "phoenix-precision-guardian",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-precision-guard"
     },
     {
       "name": "waterfall-specialist",
-      "phase": ["0", "1B"],
+      "phase": [
+        "0",
+        "1B"
+      ],
       "skill": "phoenix-waterfall-ledger-semantics"
     },
     {
       "name": "xirr-fees-validator",
-      "phase": ["0", "1B"],
+      "phase": [
+        "0",
+        "1B"
+      ],
       "skill": "phoenix-xirr-fees-validator"
     },
     {
       "name": "phoenix-capital-allocation-analyst",
-      "phase": ["0", "1A"],
+      "phase": [
+        "0",
+        "1A"
+      ],
       "skill": "phoenix-capital-exit-investigator"
     },
     {
       "name": "phoenix-docs-scribe",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-docs-sync"
     },
     {
       "name": "phoenix-probabilistic-engineer",
-      "phase": ["2"],
+      "phase": [
+        "2"
+      ],
       "skill": "phoenix-advanced-forecasting"
     },
     {
       "name": "phoenix-reserves-optimizer",
-      "phase": ["2"],
+      "phase": [
+        "2"
+      ],
       "skill": "phoenix-reserves-optimizer"
     },
     {
       "name": "phoenix-brand-reporting-stylist",
-      "phase": ["3"],
+      "phase": [
+        "3"
+      ],
       "skill": "phoenix-brand-reporting"
     }
   ],
   "config": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score_to_route": 2
   },
   "decision_tree": {
@@ -68,7 +96,13 @@
         "route": "CAPABILITIES.md"
       },
       "id": "capability_check",
-      "keywords": ["implement", "create", "add", "build", "new feature"],
+      "keywords": [
+        "implement",
+        "create",
+        "add",
+        "build",
+        "new feature"
+      ],
       "next": "Q2",
       "question": "Does this involve implementing something NEW?"
     },
@@ -112,7 +146,13 @@
         "route": "CHANGELOG.md"
       },
       "id": "history_check",
-      "keywords": ["changed", "history", "changelog", "recent", "update"],
+      "keywords": [
+        "changed",
+        "history",
+        "changelog",
+        "recent",
+        "update"
+      ],
       "next": "Q5",
       "question": "Is this about recent changes or history?"
     },
@@ -121,7 +161,12 @@
         "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"SIDECAR_GUIDE.md\""
       },
       "id": "category_routing",
-      "keywords": ["develop", "code", "implement", "feature"],
+      "keywords": [
+        "develop",
+        "code",
+        "implement",
+        "feature"
+      ],
       "next": "Q6",
       "question": "Which category does this fall into?"
     },
@@ -168,7 +213,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "routing", "discovery"],
+        "categories": [
+          "agents",
+          "routing",
+          "discovery"
+        ],
         "keywords": [
           "agent-directory",
           "agent-selection",
@@ -192,7 +241,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "metrics", "performance"],
+        "categories": [
+          "agents",
+          "metrics",
+          "performance"
+        ],
         "keywords": [
           "agent-metrics",
           "usage-tracking",
@@ -241,7 +294,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["discovery", "agents", "routing"],
+        "categories": [
+          "discovery",
+          "agents",
+          "routing"
+        ],
         "keywords": [
           "discovery-map",
           "routing",
@@ -1223,8 +1280,16 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "agents", "routing"],
-        "keywords": ["test-strategy", "test-agents", "test-selection"],
+        "categories": [
+          "testing",
+          "agents",
+          "routing"
+        ],
+        "keywords": [
+          "test-strategy",
+          "test-agents",
+          "test-selection"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Team'",
         "review_cadence": "P30D",
@@ -1303,13 +1368,20 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "planning", "architecture"],
+        "categories": [
+          "tech-debt",
+          "planning",
+          "architecture"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 2,
         "review_cadence": "P30D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -2313,7 +2385,12 @@
       "frontmatter": {
         "description": "Reduce regressions by discovering tests, running them, then editing code",
         "name": "test-first-change",
-        "tags": ["testing", "tdd", "quality", "regression"],
+        "tags": [
+          "testing",
+          "tdd",
+          "quality",
+          "regression"
+        ],
         "version": "1.0.0"
       },
       "hasExecutionClaims": false,
@@ -2617,7 +2694,10 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools"],
+        "categories": [
+          "development",
+          "skills-tools"
+        ],
         "keywords": [
           "capabilities",
           "agents",
@@ -2633,7 +2713,10 @@
         "route_hint": "'Read this FIRST before implementing anything new.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery", "feature_planning"]
+        "use_cases": [
+          "capability_discovery",
+          "feature_planning"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -2768,7 +2851,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "quality", "sprint-planning"],
+        "categories": [
+          "testing",
+          "quality",
+          "sprint-planning"
+        ],
         "keywords": [
           "foundation-hardening",
           "test-repair",
@@ -2778,13 +2865,19 @@
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 1,
-        "related_prs": ["282"],
+        "related_prs": [
+          "282"
+        ],
         "review_cadence": "'Post-sprint'",
         "route_hint": "'Execution-ready plan for Foundation Hardening Sprint'",
         "source_of_truth": true,
         "status": "ACTIVE",
         "supersedes": "FOUNDATION-HARDENING-PLAN.md",
-        "use_cases": ["test_repair", "quality_improvement", "sprint_execution"]
+        "use_cases": [
+          "test_repair",
+          "quality_improvement",
+          "sprint_execution"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -4482,7 +4575,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools", "ai-automation"],
+        "categories": [
+          "development",
+          "skills-tools",
+          "ai-automation"
+        ],
         "keywords": [
           "agents",
           "tools",
@@ -4499,7 +4596,10 @@
         "route_hint": "Complete inventory of AI tools and automation.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["tool_discovery", "agent_selection"]
+        "use_cases": [
+          "tool_discovery",
+          "agent_selection"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -4574,8 +4674,17 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["documentation", "navigation"],
-        "keywords": ["index", "docs", "navigation", "routing", "documentation"],
+        "categories": [
+          "documentation",
+          "navigation"
+        ],
+        "keywords": [
+          "index",
+          "docs",
+          "navigation",
+          "routing",
+          "documentation"
+        ],
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 2,
@@ -4583,7 +4692,10 @@
         "route_hint": "'Central navigation for all documentation.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["doc_discovery", "onboarding"]
+        "use_cases": [
+          "doc_discovery",
+          "onboarding"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -4838,7 +4950,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["phoenix", "validation", "vc-modeling"],
+        "categories": [
+          "phoenix",
+          "validation",
+          "vc-modeling"
+        ],
         "keywords": [
           "phoenix",
           "truth-case",
@@ -4857,7 +4973,10 @@
         "route_hint": "Entry point for all Phoenix project work.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_validation", "vc_modeling"]
+        "use_cases": [
+          "phoenix_validation",
+          "vc_modeling"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -6867,7 +6986,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["database", "performance", "architecture"],
+        "categories": [
+          "database",
+          "performance",
+          "architecture"
+        ],
         "last_updated": "2025-12-23",
         "status": "active",
         "title": "LP Reporting Dashboard - Database Optimization Guide"
@@ -7881,14 +8004,21 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["phoenix", "foundation-hardening", "coordination"],
+        "categories": [
+          "phoenix",
+          "foundation-hardening",
+          "coordination"
+        ],
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 1,
         "review_cadence": "'P30D'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_hardening_coordination", "divergence_triage"]
+        "use_cases": [
+          "phoenix_hardening_coordination",
+          "divergence_triage"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -9091,7 +9221,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "development", "type-safety"],
+        "categories": [
+          "tech-debt",
+          "development",
+          "type-safety"
+        ],
         "keywords": [
           "typescript",
           "any-elimination",
@@ -9103,7 +9237,9 @@
         "priority": 2,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution"]
+        "use_cases": [
+          "task_execution"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -9372,7 +9508,11 @@
         "- event": "'xirr_consolidation_complete'",
         "action": "'Update status to REFERENCE'",
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "financial-calculations"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "financial-calculations"
+        ],
         "keywords": [
           "xirr",
           "consolidation",
@@ -9384,7 +9524,10 @@
         "priority": 1,
         "review_cadence": "P60D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -9399,14 +9542,24 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "documentation"],
-        "keywords": ["xirr", "executive-summary", "consolidation"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "documentation"
+        ],
+        "keywords": [
+          "xirr",
+          "executive-summary",
+          "consolidation"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 1,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery"]
+        "use_cases": [
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -9477,7 +9630,7 @@
       "status": "UNKNOWN"
     }
   ],
-  "generatedAt": "2026-01-07T00:59:49.179Z",
+  "generatedAt": "2026-01-07T02:48:34.565Z",
   "patterns": [
     {
       "category": "Security",
@@ -9556,7 +9709,13 @@
       "agent": "xirr-fees-validator",
       "category": "Phoenix",
       "id": "phoenix_xirr",
-      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "priority": 14,
       "target": ".claude/agents/xirr-fees-validator.md"
     },
@@ -9657,7 +9816,13 @@
     {
       "category": "CI/CD",
       "id": "ci_cd",
-      "keywords": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "keywords": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "priority": 31,
       "target": "docs/workflows/README.md"
     },
@@ -9853,7 +10018,13 @@
     {
       "category": "Quality",
       "id": "quality_gates",
-      "keywords": ["gate", "quality gate", "raci", "gate tracking", "approval"],
+      "keywords": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
       "priority": 94,
       "target": "docs/gates/"
     },
@@ -9927,7 +10098,13 @@
     {
       "category": "Troubleshooting",
       "id": "troubleshooting",
-      "keywords": ["error", "broken", "issue", "problem", "not working"],
+      "keywords": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
       "priority": 100,
       "target": "SIDECAR_GUIDE.md"
     }
