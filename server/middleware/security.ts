@@ -13,8 +13,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
-import { createClient } from 'redis';
+import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit';
+import { createClient, type RedisClientType } from 'redis';
 import RedisStore from 'rate-limit-redis';
 import { logSecurity, logContext } from '../utils/logger.js';
 import { sanitizeInput } from '../utils/sanitizer.js';
@@ -29,33 +29,33 @@ const SECURITY_CONFIG = {
     skipFailedRequests: false,
     keyGenerator: ipKeyGenerator,
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
   },
   strictRateLimiting: {
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 10, // requests per window for sensitive endpoints
     skipSuccessfulRequests: false,
-    skipFailedRequests: false
+    skipFailedRequests: false,
   },
   requestSize: {
     json: '10mb',
     urlencoded: '10mb',
-    raw: '10mb'
+    raw: '10mb',
   },
   blockedIPs: new Set<string>(),
   allowedIPs: new Set<string>(), // Empty = allow all
-  trustedProxies: ['127.0.0.1', '::1'] // localhost
+  trustedProxies: ['127.0.0.1', '::1'], // localhost
 };
 
 // Redis client for rate limiting
-let redisClient: any = null;
+let redisClient: RedisClientType | null = null;
 
 export const initializeSecurityMiddleware = async () => {
   try {
     const redisUrl = process.env['REDIS_URL'];
     if (redisUrl && redisUrl !== 'memory://') {
       redisClient = createClient({
-        url: redisUrl
+        url: redisUrl,
       });
 
       await redisClient.connect();
@@ -65,12 +65,12 @@ export const initializeSecurityMiddleware = async () => {
       const sanitizedUrl = urlParts.length > 1 ? urlParts[1] : redisUrl;
 
       logSecurity('Redis client connected for rate limiting', {
-        url: sanitizedUrl
+        url: sanitizedUrl,
       });
     }
   } catch (error) {
     logSecurity('Failed to connect Redis for rate limiting, falling back to memory', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
@@ -84,22 +84,22 @@ export const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      connectSrc: ["'self'", "https://api.sentry.io"],
+      connectSrc: ["'self'", 'https://api.sentry.io'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
+      upgradeInsecureRequests: [],
+    },
   },
 
   // Strict Transport Security
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
-    preload: true
+    preload: true,
   },
 
   // Frame options
@@ -115,7 +115,7 @@ export const securityHeaders = helmet({
   xssFilter: true,
 
   // Referrer Policy
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 
   // Remove permissions policy as it's not supported in current helmet version
 });
@@ -125,43 +125,43 @@ export const securityHeaders = helmet({
 // =============================================================================
 
 // Create Redis-based rate limiter if available
-const createRateLimiter = (options: any) => {
+const createRateLimiter = (options: Partial<Options>) => {
   if (redisClient) {
-    return rateLimit({
-      ...options,
-      store: new RedisStore({
-        client: redisClient,
-        prefix: 'rl:',
-        sendCommand: (...args: string[]) => redisClient.sendCommand(args)
-      })
+    const client = redisClient;
+    const redisStore = new RedisStore({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- type compatibility between redis versions
+      client: client as any,
+      prefix: 'rl:',
+      sendCommand: (...args: string[]) => client.sendCommand(args),
     });
+    return rateLimit({ ...options, store: redisStore } as unknown as Options);
   }
 
   // Fallback to memory-based rate limiting
-  return rateLimit(options);
+  return rateLimit(options as unknown as Options);
 };
 
 // General rate limiting
 export const generalRateLimit = createRateLimiter({
-  ...SECURITY_CONFIG.rateLimiting,
+  ...(SECURITY_CONFIG.rateLimiting as unknown as Partial<Options>),
   message: {
     error: 'Too many requests',
-    retryAfter: SECURITY_CONFIG.rateLimiting.windowMs / 1000
+    retryAfter: SECURITY_CONFIG.rateLimiting.windowMs / 1000,
   },
   handler: (req: Request, res: Response) => {
     logSecurity('Rate limit exceeded', {
       ...logContext.addRequestContext(req),
       ...logContext.addSecurityContext('rate_limit_exceeded', 'medium', {
         limit: SECURITY_CONFIG.rateLimiting.max,
-        window: SECURITY_CONFIG.rateLimiting.windowMs
-      })
+        window: SECURITY_CONFIG.rateLimiting.windowMs,
+      }),
     });
 
-    res["status"](429)["json"]({
+    res.status(429).json({
       error: 'Too many requests',
-      retryAfter: Math.ceil(SECURITY_CONFIG.rateLimiting.windowMs / 1000)
+      retryAfter: Math.ceil(SECURITY_CONFIG.rateLimiting.windowMs / 1000),
     });
-  }
+  },
 });
 
 // Strict rate limiting for sensitive endpoints
@@ -169,22 +169,22 @@ export const strictRateLimit = createRateLimiter({
   ...SECURITY_CONFIG.strictRateLimiting,
   message: {
     error: 'Rate limit exceeded for sensitive operation',
-    retryAfter: SECURITY_CONFIG.strictRateLimiting.windowMs / 1000
+    retryAfter: SECURITY_CONFIG.strictRateLimiting.windowMs / 1000,
   },
   handler: (req: Request, res: Response) => {
     logSecurity('Strict rate limit exceeded', {
       ...logContext.addRequestContext(req),
       ...logContext.addSecurityContext('strict_rate_limit_exceeded', 'high', {
         limit: SECURITY_CONFIG.strictRateLimiting.max,
-        window: SECURITY_CONFIG.strictRateLimiting.windowMs
-      })
+        window: SECURITY_CONFIG.strictRateLimiting.windowMs,
+      }),
     });
 
-    res["status"](429)["json"]({
+    res.status(429).json({
       error: 'Rate limit exceeded for sensitive operation',
-      retryAfter: Math.ceil(SECURITY_CONFIG.strictRateLimiting.windowMs / 1000)
+      retryAfter: Math.ceil(SECURITY_CONFIG.strictRateLimiting.windowMs / 1000),
     });
-  }
+  },
 });
 
 // Monte Carlo specific rate limiting (compute-intensive operations)
@@ -197,15 +197,15 @@ export const monteCarloRateLimit = createRateLimiter({
   handler: (req: Request, res: Response) => {
     logSecurity('Monte Carlo rate limit exceeded', {
       ...logContext.addRequestContext(req),
-      ...logContext.addSecurityContext('monte_carlo_rate_limit', 'high')
+      ...logContext.addSecurityContext('monte_carlo_rate_limit', 'high'),
     });
 
-    res["status"](429)["json"]({
+    res.status(429).json({
       error: 'Monte Carlo simulation rate limit exceeded',
       message: 'Please wait before starting another simulation',
-      retryAfter: 300 // 5 minutes
+      retryAfter: 300, // 5 minutes
     });
-  }
+  },
 });
 
 // =============================================================================
@@ -219,12 +219,12 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
   if (SECURITY_CONFIG.blockedIPs.has(clientIP)) {
     logSecurity('Blocked IP attempted access', {
       ...logContext.addRequestContext(req),
-      ...logContext.addSecurityContext('blocked_ip_access', 'high', { blockedIP: clientIP })
+      ...logContext.addSecurityContext('blocked_ip_access', 'high', { blockedIP: clientIP }),
     });
 
-    return res["status"](403)["json"]({
+    return res.status(403).json({
       error: 'Access denied',
-      message: 'Your IP address has been blocked'
+      message: 'Your IP address has been blocked',
     });
   }
 
@@ -232,12 +232,12 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
   if (SECURITY_CONFIG.allowedIPs.size > 0 && !SECURITY_CONFIG.allowedIPs.has(clientIP)) {
     logSecurity('Non-whitelisted IP attempted access', {
       ...logContext.addRequestContext(req),
-      ...logContext.addSecurityContext('non_whitelisted_ip', 'medium', { clientIP })
+      ...logContext.addSecurityContext('non_whitelisted_ip', 'medium', { clientIP }),
     });
 
-    return res["status"](403)["json"]({
+    return res.status(403).json({
       error: 'Access denied',
-      message: 'Your IP address is not authorized'
+      message: 'Your IP address is not authorized',
     });
   }
 
@@ -249,63 +249,77 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
 // =============================================================================
 
 // HTML/Script sanitization using sanitize-html library
-const sanitizeString = (value: any): any => {
-  if (typeof value !== 'string') return value;
-  
+function sanitizeStringValue(value: string): string {
   // Use sanitize-html for proper XSS prevention
   const sanitized = sanitizeInput(value);
-  
+
   // Validate URLs if the value looks like a URL
   if (sanitized.includes('://') && !isValidUrl(sanitized)) {
     return ''; // Remove invalid URLs
   }
-  
-  return sanitized.trim();
-};
 
-// Recursive object sanitization
-const sanitizeObject = (obj: any): any => {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'string') return sanitizeString(obj);
-  if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
-  if (Array.isArray(obj)) return obj.map(sanitizeObject);
-  if (typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      sanitized[sanitizeString(key)] = sanitizeObject(value);
+  return sanitized.trim();
+}
+
+// Recursive object sanitization - returns sanitized version of the input
+function sanitizeObjectValue(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const sanitizedKey = sanitizeStringValue(key);
+    if (value === null || value === undefined) {
+      result[sanitizedKey] = value;
+    } else if (typeof value === 'string') {
+      result[sanitizedKey] = sanitizeStringValue(value);
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      result[sanitizedKey] = value;
+    } else if (Array.isArray(value)) {
+      result[sanitizedKey] = value.map((item: unknown): unknown => {
+        if (typeof item === 'string') {
+          return sanitizeStringValue(item);
+        }
+        if (typeof item === 'object' && item !== null) {
+          return sanitizeObjectValue(item as Record<string, unknown>);
+        }
+        return item;
+      });
+    } else if (typeof value === 'object') {
+      result[sanitizedKey] = sanitizeObjectValue(value as Record<string, unknown>);
+    } else {
+      result[sanitizedKey] = value;
     }
-    return sanitized;
   }
-  return obj;
-};
+  return result;
+}
 
 export const inputSanitization = (req: Request, res: Response, next: NextFunction) => {
   try {
     // Sanitize request body (check for non-empty body)
-    if (req.body && Object.keys(req.body).length > 0) {
-      req.body = sanitizeObject(req.body);
+    if (req.body && typeof req.body === 'object' && Object.keys(req.body as object).length > 0) {
+      req.body = sanitizeObjectValue(req.body as Record<string, unknown>);
     }
 
     // Sanitize query parameters (check for specific properties)
     if (Object.keys(req.query).length > 0) {
-      req.query = sanitizeObject(req.query);
+      const sanitizedQuery = sanitizeObjectValue(req.query as Record<string, unknown>);
+      Object.assign(req.query, sanitizedQuery);
     }
 
     // Sanitize route parameters (check for specific properties)
     if (Object.keys(req.params).length > 0) {
-      req.params = sanitizeObject(req.params);
+      const sanitizedParams = sanitizeObjectValue(req.params as Record<string, unknown>);
+      Object.assign(req.params, sanitizedParams);
     }
 
     next();
   } catch (error) {
     logSecurity('Input sanitization error', {
       ...logContext.addRequestContext(req),
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
-    res["status"](400)["json"]({
+    res.status(400).json({
       error: 'Invalid input format',
-      message: 'Request contains invalid or malicious content'
+      message: 'Request contains invalid or malicious content',
     });
   }
 };
@@ -317,7 +331,7 @@ export const inputSanitization = (req: Request, res: Response, next: NextFunctio
 export const requestSizeLimits = {
   json: SECURITY_CONFIG.requestSize.json,
   urlencoded: SECURITY_CONFIG.requestSize.urlencoded,
-  raw: SECURITY_CONFIG.requestSize.raw
+  raw: SECURITY_CONFIG.requestSize.raw,
 };
 
 // =============================================================================
@@ -325,7 +339,7 @@ export const requestSizeLimits = {
 // =============================================================================
 
 const suspiciousPatterns = [
-  /(\<|\%3C)script/i,
+  /(<|%3C)script/i,
   /javascript:/i,
   /vbscript:/i,
   /onload\s*=/i,
@@ -337,41 +351,43 @@ const suspiciousPatterns = [
   /update\s+.*set/i,
   /exec\s*\(/i,
   /eval\s*\(/i,
-  /expression\s*\(/i
+  /expression\s*\(/i,
 ];
 
 export const suspiciousActivityDetection = (req: Request, res: Response, next: NextFunction) => {
   const checkContent = (content: string): boolean => {
-    return suspiciousPatterns.some(pattern => pattern.test(content));
+    return suspiciousPatterns.some((pattern) => pattern.test(content));
   };
 
   try {
     const requestString = JSON.stringify({
-      body: req.body,
+      body: req.body as Record<string, unknown>,
       query: req.query,
       params: req.params,
       headers: req.headers,
-      url: req.url
+      url: req.url,
     });
 
     if (checkContent(requestString)) {
       logSecurity('Suspicious activity detected', {
         ...logContext.addRequestContext(req),
         ...logContext.addSecurityContext('suspicious_activity', 'high', {
-          detectedPatterns: suspiciousPatterns.filter(pattern => pattern.test(requestString)).map(p => p.toString())
-        })
+          detectedPatterns: suspiciousPatterns
+            .filter((pattern) => pattern.test(requestString))
+            .map((p) => p.toString()),
+        }),
       });
 
-      return res["status"](400)["json"]({
+      return res.status(400).json({
         error: 'Suspicious activity detected',
-        message: 'Request contains potentially malicious content'
+        message: 'Request contains potentially malicious content',
       });
     }
 
     next();
   } catch (error) {
     logSecurity('Error in suspicious activity detection', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     next(); // Continue on detection error
   }
@@ -384,19 +400,19 @@ export const suspiciousActivityDetection = (req: Request, res: Response, next: N
 export const securityEventLogger = (req: Request, res: Response, next: NextFunction) => {
   // Log security-relevant events
   const securityHeaders = {
-    'x-forwarded-for': req['get']('x-forwarded-for'),
-    'x-real-ip': req['get']('x-real-ip'),
-    'user-agent': req['get']('user-agent'),
-    'authorization': req['get']('authorization') ? '[PRESENT]' : '[ABSENT]',
-    'origin': req['get']('origin'),
-    'referer': req['get']('referer')
+    'x-forwarded-for': req.get('x-forwarded-for'),
+    'x-real-ip': req.get('x-real-ip'),
+    'user-agent': req.get('user-agent'),
+    authorization: req.get('authorization') ? '[PRESENT]' : '[ABSENT]',
+    origin: req.get('origin'),
+    referer: req.get('referer'),
   };
 
   // Log authentication attempts
   if (req.path.includes('/auth') || req.path.includes('/login')) {
     logSecurity('Authentication attempt', {
       ...logContext.addRequestContext(req),
-      ...logContext.addSecurityContext('auth_attempt', 'low', { securityHeaders })
+      ...logContext.addSecurityContext('auth_attempt', 'low', { securityHeaders }),
     });
   }
 
@@ -404,7 +420,7 @@ export const securityEventLogger = (req: Request, res: Response, next: NextFunct
   if (req.path.includes('/admin') || req.method === 'DELETE') {
     logSecurity('Administrative action attempted', {
       ...logContext.addRequestContext(req),
-      ...logContext.addSecurityContext('admin_action', 'medium', { securityHeaders })
+      ...logContext.addSecurityContext('admin_action', 'medium', { securityHeaders }),
     });
   }
 
@@ -414,8 +430,8 @@ export const securityEventLogger = (req: Request, res: Response, next: NextFunct
       ...logContext.addRequestContext(req),
       ...logContext.addSecurityContext('financial_operation', 'medium', {
         operation: req.path,
-        securityHeaders
-      })
+        securityHeaders,
+      }),
     });
   }
 
@@ -452,7 +468,7 @@ export const getSecurityConfig = () => ({
   allowedIPs: Array.from(SECURITY_CONFIG.allowedIPs),
   rateLimiting: SECURITY_CONFIG.rateLimiting,
   strictRateLimiting: SECURITY_CONFIG.strictRateLimiting,
-  redisConnected: redisClient !== null
+  redisConnected: redisClient !== null,
 });
 
 // =============================================================================
@@ -467,7 +483,7 @@ export const securityMiddlewareStack = [
   generalRateLimit,
   suspiciousActivityDetection,
   inputSanitization,
-  securityEventLogger
+  securityEventLogger,
 ];
 
 export const strictSecurityMiddlewareStack = [
@@ -476,7 +492,7 @@ export const strictSecurityMiddlewareStack = [
   strictRateLimit,
   suspiciousActivityDetection,
   inputSanitization,
-  securityEventLogger
+  securityEventLogger,
 ];
 
 export const monteCarloSecurityStack = [
@@ -485,5 +501,5 @@ export const monteCarloSecurityStack = [
   monteCarloRateLimit,
   suspiciousActivityDetection,
   inputSanitization,
-  securityEventLogger
+  securityEventLogger,
 ];
