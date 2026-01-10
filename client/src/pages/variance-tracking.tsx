@@ -14,21 +14,29 @@ import {
   useResolveAlert,
   usePerformVarianceAnalysis,
   type Alert,
-  type Baseline
+  type Baseline,
 } from '@/hooks/useVarianceData';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -39,7 +47,7 @@ import {
   ApiErrorState,
   StatCard,
   StatCardGrid,
-  VarianceChart
+  VarianceChart,
 } from '@/components/analytics';
 import {
   AlertTriangle,
@@ -52,7 +60,7 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -75,7 +83,7 @@ export default function VarianceTrackingPage() {
     baselineType: 'quarterly' as 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom',
     periodStart: '',
     periodEnd: '',
-    tags: [] as string[]
+    tags: [] as string[],
   });
 
   const [alertRuleForm, setAlertRuleForm] = useState({
@@ -88,7 +96,7 @@ export default function VarianceTrackingPage() {
     secondaryThreshold: undefined as number | undefined,
     severity: 'warning' as 'info' | 'warning' | 'critical' | 'urgent',
     category: 'performance' as 'performance' | 'risk' | 'operational' | 'compliance',
-    checkFrequency: 'daily' as 'realtime' | 'hourly' | 'daily' | 'weekly'
+    checkFrequency: 'daily' as 'realtime' | 'hourly' | 'daily' | 'weekly',
   });
 
   const [reportForm, setReportForm] = useState({
@@ -96,7 +104,7 @@ export default function VarianceTrackingPage() {
     reportName: '',
     reportType: 'ad_hoc' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
     reportPeriod: undefined as 'monthly' | 'quarterly' | 'annual' | undefined,
-    asOfDate: ''
+    asOfDate: '',
   });
 
   // Hooks
@@ -104,74 +112,77 @@ export default function VarianceTrackingPage() {
     data: dashboardData,
     isLoading: dashboardLoading,
     error: dashboardError,
-    refetch: refetchDashboard
+    refetch: refetchDashboard,
   } = useVarianceDashboard(currentFund?.id || 0);
 
   const {
     data: baselinesData,
     isLoading: baselinesLoading,
-    error: baselinesError,
-    refetch: refetchBaselines
+    error: _baselinesError,
+    refetch: refetchBaselines,
   } = useBaselines(currentFund?.id || 0);
 
   const {
     data: alertsData,
     isLoading: alertsLoading,
-    error: alertsError,
-    refetch: refetchAlerts
+    error: _alertsError,
+    refetch: refetchAlerts,
   } = useActiveAlerts(currentFund?.id || 0);
 
   const {
-    data: reportsData,
-    isLoading: reportsLoading,
-    error: reportsError
+    data: _reportsData,
+    isLoading: _reportsLoading,
+    error: _reportsError,
   } = useVarianceReports(currentFund?.id || 0);
 
   // Mutations
   const createBaselineMutation = useCreateBaseline();
   const setDefaultBaselineMutation = useSetDefaultBaseline();
   const deactivateBaselineMutation = useDeactivateBaseline();
-  const generateReportMutation = useGenerateVarianceReport();
+  const _generateReportMutation = useGenerateVarianceReport();
   const createAlertRuleMutation = useCreateAlertRule();
   const acknowledgeAlertMutation = useAcknowledgeAlert();
   const resolveAlertMutation = useResolveAlert();
   const performAnalysisMutation = usePerformVarianceAnalysis();
 
   // Mock variance data for demonstration
-  const mockVarianceData = useMemo(() => [
-    {
-      metric: 'IRR Target',
-      baseline: 25.0,
-      actual: 22.5,
-      variance: -2.5,
-      variancePercent: -10.0,
-      severity: 'medium' as const
-    },
-    {
-      metric: 'Management Fee',
-      baseline: 2.0,
-      actual: 2.1,
-      variance: 0.1,
-      variancePercent: 5.0,
-      severity: 'low' as const
-    },
-    {
-      metric: 'Portfolio Size',
-      baseline: 100,
-      actual: 95,
-      variance: -5,
-      variancePercent: -5.0,
-      severity: 'low' as const
-    },
-    {
-      metric: 'Deployment Rate',
-      baseline: 80.0,
-      actual: 65.0,
-      variance: -15.0,
-      variancePercent: -18.75,
-      severity: 'high' as const
-    }
-  ], []);
+  const mockVarianceData = useMemo(
+    () => [
+      {
+        metric: 'IRR Target',
+        baseline: 25.0,
+        actual: 22.5,
+        variance: -2.5,
+        variancePercent: -10.0,
+        severity: 'medium' as const,
+      },
+      {
+        metric: 'Management Fee',
+        baseline: 2.0,
+        actual: 2.1,
+        variance: 0.1,
+        variancePercent: 5.0,
+        severity: 'low' as const,
+      },
+      {
+        metric: 'Portfolio Size',
+        baseline: 100,
+        actual: 95,
+        variance: -5,
+        variancePercent: -5.0,
+        severity: 'low' as const,
+      },
+      {
+        metric: 'Deployment Rate',
+        baseline: 80.0,
+        actual: 65.0,
+        variance: -15.0,
+        variancePercent: -18.75,
+        severity: 'high' as const,
+      },
+    ],
+    []
+  );
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -180,12 +191,12 @@ export default function VarianceTrackingPage() {
     try {
       await createBaselineMutation.mutateAsync({
         fundId: currentFund.id,
-        ...baselineForm
+        ...baselineForm,
       });
 
       toast({
-        title: "Baseline Created",
-        description: "New baseline has been created successfully.",
+        title: 'Baseline Created',
+        description: 'New baseline has been created successfully.',
       });
 
       setCreateBaselineDialogOpen(false);
@@ -195,15 +206,15 @@ export default function VarianceTrackingPage() {
         baselineType: 'quarterly',
         periodStart: '',
         periodEnd: '',
-        tags: []
+        tags: [],
       });
       refetchBaselines();
       refetchDashboard();
-    } catch (error) {
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to create baseline. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to create baseline. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -224,12 +235,12 @@ export default function VarianceTrackingPage() {
         severity: alertRuleForm.severity,
         category: alertRuleForm.category,
         checkFrequency: alertRuleForm.checkFrequency,
-        ...spreadIfDefined('secondaryThreshold', alertRuleForm.secondaryThreshold)
+        ...spreadIfDefined('secondaryThreshold', alertRuleForm.secondaryThreshold),
       });
 
       toast({
-        title: "Alert Rule Created",
-        description: "New alert rule has been created successfully.",
+        title: 'Alert Rule Created',
+        description: 'New alert rule has been created successfully.',
       });
 
       setCreateAlertDialogOpen(false);
@@ -243,14 +254,14 @@ export default function VarianceTrackingPage() {
         secondaryThreshold: undefined,
         severity: 'warning',
         category: 'performance',
-        checkFrequency: 'daily'
+        checkFrequency: 'daily',
       });
       refetchAlerts();
-    } catch (error) {
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to create alert rule. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to create alert rule. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -263,20 +274,20 @@ export default function VarianceTrackingPage() {
       if (actionType === 'acknowledge') {
         await acknowledgeAlertMutation.mutateAsync({
           alertId: selectedAlert.id,
-          notes: actionNotes
+          notes: actionNotes,
         });
         toast({
-          title: "Alert Acknowledged",
-          description: "The alert has been acknowledged.",
+          title: 'Alert Acknowledged',
+          description: 'The alert has been acknowledged.',
         });
       } else {
         await resolveAlertMutation.mutateAsync({
           alertId: selectedAlert.id,
-          notes: actionNotes
+          notes: actionNotes,
         });
         toast({
-          title: "Alert Resolved",
-          description: "The alert has been resolved.",
+          title: 'Alert Resolved',
+          description: 'The alert has been resolved.',
         });
       }
 
@@ -285,11 +296,11 @@ export default function VarianceTrackingPage() {
       setActionNotes('');
       refetchAlerts();
       refetchDashboard();
-    } catch (error) {
+    } catch {
       toast({
-        title: "Error",
+        title: 'Error',
         description: `Failed to ${actionType} alert. Please try again.`,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -300,21 +311,21 @@ export default function VarianceTrackingPage() {
 
     try {
       const result = await performAnalysisMutation.mutateAsync({
-        fundId: currentFund.id
+        fundId: currentFund.id,
       });
 
       toast({
-        title: "Analysis Complete",
-        description: `Variance analysis completed. ${result.data.alertCount} alerts generated.`,
+        title: 'Analysis Complete',
+        description: `Variance analysis completed. ${result.data.alerts.length} alerts generated.`,
       });
 
       refetchDashboard();
       refetchAlerts();
-    } catch (error) {
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to perform variance analysis. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to perform variance analysis. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -325,7 +336,7 @@ export default function VarianceTrackingPage() {
         <ErrorState
           title="No Fund Selected"
           message="Please select a fund to view variance tracking."
-          onGoHome={() => window.location.href = '/fund-setup'}
+          onGoHome={() => (window.location.href = '/fund-setup')}
         />
       </div>
     );
@@ -334,10 +345,7 @@ export default function VarianceTrackingPage() {
   if (dashboardError) {
     return (
       <div className="container mx-auto p-6">
-        <ApiErrorState
-          error={dashboardError}
-          onRetry={() => refetchDashboard()}
-        />
+        <ApiErrorState error={dashboardError} onRetry={() => refetchDashboard()} />
       </div>
     );
   }
@@ -352,11 +360,16 @@ export default function VarianceTrackingPage() {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'info': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'critical':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'urgent':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'warning':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'info':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -378,9 +391,7 @@ export default function VarianceTrackingPage() {
             className="flex items-center space-x-2"
           >
             <Zap className="w-4 h-4" />
-            <span>
-              {performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}
-            </span>
+            <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
           </Button>
 
           <Dialog open={generateReportDialogOpen} onOpenChange={setGenerateReportDialogOpen}>
@@ -402,7 +413,9 @@ export default function VarianceTrackingPage() {
                   <Label>Report Name</Label>
                   <Input
                     value={reportForm.reportName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReportForm(prev => ({ ...prev, reportName: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setReportForm((prev) => ({ ...prev, reportName: e.target.value }))
+                    }
                     placeholder="Enter report name..."
                   />
                 </div>
@@ -410,7 +423,9 @@ export default function VarianceTrackingPage() {
                   <Label>Report Type</Label>
                   <Select
                     value={reportForm.reportType}
-                    onValueChange={(value: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered') => setReportForm(prev => ({ ...prev, reportType: value }))}
+                    onValueChange={(
+                      value: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered'
+                    ) => setReportForm((prev) => ({ ...prev, reportType: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -427,7 +442,9 @@ export default function VarianceTrackingPage() {
                   <Label>Baseline</Label>
                   <Select
                     value={reportForm.baselineId}
-                    onValueChange={(value: string) => setReportForm(prev => ({ ...prev, baselineId: value }))}
+                    onValueChange={(value: string) =>
+                      setReportForm((prev) => ({ ...prev, baselineId: value }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select baseline..." />
@@ -468,7 +485,10 @@ export default function VarianceTrackingPage() {
           icon={AlertTriangle}
           badge={{
             text: `${dashboardData?.data?.alertsByseverity?.critical || 0} Critical`,
-            variant: (dashboardData?.data?.alertsByseverity?.critical || 0) > 0 ? 'destructive' : 'secondary'
+            variant:
+              (dashboardData?.data?.alertsByseverity?.critical || 0) > 0
+                ? 'destructive'
+                : 'secondary',
           }}
         />
         <StatCard
@@ -479,9 +499,10 @@ export default function VarianceTrackingPage() {
         />
         <StatCard
           title="Last Analysis"
-          value={dashboardData?.data?.summary?.lastAnalysisDate
-            ? format(parseISO(dashboardData.data.summary.lastAnalysisDate), 'MMM dd')
-            : 'Never'
+          value={
+            dashboardData?.data?.summary?.lastAnalysisDate
+              ? format(parseISO(dashboardData.data.summary.lastAnalysisDate), 'MMM dd')
+              : 'Never'
           }
           icon={Clock}
           description="Most recent variance analysis"
@@ -491,8 +512,8 @@ export default function VarianceTrackingPage() {
           value="Within Range"
           icon={TrendingUp}
           badge={{
-            text: "Good",
-            variant: "default"
+            text: 'Good',
+            variant: 'default',
           }}
         />
       </StatCardGrid>
@@ -575,12 +596,14 @@ export default function VarianceTrackingPage() {
                         className="flex items-center justify-between p-3 border rounded-lg"
                       >
                         <div className="flex items-center space-x-3">
-                          <AlertTriangle className={cn(
-                            "w-5 h-5",
-                            alert.severity === 'critical' && "text-red-600",
-                            alert.severity === 'warning' && "text-yellow-600",
-                            alert.severity === 'info' && "text-blue-600"
-                          )} />
+                          <AlertTriangle
+                            className={cn(
+                              'w-5 h-5',
+                              alert.severity === 'critical' && 'text-red-600',
+                              alert.severity === 'warning' && 'text-yellow-600',
+                              alert.severity === 'info' && 'text-blue-600'
+                            )}
+                          />
                           <div>
                             <div className="font-medium text-sm">{alert.ruleName}</div>
                             <div className="text-xs text-gray-600">{alert.message}</div>
@@ -593,9 +616,7 @@ export default function VarianceTrackingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    No recent alerts
-                  </div>
+                  <div className="text-center py-4 text-gray-500">No recent alerts</div>
                 )}
               </CardContent>
             </Card>
@@ -616,24 +637,19 @@ export default function VarianceTrackingPage() {
                         <div>
                           <div className="font-medium text-sm">{baseline.name}</div>
                           <div className="text-xs text-gray-600">
-                            {baseline.baselineType} • {format(parseISO(baseline.createdAt), 'MMM dd, yyyy')}
+                            {baseline.baselineType} •{' '}
+                            {format(parseISO(baseline.createdAt), 'MMM dd, yyyy')}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          {baseline.isDefault && (
-                            <Badge variant="default">Default</Badge>
-                          )}
-                          <Badge variant="outline">
-                            {baseline.baselineType}
-                          </Badge>
+                          {baseline.isDefault && <Badge variant="default">Default</Badge>}
+                          <Badge variant="outline">{baseline.baselineType}</Badge>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    No baselines configured
-                  </div>
+                  <div className="text-center py-4 text-gray-500">No baselines configured</div>
                 )}
               </CardContent>
             </Card>
@@ -667,7 +683,9 @@ export default function VarianceTrackingPage() {
                       <Label>Baseline Name</Label>
                       <Input
                         value={baselineForm.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setBaselineForm((prev) => ({ ...prev, name: e.target.value }))
+                        }
                         placeholder="Enter baseline name..."
                       />
                     </div>
@@ -675,7 +693,9 @@ export default function VarianceTrackingPage() {
                       <Label>Baseline Type</Label>
                       <Select
                         value={baselineForm.baselineType}
-                        onValueChange={(value: 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom') => setBaselineForm(prev => ({ ...prev, baselineType: value }))}
+                        onValueChange={(
+                          value: 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom'
+                        ) => setBaselineForm((prev) => ({ ...prev, baselineType: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -694,7 +714,9 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={baselineForm.description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBaselineForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setBaselineForm((prev) => ({ ...prev, description: e.target.value }))
+                      }
                       placeholder="Enter baseline description..."
                     />
                   </div>
@@ -704,7 +726,9 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodStart}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, periodStart: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setBaselineForm((prev) => ({ ...prev, periodStart: e.target.value }))
+                        }
                       />
                     </div>
                     <div>
@@ -712,7 +736,9 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodEnd}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBaselineForm(prev => ({ ...prev, periodEnd: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setBaselineForm((prev) => ({ ...prev, periodEnd: e.target.value }))
+                        }
                       />
                     </div>
                   </div>
@@ -739,7 +765,10 @@ export default function VarianceTrackingPage() {
                 <div className="p-6">
                   <div className="space-y-4">
                     {Array.from({ length: 3 }).map((_, i: number) => (
-                      <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
+                      <div
+                        key={i}
+                        className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div className="space-y-2">
                           <div className="h-4 w-48 bg-gray-200 rounded" />
                           <div className="h-3 w-32 bg-gray-200 rounded" />
@@ -756,14 +785,13 @@ export default function VarianceTrackingPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="font-medium text-gray-900">{baseline.name}</h3>
-                          {baseline.isDefault && (
-                            <Badge variant="default">Default</Badge>
-                          )}
+                          {baseline.isDefault && <Badge variant="default">Default</Badge>}
                           <Badge variant="outline">{baseline.baselineType}</Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">{baseline.description}</p>
                         <div className="text-xs text-gray-500">
-                          {format(parseISO(baseline.periodStart), 'MMM dd, yyyy')} - {format(parseISO(baseline.periodEnd), 'MMM dd, yyyy')}
+                          {format(parseISO(baseline.periodStart), 'MMM dd, yyyy')} -{' '}
+                          {format(parseISO(baseline.periodEnd), 'MMM dd, yyyy')}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -771,7 +799,12 @@ export default function VarianceTrackingPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setDefaultBaselineMutation.mutate({ fundId: currentFund.id, baselineId: baseline.id })}
+                            onClick={() =>
+                              setDefaultBaselineMutation.mutate({
+                                fundId: currentFund.id,
+                                baselineId: baseline.id,
+                              })
+                            }
                           >
                             Set Default
                           </Button>
@@ -779,7 +812,12 @@ export default function VarianceTrackingPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deactivateBaselineMutation.mutate({ fundId: currentFund.id, baselineId: baseline.id })}
+                          onClick={() =>
+                            deactivateBaselineMutation.mutate({
+                              fundId: currentFund.id,
+                              baselineId: baseline.id,
+                            })
+                          }
                           className="text-red-600 border-red-200 hover:bg-red-50"
                         >
                           Deactivate
@@ -831,7 +869,9 @@ export default function VarianceTrackingPage() {
                       <Label>Rule Name</Label>
                       <Input
                         value={alertRuleForm.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAlertRuleForm((prev) => ({ ...prev, name: e.target.value }))
+                        }
                         placeholder="Enter rule name..."
                       />
                     </div>
@@ -839,7 +879,9 @@ export default function VarianceTrackingPage() {
                       <Label>Metric Name</Label>
                       <Input
                         value={alertRuleForm.metricName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, metricName: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAlertRuleForm((prev) => ({ ...prev, metricName: e.target.value }))
+                        }
                         placeholder="Enter metric name..."
                       />
                     </div>
@@ -848,7 +890,9 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={alertRuleForm.description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlertRuleForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setAlertRuleForm((prev) => ({ ...prev, description: e.target.value }))
+                      }
                       placeholder="Enter rule description..."
                     />
                   </div>
@@ -857,7 +901,9 @@ export default function VarianceTrackingPage() {
                       <Label>Rule Type</Label>
                       <Select
                         value={alertRuleForm.ruleType}
-                        onValueChange={(value: 'threshold' | 'trend' | 'deviation' | 'pattern') => setAlertRuleForm(prev => ({ ...prev, ruleType: value }))}
+                        onValueChange={(value: 'threshold' | 'trend' | 'deviation' | 'pattern') =>
+                          setAlertRuleForm((prev) => ({ ...prev, ruleType: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -874,7 +920,9 @@ export default function VarianceTrackingPage() {
                       <Label>Operator</Label>
                       <Select
                         value={alertRuleForm.operator}
-                        onValueChange={(value: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between') => setAlertRuleForm(prev => ({ ...prev, operator: value }))}
+                        onValueChange={(value: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between') =>
+                          setAlertRuleForm((prev) => ({ ...prev, operator: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -894,7 +942,12 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="number"
                         value={alertRuleForm.thresholdValue}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertRuleForm(prev => ({ ...prev, thresholdValue: parseFloat(e.target.value) }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAlertRuleForm((prev) => ({
+                            ...prev,
+                            thresholdValue: parseFloat(e.target.value),
+                          }))
+                        }
                         placeholder="0"
                       />
                     </div>
@@ -904,7 +957,9 @@ export default function VarianceTrackingPage() {
                       <Label>Severity</Label>
                       <Select
                         value={alertRuleForm.severity}
-                        onValueChange={(value: 'info' | 'warning' | 'critical' | 'urgent') => setAlertRuleForm(prev => ({ ...prev, severity: value }))}
+                        onValueChange={(value: 'info' | 'warning' | 'critical' | 'urgent') =>
+                          setAlertRuleForm((prev) => ({ ...prev, severity: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -921,7 +976,9 @@ export default function VarianceTrackingPage() {
                       <Label>Category</Label>
                       <Select
                         value={alertRuleForm.category}
-                        onValueChange={(value: 'performance' | 'risk' | 'operational' | 'compliance') => setAlertRuleForm(prev => ({ ...prev, category: value }))}
+                        onValueChange={(
+                          value: 'performance' | 'risk' | 'operational' | 'compliance'
+                        ) => setAlertRuleForm((prev) => ({ ...prev, category: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -938,7 +995,9 @@ export default function VarianceTrackingPage() {
                       <Label>Check Frequency</Label>
                       <Select
                         value={alertRuleForm.checkFrequency}
-                        onValueChange={(value: 'realtime' | 'hourly' | 'daily' | 'weekly') => setAlertRuleForm(prev => ({ ...prev, checkFrequency: value }))}
+                        onValueChange={(value: 'realtime' | 'hourly' | 'daily' | 'weekly') =>
+                          setAlertRuleForm((prev) => ({ ...prev, checkFrequency: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -978,7 +1037,10 @@ export default function VarianceTrackingPage() {
               {alertsLoading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i: number) => (
-                    <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={i}
+                      className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="space-y-2">
                         <div className="h-4 w-48 bg-gray-200 rounded" />
                         <div className="h-3 w-32 bg-gray-200 rounded" />
@@ -995,13 +1057,15 @@ export default function VarianceTrackingPage() {
                       className="flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div className="flex items-center space-x-4">
-                        <AlertTriangle className={cn(
-                          "w-6 h-6",
-                          alert.severity === 'critical' && "text-red-600",
-                          alert.severity === 'urgent' && "text-red-600",
-                          alert.severity === 'warning' && "text-yellow-600",
-                          alert.severity === 'info' && "text-blue-600"
-                        )} />
+                        <AlertTriangle
+                          className={cn(
+                            'w-6 h-6',
+                            alert.severity === 'critical' && 'text-red-600',
+                            alert.severity === 'urgent' && 'text-red-600',
+                            alert.severity === 'warning' && 'text-yellow-600',
+                            alert.severity === 'info' && 'text-blue-600'
+                          )}
+                        />
                         <div>
                           <div className="font-medium text-gray-900">{alert.ruleName}</div>
                           <div className="text-sm text-gray-600">{alert.message}</div>
@@ -1014,9 +1078,7 @@ export default function VarianceTrackingPage() {
                         <Badge variant="outline" className={getSeverityColor(alert.severity)}>
                           {alert.severity}
                         </Badge>
-                        <Badge variant="outline">
-                          {alert.category}
-                        </Badge>
+                        <Badge variant="outline">{alert.category}</Badge>
                         <div className="flex items-center space-x-2">
                           {alert.status === 'active' && (
                             <>
@@ -1074,8 +1136,7 @@ export default function VarianceTrackingPage() {
                 <DialogDescription>
                   {actionType === 'acknowledge'
                     ? 'Acknowledge this alert to indicate you are aware of the issue.'
-                    : 'Mark this alert as resolved once the underlying issue has been addressed.'
-                  }
+                    : 'Mark this alert as resolved once the underlying issue has been addressed.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -1089,7 +1150,9 @@ export default function VarianceTrackingPage() {
                   <Label>Notes (Optional)</Label>
                   <Textarea
                     value={actionNotes}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActionNotes(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                      setActionNotes(e.target.value)
+                    }
                     placeholder={`Add notes about ${actionType === 'acknowledge' ? 'acknowledging' : 'resolving'} this alert...`}
                   />
                 </div>
@@ -1101,13 +1164,20 @@ export default function VarianceTrackingPage() {
                 <Button
                   onClick={handleAlertAction}
                   disabled={
-                    (actionType === 'acknowledge' ? acknowledgeAlertMutation.isPending : resolveAlertMutation.isPending)
+                    actionType === 'acknowledge'
+                      ? acknowledgeAlertMutation.isPending
+                      : resolveAlertMutation.isPending
                   }
                 >
-                  {(actionType === 'acknowledge' ? acknowledgeAlertMutation.isPending : resolveAlertMutation.isPending)
+                  {(
+                    actionType === 'acknowledge'
+                      ? acknowledgeAlertMutation.isPending
+                      : resolveAlertMutation.isPending
+                  )
                     ? `${actionType === 'acknowledge' ? 'Acknowledging' : 'Resolving'}...`
-                    : actionType === 'acknowledge' ? 'Acknowledge Alert' : 'Resolve Alert'
-                  }
+                    : actionType === 'acknowledge'
+                      ? 'Acknowledge Alert'
+                      : 'Resolve Alert'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1129,9 +1199,7 @@ export default function VarianceTrackingPage() {
               <p className="text-gray-600 mb-4">
                 Run a variance analysis to generate your first report.
               </p>
-              <Button onClick={handlePerformAnalysis}>
-                Generate Report
-              </Button>
+              <Button onClick={handlePerformAnalysis}>Generate Report</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1158,7 +1226,9 @@ export default function VarianceTrackingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-base">Real-time Alerts</Label>
-                  <p className="text-sm text-gray-600">Immediate notifications for critical alerts</p>
+                  <p className="text-sm text-gray-600">
+                    Immediate notifications for critical alerts
+                  </p>
                 </div>
                 <Switch defaultChecked />
               </div>
