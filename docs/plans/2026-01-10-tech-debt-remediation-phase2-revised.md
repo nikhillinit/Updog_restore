@@ -19,6 +19,43 @@ Decimal.js
 
 ---
 
+## Leverage Existing Dev Tools & Assets (ULTRATHINK ADDITION)
+
+**Available capabilities that accelerate this plan:**
+
+| Asset                        | Type  | Usage                                      |
+| ---------------------------- | ----- | ------------------------------------------ |
+| `phoenix-precision-guard`    | Skill | Invoke for parseFloat replacement workflow |
+| `financial-calc-correctness` | Skill | Tolerance documentation, mass conservation |
+| `tech-debt-tracker`          | Skill | Generate SQALE metrics before/after        |
+| `phoenix-precision-guardian` | Agent | Dispatch for Batch B execution             |
+| `parity-auditor`             | Agent | Verify no Excel parity regression          |
+
+**Integration points in plan:**
+
+1. **Before Batch B:** Run `tech-debt-tracker scan` for baseline SQALE index
+2. **During B1-B6:** Use `phoenix-precision-guard` skill patterns for parseFloat
+   triage
+3. **After each file:** Run `parity-auditor` to verify no regression
+4. **After Batch B:** Generate comparative debt metrics showing improvement
+
+**Slash commands available:**
+
+- `/fix-auto` - Auto-repair lint/format issues after changes
+- `/phoenix-truth` - Run deterministic truth cases for validation
+- `/pre-commit-check` - Validate before commits
+- `/test-smart` - Run only affected tests for fast feedback
+
+**Agent dispatch pattern for Batch B:**
+
+```bash
+# Use Task tool to launch phoenix-precision-guardian for each file
+Task(subagent_type="phoenix-precision-guardian",
+     prompt="Replace parseFloat in variance-tracking.ts with Decimal.js using toDecimal utility")
+```
+
+---
+
 ## What's Changed from Original Plan
 
 | Aspect               | Original     | Revised                | Reason                          |
@@ -80,9 +117,81 @@ precision loss for large dollar amounts and percentage calculations.
 **Solution:** Staged replacement with Decimal.js, prioritized by financial
 impact.
 
+### Task B0: Precision Baseline and Configuration (ULTRATHINK ADDITION)
+
+**Files:**
+
+- Verify: `package.json` (Decimal.js version)
+- Create: `server/lib/decimal-config.ts` (precision configuration)
+- Create: `tests/__snapshots__/variance-baseline.snap` (golden values)
+
+**Step 1: Verify Decimal.js version and configuration**
+
+```bash
+npm list decimal.js
+```
+
+Expected: decimal.js@10.x.x or higher
+
+**Step 2: Create precision configuration file**
+
+Location: `server/lib/decimal-config.ts`
+
+```typescript
+/**
+ * Decimal.js precision configuration for financial calculations
+ *
+ * Uses IEEE 754 decimal128 precision (34 significant digits)
+ * with banker's rounding for financial accuracy.
+ *
+ * @module server/lib/decimal-config
+ */
+import Decimal from 'decimal.js';
+
+// Configure globally ONCE at startup
+Decimal.set({
+  precision: 34, // IEEE 754 decimal128 - handles any financial amount
+  rounding: Decimal.ROUND_HALF_EVEN, // Banker's rounding for unbiased financial calculations
+  toExpNeg: -18, // Smallest exponent before switching to exponential notation
+  toExpPos: 18, // Largest exponent before switching to exponential notation
+  minE: -9e15, // Minimum exponent
+  maxE: 9e15, // Maximum exponent
+});
+
+export { Decimal };
+```
+
+**Step 3: Create precision baseline snapshot**
+
+```bash
+npm test -- --run variance-tracking --update-snapshot
+```
+
+**Step 4: Run performance baseline**
+
+```bash
+npm run bench -- variance-tracking 2>&1 | tee /tmp/precision-baseline.txt
+```
+
+**Step 5: Commit baseline**
+
+```bash
+git add server/lib/decimal-config.ts tests/__snapshots__/
+git commit -m "chore(precision): add Decimal.js IEEE 754 configuration and baseline"
+```
+
+---
+
 ### Tier 1: Critical Financial Paths (P0)
 
 These files directly compute LP-facing metrics.
+
+**EXECUTION ORDER (ULTRATHINK OPTIMIZATION):**
+
+1. B0.5: decimal-utils (foundation - all others depend on this)
+2. B3: lp-queries (HIGHEST PRIORITY - LP-facing reports)
+3. B1: variance-tracking (most instances, internal metrics)
+4. B2: monte-carlo-simulation (complex calculation paths)
 
 #### Task B1: Variance Tracking Precision (13 instances)
 
@@ -148,6 +257,38 @@ describe('Variance Tracking Precision', () => {
 
       expect(result.toString()).toBe('0.3');
       expect(result.eq('0.3')).toBe(true);
+    });
+  });
+
+  // ULTRATHINK ADDITION: Edge case tests
+  describe('Edge Cases (ULTRATHINK ADDITION)', () => {
+    it('handles NaN input gracefully', () => {
+      const result = toDecimal(NaN, '0');
+      expect(result.toString()).toBe('0');
+    });
+
+    it('handles Infinity input gracefully', () => {
+      const result = toDecimal(Infinity, '0');
+      expect(result.toString()).toBe('0');
+    });
+
+    it('handles negative zero correctly', () => {
+      const result = toDecimal(-0);
+      expect(result.toString()).toBe('0');
+      expect(result.isZero()).toBe(true);
+    });
+
+    it('preserves precision when toNumber() would lose it', () => {
+      const big = new Decimal('12345678901234567890.123');
+      // toNumber() loses precision for very large numbers
+      expect(big.toNumber()).not.toBe(12345678901234567890.123);
+      // toString() preserves it
+      expect(big.toString()).toBe('12345678901234567890.123');
+    });
+
+    it('handles scientific notation strings', () => {
+      const result = toDecimal('1.5e10');
+      expect(result.toString()).toBe('15000000000');
     });
   });
 
