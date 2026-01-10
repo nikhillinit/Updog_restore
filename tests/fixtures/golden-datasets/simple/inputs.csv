@@ -1,0 +1,11 @@
+field,value
+fundSize,100000000
+carryPct,0.2
+managementFeePct,0.02
+deploymentMonths,36
+preSeedAllocationPct,0.3
+seedAllocationPct,0.7
+preSeedFollowOnReservePct,0.25
+seedFollowOnReservePct,0.35
+exitMonth,84
+exitTVPI,2.5

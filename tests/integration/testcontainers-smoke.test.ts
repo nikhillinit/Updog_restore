@@ -15,12 +15,21 @@ import {
   getPostgresConnectionString,
   getRedisConnection,
   withTransaction,
+  isDockerAvailable,
+  DOCKER_SKIP_MESSAGE,
 } from '../helpers/testcontainers';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
 
-describe('Testcontainers Infrastructure', () => {
+// Check Docker availability at module load time
+const dockerAvailable = isDockerAvailable();
+
+describe.skipIf(!dockerAvailable)('Testcontainers Infrastructure', () => {
   beforeAll(async () => {
+    if (!dockerAvailable) {
+      console.log(`[smoke-test] ${DOCKER_SKIP_MESSAGE}`);
+      return;
+    }
     // Start containers for this test suite
     console.log('[smoke-test] Starting testcontainers...');
     await setupTestContainers();
@@ -28,6 +37,7 @@ describe('Testcontainers Infrastructure', () => {
   }, 60000); // 60 second timeout for container startup
 
   afterAll(async () => {
+    if (!dockerAvailable) return;
     // Clean up containers after tests complete
     console.log('[smoke-test] Cleaning up containers...');
     await cleanupTestContainers();

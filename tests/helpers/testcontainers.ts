@@ -6,6 +6,7 @@
  * - Dynamic port allocation (no conflicts)
  * - Graceful cleanup and container lifecycle management
  * - Transaction-based isolation between test suites
+ * - Graceful degradation when Docker is unavailable
  *
  * @module tests/helpers/testcontainers
  */
@@ -17,7 +18,29 @@ import { GenericContainer, Wait } from 'testcontainers';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
+import { execSync } from 'child_process';
 import * as schema from '@shared/schema';
+
+/**
+ * Check if Docker is available on the system
+ *
+ * @returns true if Docker daemon is running and accessible
+ */
+export function isDockerAvailable(): boolean {
+  try {
+    // Try docker info - most reliable way to check Docker daemon status
+    execSync('docker info', { stdio: 'ignore', timeout: 5000 });
+    return true;
+  } catch {
+    // Docker command not found or daemon not running
+    return false;
+  }
+}
+
+/**
+ * Skip message for tests that require Docker
+ */
+export const DOCKER_SKIP_MESSAGE = 'Docker not available - skipping integration test';
 
 /**
  * Container lifecycle state
