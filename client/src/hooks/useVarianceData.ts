@@ -104,12 +104,12 @@ export function useBaselines(
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (options.baselineType) searchParams.set('baselineType', options.baselineType);
-      if (options.isDefault !== undefined) searchParams.set('isDefault', options.isDefault.toString());
+      if (options.isDefault !== undefined)
+        searchParams.set('isDefault', options.isDefault.toString());
       if (options.limit) searchParams.set('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/baselines${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      const response = await apiRequest('GET', url);
-      return response.json() as Promise<{ success: boolean; data: Baseline[]; count: number }>;
+      return apiRequest<{ success: boolean; data: Baseline[]; count: number }>('GET', url);
     },
     enabled: !!fundId,
     staleTime: 60000, // 1 minute
@@ -123,8 +123,10 @@ export function useVarianceReports(fundId: number) {
   return useQuery<{ success: boolean; data: VarianceReport[]; count: number }>({
     queryKey: ['/api/funds', fundId, 'variance-reports'],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/funds/${fundId}/variance-reports`);
-      return response.json() as Promise<{ success: boolean; data: VarianceReport[]; count: number }>;
+      return apiRequest<{ success: boolean; data: VarianceReport[]; count: number }>(
+        'GET',
+        `/api/funds/${fundId}/variance-reports`
+      );
     },
     enabled: !!fundId,
     staleTime: 60000, // 1 minute
@@ -138,8 +140,10 @@ export function useVarianceReport(fundId: number, reportId: string) {
   return useQuery<{ success: boolean; data: VarianceReport | null }>({
     queryKey: ['/api/funds', fundId, 'variance-reports', reportId],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/funds/${fundId}/variance-reports/${reportId}`);
-      return response.json();
+      return apiRequest<{ success: boolean; data: VarianceReport | null }>(
+        'GET',
+        `/api/funds/${fundId}/variance-reports/${reportId}`
+      );
     },
     enabled: !!fundId && !!reportId,
     staleTime: 300000, // 5 minutes
@@ -166,8 +170,7 @@ export function useActiveAlerts(
       if (options.limit) searchParams.set('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/alerts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      const response = await apiRequest('GET', url);
-      return response.json();
+      return apiRequest<{ success: boolean; data: Alert[]; count: number }>('GET', url);
     },
     enabled: !!fundId,
     staleTime: 30000, // 30 seconds
@@ -182,8 +185,10 @@ export function useVarianceDashboard(fundId: number) {
   return useQuery<{ success: boolean; data: VarianceDashboard }>({
     queryKey: ['/api/funds', fundId, 'variance-dashboard'],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/funds/${fundId}/variance-dashboard`);
-      return response.json();
+      return apiRequest<{ success: boolean; data: VarianceDashboard }>(
+        'GET',
+        `/api/funds/${fundId}/variance-dashboard`
+      );
     },
     enabled: !!fundId,
     staleTime: 60000, // 1 minute
@@ -207,15 +212,18 @@ export function useCreateBaseline() {
       periodEnd: string;
       tags?: string[];
     }) => {
-      const response = await apiRequest('POST', `/api/funds/${params.fundId}/baselines`, {
-        name: params.name,
-        description: params.description,
-        baselineType: params.baselineType,
-        periodStart: params.periodStart,
-        periodEnd: params.periodEnd,
-        tags: params.tags || [],
-      });
-      return response.json();
+      return apiRequest<{ success: boolean; data: Baseline }>(
+        'POST',
+        `/api/funds/${params.fundId}/baselines`,
+        {
+          name: params.name,
+          description: params.description,
+          baselineType: params.baselineType,
+          periodStart: params.periodStart,
+          periodEnd: params.periodEnd,
+          tags: params.tags || [],
+        }
+      );
     },
     onSuccess: (_data, variables) => {
       // Invalidate baselines queries
@@ -236,12 +244,12 @@ export function useSetDefaultBaseline() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      fundId: number;
-      baselineId: string;
-    }) => {
-      const response = await apiRequest('POST', `/api/funds/${params.fundId}/baselines/${params.baselineId}/set-default`, {});
-      return response.json();
+    mutationFn: async (params: { fundId: number; baselineId: string }) => {
+      return apiRequest<{ success: boolean; data: Baseline }>(
+        'POST',
+        `/api/funds/${params.fundId}/baselines/${params.baselineId}/set-default`,
+        {}
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -261,12 +269,12 @@ export function useDeactivateBaseline() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      fundId: number;
-      baselineId: string;
-    }) => {
-      const response = await apiRequest('DELETE', `/api/funds/${params.fundId}/baselines/${params.baselineId}`, {});
-      return response.json();
+    mutationFn: async (params: { fundId: number; baselineId: string }) => {
+      return apiRequest<{ success: boolean; message: string }>(
+        'DELETE',
+        `/api/funds/${params.fundId}/baselines/${params.baselineId}`,
+        {}
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -294,8 +302,11 @@ export function useGenerateVarianceReport() {
       reportPeriod?: 'monthly' | 'quarterly' | 'annual';
       asOfDate?: string;
     }) => {
-      const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-reports`, params);
-      return response.json();
+      return apiRequest<{ success: boolean; data: VarianceReport }>(
+        'POST',
+        `/api/funds/${params.fundId}/variance-reports`,
+        params
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -325,8 +336,11 @@ export function useCreateAlertRule() {
       category?: 'performance' | 'risk' | 'operational' | 'compliance';
       checkFrequency?: 'realtime' | 'hourly' | 'daily' | 'weekly';
     }) => {
-      const response = await apiRequest('POST', `/api/funds/${params.fundId}/alert-rules`, params);
-      return response.json();
+      return apiRequest<{ success: boolean; data: AlertRule }>(
+        'POST',
+        `/api/funds/${params.fundId}/alert-rules`,
+        params
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -343,14 +357,14 @@ export function useAcknowledgeAlert() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      alertId: string;
-      notes?: string;
-    }) => {
-      const response = await apiRequest('POST', `/api/alerts/${params.alertId}/acknowledge`, {
-        notes: params.notes,
-      });
-      return response.json();
+    mutationFn: async (params: { alertId: string; notes?: string }) => {
+      return apiRequest<{ success: boolean; data: Alert }>(
+        'POST',
+        `/api/alerts/${params.alertId}/acknowledge`,
+        {
+          notes: params.notes,
+        }
+      );
     },
     onSuccess: () => {
       // Invalidate all alert queries
@@ -372,14 +386,14 @@ export function useResolveAlert() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      alertId: string;
-      notes?: string;
-    }) => {
-      const response = await apiRequest('POST', `/api/alerts/${params.alertId}/resolve`, {
-        notes: params.notes,
-      });
-      return response.json();
+    mutationFn: async (params: { alertId: string; notes?: string }) => {
+      return apiRequest<{ success: boolean; data: Alert }>(
+        'POST',
+        `/api/alerts/${params.alertId}/resolve`,
+        {
+          notes: params.notes,
+        }
+      );
     },
     onSuccess: () => {
       // Invalidate all alert queries
@@ -401,13 +415,12 @@ export function usePerformVarianceAnalysis() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      fundId: number;
-      baselineId?: string;
-      reportName?: string;
-    }) => {
-      const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-analysis`, params);
-      return response.json();
+    mutationFn: async (params: { fundId: number; baselineId?: string; reportName?: string }) => {
+      return apiRequest<{ success: boolean; data: { report: VarianceReport; alerts: Alert[] } }>(
+        'POST',
+        `/api/funds/${params.fundId}/variance-analysis`,
+        params
+      );
     },
     onSuccess: (_data, variables) => {
       // Invalidate all variance-related queries

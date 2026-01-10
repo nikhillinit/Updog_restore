@@ -1,19 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, DollarSign, Target, PieChart, Activity } from 'lucide-react';
+import type { IconComponent } from '@/types/icons';
 
 interface MetricItem {
   label: string;
   value: string;
   change: string;
   trend: 'up' | 'down' | 'stable';
-  icon: React.ComponentType<any>;
+  icon: IconComponent;
 }
 
 export default function RealTimeMetrics() {
@@ -30,33 +26,33 @@ export default function RealTimeMetrics() {
 
   const metrics: MetricItem[] = [
     {
-      label: "Total AUM",
-      value: "$100.0M",
-      change: "+2.4%",
-      trend: "up",
-      icon: DollarSign
+      label: 'Total AUM',
+      value: '$100.0M',
+      change: '+2.4%',
+      trend: 'up',
+      icon: DollarSign,
     },
     {
-      label: "Deployed Capital",
-      value: "$67.5M",
-      change: "+5.2%", 
-      trend: "up",
-      icon: Target
+      label: 'Deployed Capital',
+      value: '$67.5M',
+      change: '+5.2%',
+      trend: 'up',
+      icon: Target,
     },
     {
-      label: "Portfolio Companies",
-      value: "15",
-      change: "+2",
-      trend: "up",
-      icon: PieChart
+      label: 'Portfolio Companies',
+      value: '15',
+      change: '+2',
+      trend: 'up',
+      icon: PieChart,
     },
     {
-      label: "Current IRR",
-      value: "28.4%",
-      change: "+1.2%",
-      trend: "up", 
-      icon: TrendingUp
-    }
+      label: 'Current IRR',
+      value: '28.4%',
+      change: '+1.2%',
+      trend: 'up',
+      icon: TrendingUp,
+    },
   ];
 
   return (
@@ -70,9 +66,9 @@ export default function RealTimeMetrics() {
           </span>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric: any, index: any) => (
+        {metrics.map((metric, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
@@ -84,8 +80,14 @@ export default function RealTimeMetrics() {
               <div className="space-y-1">
                 <div className="text-2xl font-bold">{metric.value}</div>
                 <div className="flex items-center space-x-2">
-                  <Badge 
-                    variant={metric.trend === 'up' ? 'default' : metric.trend === 'down' ? 'destructive' : 'secondary'}
+                  <Badge
+                    variant={
+                      metric.trend === 'up'
+                        ? 'default'
+                        : metric.trend === 'down'
+                          ? 'destructive'
+                          : 'secondary'
+                    }
                     className="text-xs"
                   >
                     {metric.trend === 'up' ? (

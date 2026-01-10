@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { PieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
@@ -24,7 +19,7 @@ const concentrationBySector = [
   { name: 'Marketplace', value: 9.2, companies: 3, color: '#ef4444' },
   { name: 'Proptech', value: 8.1, companies: 2, color: '#84cc16' },
   { name: 'Edtech', value: 6.4, companies: 2, color: '#f97316' },
-  { name: 'Other', value: 3.8, companies: 2, color: '#6b7280' }
+  { name: 'Other', value: 3.8, companies: 2, color: '#6b7280' },
 ];
 
 const concentrationByStage = [
@@ -32,7 +27,7 @@ const concentrationByStage = [
   { name: 'Series A', value: 28.7, companies: 8, color: '#06b6d4' },
   { name: 'Series B', value: 18.9, companies: 5, color: '#10b981' },
   { name: 'Pre-Seed', value: 6.8, companies: 3, color: '#f59e0b' },
-  { name: 'Series C+', value: 3.3, companies: 2, color: '#8b5cf6' }
+  { name: 'Series C+', value: 3.3, companies: 2, color: '#8b5cf6' },
 ];
 
 const concentrationByGeography = [
@@ -41,13 +36,13 @@ const concentrationByGeography = [
   { name: 'Los Angeles', value: 16.8, companies: 6, color: '#10b981' },
   { name: 'Austin', value: 12.2, companies: 4, color: '#f59e0b' },
   { name: 'Boston', value: 8.7, companies: 3, color: '#8b5cf6' },
-  { name: 'Seattle', value: 5.8, companies: 2, color: '#ef4444' }
+  { name: 'Seattle', value: 5.8, companies: 2, color: '#ef4444' },
 ];
 
 const concentrationByOwnership = [
   { name: 'High (>15%)', value: 28.4, companies: 4, color: '#ef4444' },
   { name: 'Medium (5-15%)', value: 45.2, companies: 12, color: '#f59e0b' },
-  { name: 'Low (<5%)', value: 26.4, companies: 14, color: '#10b981' }
+  { name: 'Low (<5%)', value: 26.4, companies: 14, color: '#10b981' },
 ];
 
 const concentrationByCheckSize = [
@@ -55,7 +50,7 @@ const concentrationByCheckSize = [
   { name: '$1M-$2M', value: 28.3, companies: 8, color: '#06b6d4' },
   { name: '$500K-$1M', value: 22.1, companies: 10, color: '#10b981' },
   { name: '$250K-$500K', value: 10.4, companies: 4, color: '#f59e0b' },
-  { name: '<$250K', value: 4.5, companies: 2, color: '#8b5cf6' }
+  { name: '<$250K', value: 4.5, companies: 2, color: '#8b5cf6' },
 ];
 
 const concentrationByPortfolioCompany = [
@@ -68,7 +63,7 @@ const concentrationByPortfolioCompany = [
   { name: 'PropTech Hub', value: 4.9, companies: 1, color: '#84cc16' },
   { name: 'RetailNext', value: 4.3, companies: 1, color: '#f97316' },
   { name: 'CloudSecure', value: 3.8, companies: 1, color: '#6366f1' },
-  { name: 'Other (21 companies)', value: 44.9, companies: 21, color: '#6b7280' }
+  { name: 'Other (21 companies)', value: 44.9, companies: 21, color: '#6b7280' },
 ];
 
 interface ConcentrationData {
@@ -79,16 +74,18 @@ interface ConcentrationData {
   [key: string]: unknown;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: ConcentrationData }>;
+}
+
+const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
         <div className="flex items-center space-x-2 mb-2">
-          <div 
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: data.color }}
-          ></div>
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }}></div>
           <span className="font-medium text-gray-900">{data.name}</span>
         </div>
         <div className="text-sm space-y-1">
@@ -107,7 +104,13 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const ConcentrationChart = ({ data, title }: { data: ConcentrationData[], title: string }) => {
+const ConcentrationChart = ({
+  data,
+  title: _title,
+}: {
+  data: ConcentrationData[];
+  title: string;
+}) => {
   return (
     <div className="w-full h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -121,20 +124,20 @@ const ConcentrationChart = ({ data, title }: { data: ConcentrationData[], title:
             paddingAngle={2}
             dataKey="value"
           >
-            {data.map((entry: any, index: any) => (
+            {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
-      
+
       {/* Custom Legend */}
       <div className="mt-4 grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-        {data.map((entry: any, index: any) => (
+        {data.map((entry, index) => (
           <div key={index} className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-2">
-              <div 
+              <div
                 className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: entry.color }}
               ></div>
@@ -154,29 +157,43 @@ const ConcentrationChart = ({ data, title }: { data: ConcentrationData[], title:
 };
 
 export default function PortfolioConcentration() {
-  const [activeTab, setActiveTab] = useState("sector");
+  const [activeTab, setActiveTab] = useState('sector');
 
   const getTabData = (tab: string) => {
     switch (tab) {
-      case 'sector': return concentrationBySector;
-      case 'stage': return concentrationByStage;
-      case 'geography': return concentrationByGeography;
-      case 'ownership': return concentrationByOwnership;
-      case 'checksize': return concentrationByCheckSize;
-      case 'company': return concentrationByPortfolioCompany;
-      default: return concentrationBySector;
+      case 'sector':
+        return concentrationBySector;
+      case 'stage':
+        return concentrationByStage;
+      case 'geography':
+        return concentrationByGeography;
+      case 'ownership':
+        return concentrationByOwnership;
+      case 'checksize':
+        return concentrationByCheckSize;
+      case 'company':
+        return concentrationByPortfolioCompany;
+      default:
+        return concentrationBySector;
     }
   };
 
   const getTabTitle = (tab: string) => {
     switch (tab) {
-      case 'sector': return 'By Sector';
-      case 'stage': return 'By Stage';
-      case 'geography': return 'By Geography';
-      case 'ownership': return 'By Ownership %';
-      case 'checksize': return 'By Check Size';
-      case 'company': return 'By Portfolio Company';
-      default: return 'By Sector';
+      case 'sector':
+        return 'By Sector';
+      case 'stage':
+        return 'By Stage';
+      case 'geography':
+        return 'By Geography';
+      case 'ownership':
+        return 'By Ownership %';
+      case 'checksize':
+        return 'By Check Size';
+      case 'company':
+        return 'By Portfolio Company';
+      default:
+        return 'By Sector';
     }
   };
 
@@ -192,7 +209,7 @@ export default function PortfolioConcentration() {
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-4">
@@ -216,12 +233,9 @@ export default function PortfolioConcentration() {
             </TabsTrigger>
           </TabsList>
 
-          {['sector', 'stage', 'geography', 'ownership', 'checksize', 'company'].map((tab: any) => (
+          {['sector', 'stage', 'geography', 'ownership', 'checksize', 'company'].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-0">
-              <ConcentrationChart 
-                data={getTabData(tab)} 
-                title={getTabTitle(tab)}
-              />
+              <ConcentrationChart data={getTabData(tab)} title={getTabTitle(tab)} />
             </TabsContent>
           ))}
         </Tabs>
@@ -243,13 +257,17 @@ export default function PortfolioConcentration() {
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-600">
-                {getTabData(activeTab).reduce((sum: any, item: any) => sum + item.companies, 0)}
+                {getTabData(activeTab).reduce((sum, item) => sum + item.companies, 0)}
               </div>
               <div className="text-gray-600">Total Companies</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-600">
-                {(getTabData(activeTab).slice(0, 3).reduce((sum: any, item: any) => sum + item.value, 0)).toFixed(1)}%
+                {getTabData(activeTab)
+                  .slice(0, 3)
+                  .reduce((sum, item) => sum + item.value, 0)
+                  .toFixed(1)}
+                %
               </div>
               <div className="text-gray-600">Top 3 Concentration</div>
             </div>

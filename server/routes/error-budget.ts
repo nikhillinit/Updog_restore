@@ -1,18 +1,27 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { errorBudgetManager } from '../lib/error-budget';
 import type { Request, Response } from 'express';
 
 const router = Router();
 
+// Request validation schemas
+const errorBudgetSchema = z.object({
+  name: z.string(),
+  target: z.number(),
+  window: z.string(),
+  alertThreshold: z.number(),
+});
+
 // Get overall error budget status
 router['get']('/', async (_req: Request, res: Response) => {
   try {
     const report = await errorBudgetManager.generateReport();
-    res["json"](report);
+    res['json'](report);
   } catch (error) {
-    res["status"](500)["json"]({ 
+    res['status'](500)['json']({
       error: 'Failed to generate error budget report',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -26,14 +35,14 @@ router['get']('/:slo', async (req: Request, res: Response) => {
       return;
     }
     const budget = await errorBudgetManager.calculateErrorBudget(slo);
-    res["json"](budget);
+    res['json'](budget);
   } catch (error) {
     if (error instanceof Error && error.message.includes('Unknown SLO')) {
-      res["status"](404)["json"]({ error: error.message });
+      res['status'](404)['json']({ error: error.message });
     } else {
-      res["status"](500)["json"]({ 
+      res['status'](500)['json']({
         error: 'Failed to calculate error budget',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -43,11 +52,11 @@ router['get']('/:slo', async (req: Request, res: Response) => {
 router['get']('/gate/status', async (_req: Request, res: Response) => {
   try {
     const gate = await errorBudgetManager.checkDeploymentGate();
-    res["json"](gate);
+    res['json'](gate);
   } catch (error) {
-    res["status"](500)["json"]({ 
+    res['status'](500)['json']({
       error: 'Failed to check deployment gate',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -55,39 +64,32 @@ router['get']('/gate/status', async (_req: Request, res: Response) => {
 // Get SLO configurations
 router['get']('/config/slos', (_req: Request, res: Response) => {
   const slos = errorBudgetManager.getSLOs();
-  res["json"](slos);
+  res['json'](slos);
 });
 
 // Add new SLO (protected endpoint)
-router["post"]('/config/slos', (req: Request, res: Response) => {
+router['post']('/config/slos', (req: Request, res: Response) => {
   try {
-    const { name, target, window, alertThreshold } = req.body;
-    
-    if (!name || typeof target !== 'number' || !window || typeof alertThreshold !== 'number') {
-      return res["status"](400)["json"]({
-        error: 'Invalid SLO configuration',
-        required: ['name', 'target', 'window', 'alertThreshold']
-      });
-    }
-    
+    const { name, target, window, alertThreshold } = errorBudgetSchema.parse(req.body);
+
     if (target <= 0 || target >= 1) {
-      return res["status"](400)["json"]({
-        error: 'Target must be between 0 and 1 (exclusive)'
+      return res['status'](400)['json']({
+        error: 'Target must be between 0 and 1 (exclusive)',
       });
     }
-    
+
     if (alertThreshold <= 0 || alertThreshold >= 1) {
-      return res["status"](400)["json"]({
-        error: 'Alert threshold must be between 0 and 1 (exclusive)'
+      return res['status'](400)['json']({
+        error: 'Alert threshold must be between 0 and 1 (exclusive)',
       });
     }
-    
+
     errorBudgetManager.addSLO({ name, target, window, alertThreshold });
-    res["status"](201)["json"]({ message: 'SLO configuration added successfully' });
+    res['status'](201)['json']({ message: 'SLO configuration added successfully' });
   } catch (error) {
-    res["status"](500)["json"]({ 
+    res['status'](500)['json']({
       error: 'Failed to add SLO configuration',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });

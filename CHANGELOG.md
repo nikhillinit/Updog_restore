@@ -221,6 +221,24 @@ and this project adheres to
 
 ### Fixed
 
+- **CRITICAL:** Removed unsafe `Express.Request.validatedBody?: any` type that
+  leaked to all variance routes
+- Added typed Express Request augmentation for `req.user` and `req.session`
+  (eliminates 19 suppressions)
+- Implemented generic `apiRequest<T>()` wrapper for type-safe API calls
+  (eliminates 10 suppressions in useVarianceData)
+- Fixed req.body destructuring pattern to preserve Zod validation types
+  (eliminates 12 suppressions)
+
+**Total suppressions eliminated: 84 (2.3% of baseline)**
+
+### Breaking Changes
+
+- `Express.Request.validatedBody` removed - use typed `ValidatedRequest<Schema>`
+  pattern instead
+- Routes must migrate to new validation middleware pattern (see migration guide
+  in PR)
+
 - **CI Workflow TypeScript Baseline Integration** (CRITICAL)
   - CI was failing on all 482 baselined TypeScript errors due to using raw `tsc`
     instead of `npm run baseline:check`

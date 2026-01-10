@@ -6,10 +6,29 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/async.js';
 import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 
 const router = Router();
+
+// Request validation schema
+const investmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  initialInvestment: z.number(),
+  followOnInvestment: z.number(),
+  currentValuation: z.number(),
+  projectedExitValue: z.number(),
+  exitProbability: z.number(),
+  plannedReserves: z.number(),
+  reserveExitMultiple: z.number(),
+  investmentDate: z.coerce.date(),
+});
+
+const moicCalculationSchema = z.object({
+  investments: z.array(investmentSchema),
+});
 
 /**
  * POST /api/moic/calculate
@@ -18,14 +37,7 @@ const router = Router();
 router.post(
   '/calculate',
   asyncHandler(async (req: Request, res: Response) => {
-    const { investments } = req.body;
-
-    if (!investments || !Array.isArray(investments)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'investments array is required',
-      });
-    }
+    const { investments } = moicCalculationSchema.parse(req.body);
 
     const result = MOICCalculator.generatePortfolioSummary(investments);
     res.json(result);
@@ -39,14 +51,7 @@ router.post(
 router.post(
   '/rank',
   asyncHandler(async (req: Request, res: Response) => {
-    const { investments } = req.body;
-
-    if (!investments || !Array.isArray(investments)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'investments array is required',
-      });
-    }
+    const { investments } = moicCalculationSchema.parse(req.body);
 
     const result = MOICCalculator.rankByReservesMOIC(investments);
     res.json(result);

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type {
@@ -14,25 +13,21 @@ import type {
  * and return warnings without modifying data.
  */
 export function useReallocationPreview(fundId: number) {
-  return useMutation<
-    ReallocationPreviewResponse,
-    ReallocationError,
-    ReallocationPreviewRequest
-  >({
+  return useMutation<ReallocationPreviewResponse, ReallocationError, ReallocationPreviewRequest>({
     mutationFn: async (request: ReallocationPreviewRequest) => {
       try {
-        const response = await apiRequest(
+        return apiRequest<ReallocationPreviewResponse>(
           'POST',
           `/api/funds/${fundId}/reallocation/preview`,
           request
         );
-        return await response.json();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Transform error to match ReallocationError type
+        const err = error as { status?: number; message?: string; errors?: string[] };
         throw {
-          status: error.status || 500,
-          message: error.message || 'Preview failed',
-          errors: error.errors || [],
+          status: err.status || 500,
+          message: err.message || 'Preview failed',
+          errors: err.errors || [],
         } as ReallocationError;
       }
     },
