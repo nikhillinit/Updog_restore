@@ -16,13 +16,25 @@ commits. Schema split maintains all existing imports via re-exports.
 
 ## Phase Overview
 
-| Batch | Focus         | Tasks   | Estimated Time |
-| ----- | ------------- | ------- | -------------- |
-| A     | Schema Split  | 4 tasks | 2 hours        |
-| B     | Type Safety   | 3 tasks | 1.5 hours      |
-| C     | Quality Gates | 3 tasks | 1 hour         |
+| Batch | Focus         | Tasks   | Estimated Time | Risk Level |
+| ----- | ------------- | ------- | -------------- | ---------- |
+| A     | Schema Split  | 5 tasks | 2.5 hours      | MEDIUM     |
+| B     | Type Safety   | 4 tasks | 2 hours        | MEDIUM     |
+| C     | Quality Gates | 3 tasks | 1 hour         | LOW        |
 
 **CHECKPOINT** after each batch for review.
+
+---
+
+## Risk Mitigation (from ultrathink analysis)
+
+| Risk                             | Mitigation                                    |
+| -------------------------------- | --------------------------------------------- |
+| Circular dependencies in schema  | Task A0 maps all foreign key references first |
+| Drizzle relations breaking       | Keep relations in main schema.ts initially    |
+| Files may not exist              | Task B0 verifies file paths before type work  |
+| Decimal.js not installed         | Task B3 Step 0 verifies dependency            |
+| Runtime vs compile-time failures | Task A5 adds runtime smoke test               |
 
 ---
 
@@ -35,6 +47,72 @@ commits. Schema split maintains all existing imports via re-exports.
 - Slow IDE performance
 
 **Solution:** Split into domain modules with barrel file re-exports.
+
+### Task A0: Verify Prerequisites and Map Dependencies
+
+**Files:**
+
+- No changes (analysis only)
+- Output: Dependency map for informed splitting
+
+**Step 1: Verify schema.ts exists and check line count**
+
+```bash
+wc -l shared/schema.ts
+```
+
+Expected: ~3000+ lines
+
+**Step 2: Map all foreign key references**
+
+```bash
+grep -n "references(" shared/schema.ts | head -30
+```
+
+Document which tables reference which. Example output:
+
+```
+45:  fundId: integer('fund_id').references(() => funds.id),
+89:  portfolioId: integer('portfolio_id').references(() => portfolios.id),
+...
+```
+
+**Step 3: Identify Drizzle relations definitions**
+
+```bash
+grep -n "relations(" shared/schema.ts | head -20
+```
+
+**DECISION POINT:** If relations span multiple domains, keep ALL relations in
+main schema.ts until a dedicated `relations.ts` file is created.
+
+**Step 4: Check for circular imports**
+
+```bash
+# Tables that reference funds
+grep -l "funds.id\|funds\.id" shared/schema.ts
+
+# Tables that funds references
+grep -A5 "export const funds" shared/schema.ts | grep "references"
+```
+
+**Step 5: Document dependency graph**
+
+Create mental model:
+
+```
+funds (root - no dependencies)
+  └── portfolios (depends on funds)
+       └── companies (depends on portfolios)
+  └── scenarios (depends on funds)
+```
+
+**Step 6: Proceed only if safe**
+
+- If circular dependencies detected: STOP and redesign approach
+- If clean hierarchy: Continue to Task A1
+
+---
 
 ### Task A1: Create Fund Schema Module
 
@@ -428,14 +506,86 @@ git commit -m "refactor(schema): add schema index, convert main file to barrel e
 
 ---
 
+### Task A5: Add Runtime Smoke Test for Schema Integrity
+
+**Files:**
+
+- Create: `tests/unit/schema/schema-integrity.test.ts`
+- Test: Run the new test
+
+**Step 1: Create smoke test**
+
+Location: `tests/unit/schema/schema-integrity.test.ts`
+
+```typescript
+/**
+ * Schema Integrity Smoke Test
+ *
+ * Verifies all schema tables are accessible via barrel exports.
+ * Catches runtime issues that TypeScript compilation misses.
+ */
+import { describe, it, expect } from 'vitest';
+import * as schema from '@shared/schema';
+
+describe('Schema Module Integrity', () => {
+  it('all core tables are accessible via barrel export', () => {
+    // Verify tables exist and are defined
+    expect(schema.funds).toBeDefined();
+    expect(typeof schema.funds).toBe('object');
+
+    // Add checks for other extracted tables
+    // expect(schema.portfolios).toBeDefined();
+    // expect(schema.scenarios).toBeDefined();
+  });
+
+  it('table definitions have expected structure', () => {
+    // Verify funds table has expected columns
+    const fundColumns = Object.keys(schema.funds);
+    expect(fundColumns.length).toBeGreaterThan(0);
+  });
+});
+```
+
+**Step 2: Run the test**
+
+```bash
+npm test -- --run schema-integrity.test.ts
+```
+
+Expected: PASS
+
+**Step 3: Commit**
+
+```bash
+git add tests/unit/schema/schema-integrity.test.ts
+git commit -m "test(schema): add runtime smoke test for schema integrity"
+```
+
+---
+
 **CHECKPOINT A:** Schema split complete. Review before continuing.
 
 **Verification:**
 
 - [ ] TypeScript compiles without new errors
-- [ ] All tests pass
+- [ ] All tests pass (including new smoke test)
 - [ ] No import breakages
 - [ ] schema.ts reduced by ~500+ lines
+- [ ] Runtime smoke test passes
+
+**Rollback Instructions (if issues found):**
+
+```bash
+# View commits made in Batch A
+git log --oneline -6
+
+# If schema split caused issues, revert all Batch A commits:
+git revert HEAD~5..HEAD --no-commit
+git commit -m "revert: rollback schema split due to [ISSUE]"
+
+# Or reset to before Batch A (destructive):
+git reset --hard HEAD~6
+```
 
 ---
 
@@ -445,6 +595,47 @@ git commit -m "refactor(schema): add schema index, convert main file to barrel e
 
 **Solution:** Replace high-impact `any` types with proper types, prioritizing
 financial calculation paths.
+
+### Task B0: Verify File Existence for Type Safety Work
+
+**Files:**
+
+- No changes (verification only)
+
+**Step 1: Verify target files exist**
+
+```bash
+# Check enhanced-fund-model.ts exists
+ls -la client/src/models/enhanced-fund-model.ts 2>/dev/null || echo "FILE NOT FOUND: enhanced-fund-model.ts"
+
+# Check enhanced-cohort-engine.ts exists
+ls -la client/src/engines/enhanced-cohort-engine.ts 2>/dev/null || echo "FILE NOT FOUND: enhanced-cohort-engine.ts"
+
+# Check variance-tracking.ts exists
+ls -la server/services/variance-tracking.ts 2>/dev/null || echo "FILE NOT FOUND: variance-tracking.ts"
+```
+
+**Step 2: If any files not found, locate alternatives**
+
+```bash
+# Find fund model files
+find client/src -name "*fund*model*" -type f
+
+# Find cohort engine files
+find client/src -name "*cohort*engine*" -type f
+
+# Find variance tracking
+find server -name "*variance*" -type f
+```
+
+**Step 3: Update subsequent tasks with correct paths**
+
+If file paths differ from plan, update Tasks B1-B3 before proceeding.
+
+**DECISION POINT:** If files don't exist, stop and reassess which files contain
+the `any` types to fix.
+
+---
 
 ### Task B1: Fix `any` Types in Enhanced Fund Model (Top 10)
 
@@ -571,6 +762,21 @@ git commit -m "fix(types): replace 10 any types in enhanced-cohort-engine"
 
 - Modify: `server/services/variance-tracking.ts` (13 occurrences)
 - Test: Existing variance tracking tests
+
+**Step 0: Verify Decimal.js is installed**
+
+```bash
+# Check if decimal.js is in package.json
+grep -q '"decimal.js"' package.json && echo "Decimal.js FOUND" || echo "Decimal.js NOT FOUND"
+
+# If not found, install it
+npm list decimal.js || npm install decimal.js
+```
+
+Expected output: `decimal.js@10.x.x` or similar
+
+**DECISION POINT:** If Decimal.js not available and cannot be installed, skip
+this task and document in checkpoint.
 
 **Step 1: Identify parseFloat usages**
 
