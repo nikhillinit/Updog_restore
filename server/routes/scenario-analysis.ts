@@ -15,11 +15,9 @@ import {
   calculateWeightedSummary,
   validateProbabilities,
   normalizeProbabilities,
-  addMOICToCases
+  addMOICToCases,
 } from '@shared/utils/scenario-math';
-import type {
-  ScenarioAnalysisResponse
-} from '@shared/types/scenario';
+import type { ScenarioAnalysisResponse } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 
 const router = Router();
@@ -54,6 +52,15 @@ const PortfolioAnalysisQuerySchema = z.object({
   limit: z.string().regex(/^\d+$/).transform(Number).default('50'),
 });
 
+const CreateScenarioSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
+const ReserveSuggestionsSchema = z.object({
+  scenario_id: z.string(),
+});
+
 // ============================================================================
 // Middleware: User tracking for audit
 // ============================================================================
@@ -67,7 +74,7 @@ interface ScenarioRequest extends Request {
  * Extract user ID for audit logging (use after requireAuth)
  */
 function extractUserId(req: Request, _res: Response, next: () => void) {
-  const userId = req.user?.id || 'system';
+  const userId = (req as { user?: { id: string } }).user?.id || 'system';
   (req as ScenarioRequest).userId = userId;
   next();
 }
@@ -102,7 +109,8 @@ async function auditLog(params: {
  *
  * Returns Construction vs Current comparison with pagination and caching
  */
-router["get"]('/funds/:fundId/portfolio-analysis',
+router['get'](
+  '/funds/:fundId/portfolio-analysis',
   requireAuth(),
   requireFundAccess,
   extractUserId,
@@ -111,7 +119,7 @@ router["get"]('/funds/:fundId/portfolio-analysis',
       const { fundId } = req.params;
 
       if (!fundId) {
-        return res["status"](400)["json"]({ error: 'Missing fund ID' });
+        return res['status'](400)['json']({ error: 'Missing fund ID' });
       }
 
       const query = PortfolioAnalysisQuerySchema.parse(req.query);
@@ -124,40 +132,41 @@ router["get"]('/funds/:fundId/portfolio-analysis',
 
       // TODO: Implement actual query logic based on your schema
       // This is a placeholder showing the pattern
-      const results = await db.select()
+      const results = await db
+        .select()
         .from(portfolioCompanies)
         .where(eq(portfolioCompanies.fundId, fundIdInt))
         .limit(query.limit)
         .offset((query.page - 1) * query.limit);
 
-      const total = await db.select({ count: sql<number>`count(*)` })
+      const total = await db
+        .select({ count: sql<number>`count(*)` })
         .from(portfolioCompanies)
         .where(eq(portfolioCompanies.fundId, fundIdInt));
 
       // Transform to ComparisonRow format
-      const rows = results.map((company: typeof results[number]) => ({
+      const rows = results.map((company: (typeof results)[number]) => ({
         entry_round: company.stage || 'Unknown',
         construction_value: Number(company.investmentAmount || 0),
         actual_value: Number(company.investmentAmount || 0),
         forecast_value: Number(company.currentValuation || 0),
       }));
 
-      res["json"]({
+      res['json']({
         data: rows,
         pagination: {
           page: query.page,
           limit: query.limit,
           total: total[0]?.count || 0,
-          pages: Math.ceil((total[0]?.count || 0) / query.limit)
+          pages: Math.ceil((total[0]?.count || 0) / query.limit),
         },
         generated_at: new Date(),
       });
-
     } catch (error: unknown) {
       console.error('Portfolio analysis error:', error);
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -172,7 +181,8 @@ router["get"]('/funds/:fundId/portfolio-analysis',
  *
  * Get scenario with cases, rounds, and weighted summary
  */
-router["get"]('/companies/:companyId/scenarios/:scenarioId',
+router['get'](
+  '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
   extractUserId,
   async (req: Request, res: Response) => {
@@ -180,21 +190,19 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       const { companyId, scenarioId } = req.params;
 
       if (!companyId || !scenarioId) {
-        return res["status"](400)["json"]({ error: 'Missing required parameters' });
+        return res['status'](400)['json']({ error: 'Missing required parameters' });
       }
 
       const include = (req.query['include'] as string)?.split(',') || ['cases', 'weighted_summary'];
 
-      const scenario = await db.select()
+      const scenario = await db
+        .select()
         .from(scenarios)
-        .where(and(
-          eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, parseInt(companyId))
-        ))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
         .limit(1);
 
       if (!scenario || scenario.length === 0 || !scenario[0]) {
-        return res["status"](404)["json"]({ error: 'Scenario not found' });
+        return res['status'](404)['json']({ error: 'Scenario not found' });
       }
 
       const scenarioData = scenario[0];
@@ -202,7 +210,8 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       // Fetch cases if requested
       let mappedCases: Array<Record<string, unknown>> = [];
       if (include.includes('cases')) {
-        const cases = await db.select()
+        const cases = await db
+          .select()
           .from(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
@@ -224,9 +233,10 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       const casesWithMOIC = addMOICToCases(mappedCases);
 
       // Calculate weighted summary
-      const weighted_summary = include.includes('weighted_summary') && casesWithMOIC.length > 0
-        ? calculateWeightedSummary(casesWithMOIC)
-        : undefined;
+      const weighted_summary =
+        include.includes('weighted_summary') && casesWithMOIC.length > 0
+          ? calculateWeightedSummary(casesWithMOIC)
+          : undefined;
 
       // Get investment rounds if requested (commented out - investmentRounds not in schema)
       // let rounds = [];
@@ -257,13 +267,12 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
         // rounds: undefined, // include.includes('rounds') ? rounds : undefined,
       };
 
-      res["json"](response);
-
+      res['json'](response);
     } catch (error: unknown) {
       console.error('Get scenario error:', error);
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -274,7 +283,8 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
  *
  * Create new scenario
  */
-router["post"]('/companies/:companyId/scenarios',
+router['post'](
+  '/companies/:companyId/scenarios',
   requireAuth(),
   extractUserId,
   async (req: Request, res: Response) => {
@@ -282,26 +292,24 @@ router["post"]('/companies/:companyId/scenarios',
       const { companyId } = req.params;
 
       if (!companyId) {
-        return res["status"](400)["json"]({ error: 'Missing company ID' });
+        return res['status'](400)['json']({ error: 'Missing company ID' });
       }
 
       // Validate request body before destructuring to preserve types
-      const createScenarioSchema = z.object({
-        name: z.string().optional(),
-        description: z.string().optional(),
-      });
-      const validated = createScenarioSchema.parse(req.body);
-      const { name, description } = validated;
+      const { name, description } = CreateScenarioSchema.parse(req.body);
       const userId = (req as ScenarioRequest).userId;
 
-      const scenario = await db.insert(scenarios).values({
-        companyId: parseInt(companyId),
-        name: name || 'New Scenario',
-        description,
-        version: 1,
-        isDefault: false,
-        ...(userId && { createdBy: userId }),
-      }).returning();
+      const scenario = await db
+        .insert(scenarios)
+        .values({
+          companyId: parseInt(companyId),
+          name: name || 'New Scenario',
+          description,
+          version: 1,
+          isDefault: false,
+          ...(userId && { createdBy: userId }),
+        })
+        .returning();
 
       // Audit log
       await auditLog({
@@ -311,13 +319,12 @@ router["post"]('/companies/:companyId/scenarios',
         action: 'CREATE',
       });
 
-      res["status"](201)["json"](scenario[0]);
-
+      res['status'](201)['json'](scenario[0]);
     } catch (error: unknown) {
       console.error('Create scenario error:', error);
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -328,7 +335,8 @@ router["post"]('/companies/:companyId/scenarios',
  *
  * Update scenario cases with optimistic locking
  */
-router["patch"]('/companies/:companyId/scenarios/:scenarioId',
+router['patch'](
+  '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
   extractUserId,
   async (req: Request, res: Response) => {
@@ -336,34 +344,33 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       const { companyId, scenarioId } = req.params;
 
       if (!companyId || !scenarioId) {
-        return res["status"](400)["json"]({ error: 'Missing required parameters' });
+        return res['status'](400)['json']({ error: 'Missing required parameters' });
       }
 
       const body = UpdateScenarioRequestSchema.parse(req.body);
 
       // Fetch current scenario
-      const currentScenario = await db.select()
+      const currentScenario = await db
+        .select()
         .from(scenarios)
-        .where(and(
-          eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, parseInt(companyId))
-        ))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
         .limit(1);
 
       if (!currentScenario || currentScenario.length === 0 || !currentScenario[0]) {
-        return res["status"](404)["json"]({ error: 'Scenario not found' });
+        return res['status'](404)['json']({ error: 'Scenario not found' });
       }
 
       const current = currentScenario[0];
 
       // Fetch current cases for audit log
-      const currentCases = await db.select()
+      const currentCases = await db
+        .select()
         .from(scenarioCases)
         .where(eq(scenarioCases.scenarioId, scenarioId));
 
       // BLOCKER #1 FIX: Optimistic locking
       if (body.version !== undefined && current.version !== body.version) {
-        return res["status"](409)["json"]({
+        return res['status'](409)['json']({
           error: 'Conflict',
           message: 'Scenario was modified by another user. Please refresh.',
           current_version: current.version,
@@ -375,7 +382,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       const validation = validateProbabilities(cases as Array<{ probability: number }>);
 
       if (!validation.is_valid && !body.normalize) {
-        return res["status"](400)["json"]({
+        return res['status'](400)['json']({
           error: 'Invalid probabilities',
           message: validation.message,
           sum: validation.sum,
@@ -387,14 +394,15 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       let normalized = false;
       const original_sum = validation.sum;
       if (body.normalize && !validation.is_valid) {
-        cases = normalizeProbabilities(cases as Array<{ probability: number }>) as Array<Record<string, unknown>>;
+        cases = normalizeProbabilities(cases as Array<{ probability: number }>) as Array<
+          Record<string, unknown>
+        >;
         normalized = true;
       }
 
       // Delete existing cases and insert new ones (transaction)
       await db.transaction(async (tx) => {
-        await tx.delete(scenarioCases)
-          .where(eq(scenarioCases.scenarioId, scenarioId));
+        await tx.delete(scenarioCases).where(eq(scenarioCases.scenarioId, scenarioId));
 
         if (cases.length > 0) {
           await tx.insert(scenarioCases).values(
@@ -414,10 +422,11 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         }
 
         // Increment version
-        await tx.update(scenarios)
+        await tx
+          .update(scenarios)
           .set({
             version: current.version + 1,
-            updatedAt: new Date()
+            updatedAt: new Date(),
           })
           .where(eq(scenarios.id, scenarioId));
       });
@@ -439,7 +448,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
       const casesWithMOIC = addMOICToCases(cases as Array<Record<string, unknown>>);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
-      res["json"]({
+      res['json']({
         scenario_id: scenarioId,
         cases: casesWithMOIC,
         weighted_summary,
@@ -447,20 +456,19 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
         normalized,
         original_sum: normalized ? original_sum : undefined,
       });
-
     } catch (error: unknown) {
       console.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
-        return res["status"](400)["json"]({
+        return res['status'](400)['json']({
           error: 'Validation error',
           details: error.errors,
         });
       }
 
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -471,7 +479,8 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
  *
  * Delete scenario and all its cases
  */
-router["delete"]('/companies/:companyId/scenarios/:scenarioId',
+router['delete'](
+  '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
   extractUserId,
   async (req: Request, res: Response) => {
@@ -479,33 +488,30 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
       const { companyId, scenarioId } = req.params;
 
       if (!companyId || !scenarioId) {
-        return res["status"](400)["json"]({ error: 'Missing required parameters' });
+        return res['status'](400)['json']({ error: 'Missing required parameters' });
       }
 
-      const scenarioResult = await db.select()
+      const scenarioResult = await db
+        .select()
         .from(scenarios)
-        .where(and(
-          eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, parseInt(companyId))
-        ))
+        .where(and(eq(scenarios.id, scenarioId), eq(scenarios.companyId, parseInt(companyId))))
         .limit(1);
 
       if (!scenarioResult || scenarioResult.length === 0 || !scenarioResult[0]) {
-        return res["status"](404)["json"]({ error: 'Scenario not found' });
+        return res['status'](404)['json']({ error: 'Scenario not found' });
       }
 
       const scenario = scenarioResult[0];
 
       // Prevent deleting default scenario
       if (scenario.isDefault) {
-        return res["status"](400)["json"]({
-          error: 'Cannot delete default scenario'
+        return res['status'](400)['json']({
+          error: 'Cannot delete default scenario',
         });
       }
 
       // Delete (cascade will remove cases)
-      await db.delete(scenarios)
-        .where(eq(scenarios.id, scenarioId));
+      await db.delete(scenarios).where(eq(scenarios.id, scenarioId));
 
       // Audit log
       await auditLog({
@@ -515,13 +521,12 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
         action: 'DELETE',
       });
 
-      res["status"](204)["send"]();
-
+      res['status'](204)['send']();
     } catch (error: unknown) {
       console.error('Delete scenario error:', error);
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -536,7 +541,8 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
  *
  * Call DeterministicReserveEngine to suggest optimal reserve allocation
  */
-router["post"]('/companies/:companyId/reserves/optimize',
+router['post'](
+  '/companies/:companyId/reserves/optimize',
   requireAuth(),
   extractUserId,
   async (req: Request, res: Response) => {
@@ -544,11 +550,7 @@ router["post"]('/companies/:companyId/reserves/optimize',
       const { companyId } = req.params;
 
       // Validate request body before destructuring to preserve types
-      const reserveSuggestionsSchema = z.object({
-        scenario_id: z.string(),
-      });
-      const validated = reserveSuggestionsSchema.parse(req.body);
-      const { scenario_id } = validated;
+      const { scenario_id } = ReserveSuggestionsSchema.parse(req.body);
 
       // TODO: Wire to existing DeterministicReserveEngine
       // This is a placeholder showing the integration pattern
@@ -556,11 +558,11 @@ router["post"]('/companies/:companyId/reserves/optimize',
       // 1. Fetch scenario data
       const scenario = await db.query.scenarios.findFirst({
         where: eq(scenarios.id, scenario_id),
-        with: { cases: true, company: true }
+        with: { cases: true, company: true },
       });
 
       if (!scenario) {
-        return res["status"](404)["json"]({ error: 'Scenario not found' });
+        return res['status'](404)['json']({ error: 'Scenario not found' });
       }
 
       // 2. Call reserve engine (lift from your existing pattern)
@@ -579,20 +581,19 @@ router["post"]('/companies/:companyId/reserves/optimize',
           recommended_amount: 5000000,
           exit_moic_on_planned_reserves: 3.2,
           confidence: 0.85,
-        }
+        },
       ];
 
-      res["json"]({
+      res['json']({
         scenario_id,
         suggestions,
         generated_at: new Date(),
       });
-
     } catch (error: unknown) {
       console.error('Reserves optimization error:', error);
-      res["status"](500)["json"]({
+      res['status'](500)['json']({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
