@@ -6,6 +6,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/async.js';
 import {
   LiquidityEngine,
@@ -16,6 +17,45 @@ import {
 
 const router = Router();
 
+// Request validation schemas
+const analyzeCashFlowsSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  transactions: z.array(z.unknown()),
+});
+
+const liquidityForecastSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: z.unknown(),
+  transactions: z.array(z.unknown()).optional(),
+  recurringExpenses: z.array(z.unknown()).default([]),
+  months: z.number().default(12),
+});
+
+const stressTestSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: z.unknown(),
+  stressFactors: z.object({
+    distributionDelay: z.number().optional(),
+    investmentAcceleration: z.number().optional(),
+    lpFundingDelay: z.number().optional(),
+    expenseIncrease: z.number().optional(),
+  }).optional(),
+});
+
+const optimizeCallsSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: z.unknown(),
+  plannedInvestments: z.array(z.unknown()),
+  constraints: z.object({
+    noticePeriodDays: z.number().optional(),
+    paymentPeriodDays: z.number().optional(),
+  }).optional(),
+});
+
 /**
  * POST /api/liquidity/analyze
  * Analyze cash flows and calculate key metrics
@@ -23,21 +63,7 @@ const router = Router();
 router.post(
   '/analyze',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, transactions } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!transactions || !Array.isArray(transactions)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'transactions array is required',
-      });
-    }
+    const { fundId, fundSize, transactions } = analyzeCashFlowsSchema.parse(req.body);
 
     const engine = new LiquidityEngine(fundId, fundSize);
     const analysis = engine.analyzeCashFlows(transactions);
@@ -58,23 +84,9 @@ router.post(
       fundSize,
       currentPosition,
       transactions,
-      recurringExpenses = [],
-      months = 12,
-    } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
+      recurringExpenses,
+      months,
+    } = liquidityForecastSchema.parse(req.body);
 
     const engine = new LiquidityEngine(fundId, fundSize);
     const forecast = engine.generateLiquidityForecast(
@@ -95,21 +107,7 @@ router.post(
 router.post(
   '/stress-test',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, currentPosition, stressFactors } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
+    const { fundId, fundSize, currentPosition, stressFactors } = stressTestSchema.parse(req.body);
 
     // Default stress factors if not provided
     const factors: StressTestFactors = stressFactors || {
@@ -133,28 +131,7 @@ router.post(
 router.post(
   '/optimize-calls',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
-
-    if (!plannedInvestments || !Array.isArray(plannedInvestments)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'plannedInvestments array is required',
-      });
-    }
+    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } = optimizeCallsSchema.parse(req.body);
 
     // Default constraints if not provided
     const callConstraints: CapitalCallConstraints = constraints || {

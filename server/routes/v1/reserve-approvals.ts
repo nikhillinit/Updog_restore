@@ -203,16 +203,15 @@ router['get']('/:id', (async (req: Request, res: Response) => {
 /**
  * POST /api/v1/reserve-approvals/:id/sign - Sign an approval
  */
+// Request validation schema for signing
+const signApprovalSchema = z.object({
+  verificationCode: z.string().optional(),
+});
+
 router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
     const id = req.params['id'] as string;
-
-    // Validate request body before destructuring to preserve types
-    const signApprovalSchema = z.object({
-      verificationCode: z.string().optional(),
-    });
-    const validated = signApprovalSchema.parse(req.body);
-    const { verificationCode } = validated; // Optional 2FA code
+    const { verificationCode } = signApprovalSchema.parse(req.body);
     
     // Check if partner is authorized
     const [partner] = await db.select()
@@ -345,14 +344,15 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: R
 /**
  * POST /api/v1/reserve-approvals/:id/reject - Reject an approval
  */
+// Request validation schema for rejection
+const rejectionSchema = z.object({
+  reason: z.string().min(10),
+});
+
 router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
     const id = req.params['id'] as string;
-    const { reason } = req.body;
-    
-    if (!reason || reason.length < 10) {
-      return res["status"](400)["json"]({ error: 'Rejection reason required (min 10 chars)' });
-    }
+    const { reason } = rejectionSchema.parse(req.body);
     
     // Check authorization
     const [partner] = await db.select()

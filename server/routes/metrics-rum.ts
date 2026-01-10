@@ -2,9 +2,20 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import express from 'express';
 import * as client from 'prom-client';
+import { z } from 'zod';
 
 // Create dedicated registry for RUM metrics
 const rumRegistry = new client.Registry();
+
+// Request validation schema
+const rumMetricSchema = z.object({
+  name: z.string(),
+  value: z.number(),
+  rating: z.string().optional(),
+  navigationType: z.string().optional(),
+  pathname: z.string().optional(),
+  timestamp: z.number().optional(),
+});
 
 // Web Vitals histograms
 const webVitalsLCP = new client.Histogram({
@@ -91,12 +102,11 @@ metricsRumRouter.use(rumV2Enhancement);
 // Accept RUM metrics from browser
 metricsRumRouter.post('/metrics/rum', express["json"]({ limit: '10kb' }), async (req: Request, res: Response) => {
   try {
-    const { name, value, rating, navigationType, pathname, timestamp } = req.body || {};
-    
-    // Validate required fields
-    if (!name || typeof value !== 'number') {
-      return res["status"](400)["json"]({ error: 'Invalid metric data' });
+    const validation = rumMetricSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res["status"](400)["json"]({ error: 'Invalid metric data', issues: validation.error.issues });
     }
+    const { name, value, rating, navigationType, pathname, timestamp } = validation.data;
     
     // If RUM v2 is enabled, use enhanced processing
     if (process.env['ENABLE_RUM_V2'] === '1' && (req as any).rumV2) {

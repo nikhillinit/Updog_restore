@@ -7,10 +7,17 @@
 
 import type { Request, Response } from 'express';
 import { Router } from 'express';
+import { z } from 'zod';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 import { config } from '../config/index.js';
 
 const router = Router();
+
+// Request validation schema
+const performanceRunSchema = z.object({
+  runs: z.number().default(100),
+  fundId: z.string().default(config.DEFAULT_FUND_ID),
+});
 
 /**
  * GET /api/performance/summary
@@ -236,7 +243,7 @@ router["get"]('/operations', (req: Request, res: Response) => {
  */
 router["post"]('/simulate', async (req: Request, res: Response) => {
   try {
-    const { runs = 100, fundId = config.DEFAULT_FUND_ID } = req.body;
+    const { runs, fundId } = performanceRunSchema.parse(req.body);
 
     // Start performance tracking
     const simulationId = `test_${Date.now()}`;
