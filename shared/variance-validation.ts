@@ -9,14 +9,15 @@ import { z } from 'zod';
 import { positiveInt } from './schema-helpers';
 import type { Request, Response, NextFunction } from 'express';
 
-// Extend Express Request type to include validatedBody
-declare global {
-  namespace Express {
-    interface Request {
-      validatedBody?: any;
-    }
-  }
-}
+// Note: Removed unsafe Express.Request.validatedBody augmentation
+// Use typed ValidatedRequest<T> pattern instead
+
+/**
+ * Type helper for routes that use validation middleware
+ */
+export type ValidatedRequest<T extends z.ZodTypeAny> = Request & {
+  validated: z.infer<T>;
+};
 
 // === CORE VALIDATION HELPERS ===
 
@@ -80,27 +81,32 @@ export const notificationChannelSchema = z.enum(['email', 'slack', 'webhook']);
 /**
  * Create baseline request schema
  */
-export const CreateBaselineRequestSchema = z.object({
-  name: z.string()
-    .min(1, 'Baseline name is required')
-    .max(100, 'Baseline name must be 100 characters or less'),
-  description: z.string()
-    .max(500, 'Description must be 500 characters or less')
-    .optional(),
-  baselineType: baselineTypeSchema,
-  periodStart: timestampSchema,
-  periodEnd: timestampSchema,
-  tags: z.array(z.string().max(50, 'Tag must be 50 characters or less'))
-    .max(10, 'Maximum 10 tags allowed')
-    .default([])
-}).refine((data: any) => {
-  const start = new Date(data.periodStart);
-  const end = new Date(data.periodEnd);
-  return end > start;
-}, {
-  message: 'Period end must be after period start',
-  path: ['periodEnd']
-});
+export const CreateBaselineRequestSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, 'Baseline name is required')
+      .max(100, 'Baseline name must be 100 characters or less'),
+    description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+    baselineType: baselineTypeSchema,
+    periodStart: timestampSchema,
+    periodEnd: timestampSchema,
+    tags: z
+      .array(z.string().max(50, 'Tag must be 50 characters or less'))
+      .max(10, 'Maximum 10 tags allowed')
+      .default([]),
+  })
+  .refine(
+    (data) => {
+      const start = new Date(data.periodStart);
+      const end = new Date(data.periodEnd);
+      return end > start;
+    },
+    {
+      message: 'Period end must be after period start',
+      path: ['periodEnd'],
+    }
+  );
 
 /**
  * Baseline response schema
@@ -137,7 +143,7 @@ export const BaselineResponseSchema = z.object({
   approvedBy: positiveInt().nullable(),
   tags: z.array(z.string()),
   createdAt: timestampSchema,
-  updatedAt: timestampSchema
+  updatedAt: timestampSchema,
 });
 
 /**
@@ -145,14 +151,16 @@ export const BaselineResponseSchema = z.object({
  */
 export const GetBaselinesQuerySchema = z.object({
   baselineType: baselineTypeSchema.optional(),
-  isDefault: z.enum(['true', 'false'])
-    .transform(val => val === 'true')
+  isDefault: z
+    .enum(['true', 'false'])
+    .transform((val) => val === 'true')
     .optional(),
-  limit: z.string()
+  limit: z
+    .string()
     .regex(/^\d+$/, 'Limit must be a positive integer')
-    .transform(val => parseInt(val))
-    .refine(val => val > 0 && val <= 100, 'Limit must be between 1 and 100')
-    .optional()
+    .transform((val) => parseInt(val))
+    .refine((val) => val > 0 && val <= 100, 'Limit must be between 1 and 100')
+    .optional(),
 });
 
 // === VARIANCE REPORT SCHEMAS ===
@@ -162,12 +170,13 @@ export const GetBaselinesQuerySchema = z.object({
  */
 export const CreateVarianceReportRequestSchema = z.object({
   baselineId: uuidSchema.optional(),
-  reportName: z.string()
+  reportName: z
+    .string()
     .min(1, 'Report name is required')
     .max(100, 'Report name must be 100 characters or less'),
   reportType: reportTypeSchema,
   reportPeriod: z.enum(['monthly', 'quarterly', 'annual']).optional(),
-  asOfDate: timestampSchema.optional()
+  asOfDate: timestampSchema.optional(),
 });
 
 /**
@@ -179,23 +188,25 @@ export const VarianceCalculationSchema = z.object({
   irrVariance: decimalSchema.nullable(),
   multipleVariance: decimalSchema.nullable(),
   dpiVariance: decimalSchema.nullable(),
-  tvpiVariance: decimalSchema.nullable()
+  tvpiVariance: decimalSchema.nullable(),
 });
 
 /**
  * Portfolio variance schema
  */
 export const PortfolioVarianceSchema = z.object({
-  companyVariances: z.array(z.object({
-    companyId: positiveInt(),
-    companyName: z.string(),
-    valuationVariance: decimalSchema.nullable(),
-    valuationVariancePct: decimalSchema.nullable(),
-    riskLevel: z.enum(['low', 'medium', 'high', 'critical'])
-  })),
+  companyVariances: z.array(
+    z.object({
+      companyId: positiveInt(),
+      companyName: z.string(),
+      valuationVariance: decimalSchema.nullable(),
+      valuationVariancePct: decimalSchema.nullable(),
+      riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
+    })
+  ),
   sectorVariances: z.record(z.string(), z.any()),
   stageVariances: z.record(z.string(), z.any()),
-  portfolioCountVariance: z.number().int()
+  portfolioCountVariance: z.number().int(),
 });
 
 /**
@@ -203,18 +214,22 @@ export const PortfolioVarianceSchema = z.object({
  */
 export const VarianceInsightsSchema = z.object({
   overallScore: decimalSchema,
-  significantVariances: z.array(z.object({
-    metric: z.string(),
-    variance: decimalSchema,
-    variancePct: decimalSchema.nullable(),
-    severity: z.enum(['low', 'medium', 'high', 'critical'])
-  })),
-  factors: z.array(z.object({
-    factor: z.string(),
-    impact: z.enum(['positive', 'negative', 'neutral']),
-    magnitude: decimalSchema
-  })),
-  riskLevel: z.enum(['low', 'medium', 'high', 'critical'])
+  significantVariances: z.array(
+    z.object({
+      metric: z.string(),
+      variance: decimalSchema,
+      variancePct: decimalSchema.nullable(),
+      severity: z.enum(['low', 'medium', 'high', 'critical']),
+    })
+  ),
+  factors: z.array(
+    z.object({
+      factor: z.string(),
+      impact: z.enum(['positive', 'negative', 'neutral']),
+      magnitude: decimalSchema,
+    })
+  ),
+  riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
 });
 
 /**
@@ -254,7 +269,7 @@ export const VarianceReportResponseSchema = z.object({
   isPublic: z.boolean(),
   sharedWith: z.array(z.string()),
   createdAt: timestampSchema,
-  updatedAt: timestampSchema
+  updatedAt: timestampSchema,
 });
 
 // === ALERT SCHEMAS ===
@@ -262,42 +277,48 @@ export const VarianceReportResponseSchema = z.object({
 /**
  * Create alert rule request schema
  */
-export const CreateAlertRuleRequestSchema = z.object({
-  name: z.string()
-    .min(1, 'Alert rule name is required')
-    .max(100, 'Alert rule name must be 100 characters or less'),
-  description: z.string()
-    .max(500, 'Description must be 500 characters or less')
-    .optional(),
-  ruleType: ruleTypeSchema,
-  metricName: z.string()
-    .min(1, 'Metric name is required')
-    .max(50, 'Metric name must be 50 characters or less'),
-  operator: operatorSchema,
-  thresholdValue: z.number(),
-  secondaryThreshold: z.number().optional(),
-  severity: severitySchema.default('warning'),
-  category: categorySchema.default('performance'),
-  checkFrequency: checkFrequencySchema.default('daily'),
-  suppressionPeriod: positiveInt()
-    .min(1, 'Suppression period must be at least 1 minute')
-    .max(10080, 'Suppression period cannot exceed 1 week (10080 minutes)')
-    .default(60),
-  notificationChannels: z.array(notificationChannelSchema)
-    .min(1, 'At least one notification channel required')
-    .default(['email']),
-  escalationRules: z.any().optional(),
-  conditions: z.any().optional(),
-  filters: z.any().optional()
-}).refine((data: any) => {
-  if (data.operator === 'between' && !data.secondaryThreshold) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Secondary threshold is required for "between" operator',
-  path: ['secondaryThreshold']
-});
+export const CreateAlertRuleRequestSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, 'Alert rule name is required')
+      .max(100, 'Alert rule name must be 100 characters or less'),
+    description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+    ruleType: ruleTypeSchema,
+    metricName: z
+      .string()
+      .min(1, 'Metric name is required')
+      .max(50, 'Metric name must be 50 characters or less'),
+    operator: operatorSchema,
+    thresholdValue: z.number(),
+    secondaryThreshold: z.number().optional(),
+    severity: severitySchema.default('warning'),
+    category: categorySchema.default('performance'),
+    checkFrequency: checkFrequencySchema.default('daily'),
+    suppressionPeriod: positiveInt()
+      .min(1, 'Suppression period must be at least 1 minute')
+      .max(10080, 'Suppression period cannot exceed 1 week (10080 minutes)')
+      .default(60),
+    notificationChannels: z
+      .array(notificationChannelSchema)
+      .min(1, 'At least one notification channel required')
+      .default(['email']),
+    escalationRules: z.any().optional(),
+    conditions: z.any().optional(),
+    filters: z.any().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.operator === 'between' && !data.secondaryThreshold) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Secondary threshold is required for "between" operator',
+      path: ['secondaryThreshold'],
+    }
+  );
 
 /**
  * Alert rule response schema
@@ -327,7 +348,7 @@ export const AlertRuleResponseSchema = z.object({
   lastTriggered: timestampSchema.nullable(),
   triggerCount: z.number().int(),
   createdAt: timestampSchema,
-  updatedAt: timestampSchema
+  updatedAt: timestampSchema,
 });
 
 /**
@@ -370,39 +391,41 @@ export const PerformanceAlertResponseSchema = z.object({
   detectionLatency: z.number().int().nullable(),
   processingTime: z.number().int().nullable(),
   createdAt: timestampSchema,
-  updatedAt: timestampSchema
+  updatedAt: timestampSchema,
 });
 
 /**
  * Alert action request schema
  */
 export const AlertActionRequestSchema = z.object({
-  notes: z.string()
-    .max(1000, 'Notes must be 1000 characters or less')
-    .optional()
+  notes: z.string().max(1000, 'Notes must be 1000 characters or less').optional(),
 });
 
 /**
  * Get alerts query parameters schema
  */
 export const GetAlertsQuerySchema = z.object({
-  severity: z.string()
-    .transform(val => val.split(','))
+  severity: z
+    .string()
+    .transform((val) => val.split(','))
     .pipe(z.array(severitySchema))
     .optional(),
-  category: z.string()
-    .transform(val => val.split(','))
+  category: z
+    .string()
+    .transform((val) => val.split(','))
     .pipe(z.array(categorySchema))
     .optional(),
-  status: z.string()
-    .transform(val => val.split(','))
+  status: z
+    .string()
+    .transform((val) => val.split(','))
     .pipe(z.array(z.enum(['active', 'acknowledged', 'investigating', 'resolved', 'dismissed'])))
     .optional(),
-  limit: z.string()
+  limit: z
+    .string()
     .regex(/^\d+$/, 'Limit must be a positive integer')
-    .transform(val => parseInt(val))
-    .refine(val => val > 0 && val <= 100, 'Limit must be between 1 and 100')
-    .optional()
+    .transform((val) => parseInt(val))
+    .refine((val) => val > 0 && val <= 100, 'Limit must be between 1 and 100')
+    .optional(),
 });
 
 // === ANALYSIS SCHEMAS ===
@@ -412,12 +435,13 @@ export const GetAlertsQuerySchema = z.object({
  */
 export const VarianceAnalysisRequestSchema = z.object({
   baselineId: uuidSchema.optional(),
-  reportName: z.string()
+  reportName: z
+    .string()
     .min(1, 'Report name is required')
     .max(100, 'Report name must be 100 characters or less')
     .optional(),
   includeAlertGeneration: z.boolean().default(true),
-  analysisDepth: z.enum(['summary', 'detailed', 'comprehensive']).default('detailed')
+  analysisDepth: z.enum(['summary', 'detailed', 'comprehensive']).default('detailed'),
 });
 
 /**
@@ -431,8 +455,8 @@ export const VarianceAnalysisResponseSchema = z.object({
     analysisDepth: z.string(),
     processingTime: z.number().int(),
     dataQuality: decimalSchema,
-    recommendedActions: z.array(z.string())
-  })
+    recommendedActions: z.array(z.string()),
+  }),
 });
 
 // === DASHBOARD SCHEMAS ===
@@ -448,22 +472,26 @@ export const VarianceDashboardResponseSchema = z.object({
     critical: z.number().int().min(0),
     warning: z.number().int().min(0),
     info: z.number().int().min(0),
-    urgent: z.number().int().min(0)
+    urgent: z.number().int().min(0),
   }),
   summary: z.object({
     totalBaselines: z.number().int().min(0),
     totalActiveAlerts: z.number().int().min(0),
     lastAnalysisDate: timestampSchema.nullable(),
     overallRiskLevel: z.enum(['low', 'medium', 'high', 'critical']),
-    trendDirection: z.enum(['improving', 'stable', 'declining'])
+    trendDirection: z.enum(['improving', 'stable', 'declining']),
   }),
-  recentReports: z.array(z.object({
-    id: uuidSchema,
-    name: z.string(),
-    riskLevel: z.string(),
-    createdAt: timestampSchema,
-    overallVarianceScore: decimalSchema.nullable()
-  })).max(5)
+  recentReports: z
+    .array(
+      z.object({
+        id: uuidSchema,
+        name: z.string(),
+        riskLevel: z.string(),
+        createdAt: timestampSchema,
+        overallVarianceScore: decimalSchema.nullable(),
+      })
+    )
+    .max(5),
 });
 
 // === API RESPONSE SCHEMAS ===
@@ -476,7 +504,7 @@ export const ApiSuccessResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) 
     success: z.literal(true),
     data: dataSchema,
     message: z.string().optional(),
-    metadata: z.any().optional()
+    metadata: z.any().optional(),
   });
 
 /**
@@ -488,7 +516,7 @@ export const ApiErrorResponseSchema = z.object({
   message: z.string(),
   details: z.any().optional(),
   code: z.string().optional(),
-  timestamp: timestampSchema.optional()
+  timestamp: timestampSchema.optional(),
 });
 
 /**
@@ -504,9 +532,9 @@ export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =
       total: z.number().int().min(0),
       totalPages: positiveInt(),
       hasNext: z.boolean(),
-      hasPrev: z.boolean()
+      hasPrev: z.boolean(),
     }),
-    count: z.number().int().min(0)
+    count: z.number().int().min(0),
   });
 
 // === TYPE EXPORTS ===
@@ -567,19 +595,25 @@ export const validateDate = (dateString: string): Date => {
 };
 
 /**
- * Create validation middleware for Express routes
+ * Creates typed validation middleware that narrows request body type
+ * @param schema - Zod schema to validate against
+ * @returns Express middleware with type-safe validated body
  */
 export const createValidationMiddleware = <T extends z.ZodTypeAny>(schema: T) => {
+  type ValidatedData = z.infer<T>;
+
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({
         error: 'Validation failed',
         message: 'Request body validation failed',
-        details: result.error.flatten()
+        details: result.error.flatten(),
       });
     }
-    req.validatedBody = result.data;
+    // Attach validated data with proper typing
+    // TypeScript will infer ValidatedData type in route handlers
+    (req as Request & { validated: ValidatedData }).validated = result.data as ValidatedData;
     next();
   };
 };
