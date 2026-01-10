@@ -285,7 +285,13 @@ router["post"]('/companies/:companyId/scenarios',
         return res["status"](400)["json"]({ error: 'Missing company ID' });
       }
 
-      const { name, description } = req.body;
+      // Validate request body before destructuring to preserve types
+      const createScenarioSchema = z.object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+      });
+      const validated = createScenarioSchema.parse(req.body);
+      const { name, description } = validated;
       const userId = (req as ScenarioRequest).userId;
 
       const scenario = await db.insert(scenarios).values({
@@ -536,7 +542,13 @@ router["post"]('/companies/:companyId/reserves/optimize',
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;
-      const { scenario_id } = req.body;
+
+      // Validate request body before destructuring to preserve types
+      const reserveSuggestionsSchema = z.object({
+        scenario_id: z.string(),
+      });
+      const validated = reserveSuggestionsSchema.parse(req.body);
+      const { scenario_id } = validated;
 
       // TODO: Wire to existing DeterministicReserveEngine
       // This is a placeholder showing the integration pattern

@@ -206,7 +206,13 @@ router['get']('/:id', (async (req: Request, res: Response) => {
 router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
     const id = req.params['id'] as string;
-    const { verificationCode } = req.body; // Optional 2FA code
+
+    // Validate request body before destructuring to preserve types
+    const signApprovalSchema = z.object({
+      verificationCode: z.string().optional(),
+    });
+    const validated = signApprovalSchema.parse(req.body);
+    const { verificationCode } = validated; // Optional 2FA code
     
     // Check if partner is authorized
     const [partner] = await db.select()
