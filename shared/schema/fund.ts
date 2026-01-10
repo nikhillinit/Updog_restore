@@ -3,6 +3,7 @@
  *
  * Contains: funds, fundConfigs, fundSnapshots
  * Note: fundEvents remains in schema.ts due to users dependency
+ * Note: Insert schemas with .omit() rules are in schema.ts to prevent duplicate definitions
  *
  * @module shared/schema/fund
  */
@@ -20,7 +21,6 @@ import {
   unique,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { createInsertSchema } from 'drizzle-zod';
 
 // ============================================================================
 // FUNDS TABLE
@@ -99,15 +99,7 @@ export const fundSnapshots = pgTable(
 );
 
 // ============================================================================
-// ZOD SCHEMAS
-// ============================================================================
-
-export const insertFundSchema = createInsertSchema(funds);
-export const insertFundConfigSchema = createInsertSchema(fundConfigs);
-export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots);
-
-// ============================================================================
-// TYPES
+// TYPES (Insert schemas with .omit() rules are defined in schema.ts)
 // ============================================================================
 
 export type Fund = typeof funds.$inferSelect;
