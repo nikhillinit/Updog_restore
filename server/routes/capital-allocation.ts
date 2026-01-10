@@ -6,16 +6,22 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/async.js';
 import {
   calculateCapitalAllocation,
   adaptTruthCaseInput,
   checkAllInvariants,
   type TruthCaseInput,
-  type CAEngineOutput,
 } from '../../shared/core/capitalAllocation/index.js';
 
 const router = Router();
+
+// Request validation schemas
+const capitalAllocationValidateSchema = z.object({
+  input: z.unknown(), // TruthCaseInput validated by adaptTruthCaseInput
+  output: z.unknown(), // CAEngineOutput validated by checkAllInvariants
+});
 
 /**
  * POST /api/capital-allocation/calculate
@@ -50,10 +56,7 @@ router.post(
 router.post(
   '/validate',
   asyncHandler(async (req: Request, res: Response) => {
-    const { input, output } = req.body as {
-      input: TruthCaseInput;
-      output: CAEngineOutput;
-    };
+    const { input, output } = capitalAllocationValidateSchema.parse(req.body);
 
     if (!input || !output) {
       return res.status(400).json({
