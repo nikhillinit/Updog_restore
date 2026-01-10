@@ -131,7 +131,7 @@ metricsRumRouter.post('/metrics/rum', express["json"]({ limit: '10kb' }), async 
     }
     
     // Sanitize pathname to prevent cardinality explosion
-    const sanitizedPath = pathname ? pathname.split('?')[0].replace(/\/[a-f0-9-]{36}/gi, '/:id') : '/';
+    const sanitizedPath = pathname?.split('?')?.[0]?.replace(/\/[a-f0-9-]{36}/gi, '/:id') ?? '/';
     
     // Get the appropriate histogram
     const histogram = getHistogram(name);

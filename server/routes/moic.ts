@@ -13,11 +13,21 @@ import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 const router = Router();
 
 // Request validation schema
+const investmentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  initialInvestment: z.number(),
+  followOnInvestment: z.number(),
+  currentValuation: z.number(),
+  projectedExitValue: z.number(),
+  exitProbability: z.number(),
+  plannedReserves: z.number(),
+  reserveExitMultiple: z.number(),
+  investmentDate: z.coerce.date(),
+});
+
 const moicCalculationSchema = z.object({
-  investments: z.array(z.object({
-    invested: z.number(),
-    currentValue: z.number(),
-  })),
+  investments: z.array(investmentSchema),
 });
 
 /**

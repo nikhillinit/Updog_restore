@@ -16,7 +16,7 @@ const router = Router();
 // Request validation schema
 const performanceRunSchema = z.object({
   runs: z.number().default(100),
-  fundId: z.string().default(config.DEFAULT_FUND_ID),
+  fundId: z.coerce.number().int().positive().optional().default(config.DEFAULT_FUND_ID),
 });
 
 /**
