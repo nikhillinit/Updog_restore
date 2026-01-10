@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +26,7 @@ export interface CustomField {
   type: 'number' | 'tags' | 'text' | 'color' | 'date';
   required?: boolean;
   options?: string[]; // For tags and color options
-  defaultValue?: any;
+  defaultValue?: string | number | string[];
 }
 
 interface CustomFieldsManagerProps {
@@ -49,13 +44,33 @@ const FIELD_TYPE_OPTIONS = [
 ];
 
 const COLOR_PRESETS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
-  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-  '#ec4899', '#f43f5e', '#64748b', '#374151', '#1f2937'
+  '#ef4444',
+  '#f97316',
+  '#f59e0b',
+  '#eab308',
+  '#84cc16',
+  '#22c55e',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#0ea5e9',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#a855f7',
+  '#d946ef',
+  '#ec4899',
+  '#f43f5e',
+  '#64748b',
+  '#374151',
+  '#1f2937',
 ];
 
-export default function CustomFieldsManager({ fields, onFieldsChange, className = '' }: CustomFieldsManagerProps) {
+export default function CustomFieldsManager({
+  fields,
+  onFieldsChange,
+  className = '',
+}: CustomFieldsManagerProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingField, setEditingField] = useState<CustomField | null>(null);
   const [newField, setNewField] = useState<Partial<CustomField>>({
@@ -89,9 +104,14 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
   const handleUpdateField = () => {
     if (!editingField || !newField.name || !newField.type) return;
 
-    const updatedFields = fields.map(f => 
-      f.id === editingField.id 
-        ? { ...f, name: newField.name!, type: newField.type as CustomField['type'], required: newField.required || false }
+    const updatedFields = fields.map((f) =>
+      f.id === editingField.id
+        ? {
+            ...f,
+            name: newField.name!,
+            type: newField.type as CustomField['type'],
+            required: newField.required || false,
+          }
         : f
     );
 
@@ -102,17 +122,23 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
   };
 
   const handleDeleteField = (fieldId: string) => {
-    onFieldsChange(fields.filter(f => f.id !== fieldId));
+    onFieldsChange(fields.filter((f) => f.id !== fieldId));
   };
 
   const getFieldTypeColor = (type: string) => {
     switch (type) {
-      case 'number': return 'bg-blue-100 text-blue-800';
-      case 'tags': return 'bg-green-100 text-green-800';
-      case 'text': return 'bg-gray-100 text-gray-800';
-      case 'color': return 'bg-purple-100 text-purple-800';
-      case 'date': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'number':
+        return 'bg-blue-100 text-blue-800';
+      case 'tags':
+        return 'bg-green-100 text-green-800';
+      case 'text':
+        return 'bg-gray-100 text-gray-800';
+      case 'color':
+        return 'bg-purple-100 text-purple-800';
+      case 'date':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -123,7 +149,9 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
         <div>
           <h2 className="text-xl font-semibold">Custom Fields Definitions</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Custom Fields are used to add additional information to an investment. For example, you may want to add additional tags to an investment to help you filter and sort your investments, or create a color field to help you visually identify investments.
+            Custom Fields are used to add additional information to an investment. For example, you
+            may want to add additional tags to an investment to help you filter and sort your
+            investments, or create a color field to help you visually identify investments.
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -135,9 +163,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {editingField ? 'Edit Custom Field' : 'Add Custom Field'}
-              </DialogTitle>
+              <DialogTitle>{editingField ? 'Edit Custom Field' : 'Add Custom Field'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -145,7 +171,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                 <Input
                   id="field-name"
                   value={newField.name || ''}
-                  onChange={(e: any) => setNewField({ ...newField, name: e.target.value })}
+                  onChange={(e) => setNewField({ ...newField, name: e.target.value })}
                   placeholder="e.g., Internal Status"
                 />
               </div>
@@ -153,13 +179,15 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                 <Label htmlFor="field-type">Field Type</Label>
                 <Select
                   value={newField.type || 'text'}
-                  onValueChange={(value: any) => setNewField({ ...newField, type: value as CustomField['type'] })}
+                  onValueChange={(value) =>
+                    setNewField({ ...newField, type: value as CustomField['type'] })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FIELD_TYPE_OPTIONS.map(option => (
+                    {FIELD_TYPE_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -168,11 +196,14 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                 </Select>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => {
-                  setIsAddDialogOpen(false);
-                  setEditingField(null);
-                  setNewField({ name: '', type: 'text', required: false });
-                }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddDialogOpen(false);
+                    setEditingField(null);
+                    setNewField({ name: '', type: 'text', required: false });
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button onClick={editingField ? handleUpdateField : handleAddField}>
@@ -194,22 +225,21 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
             </div>
           ) : (
             <div className="space-y-4">
-              {fields.map((field: any) => (
-                <div key={field.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+              {fields.map((field) => (
+                <div
+                  key={field.id}
+                  className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
+                >
                   <div className="flex items-center space-x-4">
                     <div>
                       <div className="font-medium text-gray-900">{field.name}</div>
                       <Badge className={getFieldTypeColor(field.type)}>
-                        {FIELD_TYPE_OPTIONS.find(opt => opt.value === field.type)?.label}
+                        {FIELD_TYPE_OPTIONS.find((opt) => opt.value === field.type)?.label}
                       </Badge>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditField(field)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleEditField(field)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
@@ -242,7 +272,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
               <div className="border rounded-lg p-4 bg-gray-50">
                 <h4 className="font-medium mb-3">Custom Fields</h4>
                 <div className="space-y-3">
-                  {fields.map((field: any) => (
+                  {fields.map((field) => (
                     <div key={field.id} className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">{field.name}</span>
                       <div className="flex items-center space-x-2">
@@ -250,7 +280,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                           <div className="w-4 h-4 bg-green-500 rounded-full"></div>
                         )}
                         <Badge variant="outline" className="text-xs">
-                          {FIELD_TYPE_OPTIONS.find(opt => opt.value === field.type)?.label}
+                          {FIELD_TYPE_OPTIONS.find((opt) => opt.value === field.type)?.label}
                         </Badge>
                       </div>
                     </div>

@@ -6,7 +6,13 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/async.js';
+import {
+  CashPositionSchema,
+  CashTransactionSchema,
+  RecurringExpenseSchema,
+} from '@shared/schemas/cashflow-schema';
 import {
   LiquidityEngine,
   type StressTestFactors,
@@ -16,6 +22,65 @@ import {
 
 const router = Router();
 
+// Request validation schemas
+const stressTestFactorsSchema = z
+  .object({
+    distributionDelay: z.number(),
+    investmentAcceleration: z.number(),
+    lpFundingDelay: z.number(),
+    expenseIncrease: z.number(),
+  })
+  .partial();
+
+const plannedInvestmentSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  amount: z.number(),
+  targetDate: z.coerce.date(),
+  priority: z.number(),
+  companyId: z.string().optional(),
+});
+
+const capitalCallConstraintsSchema = z
+  .object({
+    noticePeriodDays: z.number(),
+    paymentPeriodDays: z.number(),
+    minCallAmount: z.number().optional(),
+    maxCallAmount: z.number().optional(),
+    maxCallsPerQuarter: z.number().optional(),
+  })
+  .partial();
+
+const analyzeCashFlowsSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  transactions: z.array(CashTransactionSchema),
+});
+
+const liquidityForecastSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: CashPositionSchema,
+  transactions: z.array(CashTransactionSchema).optional(),
+  recurringExpenses: z.array(RecurringExpenseSchema).default([]),
+  months: z.number().default(12),
+});
+
+const stressTestSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: CashPositionSchema,
+  stressFactors: stressTestFactorsSchema.optional(),
+});
+
+const optimizeCallsSchema = z.object({
+  fundId: z.string(),
+  fundSize: z.number(),
+  currentPosition: CashPositionSchema,
+  plannedInvestments: z.array(plannedInvestmentSchema),
+  constraints: capitalCallConstraintsSchema.optional(),
+});
+
 /**
  * POST /api/liquidity/analyze
  * Analyze cash flows and calculate key metrics
@@ -23,21 +88,7 @@ const router = Router();
 router.post(
   '/analyze',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, transactions } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!transactions || !Array.isArray(transactions)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'transactions array is required',
-      });
-    }
+    const { fundId, fundSize, transactions } = analyzeCashFlowsSchema.parse(req.body);
 
     const engine = new LiquidityEngine(fundId, fundSize);
     const analysis = engine.analyzeCashFlows(transactions);
@@ -58,23 +109,9 @@ router.post(
       fundSize,
       currentPosition,
       transactions,
-      recurringExpenses = [],
-      months = 12,
-    } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
+      recurringExpenses,
+      months,
+    } = liquidityForecastSchema.parse(req.body);
 
     const engine = new LiquidityEngine(fundId, fundSize);
     const forecast = engine.generateLiquidityForecast(
@@ -95,28 +132,14 @@ router.post(
 router.post(
   '/stress-test',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, currentPosition, stressFactors } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
+    const { fundId, fundSize, currentPosition, stressFactors } = stressTestSchema.parse(req.body);
 
     // Default stress factors if not provided
-    const factors: StressTestFactors = stressFactors || {
-      distributionDelay: 6,
-      investmentAcceleration: 1.5,
-      lpFundingDelay: 3,
-      expenseIncrease: 0.1,
+    const factors: StressTestFactors = {
+      distributionDelay: stressFactors?.distributionDelay ?? 6,
+      investmentAcceleration: stressFactors?.investmentAcceleration ?? 1.5,
+      lpFundingDelay: stressFactors?.lpFundingDelay ?? 3,
+      expenseIncrease: stressFactors?.expenseIncrease ?? 0.1,
     };
 
     const engine = new LiquidityEngine(fundId, fundSize);
@@ -133,39 +156,31 @@ router.post(
 router.post(
   '/optimize-calls',
   asyncHandler(async (req: Request, res: Response) => {
-    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } = req.body;
-
-    if (!fundId || typeof fundSize !== 'number') {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'fundId and fundSize are required',
-      });
-    }
-
-    if (!currentPosition) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'currentPosition is required',
-      });
-    }
-
-    if (!plannedInvestments || !Array.isArray(plannedInvestments)) {
-      return res.status(400).json({
-        error: 'invalid_request',
-        message: 'plannedInvestments array is required',
-      });
-    }
+    const { fundId, fundSize, currentPosition, plannedInvestments, constraints } = optimizeCallsSchema.parse(req.body);
 
     // Default constraints if not provided
-    const callConstraints: CapitalCallConstraints = constraints || {
-      noticePeriodDays: 10,
-      paymentPeriodDays: 30,
+    const callConstraints: CapitalCallConstraints = {
+      noticePeriodDays: constraints?.noticePeriodDays ?? 10,
+      paymentPeriodDays: constraints?.paymentPeriodDays ?? 30,
+      ...(constraints?.minCallAmount !== undefined
+        ? { minCallAmount: constraints.minCallAmount }
+        : {}),
+      ...(constraints?.maxCallAmount !== undefined
+        ? { maxCallAmount: constraints.maxCallAmount }
+        : {}),
+      ...(constraints?.maxCallsPerQuarter !== undefined
+        ? { maxCallsPerQuarter: constraints.maxCallsPerQuarter }
+        : {}),
     };
 
     // Parse dates in planned investments
-    const investments: PlannedInvestment[] = plannedInvestments.map((inv: PlannedInvestment) => ({
-      ...inv,
+    const investments: PlannedInvestment[] = plannedInvestments.map((inv) => ({
+      id: inv.id,
+      description: inv.description,
+      amount: inv.amount,
       targetDate: new Date(inv.targetDate),
+      priority: inv.priority,
+      ...(inv.companyId !== undefined ? { companyId: inv.companyId } : {}),
     }));
 
     const engine = new LiquidityEngine(fundId, fundSize);

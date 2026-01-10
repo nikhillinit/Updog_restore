@@ -7,7 +7,7 @@ export interface TimelineEvent {
   eventTime: string;
   operation: string;
   entityType: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export interface Snapshot {
@@ -15,7 +15,7 @@ export interface Snapshot {
   snapshotTime: string;
   eventCount: number;
   stateHash: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export interface TimelineData {
@@ -48,7 +48,7 @@ export interface StateComparison {
       eventCount: number;
     };
   };
-  differences: any[];
+  differences: Array<Record<string, unknown>>;
   summary: {
     totalChanges: number;
     timeSpan: number;
@@ -64,7 +64,7 @@ export interface PointInTimeState {
     eventCount: number;
     stateHash: string;
   };
-  state: any;
+  state: Record<string, unknown>;
   eventsApplied: number;
   events?: TimelineEvent[];
 }
@@ -91,8 +91,7 @@ export function useTimelineData(
       if (options.offset) searchParams['set']('offset', options.offset.toString());
 
       const url = `/api/timeline/${fundId}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      const response = await apiRequest('GET', url);
-      return response.json();
+      return apiRequest<TimelineData>('GET', url);
     },
     enabled: !!fundId,
     staleTime: 30000, // 30 seconds
@@ -115,8 +114,10 @@ export function usePointInTimeState(
         includeEvents: includeEvents.toString(),
       });
 
-      const response = await apiRequest('GET', `/api/timeline/${fundId}/state?${searchParams.toString()}`);
-      return response.json();
+      return apiRequest<PointInTimeState>(
+        'GET',
+        `/api/timeline/${fundId}/state?${searchParams.toString()}`
+      );
     },
     enabled: !!fundId && !!timestamp,
     staleTime: 300000, // 5 minutes (historical data changes rarely)
@@ -141,8 +142,10 @@ export function useStateComparison(
         includeDiff: includeDiff.toString(),
       });
 
-      const response = await apiRequest('GET', `/api/timeline/${fundId}/compare?${searchParams.toString()}`);
-      return response.json();
+      return apiRequest<StateComparison>(
+        'GET',
+        `/api/timeline/${fundId}/compare?${searchParams.toString()}`
+      );
     },
     enabled: !!fundId && !!timestamp1 && !!timestamp2,
     staleTime: 300000, // 5 minutes
@@ -152,21 +155,20 @@ export function useStateComparison(
 /**
  * Hook to fetch latest events across all funds
  */
-export function useLatestEvents(
-  limit: number = 20,
-  eventTypes?: string[]
-) {
+export function useLatestEvents(limit: number = 20, eventTypes?: string[]) {
   return useQuery({
     queryKey: ['/api/timeline/events/latest', limit, eventTypes],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       searchParams['set']('limit', limit.toString());
       if (eventTypes && eventTypes.length > 0) {
-        eventTypes.forEach(type => searchParams.append('eventTypes', type));
+        eventTypes.forEach((type) => searchParams.append('eventTypes', type));
       }
 
-      const response = await apiRequest('GET', `/api/timeline/events/latest?${searchParams.toString()}`);
-      return response.json();
+      return apiRequest<{ success: boolean; events: TimelineEvent[]; count: number }>(
+        'GET',
+        `/api/timeline/events/latest?${searchParams.toString()}`
+      );
     },
     staleTime: 60000, // 1 minute
     refetchInterval: 300000, // Refresh every 5 minutes
@@ -185,13 +187,16 @@ export function useCreateSnapshot() {
       type?: 'manual' | 'scheduled' | 'auto';
       description?: string;
     }) => {
-      const response = await apiRequest('POST', `/api/timeline/${params.fundId}/snapshot`, {
-        type: params.type || 'manual',
-        description: params.description,
-      });
-      return response.json();
+      return apiRequest<{ success: boolean; snapshot: Snapshot }>(
+        'POST',
+        `/api/timeline/${params.fundId}/snapshot`,
+        {
+          type: params.type || 'manual',
+          description: params.description,
+        }
+      );
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate timeline queries for this fund
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
@@ -214,13 +219,16 @@ export function useRestoreSnapshot() {
     }) => {
       // This would typically be a separate API endpoint for restoration
       // For now, we'll just simulate the action
-      const response = await apiRequest('POST', `/api/timeline/${params.fundId}/restore`, {
-        snapshotId: params.snapshotId,
-        confirmationCode: params.confirmationCode,
-      });
-      return response.json();
+      return apiRequest<{ success: boolean; message: string }>(
+        'POST',
+        `/api/timeline/${params.fundId}/restore`,
+        {
+          snapshotId: params.snapshotId,
+          confirmationCode: params.confirmationCode,
+        }
+      );
     },
-    onSuccess: (data: any, variables: any) => {
+    onSuccess: (_data, variables) => {
       // Invalidate all fund-related queries after restoration
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],

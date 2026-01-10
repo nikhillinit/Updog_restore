@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type {
@@ -16,25 +15,21 @@ import type {
 export function useReallocationCommit(fundId: number) {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    ReallocationCommitResponse,
-    ReallocationError,
-    ReallocationCommitRequest
-  >({
+  return useMutation<ReallocationCommitResponse, ReallocationError, ReallocationCommitRequest>({
     mutationFn: async (request: ReallocationCommitRequest) => {
       try {
-        const response = await apiRequest(
+        return apiRequest<ReallocationCommitResponse>(
           'POST',
           `/api/funds/${fundId}/reallocation/commit`,
           request
         );
-        return await response.json();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Transform error to match ReallocationError type
+        const err = error as { status?: number; message?: string; errors?: string[] };
         throw {
-          status: error.status || 500,
-          message: error.message || 'Commit failed',
-          errors: error.errors || [],
+          status: err.status || 500,
+          message: err.message || 'Commit failed',
+          errors: err.errors || [],
         } as ReallocationError;
       }
     },

@@ -1,17 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Info, Calculator, Target, Calendar, Plus } from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Info, Calculator, Target, Calendar, Plus } from 'lucide-react';
 
 interface AllocationData {
   id: string;
@@ -23,10 +24,42 @@ interface AllocationData {
   numberOfDeals: number;
   capitalAllocated: number;
   followOnStrategy: {
-    preSeed: { maintainOwnership: number; participation: number; impliedCheck: number; graduationRate: number; graduations: number; followOns: number; capitalAllocated: number };
-    seed: { maintainOwnership: number; participation: number; impliedCheck: number; graduationRate: number; graduations: number; followOns: number; capitalAllocated: number };
-    seriesA: { maintainOwnership: number; participation: number; impliedCheck: number; graduationRate: number; graduations: number; followOns: number; capitalAllocated: number };
-    seriesB: { maintainOwnership: number; participation: number; impliedCheck: number; graduationRate: number; graduations: number; followOns: number; capitalAllocated: number };
+    preSeed: {
+      maintainOwnership: number;
+      participation: number;
+      impliedCheck: number;
+      graduationRate: number;
+      graduations: number;
+      followOns: number;
+      capitalAllocated: number;
+    };
+    seed: {
+      maintainOwnership: number;
+      participation: number;
+      impliedCheck: number;
+      graduationRate: number;
+      graduations: number;
+      followOns: number;
+      capitalAllocated: number;
+    };
+    seriesA: {
+      maintainOwnership: number;
+      participation: number;
+      impliedCheck: number;
+      graduationRate: number;
+      graduations: number;
+      followOns: number;
+      capitalAllocated: number;
+    };
+    seriesB: {
+      maintainOwnership: number;
+      participation: number;
+      impliedCheck: number;
+      graduationRate: number;
+      graduations: number;
+      followOns: number;
+      capitalAllocated: number;
+    };
   };
 }
 
@@ -38,69 +71,107 @@ interface SummaryData {
 
 export default function AllocationUI() {
   const [allocation, setAllocation] = useState<AllocationData>({
-    id: "pre-seed",
-    name: "Pre-Seed",
-    linkedSectorProfile: "Default",
-    entryRound: "Pre-Seed",
+    id: 'pre-seed',
+    name: 'Pre-Seed',
+    linkedSectorProfile: 'Default',
+    entryRound: 'Pre-Seed',
     initialCheckSize: 737500,
-    impliedEntryOwnership: 10.00,
+    impliedEntryOwnership: 10.0,
     numberOfDeals: 10.39,
     capitalAllocated: 7665828,
     followOnStrategy: {
-      preSeed: { maintainOwnership: 0, participation: 0, impliedCheck: 0, graduationRate: 0, graduations: 0, followOns: 0, capitalAllocated: 0 },
-      seed: { maintainOwnership: 10, participation: 100, impliedCheck: 377778, graduationRate: 70, graduations: 7.28, followOns: 7.28, capitalAllocated: 2748726 },
-      seriesA: { maintainOwnership: 10, participation: 100, impliedCheck: 1200000, graduationRate: 50, graduations: 3.64, followOns: 3.64, capitalAllocated: 4365624 },
-      seriesB: { maintainOwnership: 0, participation: 0, impliedCheck: 0, graduationRate: 50, graduations: 1.82, followOns: 0, capitalAllocated: 0 }
-    }
+      preSeed: {
+        maintainOwnership: 0,
+        participation: 0,
+        impliedCheck: 0,
+        graduationRate: 0,
+        graduations: 0,
+        followOns: 0,
+        capitalAllocated: 0,
+      },
+      seed: {
+        maintainOwnership: 10,
+        participation: 100,
+        impliedCheck: 377778,
+        graduationRate: 70,
+        graduations: 7.28,
+        followOns: 7.28,
+        capitalAllocated: 2748726,
+      },
+      seriesA: {
+        maintainOwnership: 10,
+        participation: 100,
+        impliedCheck: 1200000,
+        graduationRate: 50,
+        graduations: 3.64,
+        followOns: 3.64,
+        capitalAllocated: 4365624,
+      },
+      seriesB: {
+        maintainOwnership: 0,
+        participation: 0,
+        impliedCheck: 0,
+        graduationRate: 50,
+        graduations: 1.82,
+        followOns: 0,
+        capitalAllocated: 0,
+      },
+    },
   });
 
   const [summary, setSummary] = useState<SummaryData>({
     capitalAllocated: 14780179,
-    expectedMOIC: 7.90,
-    reserveRatio: 48.13
+    expectedMOIC: 7.9,
+    reserveRatio: 48.13,
   });
 
   // Calculate derived metrics using capital deployment methodology - deploy ALL available capital
   const calculateMetrics = () => {
     const totalFollowOnCapital = Object.values(allocation.followOnStrategy).reduce(
-      (sum: any, stage: any) => sum + stage.capitalAllocated, 0
+      (sum, stage) => sum + stage.capitalAllocated,
+      0
     );
     const totalCapital = allocation.capitalAllocated + totalFollowOnCapital;
     const reserveRatio = (totalFollowOnCapital / totalCapital) * 100;
-    
+
     // Calculate precise number of deals to deploy all capital
     const preciseNumberOfDeals = allocation.capitalAllocated / allocation.initialCheckSize;
-    
+
     // Calculate Expected MOIC based on graduation rates and market valuations
     const seedSuccessRate = allocation.followOnStrategy.seed.graduationRate / 100;
     const seriesASuccessRate = allocation.followOnStrategy.seriesA.graduationRate / 100;
     const overallSuccessRate = seedSuccessRate * seriesASuccessRate;
-    
+
     // Market-driven MOIC calculation (not fixed exit multiple)
     const avgExitValuation = 125000000; // Based on Series A exit valuation
-    const avgInvestment = allocation.initialCheckSize + 
-      (allocation.followOnStrategy.seed.impliedCheck * seedSuccessRate) +
-      (allocation.followOnStrategy.seriesA.impliedCheck * overallSuccessRate);
-    
+    const avgInvestment =
+      allocation.initialCheckSize +
+      allocation.followOnStrategy.seed.impliedCheck * seedSuccessRate +
+      allocation.followOnStrategy.seriesA.impliedCheck * overallSuccessRate;
+
     const expectedMOIC = overallSuccessRate > 0 ? (avgExitValuation * 0.034) / avgInvestment : 0; // 3.4% ownership assumption
-    
+
     return {
       reserveRatio,
       preciseNumberOfDeals,
       expectedMOIC,
       totalCapital,
-      unusedCapital: 0 // Ensures no unused capital
+      unusedCapital: 0, // Ensures no unused capital
     };
   };
 
-  const updateFollowOnStrategy = (stage: keyof AllocationData['followOnStrategy'], field: string, value: number) => {
-    setAllocation(prev => {
+  const updateFollowOnStrategy = (
+    stage: keyof AllocationData['followOnStrategy'],
+    field: string,
+    value: number
+  ) => {
+    setAllocation((prev) => {
       const updated = { ...prev };
-      
+
       if (field === 'maintainOwnership' || field === 'participation') {
         updated.followOnStrategy[stage] = {
           ...updated.followOnStrategy[stage],
-          [field]: value
+          [field]: value,
         };
 
         // Calculate implied check based on participation and graduation rate
@@ -109,13 +180,13 @@ export default function AllocationUI() {
           const graduationRate = updated.followOnStrategy[stage].graduationRate / 100;
           const graduations = updated.numberOfDeals * graduationRate;
           const followOns = participation * graduations;
-          
+
           // Implied check calculation based on typical round sizes
           let baseRoundCheck = 0;
           if (stage === 'seed') baseRoundCheck = 377778;
           if (stage === 'seriesA') baseRoundCheck = 1200000;
           if (stage === 'seriesB') baseRoundCheck = 2000000;
-          
+
           updated.followOnStrategy[stage].impliedCheck = baseRoundCheck;
           updated.followOnStrategy[stage].graduations = graduations;
           updated.followOnStrategy[stage].followOns = followOns;
@@ -126,7 +197,7 @@ export default function AllocationUI() {
       if (field === 'graduationRate') {
         updated.followOnStrategy[stage] = {
           ...updated.followOnStrategy[stage],
-          graduationRate: value
+          graduationRate: value,
         };
 
         // Recalculate graduations and follow-ons
@@ -134,19 +205,20 @@ export default function AllocationUI() {
         const graduations = updated.numberOfDeals * graduationRate;
         const participation = updated.followOnStrategy[stage].participation / 100;
         const followOns = participation * graduations;
-        
+
         updated.followOnStrategy[stage].graduations = graduations;
         updated.followOnStrategy[stage].followOns = followOns;
-        updated.followOnStrategy[stage].capitalAllocated = followOns * updated.followOnStrategy[stage].impliedCheck;
+        updated.followOnStrategy[stage].capitalAllocated =
+          followOns * updated.followOnStrategy[stage].impliedCheck;
       }
 
       // Update summary with new metrics - ensure all capital is deployed
       const metrics = calculateMetrics();
-      setSummary(prev => ({ 
-        ...prev, 
+      setSummary((prev) => ({
+        ...prev,
         reserveRatio: metrics.reserveRatio,
         expectedMOIC: metrics.expectedMOIC,
-        capitalAllocated: metrics.totalCapital
+        capitalAllocated: metrics.totalCapital,
       }));
 
       return updated;
@@ -154,9 +226,9 @@ export default function AllocationUI() {
   };
 
   const updateInitialParameters = (field: keyof AllocationData, value: number | string) => {
-    setAllocation(prev => ({
+    setAllocation((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -208,7 +280,7 @@ export default function AllocationUI() {
               <Input
                 id="allocationName"
                 value={allocation.name}
-                onChange={(e: any) => updateInitialParameters('name', e.target.value)}
+                onChange={(e) => updateInitialParameters('name', e.target.value)}
                 className="bg-yellow-50 border-yellow-200"
               />
             </div>
@@ -218,7 +290,10 @@ export default function AllocationUI() {
                 Linked Sector Profile
                 <Info className="w-4 h-4 inline ml-1 text-gray-400" />
               </Label>
-              <Select value={allocation.linkedSectorProfile} onValueChange={(value: any) => updateInitialParameters('linkedSectorProfile', value)}>
+              <Select
+                value={allocation.linkedSectorProfile}
+                onValueChange={(value) => updateInitialParameters('linkedSectorProfile', value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -234,7 +309,10 @@ export default function AllocationUI() {
 
             <div className="space-y-2">
               <Label htmlFor="entryRound">Entry Round</Label>
-              <Select value={allocation.entryRound} onValueChange={(value: any) => updateInitialParameters('entryRound', value)}>
+              <Select
+                value={allocation.entryRound}
+                onValueChange={(value) => updateInitialParameters('entryRound', value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -274,7 +352,9 @@ export default function AllocationUI() {
                   id="initialCheckSize"
                   type="number"
                   value={allocation.initialCheckSize}
-                  onChange={(e: any) => updateInitialParameters('initialCheckSize', parseFloat(e.target.value))}
+                  onChange={(e) =>
+                    updateInitialParameters('initialCheckSize', parseFloat(e.target.value))
+                  }
                   className="bg-yellow-50 border-yellow-200"
                 />
               </div>
@@ -349,7 +429,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.preSeed.maintainOwnership}
-                      onChange={(e: any) => updateFollowOnStrategy('preSeed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'preSeed',
+                          'maintainOwnership',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center"
                       disabled
                     />
@@ -359,7 +445,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seed.maintainOwnership}
-                      onChange={(e: any) => updateFollowOnStrategy('seed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'seed',
+                          'maintainOwnership',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -368,7 +460,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesA.maintainOwnership}
-                      onChange={(e: any) => updateFollowOnStrategy('seriesA', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'seriesA',
+                          'maintainOwnership',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -377,7 +475,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesB.maintainOwnership}
-                      onChange={(e: any) => updateFollowOnStrategy('seriesB', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'seriesB',
+                          'maintainOwnership',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center"
                       disabled
                     />
@@ -403,7 +507,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seed.participation}
-                      onChange={(e: any) => updateFollowOnStrategy('seed', 'participation', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'seed',
+                          'participation',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -412,7 +522,13 @@ export default function AllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesA.participation}
-                      onChange={(e: any) => updateFollowOnStrategy('seriesA', 'participation', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFollowOnStrategy(
+                          'seriesA',
+                          'participation',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -434,40 +550,64 @@ export default function AllocationUI() {
                 <tr className="bg-gray-50">
                   <td className="py-3 px-2 font-medium text-gray-600">Implied Follow-On Check</td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{formatCurrency(allocation.followOnStrategy.seed.impliedCheck)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{formatCurrency(allocation.followOnStrategy.seriesA.impliedCheck)}</td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {formatCurrency(allocation.followOnStrategy.seed.impliedCheck)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {formatCurrency(allocation.followOnStrategy.seriesA.impliedCheck)}
+                  </td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
                 </tr>
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-2 font-medium text-gray-600">Graduation Rate</td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{formatPercentage(allocation.followOnStrategy.seed.graduationRate)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{formatPercentage(allocation.followOnStrategy.seriesA.graduationRate)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{formatPercentage(allocation.followOnStrategy.seriesB.graduationRate)}</td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {formatPercentage(allocation.followOnStrategy.seed.graduationRate)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {formatPercentage(allocation.followOnStrategy.seriesA.graduationRate)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {formatPercentage(allocation.followOnStrategy.seriesB.graduationRate)}
+                  </td>
                 </tr>
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-2 font-medium text-gray-600">Number of Graduations</td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{allocation.followOnStrategy.seed.graduations.toFixed(2)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{allocation.followOnStrategy.seriesA.graduations.toFixed(2)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{allocation.followOnStrategy.seriesB.graduations.toFixed(2)}</td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {allocation.followOnStrategy.seed.graduations.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {allocation.followOnStrategy.seriesA.graduations.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {allocation.followOnStrategy.seriesB.graduations.toFixed(2)}
+                  </td>
                 </tr>
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-2 font-medium text-gray-600">Number of Follow-ons</td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{allocation.followOnStrategy.seed.followOns.toFixed(2)}</td>
-                  <td className="py-3 px-2 text-center text-gray-600">{allocation.followOnStrategy.seriesA.followOns.toFixed(2)}</td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {allocation.followOnStrategy.seed.followOns.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-2 text-center text-gray-600">
+                    {allocation.followOnStrategy.seriesA.followOns.toFixed(2)}
+                  </td>
                   <td className="py-3 px-2 text-center text-gray-600">-</td>
                 </tr>
 
                 <tr className="bg-blue-50 border-2 border-blue-200">
                   <td className="py-3 px-2 font-bold text-blue-800">Capital Allocated</td>
                   <td className="py-3 px-2 text-center font-bold text-blue-800">-</td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">{formatCurrency(allocation.followOnStrategy.seed.capitalAllocated)}</td>
-                  <td className="py-3 px-2 text-center font-bold text-blue-800">{formatCurrency(allocation.followOnStrategy.seriesA.capitalAllocated)}</td>
+                  <td className="py-3 px-2 text-center font-bold text-blue-800">
+                    {formatCurrency(allocation.followOnStrategy.seed.capitalAllocated)}
+                  </td>
+                  <td className="py-3 px-2 text-center font-bold text-blue-800">
+                    {formatCurrency(allocation.followOnStrategy.seriesA.capitalAllocated)}
+                  </td>
                   <td className="py-3 px-2 text-center font-bold text-blue-800">-</td>
                 </tr>
               </tbody>
@@ -486,15 +626,19 @@ export default function AllocationUI() {
               <li>• Precise number of deals calculated to deploy 100% of available capital</li>
               <li>• Reserves auto-calculated from graduation rates and follow-on strategy</li>
               <li>• Expected MOIC built up from market data, not fixed exit multiples</li>
-              <li>• Market-driven assumptions enable defensible LP modeling and course correction</li>
+              <li>
+                • Market-driven assumptions enable defensible LP modeling and course correction
+              </li>
             </ul>
             <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-blue-600">Reserve Ratio:</span> 
-                <span className="font-medium text-blue-800 ml-1">{formatPercentage(summary.reserveRatio)}</span>
+                <span className="text-blue-600">Reserve Ratio:</span>
+                <span className="font-medium text-blue-800 ml-1">
+                  {formatPercentage(summary.reserveRatio)}
+                </span>
               </div>
               <div>
-                <span className="text-blue-600">Capital Utilization:</span> 
+                <span className="text-blue-600">Capital Utilization:</span>
                 <span className="font-medium text-green-800 ml-1">100.00%</span>
               </div>
             </div>
@@ -522,7 +666,7 @@ export default function AllocationUI() {
               </span>
               <Input
                 type="number"
-                defaultValue={50.00}
+                defaultValue={50.0}
                 className="w-20 h-8 text-center bg-yellow-50 border-yellow-200"
               />
               <span className="text-sm text-gray-600">%</span>
@@ -546,7 +690,7 @@ export default function AllocationUI() {
               </span>
               <Input
                 type="number"
-                defaultValue={50.00}
+                defaultValue={50.0}
                 className="w-20 h-8 text-center bg-yellow-50 border-yellow-200"
               />
               <span className="text-sm text-gray-600">%</span>
@@ -580,16 +724,10 @@ export default function AllocationUI() {
 
       {/* Action Buttons */}
       <div className="flex justify-between">
-        <Button variant="outline">
-          Reset to Defaults
-        </Button>
+        <Button variant="outline">Reset to Defaults</Button>
         <div className="space-x-2">
-          <Button variant="outline">
-            Save as Template
-          </Button>
-          <Button>
-            Apply Changes
-          </Button>
+          <Button variant="outline">Save as Template</Button>
+          <Button>Apply Changes</Button>
         </div>
       </div>
     </div>
