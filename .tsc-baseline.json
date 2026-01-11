@@ -3,23 +3,6 @@
   "projects": {
     "client": {
       "errors": [
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2322:844bae94",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2322:99b7234e",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:09aa145f",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:0d250533",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:18dcf08e",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:197b8e65",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:1e66f143",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:35f60b62",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:3c7803ef",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:4e3a5843",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:54c13d34",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:67251811",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:70b28804",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:7977b13d",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:84d064c1",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:9e61d796",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:d27f7682",
         "client/src/components/analytics/VarianceChart.tsx:TS2339:0ad88a1c",
         "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:4d6a5b07",
         "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:e7ab2a0f",
@@ -95,8 +78,8 @@
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 91,
-      "lastUpdated": "2026-01-11T18:12:30.407Z"
+      "total": 74,
+      "lastUpdated": "2026-01-11T18:22:56.591Z"
     },
     "unknown": {
       "errors": [
@@ -106,7 +89,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T18:12:30.407Z"
+      "lastUpdated": "2026-01-11T18:22:56.591Z"
     },
     "shared": {
       "errors": [
@@ -125,7 +108,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 13,
-      "lastUpdated": "2026-01-11T18:12:30.407Z"
+      "lastUpdated": "2026-01-11T18:22:56.591Z"
     },
     "server": {
       "errors": [
@@ -225,11 +208,11 @@
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
       "total": 94,
-      "lastUpdated": "2026-01-11T18:12:30.407Z"
+      "lastUpdated": "2026-01-11T18:22:56.591Z"
     }
   },
-  "totalErrors": 202,
-  "timestamp": "2026-01-11T18:12:30.407Z",
+  "totalErrors": 185,
+  "timestamp": "2026-01-11T18:22:56.591Z",
   "buildMode": "per-project",
-  "elapsedMs": 28159
+  "elapsedMs": 23032
 }
