@@ -25,6 +25,7 @@ import type {
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { logMonteCarloOperation, logMonteCarloError } from '../utils/logger.js';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 import { PRNG } from '@shared/utils/prng';
@@ -526,9 +527,9 @@ export class MonteCarloEngine {
       throw new Error(`Fund ${fundId} not found`);
     }
 
-    const fundSize = parseFloat(fund.size.toString());
-    const deployedCapital = parseFloat(baseline.deployedCapital.toString());
-    const reserveRatio = (fundSize - deployedCapital) / fundSize;
+    const fundSize = toDecimal(fund.size.toString());
+    const deployedCapital = toDecimal(baseline.deployedCapital.toString());
+    const reserveRatio = fundSize.minus(deployedCapital).dividedBy(fundSize);
 
     // Get portfolio composition from baseline
     const sectorDistribution = (baseline.sectorDistribution as Record<string, number> | null) ?? {};
@@ -549,13 +550,15 @@ export class MonteCarloEngine {
       stageWeights[stage] = totalStageCount > 0 ? count / totalStageCount : 0;
     }
 
+    const averageInvestmentSize = toDecimal(baseline.averageInvestment?.toString() || '1000000');
+
     return {
-      fundSize,
-      deployedCapital,
-      reserveRatio,
+      fundSize: fundSize.toNumber(),
+      deployedCapital: deployedCapital.toNumber(),
+      reserveRatio: reserveRatio.toNumber(),
       sectorWeights,
       stageWeights,
-      averageInvestmentSize: parseFloat(baseline.averageInvestment?.toString() || '1000000')
+      averageInvestmentSize: averageInvestmentSize.toNumber()
     };
   }
 
@@ -580,17 +583,21 @@ export class MonteCarloEngine {
     const multipleVariances = this.extractVariances(reports, 'multipleVariance');
     const dpiVariances = this.extractVariances(reports, 'dpiVariance');
 
+    const irrMean = toDecimal(baseline.irr?.toString() || '0.15');
+    const multipleMean = toDecimal(baseline.multiple?.toString() || '2.5');
+    const dpiMean = toDecimal(baseline.dpi?.toString() || '0.8');
+
     return {
       irr: {
-        mean: parseFloat(baseline.irr?.toString() || '0.15'),
+        mean: irrMean.toNumber(),
         volatility: this.calculateVolatility(irrVariances) || 0.08
       },
       multiple: {
-        mean: parseFloat(baseline.multiple?.toString() || '2.5'),
+        mean: multipleMean.toNumber(),
         volatility: this.calculateVolatility(multipleVariances) || 0.6
       },
       dpi: {
-        mean: parseFloat(baseline.dpi?.toString() || '0.8'),
+        mean: dpiMean.toNumber(),
         volatility: this.calculateVolatility(dpiVariances) || 0.3
       },
       exitTiming: {
@@ -614,19 +621,27 @@ export class MonteCarloEngine {
     };
   }
 
-  private extractVariances(reports: VarianceReportRecord[], field: keyof VarianceReportRecord): number[] {
+  private extractVariances(reports: VarianceReportRecord[], field: keyof VarianceReportRecord): Decimal[] {
     return reports
       .map(r => r[field])
       .filter((v): v is string | number => v !== null && v !== undefined)
-      .map(v => parseFloat(v.toString()));
+      .map(v => toDecimal(v.toString()));
   }
 
-  private calculateVolatility(values: number[]): number {
+  private calculateVolatility(values: readonly (Decimal | number)[]): number {
     if (values.length < 2) return 0;
 
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
-    return Math.sqrt(variance);
+    const decimalValues = values.map(value => toDecimal(value));
+    const count = new Decimal(decimalValues.length);
+    const mean = decimalValues.reduce((sum, v) => sum.plus(v), new Decimal(0)).dividedBy(count);
+    const variance = decimalValues
+      .reduce((sum, v) => {
+        const diff = v.minus(mean);
+        return sum.plus(diff.times(diff));
+      }, new Decimal(0))
+      .dividedBy(count.minus(1));
+
+    return variance.sqrt().toNumber();
   }
 
   private async runSimulationBatches(

@@ -15,6 +15,7 @@ import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import pLimit from 'p-limit';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 // ============================================================================
 // Configuration
@@ -86,20 +87,20 @@ interface BudgetData {
 
 const PRICING = {
   claude: {
-    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.015'),
-    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075'),
+    input: toDecimal(process.env["CLAUDE_INPUT_COST"] ?? '0.015').toNumber(),
+    output: toDecimal(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075').toNumber(),
   },
   gpt: {
-    input: parseFloat(process.env["GPT_INPUT_COST"] ?? '0.00015'),
-    output: parseFloat(process.env["GPT_OUTPUT_COST"] ?? '0.0006'),
+    input: toDecimal(process.env["GPT_INPUT_COST"] ?? '0.00015').toNumber(),
+    output: toDecimal(process.env["GPT_OUTPUT_COST"] ?? '0.0006').toNumber(),
   },
   gemini: {
-    input: parseFloat(process.env["GEMINI_INPUT_COST"] ?? '0'),
-    output: parseFloat(process.env["GEMINI_OUTPUT_COST"] ?? '0'),
+    input: toDecimal(process.env["GEMINI_INPUT_COST"] ?? '0').toNumber(),
+    output: toDecimal(process.env["GEMINI_OUTPUT_COST"] ?? '0').toNumber(),
   },
   deepseek: {
-    input: parseFloat(process.env["DEEPSEEK_INPUT_COST"] ?? '0.00014'),
-    output: parseFloat(process.env["DEEPSEEK_OUTPUT_COST"] ?? '0.00028'),
+    input: toDecimal(process.env["DEEPSEEK_INPUT_COST"] ?? '0.00014').toNumber(),
+    output: toDecimal(process.env["DEEPSEEK_OUTPUT_COST"] ?? '0.00028').toNumber(),
   },
 } as const;
 

@@ -2,6 +2,7 @@ import { storage } from '../storage';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { fundDistributions } from '@shared/schema';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 /**
  * Calculated fund metrics interface
@@ -124,25 +125,25 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
   }
 
   // Extract and validate fund size (handle decimal/string conversion)
-  const totalCommitted = parseFloat(fund.size) || 0;
+  const totalCommitted = toDecimal(fund.size || 0).toNumber();
 
   // Calculate total invested capital
   // Sum all investment amounts across the portfolio
   const totalInvested = investments.reduce((sum, investment) => {
-    const amount = parseFloat(investment.amount) || 0;
+    const amount = toDecimal(investment.amount || 0).toNumber();
     return sum + amount;
   }, 0);
 
   // Calculate total current value
   // Sum current valuations of all portfolio companies
   const totalValue = portfolioCompanies.reduce((sum, company) => {
-    const valuation = parseFloat(company.currentValuation || '0') || 0;
+    const valuation = toDecimal(company.currentValuation || 0).toNumber();
     return sum + valuation;
   }, 0);
 
   // Calculate total distributions
   const totalDistributions = distributions.reduce((sum, dist) => {
-    return sum + (parseFloat(dist.amount) || 0);
+    return sum + toDecimal(dist.amount || 0).toNumber();
   }, 0);
 
   // Count active investments

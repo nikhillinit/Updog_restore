@@ -15,6 +15,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { monteCarloSimulationService, type SimulationParameters, type MonteCarloForecast } from './monte-carlo-simulation';
 import { SafeArithmetic, toSafeNumber } from '@shared/type-safety-utils';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 /**
  * Portfolio company with computed investment totals and relations
@@ -267,14 +268,14 @@ export class PortfolioPerformancePredictorService {
     return companies.map((company) => {
       const companyInvestments = investmentsByCompany[company.id] || [];
       const totalInvestment = companyInvestments.reduce((sum: number, inv: Investment) =>
-        sum + parseFloat(inv.amount.toString()), 0);
+        sum + toDecimal(inv.amount.toString()).toNumber(), 0);
 
       return {
         ...company,
         investments: companyInvestments,
         totalInvestment,
         currentValuation: company.currentValuation ?
-          parseFloat(company.currentValuation.toString()) : 0
+          toDecimal(company.currentValuation.toString()).toNumber() : 0
       };
     });
   }
