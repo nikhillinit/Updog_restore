@@ -31,21 +31,6 @@
         "client/src/components/forecasting/portfolio-insights.tsx:TS2322:c04d96f0",
         "client/src/components/forecasting/portfolio-insights.tsx:TS2322:e127026b",
         "client/src/components/forecasting/projected-performance.tsx:TS2322:aba324b2",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:49f147d9",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:5f504bb3",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:6b588797",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:6b79b6f0",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:7fa56624",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:9b6cfa80",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:b80055ff",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:bac9f991",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:bd447a6b",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:c9c16012",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:d1a2cab0",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:fcbcb7bb",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:fd7cc66e",
-        "client/src/components/investments/BulkImportModal.tsx:TS2698:46b27aa3",
-        "client/src/components/investments/BulkImportModal.tsx:TS7053:26a4c221",
         "client/src/components/modeling-wizard/steps/capital-allocation/PortfolioSummary.tsx:TS2322:00fa1f1b",
         "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e127026b",
         "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e425ea8b",
@@ -110,8 +95,8 @@
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 106,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "total": 91,
+      "lastUpdated": "2026-01-11T18:12:30.407Z"
     },
     "unknown": {
       "errors": [
@@ -121,7 +106,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "lastUpdated": "2026-01-11T18:12:30.407Z"
     },
     "shared": {
       "errors": [
@@ -140,7 +125,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 13,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "lastUpdated": "2026-01-11T18:12:30.407Z"
     },
     "server": {
       "errors": [
@@ -240,11 +225,11 @@
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
       "total": 94,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "lastUpdated": "2026-01-11T18:12:30.407Z"
     }
   },
-  "totalErrors": 217,
-  "timestamp": "2026-01-11T09:45:40.220Z",
+  "totalErrors": 202,
+  "timestamp": "2026-01-11T18:12:30.407Z",
   "buildMode": "per-project",
-  "elapsedMs": 20553
+  "elapsedMs": 28159
 }

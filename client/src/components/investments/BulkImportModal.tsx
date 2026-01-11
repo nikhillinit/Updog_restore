@@ -4,7 +4,13 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,10 +41,36 @@ const CSV_TEMPLATE_HEADERS = [
   'sector',
   'lead_investor',
   'status',
-  'notes'
-];
+  'notes',
+] as const;
 
-const SAMPLE_DATA = [
+type CsvHeader = (typeof CSV_TEMPLATE_HEADERS)[number];
+
+interface CsvRow {
+  company_name: string;
+  investment_date: string;
+  stage: string;
+  amount_invested: string;
+  valuation_pre_money: string;
+  valuation_post_money: string;
+  equity_percentage: string;
+  sector: string;
+  lead_investor: string;
+  status: string;
+  notes: string;
+  _rowNumber: number;
+}
+
+const isValidCsvRow = (row: unknown): row is CsvRow => {
+  if (!row || typeof row !== 'object') {
+    return false;
+  }
+
+  const candidate = row as Record<string, unknown>;
+  return typeof candidate['_rowNumber'] === 'number';
+};
+
+const SAMPLE_DATA: Array<Record<CsvHeader, string>> = [
   {
     company_name: 'TechCorp Inc.',
     investment_date: '2024-01-15',
@@ -50,7 +82,7 @@ const SAMPLE_DATA = [
     sector: 'Technology',
     lead_investor: 'Venture Partners',
     status: 'Active',
-    notes: 'AI/ML platform for enterprise customers'
+    notes: 'AI/ML platform for enterprise customers',
   },
   {
     company_name: 'FinTech Pro',
@@ -63,29 +95,24 @@ const SAMPLE_DATA = [
     sector: 'Financial Services',
     lead_investor: 'Growth Capital',
     status: 'Active',
-    notes: 'Digital banking platform for SMEs'
-  }
+    notes: 'Digital banking platform for SMEs',
+  },
 ];
 
-export const BulkImportModal: React.FC<BulkImportModalProps> = ({
-  onImportComplete,
-  children
-}) => {
+export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onImportComplete, children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'upload' | 'preview' | 'processing' | 'results'>('upload');
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<unknown[]>([]);
+  const [_file, setFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<CsvRow[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
 
   const generateTemplateCSV = () => {
     const csvContent = [
       CSV_TEMPLATE_HEADERS.join(','),
-      ...SAMPLE_DATA.map(row =>
-        CSV_TEMPLATE_HEADERS.map(header =>
-          `"${(row as Record<string, unknown>)[header] || ''}"`
-        ).join(',')
-      )
+      ...SAMPLE_DATA.map((row) =>
+        CSV_TEMPLATE_HEADERS.map((header) => `"${row[header] || ''}"`).join(',')
+      ),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -97,16 +124,16 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     window.URL.revokeObjectURL(url);
   };
 
-  const parseCSV = (text: string): unknown[] => {
-    const lines = text.split('\n').filter(line => line.trim());
+  const parseCSV = (text: string): CsvRow[] => {
+    const lines = text.split('\n').filter((line) => line.trim());
     if (lines.length < 2) return [];
 
     const firstLine = lines[0];
     if (!firstLine) return [];
-    const headers = firstLine.split(',').map(h => h.replace(/"/g, '').trim());
+    const headers = firstLine.split(',').map((h) => h.replace(/"/g, '').trim()) as CsvHeader[];
     const data = lines.slice(1).map((line, index) => {
-      const values = line.split(',').map(v => v.replace(/"/g, '').trim());
-      const row = { _rowNumber: index + 2 }; // +2 because of header and 0-indexing
+      const values = line.split(',').map((v) => v.replace(/"/g, '').trim());
+      const row = { _rowNumber: index + 2 } as CsvRow; // +2 because of header and 0-indexing
 
       headers.forEach((header, i) => {
         row[header] = values[i] || '';
@@ -118,48 +145,62 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     return data;
   };
 
-  const validateData = (data: unknown[]): { valid: unknown[]; errors: Array<{ row: number; message: string; data?: unknown }> } => {
+  const validateData = (
+    data: unknown[]
+  ): { valid: unknown[]; errors: Array<{ row: number; message: string; data?: unknown }> } => {
     const valid: unknown[] = [];
     const errors: Array<{ row: number; message: string; data?: unknown }> = [];
 
     data.forEach((row) => {
+      const csvRow = isValidCsvRow(row) ? row : (row as CsvRow);
       const rowErrors: string[] = [];
 
       // Required fields validation
-      if (!row.company_name) rowErrors.push('Company name is required');
-      if (!row.investment_date) rowErrors.push('Investment date is required');
-      if (!row.amount_invested) rowErrors.push('Investment amount is required');
+      if (!csvRow.company_name) rowErrors.push('Company name is required');
+      if (!csvRow.investment_date) rowErrors.push('Investment date is required');
+      if (!csvRow.amount_invested) rowErrors.push('Investment amount is required');
 
       // Date format validation
-      if (row.investment_date && isNaN(Date.parse(row.investment_date))) {
+      if (csvRow.investment_date && isNaN(Date.parse(csvRow.investment_date))) {
         rowErrors.push('Invalid date format (use YYYY-MM-DD)');
       }
 
       // Numeric validation
-      if (row.amount_invested && isNaN(parseFloat(row.amount_invested))) {
+      if (csvRow.amount_invested && isNaN(parseFloat(csvRow.amount_invested))) {
         rowErrors.push('Investment amount must be a number');
       }
-      if (row.valuation_pre_money && isNaN(parseFloat(row.valuation_pre_money))) {
+      if (csvRow.valuation_pre_money && isNaN(parseFloat(csvRow.valuation_pre_money))) {
         rowErrors.push('Pre-money valuation must be a number');
       }
-      if (row.equity_percentage && (isNaN(parseFloat(row.equity_percentage)) || parseFloat(row.equity_percentage) < 0 || parseFloat(row.equity_percentage) > 100)) {
+      if (
+        csvRow.equity_percentage &&
+        (isNaN(parseFloat(csvRow.equity_percentage)) ||
+          parseFloat(csvRow.equity_percentage) < 0 ||
+          parseFloat(csvRow.equity_percentage) > 100)
+      ) {
         rowErrors.push('Equity percentage must be a number between 0-100');
       }
 
       if (rowErrors.length > 0) {
         errors.push({
-          row: row._rowNumber,
+          row: csvRow._rowNumber,
           message: rowErrors.join('; '),
-          data: row
+          data: csvRow,
         });
       } else {
         valid.push({
-          ...row,
-          amount_invested: parseFloat(row.amount_invested),
-          valuation_pre_money: row.valuation_pre_money ? parseFloat(row.valuation_pre_money) : undefined,
-          valuation_post_money: row.valuation_post_money ? parseFloat(row.valuation_post_money) : undefined,
-          equity_percentage: row.equity_percentage ? parseFloat(row.equity_percentage) : undefined,
-          investment_date: new Date(row.investment_date)
+          ...csvRow,
+          amount_invested: parseFloat(csvRow.amount_invested),
+          valuation_pre_money: csvRow.valuation_pre_money
+            ? parseFloat(csvRow.valuation_pre_money)
+            : undefined,
+          valuation_post_money: csvRow.valuation_post_money
+            ? parseFloat(csvRow.valuation_post_money)
+            : undefined,
+          equity_percentage: csvRow.equity_percentage
+            ? parseFloat(csvRow.equity_percentage)
+            : undefined,
+          investment_date: new Date(csvRow.investment_date),
         });
       }
     });
@@ -200,7 +241,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       // Simulate processing progress
       for (let i = 0; i <= 100; i += 10) {
         setProgress(i);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       if (valid.length > 0) {
@@ -211,7 +252,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         success: true,
         imported: valid.length,
         errors,
-        warnings: []
+        warnings: [],
       });
 
       setStep('results');
@@ -219,8 +260,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       setImportResult({
         success: false,
         imported: 0,
-        errors: [{ row: 0, message: `Import failed: ${error}` }],
-        warnings: []
+        errors: [{ row: 0, message: `Import failed: ${String(error)}` }],
+        warnings: [],
       });
       setStep('results');
     }
@@ -235,10 +276,13 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      setIsOpen(open);
-      if (!open) resetModal();
-    }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) resetModal();
+      }}
+    >
       <DialogTrigger asChild>
         {children || (
           <Button className="gap-2">
@@ -264,11 +308,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 Upload a CSV file with your investment data. Download our template to get started.
               </p>
 
-              <Button
-                variant="outline"
-                onClick={generateTemplateCSV}
-                className="gap-2 mb-6"
-              >
+              <Button variant="outline" onClick={generateTemplateCSV} className="gap-2 mb-6">
                 <Download className="h-4 w-4" />
                 Download Template
               </Button>
@@ -293,8 +333,10 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
             <Alert>
               <AlertDescription>
-                <strong>Required columns:</strong> company_name, investment_date, amount_invested<br/>
-                <strong>Optional columns:</strong> stage, valuation_pre_money, equity_percentage, sector, lead_investor, status, notes
+                <strong>Required columns:</strong> company_name, investment_date, amount_invested
+                <br />
+                <strong>Optional columns:</strong> stage, valuation_pre_money, equity_percentage,
+                sector, lead_investor, status, notes
               </AlertDescription>
             </Alert>
           </div>
@@ -311,9 +353,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    {CSV_TEMPLATE_HEADERS.slice(0, 6).map(header => (
+                    {CSV_TEMPLATE_HEADERS.slice(0, 6).map((header) => (
                       <th key={header} className="px-3 py-2 text-left font-medium">
-                        {header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {header.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                       </th>
                     ))}
                   </tr>
@@ -321,9 +363,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 <tbody>
                   {parsedData.slice(0, 10).map((row, index) => (
                     <tr key={index} className="border-t">
-                      {CSV_TEMPLATE_HEADERS.slice(0, 6).map(header => (
+                      {CSV_TEMPLATE_HEADERS.slice(0, 6).map((header) => (
                         <td key={header} className="px-3 py-2 truncate max-w-32">
-                          {(row as any)[header] || '-'}
+                          {row[header] || '-'}
                         </td>
                       ))}
                     </tr>
@@ -367,9 +409,12 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
               {importResult.success ? (
                 <>
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="font-medium text-green-900 mb-2">Import Completed Successfully!</h3>
+                  <h3 className="font-medium text-green-900 mb-2">
+                    Import Completed Successfully!
+                  </h3>
                   <p className="text-gray-600">
-                    {importResult.imported} investment{importResult.imported !== 1 ? 's' : ''} imported successfully
+                    {importResult.imported} investment{importResult.imported !== 1 ? 's' : ''}{' '}
+                    imported successfully
                   </p>
                 </>
               ) : (
