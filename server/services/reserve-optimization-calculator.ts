@@ -16,6 +16,7 @@ import {
   type Investment,
   type FundBaseline
 } from '@shared/schema';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { eq, and } from 'drizzle-orm';
 import { monteCarloSimulationService, type MonteCarloForecast, type SimulationParameters } from './monte-carlo-simulation';
 import { portfolioPerformancePredictorService, type PortfolioPerformanceForecast, type CompanyPerformancePrediction } from './portfolio-performance-predictor';
@@ -469,37 +470,43 @@ export class ReserveOptimizationCalculatorService {
     });
 
     // Build companies with investments
-    const companiesWithInvestments: PortfolioCompanyWithInvestments[] = companies.map((company) => {
+    const companiesWithInvestments: PortfolioCompanyWithInvestments[] = [];
+    let totalInvestmentDecimal = new Decimal(0);
+
+    for (const company of companies) {
       const companyInvs = investmentsByCompanyId.get(company.id) || [];
-      const totalInvestment = companyInvs.reduce((sum: number, inv) =>
-        sum + parseFloat(inv.amount.toString()), 0);
-      return {
+      const companyInvestmentDecimal = companyInvs.reduce(
+        (sum, inv) => sum.plus(toDecimal(inv.amount)),
+        new Decimal(0)
+      );
+      totalInvestmentDecimal = totalInvestmentDecimal.plus(companyInvestmentDecimal);
+
+      companiesWithInvestments.push({
         ...company,
         investments: companyInvs.length > 0 ? companyInvs : null,
-        totalInvestment
-      };
-    });
+        totalInvestment: companyInvestmentDecimal.toNumber()
+      });
+    }
 
     // Calculate current metrics
-    const totalInvestment = companiesWithInvestments.reduce(
-      (sum: number, company) => sum + company.totalInvestment, 0
+    const currentValuationDecimal = companies.reduce(
+      (sum, company) => sum.plus(toDecimal(company.currentValuation?.toString() || '0')),
+      new Decimal(0)
     );
 
-    const currentValuation = companies.reduce((sum: number, company) =>
-      sum + parseFloat(company.currentValuation?.toString() || '0'), 0);
-
-    const fundSize = parseFloat(fund?.size?.toString() || '100000000');
-    const currentReserves = fundSize - totalInvestment;
+    const fundSizeDecimal = toDecimal(fund?.size?.toString() || '100000000');
+    const currentReservesDecimal = fundSizeDecimal.minus(totalInvestmentDecimal);
+    const reservePercentageDecimal = currentReservesDecimal.dividedBy(fundSizeDecimal);
 
     return {
       fund,
       companies: companiesWithInvestments,
       baseline,
-      fundSize,
-      totalInvestment,
-      currentValuation,
-      currentReserves,
-      reservePercentage: currentReserves / fundSize,
+      fundSize: fundSizeDecimal.toNumber(),
+      totalInvestment: totalInvestmentDecimal.toNumber(),
+      currentValuation: currentValuationDecimal.toNumber(),
+      currentReserves: currentReservesDecimal.toNumber(),
+      reservePercentage: reservePercentageDecimal.toNumber(),
       portfolioCount: companies.length
     };
   }
@@ -594,7 +601,7 @@ export class ReserveOptimizationCalculatorService {
       sector: company.sector,
       stage: company.stage,
       currentInvestment: company.totalInvestment,
-      currentValuation: parseFloat(company.currentValuation?.toString() || '0'),
+      currentValuation: toDecimal(company.currentValuation?.toString() || '0').toNumber(),
       recommendedReserveAmount: baseAllocation.amount,
       recommendedAllocationPercentage: baseAllocation.percentage,
       maxRecommendedInvestment: company.totalInvestment + baseAllocation.amount,
@@ -615,11 +622,11 @@ export class ReserveOptimizationCalculatorService {
    * Calculate opportunity score for a company (0-1, higher = better)
    */
   private calculateOpportunityScore(company: PortfolioCompanyWithInvestments, prediction: CompanyPerformancePrediction, config: OptimizationConfig): number {
-    let score = 0.5; // Base score
+    let score = toDecimal(0.5); // Base score
 
     // Performance potential (40% weight)
-    const performanceScore = Math.min(prediction.expectedExitMultiple / 5, 1.0); // Normalize to 5x max
-    score += performanceScore * 0.4;
+    const performanceScore = Decimal.min(toDecimal(prediction.expectedExitMultiple).dividedBy(5), 1); // Normalize to 5x max
+    score = score.plus(performanceScore.times(0.4));
 
     // Growth stage bonus (20% weight)
     const stageMultipliers = {
@@ -629,8 +636,8 @@ export class ReserveOptimizationCalculatorService {
       'series-c': 0.6,
       'later-stage': 0.4
     };
-    const stageScore = stageMultipliers[company.stage.toLowerCase() as keyof typeof stageMultipliers] || 0.5;
-    score += stageScore * 0.2;
+    const stageScore = toDecimal(stageMultipliers[company.stage.toLowerCase() as keyof typeof stageMultipliers] || 0.5);
+    score = score.plus(stageScore.times(0.2));
 
     // Market/sector attractiveness (20% weight)
     const sectorMultipliers = {
@@ -641,18 +648,19 @@ export class ReserveOptimizationCalculatorService {
       'consumer': 0.7,
       'biotech': 1.2
     };
-    const sectorScore = sectorMultipliers[company.sector.toLowerCase() as keyof typeof sectorMultipliers] || 0.5;
-    score += sectorScore * 0.2;
+    const sectorScore = toDecimal(sectorMultipliers[company.sector.toLowerCase() as keyof typeof sectorMultipliers] || 0.5);
+    score = score.plus(sectorScore.times(0.2));
 
     // Current performance vs expectations (20% weight)
-    const currentValuation = parseFloat(company.currentValuation?.toString() || '0');
-    if (currentValuation > 0 && company.totalInvestment > 0) {
-      const currentMultiple = currentValuation / company.totalInvestment;
-      const markToMarketScore = Math.min(currentMultiple / 3, 1.0); // Normalize to 3x
-      score += markToMarketScore * 0.2;
+    const currentValuation = toDecimal(company.currentValuation?.toString() || '0');
+    const totalInvestment = toDecimal(company.totalInvestment);
+    if (currentValuation.gt(0) && totalInvestment.gt(0)) {
+      const currentMultiple = currentValuation.dividedBy(totalInvestment);
+      const markToMarketScore = Decimal.min(currentMultiple.dividedBy(3), 1); // Normalize to 3x
+      score = score.plus(markToMarketScore.times(0.2));
     }
 
-    return Math.max(0, Math.min(score, 1.0));
+    return Decimal.max(0, Decimal.min(score, 1)).toNumber();
   }
 
   /**

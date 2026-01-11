@@ -33,7 +33,7 @@ import type {
   CohortSummary,
 } from '@shared/types';
 import { ConstructionForecastCalculator } from './construction-forecast-calculator';
-import Decimal from 'decimal.js';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 
 // Local interface for reserve calculation results used by this service
 interface ReserveResults {
@@ -153,13 +153,18 @@ export class ProjectedMetricsCalculator {
   ): Promise<ReserveResults | null> {
     try {
       // Build input for reserve engine - each company is a separate ReserveInput
-      const portfolio: ReserveInput[] = companies.map((c) => ({
-        id: c.id,
-        invested: parseFloat(c.investmentAmount?.toString() || '0'),
-        stage: c.stage || c.currentStage || 'Seed',
-        sector: c.sector || 'SaaS',
-        ownership: parseFloat(c.ownershipCurrentPct?.toString() || '0.1'),
-      }));
+      const portfolio: ReserveInput[] = companies.map((c) => {
+        const invested = toDecimal(c.investmentAmount?.toString() || '0');
+        const ownership = toDecimal(c.ownershipCurrentPct?.toString() || '0.1');
+
+        return {
+          id: c.id,
+          invested: invested.toNumber(),
+          stage: c.stage || c.currentStage || 'Seed',
+          sector: c.sector || 'SaaS',
+          ownership: ownership.toNumber(),
+        };
+      });
 
       const summary: ReserveSummary = generateReserveSummary(fund.id, portfolio);
 
@@ -187,8 +192,8 @@ export class ProjectedMetricsCalculator {
   ): Promise<PacingResults | null> {
     try {
       const investmentPeriodYears = config.investmentPeriodYears || 3;
-      const fundSize = parseFloat(fund.size.toString());
-      const deployed = parseFloat(fund.deployedCapital?.toString() || '0');
+      const fundSize = toDecimal(fund.size.toString());
+      const deployed = toDecimal(fund.deployedCapital?.toString() || '0');
       const fundAgeMonths = fund.establishmentDate
         ? this.monthsSince(new Date(fund.establishmentDate))
         : 0;
@@ -197,7 +202,7 @@ export class ProjectedMetricsCalculator {
       const deploymentQuarter = Math.max(1, Math.floor(fundAgeMonths / 3) + 1);
 
       const pacingInput: PacingInput = {
-        fundSize,
+        fundSize: fundSize.toNumber(),
         deploymentQuarter,
         marketCondition: 'neutral', // Default to neutral market conditions
       };
@@ -205,13 +210,15 @@ export class ProjectedMetricsCalculator {
       const summary: PacingSummary = generatePacingSummary(pacingInput);
 
       // Determine pace status based on actual vs expected deployment
-      const expectedDeploymentRate = fundAgeMonths / (investmentPeriodYears * 12);
-      const actualDeploymentRate = fundSize > 0 ? deployed / fundSize : 0;
-      const deviation = actualDeploymentRate - expectedDeploymentRate;
+      const expectedDeploymentRate = toDecimal(fundAgeMonths).div(investmentPeriodYears * 12);
+      const actualDeploymentRate = fundSize.lte(0)
+        ? new Decimal(0)
+        : deployed.div(fundSize);
+      const deviation = actualDeploymentRate.minus(expectedDeploymentRate);
 
       let pace: 'ahead' | 'on-track' | 'behind';
-      if (deviation > 0.1) pace = 'ahead';
-      else if (deviation < -0.1) pace = 'behind';
+      if (deviation.gt(0.1)) pace = 'ahead';
+      else if (deviation.lt(-0.1)) pace = 'behind';
       else pace = 'on-track';
 
       const quartersRemaining = Math.max(
@@ -219,14 +226,14 @@ export class ProjectedMetricsCalculator {
         investmentPeriodYears * 4 - Math.floor(fundAgeMonths / 3)
       );
 
-      const remainingCapital = fundSize - deployed;
+      const remainingCapital = fundSize.minus(deployed);
       const recommendedQuarterlyDeployment =
-        quartersRemaining > 0 ? remainingCapital / quartersRemaining : 0;
+        quartersRemaining > 0 ? remainingCapital.div(quartersRemaining) : new Decimal(0);
 
       return {
         pace,
         quartersRemaining,
-        recommendedQuarterlyDeployment,
+        recommendedQuarterlyDeployment: recommendedQuarterlyDeployment.toNumber(),
         projectedDeploymentSchedule: summary.deployments.map((d) => d.deployment),
       };
     } catch (error) {
@@ -396,7 +403,7 @@ export class ProjectedMetricsCalculator {
     config: FundConfig,
     asOfDate: string
   ): Promise<ProjectedMetrics> {
-    const fundSize = new Decimal(fund.size.toString());
+    const fundSize = toDecimal(fund.size.toString());
     const targetTVPI = config.targetTVPI || 2.5;
     const investmentPeriodYears = config.investmentPeriodYears || 5;
     const fundLifeYears = config.fundTermYears || 10;
@@ -429,16 +436,17 @@ export class ProjectedMetricsCalculator {
 
       // Deployment based on calls (capital called)
       const inInvestmentPeriod = i < (investmentPeriodYears * 4);
-      const deploymentAmount = inInvestmentPeriod && calls
-        ? parseFloat(calls.toString())
-        : (inInvestmentPeriod ? fundSize.div(investmentPeriodYears * 4).toNumber() : 0);
-      projectedDeployment.push(deploymentAmount);
+      const callsValue = calls ? toDecimal(calls) : null;
+      const deploymentAmount = inInvestmentPeriod
+        ? (callsValue ?? fundSize.div(investmentPeriodYears * 4))
+        : new Decimal(0);
+      projectedDeployment.push(deploymentAmount.toNumber());
 
       // Use J-curve projections - DPI represents distributions as % of calls
-      const navValue = nav ? parseFloat(nav.toString()) : 0;
-      const dpiValue = dpi ? parseFloat(dpi.toString()) : 0;
-      projectedDistributions.push(dpiValue * fundSize.toNumber());
-      projectedNAV.push(navValue);
+      const navValue = nav ? toDecimal(nav) : new Decimal(0);
+      const dpiValue = dpi ? toDecimal(dpi) : new Decimal(0);
+      projectedDistributions.push(dpiValue.times(fundSize).toNumber());
+      projectedNAV.push(navValue.toNumber());
     }
 
     return {
