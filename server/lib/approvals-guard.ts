@@ -246,7 +246,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
         signatures: result.signatures,
         calculationHash: result.calculationHash
       };
-      // eslint-disable-next-line require-atomic-updates
+      // eslint-disable-next-line require-atomic-updates -- sequential guard checks
       req.approval = approvalInfo;
 
       next();

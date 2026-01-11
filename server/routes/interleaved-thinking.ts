@@ -133,7 +133,7 @@ const DATABASE_QUERY_TOOL: Anthropic.Tool = {
 
 async function executeCalculator(input: { expression: string }): Promise<string> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- AI response parsing
     const result = evaluate(input.expression);
     return `Result: ${JSON.stringify(result, null, 2)}`;
   } catch (error) {

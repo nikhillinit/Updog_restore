@@ -58,7 +58,7 @@ export async function getStageValidationMode(): Promise<Mode> {
       new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
     ]);
     const mode = v && ['off', 'warn', 'enforce'].includes(v) ? (v as Mode) : defaultMode;
-    // eslint-disable-next-line require-atomic-updates
+    // eslint-disable-next-line require-atomic-updates -- sequential validation flow
     cache = { mode, expiresAt: now + TTL_MS };
     return mode;
   } catch (err) {
@@ -87,7 +87,7 @@ export async function setStageValidationMode(
     }
   }
 
-  // eslint-disable-next-line require-atomic-updates
+  // eslint-disable-next-line require-atomic-updates -- sequential validation flow
   cache = { mode: next, expiresAt: Date.now() + TTL_MS };
 
   // Structured audit log for mode flips

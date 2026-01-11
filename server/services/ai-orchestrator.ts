@@ -240,10 +240,10 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
 
        
       tools.push({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
         type: 'memory_20250818' as any, // Native memory tool (beta feature)
         name: 'memory',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
       } as any);
     }
 
@@ -251,7 +251,7 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     const contextManagement = options?.enableContextClearing ? {
       edits: [
         {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
           type: 'clear_tool_uses_20250919' as any,
           trigger: {
             type: 'input_tokens' as unknown as 'input_tokens',
@@ -275,14 +275,14 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
         tools: tools.length > 0 ? tools : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
         betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
         ...(contextManagement ? { context_management: contextManagement as any } : {}),
         // Opus 4.5: Set effort to 'high' for deep reasoning
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
         ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
       } as any),
       'claude'
     );

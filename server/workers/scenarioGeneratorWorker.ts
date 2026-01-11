@@ -273,18 +273,18 @@ export function createScenarioWorker(
  * Standalone worker entry point (when run directly)
  */
 if (require.main === module) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- CommonJS require lacks TypeScript module types
   const Redis = require('ioredis').default;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CommonJS require lacks TypeScript module types
   const { Pool } = require('pg');
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CommonJS require lacks TypeScript module types
   const { drizzle } = require('drizzle-orm/node-postgres');
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CommonJS require lacks TypeScript module types
   const { createClient } = require('redis');
 
   (async () => {
     // BullMQ Redis connection (ioredis)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
     const bullmqRedis = new Redis({
       host: process.env['REDIS_HOST'] ?? 'localhost',
       port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
@@ -293,11 +293,11 @@ if (require.main === module) {
     });
 
     // PostgreSQL connection
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
     const pool = new Pool({
       connectionString: process.env['DATABASE_URL'] ?? 'postgresql://localhost:5432/updog',
     });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
     const db = drizzle(pool);
 
     // Cache Redis connection (redis package) - optional
@@ -306,9 +306,9 @@ if (require.main === module) {
       const redisUrl =
         process.env['REDIS_URL'] ??
         `redis://${process.env['REDIS_HOST'] ?? 'localhost'}:${process.env['REDIS_PORT'] ?? '6379'}`;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
       const client = createClient({ url: redisUrl });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
       await client.connect();
       cacheRedis = client as RedisClientType;
       console.log('[ScenarioWorker] Cache Redis connected');
@@ -319,9 +319,9 @@ if (require.main === module) {
 
     // Create worker with cache
     createScenarioWorker({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CommonJS require lacks TypeScript module types
       connection: bullmqRedis,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CommonJS require lacks TypeScript module types
       db,
       ...(cacheRedis ? { redis: cacheRedis } : {}),
       concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '2', 10),
