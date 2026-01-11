@@ -137,7 +137,8 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
       try {
         // Update report status to 'generating'
-        await db.update(lpReports)
+        await db
+          .update(lpReports)
           .set({ status: 'generating', updatedAt: new Date() })
           .where(eq(lpReports.id, reportId));
 
@@ -184,7 +185,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
               case 'capital_account': {
                 const asOfDate = new Date(job.data.dateRange.endDate);
                 const capitalData = buildCapitalAccountReportData(lpData, xlsxFundId, asOfDate);
-                reportBuffer = generateCapitalAccountXLSX(capitalData);
+                reportBuffer = await generateCapitalAccountXLSX(capitalData);
                 break;
               }
               case 'quarterly':
@@ -192,9 +193,15 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
               default: {
                 const endDate = new Date(job.data.dateRange.endDate);
                 const month = endDate.getMonth();
-                const quarter = reportType === 'annual' ? 'Annual' : `Q${Math.floor(month / 3) + 1}`;
-                const quarterlyData = buildQuarterlyReportData(lpData, xlsxFundId, quarter, endDate.getFullYear());
-                reportBuffer = generateQuarterlyXLSX(quarterlyData);
+                const quarter =
+                  reportType === 'annual' ? 'Annual' : `Q${Math.floor(month / 3) + 1}`;
+                const quarterlyData = buildQuarterlyReportData(
+                  lpData,
+                  xlsxFundId,
+                  quarter,
+                  endDate.getFullYear()
+                );
+                reportBuffer = await generateQuarterlyXLSX(quarterlyData);
                 break;
               }
             }
@@ -205,7 +212,10 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
             // Generate CSV from LP transactions
             const csvHeader = 'date,type,amount,description\n';
             const csvRows = lpData.transactions
-              .map((t) => `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`)
+              .map(
+                (t) =>
+                  `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`
+              )
               .join('\n');
             reportBuffer = Buffer.from(csvHeader + csvRows);
             break;
@@ -247,7 +257,12 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
               default: {
                 // Annual report uses quarterly template with full year
                 const yearEnd = new Date(job.data.dateRange.endDate);
-                const annualData = buildQuarterlyReportData(lpData, fundId, 'Annual', yearEnd.getFullYear());
+                const annualData = buildQuarterlyReportData(
+                  lpData,
+                  fundId,
+                  'Annual',
+                  yearEnd.getFullYear()
+                );
                 reportBuffer = await generateQuarterlyPDF(annualData);
                 break;
               }
@@ -288,7 +303,8 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
         // Phase 5: Update database (100%)
         const generatedAt = new Date();
-        await db.update(lpReports)
+        await db
+          .update(lpReports)
           .set({
             status: 'ready',
             fileUrl,
@@ -309,14 +325,16 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         };
 
         reportEvents.emitComplete(job.id!, reportId, result);
-        console.log(`[ReportQueue] Generated ${reportType} report ${reportId} in ${result.durationMs}ms`);
+        console.log(
+          `[ReportQueue] Generated ${reportType} report ${reportId} in ${result.durationMs}ms`
+        );
         return result;
-
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
         // Update report status to 'error'
-        await db.update(lpReports)
+        await db
+          .update(lpReports)
           .set({
             status: 'error',
             errorMessage,
