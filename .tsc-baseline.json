@@ -25,14 +25,6 @@
         "client/src/components/planning/portfolio-construction.tsx:TS2322:32fb016b",
         "client/src/components/planning/portfolio-construction.tsx:TS2322:97bc88c9",
         "client/src/components/planning/portfolio-construction.tsx:TS2322:f78bbe45",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS18046:0475e44f",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS18046:f5ea0847",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS2345:1f19bfc8",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS2739:442d6b6a",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7006:f12043b4",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7031:25b1989e",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7053:b43149fb",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7053:f5ea0847",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:bc38163e",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e20ecc40",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e7ab2a0f",
@@ -78,8 +70,8 @@
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 74,
-      "lastUpdated": "2026-01-11T18:22:56.591Z"
+      "total": 66,
+      "lastUpdated": "2026-01-11T19:03:18.034Z"
     },
     "unknown": {
       "errors": [
@@ -89,7 +81,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T18:22:56.591Z"
+      "lastUpdated": "2026-01-11T19:03:18.034Z"
     },
     "shared": {
       "errors": [
@@ -108,7 +100,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 13,
-      "lastUpdated": "2026-01-11T18:22:56.591Z"
+      "lastUpdated": "2026-01-11T19:03:18.034Z"
     },
     "server": {
       "errors": [
@@ -208,11 +200,11 @@
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
       "total": 94,
-      "lastUpdated": "2026-01-11T18:22:56.591Z"
+      "lastUpdated": "2026-01-11T19:03:18.034Z"
     }
   },
-  "totalErrors": 185,
-  "timestamp": "2026-01-11T18:22:56.591Z",
+  "totalErrors": 177,
+  "timestamp": "2026-01-11T19:03:18.034Z",
   "buildMode": "per-project",
-  "elapsedMs": 23032
+  "elapsedMs": 18862
 }
