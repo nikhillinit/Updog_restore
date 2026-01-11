@@ -1,11 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   LineChart,
   Line,
@@ -19,16 +25,13 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  Legend
+  Legend,
 } from 'recharts';
-import {
-  Copy,
-  Trash2,
-  Plus
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import type { TooltipContentProps } from 'recharts';
+import { Copy, Trash2, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import type { PortfolioState } from "@/pages/portfolio-constructor";
+import type { PortfolioState } from '@/pages/portfolio-constructor';
 
 interface Scenario {
   id: string;
@@ -59,6 +62,15 @@ interface ScenarioComparisonProps {
   isCalculating: boolean;
 }
 
+type ComparisonMetric = 'irr' | 'multiple' | 'risk' | 'timeline';
+type ChartDataPoint = Record<string, number | string>;
+type TooltipEntry = {
+  color?: string;
+  dataKey?: string | number;
+  value?: number;
+};
+type CustomTooltipProps = Partial<TooltipContentProps<number, string>>;
+
 const defaultScenarios: Scenario[] = [
   {
     id: 'baseline',
@@ -70,17 +82,17 @@ const defaultScenarios: Scenario[] = [
       sectorFocus: 'balanced',
       reserveRatio: 0.35,
       targetReturns: 2.8,
-      exitTimeline: 5
+      exitTimeline: 5,
     },
     projections: {
       irr: 0.22,
       multiple: 2.8,
       riskScore: 6.2,
       timeToFullDeployment: 3.2,
-      probabilityOfSuccess: 0.72
+      probabilityOfSuccess: 0.72,
     },
     color: '#2563eb',
-    isBaseline: true
+    isBaseline: true,
   },
   {
     id: 'aggressive',
@@ -92,16 +104,16 @@ const defaultScenarios: Scenario[] = [
       sectorFocus: 'growth',
       reserveRatio: 0.25,
       targetReturns: 3.5,
-      exitTimeline: 4
+      exitTimeline: 4,
     },
     projections: {
       irr: 0.28,
       multiple: 3.2,
       riskScore: 8.1,
       timeToFullDeployment: 2.1,
-      probabilityOfSuccess: 0.58
+      probabilityOfSuccess: 0.58,
     },
-    color: '#dc2626'
+    color: '#dc2626',
   },
   {
     id: 'conservative',
@@ -113,17 +125,17 @@ const defaultScenarios: Scenario[] = [
       sectorFocus: 'value',
       reserveRatio: 0.45,
       targetReturns: 2.2,
-      exitTimeline: 7
+      exitTimeline: 7,
     },
     projections: {
       irr: 0.18,
       multiple: 2.4,
       riskScore: 4.3,
       timeToFullDeployment: 4.8,
-      probabilityOfSuccess: 0.85
+      probabilityOfSuccess: 0.85,
     },
-    color: '#059669'
-  }
+    color: '#059669',
+  },
 ];
 
 const sectorFocusOptions = [
@@ -131,28 +143,28 @@ const sectorFocusOptions = [
   { value: 'growth', label: 'Growth Focus' },
   { value: 'value', label: 'Value Focus' },
   { value: 'sector-specific', label: 'Sector Specific' },
-  { value: 'stage-agnostic', label: 'Stage Agnostic' }
+  { value: 'stage-agnostic', label: 'Stage Agnostic' },
 ];
 
 export function ScenarioComparison({
-  portfolioState,
+  portfolioState: _portfolioState,
   onUpdate,
-  isCalculating
+  isCalculating: _isCalculating,
 }: ScenarioComparisonProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>(defaultScenarios);
   const [selectedScenario, setSelectedScenario] = useState<string>('baseline');
-  const [comparisonMetric, setComparisonMetric] = useState<'irr' | 'multiple' | 'risk' | 'timeline'>('irr');
+  const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('irr');
 
-  const selectedScenarioData = scenarios.find(s => s.id === selectedScenario);
+  const selectedScenarioData = scenarios.find((s) => s.id === selectedScenario);
 
   // Generate time series data for comparison
   const timeSeriesData = useMemo(() => {
     const years = Array.from({ length: 8 }, (_, i) => i);
 
-    return years.map(year => {
-      const dataPoint = { year: `Y${year}` };
+    return years.map((year) => {
+      const dataPoint: ChartDataPoint = { year: `Y${year}` };
 
-      scenarios.forEach(scenario => {
+      scenarios.forEach((scenario) => {
         // Simulate different growth curves based on scenario parameters
         const baseGrowth = Math.pow(1 + scenario.projections.irr, year);
         const volatility = (scenario.projections.riskScore / 10) * 0.1;
@@ -172,18 +184,19 @@ export function ScenarioComparison({
       { metric: 'Multiple', field: 'multiple', max: 4 },
       { metric: 'Risk (inv)', field: 'riskScore', max: 10, invert: true },
       { metric: 'Success Prob', field: 'probabilityOfSuccess', max: 1 },
-      { metric: 'Speed', field: 'timeToFullDeployment', max: 6, invert: true }
+      { metric: 'Speed', field: 'timeToFullDeployment', max: 6, invert: true },
     ];
 
     return metrics.map(({ metric, field, max, invert }) => {
-      const dataPoint = { metric };
+      const dataPoint: ChartDataPoint = { metric };
 
-      scenarios.forEach(scenario => {
-        let value = (scenario.projections as Record<string, unknown>)[field];
-        if (invert) {
-          value = max - value;
+      scenarios.forEach((scenario) => {
+        const rawValue = (scenario.projections as Record<string, unknown>)[field];
+        if (typeof rawValue !== 'number') {
+          return;
         }
-        dataPoint[scenario.name] = (value / max) * 100;
+        const adjustedValue = invert ? max - rawValue : rawValue;
+        dataPoint[scenario.name] = (adjustedValue / max) * 100;
       });
 
       return dataPoint;
@@ -201,89 +214,92 @@ export function ScenarioComparison({
         sectorFocus: 'balanced',
         reserveRatio: 0.35,
         targetReturns: 2.5,
-        exitTimeline: 5
+        exitTimeline: 5,
       },
       projections: {
-        irr: 0.20,
+        irr: 0.2,
         multiple: 2.5,
         riskScore: 6.0,
         timeToFullDeployment: 3.5,
-        probabilityOfSuccess: 0.70
+        probabilityOfSuccess: 0.7,
       },
-      color: '#7c3aed'
+      color: '#7c3aed',
     };
-    setScenarios(prev => [...prev, newScenario]);
+    setScenarios((prev) => [...prev, newScenario]);
   };
 
   const duplicateScenario = (scenarioId: string) => {
-    const scenario = scenarios.find(s => s.id === scenarioId);
+    const scenario = scenarios.find((s) => s.id === scenarioId);
     if (!scenario) return;
 
     const newScenario = {
       ...scenario,
       id: `scenario-${Date.now()}`,
       name: `${scenario.name} Copy`,
-      isBaseline: false
+      isBaseline: false,
     };
-    setScenarios(prev => [...prev, newScenario]);
+    setScenarios((prev) => [...prev, newScenario]);
   };
 
   const removeScenario = (scenarioId: string) => {
-    setScenarios(prev => prev.filter(s => s.id !== scenarioId));
+    setScenarios((prev) => prev.filter((s) => s.id !== scenarioId));
     if (selectedScenario === scenarioId) {
       setSelectedScenario(scenarios[0]?.id || '');
     }
   };
 
   const updateScenarioParameter = (scenarioId: string, parameter: string, value: unknown) => {
-    setScenarios(prev => prev.map(scenario => {
-      if (scenario.id !== scenarioId) return scenario;
+    setScenarios((prev) =>
+      prev.map((scenario) => {
+        if (scenario.id !== scenarioId) return scenario;
 
-      const updatedScenario = {
-        ...scenario,
-        parameters: {
-          ...scenario.parameters,
-          [parameter]: value
-        }
-      };
+        const updatedScenario = {
+          ...scenario,
+          parameters: {
+            ...scenario.parameters,
+            [parameter]: value,
+          },
+        };
 
-      // Recalculate projections based on parameters (simplified)
-      const risk = updatedScenario.parameters.riskTolerance;
-      const speed = updatedScenario.parameters.deploymentSpeed / 100;
-      const reserve = updatedScenario.parameters.reserveRatio;
+        // Recalculate projections based on parameters (simplified)
+        const risk = updatedScenario.parameters.riskTolerance;
+        const speed = updatedScenario.parameters.deploymentSpeed / 100;
+        const reserve = updatedScenario.parameters.reserveRatio;
 
-      updatedScenario.projections = {
-        irr: Math.max(0.1, Math.min(0.35, 0.15 + (risk * 0.02) + (speed * 0.05))),
-        multiple: Math.max(1.5, Math.min(4.0, 2.0 + (risk * 0.15) + (speed * 0.1))),
-        riskScore: risk + (speed * 2) - (reserve * 5),
-        timeToFullDeployment: Math.max(1, 6 - speed * 4),
-        probabilityOfSuccess: Math.max(0.3, Math.min(0.9, 0.8 - (risk * 0.05) + (reserve * 0.3)))
-      };
+        updatedScenario.projections = {
+          irr: Math.max(0.1, Math.min(0.35, 0.15 + risk * 0.02 + speed * 0.05)),
+          multiple: Math.max(1.5, Math.min(4.0, 2.0 + risk * 0.15 + speed * 0.1)),
+          riskScore: risk + speed * 2 - reserve * 5,
+          timeToFullDeployment: Math.max(1, 6 - speed * 4),
+          probabilityOfSuccess: Math.max(0.3, Math.min(0.9, 0.8 - risk * 0.05 + reserve * 0.3)),
+        };
 
-      return updatedScenario;
-    }));
+        return updatedScenario;
+      })
+    );
   };
 
   const applyScenario = (scenarioId: string) => {
-    const scenario = scenarios.find(s => s.id === scenarioId);
+    const scenario = scenarios.find((s) => s.id === scenarioId);
     if (!scenario) return;
 
     onUpdate({
       reserveRatio: scenario.parameters.reserveRatio,
       projectedIRR: scenario.projections.irr,
       targetReturns: scenario.projections.multiple,
-      riskScore: scenario.projections.riskScore
+      riskScore: scenario.projections.riskScore,
     });
   };
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{label}</p>
-          {payload.map((entry, index: number) => (
+          {payload.map((entry: TooltipEntry, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.dataKey}: <span className="font-medium">{entry.value.toFixed(2)}x</span>
+              {entry.dataKey}:{' '}
+              <span className="font-medium">{(entry.value as number).toFixed(2)}x</span>
             </p>
           ))}
         </div>
@@ -302,7 +318,10 @@ export function ScenarioComparison({
         </div>
 
         <div className="flex items-center space-x-3">
-          <Select value={comparisonMetric} onValueChange={(value) => setComparisonMetric(value)}>
+          <Select
+            value={comparisonMetric}
+            onValueChange={(value) => setComparisonMetric(value as ComparisonMetric)}
+          >
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Compare by..." />
             </SelectTrigger>
@@ -314,11 +333,7 @@ export function ScenarioComparison({
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            onClick={addNewScenario}
-            className="flex items-center"
-          >
+          <Button variant="outline" onClick={addNewScenario} className="flex items-center">
             <Plus className="w-4 h-4 mr-2" />
             Add Scenario
           </Button>
@@ -332,12 +347,14 @@ export function ScenarioComparison({
             <CardTitle className="text-lg">Scenarios</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {scenarios.map(scenario => (
+            {scenarios.map((scenario) => (
               <div
                 key={scenario.id}
                 className={cn(
-                  "p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md",
-                  selectedScenario === scenario.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                  'p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md',
+                  selectedScenario === scenario.id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200'
                 )}
                 onClick={() => setSelectedScenario(scenario.id)}
               >
@@ -363,19 +380,27 @@ export function ScenarioComparison({
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-gray-500">IRR:</span>
-                    <span className="ml-1 font-medium">{(scenario.projections.irr * 100).toFixed(1)}%</span>
+                    <span className="ml-1 font-medium">
+                      {(scenario.projections.irr * 100).toFixed(1)}%
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">Multiple:</span>
-                    <span className="ml-1 font-medium">{scenario.projections.multiple.toFixed(1)}x</span>
+                    <span className="ml-1 font-medium">
+                      {scenario.projections.multiple.toFixed(1)}x
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">Risk:</span>
-                    <span className="ml-1 font-medium">{scenario.projections.riskScore.toFixed(1)}</span>
+                    <span className="ml-1 font-medium">
+                      {scenario.projections.riskScore.toFixed(1)}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">Success:</span>
-                    <span className="ml-1 font-medium">{(scenario.projections.probabilityOfSuccess * 100).toFixed(0)}%</span>
+                    <span className="ml-1 font-medium">
+                      {(scenario.projections.probabilityOfSuccess * 100).toFixed(0)}%
+                    </span>
                   </div>
                 </div>
 
@@ -426,9 +451,7 @@ export function ScenarioComparison({
         {/* Scenario Configuration */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">
-              {selectedScenarioData?.name} Configuration
-            </CardTitle>
+            <CardTitle className="text-lg">{selectedScenarioData?.name} Configuration</CardTitle>
           </CardHeader>
           <CardContent>
             {selectedScenarioData && (
@@ -441,11 +464,11 @@ export function ScenarioComparison({
                       id="scenario-name"
                       value={selectedScenarioData.name}
                       onChange={(e) => {
-                        setScenarios(prev => prev.map(s =>
-                          s.id === selectedScenario
-                            ? { ...s, name: e.target.value }
-                            : s
-                        ));
+                        setScenarios((prev) =>
+                          prev.map((s) =>
+                            s.id === selectedScenario ? { ...s, name: e.target.value } : s
+                          )
+                        );
                       }}
                       disabled={selectedScenarioData.isBaseline}
                     />
@@ -456,11 +479,11 @@ export function ScenarioComparison({
                       id="scenario-description"
                       value={selectedScenarioData.description}
                       onChange={(e) => {
-                        setScenarios(prev => prev.map(s =>
-                          s.id === selectedScenario
-                            ? { ...s, description: e.target.value }
-                            : s
-                        ));
+                        setScenarios((prev) =>
+                          prev.map((s) =>
+                            s.id === selectedScenario ? { ...s, description: e.target.value } : s
+                          )
+                        );
                       }}
                       disabled={selectedScenarioData.isBaseline}
                     />
@@ -478,7 +501,9 @@ export function ScenarioComparison({
                       <div className="space-y-2">
                         <Slider
                           value={[selectedScenarioData.parameters.deploymentSpeed]}
-                          onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'deploymentSpeed', value)}
+                          onValueChange={([value]) =>
+                            updateScenarioParameter(selectedScenario, 'deploymentSpeed', value)
+                          }
                           max={100}
                           step={5}
                           disabled={selectedScenarioData.isBaseline ?? false}
@@ -495,14 +520,17 @@ export function ScenarioComparison({
                       <div className="space-y-2">
                         <Slider
                           value={[selectedScenarioData.parameters.riskTolerance]}
-                          onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'riskTolerance', value)}
+                          onValueChange={([value]) =>
+                            updateScenarioParameter(selectedScenario, 'riskTolerance', value)
+                          }
                           min={1}
                           max={10}
                           step={0.5}
                           disabled={selectedScenarioData.isBaseline ?? false}
                         />
                         <div className="text-sm text-gray-600">
-                          {selectedScenarioData.parameters.riskTolerance}/10 (Conservative → Aggressive)
+                          {selectedScenarioData.parameters.riskTolerance}/10 (Conservative →
+                          Aggressive)
                         </div>
                       </div>
                     </div>
@@ -513,13 +541,20 @@ export function ScenarioComparison({
                       <div className="space-y-2">
                         <Slider
                           value={[selectedScenarioData.parameters.reserveRatio * 100]}
-                          onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'reserveRatio', (value ?? 0) / 100)}
+                          onValueChange={([value]) =>
+                            updateScenarioParameter(
+                              selectedScenario,
+                              'reserveRatio',
+                              (value ?? 0) / 100
+                            )
+                          }
                           max={50}
                           step={2.5}
-                          {...spreadIfDefined("disabled", selectedScenarioData.isBaseline)}
+                          {...spreadIfDefined('disabled', selectedScenarioData.isBaseline)}
                         />
                         <div className="text-sm text-gray-600">
-                          {(selectedScenarioData.parameters.reserveRatio * 100).toFixed(1)}% held in reserves
+                          {(selectedScenarioData.parameters.reserveRatio * 100).toFixed(1)}% held in
+                          reserves
                         </div>
                       </div>
                     </div>
@@ -529,14 +564,16 @@ export function ScenarioComparison({
                       <Label>Sector Focus</Label>
                       <Select
                         value={selectedScenarioData.parameters.sectorFocus}
-                        onValueChange={(value) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
-                        {...spreadIfDefined("disabled", selectedScenarioData.isBaseline)}
+                        onValueChange={(value) =>
+                          updateScenarioParameter(selectedScenario, 'sectorFocus', value)
+                        }
+                        {...spreadIfDefined('disabled', selectedScenarioData.isBaseline)}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {sectorFocusOptions.map(option => (
+                          {sectorFocusOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
@@ -593,20 +630,23 @@ export function ScenarioComparison({
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart
+                  data={timeSeriesData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
-                  <YAxis tickFormatter={(value) => `${value.toFixed(1)}x`} />
+                  <YAxis tickFormatter={(value: number) => `${value.toFixed(1)}x`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  {scenarios.map(scenario => (
+                  {scenarios.map((scenario) => (
                     <Line
                       key={scenario.id}
                       type="monotone"
                       dataKey={scenario.name}
                       stroke={scenario.color}
                       strokeWidth={scenario.isBaseline ? 3 : 2}
-                      strokeDasharray={scenario.isBaseline ? "0" : "5 5"}
+                      strokeDasharray={scenario.isBaseline ? '0' : '5 5'}
                     />
                   ))}
                 </LineChart>
@@ -627,7 +667,7 @@ export function ScenarioComparison({
                   <PolarGrid />
                   <PolarAngleAxis dataKey="metric" />
                   <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
-                  {scenarios.map(scenario => (
+                  {scenarios.map((scenario) => (
                     <Radar
                       key={scenario.id}
                       name={scenario.name}

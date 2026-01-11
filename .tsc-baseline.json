@@ -3,23 +3,6 @@
   "projects": {
     "client": {
       "errors": [
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2322:844bae94",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2322:99b7234e",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:09aa145f",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:0d250533",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:18dcf08e",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:197b8e65",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:1e66f143",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:35f60b62",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:3c7803ef",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:4e3a5843",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:54c13d34",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:67251811",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:70b28804",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:7977b13d",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:84d064c1",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:9e61d796",
-        "client/src/components/analytics/EnhancedAnalyticsPanel.tsx:TS2339:d27f7682",
         "client/src/components/analytics/VarianceChart.tsx:TS2339:0ad88a1c",
         "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:4d6a5b07",
         "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:e7ab2a0f",
@@ -31,21 +14,6 @@
         "client/src/components/forecasting/portfolio-insights.tsx:TS2322:c04d96f0",
         "client/src/components/forecasting/portfolio-insights.tsx:TS2322:e127026b",
         "client/src/components/forecasting/projected-performance.tsx:TS2322:aba324b2",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:49f147d9",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:5f504bb3",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:6b588797",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:6b79b6f0",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:7fa56624",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:9b6cfa80",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:b80055ff",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:bac9f991",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:bd447a6b",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:c9c16012",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:d1a2cab0",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:fcbcb7bb",
-        "client/src/components/investments/BulkImportModal.tsx:TS18046:fd7cc66e",
-        "client/src/components/investments/BulkImportModal.tsx:TS2698:46b27aa3",
-        "client/src/components/investments/BulkImportModal.tsx:TS7053:26a4c221",
         "client/src/components/modeling-wizard/steps/capital-allocation/PortfolioSummary.tsx:TS2322:00fa1f1b",
         "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e127026b",
         "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e425ea8b",
@@ -57,14 +25,6 @@
         "client/src/components/planning/portfolio-construction.tsx:TS2322:32fb016b",
         "client/src/components/planning/portfolio-construction.tsx:TS2322:97bc88c9",
         "client/src/components/planning/portfolio-construction.tsx:TS2322:f78bbe45",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS18046:0475e44f",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS18046:f5ea0847",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS2345:1f19bfc8",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS2739:442d6b6a",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7006:f12043b4",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7031:25b1989e",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7053:b43149fb",
-        "client/src/components/portfolio-constructor/ScenarioComparison.tsx:TS7053:f5ea0847",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:bc38163e",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e20ecc40",
         "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e7ab2a0f",
@@ -75,16 +35,8 @@
         "client/src/components/ui/recharts-bundle.tsx:TS2339:d8dbb823",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:790a5f41",
         "client/src/components/ui/recharts-bundle.tsx:TS2741:a1732ff1",
-        "client/src/lib/error-boundary.ts:TS2532:80b7fbf8",
-        "client/src/lib/performance-monitor.ts:TS2532:c74df95d",
-        "client/src/lib/wizard-validation.ts:TS18046:5b3a7dd4",
-        "client/src/lib/wizard-validation.ts:TS18046:be0ddaeb",
-        "client/src/lib/wizard-validation.ts:TS2339:dca2789e",
-        "client/src/lib/wizard-validation.ts:TS2365:c1bd7818",
         "client/src/machines/modeling-wizard.machine.ts:TS2339:6e8db634",
         "client/src/machines/modeling-wizard.machine.ts:TS2352:53454d22",
-        "client/src/metrics/reserves-metrics.ts:TS2532:0a7aff6a",
-        "client/src/metrics/reserves-metrics.ts:TS2532:3879eacf",
         "client/src/pages/dashboard-modern.tsx:TS2322:87cd28b8",
         "client/src/pages/investment-detail.tsx:TS2322:171553a7",
         "client/src/pages/investment-detail.tsx:TS2322:51b3afbb",
@@ -99,19 +51,14 @@
         "client/src/services/funds.ts:TS2322:2208a4d8",
         "client/src/services/funds.ts:TS2322:dd41a169",
         "client/src/services/funds.ts:TS2345:0360dd42",
-        "client/src/stores/useFundStore.ts:TS18046:6b032b3b",
-        "client/src/stores/useFundStore.ts:TS2532:0a7d7ecf",
-        "client/src/stores/useFundStore.ts:TS2532:126f3a91",
-        "client/src/stores/useFundStore.ts:TS2532:5af76d80",
-        "client/src/stores/useFundStore.ts:TS2532:72855eef",
-        "client/src/stores/useFundStore.ts:TS2532:a033be02",
+        "client/src/stores/useFundStore.ts:TS18046:0cc6743a",
         "client/src/vitals.ts:TS2352:2cb17006",
         "client/src/vitals.ts:TS2352:4fa15f44",
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 106,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "total": 53,
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "unknown": {
       "errors": [
@@ -121,7 +68,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "shared": {
       "errors": [
@@ -129,18 +76,12 @@
         "shared/charting/ChartAdapter.tsx:TS2375:db570a7c",
         "shared/charting/ChartSafe.tsx:TS2345:d968b831",
         "shared/charting/polymorphic.ts:TS2345:7bd45dd0",
-        "shared/core/optimization/MatrixCompression.ts:TS2345:224e3219",
-        "shared/core/optimization/MatrixCompression.ts:TS2532:ae799a15",
-        "shared/core/optimization/MatrixCompression.ts:TS2578:ca6758c8",
-        "shared/core/optimization/ScenarioGenerator.ts:TS2532:9719e073",
-        "shared/core/optimization/SeededRNG.ts:TS2322:90d86bc6",
-        "shared/core/optimization/SeededRNG.ts:TS2322:ff5ae60e",
         "shared/fund-wire-schema.ts:TS2502:e01fe265",
         "shared/fund-wire-schema.ts:TS7022:6c8e6efa",
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
-      "total": 13,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "total": 7,
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "server": {
       "errors": [
@@ -182,9 +123,6 @@
         "server/routes/scenario-analysis.ts:TS2345:3d4bd1b4",
         "server/routes/scenario-analysis.ts:TS2345:9c2b8f61",
         "server/routes/scenario-analysis.ts:TS2345:e96d922c",
-        "server/routes/timeline.ts:TS18048:ab88d67c",
-        "server/routes/timeline.ts:TS2339:4ce05d89",
-        "server/routes/timeline.ts:TS2339:abf85c85",
         "server/routes/timeline.ts:TS2345:afa7e7d7",
         "server/routes/timeline.ts:TS2345:b96da1ce",
         "server/routes/timeline.ts:TS2345:d428841c",
@@ -192,10 +130,6 @@
         "server/security/integration-guide.ts:TS2769:3352cbcf",
         "server/security/integration-guide.ts:TS2769:c7d36a73",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
-        "server/services/lp-queries.ts:TS18048:a63d74b3",
-        "server/services/lp-queries.ts:TS2322:4b5108d1",
-        "server/services/lp-queries.ts:TS2571:5c29f966",
-        "server/services/lp-queries.ts:TS2571:a63d74b3",
         "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
         "server/services/notion-service.ts:TS2322:0e1115ab",
         "server/services/notion-service.ts:TS2345:06de7217",
@@ -239,12 +173,12 @@
         "server/utils/input-sanitization.ts:TS2571:991b6a3e",
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
-      "total": 94,
-      "lastUpdated": "2026-01-11T09:45:40.220Z"
+      "total": 87,
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     }
   },
-  "totalErrors": 217,
-  "timestamp": "2026-01-11T09:45:40.220Z",
+  "totalErrors": 151,
+  "timestamp": "2026-01-11T22:18:34.382Z",
   "buildMode": "per-project",
-  "elapsedMs": 20553
+  "elapsedMs": 23824
 }
