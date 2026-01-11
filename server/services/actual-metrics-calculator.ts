@@ -14,13 +14,10 @@
  * @module server/services/actual-metrics-calculator
  */
 
-import Decimal from 'decimal.js';
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
-
-// Configure Decimal.js for financial precision
-Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 
 interface CashFlow {
   date: Date;
@@ -277,7 +274,7 @@ export class ActualMetricsCalculator {
       .filter((c) => c.createdAt) // Use createdAt as proxy for investment date
       .map((c) => ({
         date: new Date(c.createdAt!),
-        amount: c.investmentAmount ? parseFloat(c.investmentAmount.toString()) : 0,
+        amount: c.investmentAmount ? toDecimal(c.investmentAmount.toString()).toNumber() : 0,
       }));
   }
 

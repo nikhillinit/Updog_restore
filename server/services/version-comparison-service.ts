@@ -11,6 +11,7 @@ import { v4 as uuid } from 'uuid';
 import { SnapshotVersionService, VersionNotFoundError } from './snapshot-version-service';
 import { computeDiff, getDiffSummary, type DiffResult } from '@shared/utils/diff';
 import { redisGetJSON, redisSetJSON } from '../db/index.js';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -302,8 +303,12 @@ export class VersionComparisonService {
       return value;
     }
     if (typeof value === 'string') {
-      const parsed = parseFloat(value);
-      return isNaN(parsed) ? null : parsed;
+      try {
+        const parsed = toDecimal(value).toNumber();
+        return isNaN(parsed) ? null : parsed;
+      } catch {
+        return null;
+      }
     }
     return null;
   }

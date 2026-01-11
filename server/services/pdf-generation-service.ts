@@ -13,6 +13,7 @@ import { db } from '../db';
 import { limitedPartners, lpFundCommitments, capitalActivities } from '@shared/schema-lp-reporting';
 import { funds } from '@shared/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 // ============================================================================
 // TYPES
@@ -941,7 +942,7 @@ export async function fetchLPReportData(lpId: number, fundIdFilter?: number[]): 
       fundId: c.fundId,
       fundName: c.fundName || `Fund ${c.fundId}`,
       commitmentAmount: centsToDollars(c.commitmentAmountCents),
-      ownershipPercentage: c.ownershipPercentage ? parseFloat(c.ownershipPercentage) : 0,
+      ownershipPercentage: c.ownershipPercentage ? toDecimal(c.ownershipPercentage).toNumber() : 0,
     }));
 
   // Get commitment IDs for transaction query
