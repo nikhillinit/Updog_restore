@@ -20,6 +20,7 @@ import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
 import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
 import type { Fund, PortfolioCompany } from '@shared/schema';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 interface CacheClient {
   get<T>(key: string): Promise<T | null>;
@@ -351,7 +352,7 @@ export class MetricsAggregator {
       reserveRatio?: number;
     }
   ) {
-    const targetFundSize = parseFloat(fund.size.toString());
+    const targetFundSize = toDecimal(fund.size.toString()).toNumber();
     const targetCompanyCount = 20; // TODO: Get from config
 
     return {

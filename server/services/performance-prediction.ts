@@ -8,6 +8,7 @@
 import { db } from '../db';
 import { funds, fundMetrics, performanceForecasts, type FundMetrics } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
+import { toDecimal } from '@shared/lib/decimal-utils';
 
 // Type for fund data returned from query
 type FundRecord = typeof funds.$inferSelect;
@@ -354,7 +355,7 @@ export class PerformancePredictionEngine {
       .filter((d) => d[metric] !== null && d[metric] !== undefined)
       .map((d) => ({
         timestamp: d.asOfDate,
-        value: parseFloat(String(d[metric])),
+        value: toDecimal(String(d[metric])).toNumber(),
         metadata: { id: d.id },
       }));
   }
@@ -796,7 +797,7 @@ export class PerformancePredictionEngine {
       orderBy: fundMetrics.asOfDate,
     });
 
-    return metrics.map((m: FundMetrics) => parseFloat(m.irr?.toString() ?? '0'));
+    return metrics.map((m: FundMetrics) => toDecimal(m.irr?.toString() ?? '0').toNumber());
   }
 
   private determineFundStage(
@@ -823,7 +824,7 @@ export class PerformancePredictionEngine {
     for (const metric of metrics) {
       const fundId = metric.fundId;
       if (fundId !== null && !latestByFund.has(fundId)) {
-        latestByFund.set(fundId, parseFloat(metric.irr?.toString() ?? '0'));
+        latestByFund.set(fundId, toDecimal(metric.irr?.toString() ?? '0').toNumber());
       }
     }
 
