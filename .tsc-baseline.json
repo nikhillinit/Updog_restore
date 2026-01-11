@@ -43,8 +43,6 @@
         "client/src/lib/wizard-validation.ts:TS2365:c1bd7818",
         "client/src/machines/modeling-wizard.machine.ts:TS2339:6e8db634",
         "client/src/machines/modeling-wizard.machine.ts:TS2352:53454d22",
-        "client/src/metrics/reserves-metrics.ts:TS2532:0a7aff6a",
-        "client/src/metrics/reserves-metrics.ts:TS2532:3879eacf",
         "client/src/pages/dashboard-modern.tsx:TS2322:87cd28b8",
         "client/src/pages/investment-detail.tsx:TS2322:171553a7",
         "client/src/pages/investment-detail.tsx:TS2322:51b3afbb",
@@ -60,18 +58,13 @@
         "client/src/services/funds.ts:TS2322:dd41a169",
         "client/src/services/funds.ts:TS2345:0360dd42",
         "client/src/stores/useFundStore.ts:TS18046:6b032b3b",
-        "client/src/stores/useFundStore.ts:TS2532:0a7d7ecf",
-        "client/src/stores/useFundStore.ts:TS2532:126f3a91",
-        "client/src/stores/useFundStore.ts:TS2532:5af76d80",
-        "client/src/stores/useFundStore.ts:TS2532:72855eef",
-        "client/src/stores/useFundStore.ts:TS2532:a033be02",
         "client/src/vitals.ts:TS2352:2cb17006",
         "client/src/vitals.ts:TS2352:4fa15f44",
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 66,
-      "lastUpdated": "2026-01-11T19:25:02.968Z"
+      "total": 59,
+      "lastUpdated": "2026-01-11T19:39:54.443Z"
     },
     "unknown": {
       "errors": [
@@ -81,7 +74,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T19:25:02.968Z"
+      "lastUpdated": "2026-01-11T19:39:54.443Z"
     },
     "shared": {
       "errors": [
@@ -94,7 +87,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-11T19:25:02.968Z"
+      "lastUpdated": "2026-01-11T19:39:54.443Z"
     },
     "server": {
       "errors": [
@@ -194,11 +187,11 @@
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
       "total": 94,
-      "lastUpdated": "2026-01-11T19:25:02.968Z"
+      "lastUpdated": "2026-01-11T19:39:54.443Z"
     }
   },
-  "totalErrors": 171,
-  "timestamp": "2026-01-11T19:25:02.968Z",
+  "totalErrors": 164,
+  "timestamp": "2026-01-11T19:39:54.443Z",
   "buildMode": "per-project",
-  "elapsedMs": 19352
+  "elapsedMs": 18569
 }
