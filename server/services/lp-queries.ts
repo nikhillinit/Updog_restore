@@ -1,6 +1,10 @@
 import { eq, and, gte, lte, sql, desc, asc, inArray } from 'drizzle-orm';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { db } from '../db';
 import { logger } from '../lib/logger';
+
+const DECIMAL_ZERO = new Decimal(0);
+const DECIMAL_ONE = new Decimal(1);
 
 
 
@@ -376,22 +380,30 @@ export async function getFundPerformance(
       columns: { name: true, vintageYear: true },
     });
 
+    const irr = toDecimal(snapshot.irr?.toString() || DECIMAL_ZERO);
+    const moic = toDecimal(snapshot.moic?.toString() || DECIMAL_ONE);
+    const dpi = toDecimal(snapshot.dpi?.toString() || DECIMAL_ZERO);
+    const rvpi = toDecimal(snapshot.rvpi?.toString() || DECIMAL_ZERO);
+    const tvpi = toDecimal(snapshot.tvpi?.toString() || DECIMAL_ZERO);
+
     const result: FundPerformanceMetrics = {
       fundId,
       fundName: fund?.name || 'Unknown',
       vintage: fund?.vintageYear || 0,
       asOfDate: snapshot.snapshotDate,
-      irr: parseFloat(snapshot.irr?.toString() || '0'),
-      moic: parseFloat(snapshot.moic?.toString() || '1'),
-      dpi: parseFloat(snapshot.dpi?.toString() || '0'),
-      rvpi: parseFloat(snapshot.rvpi?.toString() || '0'),
-      tvpi: parseFloat(snapshot.tvpi?.toString() || '0'),
+      irr: irr.toNumber(),
+      moic: moic.toNumber(),
+      dpi: dpi.toNumber(),
+      rvpi: rvpi.toNumber(),
+      tvpi: tvpi.toNumber(),
     };
     if (snapshot.grossIrr) {
-      result.grossIrr = parseFloat(snapshot.grossIrr.toString());
+      const grossIrr = toDecimal(snapshot.grossIrr.toString());
+      result.grossIrr = grossIrr.toNumber();
     }
     if (snapshot.netIrr) {
-      result.netIrr = parseFloat(snapshot.netIrr.toString());
+      const netIrr = toDecimal(snapshot.netIrr.toString());
+      result.netIrr = netIrr.toNumber();
     }
     return result;
   } catch (error) {
@@ -473,17 +485,25 @@ export async function getPerformanceTimeseries(
     // Downsample based on granularity
     const downsampled = downsampleSnapshots(snapshots, granularity);
 
-    return downsampled.map((s) => ({
-      date: s.snapshotDate,
-      irr: parseFloat(s.irr?.toString() || '0'),
-      moic: parseFloat(s.moic?.toString() || '1'),
-      dpi: parseFloat(s.dpi?.toString() || '0'),
-      rvpi: parseFloat(s.rvpi?.toString() || '0'),
-      tvpi: parseFloat(s.tvpi?.toString() || '0'),
-      navCents: s.navCents || BigInt(0),
-      paidInCents: s.paidInCents || BigInt(0),
-      distributedCents: s.distributedCents || BigInt(0),
-    }));
+    return downsampled.map((s): PerformanceTimeseriesPoint => {
+      const irr = toDecimal(s['irr']?.toString() || DECIMAL_ZERO);
+      const moic = toDecimal(s['moic']?.toString() || DECIMAL_ONE);
+      const dpi = toDecimal(s['dpi']?.toString() || DECIMAL_ZERO);
+      const rvpi = toDecimal(s['rvpi']?.toString() || DECIMAL_ZERO);
+      const tvpi = toDecimal(s['tvpi']?.toString() || DECIMAL_ZERO);
+
+      return {
+        date: s['snapshotDate'] as Date,
+        irr: irr.toNumber(),
+        moic: moic.toNumber(),
+        dpi: dpi.toNumber(),
+        rvpi: rvpi.toNumber(),
+        tvpi: tvpi.toNumber(),
+        navCents: (s['navCents'] || BigInt(0)) as bigint,
+        paidInCents: (s['paidInCents'] || BigInt(0)) as bigint,
+        distributedCents: (s['distributedCents'] || BigInt(0)) as bigint,
+      };
+    });
   } catch (error) {
     logger.error({ commitmentId, error }, 'Error fetching performance timeseries');
     throw error;

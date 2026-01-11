@@ -6,6 +6,7 @@
  */
 
 import { db } from '../db';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import {
   fundBaselines,
   varianceReports,
@@ -188,14 +189,20 @@ export class BaselineService {
       }
     });
 
-    const totalInvestments = companies.reduce((sum: number, company) => {
-      const companyInvestment = company.investments?.reduce((compSum: number, inv) =>
-        compSum + parseFloat(inv.amount.toString()), 0) || 0;
-      return sum + companyInvestment;
-    }, 0);
+    const totalInvestments = companies.reduce((sum: Decimal, company) => {
+      const investments = Array.isArray(company.investments)
+        ? (company.investments as Array<{ amount: string | number }>)
+        : [];
+
+      const companyInvestment = investments.reduce(
+        (compSum: Decimal, inv) => compSum.plus(toDecimal(String(inv.amount))),
+        new Decimal(0)
+      );
+      return sum.plus(companyInvestment);
+    }, new Decimal(0));
 
     const portfolioCount = companies.length;
-    const averageInvestment = portfolioCount > 0 ? totalInvestments / portfolioCount : 0;
+    const averageInvestment = portfolioCount > 0 ? totalInvestments.div(portfolioCount) : new Decimal(0);
 
     // Get sector distribution
     const sectorCounts = companies.reduce((acc, company) => {
@@ -212,7 +219,9 @@ export class BaselineService {
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
       .filter((c) => c.currentValuation)
-      .sort((a, b) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
+      .sort((a, b) =>
+        toDecimal(b.currentValuation!.toString()).comparedTo(toDecimal(a.currentValuation!.toString()))
+      );
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
     const topPerformers = sortedCompanies.slice(0, topPerformersCount).map((c) => ({
@@ -311,7 +320,7 @@ export class VarianceCalculationService {
     // Check for alert triggers
     const alertsTriggered = await this.checkAlertTriggers(fundId, variances);
 
-    const calculationDuration = Date.now() - startTime;
+    const _calculationDuration = Date.now() - startTime;
 
     const reportData: InsertVarianceReport = {
       fundId,
@@ -353,12 +362,12 @@ export class VarianceCalculationService {
 
       // Update variance score
       if (insights.overallScore) {
-        updateFundVarianceScore(fundId.toString(), baselineId, parseFloat(insights.overallScore));
+        updateFundVarianceScore(fundId.toString(), baselineId, toDecimal(insights.overallScore).toNumber());
       }
 
       // Update data quality score
       if (insights.dataQualityScore) {
-        updateDataQualityScore(fundId.toString(), 'variance_calculation', parseFloat(insights.dataQualityScore));
+        updateDataQualityScore(fundId.toString(), 'variance_calculation', toDecimal(insights.dataQualityScore).toNumber());
       }
 
       finishCalculation();
@@ -421,41 +430,41 @@ export class VarianceCalculationService {
    */
   private calculateVariances(current: Record<string, unknown>, baseline: Record<string, unknown>) {
     const calculations = {
-      totalValueVariance: null as number | null,
-      totalValueVariancePct: null as number | null,
-      irrVariance: null as number | null,
-      multipleVariance: null as number | null,
-      dpiVariance: null as number | null,
-      tvpiVariance: null as number | null
+      totalValueVariance: null as Decimal | null,
+      totalValueVariancePct: null as Decimal | null,
+      irrVariance: null as Decimal | null,
+      multipleVariance: null as Decimal | null,
+      dpiVariance: null as Decimal | null,
+      tvpiVariance: null as Decimal | null
     };
 
     // Total value variance
-    if (current.totalValue && baseline.totalValue) {
-      const currentVal = parseFloat(current.totalValue.toString());
-      const baselineVal = parseFloat(baseline.totalValue.toString());
-      calculations.totalValueVariance = currentVal - baselineVal;
-      calculations.totalValueVariancePct = baselineVal !== 0 ?
-        (calculations.totalValueVariance / baselineVal) : null;
+    if (current['totalValue'] && baseline['totalValue']) {
+      const currentVal = toDecimal(current['totalValue'].toString());
+      const baselineVal = toDecimal(baseline['totalValue'].toString());
+      const totalVariance = currentVal.minus(baselineVal);
+      calculations.totalValueVariance = totalVariance;
+      calculations.totalValueVariancePct = baselineVal.isZero() ? null : totalVariance.div(baselineVal);
     }
 
     // IRR variance
-    if (current.irr && baseline.irr) {
-      calculations.irrVariance = parseFloat(current.irr.toString()) - parseFloat(baseline.irr.toString());
+    if (current['irr'] && baseline['irr']) {
+      calculations.irrVariance = toDecimal(current['irr'].toString()).minus(toDecimal(baseline['irr'].toString()));
     }
 
     // Multiple variance
-    if (current.multiple && baseline.multiple) {
-      calculations.multipleVariance = parseFloat(current.multiple.toString()) - parseFloat(baseline.multiple.toString());
+    if (current['multiple'] && baseline['multiple']) {
+      calculations.multipleVariance = toDecimal(current['multiple'].toString()).minus(toDecimal(baseline['multiple'].toString()));
     }
 
     // DPI variance
-    if (current.dpi && baseline.dpi) {
-      calculations.dpiVariance = parseFloat(current.dpi.toString()) - parseFloat(baseline.dpi.toString());
+    if (current['dpi'] && baseline['dpi']) {
+      calculations.dpiVariance = toDecimal(current['dpi'].toString()).minus(toDecimal(baseline['dpi'].toString()));
     }
 
     // TVPI variance
-    if (current.tvpi && baseline.tvpi) {
-      calculations.tvpiVariance = parseFloat(current.tvpi.toString()) - parseFloat(baseline.tvpi.toString());
+    if (current['tvpi'] && baseline['tvpi']) {
+      calculations.tvpiVariance = toDecimal(current['tvpi'].toString()).minus(toDecimal(baseline['tvpi'].toString()));
     }
 
     return calculations;
@@ -500,22 +509,27 @@ export class VarianceCalculationService {
     let riskLevel = 'low';
     let overallScore = "0";
 
+    const totalValueVariance = variances['totalValueVariance'] as Decimal | null;
+    const totalValueVariancePct = variances['totalValueVariancePct'] as Decimal | null;
+
     // Analyze total value variance
-    if (variances.totalValueVariancePct && Math.abs(variances.totalValueVariancePct as number) > 0.1) {
+    if (totalValueVariancePct && totalValueVariancePct.abs().gt(0.1)) {
       significantVariances.push({
         metric: 'totalValue',
-        variance: variances.totalValueVariance,
-        variancePct: variances.totalValueVariancePct,
-        severity: Math.abs(variances.totalValueVariancePct as number) > 0.2 ? 'high' : 'medium'
+        variance: totalValueVariance ? totalValueVariance.toNumber() : null,
+        variancePct: totalValueVariancePct.toNumber(),
+        severity: totalValueVariancePct.abs().gt(0.2) ? 'high' : 'medium'
       });
     }
 
+    const irrVariance = variances['irrVariance'] as Decimal | null;
+
     // Analyze IRR variance
-    if (variances.irrVariance && Math.abs(variances.irrVariance as number) > 0.05) {
+    if (irrVariance && irrVariance.abs().gt(0.05)) {
       significantVariances.push({
         metric: 'irr',
-        variance: variances.irrVariance,
-        severity: Math.abs(variances.irrVariance as number) > 0.1 ? 'high' : 'medium'
+        variance: irrVariance.toNumber(),
+        severity: irrVariance.abs().gt(0.1) ? 'high' : 'medium'
       });
     }
 
@@ -544,8 +558,8 @@ export class VarianceCalculationService {
    * Calculate overall variance score
    */
   private calculateOverallVarianceScore(variances: Record<string, unknown>, _portfolioVariances: Record<string, unknown>): string {
-    let score = 0;
-    let weightSum = 0;
+    let score = new Decimal(0);
+    let weightSum = new Decimal(0);
 
     // Weight different variance types
     const weights = {
@@ -562,13 +576,15 @@ export class VarianceCalculationService {
       const variance = variances[varianceKey];
 
       if (variance !== null && variance !== undefined) {
-        const normalizedVariance = Math.min(Math.abs(variance as number), 1); // Cap at 100%
-        score += normalizedVariance * weight;
-        weightSum += weight;
+        const varianceDecimal = toDecimal(variance as Decimal | number | string);
+        const absVariance = varianceDecimal.abs();
+        const normalizedVariance = absVariance.gt(1) ? new Decimal(1) : absVariance; // Cap at 100%
+        score = score.plus(normalizedVariance.times(weight));
+        weightSum = weightSum.plus(weight);
       }
     });
 
-    return weightSum > 0 ? (score / weightSum).toFixed(2) : "0.00";
+    return weightSum.gt(0) ? score.div(weightSum).toFixed(2) : "0.00";
   }
 
   /**
@@ -585,14 +601,17 @@ export class VarianceCalculationService {
     const triggeredAlerts: Array<Record<string, unknown>> = [];
 
     for (const rule of activeRules) {
+      const metricValue = variances[`${rule.metricName}Variance`];
       const triggered = this.evaluateAlertRule(rule, variances);
       if (triggered) {
         triggeredAlerts.push({
           ruleId: rule.id,
           ruleName: rule.name,
           metricName: rule.metricName,
-          thresholdValue: rule.thresholdValue,
-          actualValue: variances[`${rule.metricName}Variance`],
+          thresholdValue: toDecimal(rule.thresholdValue?.toString() || '0').toNumber(),
+          actualValue: metricValue === null || metricValue === undefined
+            ? null
+            : toDecimal(metricValue as Decimal | number | string).toNumber(),
           severity: rule.severity
         });
       }
@@ -615,27 +634,27 @@ export class VarianceCalculationService {
       return false;
     }
 
-    const threshold = parseFloat(rule.thresholdValue.toString());
-    const value = metricValue as number;
+    const threshold = toDecimal(rule.thresholdValue.toString());
+    const value = toDecimal(metricValue as Decimal | number | string);
 
     switch (rule.operator) {
       case 'gt':
-        return value > threshold;
+        return value.gt(threshold);
       case 'lt':
-        return value < threshold;
+        return value.lt(threshold);
       case 'gte':
-        return value >= threshold;
+        return value.gte(threshold);
       case 'lte':
-        return value <= threshold;
+        return value.lte(threshold);
       case 'eq':
-        return Math.abs(value - threshold) < 0.001;
+        return value.minus(threshold).abs().lt(toDecimal(0.001));
       default:
         return false;
     }
   }
 
   // Additional helper methods would be implemented here...
-  private async getCurrentPortfolioMetrics(fundId: number, asOfDate: Date) {
+  private async getCurrentPortfolioMetrics(_fundId: number, _asOfDate: Date) {
     // Implementation for getting current portfolio metrics
     return {
       portfolioCount: 0,
@@ -644,27 +663,27 @@ export class VarianceCalculationService {
     };
   }
 
-  private async analyzeCompanyVariances(fundId: number, baseline: FundBaseline, asOfDate: Date) {
+  private async analyzeCompanyVariances(_fundId: number, _baseline: FundBaseline, _asOfDate: Date) {
     // Implementation for company-level variance analysis
     return [];
   }
 
-  private analyzeSectorVariances(current: Record<string, number>, baseline: Record<string, number>) {
+  private analyzeSectorVariances(_current: Record<string, number>, _baseline: Record<string, number>) {
     // Implementation for sector variance analysis
     return {};
   }
 
-  private analyzeStageVariances(current: Record<string, number>, baseline: Record<string, number>) {
+  private analyzeStageVariances(_current: Record<string, number>, _baseline: Record<string, number>) {
     // Implementation for stage variance analysis
     return {};
   }
 
-  private async calculateReserveVariances(fundId: number, baseline: FundBaseline) {
+  private async calculateReserveVariances(_fundId: number, _baseline: FundBaseline) {
     // Implementation for reserve variance calculation
     return {};
   }
 
-  private async calculatePacingVariances(fundId: number, baseline: FundBaseline) {
+  private async calculatePacingVariances(_fundId: number, _baseline: FundBaseline) {
     // Implementation for pacing variance calculation
     return {};
   }
@@ -902,8 +921,8 @@ export class VarianceTrackingService {
           title: `Variance Alert: ${alertData.metricName}`,
           description: `${alertData.metricName} variance exceeded threshold`,
           metricName: alertData.metricName,
-          thresholdValue: parseFloat(alertData.thresholdValue?.toString() || '0'),
-          actualValue: parseFloat(alertData.actualValue?.toString() || '0'),
+          thresholdValue: toDecimal(alertData.thresholdValue?.toString() || '0').toNumber(),
+          actualValue: toDecimal(alertData.actualValue?.toString() || '0').toNumber(),
           ruleId: alertData.ruleId
         });
         alertsGenerated.push(alert);
