@@ -1,45 +1,14 @@
 /**
  * Server-Side Excel Generation Service
  *
- * Generates LP reports in Excel format using the xlsx library.
+ * Generates LP reports in Excel format using the ExcelJS library.
  * Supports capital account statements, transaction history, and performance reports.
- *
- * SECURITY WARNING: The xlsx library has unfixed high-severity vulnerabilities:
- * - GHSA-4r6h-8v6p-xvw6: Prototype Pollution
- * - GHSA-5pgg-2g8v-p4x9: Regular Expression DoS (ReDoS)
- *
- * Mitigations in place via xlsx-security-validator.ts:
- * - Input sanitization (removes __proto__, constructor, dangerous properties)
- * - String length limits (max 10,000 chars per cell)
- * - Row/column limits (max 50,000 rows, 100 columns)
- * - Output size validation (max 50MB)
- * - Performance monitoring (timeout warnings)
- *
- * TODO: Migrate to ExcelJS for better security and type safety (Issue #TBD)
  *
  * @module server/services/xlsx-generation-service
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-// NOTE: The xlsx library's type definitions return `any` for cell access.
-// This is a library limitation, not a code quality issue.
-
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import type { QuarterlyReportData, CapitalAccountReportData } from './pdf-generation-service.js';
-import {
-  secureXLSXGeneration,
-  validateWorksheetData,
-  XLSX_SECURITY_RECOMMENDATIONS,
-} from './xlsx-security-validator.js';
-
-// Log security status on module load
-console.info('[xlsx-generation] Security mitigations active for vulnerabilities:', {
-  vulnerabilities: XLSX_SECURITY_RECOMMENDATIONS.vulnerabilities,
-  mitigations: XLSX_SECURITY_RECOMMENDATIONS.mitigations,
-  recommendation: XLSX_SECURITY_RECOMMENDATIONS.recommendation,
-});
 
 // ============================================================================
 // TYPES
@@ -99,329 +68,273 @@ function formatMultiple(value: number): string {
 
 /**
  * Generate Capital Account Statement Excel
- * Wrapped with security validations to mitigate xlsx vulnerabilities
  */
-export function generateCapitalAccountXLSX(data: CapitalAccountReportData): Buffer {
-  return secureXLSXGeneration(data, (sanitizedData) => {
-    const workbook = XLSX.utils.book_new();
+export async function generateCapitalAccountXLSX(data: CapitalAccountReportData): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
 
-    // Summary Sheet
-    const summaryData = [
-      ['Capital Account Statement'],
-      [''],
-      ['Limited Partner', sanitizedData.lpName],
-      ['Fund', sanitizedData.fundName],
-      ['As of Date', sanitizedData.asOfDate],
-      [''],
-      ['Account Summary'],
-      ['Beginning Balance', formatCurrency(sanitizedData.summary.beginningBalance)],
-      ['Total Contributions', formatCurrency(sanitizedData.summary.totalContributions)],
-      ['Total Distributions', formatCurrency(sanitizedData.summary.totalDistributions)],
-      ['Net Income / (Loss)', formatCurrency(sanitizedData.summary.netIncome)],
-      ['Ending Balance', formatCurrency(sanitizedData.summary.endingBalance)],
-      [''],
-      ['Total Commitment', formatCurrency(sanitizedData.commitment)],
-      [
-        'Unfunded Commitment',
-        formatCurrency(sanitizedData.commitment - sanitizedData.summary.endingBalance),
-      ],
-    ];
+  // Summary Sheet
+  const summaryData = [
+    ['Capital Account Statement'],
+    [''],
+    ['Limited Partner', data.lpName],
+    ['Fund', data.fundName],
+    ['As of Date', data.asOfDate],
+    [''],
+    ['Account Summary'],
+    ['Beginning Balance', formatCurrency(data.summary.beginningBalance)],
+    ['Total Contributions', formatCurrency(data.summary.totalContributions)],
+    ['Total Distributions', formatCurrency(data.summary.totalDistributions)],
+    ['Net Income / (Loss)', formatCurrency(data.summary.netIncome)],
+    ['Ending Balance', formatCurrency(data.summary.endingBalance)],
+    [''],
+    ['Total Commitment', formatCurrency(data.commitment)],
+    ['Unfunded Commitment', formatCurrency(data.commitment - data.summary.endingBalance)],
+  ];
 
-    // Validate worksheet data before processing
-    const validatedSummaryData = validateWorksheetData(summaryData);
-    const summarySheet = XLSX.utils.aoa_to_sheet(validatedSummaryData);
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.addRows(summaryData);
+  summarySheet.getColumn(1).width = 25;
+  summarySheet.getColumn(2).width = 20;
 
-    // Set column widths
-    summarySheet['!cols'] = [{ wch: 25 }, { wch: 20 }];
+  // Transactions Sheet
+  const transactionHeaders = ['Date', 'Type', 'Description', 'Amount', 'Balance'];
+  const transactionRows = data.transactions.map((t) => [
+    t.date,
+    t.type,
+    t.description,
+    t.amount,
+    t.balance,
+  ]);
 
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+  const transactionSheet = workbook.addWorksheet('Transactions');
+  transactionSheet.addRows([transactionHeaders, ...transactionRows]);
+  transactionSheet.getColumn(1).width = 12;
+  transactionSheet.getColumn(2).width = 15;
+  transactionSheet.getColumn(3).width = 35;
+  transactionSheet.getColumn(4).width = 15;
+  transactionSheet.getColumn(5).width = 15;
 
-    // Transactions Sheet
-    const transactionHeaders = ['Date', 'Type', 'Description', 'Amount', 'Balance'];
-    const transactionRows = sanitizedData.transactions.map((t) => [
-      t.date,
-      t.type,
-      t.description,
-      t.amount,
-      t.balance,
-    ]);
+  // Format number columns (starting from row 2, which is the first data row after header)
+  for (let rowIndex = 2; rowIndex <= transactionSheet.rowCount; rowIndex++) {
+    const row = transactionSheet.getRow(rowIndex);
+    row.getCell(4).numFmt = '$#,##0';
+    row.getCell(5).numFmt = '$#,##0';
+  }
 
-    const transactionData = [transactionHeaders, ...transactionRows];
-
-    // Validate worksheet data before processing
-    const validatedTransactionData = validateWorksheetData(transactionData);
-    const transactionSheet = XLSX.utils.aoa_to_sheet(validatedTransactionData);
-
-    // Set column widths
-    transactionSheet['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 }];
-
-    // Format number columns
-    const range = XLSX.utils.decode_range(transactionSheet['!ref'] || 'A1:E1');
-    for (let row = 1; row <= range.e.r; row++) {
-      const amountCell = transactionSheet[XLSX.utils.encode_cell({ r: row, c: 3 })];
-      const balanceCell = transactionSheet[XLSX.utils.encode_cell({ r: row, c: 4 })];
-      if (amountCell) amountCell.z = '$#,##0';
-      if (balanceCell) balanceCell.z = '$#,##0';
-    }
-
-    XLSX.utils.book_append_sheet(workbook, transactionSheet, 'Transactions');
-
-    // Generate buffer
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    return buffer;
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 /**
  * Generate Quarterly Report Excel
- * Wrapped with security validations to mitigate xlsx vulnerabilities
  */
-export function generateQuarterlyXLSX(data: QuarterlyReportData): Buffer {
-  return secureXLSXGeneration(data, (sanitizedData) => {
-    const workbook = XLSX.utils.book_new();
+export async function generateQuarterlyXLSX(data: QuarterlyReportData): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
 
-    // Summary Sheet
-    const summaryData = [
-      [`${sanitizedData.fundName} - Quarterly Report`],
-      [''],
-      ['Period', `${sanitizedData.quarter} ${sanitizedData.year}`],
-      ['Limited Partner', sanitizedData.lpName],
-      [''],
-      ['Fund Performance'],
-      ['Net Asset Value', formatCurrency(sanitizedData.summary.nav)],
-      ['TVPI', formatMultiple(sanitizedData.summary.tvpi)],
-      ['DPI', formatMultiple(sanitizedData.summary.dpi)],
-      ['Net IRR', formatPercent(sanitizedData.summary.irr)],
-      [''],
-      ['Your Capital Summary'],
-      ['Total Commitment', formatCurrency(sanitizedData.summary.totalCommitted)],
-      ['Capital Called', formatCurrency(sanitizedData.summary.totalCalled)],
-      ['Distributions Received', formatCurrency(sanitizedData.summary.totalDistributed)],
-      ['Unfunded Commitment', formatCurrency(sanitizedData.summary.unfunded)],
-    ];
+  // Summary Sheet
+  const summaryData = [
+    [`${data.fundName} - Quarterly Report`],
+    [''],
+    ['Period', `${data.quarter} ${data.year}`],
+    ['Limited Partner', data.lpName],
+    [''],
+    ['Fund Performance'],
+    ['Net Asset Value', formatCurrency(data.summary.nav)],
+    ['TVPI', formatMultiple(data.summary.tvpi)],
+    ['DPI', formatMultiple(data.summary.dpi)],
+    ['Net IRR', formatPercent(data.summary.irr)],
+    [''],
+    ['Your Capital Summary'],
+    ['Total Commitment', formatCurrency(data.summary.totalCommitted)],
+    ['Capital Called', formatCurrency(data.summary.totalCalled)],
+    ['Distributions Received', formatCurrency(data.summary.totalDistributed)],
+    ['Unfunded Commitment', formatCurrency(data.summary.unfunded)],
+  ];
 
-    const validatedSummaryData = validateWorksheetData(summaryData);
-    const summarySheet = XLSX.utils.aoa_to_sheet(validatedSummaryData);
-    summarySheet['!cols'] = [{ wch: 25 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.addRows(summaryData);
+  summarySheet.getColumn(1).width = 25;
+  summarySheet.getColumn(2).width = 20;
 
-    // Portfolio Companies Sheet
-    const portfolioHeaders = ['Company', 'Invested', 'Current Value', 'MOIC'];
-    const portfolioRows = sanitizedData.portfolioCompanies.map((co) => [
-      co.name,
-      co.invested,
-      co.value,
-      co.moic,
+  // Portfolio Companies Sheet
+  const portfolioHeaders = ['Company', 'Invested', 'Current Value', 'MOIC'];
+  const portfolioRows = data.portfolioCompanies.map((co) => [
+    co.name,
+    co.invested,
+    co.value,
+    co.moic,
+  ]);
+
+  // Add totals row
+  const totalInvested = data.portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
+  const totalValue = data.portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
+  portfolioRows.push(['Total', totalInvested, totalValue, totalValue / totalInvested]);
+
+  const portfolioSheet = workbook.addWorksheet('Portfolio');
+  portfolioSheet.addRows([portfolioHeaders, ...portfolioRows]);
+  portfolioSheet.getColumn(1).width = 25;
+  portfolioSheet.getColumn(2).width = 15;
+  portfolioSheet.getColumn(3).width = 15;
+  portfolioSheet.getColumn(4).width = 10;
+
+  // Format number columns (starting from row 2)
+  for (let rowIndex = 2; rowIndex <= portfolioSheet.rowCount; rowIndex++) {
+    const row = portfolioSheet.getRow(rowIndex);
+    row.getCell(2).numFmt = '$#,##0';
+    row.getCell(3).numFmt = '$#,##0';
+    row.getCell(4).numFmt = '0.00x';
+  }
+
+  // Cash Flows Sheet (if available)
+  if (data.cashFlows && data.cashFlows.length > 0) {
+    const cashFlowHeaders = ['Date', 'Type', 'Amount'];
+    const cashFlowRows = data.cashFlows.map((cf) => [
+      cf.date,
+      cf.type === 'contribution' ? 'Capital Call' : 'Distribution',
+      cf.type === 'contribution' ? -cf.amount : cf.amount,
     ]);
 
-    // Add totals row
-    const totalInvested = sanitizedData.portfolioCompanies.reduce(
-      (sum, co) => sum + co.invested,
-      0
-    );
-    const totalValue = sanitizedData.portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
-    portfolioRows.push(['Total', totalInvested, totalValue, totalValue / totalInvested]);
+    const cashFlowSheet = workbook.addWorksheet('Cash Flows');
+    cashFlowSheet.addRows([cashFlowHeaders, ...cashFlowRows]);
+    cashFlowSheet.getColumn(1).width = 12;
+    cashFlowSheet.getColumn(2).width = 15;
+    cashFlowSheet.getColumn(3).width = 15;
 
-    const portfolioData = [portfolioHeaders, ...portfolioRows];
-    const validatedPortfolioData = validateWorksheetData(portfolioData);
-    const portfolioSheet = XLSX.utils.aoa_to_sheet(validatedPortfolioData);
-    portfolioSheet['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
-
-    // Format number columns
-    const range = XLSX.utils.decode_range(portfolioSheet['!ref'] || 'A1:D1');
-    for (let row = 1; row <= range.e.r; row++) {
-      const investedCell = portfolioSheet[XLSX.utils.encode_cell({ r: row, c: 1 })];
-      const valueCell = portfolioSheet[XLSX.utils.encode_cell({ r: row, c: 2 })];
-      const moicCell = portfolioSheet[XLSX.utils.encode_cell({ r: row, c: 3 })];
-      if (investedCell) investedCell.z = '$#,##0';
-      if (valueCell) valueCell.z = '$#,##0';
-      if (moicCell) moicCell.z = '0.00x';
+    // Format number column (starting from row 2)
+    for (let rowIndex = 2; rowIndex <= cashFlowSheet.rowCount; rowIndex++) {
+      const row = cashFlowSheet.getRow(rowIndex);
+      row.getCell(3).numFmt = '$#,##0';
     }
+  }
 
-    XLSX.utils.book_append_sheet(workbook, portfolioSheet, 'Portfolio');
-
-    // Cash Flows Sheet (if available)
-    if (sanitizedData.cashFlows && sanitizedData.cashFlows.length > 0) {
-      const cashFlowHeaders = ['Date', 'Type', 'Amount'];
-      const cashFlowRows = sanitizedData.cashFlows.map((cf) => [
-        cf.date,
-        cf.type === 'contribution' ? 'Capital Call' : 'Distribution',
-        cf.type === 'contribution' ? -cf.amount : cf.amount,
-      ]);
-
-      const cashFlowData = [cashFlowHeaders, ...cashFlowRows];
-      const validatedCashFlowData = validateWorksheetData(cashFlowData);
-      const cashFlowSheet = XLSX.utils.aoa_to_sheet(validatedCashFlowData);
-      cashFlowSheet['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 15 }];
-
-      // Format amount column
-      const cfRange = XLSX.utils.decode_range(cashFlowSheet['!ref'] || 'A1:C1');
-      for (let row = 1; row <= cfRange.e.r; row++) {
-        const amountCell = cashFlowSheet[XLSX.utils.encode_cell({ r: row, c: 2 })];
-        if (amountCell) amountCell.z = '$#,##0';
-      }
-
-      XLSX.utils.book_append_sheet(workbook, cashFlowSheet, 'Cash Flows');
-    }
-
-    // Generate buffer
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    return buffer;
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 /**
  * Generate Transaction History Excel
- * Wrapped with security validations to mitigate xlsx vulnerabilities
  */
-export function generateTransactionHistoryXLSX(data: TransactionExportData): Buffer {
-  return secureXLSXGeneration(data, (sanitizedData) => {
-    const workbook = XLSX.utils.book_new();
+export async function generateTransactionHistoryXLSX(data: TransactionExportData): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
 
-    // Header
-    const headerData = [
-      ['Transaction History'],
-      [''],
-      ['Limited Partner', sanitizedData.lpName],
-      [''],
-    ];
+  // Header
+  const headerData = [['Transaction History'], [''], ['Limited Partner', data.lpName], ['']];
 
-    // Transaction data
-    const transactionHeaders = ['Date', 'Fund', 'Type', 'Description', 'Amount', 'Balance'];
-    const transactionRows = sanitizedData.transactions.map((t) => [
-      t.date,
-      t.fundName,
-      t.type,
-      t.description,
-      t.amount,
-      t.balance,
-    ]);
+  // Transaction data
+  const transactionHeaders = ['Date', 'Fund', 'Type', 'Description', 'Amount', 'Balance'];
+  const transactionRows = data.transactions.map((t) => [
+    t.date,
+    t.fundName,
+    t.type,
+    t.description,
+    t.amount,
+    t.balance,
+  ]);
 
-    const fullData = [...headerData, transactionHeaders, ...transactionRows];
-    const validatedFullData = validateWorksheetData(fullData);
-    const sheet = XLSX.utils.aoa_to_sheet(validatedFullData);
+  const fullData = [...headerData, transactionHeaders, ...transactionRows];
+  const sheet = workbook.addWorksheet('Transactions');
+  sheet.addRows(fullData);
 
-    // Set column widths
-    sheet['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 }];
+  // Set column widths
+  sheet.getColumn(1).width = 12;
+  sheet.getColumn(2).width = 25;
+  sheet.getColumn(3).width = 15;
+  sheet.getColumn(4).width = 35;
+  sheet.getColumn(5).width = 15;
+  sheet.getColumn(6).width = 15;
 
-    // Format number columns (starting from row 5 which is index 4 after header rows)
-    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:F1');
-    for (let row = 5; row <= range.e.r; row++) {
-      const amountCell = sheet[XLSX.utils.encode_cell({ r: row, c: 4 })];
-      const balanceCell = sheet[XLSX.utils.encode_cell({ r: row, c: 5 })];
-      if (amountCell) amountCell.z = '$#,##0';
-      if (balanceCell) balanceCell.z = '$#,##0';
-    }
+  // Format number columns (starting from row 6, which is the first data row after 4 header rows + 1 column header)
+  const dataStartRow = headerData.length + 2;
+  for (let rowIndex = dataStartRow; rowIndex <= sheet.rowCount; rowIndex++) {
+    const row = sheet.getRow(rowIndex);
+    row.getCell(5).numFmt = '$#,##0';
+    row.getCell(6).numFmt = '$#,##0';
+  }
 
-    XLSX.utils.book_append_sheet(workbook, sheet, 'Transactions');
-
-    // Generate buffer
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    return buffer;
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 /**
  * Generate Performance Summary Excel
- * Wrapped with security validations to mitigate xlsx vulnerabilities
  */
-export function generatePerformanceSummaryXLSX(data: PerformanceExportData): Buffer {
-  return secureXLSXGeneration(data, (sanitizedData) => {
-    const workbook = XLSX.utils.book_new();
+export async function generatePerformanceSummaryXLSX(data: PerformanceExportData): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
 
-    // Header
-    const headerData = [
-      ['Performance Summary'],
-      [''],
-      ['Limited Partner', sanitizedData.lpName],
-      ['As of Date', sanitizedData.asOfDate],
-      [''],
-    ];
+  // Header
+  const headerData = [
+    ['Performance Summary'],
+    [''],
+    ['Limited Partner', data.lpName],
+    ['As of Date', data.asOfDate],
+    [''],
+  ];
 
-    // Performance data
-    const perfHeaders = [
-      'Fund',
-      'Commitment',
-      'Called',
-      'Distributed',
-      'NAV',
-      'TVPI',
-      'DPI',
-      'IRR',
-    ];
-    const perfRows = sanitizedData.funds.map((f) => [
-      f.fundName,
-      f.commitment,
-      f.called,
-      f.distributed,
-      f.nav,
-      f.tvpi,
-      f.dpi,
-      f.irr,
-    ]);
+  // Performance data
+  const perfHeaders = ['Fund', 'Commitment', 'Called', 'Distributed', 'NAV', 'TVPI', 'DPI', 'IRR'];
+  const perfRows = data.funds.map((f) => [
+    f.fundName,
+    f.commitment,
+    f.called,
+    f.distributed,
+    f.nav,
+    f.tvpi,
+    f.dpi,
+    f.irr,
+  ]);
 
-    // Totals
-    const totals = sanitizedData.funds.reduce(
-      (acc, f) => ({
-        commitment: acc.commitment + f.commitment,
-        called: acc.called + f.called,
-        distributed: acc.distributed + f.distributed,
-        nav: acc.nav + f.nav,
-      }),
-      { commitment: 0, called: 0, distributed: 0, nav: 0 }
-    );
+  // Totals
+  const totals = data.funds.reduce(
+    (acc, f) => ({
+      commitment: acc.commitment + f.commitment,
+      called: acc.called + f.called,
+      distributed: acc.distributed + f.distributed,
+      nav: acc.nav + f.nav,
+    }),
+    { commitment: 0, called: 0, distributed: 0, nav: 0 }
+  );
 
-    const avgTVPI = totals.called > 0 ? (totals.nav + totals.distributed) / totals.called : 1;
-    const avgDPI = totals.called > 0 ? totals.distributed / totals.called : 0;
-    const avgIRR =
-      sanitizedData.funds.reduce((sum, f) => sum + f.irr * f.commitment, 0) / totals.commitment;
+  const avgTVPI = totals.called > 0 ? (totals.nav + totals.distributed) / totals.called : 1;
+  const avgDPI = totals.called > 0 ? totals.distributed / totals.called : 0;
+  const avgIRR = data.funds.reduce((sum, f) => sum + f.irr * f.commitment, 0) / totals.commitment;
 
-    perfRows.push([
-      'Total / Weighted Average',
-      totals.commitment,
-      totals.called,
-      totals.distributed,
-      totals.nav,
-      avgTVPI,
-      avgDPI,
-      avgIRR,
-    ]);
+  perfRows.push([
+    'Total / Weighted Average',
+    totals.commitment,
+    totals.called,
+    totals.distributed,
+    totals.nav,
+    avgTVPI,
+    avgDPI,
+    avgIRR,
+  ]);
 
-    const fullData = [...headerData, perfHeaders, ...perfRows];
-    const validatedFullData = validateWorksheetData(fullData);
-    const sheet = XLSX.utils.aoa_to_sheet(validatedFullData);
+  const fullData = [...headerData, perfHeaders, ...perfRows];
+  const sheet = workbook.addWorksheet('Performance');
+  sheet.addRows(fullData);
 
-    // Set column widths
-    sheet['!cols'] = [
-      { wch: 25 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-    ];
+  // Set column widths
+  sheet.getColumn(1).width = 25;
+  sheet.getColumn(2).width = 15;
+  sheet.getColumn(3).width = 15;
+  sheet.getColumn(4).width = 15;
+  sheet.getColumn(5).width = 15;
+  sheet.getColumn(6).width = 10;
+  sheet.getColumn(7).width = 10;
+  sheet.getColumn(8).width = 10;
 
-    // Format number columns (starting from row 6 which is index 5)
-    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:H1');
-    for (let row = 6; row <= range.e.r; row++) {
-      for (let col = 1; col <= 4; col++) {
-        const cell = sheet[XLSX.utils.encode_cell({ r: row, c: col })];
-        if (cell) cell.z = '$#,##0';
-      }
-      const tvpiCell = sheet[XLSX.utils.encode_cell({ r: row, c: 5 })];
-      const dpiCell = sheet[XLSX.utils.encode_cell({ r: row, c: 6 })];
-      const irrCell = sheet[XLSX.utils.encode_cell({ r: row, c: 7 })];
-      if (tvpiCell) tvpiCell.z = '0.00x';
-      if (dpiCell) dpiCell.z = '0.00x';
-      if (irrCell) irrCell.z = '0.00%';
+  // Format number columns (starting from row 7, which is the first data row after 5 header rows + 1 column header)
+  const dataStartRow = headerData.length + 2;
+  for (let rowIndex = dataStartRow; rowIndex <= sheet.rowCount; rowIndex++) {
+    const row = sheet.getRow(rowIndex);
+    for (let col = 2; col <= 5; col++) {
+      row.getCell(col).numFmt = '$#,##0';
     }
+    row.getCell(6).numFmt = '0.00x';
+    row.getCell(7).numFmt = '0.00x';
+    row.getCell(8).numFmt = '0.00%';
+  }
 
-    XLSX.utils.book_append_sheet(workbook, sheet, 'Performance');
-
-    // Generate buffer
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    return buffer;
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }

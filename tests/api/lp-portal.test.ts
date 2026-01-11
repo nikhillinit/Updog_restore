@@ -32,9 +32,8 @@ describe('Storage Service', () => {
   });
 
   it('should upload and download files with memory provider', async () => {
-    const { createStorageService, resetStorageService } = await import(
-      '../../server/services/storage-service'
-    );
+    const { createStorageService, resetStorageService } =
+      await import('../../server/services/storage-service');
     resetStorageService();
 
     const storage = createStorageService({ provider: 'memory' });
@@ -67,9 +66,8 @@ describe('Storage Service', () => {
   });
 
   it('should generate signed URLs', async () => {
-    const { createStorageService, resetStorageService } = await import(
-      '../../server/services/storage-service'
-    );
+    const { createStorageService, resetStorageService } =
+      await import('../../server/services/storage-service');
     resetStorageService();
 
     const storage = createStorageService({ provider: 'memory' });
@@ -85,9 +83,8 @@ describe('Storage Service', () => {
   });
 
   it('should list files by prefix', async () => {
-    const { createStorageService, resetStorageService } = await import(
-      '../../server/services/storage-service'
-    );
+    const { createStorageService, resetStorageService } =
+      await import('../../server/services/storage-service');
     resetStorageService();
 
     const storage = createStorageService({ provider: 'memory' });
@@ -123,9 +120,8 @@ describe('Email Service', () => {
   });
 
   it('should send email and track in sent emails list', async () => {
-    const { createEmailService, getSentEmails, clearSentEmails } = await import(
-      '../../server/services/email-service'
-    );
+    const { createEmailService, getSentEmails, clearSentEmails } =
+      await import('../../server/services/email-service');
     clearSentEmails();
 
     const email = createEmailService({
@@ -150,9 +146,8 @@ describe('Email Service', () => {
   });
 
   it('should send batch emails', async () => {
-    const { createEmailService, clearSentEmails, getSentEmails } = await import(
-      '../../server/services/email-service'
-    );
+    const { createEmailService, clearSentEmails, getSentEmails } =
+      await import('../../server/services/email-service');
     clearSentEmails();
 
     const email = createEmailService({
@@ -181,9 +176,8 @@ describe('Email Service', () => {
   });
 
   it('should send capital call email with proper formatting', async () => {
-    const { sendCapitalCallEmail, clearSentEmails, getSentEmails } = await import(
-      '../../server/services/email-service'
-    );
+    const { sendCapitalCallEmail, clearSentEmails, getSentEmails } =
+      await import('../../server/services/email-service');
     clearSentEmails();
 
     const result = await sendCapitalCallEmail(
@@ -214,9 +208,8 @@ describe('Email Service', () => {
   });
 
   it('should send distribution email', async () => {
-    const { sendDistributionEmail, clearSentEmails, getSentEmails } = await import(
-      '../../server/services/email-service'
-    );
+    const { sendDistributionEmail, clearSentEmails, getSentEmails } =
+      await import('../../server/services/email-service');
     clearSentEmails();
 
     const result = await sendDistributionEmail(
@@ -242,9 +235,8 @@ describe('Email Service', () => {
   });
 
   it('should send report ready email', async () => {
-    const { sendReportReadyEmail, clearSentEmails, getSentEmails } = await import(
-      '../../server/services/email-service'
-    );
+    const { sendReportReadyEmail, clearSentEmails, getSentEmails } =
+      await import('../../server/services/email-service');
     clearSentEmails();
 
     const result = await sendReportReadyEmail(
@@ -295,9 +287,8 @@ describe('LP Test Fixtures', () => {
   });
 
   it('should provide valid capital activities', async () => {
-    const { testCapitalActivities, getLPCapitalActivities } = await import(
-      '../../tests/fixtures/lp-data'
-    );
+    const { testCapitalActivities, getLPCapitalActivities } =
+      await import('../../tests/fixtures/lp-data');
 
     expect(testCapitalActivities.length).toBeGreaterThan(0);
 
@@ -397,23 +388,20 @@ describe('PDF Generation Service', () => {
   });
 
   it('should export quarterly report data builder', async () => {
-    const { buildQuarterlyReportData } = await import(
-      '../../server/services/pdf-generation-service'
-    );
+    const { buildQuarterlyReportData } =
+      await import('../../server/services/pdf-generation-service');
     expect(typeof buildQuarterlyReportData).toBe('function');
   });
 
   it('should export capital account report data builder', async () => {
-    const { buildCapitalAccountReportData } = await import(
-      '../../server/services/pdf-generation-service'
-    );
+    const { buildCapitalAccountReportData } =
+      await import('../../server/services/pdf-generation-service');
     expect(typeof buildCapitalAccountReportData).toBe('function');
   });
 
   it('should export PDF generation functions', async () => {
-    const { generateK1PDF, generateQuarterlyPDF, generateCapitalAccountPDF } = await import(
-      '../../server/services/pdf-generation-service'
-    );
+    const { generateK1PDF, generateQuarterlyPDF, generateCapitalAccountPDF } =
+      await import('../../server/services/pdf-generation-service');
 
     expect(typeof generateK1PDF).toBe('function');
     expect(typeof generateQuarterlyPDF).toBe('function');
@@ -466,9 +454,8 @@ describe('PDF Generation Service', () => {
   });
 
   it('should build quarterly report data structure correctly', async () => {
-    const { buildQuarterlyReportData } = await import(
-      '../../server/services/pdf-generation-service'
-    );
+    const { buildQuarterlyReportData } =
+      await import('../../server/services/pdf-generation-service');
 
     const mockLPData = {
       lp: { id: 1, name: 'Test LP', email: 'test@example.com' },
@@ -526,9 +513,8 @@ describe('XLSX Generation Service', () => {
   });
 
   it('should generate capital account Excel buffer', async () => {
-    const { generateCapitalAccountXLSX } = await import(
-      '../../server/services/xlsx-generation-service'
-    );
+    const { generateCapitalAccountXLSX } =
+      await import('../../server/services/xlsx-generation-service');
 
     const testData = {
       lpName: 'Test LP',
@@ -560,7 +546,7 @@ describe('XLSX Generation Service', () => {
       },
     };
 
-    const buffer = generateCapitalAccountXLSX(testData);
+    const buffer = await generateCapitalAccountXLSX(testData);
 
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBeGreaterThan(0);
@@ -597,7 +583,7 @@ describe('XLSX Generation Service', () => {
       ],
     };
 
-    const buffer = generateQuarterlyXLSX(testData);
+    const buffer = await generateQuarterlyXLSX(testData);
 
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBeGreaterThan(0);
@@ -724,9 +710,8 @@ describe('Report Download Endpoint', () => {
   });
 
   it('should generate valid signed URL structure', async () => {
-    const { createStorageService, resetStorageService } = await import(
-      '../../server/services/storage-service'
-    );
+    const { createStorageService, resetStorageService } =
+      await import('../../server/services/storage-service');
     resetStorageService();
 
     const storage = createStorageService({ provider: 'memory' });
