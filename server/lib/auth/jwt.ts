@@ -104,7 +104,7 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
  * Assign verified claims to request user object
  */
 function assignUserFromClaims(req: Request, claims: JWTClaims): void {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- Express Request lacks typed user property
   (req as any).user = {
     id: claims.sub,
     sub: claims.sub,
@@ -132,7 +132,7 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     const claims = await verifyAccessTokenAsync(token);
     assignUserFromClaims(req, claims);
     next();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT library error shape not typed
   } catch (err: any) {
     console.warn("JWT verification failed", { name: err?.name, message: err?.message });
     authMetrics.jwtVerificationFailed.inc?.();
@@ -188,7 +188,7 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
   });
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT payload accepts arbitrary claims
 export function signToken(data: any): string {
   const cfg = getConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {
