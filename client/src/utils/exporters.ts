@@ -5,6 +5,7 @@
  */
 function sanitizeCell(value: unknown): unknown {
   if (typeof value !== 'string') return value;
+  // eslint-disable-next-line no-control-regex
   const leading = value.match(/^[\u0000-\u001F\s]*/)?.[0] ?? '';
   const rest = value.slice(leading.length);
   if (/^[=+\-@]/.test(rest)) {
@@ -24,40 +25,46 @@ function sanitizeRow(row: Record<string, unknown>): Record<string, unknown> {
   return sanitized;
 }
 
-// On-demand imports to keep initial bundle small (papaparse ~45KB; xlsx ~180KB)
-export async function exportCsv(rows: unknown[], filename = "results.csv") {
-  const { unparse } = await import("papaparse");
+// On-demand imports to keep initial bundle small (papaparse ~45KB; exceljs is large)
+export async function exportCsv(rows: unknown[], filename = 'results.csv') {
+  const { unparse } = await import('papaparse');
   const sanitizedRows = (rows as Record<string, unknown>[]).map(sanitizeRow);
   const csv = unparse(sanitizedRows, { quotes: true });
-  downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8;" }), filename);
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), filename);
 }
 
-export async function exportXlsx(rows: unknown[], filename = "results.xlsx") {
-  const XLSX = await import("xlsx");
+export async function exportXlsx(rows: unknown[], filename = 'results.xlsx') {
+  const { Workbook, ValueType } = await import('exceljs');
   const sanitizedRows = (rows as Record<string, unknown>[]).map(sanitizeRow);
-  const ws = XLSX.utils.json_to_sheet(sanitizedRows);
 
-  // Force all cells to be treated as strings to prevent formula injection
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-      const cell = ws[cellAddress];
-      if (cell && cell.t !== 's') {
-        cell.t = 's'; // Force cell type to string
-      }
-    }
+  const workbook = new Workbook();
+  const worksheet = workbook.addWorksheet('Results');
+
+  const firstRow = sanitizedRows[0];
+  const headers = firstRow ? Object.keys(firstRow) : [];
+  if (headers.length > 0) {
+    worksheet.addRow(headers);
+    const dataRows = sanitizedRows.map((row) => headers.map((header) => row[header]));
+    worksheet.addRows(dataRows);
   }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Results");
-  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  // Force all cells to be treated as strings to prevent formula injection
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (cell.type !== ValueType.String) {
+        cell.value = cell.value == null ? '' : String(cell.value);
+      }
+      cell.numFmt = '@';
+    });
+  });
+
+  const out = await workbook.xlsx.writeBuffer();
   downloadBlob(new Blob([out]), filename);
 }
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
   document.body.appendChild(a);
   a.click();
   a.remove();
