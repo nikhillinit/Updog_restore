@@ -26,6 +26,7 @@ import {
   createVCPowerLawDistribution,
   type InvestmentStage
 } from './power-law-distribution';
+import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { PRNG } from '@shared/utils/prng';
 
 /**
@@ -203,7 +204,7 @@ export class MonteCarloSimulationService {
    * Generate Monte Carlo forecast for fund performance
    */
   async generateForecast(params: SimulationParameters): Promise<MonteCarloForecast> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
     const simulationId = uuidv4();
 
     // Get baseline data
@@ -329,7 +330,7 @@ export class MonteCarloSimulationService {
     const values = reports
       .map(r => r[metricField as keyof VarianceReport])
       .filter(v => v !== null && v !== undefined)
-      .map(v => parseFloat(v.toString()));
+      .map(v => toDecimal(v.toString()));
 
     if (values.length < 3) {
       // Use default conservative estimates if insufficient data
@@ -341,17 +342,20 @@ export class MonteCarloSimulationService {
       };
     }
 
-    const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
-    const standardDeviation = Math.sqrt(variance);
+    const count = new Decimal(values.length);
+    const mean = values.reduce((sum, v) => sum.plus(v), new Decimal(0)).div(count);
+    const variance = values
+      .reduce((sum, v) => sum.plus(v.minus(mean).pow(2)), new Decimal(0))
+      .div(count.minus(1));
+    const standardDeviation = variance.sqrt();
 
     // Calculate skewness and kurtosis for distribution selection
     const skewness = this.calculateSkewness(values, mean, standardDeviation);
     const kurtosis = this.calculateKurtosis(values, mean, standardDeviation);
 
     return {
-      mean,
-      standardDeviation,
+      mean: mean.toNumber(),
+      standardDeviation: standardDeviation.toNumber(),
       skewness,
       kurtosis,
       count: values.length,
@@ -502,18 +506,24 @@ export class MonteCarloSimulationService {
     });
 
     // Calculate baseline values
-    const baselineTotalValue = parseFloat(baseline.totalValue.toString());
-    const baselineDpi = parseFloat(baseline.dpi?.toString() || '0.5');
-    const baselineTvpi = parseFloat(baseline.tvpi?.toString() || '1.5');
+    const baselineTotalValue = toDecimal(baseline.totalValue.toString());
+    const baselineDpi = toDecimal(baseline.dpi?.toString() || '0.5');
+    const baselineTvpi = toDecimal(baseline.tvpi?.toString() || '1.5');
+    const totalValueVarianceFactor = toDecimal(totalValueVariance).times(0.1);
+    const dpiVarianceFactor = toDecimal(dpiVariance).times(0.5);
+    const tvpiVarianceFactor = toDecimal(tvpiVariance).times(0.5);
 
     // Use power law results for multiple and IRR (NO TIME DECAY)
     // Apply minimal variance to other metrics to preserve power law characteristics
     return {
-      totalValue: baselineTotalValue * powerLawScenario.multiple * (1 + totalValueVariance * 0.1), // Reduced variance impact
+      totalValue: baselineTotalValue
+        .times(powerLawScenario.multiple)
+        .times(toDecimal(1).plus(totalValueVarianceFactor))
+        .toNumber(), // Reduced variance impact
       irr: powerLawScenario.irr,
       multiple: powerLawScenario.multiple,
-      dpi: baselineDpi + (dpiVariance * 0.5), // Reduced impact, no time decay
-      tvpi: baselineTvpi + (tvpiVariance * 0.5) // Reduced impact, no time decay
+      dpi: baselineDpi.plus(dpiVarianceFactor).toNumber(), // Reduced impact, no time decay
+      tvpi: baselineTvpi.plus(tvpiVarianceFactor).toNumber() // Reduced impact, no time decay
     };
   }
 
@@ -604,18 +614,18 @@ export class MonteCarloSimulationService {
    */
   private async optimizeReserves(
     params: SimulationParameters,
-    baseline: FundBaseline,
-    simulationResults: Record<string, SimulationResult>
+    _baseline: FundBaseline,
+    _simulationResults: Record<string, SimulationResult>
   ) {
-    const fundSize = parseFloat((await this.getFundSize(params.fundId)).toString());
-    const deployedCapital = parseFloat(baseline.deployedCapital.toString());
-    const currentReserveRatio = (fundSize - deployedCapital) / fundSize;
+    const fundSize = toDecimal((await this.getFundSize(params.fundId)).toString());
+    const deployedCapital = toDecimal(_baseline.deployedCapital.toString());
+    const _currentReserveRatio = fundSize.minus(deployedCapital).div(fundSize);
 
     // Test different reserve allocation scenarios
     const reserveScenarios: ReserveScenario[] = [];
     for (let allocation = 0.1; allocation <= 0.5; allocation += 0.05) {
-      const coverage = this.calculateReserveCoverage(allocation, simulationResults, params.scenarios || 10000);
-      const riskAdjustedReturn = this.calculateRiskAdjustedReturn(allocation, simulationResults);
+      const coverage = this.calculateReserveCoverage(allocation, _simulationResults, params.scenarios || 10000);
+      const riskAdjustedReturn = this.calculateRiskAdjustedReturn(allocation, _simulationResults);
 
       reserveScenarios.push({
         allocation,
@@ -788,16 +798,20 @@ export class MonteCarloSimulationService {
   }
 
   // Statistical utility functions
-  private calculateSkewness(values: number[], mean: number, stdDev: number): number {
+  private calculateSkewness(values: Decimal[], mean: Decimal, stdDev: Decimal): number {
     const n = values.length;
-    const skew = values.reduce((sum: number, v: number) => sum + Math.pow((v - mean) / stdDev, 3), 0) / n;
-    return skew;
+    const skew = values
+      .reduce((sum, v) => sum.plus(v.minus(mean).div(stdDev).pow(3)), new Decimal(0))
+      .div(n);
+    return skew.toNumber();
   }
 
-  private calculateKurtosis(values: number[], mean: number, stdDev: number): number {
+  private calculateKurtosis(values: Decimal[], mean: Decimal, stdDev: Decimal): number {
     const n = values.length;
-    const kurt = values.reduce((sum: number, v: number) => sum + Math.pow((v - mean) / stdDev, 4), 0) / n;
-    return kurt - 3; // Excess kurtosis
+    const kurt = values
+      .reduce((sum, v) => sum.plus(v.minus(mean).div(stdDev).pow(4)), new Decimal(0))
+      .div(n);
+    return kurt.minus(3).toNumber(); // Excess kurtosis
   }
 
   // Distribution sampling functions using local PRNG (no global Math.random override)
@@ -893,7 +907,7 @@ export class MonteCarloSimulationService {
     const fund = await db.query.funds.findFirst({
       where: eq(funds.id, fundId)
     });
-    return parseFloat(fund?.size?.toString() || '100000000');
+    return toDecimal(fund?.size?.toString() || '100000000').toNumber();
   }
 
   /**
