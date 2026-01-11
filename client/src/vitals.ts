@@ -21,7 +21,7 @@ function isTelemetryAllowed(): boolean {
   if (privacySettings) {
     try {
       const settings = JSON.parse(privacySettings) as Record<string, unknown>;
-      if (settings.telemetryOptOut === true) {
+      if (settings['telemetryOptOut'] === true) {
         return false;
       }
     } catch (e: unknown) {
@@ -71,7 +71,7 @@ function sendToAnalytics(metric: VitalMetric) {
   };
 
   // Send to Sentry as custom measurement (if privacy allows)
-  if ((window as Record<string, unknown>).Sentry && isTelemetryAllowed()) {
+  if ((window as Record<string, unknown>)['Sentry'] && isTelemetryAllowed()) {
     // Use span API for measurements in v10+
     Sentry.withScope((scope) => {
       scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
@@ -199,5 +199,5 @@ export function getVitalsSnapshot() {
 
 // Expose for debugging in console
 if (import.meta.env.DEV) {
-  (window as Record<string, unknown>).getVitalsSnapshot = getVitalsSnapshot;
+  (window as Record<string, unknown>)['getVitalsSnapshot'] = getVitalsSnapshot;
 }

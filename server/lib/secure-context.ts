@@ -112,7 +112,7 @@ export async function setDatabaseContext(
   tx: unknown,
   context: UserContext
 ): Promise<void> {
-  const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<unknown>;
+  const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<unknown>;
 
   // Set session variables for RLS policies
   await txExecute(sql`SET LOCAL app.current_user = ${context.userId}`);
@@ -156,7 +156,7 @@ export async function validateFundAccess(
   fundId: string
 ): Promise<boolean> {
   const result = await executeWithContext(context, async (tx) => {
-    const funds = await (tx as Record<string, unknown>).execute(sql`
+    const funds = await (tx as Record<string, unknown>)['execute'](sql`
       SELECT id FROM funds
       WHERE id = ${fundId}
       AND organization_id = ${context.orgId}
@@ -176,7 +176,7 @@ export async function resolveFlags(
   context: UserContext
 ): Promise<Record<string, unknown>> {
   return await executeWithContext(context, async (tx) => {
-    const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<{ rows: Array<Record<string, unknown>> }>;
 
     // Get flags at each level
     const [globalFlags, orgFlags, fundFlags, userFlags] = await Promise.all([
@@ -217,22 +217,22 @@ export async function resolveFlags(
 
     // Start with global
     for (const row of globalFlags.rows) {
-      merged[String(row.key)] = row.value;
+      merged[String(row['key'])] = row['value'];
     }
 
     // Override with org
     for (const row of orgFlags.rows) {
-      merged[String(row.key)] = row.value;
+      merged[String(row['key'])] = row['value'];
     }
 
     // Override with fund
     for (const row of fundFlags.rows) {
-      merged[String(row.key)] = row.value;
+      merged[String(row['key'])] = row['value'];
     }
 
     // Override with user
     for (const row of userFlags.rows) {
-      merged[String(row.key)] = row.value;
+      merged[String(row['key'])] = row['value'];
     }
 
     return merged;
@@ -270,7 +270,7 @@ export async function auditLog(
   }
 ): Promise<void> {
   await executeWithContext(context, async (tx) => {
-    const txExecute = (tx as Record<string, unknown>).execute as (query: unknown) => Promise<unknown>;
+    const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<unknown>;
 
     await txExecute(sql`
       INSERT INTO audit_events (
