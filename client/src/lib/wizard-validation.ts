@@ -45,7 +45,7 @@ export function validateFundSetup(fundData: Partial<FundModelWire>): ValidationR
     isValid: errors.length === 0,
     errors,
     warnings,
-    canSave: errors.length === 0 // Can save with warnings
+    canSave: errors.length === 0, // Can save with warnings
   };
 }
 
@@ -63,14 +63,14 @@ function validateBasicInfo(
       field: 'name',
       message: 'Fund name is required',
       severity: 'error',
-      code: 'REQUIRED_FIELD'
+      code: 'REQUIRED_FIELD',
     });
   } else if (fundData['name'].length > 100) {
     warnings.push({
       field: 'name',
       message: 'Fund name is quite long. Consider shortening for clarity.',
       severity: 'warning',
-      code: 'LONG_NAME'
+      code: 'LONG_NAME',
     });
   }
 
@@ -81,7 +81,7 @@ function validateBasicInfo(
       field: 'capital.totalCommitment',
       message: 'Total commitment must be positive',
       severity: 'error',
-      code: 'INVALID_COMMITMENT'
+      code: 'INVALID_COMMITMENT',
     });
   } else {
     if (commitment < 1_000_000) {
@@ -89,7 +89,7 @@ function validateBasicInfo(
         field: 'capital.totalCommitment',
         message: 'Fund size under $1M is unusually small for institutional funds',
         severity: 'warning',
-        code: 'SMALL_FUND'
+        code: 'SMALL_FUND',
       });
     }
     if (commitment > 10_000_000_000) {
@@ -97,7 +97,7 @@ function validateBasicInfo(
         field: 'capital.totalCommitment',
         message: 'Fund size over $10B is unusually large. Please verify.',
         severity: 'warning',
-        code: 'LARGE_FUND'
+        code: 'LARGE_FUND',
       });
     }
   }
@@ -118,19 +118,20 @@ function validateInvestmentStrategy(
       field: 'investmentStrategy.allocations',
       message: `Allocations must sum to 100% (currently ${totalAllocation.toFixed(1)}%)`,
       severity: 'error',
-      code: 'ALLOCATION_SUM'
+      code: 'ALLOCATION_SUM',
     });
   }
 
   // Validate stage constraints: graduation% + exit% ≤ 100%
   strategy.stages.forEach((stage, index) => {
     const total = stage.graduationRate + stage.exitRate;
-    if (total > 100.01) { // Small tolerance for floating point
+    if (total > 100.01) {
+      // Small tolerance for floating point
       errors.push({
         field: `investmentStrategy.stages[${index}]`,
         message: `${stage.name}: graduation rate (${stage.graduationRate}%) + exit rate (${stage.exitRate}%) cannot exceed 100%`,
         severity: 'error',
-        code: 'STAGE_RATE_EXCEEDED'
+        code: 'STAGE_RATE_EXCEEDED',
       });
     }
 
@@ -140,7 +141,7 @@ function validateInvestmentStrategy(
         field: `investmentStrategy.stages[${index}].graduationRate`,
         message: `${stage.name}: graduation rate must be between 0% and 100%`,
         severity: 'error',
-        code: 'INVALID_GRADUATION_RATE'
+        code: 'INVALID_GRADUATION_RATE',
       });
     }
 
@@ -150,20 +151,21 @@ function validateInvestmentStrategy(
         field: `investmentStrategy.stages[${index}].exitRate`,
         message: `${stage.name}: exit rate must be between 0% and 100%`,
         severity: 'error',
-        code: 'INVALID_EXIT_RATE'
+        code: 'INVALID_EXIT_RATE',
       });
     }
   });
 
   // Last stage graduation rate must be 0
   if (strategy.stages.length > 0) {
-    const lastStage = strategy.stages[strategy.stages.length - 1];
-    if (lastStage && lastStage.graduationRate > 0) {
+    const lastStageIndex = strategy.stages.length - 1;
+    const lastStage = strategy.stages[lastStageIndex]!;
+    if (lastStage.graduationRate > 0) {
       errors.push({
-        field: `investmentStrategy.stages[${strategy.stages.length - 1}].graduationRate`,
+        field: `investmentStrategy.stages[${lastStageIndex}].graduationRate`,
         message: `${lastStage.name} (final stage) must have graduation rate of 0%`,
         severity: 'error',
-        code: 'LAST_STAGE_GRADUATION'
+        code: 'LAST_STAGE_GRADUATION',
       });
     }
   }
@@ -175,7 +177,7 @@ function validateInvestmentStrategy(
         field: `investmentStrategy.allocations[${index}]`,
         message: `${alloc.category}: allocation over 60% is unusually concentrated`,
         severity: 'warning',
-        code: 'HIGH_CONCENTRATION'
+        code: 'HIGH_CONCENTRATION',
       });
     }
     if (alloc.percentage > 0 && alloc.percentage < 5) {
@@ -183,7 +185,7 @@ function validateInvestmentStrategy(
         field: `investmentStrategy.allocations[${index}]`,
         message: `${alloc.category}: allocation under 5% may not provide sufficient diversification`,
         severity: 'warning',
-        code: 'LOW_ALLOCATION'
+        code: 'LOW_ALLOCATION',
       });
     }
   });
@@ -203,7 +205,7 @@ function validateFeeStructure(
       field: 'fees.managementFee',
       message: 'Management fee must be between 0% and 5%',
       severity: 'error',
-      code: 'INVALID_MGMT_FEE'
+      code: 'INVALID_MGMT_FEE',
     });
   } else {
     if (fees.managementFee > 0.03) {
@@ -211,7 +213,7 @@ function validateFeeStructure(
         field: 'fees.managementFee',
         message: 'Management fee over 3% is above market standards',
         severity: 'warning',
-        code: 'HIGH_MGMT_FEE'
+        code: 'HIGH_MGMT_FEE',
       });
     }
     if (fees.managementFee < 0.015) {
@@ -219,18 +221,18 @@ function validateFeeStructure(
         field: 'fees.managementFee',
         message: 'Management fee under 1.5% may be unsustainable for fund operations',
         severity: 'warning',
-        code: 'LOW_MGMT_FEE'
+        code: 'LOW_MGMT_FEE',
       });
     }
   }
 
   // Carry percentage validation
-  if (fees.carryPercentage < 0 || fees.carryPercentage > 0.30) {
+  if (fees.carryPercentage < 0 || fees.carryPercentage > 0.3) {
     errors.push({
       field: 'fees.carryPercentage',
       message: 'Carry percentage must be between 0% and 30%',
       severity: 'error',
-      code: 'INVALID_CARRY'
+      code: 'INVALID_CARRY',
     });
   } else {
     if (fees.carryPercentage > 0.25) {
@@ -238,7 +240,7 @@ function validateFeeStructure(
         field: 'fees.carryPercentage',
         message: 'Carry over 25% is above typical market standards',
         severity: 'warning',
-        code: 'HIGH_CARRY'
+        code: 'HIGH_CARRY',
       });
     }
     if (fees.carryPercentage < 0.15) {
@@ -246,7 +248,7 @@ function validateFeeStructure(
         field: 'fees.carryPercentage',
         message: 'Carry under 15% may not provide sufficient GP incentive alignment',
         severity: 'warning',
-        code: 'LOW_CARRY'
+        code: 'LOW_CARRY',
       });
     }
   }
@@ -269,23 +271,25 @@ function validateFundStructure(
         field: 'foundation.termMonths',
         message: 'Fund term must be positive',
         severity: 'error',
-        code: 'INVALID_TERM'
+        code: 'INVALID_TERM',
       });
     } else {
-      if (termMonths < 60) { // Less than 5 years
+      if (termMonths < 60) {
+        // Less than 5 years
         warnings.push({
           field: 'foundation.termMonths',
           message: 'Fund term under 5 years is unusually short for VC funds',
           severity: 'warning',
-          code: 'SHORT_TERM'
+          code: 'SHORT_TERM',
         });
       }
-      if (termMonths > 180) { // More than 15 years
+      if (termMonths > 180) {
+        // More than 15 years
         warnings.push({
           field: 'foundation.termMonths',
           message: 'Fund term over 15 years is unusually long',
           severity: 'warning',
-          code: 'LONG_TERM'
+          code: 'LONG_TERM',
         });
       }
     }
@@ -299,54 +303,62 @@ function validateFundStructure(
 export function validateField(
   fieldPath: string,
   value: unknown,
-  fullData?: Partial<FundModelWire>
+  _fullData?: Partial<FundModelWire>
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
   switch (fieldPath) {
-    case 'name':
-      if (!value || value.trim().length === 0) {
+    case 'name': {
+      const nameValue = value as string;
+      if (!nameValue || nameValue.trim().length === 0) {
         errors.push({
           field: fieldPath,
           message: 'Fund name is required',
           severity: 'error',
-          code: 'REQUIRED_FIELD'
+          code: 'REQUIRED_FIELD',
         });
       }
       break;
+    }
 
-    case 'capital.totalCommitment':
-      if (!value || value <= 0) {
+    case 'capital.totalCommitment': {
+      const commitmentValue = value as number;
+      if (!commitmentValue || commitmentValue <= 0) {
         errors.push({
           field: fieldPath,
           message: 'Total commitment must be positive',
           severity: 'error',
-          code: 'INVALID_COMMITMENT'
+          code: 'INVALID_COMMITMENT',
         });
       }
       break;
+    }
 
-    case 'fees.managementFee':
-      if (value < 0 || value > 0.05) {
+    case 'fees.managementFee': {
+      const managementFee = value as number;
+      if (managementFee < 0 || managementFee > 0.05) {
         errors.push({
           field: fieldPath,
           message: 'Management fee must be between 0% and 5%',
           severity: 'error',
-          code: 'INVALID_MGMT_FEE'
+          code: 'INVALID_MGMT_FEE',
         });
       }
       break;
+    }
 
-    case 'fees.carryPercentage':
-      if (value < 0 || value > 0.30) {
+    case 'fees.carryPercentage': {
+      const carryPercentage = value as number;
+      if (carryPercentage < 0 || carryPercentage > 0.3) {
         errors.push({
           field: fieldPath,
           message: 'Carry percentage must be between 0% and 30%',
           severity: 'error',
-          code: 'INVALID_CARRY'
+          code: 'INVALID_CARRY',
         });
       }
       break;
+    }
   }
 
   return errors;
@@ -377,14 +389,16 @@ export function validateFundSetupSafe(fundData: unknown): ValidationResult {
     console.error('Validation error:', error);
     return {
       isValid: false,
-      errors: [{
-        field: 'general',
-        message: 'Validation failed due to unexpected error. Please check your inputs.',
-        severity: 'error',
-        code: 'VALIDATION_ERROR'
-      }],
+      errors: [
+        {
+          field: 'general',
+          message: 'Validation failed due to unexpected error. Please check your inputs.',
+          severity: 'error',
+          code: 'VALIDATION_ERROR',
+        },
+      ],
       warnings: [],
-      canSave: false
+      canSave: false,
     };
   }
 }

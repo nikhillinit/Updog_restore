@@ -35,12 +35,6 @@
         "client/src/components/ui/recharts-bundle.tsx:TS2339:d8dbb823",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:790a5f41",
         "client/src/components/ui/recharts-bundle.tsx:TS2741:a1732ff1",
-        "client/src/lib/error-boundary.ts:TS2532:80b7fbf8",
-        "client/src/lib/performance-monitor.ts:TS2532:c74df95d",
-        "client/src/lib/wizard-validation.ts:TS18046:5b3a7dd4",
-        "client/src/lib/wizard-validation.ts:TS18046:be0ddaeb",
-        "client/src/lib/wizard-validation.ts:TS2339:dca2789e",
-        "client/src/lib/wizard-validation.ts:TS2365:c1bd7818",
         "client/src/machines/modeling-wizard.machine.ts:TS2339:6e8db634",
         "client/src/machines/modeling-wizard.machine.ts:TS2352:53454d22",
         "client/src/pages/dashboard-modern.tsx:TS2322:87cd28b8",
@@ -57,14 +51,14 @@
         "client/src/services/funds.ts:TS2322:2208a4d8",
         "client/src/services/funds.ts:TS2322:dd41a169",
         "client/src/services/funds.ts:TS2345:0360dd42",
-        "client/src/stores/useFundStore.ts:TS18046:6b032b3b",
+        "client/src/stores/useFundStore.ts:TS18046:0cc6743a",
         "client/src/vitals.ts:TS2352:2cb17006",
         "client/src/vitals.ts:TS2352:4fa15f44",
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 59,
-      "lastUpdated": "2026-01-11T19:39:54.443Z"
+      "total": 53,
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "unknown": {
       "errors": [
@@ -74,7 +68,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T19:39:54.443Z"
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "shared": {
       "errors": [
@@ -87,7 +81,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-11T19:39:54.443Z"
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     },
     "server": {
       "errors": [
@@ -129,9 +123,6 @@
         "server/routes/scenario-analysis.ts:TS2345:3d4bd1b4",
         "server/routes/scenario-analysis.ts:TS2345:9c2b8f61",
         "server/routes/scenario-analysis.ts:TS2345:e96d922c",
-        "server/routes/timeline.ts:TS18048:ab88d67c",
-        "server/routes/timeline.ts:TS2339:4ce05d89",
-        "server/routes/timeline.ts:TS2339:abf85c85",
         "server/routes/timeline.ts:TS2345:afa7e7d7",
         "server/routes/timeline.ts:TS2345:b96da1ce",
         "server/routes/timeline.ts:TS2345:d428841c",
@@ -139,10 +130,6 @@
         "server/security/integration-guide.ts:TS2769:3352cbcf",
         "server/security/integration-guide.ts:TS2769:c7d36a73",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
-        "server/services/lp-queries.ts:TS18048:a63d74b3",
-        "server/services/lp-queries.ts:TS2322:4b5108d1",
-        "server/services/lp-queries.ts:TS2571:5c29f966",
-        "server/services/lp-queries.ts:TS2571:a63d74b3",
         "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
         "server/services/notion-service.ts:TS2322:0e1115ab",
         "server/services/notion-service.ts:TS2345:06de7217",
@@ -186,12 +173,12 @@
         "server/utils/input-sanitization.ts:TS2571:991b6a3e",
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
-      "total": 94,
-      "lastUpdated": "2026-01-11T19:39:54.443Z"
+      "total": 87,
+      "lastUpdated": "2026-01-11T22:18:34.382Z"
     }
   },
-  "totalErrors": 164,
-  "timestamp": "2026-01-11T19:39:54.443Z",
+  "totalErrors": 151,
+  "timestamp": "2026-01-11T22:18:34.382Z",
   "buildMode": "per-project",
-  "elapsedMs": 18569
+  "elapsedMs": 23824
 }
