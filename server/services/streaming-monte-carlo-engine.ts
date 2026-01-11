@@ -406,11 +406,11 @@ export class StreamingMonteCarloEngine {
         simulationId,
         config: streamingConfig,
         executionTimeMs: Date.now() - startTime,
-        irr: performanceResults.irr,
-        multiple: performanceResults.multiple,
-        dpi: performanceResults.dpi,
-        tvpi: performanceResults.tvpi,
-        totalValue: performanceResults.totalValue,
+        irr: performanceResults['irr'],
+        multiple: performanceResults['multiple'],
+        dpi: performanceResults['dpi'],
+        tvpi: performanceResults['tvpi'],
+        totalValue: performanceResults['totalValue'],
         riskMetrics,
         reserveOptimization,
         scenarios: scenarioAnalysis,
@@ -954,7 +954,7 @@ export class StreamingMonteCarloEngine {
     }
 
     // Opportunity identification
-    const irrResult = performanceResults.irr as { statistics: { standardDeviation: number } };
+    const irrResult = performanceResults['irr'] as { statistics: { standardDeviation: number } };
     if (irrResult.statistics.standardDeviation > 0.12) {
       opportunities.push('High return variance suggests potential for better portfolio diversification');
     }
@@ -963,7 +963,7 @@ export class StreamingMonteCarloEngine {
       opportunities.push('Consider increasing follow-on capacity to capture more upside opportunities');
     }
 
-    const irrMean = (performanceResults.irr as { statistics: { mean: number } }).statistics.mean;
+    const irrMean = (performanceResults['irr'] as { statistics: { mean: number } }).statistics.mean;
     const keyMetrics: Array<{
       metric: string;
       value: number;

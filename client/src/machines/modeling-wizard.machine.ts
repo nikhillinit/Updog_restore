@@ -434,9 +434,9 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
 
   switch (step) {
     case 'generalInfo': {
-      const fundName = data.fundName;
-      const vintageYear = data.vintageYear;
-      const fundSize = data.fundSize;
+      const fundName = data['fundName'];
+      const vintageYear = data['vintageYear'];
+      const fundSize = data['fundSize'];
 
       if (!fundName || (typeof fundName === 'string' && fundName.trim().length === 0)) {
         errors.push('Fund name is required');
@@ -451,7 +451,7 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     }
 
     case 'sectorProfiles': {
-      const sectorProfiles = data.sectorProfiles;
+      const sectorProfiles = data['sectorProfiles'];
 
       if (!sectorProfiles || !Array.isArray(sectorProfiles) || sectorProfiles.length === 0) {
         errors.push('At least one sector profile is required');
@@ -459,7 +459,7 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       // Check allocations sum to 100%
       if (Array.isArray(sectorProfiles)) {
         const totalAllocation = sectorProfiles.reduce((sum, sp) => {
-          return sum + (isRecord(sp) && typeof sp.allocation === 'number' ? sp.allocation : 0);
+          return sum + (isRecord(sp) && typeof sp['allocation'] === 'number' ? sp['allocation'] : 0);
         }, 0);
         if (Math.abs(totalAllocation - 100) > 0.01) {
           errors.push('Sector allocations must sum to 100%');
@@ -469,14 +469,14 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     }
 
     case 'capitalAllocation': {
-      const initialCheckSize = data.initialCheckSize;
-      const followOnStrategy = data.followOnStrategy;
+      const initialCheckSize = data['initialCheckSize'];
+      const followOnStrategy = data['followOnStrategy'];
 
       if (!initialCheckSize || (typeof initialCheckSize === 'number' && initialCheckSize <= 0)) {
         errors.push('Initial check size must be positive');
       }
       if (isRecord(followOnStrategy)) {
-        const reserveRatio = followOnStrategy.reserveRatio;
+        const reserveRatio = followOnStrategy['reserveRatio'];
         if (!reserveRatio || (typeof reserveRatio === 'number' && (reserveRatio < 0 || reserveRatio > 1))) {
           errors.push('Reserve ratio must be between 0 and 1');
         }
@@ -485,10 +485,10 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     }
 
     case 'feesExpenses': {
-      const managementFee = data.managementFee;
+      const managementFee = data['managementFee'];
 
       if (isRecord(managementFee)) {
-        const rate = managementFee.rate;
+        const rate = managementFee['rate'];
         if (!rate || (typeof rate === 'number' && (rate < 0 || rate > 5))) {
           errors.push('Management fee rate must be between 0% and 5%');
         }
@@ -498,8 +498,8 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
 
     case 'exitRecycling': {
       // Optional step - only validate if enabled
-      const enabled = data.enabled;
-      const recyclingCap = data.recyclingCap;
+      const enabled = data['enabled'];
+      const recyclingCap = data['recyclingCap'];
 
       if (enabled) {
         if (recyclingCap && typeof recyclingCap === 'number' && (recyclingCap < 0 || recyclingCap > 100)) {
@@ -510,8 +510,8 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     }
 
     case 'waterfall': {
-      const type = data.type;
-      const preferredReturn = data.preferredReturn;
+      const type = data['type'];
+      const preferredReturn = data['preferredReturn'];
 
       if (!type || (typeof type === 'string' && !['american', 'european', 'hybrid'].includes(type))) {
         errors.push('Waterfall type must be specified');
@@ -523,7 +523,7 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     }
 
     case 'scenarios': {
-      if (!data.scenarioType) {
+      if (!data['scenarioType']) {
         errors.push('Scenario type is required');
       }
       break;

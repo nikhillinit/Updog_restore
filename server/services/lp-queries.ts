@@ -523,7 +523,7 @@ function downsampleSnapshots(
   // Group snapshots into buckets
   for (const snapshot of snapshots) {
     const bucketKey = new Date(
-      Math.floor(snapshot.snapshotDate.getTime() / bucketMs) * bucketMs
+      Math.floor(snapshot['snapshotDate'].getTime() / bucketMs) * bucketMs
     ).toISOString();
 
     if (!buckets.has(bucketKey)) {
@@ -535,7 +535,7 @@ function downsampleSnapshots(
   // Return last snapshot from each bucket
   return Array.from(buckets.values())
     .map((bucket) => bucket[bucket.length - 1])
-    .sort((a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime());
+    .sort((a, b) => a['snapshotDate'].getTime() - b['snapshotDate'].getTime());
 }
 
 // =============================================================================

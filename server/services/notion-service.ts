@@ -517,17 +517,17 @@ export class NotionService {
   private async processPortfolioCompanyData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract company data from Notion page properties
-      const properties = data.properties as Record<string, unknown> | undefined;
+      const properties = data['properties'] as Record<string, unknown> | undefined;
       const companyData = {
-        name: extractPlainText(properties?.Name || properties?.name),
-        stage: parseNotionSelect(properties?.Stage || properties?.stage),
-        sector: parseNotionSelect(properties?.Sector || properties?.sector),
-        location: extractPlainText(properties?.Location || properties?.location),
-        website: extractPlainText(properties?.Website || properties?.website),
-        founded: parseNotionDate(properties?.Founded || properties?.founded),
-        employees: parseNotionNumber(properties?.Employees || properties?.employees),
-        description: extractPlainText(properties?.Description || properties?.description),
-        notionPageId: data.id as string,
+        name: extractPlainText(properties?.['Name'] || properties?.['name']),
+        stage: parseNotionSelect(properties?.['Stage'] || properties?.['stage']),
+        sector: parseNotionSelect(properties?.['Sector'] || properties?.['sector']),
+        location: extractPlainText(properties?.['Location'] || properties?.['location']),
+        website: extractPlainText(properties?.['Website'] || properties?.['website']),
+        founded: parseNotionDate(properties?.['Founded'] || properties?.['founded']),
+        employees: parseNotionNumber(properties?.['Employees'] || properties?.['employees']),
+        description: extractPlainText(properties?.['Description'] || properties?.['description']),
+        notionPageId: data['id'] as string,
       };
 
       if (!companyData.name) {
@@ -569,15 +569,15 @@ export class NotionService {
   private async processInvestmentData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract investment data from Notion page properties
-      const properties = data.properties as Record<string, unknown> | undefined;
+      const properties = data['properties'] as Record<string, unknown> | undefined;
       const investmentData = {
-        companyName: extractPlainText(properties?.Company || properties?.company),
-        amount: parseNotionNumber(properties?.Amount || properties?.amount),
-        date: parseNotionDate(properties?.Date || properties?.date),
-        round: parseNotionSelect(properties?.Round || properties?.round),
-        valuation: parseNotionNumber(properties?.Valuation || properties?.valuation),
-        ownership: parseNotionNumber(properties?.Ownership || properties?.ownership),
-        notionPageId: data.id as string,
+        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
+        amount: parseNotionNumber(properties?.['Amount'] || properties?.['amount']),
+        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
+        round: parseNotionSelect(properties?.['Round'] || properties?.['round']),
+        valuation: parseNotionNumber(properties?.['Valuation'] || properties?.['valuation']),
+        ownership: parseNotionNumber(properties?.['Ownership'] || properties?.['ownership']),
+        notionPageId: data['id'] as string,
       };
 
       if (!investmentData.companyName || !investmentData.amount) {
@@ -636,15 +636,15 @@ export class NotionService {
   private async processKPIData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract KPI data from Notion page properties
-      const properties = data.properties as Record<string, unknown> | undefined;
+      const properties = data['properties'] as Record<string, unknown> | undefined;
       const kpiData = {
-        companyName: extractPlainText(properties?.Company || properties?.company),
-        metric: extractPlainText(properties?.Metric || properties?.metric),
-        value: parseNotionNumber(properties?.Value || properties?.value),
-        period: extractPlainText(properties?.Period || properties?.period),
-        date: parseNotionDate(properties?.Date || properties?.date),
-        category: parseNotionSelect(properties?.Category || properties?.category),
-        notionPageId: data.id as string,
+        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
+        metric: extractPlainText(properties?.['Metric'] || properties?.['metric']),
+        value: parseNotionNumber(properties?.['Value'] || properties?.['value']),
+        period: extractPlainText(properties?.['Period'] || properties?.['period']),
+        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
+        category: parseNotionSelect(properties?.['Category'] || properties?.['category']),
+        notionPageId: data['id'] as string,
       };
 
       if (!kpiData.companyName || !kpiData.metric) {
@@ -670,16 +670,16 @@ export class NotionService {
   private async processBoardReportData(data: Record<string, unknown>): Promise<void> {
     try {
       // Extract board report data from Notion page properties
-      const properties = data.properties as Record<string, unknown> | undefined;
+      const properties = data['properties'] as Record<string, unknown> | undefined;
       const reportData = {
-        companyName: extractPlainText(properties?.Company || properties?.company),
-        reportDate: parseNotionDate(properties?.Date || properties?.date),
-        reportType: parseNotionSelect(properties?.Type || properties?.type),
-        status: parseNotionSelect(properties?.Status || properties?.status),
-        summary: extractPlainText(properties?.Summary || properties?.summary),
-        highlights: parseNotionMultiSelect(properties?.Highlights || properties?.highlights),
-        concerns: parseNotionMultiSelect(properties?.Concerns || properties?.concerns),
-        notionPageId: data.id as string,
+        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
+        reportDate: parseNotionDate(properties?.['Date'] || properties?.['date']),
+        reportType: parseNotionSelect(properties?.['Type'] || properties?.['type']),
+        status: parseNotionSelect(properties?.['Status'] || properties?.['status']),
+        summary: extractPlainText(properties?.['Summary'] || properties?.['summary']),
+        highlights: parseNotionMultiSelect(properties?.['Highlights'] || properties?.['highlights']),
+        concerns: parseNotionMultiSelect(properties?.['Concerns'] || properties?.['concerns']),
+        notionPageId: data['id'] as string,
       };
 
       if (!reportData.companyName) {

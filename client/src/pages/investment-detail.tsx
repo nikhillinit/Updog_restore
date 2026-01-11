@@ -405,18 +405,18 @@ export default function InvestmentDetail() {
           <div className="space-y-4">
             {investment.rounds && investment.rounds.length > 0 ? (
               investment.rounds.map((round: Record<string, unknown>) => (
-                <Card key={round.id as string}>
+                <Card key={round['id'] as string}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-lg">{round.name as string}</CardTitle>
+                        <CardTitle className="text-lg">{round['name'] as string}</CardTitle>
                         <CardDescription>
-                          {format(new Date(round.date as string), 'MMM dd, yyyy')} • {round.leadInvestor as string}
+                          {format(new Date(round['date'] as string), 'MMM dd, yyyy')} • {round['leadInvestor'] as string}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={(round.status as string) === 'completed' ? 'default' : 'secondary'}>
-                          {round.status as string}
+                        <Badge variant={(round['status'] as string) === 'completed' ? 'default' : 'secondary'}>
+                          {round['status'] as string}
                         </Badge>
                         <Button variant="outline" size="sm">
                           <Edit3 className="h-4 w-4" />
@@ -427,19 +427,19 @@ export default function InvestmentDetail() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Investment: ${((round.amount as number) / 1000000).toFixed(1)}M</span>
-                        {(round.status as string) === 'projected' && (
-                          <span className="text-muted-foreground">Reserved: ${((round.amount as number) / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Investment: ${((round['amount'] as number) / 1000000).toFixed(1)}M</span>
+                        {(round['status'] as string) === 'projected' && (
+                          <span className="text-muted-foreground">Reserved: ${((round['amount'] as number) / 1000000).toFixed(1)}M</span>
                         )}
-                        <span className="text-muted-foreground">Round: ${(((round.valuation as number) * 0.3) / 1000000).toFixed(1)}M</span>
-                        <span className="text-muted-foreground">Pre-Money: ${(((round.valuation as number) - (round.amount as number)) / 1000000).toFixed(1)}M</span>
-                        <span className="text-muted-foreground">Post-Money: ${((round.valuation as number) / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Round: ${(((round['valuation'] as number) * 0.3) / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Pre-Money: ${(((round['valuation'] as number) - (round['amount'] as number)) / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Post-Money: ${((round['valuation'] as number) / 1000000).toFixed(1)}M</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">MOIC: 1.00x</span>
                         <span className="text-muted-foreground">IRR: -</span>
-                        <span className="text-muted-foreground">FMV: ${((round.valuation as number) / 1000000).toFixed(1)}M</span>
-                        <span className="text-muted-foreground">Ownership: {round.ownership as number}%</span>
+                        <span className="text-muted-foreground">FMV: ${((round['valuation'] as number) / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Ownership: {round['ownership'] as number}%</span>
                         <span className="text-muted-foreground">Return the Fund: $0.0mm</span>
                       </div>
                       <div className="flex space-x-2 pt-2">
@@ -451,20 +451,20 @@ export default function InvestmentDetail() {
                           <Plus className="mr-1 h-3 w-3" />
                           Add
                         </Button>
-                        {(round.status as string) === 'projected' && (
+                        {(round['status'] as string) === 'projected' && (
                           <Button size="sm" variant="outline" className="text-blue-600 border-blue-600">
                             Pro-Rata
                           </Button>
                         )}
                       </div>
-                      {(round.status as string) === 'projected' && (round.stage as string) === 'Series B' && (
+                      {(round['status'] as string) === 'projected' && (round['stage'] as string) === 'Series B' && (
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
                             Projected - 65% graduation rate
                           </p>
                         </div>
                       )}
-                      {(round.status as string) === 'completed' && (round.stage as string) === 'Seed' && (
+                      {(round['status'] as string) === 'completed' && (round['stage'] as string) === 'Seed' && (
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
                             Co-investors in this round were YCombinator, a16z and Macdonald Ventures
@@ -627,18 +627,18 @@ export default function InvestmentDetail() {
           <div className="space-y-4">
             {investment.performanceCases && investment.performanceCases.length > 0 ? (
               investment.performanceCases.map((performanceCase: Record<string, unknown>) => (
-                <Card key={performanceCase.id as string}>
+                <Card key={performanceCase['id'] as string}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-lg">{performanceCase.name as string}</CardTitle>
+                        <CardTitle className="text-lg">{performanceCase['name'] as string}</CardTitle>
                         <CardDescription>
-                          Expected exit: {format(new Date(performanceCase.exitDate as string), 'MMM dd, yyyy')}
+                          Expected exit: {format(new Date(performanceCase['exitDate'] as string), 'MMM dd, yyyy')}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant="outline">{performanceCase.probability as number}% probability</Badge>
-                        {performanceCase.hasLiqPrefs && (
+                        <Badge variant="outline">{performanceCase['probability'] as number}% probability</Badge>
+                        {performanceCase['hasLiqPrefs'] && (
                           <Badge variant="destructive" className="text-xs">Liq Prefs Active</Badge>
                         )}
                         <Button
@@ -661,18 +661,18 @@ export default function InvestmentDetail() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Exit Valuation</p>
-                        <p className="font-medium">${((performanceCase.exitValuation as number) / 1000000).toFixed(1)}M</p>
+                        <p className="font-medium">${((performanceCase['exitValuation'] as number) / 1000000).toFixed(1)}M</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Expected Multiple</p>
                         <p className="font-medium">
-                          {((performanceCase.exitValuation as number) / investment.valuationAtInvestment).toFixed(1)}x
+                          {((performanceCase['exitValuation'] as number) / investment.valuationAtInvestment).toFixed(1)}x
                         </p>
                       </div>
                     </div>
-                    {performanceCase.description && (
+                    {performanceCase['description'] && (
                       <div className="mt-3 pt-3 border-t">
-                        <p className="text-sm text-muted-foreground">{performanceCase.description as string}</p>
+                        <p className="text-sm text-muted-foreground">{performanceCase['description'] as string}</p>
                       </div>
                     )}
                   </CardContent>

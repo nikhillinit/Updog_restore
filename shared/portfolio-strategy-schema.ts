@@ -208,18 +208,18 @@ export interface LegacyPortfolioStrategy {
 }
 
 export const migrateLegacyStrategy = (legacy: LegacyPortfolioStrategy): PortfolioStrategy => {
-  const legacyId = legacy.id as string | undefined;
-  const legacyName = legacy.name as string | undefined;
+  const legacyId = legacy['id'] as string | undefined;
+  const legacyName = legacy['name'] as string | undefined;
   const legacyFundSize = legacy.fundSize as number | undefined;
-  const legacyDeploymentPeriodMonths = legacy.deploymentPeriodMonths as number | undefined;
-  const legacyTargetPortfolioSize = legacy.targetPortfolioSize as number | undefined;
-  const legacyCheckSizes = legacy.checkSizes as CheckSizeConfig | undefined;
-  const legacySectorAllocation = legacy.sectorAllocation as AllocationConfig | undefined;
-  const legacyStageAllocation = legacy.stageAllocation as AllocationConfig | undefined;
-  const legacyGeographicAllocation = legacy.geographicAllocation as AllocationConfig | undefined;
+  const legacyDeploymentPeriodMonths = legacy['deploymentPeriodMonths'] as number | undefined;
+  const legacyTargetPortfolioSize = legacy['targetPortfolioSize'] as number | undefined;
+  const legacyCheckSizes = legacy['checkSizes'] as CheckSizeConfig | undefined;
+  const legacySectorAllocation = legacy['sectorAllocation'] as AllocationConfig | undefined;
+  const legacyStageAllocation = legacy['stageAllocation'] as AllocationConfig | undefined;
+  const legacyGeographicAllocation = legacy['geographicAllocation'] as AllocationConfig | undefined;
   const legacyReservePercentage = legacy.reservePercentage as number | undefined;
-  const legacyAllocatedCapital = legacy.allocatedCapital as number | undefined;
-  const legacyScenarios = legacy.scenarios as ScenarioConfig[] | undefined;
+  const legacyAllocatedCapital = legacy['allocatedCapital'] as number | undefined;
+  const legacyScenarios = legacy['scenarios'] as ScenarioConfig[] | undefined;
 
   const migrated: Partial<PortfolioStrategy> = {
     ...legacy,

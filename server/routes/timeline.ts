@@ -78,11 +78,11 @@ const createSnapshotSchema = z.object({
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params.fundId, 10);
-      const startTimeStr = typeof req.query.startTime === 'string' ? req.query.startTime : undefined;
-      const endTimeStr = typeof req.query.endTime === 'string' ? req.query.endTime : undefined;
-      const limitNum = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 100;
-      const offsetNum = typeof req.query.offset === 'string' ? parseInt(req.query.offset, 10) : 0;
+      const fundIdNum = parseInt(req.params['fundId'], 10);
+      const startTimeStr = typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
+      const endTimeStr = typeof req.query['endTime'] === 'string' ? req.query['endTime'] : undefined;
+      const limitNum = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 100;
+      const offsetNum = typeof req.query['offset'] === 'string' ? parseInt(req.query['offset'], 10) : 0;
 
       // Delegate to service
       const result = await service.getTimelineEvents(fundIdNum, {
@@ -109,9 +109,9 @@ const createSnapshotSchema = z.object({
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params.fundId, 10);
-      const timestampStr = typeof req.query.timestamp === 'string' ? req.query.timestamp : '';
-      const includeEventsFlag = typeof req.query.includeEvents === 'string' ? req.query.includeEvents === 'true' : false;
+      const fundIdNum = parseInt(req.params['fundId'], 10);
+      const timestampStr = typeof req.query['timestamp'] === 'string' ? req.query['timestamp'] : '';
+      const includeEventsFlag = typeof req.query['includeEvents'] === 'string' ? req.query['includeEvents'] === 'true' : false;
 
       if (!timestampStr) {
         throw new NotFoundError('timestamp is required');
@@ -143,7 +143,7 @@ const createSnapshotSchema = z.object({
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params.fundId, 10);
+      const fundIdNum = parseInt(req.params['fundId'], 10);
       const { type, description: _description } = req.body;
 
       // Verify fund exists
@@ -233,8 +233,8 @@ const createSnapshotSchema = z.object({
       }),
     }),
     asyncHandler(async (req, res) => {
-      const limitNum = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
-      const eventTypes = Array.isArray(req.query.eventTypes) ? req.query.eventTypes : undefined;
+      const limitNum = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 20;
+      const eventTypes = Array.isArray(req.query['eventTypes']) ? req.query['eventTypes'] : undefined;
 
       // Delegate to service
       const result = await service.getLatestEvents(limitNum, eventTypes);

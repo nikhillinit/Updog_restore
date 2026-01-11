@@ -302,14 +302,14 @@ export function validateCalculationResult(result: unknown): ValidationResult {
   const resultObj = result as Record<string, unknown>;
 
   // Check for non-finite numbers in allocations
-  if (Array.isArray(resultObj.allocations)) {
-    resultObj.allocations.forEach((allocation: unknown, index: number) => {
+  if (Array.isArray(resultObj['allocations'])) {
+    resultObj['allocations'].forEach((allocation: unknown, index: number) => {
       const alloc = allocation as Record<string, unknown>;
-      if (typeof alloc.recommendedAllocation === 'number') {
-        if (!Number.isFinite(alloc.recommendedAllocation)) {
+      if (typeof alloc['recommendedAllocation'] === 'number') {
+        if (!Number.isFinite(alloc['recommendedAllocation'])) {
           errors.push(`Allocation ${index} has non-finite recommendedAllocation`);
         }
-        if (alloc.recommendedAllocation < 0) {
+        if (alloc['recommendedAllocation'] < 0) {
           errors.push(`Allocation ${index} has negative recommendedAllocation`);
         }
       }
@@ -317,20 +317,20 @@ export function validateCalculationResult(result: unknown): ValidationResult {
   }
 
   // Check for total allocation exceeding available
-  const inputSummary = resultObj.inputSummary as Record<string, unknown> | undefined;
+  const inputSummary = resultObj['inputSummary'] as Record<string, unknown> | undefined;
   if (
     inputSummary &&
-    typeof inputSummary.totalAllocated === 'number' &&
-    typeof inputSummary.availableReserves === 'number' &&
-    inputSummary.totalAllocated > inputSummary.availableReserves
+    typeof inputSummary['totalAllocated'] === 'number' &&
+    typeof inputSummary['availableReserves'] === 'number' &&
+    inputSummary['totalAllocated'] > inputSummary['availableReserves']
   ) {
     warnings.push('Total allocated exceeds available reserves');
   }
 
   // Check for timestamp validity
-  const metadata = resultObj.metadata as Record<string, unknown> | undefined;
-  if (metadata?.calculationDate) {
-    const date = new Date(metadata.calculationDate as string);
+  const metadata = resultObj['metadata'] as Record<string, unknown> | undefined;
+  if (metadata?.['calculationDate']) {
+    const date = new Date(metadata['calculationDate'] as string);
     if (isNaN(date.getTime())) {
       errors.push('Invalid calculation date');
     }

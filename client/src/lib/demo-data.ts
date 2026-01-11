@@ -384,8 +384,8 @@ export function getDemoScenariosByCategory(category: DemoScenario['category']): 
  */
 export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFirstInputsV2 {
   const fundData = scenario.fundData;
-  const allocations = fundData.state?.investmentStrategy?.allocations || [];
-  const stages = fundData.state?.investmentStrategy?.stages || [];
+  const allocations = fundData['state']?.investmentStrategy?.allocations || [];
+  const stages = fundData['state']?.investmentStrategy?.stages || [];
 
   // Create allocation percentages map
   const allocationPctByStage: Record<string, number> = {};
@@ -400,7 +400,7 @@ export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFir
   });
 
   // Create initial check sizes (estimated based on fund size and allocations)
-  const totalCommitment = fundData.state?.capital?.totalCommitment || 15_000_000;
+  const totalCommitment = fundData['state']?.capital?.totalCommitment || 15_000_000;
   const initialCheckByStage: Record<string, number> = {
     preseed: totalCommitment < 20_000_000 ? 250_000 : 500_000,
     seed: totalCommitment < 30_000_000 ? 500_000 : 1_000_000,
@@ -423,7 +423,7 @@ export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFir
     initialCheckByStage: initialCheckByStage as any,
     graduationPctByStage: graduationPctByStage as any,
     marketByStage,
-    followOnRules: (fundData.state?.followOnRules || []) as any
+    followOnRules: (fundData['state']?.followOnRules || []) as any
   };
 }
 

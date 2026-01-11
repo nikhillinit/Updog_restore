@@ -118,7 +118,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
     res['set']('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('readyz');
     res['set']('X-Health-TTL-Remaining', ttlMs.toString());
-    return res["status"](cached.ready ? 200 : 503)["json"](cached);
+    return res["status"](cached['ready'] ? 200 : 503)["json"](cached);
   }
   
   const checks = {
@@ -307,8 +307,8 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
 
       for (const queueName of queues) {
         try {
-          const waiting = await redis.llen(`bull:${queueName}:wait`);
-          const active = await redis.llen(`bull:${queueName}:active`);
+          const waiting = await redis['llen'](`bull:${queueName}:wait`);
+          const active = await redis['llen'](`bull:${queueName}:active`);
 
           queueHealth[queueName] = {
             status: 'ok',

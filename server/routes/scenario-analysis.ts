@@ -408,15 +408,15 @@ router['patch'](
           await tx.insert(scenarioCases).values(
             cases.map((c) => ({
               scenarioId: scenarioId,
-              caseName: String(c.case_name || ''),
-              description: c.description as string | undefined,
-              probability: String(c.probability || 0),
-              investment: String(c.investment || 0),
-              followOns: String(c.follow_ons || 0),
-              exitProceeds: String(c.exit_proceeds || 0),
-              exitValuation: String(c.exit_valuation || 0),
-              monthsToExit: c.months_to_exit as number | undefined,
-              ownershipAtExit: c.ownership_at_exit ? String(c.ownership_at_exit) : null,
+              caseName: String(c['case_name'] || ''),
+              description: c['description'] as string | undefined,
+              probability: String(c['probability'] || 0),
+              investment: String(c['investment'] || 0),
+              followOns: String(c['follow_ons'] || 0),
+              exitProceeds: String(c['exit_proceeds'] || 0),
+              exitValuation: String(c['exit_valuation'] || 0),
+              monthsToExit: c['months_to_exit'] as number | undefined,
+              ownershipAtExit: c['ownership_at_exit'] ? String(c['ownership_at_exit']) : null,
             }))
           );
         }

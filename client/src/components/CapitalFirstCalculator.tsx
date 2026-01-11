@@ -264,9 +264,9 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
               {StageOrder.map((stage) => {
                 const roundedResult = roundedResults as unknown as Record<string, Record<string, number>> | null;
                 const result = results as unknown as Record<string, Record<string, number>> | null;
-                const surplusByStage = roundedResult?.surplusByStage;
-                const rounded = roundedResult?.rounded;
-                const initialInvestmentsByStage = result?.initialInvestmentsByStage;
+                const surplusByStage = roundedResult?.['surplusByStage'];
+                const rounded = roundedResult?.['rounded'];
+                const initialInvestmentsByStage = result?.['initialInvestmentsByStage'];
 
                 return (
                   <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
@@ -298,8 +298,8 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
             <div className="grid gap-3">
               {StageOrder.map((stage) => {
                 const result = results as unknown as Record<string, Record<string, number>> | null;
-                const initialSpendByStage = result?.initialSpendByStage;
-                const followOnSpendByStage = result?.followOnSpendByStage;
+                const initialSpendByStage = result?.['initialSpendByStage'];
+                const followOnSpendByStage = result?.['followOnSpendByStage'];
 
                 return (
                   <div key={stage} className="p-3 border rounded-lg">

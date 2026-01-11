@@ -284,8 +284,8 @@ export class MonteCarloPerformanceTracker {
 
     monitor.track('monte_carlo_start', 0, 'monte_carlo', {
       simulationId,
-      runs: config.runs,
-      portfolioSize: config.portfolioSize
+      runs: config['runs'],
+      portfolioSize: config['portfolioSize']
     });
   }
 
@@ -296,7 +296,7 @@ export class MonteCarloPerformanceTracker {
     const duration = performance.now() - startTime;
     this.simulationTimers.delete(simulationId);
 
-    const scenarios = results && typeof results.scenarios === 'object' && Array.isArray(results.scenarios) ? results.scenarios : [];
+    const scenarios = results && typeof results['scenarios'] === 'object' && Array.isArray(results['scenarios']) ? results['scenarios'] : [];
     monitor.track('monte_carlo_simulation', duration, 'monte_carlo', {
       simulationId,
       duration,

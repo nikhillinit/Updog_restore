@@ -210,9 +210,9 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
 
     // Capture request data
     const startTime = Date.now();
-    const correlationId = (req as Record<string, unknown>).correlationId as string || crypto.randomUUID();
-    const userId = ((req as Record<string, unknown>).user as { id?: number } | undefined)?.id;
-    const sessionId = ((req as Record<string, unknown>).session as { id?: string } | undefined)?.id || req['get']('x-session-id');
+    const correlationId = (req as Record<string, unknown>)['correlationId'] as string || crypto.randomUUID();
+    const userId = ((req as Record<string, unknown>)['user'] as { id?: number } | undefined)?.id;
+    const sessionId = ((req as Record<string, unknown>)['session'] as { id?: string } | undefined)?.id || req['get']('x-session-id');
 
     // Capture original response methods
     const originalJson = res.json;
@@ -268,17 +268,17 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
 
         // Add request/response data if configured
         if (mergedConfig.includeRequestBody) {
-          auditData.requestBody = sanitizeSensitiveData(req.body, mergedConfig.sensitiveFields || []);
-          auditData.queryParams = sanitizeSensitiveData(req.query, mergedConfig.sensitiveFields || []);
-          auditData.routeParams = sanitizeSensitiveData(req.params, mergedConfig.sensitiveFields || []);
+          auditData['requestBody'] = sanitizeSensitiveData(req.body, mergedConfig.sensitiveFields || []);
+          auditData['queryParams'] = sanitizeSensitiveData(req.query, mergedConfig.sensitiveFields || []);
+          auditData['routeParams'] = sanitizeSensitiveData(req.params, mergedConfig.sensitiveFields || []);
         }
 
         if (mergedConfig.includeResponseBody) {
-          auditData.responseBody = sanitizeSensitiveData(responseBody, mergedConfig.sensitiveFields || []);
+          auditData['responseBody'] = sanitizeSensitiveData(responseBody, mergedConfig.sensitiveFields || []);
         }
 
         // Add metadata
-        auditData.metadata = {
+        auditData['metadata'] = {
           headers: sanitizeSensitiveData(req.headers, mergedConfig.sensitiveFields || []),
           protocol: req.protocol,
           secure: req.secure,
@@ -288,19 +288,19 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
         };
 
         // Generate integrity hash
-        auditData.integrityHash = generateAuditHash(auditData);
+        auditData['integrityHash'] = generateAuditHash(auditData);
 
         // Encrypt sensitive data if configured
-        if (mergedConfig.encryptSensitiveData && (auditData.requestBody || auditData.responseBody)) {
+        if (mergedConfig.encryptSensitiveData && (auditData['requestBody'] || auditData['responseBody'])) {
           const sensitiveData = {
-            requestBody: auditData.requestBody,
-            responseBody: auditData.responseBody
+            requestBody: auditData['requestBody'],
+            responseBody: auditData['responseBody']
           };
 
           const encrypted = AuditEncryption.encrypt(sensitiveData);
-          auditData.encryptedData = encrypted;
-          delete auditData.requestBody;
-          delete auditData.responseBody;
+          auditData['encryptedData'] = encrypted;
+          delete auditData['requestBody'];
+          delete auditData['responseBody'];
         }
 
         // Validate audit data
@@ -320,7 +320,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
         logAudit('Request audited', {
           correlationId,
           userId,
-          action: auditData.action,
+          action: auditData['action'],
           statusCode: res.statusCode,
           executionTime,
           riskLevel
@@ -336,7 +336,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
     });
 
     // Add correlation ID to request for tracking
-    (req as Record<string, unknown>).correlationId = correlationId;
+    (req as Record<string, unknown>)['correlationId'] = correlationId;
     next();
   };
 }
@@ -361,7 +361,7 @@ export function financialAuditMiddleware(req: Request, res: Response, next: Next
   }
 
   const startTime = Date.now();
-  const correlationId = (req as Record<string, unknown>).correlationId as string || crypto.randomUUID();
+  const correlationId = (req as Record<string, unknown>)['correlationId'] as string || crypto.randomUUID();
 
   // Override response to capture financial operation results
   const originalJson = res.json;
@@ -434,24 +434,24 @@ async function storeAuditRecord(auditData: Record<string, unknown>): Promise<voi
   try {
     // Store in database
     await db.insert(auditLog).values({
-      userId: auditData.userId as number | null,
-      action: auditData.action as string,
-      entityType: auditData.entityType as string,
-      entityId: (auditData.entityId as string | number | null)?.toString(),
-      changes: (auditData.encryptedData as Record<string, unknown>) || {
-        requestBody: auditData.requestBody,
-        responseBody: auditData.responseBody,
+      userId: auditData['userId'] as number | null,
+      action: auditData['action'] as string,
+      entityType: auditData['entityType'] as string,
+      entityId: (auditData['entityId'] as string | number | null)?.toString(),
+      changes: (auditData['encryptedData'] as Record<string, unknown>) || {
+        requestBody: auditData['requestBody'],
+        responseBody: auditData['responseBody'],
         // Store execution metrics in JSON field (Decision 1)
-        executionTimeMs: auditData.executionTimeMs,
-        riskLevel: auditData.riskLevel,
+        executionTimeMs: auditData['executionTimeMs'],
+        riskLevel: auditData['riskLevel'],
       },
-      ipAddress: auditData.ipAddress as string | null,
-      userAgent: auditData.userAgent as string | null,
-      correlationId: auditData.correlationId as string | null,
-      sessionId: auditData.sessionId as string | null,
-      requestPath: auditData.requestPath as string,
-      httpMethod: auditData.httpMethod as string,
-      statusCode: auditData.statusCode as number,
+      ipAddress: auditData['ipAddress'] as string | null,
+      userAgent: auditData['userAgent'] as string | null,
+      correlationId: auditData['correlationId'] as string | null,
+      sessionId: auditData['sessionId'] as string | null,
+      requestPath: auditData['requestPath'] as string,
+      httpMethod: auditData['httpMethod'] as string,
+      statusCode: auditData['statusCode'] as number,
     });
   } catch (error) {
     // Log to file as fallback
@@ -474,7 +474,7 @@ async function logFinancialOperation(
     const resBody = responseBody as Record<string, unknown> | undefined;
     const params = req.params as Record<string, unknown> | undefined;
 
-    const fundId = reqBody?.fundId || params?.['fundId'] || resBody?.fundId;
+    const fundId = reqBody?.['fundId'] || params?.['fundId'] || resBody?.['fundId'];
     if (!fundId) return;
 
     const operation = determineFinancialOperation(req.path, req.method);
@@ -486,7 +486,7 @@ async function logFinancialOperation(
       amount,
       dataInputs: sanitizeSensitiveData(req.body, defaultAuditConfig.sensitiveFields || []),
       outputs: sanitizeSensitiveData(responseBody, defaultAuditConfig.sensitiveFields || []),
-      calculationMethod: (resBody?.calculationMethod || reqBody?.calculationMethod) as string | undefined,
+      calculationMethod: (resBody?.['calculationMethod'] || reqBody?.['calculationMethod']) as string | undefined,
       complianceFlags: validateCompliance(reqBody, resBody)
     };
 
@@ -504,7 +504,7 @@ async function logFinancialOperation(
       fundId: validation.data.fundId,
       eventType: 'FINANCIAL_OPERATION',
       payload: validation.data,
-      userId: ((req as Record<string, unknown>).user as { id?: number } | undefined)?.id || null,
+      userId: ((req as Record<string, unknown>)['user'] as { id?: number } | undefined)?.id || null,
       correlationId,
       eventTime: new Date(),
       operation: validation.data.operation,
@@ -569,14 +569,14 @@ function validateCompliance(requestBody: Record<string, unknown> | undefined, re
   }
 
   // Check for high-risk calculations
-  const riskMetrics = responseBody?.riskMetrics as { probabilityOfLoss?: number } | undefined;
+  const riskMetrics = responseBody?.['riskMetrics'] as { probabilityOfLoss?: number } | undefined;
   if (riskMetrics?.probabilityOfLoss && riskMetrics.probabilityOfLoss > 0.3) {
     flags.push('HIGH_RISK_SCENARIO');
   }
 
   // Check for unusual market conditions
-  const marketEnv = requestBody?.marketEnvironment as { scenario?: string } | undefined;
-  const irrStats = (responseBody?.irr as { statistics?: { mean?: number } } | undefined)?.statistics;
+  const marketEnv = requestBody?.['marketEnvironment'] as { scenario?: string } | undefined;
+  const irrStats = (responseBody?.['irr'] as { statistics?: { mean?: number } } | undefined)?.statistics;
   if (marketEnv?.scenario === 'bear' && irrStats?.mean && irrStats.mean < -0.1) {
     flags.push('SEVERE_LOSS_SCENARIO');
   }
