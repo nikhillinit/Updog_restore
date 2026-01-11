@@ -102,11 +102,11 @@ function generateDedupeKey(req: Request, options: DedupeOptions): string {
   
   // Include specific headers if configured
   if (options.includeHeaders && options.includeHeaders.length > 0) {
-    parts.headers = {} as Record<string, unknown>;
+    parts['headers'] = {} as Record<string, unknown>;
     for (const header of options.includeHeaders) {
       const value = req.headers[header.toLowerCase()];
       if (value) {
-        (parts.headers as Record<string, unknown>)[header] = value;
+        (parts['headers'] as Record<string, unknown>)[header] = value;
       }
     }
   }
@@ -114,7 +114,7 @@ function generateDedupeKey(req: Request, options: DedupeOptions): string {
   // Include user ID if authenticated
   const userId = (req as { user?: { id: string } }).user?.id;
   if (userId) {
-    parts.userId = userId;
+    parts['userId'] = userId;
   }
   
   const data = JSON.stringify(parts);

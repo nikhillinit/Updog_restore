@@ -125,8 +125,8 @@ export async function verifyApproval(
       // Enhanced validation: check actual partner ID uniqueness from partners table
       const validation = validateDistinctSigners(
         signatures.rows.map((s: Record<string, unknown>) => ({
-          partnerId: String(s.partner_id), // Use actual partner_id from partners table
-          partnerEmail: String(s.partner_email)
+          partnerId: String(s['partner_id']), // Use actual partner_id from partners table
+          partnerEmail: String(s['partner_email'])
         }))
       );
 
@@ -208,8 +208,8 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
   return async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     try {
       // Extract strategy ID and compute inputs hash
-      const strategyId = req.body.strategyId || req.params.strategyId;
-      const strategyData = req.body.strategyData || req.body;
+      const strategyId = req.body['strategyId'] || req.params['strategyId'];
+      const strategyData = req.body['strategyData'] || req.body;
 
       if (!strategyId) {
         return res.status(400).json({

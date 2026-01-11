@@ -351,10 +351,10 @@ export async function healthMonitoringExample() {
     Object.entries(health.connectionPools).forEach(([poolId, metrics]) => {
       const m = metrics as Record<string, unknown>;
       console.log(`  ${poolId}:`);
-      console.log(`    Active connections: ${m.activeConnections}`);
-      console.log(`    Total connections: ${m.totalConnections}`);
-      console.log(`    Connection errors: ${m.connectionErrors}`);
-      console.log(`    Average query time: ${typeof m.averageQueryTime === 'number' ? m.averageQueryTime.toFixed(2) : 'N/A'}ms`);
+      console.log(`    Active connections: ${m['activeConnections']}`);
+      console.log(`    Total connections: ${m['totalConnections']}`);
+      console.log(`    Connection errors: ${m['connectionErrors']}`);
+      console.log(`    Average query time: ${typeof m['averageQueryTime'] === 'number' ? m['averageQueryTime'].toFixed(2) : 'N/A'}ms`);
     });
   }
 

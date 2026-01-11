@@ -29,13 +29,13 @@ export function validateFundSetup(fundData: Partial<FundModelWire>): ValidationR
   validateBasicInfo(fundData, errors, warnings);
 
   // Investment strategy validation
-  if (fundData.state?.investmentStrategy) {
-    validateInvestmentStrategy(fundData.state.investmentStrategy, errors, warnings);
+  if (fundData['state']?.investmentStrategy) {
+    validateInvestmentStrategy(fundData['state'].investmentStrategy, errors, warnings);
   }
 
   // Fee structure validation
-  if (fundData.state?.fees) {
-    validateFeeStructure(fundData.state.fees, errors, warnings);
+  if (fundData['state']?.fees) {
+    validateFeeStructure(fundData['state'].fees, errors, warnings);
   }
 
   // Fund structure validation
@@ -58,14 +58,14 @@ function validateBasicInfo(
   warnings: ValidationError[]
 ): void {
   // Fund name validation
-  if (!fundData.name || fundData.name.trim().length === 0) {
+  if (!fundData['name'] || fundData['name'].trim().length === 0) {
     errors.push({
       field: 'name',
       message: 'Fund name is required',
       severity: 'error',
       code: 'REQUIRED_FIELD'
     });
-  } else if (fundData.name.length > 100) {
+  } else if (fundData['name'].length > 100) {
     warnings.push({
       field: 'name',
       message: 'Fund name is quite long. Consider shortening for clarity.',
@@ -75,7 +75,7 @@ function validateBasicInfo(
   }
 
   // Capital commitment validation
-  const commitment = fundData.state?.capital?.totalCommitment;
+  const commitment = fundData['state']?.capital?.totalCommitment;
   if (!commitment || commitment <= 0) {
     errors.push({
       field: 'capital.totalCommitment',
@@ -260,7 +260,7 @@ function validateFundStructure(
   errors: ValidationError[],
   warnings: ValidationError[]
 ): void {
-  const termMonths = fundData.state?.foundation?.termMonths;
+  const termMonths = fundData['state']?.foundation?.termMonths;
 
   // Term validation
   if (termMonths !== null && termMonths !== undefined) {

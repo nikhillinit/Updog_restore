@@ -369,8 +369,8 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
   const sanitized: Record<string, unknown> = {};
 
   // Fund ID validation
-  if (cfg.fundId !== undefined) {
-    sanitized.fundId = sanitizeNumber(cfg.fundId, {
+  if (cfg['fundId'] !== undefined) {
+    sanitized['fundId'] = sanitizeNumber(cfg['fundId'], {
       integer: true,
       positive: true,
       max: 999999999
@@ -378,8 +378,8 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
   }
 
   // Simulation runs validation
-  if (cfg.runs !== undefined) {
-    sanitized.runs = sanitizeNumber(cfg.runs, {
+  if (cfg['runs'] !== undefined) {
+    sanitized['runs'] = sanitizeNumber(cfg['runs'], {
       integer: true,
       min: 100,
       max: 50000
@@ -387,8 +387,8 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
   }
 
   // Time horizon validation
-  if (cfg.timeHorizonYears !== undefined) {
-    sanitized.timeHorizonYears = sanitizeNumber(cfg.timeHorizonYears, {
+  if (cfg['timeHorizonYears'] !== undefined) {
+    sanitized['timeHorizonYears'] = sanitizeNumber(cfg['timeHorizonYears'], {
       integer: true,
       min: 1,
       max: 15
@@ -396,8 +396,8 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
   }
 
   // Portfolio size validation
-  if (cfg.portfolioSize !== undefined) {
-    sanitized.portfolioSize = sanitizeNumber(cfg.portfolioSize, {
+  if (cfg['portfolioSize'] !== undefined) {
+    sanitized['portfolioSize'] = sanitizeNumber(cfg['portfolioSize'], {
       integer: true,
       positive: true,
       max: 1000
@@ -405,13 +405,13 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
   }
 
   // Baseline ID validation
-  if (cfg.baselineId !== undefined) {
-    sanitized.baselineId = sanitizeString(cfg.baselineId, {
+  if (cfg['baselineId'] !== undefined) {
+    sanitized['baselineId'] = sanitizeString(cfg['baselineId'], {
       maxLength: 36 // UUID length
     });
 
     // Validate UUID format
-    if (!validator.isUUID(sanitized.baselineId as string)) {
+    if (!validator.isUUID(sanitized['baselineId'] as string)) {
       throw new Error('Invalid baseline ID format');
     }
   }
@@ -431,27 +431,27 @@ export function sanitizeDistributionParams(params: unknown): Record<string, unkn
   const sanitized: Record<string, unknown> = {};
 
   // Sanitize IRR parameters
-  if (prms.irr) {
-    const irr = prms.irr as { mean: unknown; volatility: unknown };
-    sanitized.irr = {
+  if (prms['irr']) {
+    const irr = prms['irr'] as { mean: unknown; volatility: unknown };
+    sanitized['irr'] = {
       mean: sanitizeNumber(irr.mean, { min: -1, max: 10, finite: true }),
       volatility: sanitizeNumber(irr.volatility, { min: 0.01, max: 5, finite: true })
     };
   }
 
   // Sanitize multiple parameters
-  if (prms.multiple) {
-    const multiple = prms.multiple as { mean: unknown; volatility: unknown };
-    sanitized.multiple = {
+  if (prms['multiple']) {
+    const multiple = prms['multiple'] as { mean: unknown; volatility: unknown };
+    sanitized['multiple'] = {
       mean: sanitizeNumber(multiple.mean, { min: 0, max: 100, finite: true }),
       volatility: sanitizeNumber(multiple.volatility, { min: 0.01, max: 10, finite: true })
     };
   }
 
   // Sanitize DPI parameters
-  if (prms.dpi) {
-    const dpi = prms.dpi as { mean: unknown; volatility: unknown };
-    sanitized.dpi = {
+  if (prms['dpi']) {
+    const dpi = prms['dpi'] as { mean: unknown; volatility: unknown };
+    sanitized['dpi'] = {
       mean: sanitizeNumber(dpi.mean, { min: 0, max: 5, finite: true }),
       volatility: sanitizeNumber(dpi.volatility, { min: 0.01, max: 2, finite: true })
     };
@@ -497,8 +497,8 @@ export function createSanitizationMiddleware(options: {
       };
 
       // Sanitize request body
-      if (opts.sanitizeBody && req.body) {
-        req.body = sanitizeObject(req.body, {
+      if (opts.sanitizeBody && req['body']) {
+        req['body'] = sanitizeObject(req['body'], {
           strictMode: opts.strictMode,
           maxDepth: 5
         });
@@ -506,24 +506,24 @@ export function createSanitizationMiddleware(options: {
         // Apply custom sanitizers
         if (opts.customSanitizers) {
           for (const [field, sanitizer] of Object.entries(opts.customSanitizers)) {
-            if (req.body[field] !== undefined) {
-              req.body[field] = sanitizer(req.body[field]);
+            if (req['body'][field] !== undefined) {
+              req['body'][field] = sanitizer(req['body'][field]);
             }
           }
         }
       }
 
       // Sanitize query parameters
-      if (opts.sanitizeQuery && req.query) {
-        req.query = sanitizeObject(req.query, {
+      if (opts.sanitizeQuery && req['query']) {
+        req['query'] = sanitizeObject(req['query'], {
           strictMode: opts.strictMode,
           maxDepth: 3
         });
       }
 
       // Sanitize route parameters
-      if (opts.sanitizeParams && req.params) {
-        req.params = sanitizeObject(req.params, {
+      if (opts.sanitizeParams && req['params']) {
+        req['params'] = sanitizeObject(req['params'], {
           strictMode: opts.strictMode,
           maxDepth: 2
         });
@@ -534,9 +534,9 @@ export function createSanitizationMiddleware(options: {
     } catch (error) {
       logValidationError(
         'request_sanitization',
-        { body: req.body, query: req.query, params: req.params },
+        { body: req['body'], query: req['query'], params: req['params'] },
         error instanceof Error ? error.message : 'Unknown sanitization error',
-        { path: req.path, method: req.method }
+        { path: req['path'], method: req['method'] }
       );
 
       res["status"](400)["json"]({

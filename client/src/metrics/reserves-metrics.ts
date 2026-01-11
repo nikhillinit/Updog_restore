@@ -170,12 +170,12 @@ class ReservesMetrics {
     const aData = a as Record<string, unknown> | null | undefined;
     const bData = b as Record<string, unknown> | null | undefined;
 
-    if (!aData?.data || !bData?.data) return 1.0;
+    if (!aData?.['data'] || !bData?.['data']) return 1.0;
 
-    const aDataObj = aData.data as Record<string, unknown>;
-    const bDataObj = bData.data as Record<string, unknown>;
-    const allocationsA = (aDataObj.allocations || []) as Array<Record<string, number>>;
-    const allocationsB = (bDataObj.allocations || []) as Array<Record<string, number>>;
+    const aDataObj = aData['data'] as Record<string, unknown>;
+    const bDataObj = bData['data'] as Record<string, unknown>;
+    const allocationsA = (aDataObj['allocations'] || []) as Array<Record<string, number>>;
+    const allocationsB = (bDataObj['allocations'] || []) as Array<Record<string, number>>;
 
     if (allocationsA.length !== allocationsB.length) {
       return Math.abs(allocationsA.length - allocationsB.length) / Math.max(allocationsA.length, allocationsB.length, 1);
@@ -187,8 +187,8 @@ class ReservesMetrics {
     allocationsA.forEach((alloc, i: number) => {
       const otherAlloc = allocationsB[i];
       if (otherAlloc) {
-        totalDiff += Math.abs(alloc.planned_cents - otherAlloc.planned_cents);
-        totalAmount += alloc.planned_cents;
+        totalDiff += Math.abs(alloc['planned_cents'] - otherAlloc['planned_cents']);
+        totalAmount += alloc['planned_cents'];
       }
     });
 

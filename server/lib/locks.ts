@@ -47,7 +47,7 @@ export async function withFundLock<T>(
     [lockKey.toString()]
   );
 
-  if (!lockResult.rows[0]?.acquired) {
+  if (!lockResult.rows[0]?.['acquired']) {
     // Lock not immediately available, wait with timeout
     try {
       await pgClient.query(
@@ -82,7 +82,7 @@ export async function tryFundLock(
     [lockKey.toString()]
   );
 
-  return result.rows[0]?.acquired as boolean;
+  return result.rows[0]?.['acquired'] as boolean;
 }
 
 /**
@@ -157,10 +157,10 @@ export async function getActiveLocks(pgClient: PgClient): Promise<Array<{
   `);
 
   return result.rows.map((row) => ({
-    lockKey: row.lock_key as string,
-    pid: row.pid as number,
-    granted: row.granted as boolean,
-    mode: row.mode as string
+    lockKey: row['lock_key'] as string,
+    pid: row['pid'] as number,
+    granted: row['granted'] as boolean,
+    mode: row['mode'] as string
   }));
 }
 
@@ -184,7 +184,7 @@ export async function isFundLocked(
     [lockKey.toString()]
   );
 
-  return result.rows[0]?.is_locked as boolean;
+  return result.rows[0]?.['is_locked'] as boolean;
 }
 
 /**
@@ -256,7 +256,7 @@ export class DistributedLock {
         [this.lockKey.toString()]
       );
 
-      if (result.rows[0]?.acquired) {
+      if (result.rows[0]?.['acquired']) {
         // Start lease renewal
         this.startLeaseRenewal();
         return true;
@@ -287,7 +287,7 @@ export class DistributedLock {
           [this.lockKey.toString()]
         );
 
-        if (!result.rows[0]?.acquired) {
+        if (!result.rows[0]?.['acquired']) {
           // Lost the lock somehow
           this.stopLeaseRenewal();
           console.warn(`Lost distributed lock for ${this.resourceId}`);

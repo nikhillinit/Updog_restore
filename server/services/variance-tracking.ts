@@ -534,7 +534,7 @@ export class VarianceCalculationService {
     }
 
     // Determine overall risk level
-    const highSeverityCount = significantVariances.filter(v => v.severity === 'high').length;
+    const highSeverityCount = significantVariances.filter(v => v['severity'] === 'high').length;
     if (highSeverityCount > 0) {
       riskLevel = highSeverityCount >= 2 ? 'critical' : 'high';
     } else if (significantVariances.length > 0) {
