@@ -390,7 +390,7 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
   logger.info({ connection: maskConnectionInfo(options) }, 'Creating Redis client');
 
   // Create Redis client
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Redis client type variance
   const redis = new Redis(options as any);
 
   // Add connection event listeners

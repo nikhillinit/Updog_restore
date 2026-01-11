@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */ // Application bootstrap
  
  
  

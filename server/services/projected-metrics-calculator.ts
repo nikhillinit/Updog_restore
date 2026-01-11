@@ -18,11 +18,11 @@ import type { Fund, PortfolioCompany } from '@shared/schema';
 // TODO: Issue #309 - Move core engines to shared package
 // These engines contain deterministic calculation logic used by both client and server
 // For now, import from client (ESLint boundary violation - tracked for refactoring)
-// eslint-disable-next-line no-restricted-imports
+// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
 import { generateReserveSummary } from '../../client/src/core/reserves/ReserveEngine.js';
-// eslint-disable-next-line no-restricted-imports
+// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
 import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine.js';
-// eslint-disable-next-line no-restricted-imports
+// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
 import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
 import type {
   ReserveInput,
