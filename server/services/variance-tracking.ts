@@ -190,11 +190,14 @@ export class BaselineService {
     });
 
     const totalInvestments = companies.reduce((sum: Decimal, company) => {
-      const investments = company.investments as Array<{ amount: string | number }> | undefined;
-      const companyInvestment = investments?.reduce(
-        (compSum: Decimal, inv) => compSum.plus(toDecimal(inv.amount.toString())),
+      const investments = Array.isArray(company.investments)
+        ? (company.investments as Array<{ amount: string | number }>)
+        : [];
+
+      const companyInvestment = investments.reduce(
+        (compSum: Decimal, inv) => compSum.plus(toDecimal(String(inv.amount))),
         new Decimal(0)
-      ) ?? new Decimal(0);
+      );
       return sum.plus(companyInvestment);
     }, new Decimal(0));
 
