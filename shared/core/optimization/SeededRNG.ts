@@ -67,7 +67,7 @@ export class SeededRNG {
    */
   sample<T>(array: T[]): T {
     const index = this.nextInt(0, array.length - 1);
-    return array[index];
+    return array[index]!;
   }
 
   /**
@@ -77,7 +77,9 @@ export class SeededRNG {
   shuffle<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
       const j = this.nextInt(0, i);
-      [array[i], array[j]] = [array[j], array[i]];
+      const temp = array[i]!;
+      array[i] = array[j]!;
+      array[j] = temp;
     }
     return array;
   }

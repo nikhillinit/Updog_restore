@@ -71,7 +71,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 66,
-      "lastUpdated": "2026-01-11T19:03:18.034Z"
+      "lastUpdated": "2026-01-11T19:25:02.968Z"
     },
     "unknown": {
       "errors": [
@@ -81,7 +81,7 @@
         "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
       ],
       "total": 4,
-      "lastUpdated": "2026-01-11T19:03:18.034Z"
+      "lastUpdated": "2026-01-11T19:25:02.968Z"
     },
     "shared": {
       "errors": [
@@ -89,18 +89,12 @@
         "shared/charting/ChartAdapter.tsx:TS2375:db570a7c",
         "shared/charting/ChartSafe.tsx:TS2345:d968b831",
         "shared/charting/polymorphic.ts:TS2345:7bd45dd0",
-        "shared/core/optimization/MatrixCompression.ts:TS2345:224e3219",
-        "shared/core/optimization/MatrixCompression.ts:TS2532:ae799a15",
-        "shared/core/optimization/MatrixCompression.ts:TS2578:ca6758c8",
-        "shared/core/optimization/ScenarioGenerator.ts:TS2532:9719e073",
-        "shared/core/optimization/SeededRNG.ts:TS2322:90d86bc6",
-        "shared/core/optimization/SeededRNG.ts:TS2322:ff5ae60e",
         "shared/fund-wire-schema.ts:TS2502:e01fe265",
         "shared/fund-wire-schema.ts:TS7022:6c8e6efa",
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
-      "total": 13,
-      "lastUpdated": "2026-01-11T19:03:18.034Z"
+      "total": 7,
+      "lastUpdated": "2026-01-11T19:25:02.968Z"
     },
     "server": {
       "errors": [
@@ -200,11 +194,11 @@
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
       "total": 94,
-      "lastUpdated": "2026-01-11T19:03:18.034Z"
+      "lastUpdated": "2026-01-11T19:25:02.968Z"
     }
   },
-  "totalErrors": 177,
-  "timestamp": "2026-01-11T19:03:18.034Z",
+  "totalErrors": 171,
+  "timestamp": "2026-01-11T19:25:02.968Z",
   "buildMode": "per-project",
-  "elapsedMs": 18862
+  "elapsedMs": 19352
 }
