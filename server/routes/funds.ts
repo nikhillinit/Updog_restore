@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */ // Fund CRUD routes
 
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
