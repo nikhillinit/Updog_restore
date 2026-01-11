@@ -27,12 +27,17 @@ import { TimeTravelAnalyticsService, type Cache } from '../services/time-travel-
 function createCacheAdapter(appLocalsCache: unknown): Cache | undefined {
   if (!appLocalsCache) return undefined;
 
+  const cache = appLocalsCache as {
+    get: (key: string) => Promise<string | null>;
+    set: (key: string, value: string, options?: { EX?: number }) => Promise<void>;
+  };
+
   return {
     async get(key: string): Promise<string | null> {
-      return appLocalsCache.get(key);
+      return cache.get(key);
     },
     async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-      return appLocalsCache.set(key, value, { EX: ttlSeconds });
+      return cache.set(key, value, ttlSeconds !== undefined ? { EX: ttlSeconds } : {});
     },
   };
 }
@@ -43,28 +48,30 @@ function createCacheAdapter(appLocalsCache: unknown): Cache | undefined {
 export function createTimelineRouter(service: TimeTravelAnalyticsService) {
   const router = Router();
 
-// Timeline range schema
-const timelineRangeSchema = z.object({
-  fundId: z.coerce.number().int().positive(),
-  startTime: z.string().datetime().optional(),
-  endTime: z.string().datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(1000).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
-});
+  // Timeline range schema
+  const timelineRangeSchema = z.object({
+    fundId: z.coerce.number().int().positive(),
+    startTime: z.string().datetime().optional(),
+    endTime: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(1000).default(100),
+    offset: z.coerce.number().int().min(0).default(0),
+  });
 
-// Point-in-time query schema
-const pointInTimeSchema = z.object({
-  fundId: z.coerce.number().int().positive(),
-  timestamp: z.string().datetime(),
-  includeEvents: z.coerce.boolean().default(false),
-});
+  // Point-in-time query schema
+  const pointInTimeSchema = z.object({
+    fundId: z.coerce.number().int().positive(),
+    timestamp: z.string().datetime(),
+    includeEvents: z.coerce.boolean().default(false),
+  });
 
-// Snapshot creation schema
-const createSnapshotSchema = z.object({
-  fundId: z.coerce.number().int().positive(),
-  type: z.enum(['manual', 'scheduled', 'auto']).default('manual'),
-  description: z.string().optional(),
-});
+  // Snapshot creation schema
+  const createSnapshotSchema = z.object({
+    fundId: z.coerce.number().int().positive(),
+    type: z.enum(['manual', 'scheduled', 'auto']).default('manual'),
+    description: z.string().optional(),
+  });
+  const createSnapshotBodySchema = createSnapshotSchema.omit({ fundId: true });
+  type CreateSnapshotBody = z.infer<typeof createSnapshotBodySchema>;
 
   /**
    * GET /api/timeline/:fundId
@@ -79,10 +86,14 @@ const createSnapshotSchema = z.object({
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params['fundId'], 10);
-      const startTimeStr = typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
-      const endTimeStr = typeof req.query['endTime'] === 'string' ? req.query['endTime'] : undefined;
-      const limitNum = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 100;
-      const offsetNum = typeof req.query['offset'] === 'string' ? parseInt(req.query['offset'], 10) : 0;
+      const startTimeStr =
+        typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
+      const endTimeStr =
+        typeof req.query['endTime'] === 'string' ? req.query['endTime'] : undefined;
+      const limitNum =
+        typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 100;
+      const offsetNum =
+        typeof req.query['offset'] === 'string' ? parseInt(req.query['offset'], 10) : 0;
 
       // Delegate to service
       const result = await service.getTimelineEvents(fundIdNum, {
@@ -111,7 +122,10 @@ const createSnapshotSchema = z.object({
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params['fundId'], 10);
       const timestampStr = typeof req.query['timestamp'] === 'string' ? req.query['timestamp'] : '';
-      const includeEventsFlag = typeof req.query['includeEvents'] === 'string' ? req.query['includeEvents'] === 'true' : false;
+      const includeEventsFlag =
+        typeof req.query['includeEvents'] === 'string'
+          ? req.query['includeEvents'] === 'true'
+          : false;
 
       if (!timestampStr) {
         throw new NotFoundError('timestamp is required');
@@ -139,12 +153,12 @@ const createSnapshotSchema = z.object({
     '/:fundId/snapshot',
     validateRequest({
       params: z.object({ fundId: z.coerce.number() }),
-      body: createSnapshotSchema.omit({ fundId: true }),
+      body: createSnapshotBodySchema,
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
       const fundIdNum = parseInt(req.params['fundId'], 10);
-      const { type, description: _description } = req.body;
+      const { type, description: _description } = req.body as CreateSnapshotBody;
 
       // Verify fund exists
       const fund = await db.query.funds.findFirst({
@@ -156,10 +170,12 @@ const createSnapshotSchema = z.object({
       }
 
       // Get queue from providers
-      const providers = (req as { app: { locals: { providers?: { queue?: { enabled: boolean } } } } }).app.locals.providers;
+      const providers = (
+        req as { app: { locals: { providers?: { queue?: { enabled: boolean } } } } }
+      ).app.locals.providers;
 
       // Only create snapshot if queues are enabled
-      if (!providers.queue?.enabled) {
+      if (!providers?.queue?.enabled) {
         throw new Error('Background queues not available in this environment');
       }
 
@@ -233,8 +249,11 @@ const createSnapshotSchema = z.object({
       }),
     }),
     asyncHandler(async (req, res) => {
-      const limitNum = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 20;
-      const eventTypes = Array.isArray(req.query['eventTypes']) ? req.query['eventTypes'] : undefined;
+      const limitNum =
+        typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 20;
+      const eventTypes = Array.isArray(req.query['eventTypes'])
+        ? req.query['eventTypes']
+        : undefined;
 
       // Delegate to service
       const result = await service.getLatestEvents(limitNum, eventTypes);
@@ -253,7 +272,9 @@ const createSnapshotSchema = z.object({
  * This factory allows cache integration when app context is available.
  */
 function createDefaultTimelineRouter(app?: Express) {
-  const cache = app ? createCacheAdapter((app as { locals: { cache?: unknown } }).locals.cache) : undefined;
+  const cache = app
+    ? createCacheAdapter((app as { locals: { cache?: unknown } }).locals.cache)
+    : undefined;
   const timelineService = new TimeTravelAnalyticsService(db, cache);
   return createTimelineRouter(timelineService);
 }

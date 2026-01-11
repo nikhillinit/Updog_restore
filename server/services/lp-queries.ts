@@ -6,8 +6,6 @@ import { logger } from '../lib/logger';
 const DECIMAL_ZERO = new Decimal(0);
 const DECIMAL_ONE = new Decimal(1);
 
-
-
 /**
  * LP Reporting Dashboard - Optimized Query Functions
  *
@@ -220,9 +218,7 @@ export async function getCapitalAccountTransactions(
     // Build WHERE clause conditions
     const conditions = [
       eq(sql`lp_fund_commitments.lp_id`, lpId),
-      fundIds && fundIds.length > 0
-        ? inArray(sql`capital_activities.fund_id`, fundIds)
-        : undefined,
+      fundIds && fundIds.length > 0 ? inArray(sql`capital_activities.fund_id`, fundIds) : undefined,
       startDate ? gte(sql`capital_activities.activity_date`, startDate) : undefined,
       endDate ? lte(sql`capital_activities.activity_date`, endDate) : undefined,
       // Cursor condition: get activities after cursor position
@@ -235,10 +231,7 @@ export async function getCapitalAccountTransactions(
     // Query capital activities with limit+1 to determine if more exist
     const transactions = await db.query.capitalActivities.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: [
-        desc(sql`capital_activities.activity_date`),
-        desc(sql`capital_activities.id`),
-      ],
+      orderBy: [desc(sql`capital_activities.activity_date`), desc(sql`capital_activities.id`)],
       limit: limit + 1,
       columns: {
         id: true,
@@ -258,12 +251,12 @@ export async function getCapitalAccountTransactions(
 
     // Build next cursor from last transaction
     const lastTx = paginatedTransactions[paginatedTransactions.length - 1];
-    const nextCursor = hasMore && lastTx
-      ? buildCursor(lastTx.id, lastTx.activityDate)
-      : null;
+    const nextCursor = hasMore && lastTx ? buildCursor(lastTx.id, lastTx.activityDate) : null;
 
     // Get fund names for all fundIds in result set
-    const fundIdSet = new Set(paginatedTransactions.map((t) => t.fundId).filter((id): id is number => id !== null));
+    const fundIdSet = new Set(
+      paginatedTransactions.map((t) => t.fundId).filter((id): id is number => id !== null)
+    );
     const fundNames = new Map<number, string>();
     if (fundIdSet.size > 0) {
       const fundList = await db.query.funds.findMany({
@@ -280,7 +273,7 @@ export async function getCapitalAccountTransactions(
         id: t.id,
         commitmentId: t.commitmentId,
         fundId: t.fundId ?? 0,
-        fundName: t.fundId ? (fundNames.get(t.fundId) || 'Unknown') : 'Unknown',
+        fundName: t.fundId ? fundNames.get(t.fundId) || 'Unknown' : 'Unknown',
         type: t.activityType as CapitalTransaction['type'],
         activityDate: t.activityDate,
         amountCents: t.amountCents,
@@ -344,8 +337,7 @@ export async function getFundPerformance(
   try {
     // Get LP's commitment in the fund
     const commitment = await db.query.lpFundCommitments.findFirst({
-      where: (table, { eq, and }) =>
-        and(eq(table.lpId, lpId), eq(table.fundId, fundId)),
+      where: (table, { eq, and }) => and(eq(table.lpId, lpId), eq(table.fundId, fundId)),
       columns: { id: true },
     });
 
@@ -435,7 +427,10 @@ export async function getProRataHoldings(
   fundId: number
 ): Promise<PortfolioHolding[]> {
   // Stub implementation - portfolioInvestments table not yet in schema
-  logger.warn({ lpId, fundId }, 'getProRataHoldings not implemented - portfolioInvestments table missing');
+  logger.warn(
+    { lpId, fundId },
+    'getProRataHoldings not implemented - portfolioInvestments table missing'
+  );
   return [];
 }
 
@@ -510,20 +505,22 @@ export async function getPerformanceTimeseries(
   }
 }
 
+type SnapshotRecord = Record<string, unknown> & { snapshotDate: Date };
+
 // Helper: Downsample snapshots to specified granularity
 function downsampleSnapshots(
-  snapshots: Array<Record<string, unknown>>,
+  snapshots: Array<SnapshotRecord>,
   granularity: 'monthly' | 'quarterly'
-): Array<Record<string, unknown>> {
+): Array<SnapshotRecord> {
   if (snapshots.length === 0) return [];
 
   const bucketMs = granularity === 'monthly' ? 30 * 24 * 60 * 60 * 1000 : 90 * 24 * 60 * 60 * 1000;
-  const buckets: Map<string, Array<Record<string, unknown>>> = new Map();
+  const buckets: Map<string, Array<SnapshotRecord>> = new Map();
 
   // Group snapshots into buckets
   for (const snapshot of snapshots) {
     const bucketKey = new Date(
-      Math.floor(snapshot['snapshotDate'].getTime() / bucketMs) * bucketMs
+      Math.floor(snapshot.snapshotDate.getTime() / bucketMs) * bucketMs
     ).toISOString();
 
     if (!buckets.has(bucketKey)) {
@@ -534,8 +531,8 @@ function downsampleSnapshots(
 
   // Return last snapshot from each bucket
   return Array.from(buckets.values())
-    .map((bucket) => bucket[bucket.length - 1])
-    .sort((a, b) => a['snapshotDate'].getTime() - b['snapshotDate'].getTime());
+    .map((bucket) => bucket[bucket.length - 1]!)
+    .sort((a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime());
 }
 
 // =============================================================================
@@ -570,8 +567,7 @@ export async function explainQuery(queryName: string): Promise<unknown> {
         'EXPLAIN ANALYZE SELECT * FROM capital_activities WHERE commitment_id = $1 ORDER BY activity_date DESC LIMIT 20',
       lp_performance_snapshots:
         'EXPLAIN ANALYZE SELECT * FROM lp_performance_snapshots WHERE commitment_id = $1 ORDER BY snapshot_date DESC LIMIT 12',
-      lp_dashboard_summary:
-        'EXPLAIN ANALYZE SELECT * FROM lp_dashboard_summary WHERE lp_id = $1',
+      lp_dashboard_summary: 'EXPLAIN ANALYZE SELECT * FROM lp_dashboard_summary WHERE lp_id = $1',
     };
 
     const query = plans[queryName];

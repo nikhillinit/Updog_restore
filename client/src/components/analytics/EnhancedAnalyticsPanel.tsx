@@ -4,68 +4,108 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, DollarSign, BarChart3, Calculator } from 'lucide-react';
+import type { XIRRResult } from '@/lib/finance/xirr';
+import type { AmericanWaterfallResult } from '@/lib/waterfall/american-ledger';
 
-export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exits }:{
+interface IrrResult extends XIRRResult {}
+
+interface DistributionStats extends AmericanWaterfallResult {}
+
+interface MonteCarloResult {
+  p10: number | null;
+  p25: number | null;
+  p50: number | null;
+  p75: number | null;
+  p90: number | null;
+  mean: number | null;
+  std: number | null;
+  runs: number;
+}
+
+interface AnalyticsMetrics {
+  irr: IrrResult | null;
+  mc: MonteCarloResult | null;
+  wf: DistributionStats | null;
+}
+
+export function EnhancedAnalyticsPanel({
+  cashFlows,
+  wConfig,
+  contributions,
+  exits,
+}: {
   cashFlows: Array<{ date: string; amount: number }>;
-  wConfig: unknown; contributions: unknown[]; exits: unknown[];
+  wConfig: unknown;
+  contributions: unknown[];
+  exits: unknown[];
 }) {
-  const { calculateXIRR, runMonteCarlo, calculateWaterfall, progress, cancel } = useWorkerAnalytics();
-  const [metrics, setMetrics] = useState<{ irr: unknown; mc: unknown; wf: unknown }>({ irr: null, mc: null, wf: null });
+  const { calculateXIRR, runMonteCarlo, calculateWaterfall, progress, cancel } =
+    useWorkerAnalytics();
+  const [metrics, setMetrics] = useState<AnalyticsMetrics>({ irr: null, mc: null, wf: null });
   const [activeCalculations, setActiveCalculations] = useState<Set<string>>(new Set());
 
   // XIRR
   useEffect(() => {
-    const id = nanoid(); 
+    const id = nanoid();
     let cancelled = false;
-    setActiveCalculations(prev => new Set(prev).add(id));
-    
-    calculateXIRR(cashFlows, id).then(res => {
+    setActiveCalculations((prev) => new Set(prev).add(id));
+
+    calculateXIRR(cashFlows, id).then((res) => {
       if (!cancelled) {
-        setMetrics((m) => ({ ...m, irr: res }));
-        setActiveCalculations(prev => {
+        setMetrics((m) => ({ ...m, irr: res as IrrResult }));
+        setActiveCalculations((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
       }
     });
-    return () => { cancelled = true; cancel(id); };
+    return () => {
+      cancelled = true;
+      cancel(id);
+    };
   }, [cashFlows, calculateXIRR, cancel]);
 
   // Monte Carlo (debounced)
   useEffect(() => {
-    const id = nanoid(); 
+    const id = nanoid();
     const t = setTimeout(() => {
-      setActiveCalculations(prev => new Set(prev).add(id));
-      runMonteCarlo(cashFlows, id, 0.2, 500).then(res => {
-        setMetrics((m)=>({ ...m, mc: res }));
-        setActiveCalculations(prev => {
+      setActiveCalculations((prev) => new Set(prev).add(id));
+      runMonteCarlo(cashFlows, id, 0.2, 500).then((res) => {
+        setMetrics((m) => ({ ...m, mc: res as MonteCarloResult }));
+        setActiveCalculations((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
       });
     }, 600);
-    return () => { clearTimeout(t); cancel(id); };
+    return () => {
+      clearTimeout(t);
+      cancel(id);
+    };
   }, [cashFlows, runMonteCarlo, cancel]);
 
   // Waterfall preview
   useEffect(() => {
-    const id = nanoid(); 
+    const id = nanoid();
     let cancelled = false;
-    setActiveCalculations(prev => new Set(prev).add(id));
-    
-    calculateWaterfall(wConfig, contributions, exits, id).then(res => {
+    setActiveCalculations((prev) => new Set(prev).add(id));
+
+    calculateWaterfall(wConfig, contributions, exits, id).then((res) => {
       if (!cancelled) {
-        setMetrics((m)=>({ ...m, wf: res }));
-        setActiveCalculations(prev => {
+        setMetrics((m) => ({ ...m, wf: res as DistributionStats }));
+        setActiveCalculations((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
       }
     });
-    return () => { cancelled = true; cancel(id); };
+    return () => {
+      cancelled = true;
+      cancel(id);
+    };
   }, [wConfig, contributions, exits, calculateWaterfall, cancel]);
 
   const isCalculating = activeCalculations.size > 0;
@@ -85,17 +125,20 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-charcoal-500" />
-                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">IRR (Annualized)</span>
+                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">
+                  IRR (Annualized)
+                </span>
               </div>
               {metrics.irr?.converged && (
                 <span className="text-xs text-green-600 font-medium">✓ Converged</span>
               )}
             </div>
             <div className="text-2xl font-bold font-inter text-pov-charcoal">
-              {metrics.irr?.irr !== null && metrics.irr?.irr !== undefined ? 
-                `${(metrics.irr.irr * 100).toFixed(2)}%` : 
-                isCalculating ? 'Calculating...' : '—'
-              }
+              {metrics.irr?.irr !== null && metrics.irr?.irr !== undefined
+                ? `${(metrics.irr.irr * 100).toFixed(2)}%`
+                : isCalculating
+                  ? 'Calculating...'
+                  : '—'}
             </div>
             {metrics.irr?.method && (
               <p className="text-xs text-charcoal-500">Method: {metrics.irr.method}</p>
@@ -106,7 +149,9 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
           {Object.entries(progress).map(([id, pct]) => (
             <div key={id} className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-poppins text-charcoal-600">Running simulations...</span>
+                <span className="text-xs font-poppins text-charcoal-600">
+                  Running simulations...
+                </span>
                 <span className="text-xs text-charcoal-500">{pct}%</span>
               </div>
               <Progress value={pct} className="h-2" />
@@ -118,24 +163,34 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
             <div className="space-y-2 pt-2 border-t border-charcoal-100">
               <div className="flex items-center gap-2">
                 <Calculator className="w-4 h-4 text-charcoal-500" />
-                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">Monte Carlo Analysis</span>
+                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">
+                  Monte Carlo Analysis
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-xs text-charcoal-500">P50 (Median):</span>
-                  <div className="font-semibold">{metrics.mc.p50 ? `${(metrics.mc.p50 * 100).toFixed(1)}%` : '—'}</div>
+                  <div className="font-semibold">
+                    {metrics.mc.p50 ? `${(metrics.mc.p50 * 100).toFixed(1)}%` : '—'}
+                  </div>
                 </div>
                 <div>
                   <span className="text-xs text-charcoal-500">Mean:</span>
-                  <div className="font-semibold">{metrics.mc.mean ? `${(metrics.mc.mean * 100).toFixed(1)}%` : '—'}</div>
+                  <div className="font-semibold">
+                    {metrics.mc.mean ? `${(metrics.mc.mean * 100).toFixed(1)}%` : '—'}
+                  </div>
                 </div>
                 <div>
                   <span className="text-xs text-charcoal-500">P10:</span>
-                  <div className="font-semibold">{metrics.mc.p10 ? `${(metrics.mc.p10 * 100).toFixed(1)}%` : '—'}</div>
+                  <div className="font-semibold">
+                    {metrics.mc.p10 ? `${(metrics.mc.p10 * 100).toFixed(1)}%` : '—'}
+                  </div>
                 </div>
                 <div>
                   <span className="text-xs text-charcoal-500">P90:</span>
-                  <div className="font-semibold">{metrics.mc.p90 ? `${(metrics.mc.p90 * 100).toFixed(1)}%` : '—'}</div>
+                  <div className="font-semibold">
+                    {metrics.mc.p90 ? `${(metrics.mc.p90 * 100).toFixed(1)}%` : '—'}
+                  </div>
                 </div>
               </div>
               <p className="text-xs text-charcoal-500">{metrics.mc.runs} simulations completed</p>
@@ -147,16 +202,17 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
             <div className="space-y-2 pt-2 border-t border-charcoal-100">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-charcoal-500" />
-                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">Waterfall (American)</span>
+                <span className="text-xs font-poppins text-charcoal-600 uppercase tracking-widest">
+                  Waterfall (American)
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-xs text-charcoal-500">DPI:</span>
                   <div className="text-lg font-semibold text-pov-charcoal">
-                    {metrics.wf.totals.paidIn > 0 ? 
-                      `${(metrics.wf.totals.distributed / metrics.wf.totals.paidIn).toFixed(2)}x` : 
-                      '—'
-                    }
+                    {metrics.wf.totals.paidIn > 0
+                      ? `${(metrics.wf.totals.distributed / metrics.wf.totals.paidIn).toFixed(2)}x`
+                      : '—'}
                   </div>
                 </div>
                 <div>

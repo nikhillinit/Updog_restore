@@ -173,7 +173,7 @@ export function float32ToMatrix(
   for (let s = 0; s < numScenarios; s++) {
     const scenario: number[] = [];
     for (let b = 0; b < numBuckets; b++) {
-      scenario.push(flat[idx++]);
+      scenario.push(flat[idx++]!);
     }
     matrix.push(scenario);
   }
@@ -193,7 +193,11 @@ export async function compressMatrix(matrix: number[][]): Promise<CompressedMatr
   }
 
   const numScenarios = matrix.length;
-  const numBuckets = matrix[0].length;
+  const firstRow = matrix[0];
+  if (!firstRow) {
+    throw new Error('Matrix first row is undefined');
+  }
+  const numBuckets = firstRow.length;
 
   // Convert to Float32Array
   const flat = matrixToFloat32(matrix);
@@ -217,11 +221,9 @@ export async function compressMatrix(matrix: number[][]): Promise<CompressedMatr
     compressed = new Uint8Array(compressedBuffer);
   } else {
     // Browser environment - use pako
-    // @ts-expect-error - pako types not available
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
     const pako = await import('pako');
-    // @ts-expect-error - pako types not available
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
     compressed = pako.deflate(new Uint8Array(flat.buffer, flat.byteOffset, flat.byteLength));
   }
 
@@ -266,11 +268,9 @@ export async function decompressMatrix(compressed: CompressedMatrix): Promise<nu
     decompressed = new Uint8Array(decompressedBuffer);
   } else {
     // Browser environment - use pako
-    // @ts-expect-error - pako types not available
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
     const pako = await import('pako');
-    // @ts-expect-error - pako types not available
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
     decompressed = pako.inflate(compressed.data);
   }
 

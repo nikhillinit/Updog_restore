@@ -132,9 +132,7 @@ export function validateScenarioConfig(config: ScenarioConfig): void {
   const epsilon = 0.01;
 
   if (Math.abs(totalAllocation - 100) > epsilon) {
-    throw new Error(
-      `Bucket allocations must sum to 100%, got ${totalAllocation.toFixed(2)}%`
-    );
+    throw new Error(`Bucket allocations must sum to 100%, got ${totalAllocation.toFixed(2)}%`);
   }
 
   // Validate each bucket
@@ -195,9 +193,7 @@ export class ScenarioGenerator {
     this.correlationStructure = new CorrelationStructure(config.correlationWeights);
 
     // Initialize MOIC generators per bucket
-    this.moicGenerators = config.buckets.map(
-      (bucket) => new PowerLawMOIC(bucket.moicCalibration)
-    );
+    this.moicGenerators = config.buckets.map((bucket) => new PowerLawMOIC(bucket.moicCalibration));
 
     // Initialize recycling engine
     this.recyclingEngine = new RecyclingEngine(config.recycling);
@@ -256,8 +252,14 @@ export class ScenarioGenerator {
 
     // Step 3: Calculate recycling multiples (for metadata)
     const bucketMeanMOICs = this.config.buckets.map((_, b) => {
-      const mean = moicMatrix.reduce((sum, scenario) => sum + scenario[b], 0) / numScenarios;
-      return mean;
+      const total = moicMatrix.reduce((sum, scenario, s) => {
+        const value = scenario[b];
+        if (value === undefined) {
+          throw new Error(`Missing MOIC for scenario ${s}, bucket ${b}`);
+        }
+        return sum + value;
+      }, 0);
+      return total / numScenarios;
     });
 
     const bucketCapitals = this.config.buckets.map((bucket) => bucket.capitalAllocation);
