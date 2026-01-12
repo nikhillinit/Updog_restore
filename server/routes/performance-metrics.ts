@@ -42,7 +42,7 @@ router["get"]('/summary', (req: Request, res: Response) => {
         monteCarloPerformance: metrics.summary['monte_carlo_simulation']?.avgDuration || 0,
         apiPerformance: Object.entries(metrics.summary)
           .filter(([key]) => key.startsWith('GET ') || key.startsWith('POST '))
-          .reduce((avg, [, stats]: [string, { avgDuration: number }]) => avg + stats.avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
+          .reduce((avg, [, stats]) => avg + (stats as { avgDuration: number }).avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
       }
     };
 
