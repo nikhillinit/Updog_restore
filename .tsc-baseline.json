@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T14:40:16.791Z"
+      "lastUpdated": "2026-01-12T15:46:49.561Z"
     },
     "shared": {
       "errors": [
@@ -71,27 +71,18 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T14:40:16.791Z"
+      "lastUpdated": "2026-01-12T15:46:49.561Z"
     },
     "server": {
       "errors": [
-        "server/db/redis-circuit.ts:TS2352:4abffcc2",
-        "server/lib/approvals-guard.ts:TS2375:be7837dd",
-        "server/lib/secure-context.ts:TS2571:c3e1b0d1",
-        "server/lib/wasm-runner.ts:TS2345:c03379b8",
-        "server/lib/wasm-runner.ts:TS2375:0452e6bc",
-        "server/middleware/idempotency.ts:TS2554:4c4ee66b",
-        "server/nats-bridge.ts:TS1361:ae976181",
-        "server/routes/timeline.ts:TS2367:35029db5",
-        "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
-        "server/services/monte-carlo-engine.ts:TS2345:7c22e833"
+        "server/services/monte-carlo-engine.ts:TS2352:fd73b978"
       ],
-      "total": 10,
-      "lastUpdated": "2026-01-12T14:40:16.791Z"
+      "total": 1,
+      "lastUpdated": "2026-01-12T15:46:49.561Z"
     }
   },
-  "totalErrors": 70,
-  "timestamp": "2026-01-12T14:40:16.791Z",
+  "totalErrors": 61,
+  "timestamp": "2026-01-12T15:46:49.561Z",
   "buildMode": "per-project",
-  "elapsedMs": 26178
+  "elapsedMs": 42560
 }

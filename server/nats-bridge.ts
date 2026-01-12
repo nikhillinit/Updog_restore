@@ -6,7 +6,7 @@ import { logger } from './logger';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { natsBridgeConnections, natsBridgeMessages } from './metrics';
-import type WebSocket from 'ws';
+import WebSocket from 'ws';
 
 // Message schemas
 const subscribeSchema = z.object({

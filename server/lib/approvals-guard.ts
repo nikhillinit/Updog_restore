@@ -234,9 +234,9 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
 
       // Attach approval info to request for downstream use
       const approvalInfo = {
-        id: result.approvalId,
-        signatures: result.signatures,
-        calculationHash: result.calculationHash,
+        ...(result.approvalId !== undefined && { id: result.approvalId }),
+        ...(result.signatures !== undefined && { signatures: result.signatures }),
+        ...(result.calculationHash !== undefined && { calculationHash: result.calculationHash }),
       };
       // eslint-disable-next-line require-atomic-updates -- sequential guard checks
       req.approval = approvalInfo;

@@ -147,12 +147,13 @@ export async function executeWithContext<T>(
  */
 export async function validateFundAccess(context: UserContext, fundId: string): Promise<boolean> {
   const result = await executeWithContext(context, async (tx) => {
-    const funds = (await (tx as Record<string, unknown>)['execute'](sql`
+    const txExecute = (tx as { execute: (query: unknown) => Promise<{ rows: unknown[] }> }).execute;
+    const funds = await txExecute(sql`
       SELECT id FROM funds
       WHERE id = ${fundId}
       AND organization_id = ${context.orgId}
       LIMIT 1
-    `)) as { rows: unknown[] };
+    `);
 
     return funds.rows.length > 0;
   });

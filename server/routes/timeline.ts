@@ -224,11 +224,12 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
       }
 
       // Delegate to service
+      const includeDiffBool = typeof includeDiff === 'boolean' ? includeDiff : true;
       const result = await service.compareStates(
         fundIdNum,
         new Date(ts1),
         new Date(ts2),
-        includeDiff !== false
+        includeDiffBool
       );
 
       recordBusinessMetric('state_comparison', 'success', Date.now() - startTimer);

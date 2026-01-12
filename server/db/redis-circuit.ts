@@ -54,7 +54,7 @@ if (process.env['REDIS_URL'] === 'memory://') {
     on: () => {},
   };
 } else {
-  redis = createCacheFromEnv() as RedisClient;
+  redis = createCacheFromEnv() as unknown as RedisClient;
 }
 
 // Redis event handlers for monitoring
