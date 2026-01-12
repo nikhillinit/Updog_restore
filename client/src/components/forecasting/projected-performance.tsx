@@ -51,11 +51,12 @@ export default function ProjectedPerformance() {
     { month: "Jun 2025", date: "2025-06", constructionProjection: 54, actual: 45, currentProjection: 54, tvpiConstruction: 4.2, tvpiActual: 2.95, tvpiCurrent: 4.0 }
   ];
 
-  const formatTooltip = (value: number, name: string) => {
-    if (name.includes('TVPI')) {
+  const formatTooltip = (value: number | undefined, name?: string) => {
+    if (value === undefined) return ['', name ?? ''];
+    if (name?.includes('TVPI')) {
       return [`${value.toFixed(2)}x`, name];
     }
-    return [value, name];
+    return [value, name ?? ''];
   };
 
   return (

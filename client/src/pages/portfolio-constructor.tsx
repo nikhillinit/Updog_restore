@@ -880,7 +880,7 @@ export default function PortfolioConstructor() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis tickFormatter={(value) => formatCurrency(Number(value))} />
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''} />
                     <Area
                       type="monotone"
                       dataKey="cumulative"
