@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T11:56:59.068Z"
+      "lastUpdated": "2026-01-12T12:10:51.434Z"
     },
     "shared": {
       "errors": [
@@ -71,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T11:56:59.068Z"
+      "lastUpdated": "2026-01-12T12:10:51.434Z"
     },
     "server": {
       "errors": [
@@ -88,8 +88,6 @@
         "server/middleware/idempotency.ts:TS2554:4c4ee66b",
         "server/nats-bridge.ts:TS1361:ae976181",
         "server/nats-bridge.ts:TS2774:f0a5dd32",
-        "server/routes/health.ts:TS2345:af347955",
-        "server/routes/health.ts:TS2345:e55c5e0a",
         "server/routes/metrics.ts:TS2339:317db810",
         "server/routes/performance-metrics.ts:TS2339:fc0349ad",
         "server/routes/performance-metrics.ts:TS2345:7cea6e10",
@@ -135,12 +133,12 @@
         "server/utils/input-sanitization.ts:TS2571:991b6a3e",
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
-      "total": 59,
-      "lastUpdated": "2026-01-12T11:56:59.068Z"
+      "total": 57,
+      "lastUpdated": "2026-01-12T12:10:51.434Z"
     }
   },
-  "totalErrors": 119,
-  "timestamp": "2026-01-12T11:56:59.068Z",
+  "totalErrors": 117,
+  "timestamp": "2026-01-12T12:10:51.434Z",
   "buildMode": "per-project",
-  "elapsedMs": 30233
+  "elapsedMs": 25694
 }
