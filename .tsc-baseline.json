@@ -58,17 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-11T22:18:34.382Z"
-    },
-    "unknown": {
-      "errors": [
-        "packages/agent-core/src/ConversationMemory.ts:TS2571:05798ef1",
-        "packages/agent-core/src/ConversationMemory.ts:TS2571:5d8a6118",
-        "packages/agent-core/src/ConversationMemory.ts:TS2571:70d1b74f",
-        "packages/agent-core/src/ConversationMemory.ts:TS2571:cb31b9a2"
-      ],
-      "total": 4,
-      "lastUpdated": "2026-01-11T22:18:34.382Z"
+      "lastUpdated": "2026-01-12T10:17:20.890Z"
     },
     "shared": {
       "errors": [
@@ -81,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-11T22:18:34.382Z"
+      "lastUpdated": "2026-01-12T10:17:20.890Z"
     },
     "server": {
       "errors": [
@@ -166,19 +156,16 @@
         "server/services/streaming-monte-carlo-engine.ts:TS2339:4e348d9d",
         "server/services/streaming-monte-carlo-engine.ts:TS2339:eb13934e",
         "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184",
-        "server/storage.ts:TS2375:3a35e3db",
-        "server/storage.ts:TS2375:7b596301",
-        "server/storage.ts:TS2375:9ec9ba88",
         "server/utils/input-sanitization.ts:TS2571:2d60c6fe",
         "server/utils/input-sanitization.ts:TS2571:991b6a3e",
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
-      "total": 87,
-      "lastUpdated": "2026-01-11T22:18:34.382Z"
+      "total": 84,
+      "lastUpdated": "2026-01-12T10:17:20.890Z"
     }
   },
-  "totalErrors": 151,
-  "timestamp": "2026-01-11T22:18:34.382Z",
+  "totalErrors": 144,
+  "timestamp": "2026-01-12T10:17:20.890Z",
   "buildMode": "per-project",
-  "elapsedMs": 23824
+  "elapsedMs": 21631
 }
