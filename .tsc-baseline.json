@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T12:44:30.839Z"
+      "lastUpdated": "2026-01-12T13:14:15.844Z"
     },
     "shared": {
       "errors": [
@@ -71,13 +71,13 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T12:44:30.839Z"
+      "lastUpdated": "2026-01-12T13:14:15.844Z"
     },
     "server": {
       "errors": [
         "server/db/redis-circuit.ts:TS2352:4abffcc2",
         "server/lib/approvals-guard.ts:TS2375:be7837dd",
-        "server/lib/secure-context.ts:TS2571:1abbb26c",
+        "server/lib/secure-context.ts:TS2571:c3e1b0d1",
         "server/lib/wasm-runner.ts:TS2345:c03379b8",
         "server/lib/wasm-runner.ts:TS2375:0452e6bc",
         "server/middleware/idempotency.ts:TS2554:4c4ee66b",
@@ -122,11 +122,11 @@
         "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184"
       ],
       "total": 45,
-      "lastUpdated": "2026-01-12T12:44:30.839Z"
+      "lastUpdated": "2026-01-12T13:14:15.844Z"
     }
   },
   "totalErrors": 105,
-  "timestamp": "2026-01-12T12:44:30.839Z",
+  "timestamp": "2026-01-12T13:14:15.844Z",
   "buildMode": "per-project",
-  "elapsedMs": 27821
+  "elapsedMs": 27035
 }
