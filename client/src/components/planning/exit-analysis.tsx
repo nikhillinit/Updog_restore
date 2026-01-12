@@ -386,8 +386,8 @@ export default function ExitAnalysis() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="stage" />
                   <YAxis tickFormatter={(value: any) => `$${value}M`} />
-                  <Tooltip 
-                    formatter={(value: number) => [`$${value.toFixed(1)}M`, "Realized Value"]}
+                  <Tooltip
+                    formatter={(value) => [value !== undefined ? `$${Number(value).toFixed(1)}M` : '', "Realized Value"]}
                     labelFormatter={(label: any) => `Stage: ${label}`}
                   />
                   <Bar dataKey="realizedValue" fill="#10b981" />
@@ -421,8 +421,8 @@ export default function ExitAnalysis() {
                       <Cell key={`cell-${index}`} fill={stageColors[index % stageColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => [value, "Exiting Companies"]}
+                  <Tooltip
+                    formatter={(value) => [value !== undefined ? Number(value) : 0, "Exiting Companies"]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -446,8 +446,8 @@ export default function ExitAnalysis() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="stage" />
                 <YAxis tickFormatter={(value: any) => `${value}%`} />
-                <Tooltip 
-                  formatter={(value: number) => [`${value.toFixed(1)}%`, "Avg Ownership"]}
+                <Tooltip
+                  formatter={(value) => [value !== undefined ? `${Number(value).toFixed(1)}%` : '', "Avg Ownership"]}
                 />
                 <Line 
                   type="monotone" 

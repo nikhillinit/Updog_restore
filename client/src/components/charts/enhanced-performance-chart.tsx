@@ -28,9 +28,9 @@ interface EnhancedPerformanceChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: any, name: string) => {
-  if (typeof value !== 'number') return [value, name];
-  
+const formatTooltipValue = (value: any, name?: string) => {
+  if (typeof value !== 'number') return [value, name ?? ''];
+
   switch (name) {
     case 'IRR':
       return [`${(value * 100).toFixed(1)}%`, 'Internal Rate of Return'];
@@ -41,7 +41,7 @@ const formatTooltipValue = (value: any, name: string) => {
     case 'TVPI':
       return [`${value.toFixed(2)}x`, 'Total Value to Paid-In'];
     default:
-      return [value.toFixed(2), name];
+      return [value.toFixed(2), name ?? ''];
   }
 };
 

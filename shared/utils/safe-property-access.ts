@@ -71,7 +71,7 @@ export function safeMockFunctionCall<T extends (...args: unknown[]) => unknown>(
   if (mockObj && typeof mockObj === 'object' && functionName in mockObj) {
     const fn = (mockObj as Record<string, unknown>)[functionName];
     if (typeof fn === 'function') {
-      return (fn as T)(...args);
+      return (fn as T)(...args) as ReturnType<T>;
     }
   }
   return undefined;

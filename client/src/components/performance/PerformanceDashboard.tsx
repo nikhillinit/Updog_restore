@@ -288,7 +288,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v) => `${v.toFixed(0)}%`} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value: number) => [`${value?.toFixed(2)}%`, 'IRR']}
+                      formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}%` : '', 'IRR']}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Line
@@ -323,9 +323,9 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v) => `${v?.toFixed(1)}x`} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value: number, name: string) => [
-                        `${value?.toFixed(2)}x`,
-                        name.toUpperCase(),
+                      formatter={(value, name) => [
+                        value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                        String(name ?? '').toUpperCase(),
                       ]}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
@@ -422,7 +422,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                         <XAxis type="number" tickFormatter={(v) => `${v.toFixed(1)}x`} />
                         <YAxis dataKey="group" type="category" tick={{ fontSize: 12 }} width={90} />
                         <Tooltip
-                          formatter={(value: number) => [`${value.toFixed(2)}x`, 'MOIC']}
+                          formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}x` : '', 'MOIC']}
                         />
                         <Bar dataKey="moic" radius={[0, 4, 4, 0]}>
                           {breakdownData.breakdown.slice(0, 10).map((_, index) => (

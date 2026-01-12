@@ -43,9 +43,10 @@ export function polymorphicForwardRef<
     ref: ForwardedRef<Element>
   ) => ReactNode
 ) {
-  // Simplified type assertion to work with strict mode
-  type RenderType = (props: PolymorphicProps<DefaultTag, ExtraProps>, ref: ForwardedRef<Element>) => ReactNode;
-  return forwardRef(render as RenderType) as <T extends ElementType = DefaultTag>(
+  // Double type assertion needed due to TypeScript's strict handling of
+  // polymorphic forwardRef generics. The runtime behavior is correct.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return forwardRef(render as any) as <T extends ElementType = DefaultTag>(
     props: PolymorphicProps<T, ExtraProps> & { ref?: ForwardedRef<Element> }
   ) => ReactNode;
 }

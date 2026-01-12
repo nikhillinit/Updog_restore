@@ -226,8 +226,10 @@ export default function CapitalCallOptimizationChart({
                 label={{ value: 'Amount ($M)', angle: -90, position: 'insideLeft' }}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  name === 'amount' ? formatCurrency(value) : formatPercent(value),
+                formatter={(value, name) => [
+                  value !== undefined
+                    ? (name === 'amount' ? formatCurrency(Number(value)) : formatPercent(Number(value)))
+                    : '',
                   name === 'amount' ? 'Call Amount' : 'Utilization Rate'
                 ]}
                 labelFormatter={(label) => `Capital Call #${label}`}
@@ -253,7 +255,7 @@ export default function CapitalCallOptimizationChart({
               <XAxis dataKey="date" />
               <YAxis label={{ value: 'Amount ($M)', angle: -90, position: 'insideLeft' }} />
               <Tooltip
-                formatter={(value: number) => formatCurrency(value)}
+                formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''}
               />
               <Area
                 type="monotone"
