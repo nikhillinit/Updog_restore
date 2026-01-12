@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T12:19:39.171Z"
+      "lastUpdated": "2026-01-12T12:27:30.843Z"
     },
     "shared": {
       "errors": [
@@ -71,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T12:19:39.171Z"
+      "lastUpdated": "2026-01-12T12:27:30.843Z"
     },
     "server": {
       "errors": [
@@ -88,7 +88,6 @@
         "server/middleware/idempotency.ts:TS2554:4c4ee66b",
         "server/nats-bridge.ts:TS1361:ae976181",
         "server/nats-bridge.ts:TS2774:f0a5dd32",
-        "server/routes/metrics.ts:TS2339:317db810",
         "server/routes/timeline.ts:TS2367:35029db5",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
         "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
@@ -131,12 +130,12 @@
         "server/utils/input-sanitization.ts:TS2571:991b6a3e",
         "server/utils/input-sanitization.ts:TS2571:e291569f"
       ],
-      "total": 55,
-      "lastUpdated": "2026-01-12T12:19:39.171Z"
+      "total": 54,
+      "lastUpdated": "2026-01-12T12:27:30.843Z"
     }
   },
-  "totalErrors": 115,
-  "timestamp": "2026-01-12T12:19:39.171Z",
+  "totalErrors": 114,
+  "timestamp": "2026-01-12T12:27:30.843Z",
   "buildMode": "per-project",
-  "elapsedMs": 90429
+  "elapsedMs": 25387
 }
