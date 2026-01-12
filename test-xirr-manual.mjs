@@ -3,7 +3,7 @@
  * Bypasses vitest dependency issues by running tests directly
  */
 
-import { xirrNewtonBisection } from './client/src/lib/finance/xirr.ts';
+import { xirrNewtonBisection } from './shared/lib/finance/xirr.ts';
 
 const EXCEL_TOLERANCE = 1e-7;
 let passed = 0;
