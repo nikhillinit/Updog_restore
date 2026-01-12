@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Info, Calculator } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertCircle, Info, Calculator } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFundTuple } from '@/stores/useFundSelector';
 import {
   computeFromCapital_v2,
@@ -16,7 +16,7 @@ import {
   type CapitalFirstInputsV2,
   type StageKey,
   type FollowOnRule,
-  StageOrder
+  StageOrder,
 } from '@/lib/capital-first';
 import { committedFeeDragFraction } from '@/lib/fees';
 import { asFraction, type Fraction } from '@shared/units';
@@ -30,21 +30,15 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Get state from store
-  const [
-    fundSize,
-    feeProfiles,
-    stages,
-    _sectorProfiles,
-    allocations,
-    _followOnChecks
-  ] = useFundTuple(s => [
-    s.fundSize,
-    s.feeProfiles,
-    s.stages,
-    s.sectorProfiles,
-    s.allocations,
-    s.followOnChecks
-  ]);
+  const [fundSize, feeProfiles, stages, _sectorProfiles, allocations, _followOnChecks] =
+    useFundTuple((s) => [
+      s.fundSize,
+      s.feeProfiles,
+      s.stages,
+      s.sectorProfiles,
+      s.allocations,
+      s.followOnChecks,
+    ]);
 
   // Build inputs for capital-first calculation
   const primaryFeeProfile = feeProfiles[0];
@@ -52,14 +46,14 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     // Calculate fee drag as fraction (0-1) from tier tables
     const feeDragFraction: Fraction = primaryFeeProfile?.feeTiers
       ? committedFeeDragFraction(primaryFeeProfile.feeTiers)
-      : asFraction(0.20); // Fallback estimate for 2% over 10 years = 20% = 0.20 fraction
+      : asFraction(0.2); // Fallback estimate for 2% over 10 years = 20% = 0.20 fraction
 
     // Map allocations to stage percentages
     const allocationPctByStage: Record<StageKey, number> = {
       preseed: 0,
       seed: 0,
       seriesA: 0,
-      seriesBplus: 0
+      seriesBplus: 0,
     };
 
     // Simple mapping for demo - in production, you'd have more sophisticated allocation logic
@@ -75,14 +69,14 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       preseed: 0,
       seed: 0,
       seriesA: 0,
-      seriesBplus: 0
+      seriesBplus: 0,
     };
 
     const initialCheckByStage: Record<StageKey, number> = {
       preseed: 250_000,
       seed: 500_000,
       seriesA: 800_000,
-      seriesBplus: 1_200_000
+      seriesBplus: 1_200_000,
     };
 
     stages.forEach((stage, index) => {
@@ -98,7 +92,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       preseed: { valuationPost: 8_000_000, roundSize: 2_000_000 },
       seed: { valuationPost: 20_000_000, roundSize: 5_000_000 },
       seriesA: { valuationPost: 50_000_000, roundSize: 12_000_000 },
-      seriesBplus: { valuationPost: 150_000_000, roundSize: 25_000_000 }
+      seriesBplus: { valuationPost: 150_000_000, roundSize: 25_000_000 },
     };
 
     // Follow-on rules with maintain ownership strategy
@@ -108,22 +102,22 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
         to: 'seed',
         mode: 'maintain_ownership',
         participationPct: 70, // 70% participation in next rounds
-        targetOwnershipPct: 8  // Target 8% ownership
+        targetOwnershipPct: 8, // Target 8% ownership
       },
       {
         from: 'seed',
         to: 'seriesA',
         mode: 'maintain_ownership',
         participationPct: 80,
-        targetOwnershipPct: 10
+        targetOwnershipPct: 10,
       },
       {
         from: 'seriesA',
         to: 'seriesBplus',
         mode: 'fixed_check',
         participationPct: 60,
-        fixedAmount: 1_500_000 // Fixed $1.5M follow-on
-      }
+        fixedAmount: 1_500_000, // Fixed $1.5M follow-on
+      },
     ];
 
     return {
@@ -133,7 +127,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       initialCheckByStage,
       graduationPctByStage,
       marketByStage,
-      followOnRules
+      followOnRules,
     };
   }, [primaryFeeProfile, fundSize, stages, allocations]);
 
@@ -182,10 +176,14 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     );
   }
 
-  const formatCurrency = (amount: number) => 
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(amount);
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+    }).format(amount);
 
-  const formatNumber = (num: number) => 
+  const formatNumber = (num: number) =>
     showWholeNumbers && roundedResults ? Math.round(num).toLocaleString() : num.toFixed(1);
 
   return (
@@ -205,7 +203,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           )}
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Controls */}
         <div className="flex items-center justify-between">
@@ -217,12 +215,8 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
             />
             <Label htmlFor="whole-numbers">Show nearest whole portfolio</Label>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-          >
+
+          <Button variant="outline" size="sm" onClick={() => setShowAdvanced(!showAdvanced)}>
             {showAdvanced ? 'Hide' : 'Show'} Advanced
           </Button>
         </div>
@@ -233,17 +227,19 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
             <Label className="text-sm text-muted-foreground">Total Commitment</Label>
             <div className="text-lg font-semibold">{formatCurrency(inputs.totalCommitment)}</div>
           </div>
-          
+
           <div className="space-y-1">
             <Label className="text-sm text-muted-foreground">Investable Capital</Label>
             <div className="text-lg font-semibold">{formatCurrency(results.grossInvestable)}</div>
           </div>
-          
+
           <div className="space-y-1">
             <Label className="text-sm text-muted-foreground">Reserve Demand</Label>
-            <div className="text-lg font-semibold">{formatCurrency(results.followOnReserveDemand)}</div>
+            <div className="text-lg font-semibold">
+              {formatCurrency(results.followOnReserveDemand)}
+            </div>
           </div>
-          
+
           <div className="space-y-1">
             <Label className="text-sm text-muted-foreground">Reserve Ratio</Label>
             <div className="text-lg font-semibold">
@@ -258,24 +254,34 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
             <TabsTrigger value="counts">Investment Counts</TabsTrigger>
             <TabsTrigger value="capital">Capital Deployment</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="counts" className="space-y-4">
             <div className="grid gap-3">
               {StageOrder.map((stage) => {
-                const roundedResult = roundedResults as unknown as Record<string, Record<string, number>> | null;
+                const roundedResult = roundedResults as unknown as Record<
+                  string,
+                  Record<string, number>
+                > | null;
                 const result = results as unknown as Record<string, Record<string, number>> | null;
                 const surplusByStage = roundedResult?.['surplusByStage'];
                 const rounded = roundedResult?.['rounded'];
                 const initialInvestmentsByStage = result?.['initialInvestmentsByStage'];
 
                 return (
-                  <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div
+                    key={stage}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
-                      <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
+                      <Label className="capitalize font-medium">
+                        {stage.replace(/([A-Z])/g, ' $1')}
+                      </Label>
                       {showWholeNumbers && roundedResults && surplusByStage && (
-                        <Badge variant={surplusByStage[stage] >= 0 ? "secondary" : "destructive"}>
-                          {surplusByStage[stage] >= 0 ? '+' : ''}
-                          {formatCurrency(surplusByStage[stage])} surplus
+                        <Badge
+                          variant={(surplusByStage[stage] ?? 0) >= 0 ? 'secondary' : 'destructive'}
+                        >
+                          {(surplusByStage[stage] ?? 0) >= 0 ? '+' : ''}
+                          {formatCurrency(surplusByStage[stage] ?? 0)} surplus
                         </Badge>
                       )}
                     </div>
@@ -283,9 +289,10 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
                       <div className="font-semibold">
                         {formatNumber(
                           showWholeNumbers && roundedResults && rounded
-                            ? rounded[stage]
-                            : initialInvestmentsByStage?.[stage] ?? 0
-                        )} deals
+                            ? (rounded[stage] ?? 0)
+                            : (initialInvestmentsByStage?.[stage] ?? 0)
+                        )}{' '}
+                        deals
                       </div>
                     </div>
                   </div>
@@ -293,7 +300,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
               })}
             </div>
           </TabsContent>
-          
+
           <TabsContent value="capital" className="space-y-4">
             <div className="grid gap-3">
               {StageOrder.map((stage) => {
@@ -304,7 +311,9 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
                 return (
                   <div key={stage} className="p-3 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
+                      <Label className="capitalize font-medium">
+                        {stage.replace(/([A-Z])/g, ' $1')}
+                      </Label>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
@@ -349,22 +358,14 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Fee Drag (%)</Label>
-                  <Input 
-                    type="number" 
-                    value={inputs.feeDragPct.toFixed(1)} 
-                    disabled 
-                  />
+                  <Input type="number" value={inputs.feeDragPct.toFixed(1)} disabled />
                 </div>
                 <div>
                   <Label>Fund Term (months)</Label>
-                  <Input 
-                    type="number" 
-                    value={120} 
-                    disabled 
-                  />
+                  <Input type="number" value={120} disabled />
                 </div>
               </div>
-              
+
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
