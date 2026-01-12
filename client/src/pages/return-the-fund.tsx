@@ -297,8 +297,8 @@ export default function ReturnTheFundPage() {
                               domain={[0, 0.125]}
                               tickFormatter={(value: any) => `${(value * 100).toFixed(1)}%`}
                             />
-                            <Tooltip 
-                              formatter={(value: number) => [`${value.toFixed(2)}%`, 'Ownership']}
+                            <Tooltip
+                              formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}%` : '', 'Ownership']}
                             />
                             <Bar 
                               dataKey="ownership" 
@@ -325,8 +325,8 @@ export default function ReturnTheFundPage() {
                             <YAxis 
                               tickFormatter={(value: any) => `$${value}mm`}
                             />
-                            <Tooltip 
-                              formatter={(value: number) => [`$${value}mm`, 'Return the Fund']}
+                            <Tooltip
+                              formatter={(value) => [value !== undefined ? `$${value}mm` : '', 'Return the Fund']}
                             />
                             <Bar 
                               dataKey="returnTheFund" 
