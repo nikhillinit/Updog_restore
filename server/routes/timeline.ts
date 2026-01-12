@@ -85,7 +85,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params['fundId'], 10);
+      const fundIdNum = parseInt(req.params['fundId']!, 10);
       const startTimeStr =
         typeof req.query['startTime'] === 'string' ? req.query['startTime'] : undefined;
       const endTimeStr =
@@ -120,7 +120,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params['fundId'], 10);
+      const fundIdNum = parseInt(req.params['fundId']!, 10);
       const timestampStr = typeof req.query['timestamp'] === 'string' ? req.query['timestamp'] : '';
       const includeEventsFlag =
         typeof req.query['includeEvents'] === 'string'
@@ -157,7 +157,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     }),
     asyncHandler(async (req, res) => {
       const startTimer = Date.now();
-      const fundIdNum = parseInt(req.params['fundId'], 10);
+      const fundIdNum = parseInt(req.params['fundId']!, 10);
       const { type, description: _description } = req.body as CreateSnapshotBody;
 
       // Verify fund exists
@@ -215,7 +215,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
       const { fundId } = req.params;
       const { timestamp1, timestamp2, includeDiff } = req.query;
 
-      const fundIdNum = parseInt(fundId, 10);
+      const fundIdNum = parseInt(fundId!, 10);
       const ts1 = typeof timestamp1 === 'string' ? timestamp1 : '';
       const ts2 = typeof timestamp2 === 'string' ? timestamp2 : '';
 
@@ -252,7 +252,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
       const limitNum =
         typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 20;
       const eventTypes = Array.isArray(req.query['eventTypes'])
-        ? req.query['eventTypes']
+        ? (req.query['eventTypes'] as string[])
         : undefined;
 
       // Delegate to service
