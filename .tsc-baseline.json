@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T12:27:30.843Z"
+      "lastUpdated": "2026-01-12T12:44:30.839Z"
     },
     "shared": {
       "errors": [
@@ -71,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T12:27:30.843Z"
+      "lastUpdated": "2026-01-12T12:44:30.839Z"
     },
     "server": {
       "errors": [
@@ -80,14 +80,8 @@
         "server/lib/secure-context.ts:TS2571:1abbb26c",
         "server/lib/wasm-runner.ts:TS2345:c03379b8",
         "server/lib/wasm-runner.ts:TS2375:0452e6bc",
-        "server/middleware/enhanced-audit.ts:TS2352:020a6d3a",
-        "server/middleware/enhanced-audit.ts:TS2352:2c4eba3b",
-        "server/middleware/enhanced-audit.ts:TS2352:cada018e",
-        "server/middleware/enhanced-audit.ts:TS2352:cffa84b1",
-        "server/middleware/enhanced-audit.ts:TS2352:fe96893a",
         "server/middleware/idempotency.ts:TS2554:4c4ee66b",
         "server/nats-bridge.ts:TS1361:ae976181",
-        "server/nats-bridge.ts:TS2774:f0a5dd32",
         "server/routes/timeline.ts:TS2367:35029db5",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
         "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
@@ -125,17 +119,14 @@
         "server/services/streaming-monte-carlo-engine.ts:TS2322:6cc7df29",
         "server/services/streaming-monte-carlo-engine.ts:TS2339:4e348d9d",
         "server/services/streaming-monte-carlo-engine.ts:TS2339:eb13934e",
-        "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184",
-        "server/utils/input-sanitization.ts:TS2571:2d60c6fe",
-        "server/utils/input-sanitization.ts:TS2571:991b6a3e",
-        "server/utils/input-sanitization.ts:TS2571:e291569f"
+        "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184"
       ],
-      "total": 54,
-      "lastUpdated": "2026-01-12T12:27:30.843Z"
+      "total": 45,
+      "lastUpdated": "2026-01-12T12:44:30.839Z"
     }
   },
-  "totalErrors": 114,
-  "timestamp": "2026-01-12T12:27:30.843Z",
+  "totalErrors": 105,
+  "timestamp": "2026-01-12T12:44:30.839Z",
   "buildMode": "per-project",
-  "elapsedMs": 25387
+  "elapsedMs": 27821
 }

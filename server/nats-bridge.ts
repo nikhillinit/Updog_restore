@@ -1,4 +1,4 @@
-import type { NatsConnection} from 'nats';
+import type { NatsConnection } from 'nats';
 import { connect, StringCodec } from 'nats';
 import { WebSocketServer } from 'ws';
 import type { Server as HttpServer } from 'http';
@@ -70,9 +70,10 @@ export class NatsBridge {
       logger.info('NATS connected', { url: this.nc.getServer() });
 
       // Monitor connection events
-      if (this.nc.status) {
+      const statusIterator = this.nc.status();
+      if (statusIterator) {
         (async () => {
-          for await (const status of this.nc!.status!()) {
+          for await (const status of statusIterator) {
             logger.info('NATS connection status', { status: status.type });
           }
         })();
@@ -113,10 +114,12 @@ export class NatsBridge {
           natsBridgeMessages.inc({ direction: 'in', type: message.type || 'unknown' });
           await this.handleClientMessage(clientId, ws, message);
         } catch (error) {
-          ws.send(JSON.stringify({
-            error: 'Invalid message format',
-            details: error instanceof Error ? error.message : 'Unknown error',
-          }));
+          ws.send(
+            JSON.stringify({
+              error: 'Invalid message format',
+              details: error instanceof Error ? error.message : 'Unknown error',
+            })
+          );
         }
       });
 
@@ -132,11 +135,13 @@ export class NatsBridge {
       });
 
       // Send welcome message
-      ws.send(JSON.stringify({
-        type: 'welcome',
-        clientId,
-        timestamp: new Date().toISOString(),
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'welcome',
+          clientId,
+          timestamp: new Date().toISOString(),
+        })
+      );
     });
   }
 
@@ -158,18 +163,16 @@ export class NatsBridge {
         ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
         break;
       default:
-        ws.send(JSON.stringify({
-          error: 'Unknown message type',
-          type,
-        }));
+        ws.send(
+          JSON.stringify({
+            error: 'Unknown message type',
+            type,
+          })
+        );
     }
   }
 
-  private async handleSubscribe(
-    clientId: string,
-    ws: WebSocket,
-    data: unknown
-  ): Promise<void> {
+  private async handleSubscribe(clientId: string, ws: WebSocket, data: unknown): Promise<void> {
     try {
       const parsed = subscribeSchema.parse(data);
       const { fundId, eventTypes } = parsed;
@@ -188,15 +191,14 @@ export class NatsBridge {
               const event = JSON.parse(this.sc.decode(msg.data)) as Record<string, unknown>;
 
               // Add checksum for integrity
-              const checksum = crypto
-                .createHash('md5')
-                .update(JSON.stringify(event))
-                .digest('hex');
+              const checksum = crypto.createHash('md5').update(JSON.stringify(event)).digest('hex');
 
-              ws.send(JSON.stringify({
-                type: 'event',
-                data: { ...event, checksum },
-              }));
+              ws.send(
+                JSON.stringify({
+                  type: 'event',
+                  data: { ...event, checksum },
+                })
+              );
             }
           }
         })();
@@ -219,10 +221,12 @@ export class NatsBridge {
                     .update(JSON.stringify(event))
                     .digest('hex');
 
-                  ws.send(JSON.stringify({
-                    type: 'event:typed',
-                    data: { ...event, checksum },
-                  }));
+                  ws.send(
+                    JSON.stringify({
+                      type: 'event:typed',
+                      data: { ...event, checksum },
+                    })
+                  );
                 }
               }
             })();
@@ -230,26 +234,26 @@ export class NatsBridge {
         }
       }
 
-      ws.send(JSON.stringify({
-        type: 'subscribed',
-        fundId,
-        eventTypes,
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'subscribed',
+          fundId,
+          eventTypes,
+        })
+      );
 
       logger.info('Client subscribed', { clientId, fundId, eventTypes });
     } catch (error) {
-      ws.send(JSON.stringify({
-        error: 'Subscription failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      }));
+      ws.send(
+        JSON.stringify({
+          error: 'Subscription failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      );
     }
   }
 
-  private async handleUnsubscribe(
-    clientId: string,
-    ws: WebSocket,
-    data: unknown
-  ): Promise<void> {
+  private async handleUnsubscribe(clientId: string, ws: WebSocket, data: unknown): Promise<void> {
     try {
       const { fundId } = data as { fundId: number };
       const clientSubs = this.connections.get(clientId)!;
@@ -261,17 +265,21 @@ export class NatsBridge {
 
       toRemove.forEach((sub: string) => clientSubs.delete(sub));
 
-      ws.send(JSON.stringify({
-        type: 'unsubscribed',
-        fundId,
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'unsubscribed',
+          fundId,
+        })
+      );
 
       logger.info('Client unsubscribed', { clientId, fundId });
     } catch (error) {
-      ws.send(JSON.stringify({
-        error: 'Unsubscription failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      }));
+      ws.send(
+        JSON.stringify({
+          error: 'Unsubscription failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      );
     }
   }
 
@@ -284,11 +292,7 @@ export class NatsBridge {
   }
 
   // Publish event to NATS (called by event processor)
-  async publishEvent(
-    fundId: number,
-    eventType: string,
-    event: unknown
-  ): Promise<void> {
+  async publishEvent(fundId: number, eventType: string, event: unknown): Promise<void> {
     if (!this.nc) {
       throw new Error('NATS not connected');
     }
@@ -301,10 +305,7 @@ export class NatsBridge {
     });
 
     // Publish to main fund subject
-    await this.nc.publish(
-      getFundSubject(fundId),
-      this.sc.encode(JSON.stringify(message))
-    );
+    await this.nc.publish(getFundSubject(fundId), this.sc.encode(JSON.stringify(message)));
 
     // Publish to event-type specific subject
     await this.nc.publish(
@@ -339,4 +340,3 @@ export class NatsBridge {
     };
   }
 }
-
