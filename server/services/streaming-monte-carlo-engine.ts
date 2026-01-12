@@ -30,6 +30,7 @@ import type {
   PortfolioInputs,
   DistributionParameters,
   SimulationResults,
+  PerformanceDistribution,
   RiskMetrics,
   ReserveOptimization,
   ScenarioAnalysis,
@@ -402,15 +403,24 @@ export class StreamingMonteCarloEngine {
         baseline
       );
 
+      // Helper to get performance result with type safety
+      const getPerformanceResult = (metric: string): PerformanceDistribution => {
+        const result = performanceResults[metric];
+        if (!result) {
+          throw new Error(`Missing performance result for metric: ${metric}`);
+        }
+        return result;
+      };
+
       const results: SimulationResults = {
         simulationId,
         config: streamingConfig,
         executionTimeMs: Date.now() - startTime,
-        irr: performanceResults['irr'],
-        multiple: performanceResults['multiple'],
-        dpi: performanceResults['dpi'],
-        tvpi: performanceResults['tvpi'],
-        totalValue: performanceResults['totalValue'],
+        irr: getPerformanceResult('irr'),
+        multiple: getPerformanceResult('multiple'),
+        dpi: getPerformanceResult('dpi'),
+        tvpi: getPerformanceResult('tvpi'),
+        totalValue: getPerformanceResult('totalValue'),
         riskMetrics,
         reserveOptimization,
         scenarios: scenarioAnalysis,
@@ -540,8 +550,8 @@ export class StreamingMonteCarloEngine {
   /**
    * Convert streaming results to traditional format for compatibility
    */
-  private convertToTraditionalFormat(distributions: Record<string, MemoryEfficientDistribution>): Record<string, unknown> {
-    const results: Record<string, unknown> = {};
+  private convertToTraditionalFormat(distributions: Record<string, MemoryEfficientDistribution>): Record<string, PerformanceDistribution> {
+    const results: Record<string, PerformanceDistribution> = {};
 
     for (const [metric, dist] of Object.entries(distributions)) {
       const percentiles = {
@@ -562,8 +572,8 @@ export class StreamingMonteCarloEngine {
           max: dist.max
         },
         confidenceIntervals: {
-          ci68: [dist.mean - dist.standardDeviation, dist.mean + dist.standardDeviation],
-          ci95: [dist.mean - 2 * dist.standardDeviation, dist.mean + 2 * dist.standardDeviation]
+          ci68: [dist.mean - dist.standardDeviation, dist.mean + dist.standardDeviation] as [number, number],
+          ci95: [dist.mean - 2 * dist.standardDeviation, dist.mean + 2 * dist.standardDeviation] as [number, number]
         }
       };
     }
@@ -928,10 +938,10 @@ export class StreamingMonteCarloEngine {
   }
 
   private generateInsights(
-    performanceResults: Record<string, unknown>,
+    performanceResults: Record<string, PerformanceDistribution>,
     riskMetrics: RiskMetrics,
     reserveOptimization: ReserveOptimization,
-    baseline: FundBaseline
+    _baseline: FundBaseline
   ): ActionableInsights {
     const recommendations: string[] = [];
     const warnings: string[] = [];
@@ -954,8 +964,8 @@ export class StreamingMonteCarloEngine {
     }
 
     // Opportunity identification
-    const irrResult = performanceResults['irr'] as { statistics: { standardDeviation: number } };
-    if (irrResult.statistics.standardDeviation > 0.12) {
+    const irrResult = performanceResults['irr'];
+    if (irrResult && irrResult.statistics.standardDeviation > 0.12) {
       opportunities.push('High return variance suggests potential for better portfolio diversification');
     }
 
@@ -963,7 +973,7 @@ export class StreamingMonteCarloEngine {
       opportunities.push('Consider increasing follow-on capacity to capture more upside opportunities');
     }
 
-    const irrMean = (performanceResults['irr'] as { statistics: { mean: number } }).statistics.mean;
+    const irrMean = irrResult?.statistics.mean ?? 0;
     const keyMetrics: Array<{
       metric: string;
       value: number;
