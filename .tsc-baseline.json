@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T13:14:15.844Z"
+      "lastUpdated": "2026-01-12T13:58:21.958Z"
     },
     "shared": {
       "errors": [
@@ -71,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T13:14:15.844Z"
+      "lastUpdated": "2026-01-12T13:58:21.958Z"
     },
     "server": {
       "errors": [
@@ -85,33 +85,6 @@
         "server/routes/timeline.ts:TS2367:35029db5",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
         "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
-        "server/services/notion-service.ts:TS2322:0e1115ab",
-        "server/services/notion-service.ts:TS2345:06de7217",
-        "server/services/notion-service.ts:TS2345:19b130ae",
-        "server/services/notion-service.ts:TS2345:1abf83ef",
-        "server/services/notion-service.ts:TS2345:23c2c702",
-        "server/services/notion-service.ts:TS2345:353e18c2",
-        "server/services/notion-service.ts:TS2345:3592d7de",
-        "server/services/notion-service.ts:TS2345:3dc5bc1c",
-        "server/services/notion-service.ts:TS2345:4976c9a1",
-        "server/services/notion-service.ts:TS2345:55401e4f",
-        "server/services/notion-service.ts:TS2345:7ab91dd0",
-        "server/services/notion-service.ts:TS2345:89b30afe",
-        "server/services/notion-service.ts:TS2345:8e21cfd0",
-        "server/services/notion-service.ts:TS2345:b14a4c37",
-        "server/services/notion-service.ts:TS2345:b7e4f537",
-        "server/services/notion-service.ts:TS2345:bf74a5a0",
-        "server/services/notion-service.ts:TS2345:c566e4ff",
-        "server/services/notion-service.ts:TS2345:d6e05eaa",
-        "server/services/notion-service.ts:TS2345:db26655a",
-        "server/services/notion-service.ts:TS2345:e6eb5c9e",
-        "server/services/notion-service.ts:TS2345:e735eeef",
-        "server/services/notion-service.ts:TS2345:ed82785f",
-        "server/services/notion-service.ts:TS2345:ef8d0532",
-        "server/services/notion-service.ts:TS2345:f6de18e0",
-        "server/services/notion-service.ts:TS2345:fdf81a3d",
-        "server/services/notion-service.ts:TS2362:3371e8e2",
-        "server/services/notion-service.ts:TS2362:c859b416",
         "server/services/streaming-monte-carlo-engine.ts:TS2322:04e70161",
         "server/services/streaming-monte-carlo-engine.ts:TS2322:154c3c98",
         "server/services/streaming-monte-carlo-engine.ts:TS2322:50d25ea7",
@@ -121,12 +94,12 @@
         "server/services/streaming-monte-carlo-engine.ts:TS2339:eb13934e",
         "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184"
       ],
-      "total": 45,
-      "lastUpdated": "2026-01-12T13:14:15.844Z"
+      "total": 18,
+      "lastUpdated": "2026-01-12T13:58:21.958Z"
     }
   },
-  "totalErrors": 105,
-  "timestamp": "2026-01-12T13:14:15.844Z",
+  "totalErrors": 78,
+  "timestamp": "2026-01-12T13:58:21.958Z",
   "buildMode": "per-project",
-  "elapsedMs": 27035
+  "elapsedMs": 26290
 }

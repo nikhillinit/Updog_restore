@@ -13,6 +13,8 @@ import type {
   NotionDatabase,
   NotionDatabaseMapping,
   PortfolioCompanyNotionConfig,
+  NotionRichText,
+  NotionProperty,
 } from '@shared/notion-schema';
 import {
   extractPlainText,
@@ -115,7 +117,7 @@ export class NotionService {
         workspace_name?: string;
         access_token: string;
         bot_id: string;
-        owner: { type: string };
+        owner: { type: 'user' | 'workspace'; user?: unknown };
         error_description?: string;
       };
 
@@ -131,7 +133,7 @@ export class NotionService {
         workspaceName: tokenData.workspace_name || 'Unknown Workspace',
         accessToken: this.encryptToken(tokenData.access_token),
         botId: tokenData.bot_id,
-        owner: tokenData.owner,
+        owner: tokenData.owner as NotionWorkspaceConnection['owner'],
         capabilities: {
           read_content: true,
           update_content: tokenData.owner.type === 'workspace',
@@ -447,9 +449,9 @@ export class NotionService {
           break;
         case 'number':
           value = parseNotionNumber(notionProperty);
-          if (mappingConfig.transform === 'currency' && value) {
+          if (mappingConfig.transform === 'currency' && typeof value === 'number') {
             value = Math.round(value * 100) / 100; // Round to 2 decimal places
-          } else if (mappingConfig.transform === 'percentage' && value) {
+          } else if (mappingConfig.transform === 'percentage' && typeof value === 'number') {
             value = value / 100;
           }
           break;
@@ -540,14 +542,28 @@ export class NotionService {
       // Extract company data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const companyData = {
-        name: extractPlainText(properties?.['Name'] || properties?.['name']),
-        stage: parseNotionSelect(properties?.['Stage'] || properties?.['stage']),
-        sector: parseNotionSelect(properties?.['Sector'] || properties?.['sector']),
-        location: extractPlainText(properties?.['Location'] || properties?.['location']),
-        website: extractPlainText(properties?.['Website'] || properties?.['website']),
-        founded: parseNotionDate(properties?.['Founded'] || properties?.['founded']),
-        employees: parseNotionNumber(properties?.['Employees'] || properties?.['employees']),
-        description: extractPlainText(properties?.['Description'] || properties?.['description']),
+        name: extractPlainText((properties?.['Name'] || properties?.['name']) as NotionRichText[]),
+        stage: parseNotionSelect(
+          (properties?.['Stage'] || properties?.['stage']) as NotionProperty
+        ),
+        sector: parseNotionSelect(
+          (properties?.['Sector'] || properties?.['sector']) as NotionProperty
+        ),
+        location: extractPlainText(
+          (properties?.['Location'] || properties?.['location']) as NotionRichText[]
+        ),
+        website: extractPlainText(
+          (properties?.['Website'] || properties?.['website']) as NotionRichText[]
+        ),
+        founded: parseNotionDate(
+          (properties?.['Founded'] || properties?.['founded']) as NotionProperty
+        ),
+        employees: parseNotionNumber(
+          (properties?.['Employees'] || properties?.['employees']) as NotionProperty
+        ),
+        description: extractPlainText(
+          (properties?.['Description'] || properties?.['description']) as NotionRichText[]
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -595,12 +611,22 @@ export class NotionService {
       // Extract investment data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const investmentData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        amount: parseNotionNumber(properties?.['Amount'] || properties?.['amount']),
-        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        round: parseNotionSelect(properties?.['Round'] || properties?.['round']),
-        valuation: parseNotionNumber(properties?.['Valuation'] || properties?.['valuation']),
-        ownership: parseNotionNumber(properties?.['Ownership'] || properties?.['ownership']),
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
+        ),
+        amount: parseNotionNumber(
+          (properties?.['Amount'] || properties?.['amount']) as NotionProperty
+        ),
+        date: parseNotionDate((properties?.['Date'] || properties?.['date']) as NotionProperty),
+        round: parseNotionSelect(
+          (properties?.['Round'] || properties?.['round']) as NotionProperty
+        ),
+        valuation: parseNotionNumber(
+          (properties?.['Valuation'] || properties?.['valuation']) as NotionProperty
+        ),
+        ownership: parseNotionNumber(
+          (properties?.['Ownership'] || properties?.['ownership']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -668,12 +694,22 @@ export class NotionService {
       // Extract KPI data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const kpiData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        metric: extractPlainText(properties?.['Metric'] || properties?.['metric']),
-        value: parseNotionNumber(properties?.['Value'] || properties?.['value']),
-        period: extractPlainText(properties?.['Period'] || properties?.['period']),
-        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        category: parseNotionSelect(properties?.['Category'] || properties?.['category']),
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
+        ),
+        metric: extractPlainText(
+          (properties?.['Metric'] || properties?.['metric']) as NotionRichText[]
+        ),
+        value: parseNotionNumber(
+          (properties?.['Value'] || properties?.['value']) as NotionProperty
+        ),
+        period: extractPlainText(
+          (properties?.['Period'] || properties?.['period']) as NotionRichText[]
+        ),
+        date: parseNotionDate((properties?.['Date'] || properties?.['date']) as NotionProperty),
+        category: parseNotionSelect(
+          (properties?.['Category'] || properties?.['category']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -705,15 +741,27 @@ export class NotionService {
       // Extract board report data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const reportData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        reportDate: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        reportType: parseNotionSelect(properties?.['Type'] || properties?.['type']),
-        status: parseNotionSelect(properties?.['Status'] || properties?.['status']),
-        summary: extractPlainText(properties?.['Summary'] || properties?.['summary']),
-        highlights: parseNotionMultiSelect(
-          properties?.['Highlights'] || properties?.['highlights']
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
         ),
-        concerns: parseNotionMultiSelect(properties?.['Concerns'] || properties?.['concerns']),
+        reportDate: parseNotionDate(
+          (properties?.['Date'] || properties?.['date']) as NotionProperty
+        ),
+        reportType: parseNotionSelect(
+          (properties?.['Type'] || properties?.['type']) as NotionProperty
+        ),
+        status: parseNotionSelect(
+          (properties?.['Status'] || properties?.['status']) as NotionProperty
+        ),
+        summary: extractPlainText(
+          (properties?.['Summary'] || properties?.['summary']) as NotionRichText[]
+        ),
+        highlights: parseNotionMultiSelect(
+          (properties?.['Highlights'] || properties?.['highlights']) as NotionProperty
+        ),
+        concerns: parseNotionMultiSelect(
+          (properties?.['Concerns'] || properties?.['concerns']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -764,8 +812,14 @@ export class NotionService {
       sharedDatabases: sharedDatabaseConfigs.map((db) => ({
         databaseId: db.databaseId,
         databaseName: 'Database', // TODO: Fetch actual name
-        purpose: db.purpose,
-        accessLevel: db.accessLevel,
+        purpose: db.purpose as
+          | 'board_reports'
+          | 'kpi_metrics'
+          | 'financial_data'
+          | 'product_updates'
+          | 'hiring_updates'
+          | 'fundraising_updates',
+        accessLevel: db.accessLevel as 'read_only' | 'comment_only' | 'edit',
       })),
       automationRules: [],
       communicationSettings: {
