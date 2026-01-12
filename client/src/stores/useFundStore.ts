@@ -316,13 +316,14 @@ export const useFundStore = create<StrategySlice>()(
         modelVersion: 'reserves-ev1',
       }),
       migrate: (state, from: number) => {
+        const typedState = state as { stages?: Array<{ months?: number }> };
         if (from < 2) {
-          state.stages = ((state.stages ?? []) as Array<{ months?: number }>).map((r) => ({
+          typedState.stages = ((typedState.stages ?? []) as Array<{ months?: number }>).map((r) => ({
             months: 12,
             ...r,
           }));
         }
-        return state;
+        return typedState;
       },
       onRehydrateStorage: () => (_state, err) => {
         if (err) console.error('[fund-store] rehydrate error', err);

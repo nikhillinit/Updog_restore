@@ -252,7 +252,7 @@ export class MonteCarloEngine {
     const simulationId = uuidv4();
 
     // Start performance tracking
-    monteCarloTracker.startSimulation(simulationId, config as Record<string, unknown>);
+    monteCarloTracker.startSimulation(simulationId, config as unknown as Record<string, unknown>);
     const timer = monitor.createTimer('monte_carlo_simulation', 'monte_carlo');
 
     try {

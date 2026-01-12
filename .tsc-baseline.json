@@ -35,8 +35,6 @@
         "client/src/components/ui/recharts-bundle.tsx:TS2339:d8dbb823",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:790a5f41",
         "client/src/components/ui/recharts-bundle.tsx:TS2741:a1732ff1",
-        "client/src/machines/modeling-wizard.machine.ts:TS2339:6e8db634",
-        "client/src/machines/modeling-wizard.machine.ts:TS2352:53454d22",
         "client/src/pages/dashboard-modern.tsx:TS2322:87cd28b8",
         "client/src/pages/investment-detail.tsx:TS2322:171553a7",
         "client/src/pages/investment-detail.tsx:TS2322:51b3afbb",
@@ -51,38 +49,25 @@
         "client/src/services/funds.ts:TS2322:2208a4d8",
         "client/src/services/funds.ts:TS2322:dd41a169",
         "client/src/services/funds.ts:TS2345:0360dd42",
-        "client/src/stores/useFundStore.ts:TS18046:0cc6743a",
         "client/src/vitals.ts:TS2352:2cb17006",
         "client/src/vitals.ts:TS2352:4fa15f44",
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 53,
-      "lastUpdated": "2026-01-12T15:46:49.561Z"
+      "total": 50,
+      "lastUpdated": "2026-01-12T16:13:28.883Z"
     },
     "shared": {
       "errors": [
-        "shared/charting/ChartAdapter.tsx:TS2375:af3254f2",
-        "shared/charting/ChartAdapter.tsx:TS2375:db570a7c",
-        "shared/charting/ChartSafe.tsx:TS2345:d968b831",
-        "shared/charting/polymorphic.ts:TS2345:7bd45dd0",
-        "shared/fund-wire-schema.ts:TS2502:e01fe265",
-        "shared/fund-wire-schema.ts:TS7022:6c8e6efa",
-        "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
+        "shared/charting/ChartSafe.tsx:TS2345:68c4687b",
+        "shared/charting/polymorphic.ts:TS2345:e11ad950"
       ],
-      "total": 7,
-      "lastUpdated": "2026-01-12T15:46:49.561Z"
-    },
-    "server": {
-      "errors": [
-        "server/services/monte-carlo-engine.ts:TS2352:fd73b978"
-      ],
-      "total": 1,
-      "lastUpdated": "2026-01-12T15:46:49.561Z"
+      "total": 2,
+      "lastUpdated": "2026-01-12T16:13:28.883Z"
     }
   },
-  "totalErrors": 61,
-  "timestamp": "2026-01-12T15:46:49.561Z",
+  "totalErrors": 52,
+  "timestamp": "2026-01-12T16:13:28.883Z",
   "buildMode": "per-project",
-  "elapsedMs": 42560
+  "elapsedMs": 47482
 }
