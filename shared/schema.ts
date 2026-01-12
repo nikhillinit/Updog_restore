@@ -23,69 +23,17 @@ import {
 } from 'drizzle-orm/pg-core';
 import { createInsertSchema } from 'drizzle-zod';
 
-export const funds = pgTable('funds', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  size: decimal('size', { precision: 15, scale: 2 }).notNull(),
-  deployedCapital: decimal('deployed_capital', { precision: 15, scale: 2 }).default('0'),
-  managementFee: decimal('management_fee', { precision: 5, scale: 4 }).notNull(),
-  carryPercentage: decimal('carry_percentage', { precision: 5, scale: 4 }).notNull(),
-  vintageYear: integer('vintage_year').notNull(),
-  establishmentDate: date('establishment_date'),
-  status: text('status').notNull().default('active'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+// ============================================================================
+// DOMAIN MODULE RE-EXPORTS (barrel pattern for backward compatibility)
+// ============================================================================
+export * from './schema/fund';
+export * from './schema/portfolio';
+export * from './schema/scenario';
 
-// Fund configuration storage (hybrid approach)
-export const fundConfigs = pgTable(
-  'fundconfigs',
-  {
-    id: serial('id').primaryKey(),
-    fundId: integer('fund_id')
-      .references(() => funds.id)
-      .notNull(),
-    version: integer('version').notNull().default(1),
-    config: jsonb('config').notNull(), // Stores full fund configuration
-    isDraft: boolean('is_draft').default(true),
-    isPublished: boolean('is_published').default(false),
-    publishedAt: timestamp('published_at'),
-    createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
-  },
-  (table) => ({
-    fundVersionUnique: unique()['on'](table.fundId, table.version),
-    fundVersionIdx: index('fundconfigs_fund_version_idx')['on'](table.fundId, table.version),
-  })
-);
-
-// Fund snapshots for CQRS pattern
-export const fundSnapshots = pgTable(
-  'fund_snapshots',
-  {
-    id: serial('id').primaryKey(),
-    fundId: integer('fund_id')
-      .references(() => funds.id)
-      .notNull(),
-    type: varchar('type', { length: 50 }).notNull(), // 'RESERVE', 'PACING', 'COHORT'
-    payload: jsonb('payload').notNull(), // Calculation results
-    calcVersion: varchar('calc_version', { length: 20 }).notNull(),
-    correlationId: varchar('correlation_id', { length: 36 }).notNull(),
-    metadata: jsonb('metadata'), // Additional calculation metadata
-    snapshotTime: timestamp('snapshot_time').notNull(),
-    eventCount: integer('event_count').default(0),
-    stateHash: varchar('state_hash', { length: 64 }),
-    state: jsonb('state'), // Snapshot state data
-    createdAt: timestamp('created_at').defaultNow(),
-  },
-  (table) => ({
-    lookupIdx: index('fund_snapshots_lookup_idx')['on'](
-      table.fundId,
-      table.type,
-      table.createdAt.desc()
-    ),
-  })
-);
+// Import tables for FK references and schema definitions
+import { funds, fundConfigs, fundSnapshots } from './schema/fund';
+import { portfolioCompanies, investments } from './schema/portfolio';
+import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
 
 // Fund events for audit trail
 export const fundEvents = pgTable(
@@ -109,116 +57,6 @@ export const fundEvents = pgTable(
     fundEventIdx: index('fund_events_fund_idx')['on'](table.fundId, table.createdAt.desc()),
   })
 );
-
-export const portfolioCompanies = pgTable('portfoliocompanies', {
-  id: serial('id').primaryKey(),
-  fundId: integer('fund_id').references(() => funds.id),
-  name: text('name').notNull(),
-  sector: text('sector').notNull(),
-  stage: text('stage').notNull(),
-  currentStage: text('current_stage'),
-  investmentAmount: decimal('investment_amount', { precision: 15, scale: 2 }).notNull(),
-  investmentDate: timestamp('investment_date'),
-  currentValuation: decimal('current_valuation', { precision: 15, scale: 2 }),
-  foundedYear: integer('founded_year'),
-  status: text('status').notNull().default('active'),
-  description: text('description'),
-  dealTags: text('deal_tags').array(),
-  createdAt: timestamp('created_at').defaultNow(),
-  // Fund Allocation Management (Phase 1a) fields
-  deployedReservesCents: bigint('deployed_reserves_cents', { mode: 'number' }).default(0).notNull(),
-  plannedReservesCents: bigint('planned_reserves_cents', { mode: 'number' }).default(0).notNull(),
-  exitMoicBps: integer('exit_moic_bps'),
-  ownershipCurrentPct: decimal('ownership_current_pct', { precision: 7, scale: 4 }),
-  allocationCapCents: bigint('allocation_cap_cents', { mode: 'number' }),
-  allocationReason: text('allocation_reason'),
-  allocationIteration: integer('allocation_iteration').default(0).notNull(),
-  lastAllocationAt: timestamp('last_allocation_at', { withTimezone: true }),
-  allocationVersion: integer('allocation_version').default(1).notNull(),
-});
-
-export const investments = pgTable(
-  'investments',
-  {
-    id: serial('id').primaryKey(),
-    fundId: integer('fund_id').references(() => funds.id),
-    companyId: integer('company_id').references(() => portfolioCompanies.id),
-    investmentDate: timestamp('investment_date').notNull(),
-    amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
-    round: text('round').notNull(),
-    ownershipPercentage: decimal('ownership_percentage', { precision: 5, scale: 4 }),
-    valuationAtInvestment: decimal('valuation_at_investment', { precision: 15, scale: 2 }),
-    dealTags: text('deal_tags').array(),
-
-    // LOT TRACKING EXTENSIONS (Phase 1 - Portfolio Route)
-    // All nullable for backward compatibility with legacy data
-    // NOTE: Using mode "bigint" for true precision (no Number.MAX_SAFE_INTEGER limit)
-    sharePriceCents: bigint('share_price_cents', { mode: 'bigint' }),
-    sharesAcquired: decimal('shares_acquired', { precision: 18, scale: 8 }),
-    costBasisCents: bigint('cost_basis_cents', { mode: 'bigint' }),
-    pricingConfidence: text('pricing_confidence').default('calculated'),
-    version: integer('version').notNull().default(1),
-
-    createdAt: timestamp('created_at').defaultNow(),
-  },
-  (table) => ({
-    pricingConfidenceCheck: check(
-      'investments_pricing_confidence_check',
-      sql`${table.pricingConfidence} IN ('calculated', 'verified')`
-    ),
-  })
-);
-
-// ============================================================================
-// INVESTMENT LOTS - Lot-level tracking for granular MOIC calculations
-// ============================================================================
-export const investmentLots = pgTable(
-  'investment_lots',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    investmentId: integer('investment_id')
-      .notNull()
-      .references(() => investments.id, { onDelete: 'cascade' }),
-
-    lotType: text('lot_type').notNull(),
-    sharePriceCents: bigint('share_price_cents', { mode: 'bigint' }).notNull(),
-    sharesAcquired: decimal('shares_acquired', { precision: 18, scale: 8 }).notNull(),
-    costBasisCents: bigint('cost_basis_cents', { mode: 'bigint' }).notNull(),
-
-    version: bigint('version', { mode: 'bigint' })
-      .notNull()
-      .default(sql`0`),
-    idempotencyKey: text('idempotency_key'),
-
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => ({
-    investmentLotTypeIdx: index('investment_lots_investment_lot_type_idx').on(
-      table.investmentId,
-      table.lotType
-    ),
-    idempotencyUniqueIdx: uniqueIndex('investment_lots_investment_idem_key_idx')
-      .on(table.investmentId, table.idempotencyKey)
-      .where(sql`${table.idempotencyKey} IS NOT NULL`),
-    cursorIdx: index('investment_lots_investment_cursor_idx').on(
-      table.investmentId,
-      table.createdAt.desc(),
-      table.id.desc()
-    ),
-    lotTypeCheck: check(
-      'investment_lots_lot_type_check',
-      sql`${table.lotType} IN ('initial', 'follow_on', 'secondary')`
-    ),
-    idempotencyKeyLenCheck: check(
-      'investment_lots_idem_key_len_check',
-      sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`
-    ),
-  })
-);
-
-export type InvestmentLot = typeof investmentLots.$inferSelect;
-export type InsertInvestmentLot = typeof investmentLots.$inferInsert;
 
 // ============================================================================
 // FORECAST SNAPSHOTS - Point-in-time snapshots with async calculation
@@ -388,75 +226,6 @@ export const reserveAllocations = pgTable(
 
 export type ReserveAllocation = typeof reserveAllocations.$inferSelect;
 export type InsertReserveAllocation = typeof reserveAllocations.$inferInsert;
-
-// Scenario Analysis Tables
-export const scenarios = pgTable(
-  'scenarios',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    companyId: integer('company_id')
-      .notNull()
-      .references(() => portfolioCompanies.id, { onDelete: 'cascade' }),
-    name: varchar('name', { length: 255 }).notNull(),
-    description: text('description'),
-    version: integer('version').notNull().default(1),
-    isDefault: boolean('is_default').notNull().default(false),
-    lockedAt: timestamp('locked_at'),
-    createdBy: uuid('created_by'),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    companyIdIdx: index('idx_scenarios_company_id')['on'](table.companyId),
-    createdByIdx: index('idx_scenarios_created_by')['on'](table.createdBy),
-    createdAtIdx: index('idx_scenarios_created_at')['on'](table.createdAt.desc()),
-  })
-);
-
-export const scenarioCases = pgTable(
-  'scenario_cases',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    scenarioId: uuid('scenario_id')
-      .notNull()
-      .references(() => scenarios.id, { onDelete: 'cascade' }),
-    caseName: varchar('case_name', { length: 255 }).notNull(),
-    description: text('description'),
-    probability: decimal('probability', { precision: 10, scale: 8 }).notNull(),
-    investment: decimal('investment', { precision: 15, scale: 2 }).notNull().default('0'),
-    followOns: decimal('follow_ons', { precision: 15, scale: 2 }).notNull().default('0'),
-    exitProceeds: decimal('exit_proceeds', { precision: 15, scale: 2 }).notNull().default('0'),
-    exitValuation: decimal('exit_valuation', { precision: 15, scale: 2 }).notNull().default('0'),
-    monthsToExit: integer('months_to_exit'),
-    ownershipAtExit: decimal('ownership_at_exit', { precision: 5, scale: 4 }),
-    fmv: decimal('fmv', { precision: 15, scale: 2 }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    scenarioIdIdx: index('idx_scenario_cases_scenario_id')['on'](table.scenarioId),
-    createdAtIdx: index('idx_scenario_cases_created_at')['on'](table.createdAt.desc()),
-  })
-);
-
-export const scenarioAuditLogs = pgTable(
-  'scenario_audit_logs',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: varchar('user_id', { length: 255 }),
-    entityType: varchar('entity_type', { length: 50 }).notNull(),
-    entityId: uuid('entity_id').notNull(),
-    action: varchar('action', { length: 20 }).notNull(),
-    diff: jsonb('diff'),
-    timestamp: timestamp('timestamp').notNull().defaultNow(),
-  },
-  (table) => ({
-    entityIdIdx: index('idx_audit_logs_entity_id')['on'](table.entityId),
-    userIdIdx: index('idx_audit_logs_user_id')['on'](table.userId),
-    timestampIdx: index('idx_audit_logs_timestamp')['on'](table.timestamp.desc()),
-    entityTypeIdx: index('idx_audit_logs_entity_type')['on'](table.entityType),
-  })
-);
 
 export const fundMetrics = pgTable('fund_metrics', {
   id: serial('id').primaryKey(),

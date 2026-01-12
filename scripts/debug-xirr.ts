@@ -6,7 +6,7 @@
  * and compare solver output to Excel validation.
  */
 
-import { xirrNewtonBisection } from '../client/src/lib/finance/xirr';
+import { xirrNewtonBisection } from '../shared/lib/finance/xirr';
 
 type Cashflow = { date: Date; amount: number };
 type CashflowInput = { date: string; amount: number };
