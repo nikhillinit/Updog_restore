@@ -35,7 +35,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { xirrNewtonBisection, type CashFlow } from '../../../client/src/lib/finance/xirr';
+import { xirrNewtonBisection, type CashFlow } from '@shared/lib/finance/xirr';
 
 /**
  * Absolute error tolerance for Excel parity
@@ -65,7 +65,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #1: Simple 2-flow baseline (+20.10%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2025-01-01'), amount: 25000000 }
+      { date: new Date('2025-01-01'), amount: 25000000 },
     ];
 
     const start = performance.now();
@@ -99,7 +99,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
       { date: new Date('2020-01-01'), amount: -5000000 },
       { date: new Date('2021-01-01'), amount: -10000000 },
       { date: new Date('2023-01-01'), amount: 5000000 },
-      { date: new Date('2025-01-01'), amount: 40000000 }
+      { date: new Date('2025-01-01'), amount: 40000000 },
     ];
 
     const start = performance.now();
@@ -127,7 +127,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #3: Negative IRR - loss scenario (-36.89%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2025-01-01'), amount: 1000000 }
+      { date: new Date('2025-01-01'), amount: 1000000 },
     ];
 
     const start = performance.now();
@@ -137,7 +137,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
     expect(result.converged).toBe(true);
     expect(result.irr).not.toBeNull();
     expect(result.irr!).toBeLessThan(0);
-    expect(Math.abs(result.irr! - (-0.3689233640))).toBeLessThan(EXCEL_TOLERANCE);
+    expect(Math.abs(result.irr! - -0.368923364)).toBeLessThan(EXCEL_TOLERANCE);
     expect(elapsed).toBeLessThan(PERF_BUDGET_MS);
   });
 
@@ -156,7 +156,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #4: Near-zero IRR - tiny gain (+0.10%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2025-01-01'), amount: 10050000 }
+      { date: new Date('2025-01-01'), amount: 10050000 },
     ];
 
     const start = performance.now();
@@ -184,15 +184,13 @@ describe('XIRR Golden Set - Excel Validation', () => {
    * Tests handling of frequent, irregular cashflows
    */
   it('Test #5: Monthly flows + irregular spacing (+8.78%)', () => {
-    const flows: CashFlow[] = [
-      { date: new Date('2020-01-01'), amount: -10000000 }
-    ];
+    const flows: CashFlow[] = [{ date: new Date('2020-01-01'), amount: -10000000 }];
 
     // Add 12 monthly distributions of $100K
     for (let i = 0; i < 12; i++) {
       flows.push({
         date: new Date(2020, i, 15),
-        amount: 100000
+        amount: 100000,
       });
     }
 
@@ -229,7 +227,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
       { date: new Date('2020-04-01'), amount: -2000000 },
       { date: new Date('2020-07-01'), amount: -2000000 },
       { date: new Date('2020-10-01'), amount: -2000000 },
-      { date: new Date('2022-01-01'), amount: 80000000 }
+      { date: new Date('2022-01-01'), amount: 80000000 },
     ];
 
     const start = performance.now();
@@ -265,7 +263,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
       { date: new Date('2020-07-01'), amount: 8000000 },
       { date: new Date('2021-01-01'), amount: -5000000 },
       { date: new Date('2021-07-01'), amount: -3000000 },
-      { date: new Date('2024-01-01'), amount: 20000000 }
+      { date: new Date('2024-01-01'), amount: 20000000 },
     ];
 
     const start = performance.now();
@@ -293,7 +291,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #8: Very high return - 10x unicorn exit (+115.41%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2023-01-01'), amount: 100000000 }
+      { date: new Date('2023-01-01'), amount: 100000000 },
     ];
 
     const start = performance.now();
@@ -322,7 +320,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: 10000000 },
       { date: new Date('2021-01-01'), amount: 5000000 },
-      { date: new Date('2022-01-01'), amount: 15000000 }
+      { date: new Date('2022-01-01'), amount: 15000000 },
     ];
 
     const start = performance.now();
@@ -349,7 +347,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
       { date: new Date('2021-01-01'), amount: -5000000 },
-      { date: new Date('2022-01-01'), amount: -15000000 }
+      { date: new Date('2022-01-01'), amount: -15000000 },
     ];
 
     const start = performance.now();
@@ -373,8 +371,8 @@ describe('XIRR Golden Set - Excel Validation', () => {
    */
   it('Test #11: Same-day mixed flows - order invariance (+20.10%)', () => {
     const flows: CashFlow[] = [
-      { date: new Date('2025-01-01'), amount: 25000000 },  // Reversed order
-      { date: new Date('2020-01-01'), amount: -10000000 }
+      { date: new Date('2025-01-01'), amount: 25000000 }, // Reversed order
+      { date: new Date('2020-01-01'), amount: -10000000 },
     ];
 
     const start = performance.now();
@@ -399,8 +397,8 @@ describe('XIRR Golden Set - Excel Validation', () => {
    */
   it('Test #12: TZ sanity check - UTC normalization (+20.10%)', () => {
     const flows: CashFlow[] = [
-      { date: new Date('2020-01-01T12:00:00-08:00'), amount: -10000000 },  // PST
-      { date: new Date('2025-01-01T18:00:00+05:30'), amount: 25000000 }    // IST
+      { date: new Date('2020-01-01T12:00:00-08:00'), amount: -10000000 }, // PST
+      { date: new Date('2025-01-01T18:00:00+05:30'), amount: 25000000 }, // IST
     ];
 
     const start = performance.now();
@@ -430,7 +428,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #13: J-curve scenario - early loss then recovery (+24.56%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -20000000 },
-      { date: new Date('2025-01-01'), amount: 60000000 }
+      { date: new Date('2025-01-01'), amount: 60000000 },
     ];
 
     const start = performance.now();
@@ -458,7 +456,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #14: Extreme negative IRR - 99% loss (-98.99%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -100000000 },
-      { date: new Date('2021-01-01'), amount: 1000000 }
+      { date: new Date('2021-01-01'), amount: 1000000 },
     ];
 
     const start = performance.now();
@@ -468,7 +466,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
     expect(result.converged).toBe(true);
     expect(result.irr).not.toBeNull();
     expect(result.irr!).toBeLessThan(-0.8);
-    expect(Math.abs(result.irr! - (-0.9899051851))).toBeLessThan(EXCEL_TOLERANCE);
+    expect(Math.abs(result.irr! - -0.9899051851)).toBeLessThan(EXCEL_TOLERANCE);
     expect(elapsed).toBeLessThan(PERF_BUDGET_MS);
   });
 
@@ -488,7 +486,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
   it('Test #15: Sub-year timing - 6 month exit (+69.30%)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2020-07-01'), amount: 13000000 }
+      { date: new Date('2020-07-01'), amount: 13000000 },
     ];
 
     const start = performance.now();
@@ -511,7 +509,7 @@ describe('XIRR Golden Set - Determinism', () => {
   it('should produce identical results across 100 runs', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2025-01-01'), amount: 25000000 }
+      { date: new Date('2025-01-01'), amount: 25000000 },
     ];
 
     const results: number[] = [];
@@ -524,7 +522,7 @@ describe('XIRR Golden Set - Determinism', () => {
 
     // All results should be identical
     const first = results[0];
-    results.forEach((r, i) => {
+    results.forEach((r) => {
       expect(r).toBe(first);
     });
   });
@@ -535,9 +533,7 @@ describe('XIRR Golden Set - Determinism', () => {
  */
 describe('XIRR Golden Set - Edge Cases', () => {
   it('should handle single cashflow (expect null)', () => {
-    const flows: CashFlow[] = [
-      { date: new Date('2020-01-01'), amount: -10000000 }
-    ];
+    const flows: CashFlow[] = [{ date: new Date('2020-01-01'), amount: -10000000 }];
 
     const result = xirrNewtonBisection(flows);
     expect(result.converged).toBe(false);
@@ -547,7 +543,7 @@ describe('XIRR Golden Set - Edge Cases', () => {
   it('should handle zero amount flows (expect null)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: 0 },
-      { date: new Date('2025-01-01'), amount: 0 }
+      { date: new Date('2025-01-01'), amount: 0 },
     ];
 
     const result = xirrNewtonBisection(flows);
@@ -558,7 +554,7 @@ describe('XIRR Golden Set - Edge Cases', () => {
   it('should handle exact 1x return (0% IRR)', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
-      { date: new Date('2025-01-01'), amount: 10000000 }
+      { date: new Date('2025-01-01'), amount: 10000000 },
     ];
 
     const result = xirrNewtonBisection(flows);
@@ -573,7 +569,7 @@ describe('XIRR Golden Set - Edge Cases', () => {
     const flows: CashFlow[] = [
       { date: new Date('2020-01-01'), amount: -10000000 },
       { date: new Date('2020-01-01'), amount: 25000000 },
-      { date: new Date('2025-01-01'), amount: 10000000 }
+      { date: new Date('2025-01-01'), amount: 10000000 },
     ];
 
     const result = xirrNewtonBisection(flows);
