@@ -58,7 +58,7 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 53,
-      "lastUpdated": "2026-01-12T13:58:21.958Z"
+      "lastUpdated": "2026-01-12T14:40:16.791Z"
     },
     "shared": {
       "errors": [
@@ -71,7 +71,7 @@
         "shared/utils/safe-property-access.ts:TS2322:f4cacdef"
       ],
       "total": 7,
-      "lastUpdated": "2026-01-12T13:58:21.958Z"
+      "lastUpdated": "2026-01-12T14:40:16.791Z"
     },
     "server": {
       "errors": [
@@ -84,22 +84,14 @@
         "server/nats-bridge.ts:TS1361:ae976181",
         "server/routes/timeline.ts:TS2367:35029db5",
         "server/services/ai-orchestrator.ts:TS2339:48f70c9d",
-        "server/services/monte-carlo-engine.ts:TS2345:7c22e833",
-        "server/services/streaming-monte-carlo-engine.ts:TS2322:04e70161",
-        "server/services/streaming-monte-carlo-engine.ts:TS2322:154c3c98",
-        "server/services/streaming-monte-carlo-engine.ts:TS2322:50d25ea7",
-        "server/services/streaming-monte-carlo-engine.ts:TS2322:5e171ee3",
-        "server/services/streaming-monte-carlo-engine.ts:TS2322:6cc7df29",
-        "server/services/streaming-monte-carlo-engine.ts:TS2339:4e348d9d",
-        "server/services/streaming-monte-carlo-engine.ts:TS2339:eb13934e",
-        "server/services/streaming-monte-carlo-engine.ts:TS2339:f5c9e184"
+        "server/services/monte-carlo-engine.ts:TS2345:7c22e833"
       ],
-      "total": 18,
-      "lastUpdated": "2026-01-12T13:58:21.958Z"
+      "total": 10,
+      "lastUpdated": "2026-01-12T14:40:16.791Z"
     }
   },
-  "totalErrors": 78,
-  "timestamp": "2026-01-12T13:58:21.958Z",
+  "totalErrors": 70,
+  "timestamp": "2026-01-12T14:40:16.791Z",
   "buildMode": "per-project",
-  "elapsedMs": 26290
+  "elapsedMs": 26178
 }
