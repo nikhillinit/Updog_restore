@@ -46,6 +46,8 @@ jobs:
 
       - name: Run ESLint with auto-fix
         id: eslint
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set +e  # Don't exit on error
           npm run lint:fix
