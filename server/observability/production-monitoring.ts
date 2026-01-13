@@ -184,12 +184,12 @@ export class ProductionMonitor {
       ...metadata,
     });
 
-    logger.info('Reserve calculation started', {
+    logger.info({
       calculationId,
       scenarioType,
       portfolioSize,
       metadata,
-    });
+    }, 'Reserve calculation started');
   }
 
   recordCalculationComplete(
@@ -200,7 +200,7 @@ export class ProductionMonitor {
   ): void {
     const startTime = this.calculationTimes['get'](calculationId);
     if (!startTime) {
-      logger.warn('Calculation completion recorded without start time', { calculationId });
+      logger.warn({ calculationId }, 'Calculation completion recorded without start time');
       return;
     }
 
@@ -226,11 +226,11 @@ export class ProductionMonitor {
     if (typedResult.portfolioMetrics) {
       portfolioMetrics
         .labels('expected_moic', typedResult.metadata?.fundId || 'unknown')
-        ['set'](typedResult.portfolioMetrics.expectedPortfolioMOIC);
+        .set(typedResult.portfolioMetrics.expectedPortfolioMOIC);
 
       portfolioMetrics
         .labels('diversification', typedResult.metadata?.fundId || 'unknown')
-        ['set'](typedResult.portfolioMetrics.portfolioDiversification);
+        .set(typedResult.portfolioMetrics.portfolioDiversification);
     }
 
     // Clean up
@@ -239,13 +239,13 @@ export class ProductionMonitor {
     monitoringEvents.recordCalculationComplete(calculationId, result);
 
     const resultWithAllocations = result as { allocations?: unknown[]; inputSummary?: { totalAllocated?: unknown } };
-    logger.info('Reserve calculation completed', {
+    logger.info({
       calculationId,
       duration,
       portfolioSize,
       allocationsGenerated: resultWithAllocations.allocations?.length,
       totalAllocated: resultWithAllocations.inputSummary?.totalAllocated,
-    });
+    }, 'Reserve calculation completed');
   }
 
   recordCalculationError(
@@ -282,13 +282,13 @@ export class ProductionMonitor {
     monitoringEvents.recordCalculationError(calculationId, error);
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Reserve calculation failed', {
+    logger.error({
       calculationId,
       duration,
       portfolioSize,
       error: errorMessage,
       errorType,
-    });
+    }, 'Reserve calculation failed');
   }
 
   // Parity validation monitoring
@@ -306,27 +306,27 @@ export class ProductionMonitor {
     // Record parity metrics
     parityValidationResults
       .labels('pass_rate', result.overallParity.passesParityTest ? 'pass' : 'fail')
-      ['set'](result.overallParity.parityPercentage);
+      .set(result.overallParity.parityPercentage);
 
     parityValidationResults
       .labels('max_drift', 'actual')
-      ['set'](result.overallParity.maxDrift);
+      .set(result.overallParity.maxDrift);
 
     // Record detailed breakdowns
     Object.entries(result.detailedBreakdown).forEach(([metric, data]) => {
       parityValidationResults
         .labels(`${metric}_drift`, 'actual')
-        ['set'](data.drift);
+        .set(data.drift);
     });
 
     monitoringEvents.recordParityValidation(validationId, result);
 
-    logger.info('Parity validation completed', {
+    logger.info({
       validationId,
       passRate: result.overallParity.parityPercentage,
       passes: result.overallParity.passesParityTest,
       maxDrift: result.overallParity.maxDrift,
-    });
+    }, 'Parity validation completed');
   }
 
   // API monitoring
@@ -340,12 +340,12 @@ export class ProductionMonitor {
       .labels(method, route, statusCode.toString())
       .observe(duration / 1000); // Convert to seconds
 
-    logger.debug('API request completed', {
+    logger.debug({
       method,
       route,
       statusCode,
       duration,
-    });
+    }, 'API request completed');
   }
 
   // Fund metrics monitoring
@@ -363,13 +363,13 @@ export class ProductionMonitor {
       }
     });
 
-    logger.debug('Fund metrics recorded', { fundId, metrics });
+    logger.debug({ fundId, metrics }, 'Fund metrics recorded');
   }
 
   // Health monitoring
   registerHealthCheck(component: string, check: () => Promise<boolean>): void {
     this.healthChecks['set'](component, check);
-    logger.info('Health check registered', { component });
+    logger.info({ component }, 'Health check registered');
   }
 
   async performHealthCheck(): Promise<{ [component: string]: boolean }> {
@@ -389,7 +389,7 @@ export class ProductionMonitor {
         results[component] = false;
         systemHealth.labels(component)['set'](0);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.warn('Health check failed', { component, error: errorMessage });
+        logger.warn({ component, error: errorMessage }, 'Health check failed');
       }
     }
 
@@ -413,12 +413,12 @@ export class ProductionMonitor {
   private recordBudgetViolation(budget: PerformanceBudget, currentValue: number): void {
     monitoringEvents.recordPerformanceBudgetViolation(budget, currentValue);
 
-    logger.warn('Performance budget violation', {
+    logger.warn({
       metric: budget.metric,
       threshold: budget.threshold,
       currentValue,
       severity: budget.severity,
-    });
+    }, 'Performance budget violation');
 
     errorRate
       .labels('performance_budget', 'monitoring', budget.severity)
@@ -440,12 +440,12 @@ export class ProductionMonitor {
   private recordSLOViolation(slo: SLOTarget, currentValue: number): void {
     monitoringEvents.recordSLOViolation(slo, currentValue);
 
-    logger.error('SLO violation detected', {
+    logger.error({
       slo: slo.name,
       target: slo.target,
       currentValue,
       description: slo.description,
-    });
+    }, 'SLO violation detected');
 
     errorRate
       .labels('slo_violation', 'monitoring', 'critical')
@@ -510,15 +510,15 @@ export class ProductionMonitor {
 
   private setupEventListeners(): void {
     monitoringEvents['on']('calculation:start', (data: unknown) => {
-      logger.debug('Calculation started event', data);
+      logger.debug(data, 'Calculation started event');
     });
 
     monitoringEvents['on']('calculation:complete', (data: unknown) => {
-      logger.debug('Calculation completed event', data);
+      logger.debug(data, 'Calculation completed event');
     });
 
     monitoringEvents['on']('calculation:error', (data: unknown) => {
-      logger.warn('Calculation error event', data);
+      logger.warn(data, 'Calculation error event');
     });
 
     monitoringEvents['on']('performance:budget-violation', (data: unknown) => {
@@ -549,7 +549,7 @@ export class ProductionMonitor {
 
   private sendAlert(type: string, data: unknown): void {
     // In production, this would send alerts to Slack, PagerDuty, etc.
-    logger.error(`ALERT: ${type}`, data);
+    logger.error(data, `ALERT: ${type}`);
   }
 
   // Cleanup

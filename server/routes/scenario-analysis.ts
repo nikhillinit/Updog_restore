@@ -17,7 +17,7 @@ import {
   normalizeProbabilities,
   addMOICToCases,
 } from '@shared/utils/scenario-math';
-import type { ScenarioAnalysisResponse } from '@shared/types/scenario';
+import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 
 const router = Router();
@@ -208,7 +208,7 @@ router['get'](
       const scenarioData = scenario[0];
 
       // Fetch cases if requested
-      let mappedCases: Array<Record<string, unknown>> = [];
+      let mappedCases: ScenarioCase[] = [];
       if (include.includes('cases')) {
         const cases = await db
           .select()
@@ -218,14 +218,14 @@ router['get'](
         mappedCases = cases.map((c) => ({
           id: c.id,
           case_name: c.caseName,
-          description: c.description ?? undefined,
+          ...(c.description !== null && { description: c.description }),
           probability: Number(c.probability),
           investment: Number(c.investment),
           follow_ons: Number(c.followOns),
           exit_proceeds: Number(c.exitProceeds),
           exit_valuation: Number(c.exitValuation),
-          months_to_exit: c.monthsToExit ?? undefined,
-          ownership_at_exit: c.ownershipAtExit ? Number(c.ownershipAtExit) : undefined,
+          ...(c.monthsToExit !== null && { months_to_exit: c.monthsToExit }),
+          ...(c.ownershipAtExit !== null && { ownership_at_exit: Number(c.ownershipAtExit) }),
         }));
       }
 
@@ -378,8 +378,8 @@ router['patch'](
       }
 
       // Validate probabilities
-      let cases = body.cases as Array<Record<string, unknown>>;
-      const validation = validateProbabilities(cases as Array<{ probability: number }>);
+      let cases = body.cases as ScenarioCase[];
+      const validation = validateProbabilities(cases);
 
       if (!validation.is_valid && !body.normalize) {
         return res['status'](400)['json']({
@@ -394,9 +394,7 @@ router['patch'](
       let normalized = false;
       const original_sum = validation.sum;
       if (body.normalize && !validation.is_valid) {
-        cases = normalizeProbabilities(cases as Array<{ probability: number }>) as Array<
-          Record<string, unknown>
-        >;
+        cases = normalizeProbabilities(cases);
         normalized = true;
       }
 
@@ -445,7 +443,7 @@ router['patch'](
       });
 
       // Return updated data
-      const casesWithMOIC = addMOICToCases(cases as Array<Record<string, unknown>>);
+      const casesWithMOIC = addMOICToCases(cases);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
       res['json']({

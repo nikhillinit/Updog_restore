@@ -13,6 +13,7 @@
 
 // DOMPurify not available in server environment, using built-in sanitization
 import validator from 'validator';
+import type { Request, Response, NextFunction } from 'express';
 import { logValidationError, securityLogger } from './logger.js';
 import { sanitizeInput } from './sanitizer.js';
 
@@ -37,7 +38,7 @@ const DEFAULT_SANITIZATION_OPTIONS: SanitizationOptions = {
   trimWhitespace: true,
   removeEmptyStrings: true,
   normalizeUnicode: true,
-  strictMode: true
+  strictMode: true,
 };
 
 // Dangerous patterns to detect and block
@@ -52,19 +53,19 @@ const DANGEROUS_PATTERNS = [
   // SQL injection patterns
   /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/gi,
   /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
-  /('|\"|`|;|--|\|\/\*|\*\/)/g,
+  /('|"|`|;|--|\|\/\*|\*\/)/g,
 
   // NoSQL injection patterns
   /(\$where|\$ne|\$in|\$nin|\$gt|\$lt|\$gte|\$lte|\$exists|\$regex)/gi,
 
   // Path traversal patterns
-  /(\.\.[\/\\]|[\/\\]\.\.|%2e%2e%2f|%2e%2e%5c|\.\.\/|\.\.\\)/gi,
+  /(\.\.[/\\]|[/\\]\.\.|%2e%2e%2f|%2e%2e%5c|\.\.[/\\])/gi,
 
   // Command injection patterns
   /(\||&|;|`|\$\(|\${|<|>)/g,
 
   // LDAP injection patterns
-  /(\*|\(|\)|\\|\/|null|\0)/g
+  /(\*|\(|\)|\\|\/|null|\0)/g,
 ];
 
 // =============================================================================
@@ -74,10 +75,7 @@ const DANGEROUS_PATTERNS = [
 /**
  * Sanitize a string value with comprehensive security checks
  */
-export function sanitizeString(
-  value: unknown,
-  options: SanitizationOptions = {}
-): string {
+export function sanitizeString(value: unknown, options: SanitizationOptions = {}): string {
   if (typeof value !== 'string') {
     if (value === null || value === undefined) return '';
     value = String(value);
@@ -130,11 +128,10 @@ export function sanitizeString(
     sanitized = validator.escape(sanitized);
 
     return sanitized;
-
   } catch (error) {
     securityLogger.error('String sanitization failed', {
       originalValue: typeof value === 'string' ? value.substring(0, 100) : String(value),
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     if (opts.strictMode) {
@@ -205,7 +202,7 @@ export function sanitizeFinancialAmount(value: unknown): number {
   return sanitizeNumber(value, {
     min: 0,
     max: 1e12, // $1 trillion max
-    finite: true
+    finite: true,
   });
 }
 
@@ -217,7 +214,7 @@ export function sanitizePercentage(value: unknown, as100Based: boolean = false):
   return sanitizeNumber(value, {
     min: 0,
     max,
-    finite: true
+    finite: true,
   });
 }
 
@@ -237,17 +234,20 @@ export function sanitizeEmail(value: unknown): string {
 /**
  * Sanitize URLs
  */
-export function sanitizeURL(value: unknown, options: {
-  protocols?: string[];
-  requireTLD?: boolean;
-  requireProtocol?: boolean;
-} = {}): string {
+export function sanitizeURL(
+  value: unknown,
+  options: {
+    protocols?: string[];
+    requireTLD?: boolean;
+    requireProtocol?: boolean;
+  } = {}
+): string {
   const str = sanitizeString(value, { maxLength: 2048 });
 
   const opts = {
     protocols: options.protocols || ['http', 'https'],
     require_tld: options.requireTLD !== false,
-    require_protocol: options.requireProtocol !== false
+    require_protocol: options.requireProtocol !== false,
   };
 
   if (!validator.isURL(str, opts)) {
@@ -265,9 +265,9 @@ export function sanitizeFilePath(value: unknown): string {
 
   // Use sanitizeInput to remove any HTML/script injection attempts
   let cleaned = sanitizeInput(str);
-  
+
   // Remove path traversal attempts - more comprehensive pattern
-  cleaned = cleaned.replace(/\.\.[\/\\]/g, '').replace(/[\/\\]/g, '_');
+  cleaned = cleaned.replace(/\.\.[/\\]/g, '').replace(/[/\\]/g, '_');
 
   // Remove potentially dangerous characters
   const safe = cleaned.replace(/[<>:"|?*\0]/g, '');
@@ -275,7 +275,7 @@ export function sanitizeFilePath(value: unknown): string {
   if (safe !== str) {
     securityLogger.warn('File path sanitization applied', {
       original: str,
-      sanitized: safe
+      sanitized: safe,
     });
   }
 
@@ -322,7 +322,7 @@ export function sanitizeObject(
     }
 
     if (Array.isArray(value)) {
-      return value.map(item => sanitizeRecursive(item, depth + 1));
+      return value.map((item) => sanitizeRecursive(item, depth + 1));
     }
 
     if (typeof value === 'object') {
@@ -373,7 +373,7 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
     sanitized['fundId'] = sanitizeNumber(cfg['fundId'], {
       integer: true,
       positive: true,
-      max: 999999999
+      max: 999999999,
     });
   }
 
@@ -382,7 +382,7 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
     sanitized['runs'] = sanitizeNumber(cfg['runs'], {
       integer: true,
       min: 100,
-      max: 50000
+      max: 50000,
     });
   }
 
@@ -391,7 +391,7 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
     sanitized['timeHorizonYears'] = sanitizeNumber(cfg['timeHorizonYears'], {
       integer: true,
       min: 1,
-      max: 15
+      max: 15,
     });
   }
 
@@ -400,14 +400,14 @@ export function sanitizeMonteCarloConfig(config: unknown): Record<string, unknow
     sanitized['portfolioSize'] = sanitizeNumber(cfg['portfolioSize'], {
       integer: true,
       positive: true,
-      max: 1000
+      max: 1000,
     });
   }
 
   // Baseline ID validation
   if (cfg['baselineId'] !== undefined) {
     sanitized['baselineId'] = sanitizeString(cfg['baselineId'], {
-      maxLength: 36 // UUID length
+      maxLength: 36, // UUID length
     });
 
     // Validate UUID format
@@ -435,7 +435,7 @@ export function sanitizeDistributionParams(params: unknown): Record<string, unkn
     const irr = prms['irr'] as { mean: unknown; volatility: unknown };
     sanitized['irr'] = {
       mean: sanitizeNumber(irr.mean, { min: -1, max: 10, finite: true }),
-      volatility: sanitizeNumber(irr.volatility, { min: 0.01, max: 5, finite: true })
+      volatility: sanitizeNumber(irr.volatility, { min: 0.01, max: 5, finite: true }),
     };
   }
 
@@ -444,7 +444,7 @@ export function sanitizeDistributionParams(params: unknown): Record<string, unkn
     const multiple = prms['multiple'] as { mean: unknown; volatility: unknown };
     sanitized['multiple'] = {
       mean: sanitizeNumber(multiple.mean, { min: 0, max: 100, finite: true }),
-      volatility: sanitizeNumber(multiple.volatility, { min: 0.01, max: 10, finite: true })
+      volatility: sanitizeNumber(multiple.volatility, { min: 0.01, max: 10, finite: true }),
     };
   }
 
@@ -453,7 +453,7 @@ export function sanitizeDistributionParams(params: unknown): Record<string, unkn
     const dpi = prms['dpi'] as { mean: unknown; volatility: unknown };
     sanitized['dpi'] = {
       mean: sanitizeNumber(dpi.mean, { min: 0, max: 5, finite: true }),
-      volatility: sanitizeNumber(dpi.volatility, { min: 0.01, max: 2, finite: true })
+      volatility: sanitizeNumber(dpi.volatility, { min: 0.01, max: 2, finite: true }),
     };
   }
 
@@ -479,70 +479,77 @@ export class SanitizationError extends Error {
 /**
  * Create a sanitization middleware that validates and sanitizes request data
  */
-export function createSanitizationMiddleware(options: {
-  sanitizeBody?: boolean;
-  sanitizeQuery?: boolean;
-  sanitizeParams?: boolean;
-  strictMode?: boolean;
-  customSanitizers?: Record<string, (_value: unknown) => unknown>;
-} = {}) {
-  return (req: Record<string, unknown>, res: Record<string, unknown>, next: (error?: unknown) => void) => {
+export function createSanitizationMiddleware(
+  options: {
+    sanitizeBody?: boolean;
+    sanitizeQuery?: boolean;
+    sanitizeParams?: boolean;
+    strictMode?: boolean;
+    customSanitizers?: Record<string, (_value: unknown) => unknown>;
+  } = {}
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       const opts = {
         sanitizeBody: true,
         sanitizeQuery: true,
         sanitizeParams: true,
         strictMode: true,
-        ...options
+        ...options,
       };
 
       // Sanitize request body
-      if (opts.sanitizeBody && req['body']) {
-        req['body'] = sanitizeObject(req['body'], {
+      if (opts.sanitizeBody && req.body) {
+        req.body = sanitizeObject(req.body, {
           strictMode: opts.strictMode,
-          maxDepth: 5
+          maxDepth: 5,
         });
 
         // Apply custom sanitizers
         if (opts.customSanitizers) {
           for (const [field, sanitizer] of Object.entries(opts.customSanitizers)) {
-            if (req['body'][field] !== undefined) {
-              req['body'][field] = sanitizer(req['body'][field]);
+            if ((req.body as Record<string, unknown>)[field] !== undefined) {
+              (req.body as Record<string, unknown>)[field] = sanitizer(
+                (req.body as Record<string, unknown>)[field]
+              );
             }
           }
         }
       }
 
       // Sanitize query parameters
-      if (opts.sanitizeQuery && req['query']) {
-        req['query'] = sanitizeObject(req['query'], {
+      if (opts.sanitizeQuery && req.query) {
+        req.query = sanitizeObject(req.query, {
           strictMode: opts.strictMode,
-          maxDepth: 3
-        });
+          maxDepth: 3,
+        }) as typeof req.query;
       }
 
       // Sanitize route parameters
-      if (opts.sanitizeParams && req['params']) {
-        req['params'] = sanitizeObject(req['params'], {
+      if (opts.sanitizeParams && req.params) {
+        req.params = sanitizeObject(req.params, {
           strictMode: opts.strictMode,
-          maxDepth: 2
-        });
+          maxDepth: 2,
+        }) as typeof req.params;
       }
 
       next();
-
     } catch (error) {
       logValidationError(
         'request_sanitization',
-        { body: req['body'], query: req['query'], params: req['params'] },
+        {
+          body: req.body as Record<string, unknown>,
+          query: req.query as Record<string, unknown>,
+          params: req.params as Record<string, unknown>,
+        },
         error instanceof Error ? error.message : 'Unknown sanitization error',
-        { path: req['path'], method: req['method'] }
+        { path: req.path, method: req.method }
       );
 
-      res["status"](400)["json"]({
+      res.status(400).json({
         error: 'Invalid input data',
         message: error instanceof Error ? error.message : 'Request contains invalid data',
-        field: error instanceof SanitizationError ? error._field : undefined
+        field: error instanceof SanitizationError ? error._field : undefined,
       });
     }
   };
@@ -556,7 +563,7 @@ export function createSanitizationMiddleware(options: {
  * Check if a value contains any dangerous patterns
  */
 export function containsDangerousContent(value: string): boolean {
-  return DANGEROUS_PATTERNS.some(pattern => pattern.test(value));
+  return DANGEROUS_PATTERNS.some((pattern) => pattern.test(value));
 }
 
 /**
@@ -566,7 +573,7 @@ export function getSanitizationStats() {
   return {
     dangerousPatterns: DANGEROUS_PATTERNS.length,
     defaultMaxLength: DEFAULT_SANITIZATION_OPTIONS.maxLength,
-    strictModeEnabled: DEFAULT_SANITIZATION_OPTIONS.strictMode
+    strictModeEnabled: DEFAULT_SANITIZATION_OPTIONS.strictMode,
   };
 }
 
@@ -586,7 +593,7 @@ export const fieldSanitizers = {
       throw new Error('Invalid UUID format');
     }
     return str;
-  }
+  },
 };
 
 export default {
@@ -604,5 +611,5 @@ export default {
   containsDangerousContent,
   getSanitizationStats,
   fieldSanitizers,
-  SanitizationError
+  SanitizationError,
 };

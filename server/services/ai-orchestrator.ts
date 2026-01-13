@@ -725,8 +725,17 @@ export async function collaborativeSolve({
 /** Chat message format for multi-AI review integration */
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
+/** Ollama client interface */
+interface OllamaClient {
+  chat: (options: { model: string; messages: ChatMessage[] }) => Promise<{
+    message?: { content?: string };
+    prompt_eval_count?: number;
+    eval_count?: number;
+  }>;
+}
+
 // Ollama support (optional - dynamic require)
-let __ollama__: unknown = null;
+let __ollama__: OllamaClient | null = null;
 try {
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });

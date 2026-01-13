@@ -93,7 +93,8 @@ metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
     
     for (const [name, breakerInfo] of Object.entries(allBreakers)) {
       if (breakerInfo && typeof breakerInfo === 'object') {
-        updateCircuitBreakerMetrics(name, breakerInfo.state, breakerInfo.stats || {});
+        const breaker = breakerInfo as { state: string; stats?: object };
+        updateCircuitBreakerMetrics(name, breaker.state, breaker.stats || {});
       }
     }
     

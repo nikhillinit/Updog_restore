@@ -682,7 +682,7 @@ export const modelingWizardMachine = setup({
      */
     saveReserveCalculation: assign(({ context, event }) => {
       // XState v5 invoke done events pass output directly
-      const output = (event as { output: { allocation: ReserveAllocation; enriched: EnrichedReserveAllocation } }).output;
+      const output = (event as unknown as { output: { allocation: ReserveAllocation; enriched: EnrichedReserveAllocation } }).output;
 
       return {
         ...context,
@@ -737,7 +737,7 @@ export const modelingWizardMachine = setup({
      */
 
     setPersistenceError: assign({
-      persistenceError: ({ event }) => (event.error as Error).message
+      persistenceError: ({ event }) => ((event as { error?: Error }).error as Error).message
     }),
 
     /**

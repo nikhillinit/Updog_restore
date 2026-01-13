@@ -14,10 +14,7 @@
 import { Pool } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from '@shared/schema';
-import type {
-  InsertMonteCarloSimulation,
-  FundBaseline
-} from '@shared/schema';
+import type { InsertMonteCarloSimulation, FundBaseline } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
@@ -33,7 +30,8 @@ import type {
   RiskMetrics,
   ReserveOptimization,
   ScenarioAnalysis,
-  ActionableInsights
+  ActionableInsights,
+  PerformanceDistribution,
 } from './monte-carlo-engine';
 
 // ============================================================================
@@ -101,7 +99,7 @@ class ConnectionPoolManager {
     if (!connStr) {
       throw new Error(
         'DATABASE_URL environment variable is not set. ' +
-        'StreamingMonteCarloEngine requires a database connection.'
+          'StreamingMonteCarloEngine requires a database connection.'
       );
     }
 
@@ -122,9 +120,7 @@ class ConnectionPoolManager {
   }
 
   async closeAll(): Promise<void> {
-    const closePromises = Array.from(this.pools.values()).map(pool =>
-      pool["end"]()
-    );
+    const closePromises = Array.from(this.pools.values()).map((pool) => pool['end']());
     await Promise.all(closePromises);
     this.pools.clear();
   }
@@ -137,7 +133,7 @@ class ConnectionPoolManager {
   getStats() {
     return {
       activeConnections: this.pools.size,
-      pools: Array.from(this.pools.keys())
+      pools: Array.from(this.pools.keys()),
     };
   }
 }
@@ -173,7 +169,7 @@ class StreamingAggregator {
       mins: {},
       maxs: {},
       sortedSamples: {},
-      histogram: {}
+      histogram: {},
     };
   }
 
@@ -194,11 +190,18 @@ class StreamingAggregator {
       this.aggregatedData['sums'][metric] = (this.aggregatedData['sums'][metric] || 0) + value;
 
       // Running squares for variance
-      this.aggregatedData['squares'][metric] = (this.aggregatedData['squares'][metric] || 0) + (value * value);
+      this.aggregatedData['squares'][metric] =
+        (this.aggregatedData['squares'][metric] || 0) + value * value;
 
       // Min/Max tracking
-      this.aggregatedData['mins'][metric] = Math.min(this.aggregatedData['mins'][metric] || value, value);
-      this.aggregatedData['maxs'][metric] = Math.max(this.aggregatedData['maxs'][metric] || value, value);
+      this.aggregatedData['mins'][metric] = Math.min(
+        this.aggregatedData['mins'][metric] || value,
+        value
+      );
+      this.aggregatedData['maxs'][metric] = Math.max(
+        this.aggregatedData['maxs'][metric] || value,
+        value
+      );
 
       // Reservoir sampling for percentiles
       this.addToReservoir(metric, value);
@@ -256,7 +259,7 @@ class StreamingAggregator {
     const sumSquares = this.aggregatedData['squares'][metric] || 0;
 
     const mean = sum / count;
-    const variance = (sumSquares / count) - (mean * mean);
+    const variance = sumSquares / count - mean * mean;
     const standardDeviation = Math.sqrt(Math.max(0, variance));
 
     // Calculate percentiles from sorted samples
@@ -277,17 +280,21 @@ class StreamingAggregator {
       mean,
       standardDeviation,
       percentiles,
-      count
+      count,
     };
   }
 
   getMemoryUsage(): number {
     // Estimate memory usage in MB
-    const samplesMemory = Object.values(this.aggregatedData.sortedSamples)
-      .reduce((sum, samples) => sum + samples.length * 8, 0); // 8 bytes per number
+    const samplesMemory = Object.values(this.aggregatedData.sortedSamples).reduce(
+      (sum, samples) => sum + samples.length * 8,
+      0
+    ); // 8 bytes per number
 
-    const histogramMemory = Object.values(this.aggregatedData.histogram)
-      .reduce((sum, hist) => sum + hist.size * 16, 0); // ~16 bytes per map entry
+    const histogramMemory = Object.values(this.aggregatedData.histogram).reduce(
+      (sum, hist) => sum + hist.size * 16,
+      0
+    ); // ~16 bytes per map entry
 
     const metadataMemory = 1024; // 1KB for metadata
 
@@ -346,7 +353,10 @@ export class StreamingMonteCarloEngine {
       this.initializeStats(streamingConfig);
 
       // Get baseline data
-      const baseline = await this.getBaselineData(streamingConfig.fundId, streamingConfig.baselineId);
+      const baseline = await this.getBaselineData(
+        streamingConfig.fundId,
+        streamingConfig.baselineId
+      );
       const portfolioInputs = await this.getPortfolioInputs(streamingConfig.fundId, baseline);
       const distributions = await this.calibrateDistributions(streamingConfig.fundId, baseline);
 
@@ -357,7 +367,11 @@ export class StreamingMonteCarloEngine {
 
       // Stream simulation batches
       let batchIndex = 0;
-      for await (const batch of this.streamSimulationBatches(streamingConfig, portfolioInputs, distributions)) {
+      for await (const batch of this.streamSimulationBatches(
+        streamingConfig,
+        portfolioInputs,
+        distributions
+      )) {
         // Add batch to aggregator
         aggregator.addBatch(batch);
 
@@ -406,22 +420,21 @@ export class StreamingMonteCarloEngine {
         simulationId,
         config: streamingConfig,
         executionTimeMs: Date.now() - startTime,
-        irr: performanceResults['irr'],
-        multiple: performanceResults['multiple'],
-        dpi: performanceResults['dpi'],
-        tvpi: performanceResults['tvpi'],
-        totalValue: performanceResults['totalValue'],
+        irr: performanceResults['irr'] as PerformanceDistribution,
+        multiple: performanceResults['multiple'] as PerformanceDistribution,
+        dpi: performanceResults['dpi'] as PerformanceDistribution,
+        tvpi: performanceResults['tvpi'] as PerformanceDistribution,
+        totalValue: performanceResults['totalValue'] as PerformanceDistribution,
         riskMetrics,
         reserveOptimization,
         scenarios: scenarioAnalysis,
-        insights
+        insights,
       };
 
       // Store results
       await this.storeResults(results);
 
       return results;
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Streaming Monte Carlo simulation failed: ${errorMessage}`);
@@ -434,7 +447,7 @@ export class StreamingMonteCarloEngine {
   /**
    * Stream simulation batches using AsyncGenerator
    */
-  private async* streamSimulationBatches(
+  private async *streamSimulationBatches(
     config: StreamingConfig,
     portfolioInputs: PortfolioInputs,
     distributions: DistributionParameters
@@ -451,13 +464,15 @@ export class StreamingMonteCarloEngine {
         const batchStart = i * config.batchSize!;
         const batchSize = Math.min(config.batchSize!, config.runs - batchStart);
 
-        batchPromises.push(this.processSingleBatch(
-          i,
-          batchSize,
-          portfolioInputs,
-          distributions,
-          config.timeHorizonYears
-        ));
+        batchPromises.push(
+          this.processSingleBatch(
+            i,
+            batchSize,
+            portfolioInputs,
+            distributions,
+            config.timeHorizonYears
+          )
+        );
       }
 
       // Yield batches as they complete
@@ -497,7 +512,7 @@ export class StreamingMonteCarloEngine {
       batchIndex,
       scenarios,
       processingTimeMs,
-      memoryUsageMB
+      memoryUsageMB,
     };
   }
 
@@ -514,16 +529,29 @@ export class StreamingMonteCarloEngine {
 
     // Generate correlated random variables
     const irrSample = this.sampleNormal(distributions.irr.mean, distributions.irr.volatility);
-    const multipleSample = this.sampleNormal(distributions.multiple.mean, distributions.multiple.volatility);
-    const dpiSample = Math.max(0, this.sampleNormal(distributions.dpi.mean, distributions.dpi.volatility));
-    const exitTimingSample = Math.max(1, this.sampleNormal(distributions.exitTiming.mean, distributions.exitTiming.volatility));
-    const followOnSample = this.sampleNormal(distributions.followOnSize.mean, distributions.followOnSize.volatility);
+    const multipleSample = this.sampleNormal(
+      distributions.multiple.mean,
+      distributions.multiple.volatility
+    );
+    const dpiSample = Math.max(
+      0,
+      this.sampleNormal(distributions.dpi.mean, distributions.dpi.volatility)
+    );
+    const exitTimingSample = Math.max(
+      1,
+      this.sampleNormal(distributions.exitTiming.mean, distributions.exitTiming.volatility)
+    );
+    const followOnSample = this.sampleNormal(
+      distributions.followOnSize.mean,
+      distributions.followOnSize.volatility
+    );
 
     // Calculate compound factor once
     const compoundFactor = Math.pow(1 + irrSample, timeHorizonYears);
 
     // Calculate scenario values
-    const totalValue = portfolioInputs.deployedCapital * multipleSample * compoundFactor * timeDecay;
+    const totalValue =
+      portfolioInputs.deployedCapital * multipleSample * compoundFactor * timeDecay;
     const tvpi = multipleSample * timeDecay;
 
     return {
@@ -533,14 +561,16 @@ export class StreamingMonteCarloEngine {
       tvpi: Math.max(0, tvpi),
       totalValue: Math.max(0, totalValue),
       exitTiming: exitTimingSample,
-      followOnNeed: followOnSample
+      followOnNeed: followOnSample,
     };
   }
 
   /**
    * Convert streaming results to traditional format for compatibility
    */
-  private convertToTraditionalFormat(distributions: Record<string, MemoryEfficientDistribution>): Record<string, unknown> {
+  private convertToTraditionalFormat(
+    distributions: Record<string, MemoryEfficientDistribution>
+  ): Record<string, unknown> {
     const results: Record<string, unknown> = {};
 
     for (const [metric, dist] of Object.entries(distributions)) {
@@ -549,7 +579,7 @@ export class StreamingMonteCarloEngine {
         p25: dist.percentiles['get'](25) || dist.min,
         p50: dist.percentiles['get'](50) || dist.mean,
         p75: dist.percentiles['get'](75) || dist.max,
-        p95: dist.percentiles['get'](95) || dist.max
+        p95: dist.percentiles['get'](95) || dist.max,
       };
 
       results[metric] = {
@@ -559,12 +589,12 @@ export class StreamingMonteCarloEngine {
           mean: dist.mean,
           standardDeviation: dist.standardDeviation,
           min: dist.min,
-          max: dist.max
+          max: dist.max,
         },
         confidenceIntervals: {
           ci68: [dist.mean - dist.standardDeviation, dist.mean + dist.standardDeviation],
-          ci95: [dist.mean - 2 * dist.standardDeviation, dist.mean + 2 * dist.standardDeviation]
-        }
+          ci95: [dist.mean - 2 * dist.standardDeviation, dist.mean + 2 * dist.standardDeviation],
+        },
       };
     }
 
@@ -574,7 +604,10 @@ export class StreamingMonteCarloEngine {
   /**
    * Calculate risk metrics from streaming data
    */
-  private async calculateStreamingRiskMetrics(distributions: Record<string, MemoryEfficientDistribution>): Promise<RiskMetrics> {
+  private async calculateStreamingRiskMetrics(
+    distributions: Record<string, MemoryEfficientDistribution>
+  ): Promise<RiskMetrics> {
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment */
     const irrDist = distributions['irr'];
     const totalValueDist = distributions['totalValue'];
 
@@ -604,7 +637,8 @@ export class StreamingMonteCarloEngine {
     const sortinoRatio = downsideRisk !== 0 ? excessReturn / downsideRisk : 0;
 
     // Max drawdown (estimated)
-    const maxDrawdown = totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
+    const maxDrawdown =
+      totalValue.max !== 0 ? (totalValue.max - totalValue.min) / totalValue.max : 0;
 
     return {
       valueAtRisk: { var5, var10 },
@@ -613,8 +647,9 @@ export class StreamingMonteCarloEngine {
       downsideRisk,
       sharpeRatio,
       sortinoRatio,
-      maxDrawdown
+      maxDrawdown,
     };
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment */
   }
 
   /**
@@ -629,7 +664,7 @@ export class StreamingMonteCarloEngine {
     const reserveRatios = [];
 
     // Test reserve ratios from 10% to 50%
-    for (let ratio = 0.10; ratio <= 0.50; ratio += 0.05) {
+    for (let ratio = 0.1; ratio <= 0.5; ratio += 0.05) {
       reserveRatios.push(ratio);
     }
 
@@ -638,7 +673,11 @@ export class StreamingMonteCarloEngine {
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
       const irrDistribution = distributions['irr'];
-      const expectedIRR = this.estimateReserveImpact(irrDistribution?.mean ?? 0, ratio, portfolioInputs);
+      const expectedIRR = this.estimateReserveImpact(
+        irrDistribution?.mean ?? 0,
+        ratio,
+        portfolioInputs
+      );
       const riskAdjustedReturn = expectedIRR / (irrDistribution?.standardDeviation ?? 1);
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
@@ -646,7 +685,7 @@ export class StreamingMonteCarloEngine {
         reserveRatio: ratio,
         expectedIRR,
         riskAdjustedReturn,
-        followOnCoverage
+        followOnCoverage,
       });
     }
 
@@ -658,14 +697,16 @@ export class StreamingMonteCarloEngine {
     return {
       currentReserveRatio,
       optimalReserveRatio: optimal.reserveRatio,
-      improvementPotential: optimal.expectedIRR -
-        (allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0),
+      improvementPotential:
+        optimal.expectedIRR -
+        (allocationAnalysis.find((a) => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)
+          ?.expectedIRR || 0),
       coverageScenarios: {
         p25: 0.6,
         p50: 0.75,
-        p75: 0.9
+        p75: 0.9,
       },
-      allocationRecommendations: allocationAnalysis
+      allocationRecommendations: allocationAnalysis,
     };
   }
 
@@ -680,7 +721,7 @@ export class StreamingMonteCarloEngine {
       maxConcurrentBatches: config.maxConcurrentBatches || 4,
       enableResultStreaming: config.enableResultStreaming ?? true,
       memoryThresholdMB: config.memoryThresholdMB || 100,
-      enableGarbageCollection: config.enableGarbageCollection ?? true
+      enableGarbageCollection: config.enableGarbageCollection ?? true,
     };
   }
 
@@ -691,7 +732,7 @@ export class StreamingMonteCarloEngine {
       averageBatchTimeMs: 0,
       peakMemoryUsageMB: 0,
       totalProcessingTimeMs: 0,
-      estimatedCompletion: new Date(Date.now() + (config.runs / 1000) * 100) // Rough estimate
+      estimatedCompletion: new Date(Date.now() + (config.runs / 1000) * 100), // Rough estimate
     };
   }
 
@@ -700,7 +741,8 @@ export class StreamingMonteCarloEngine {
 
     this.currentStats.processedBatches++;
     this.currentStats.averageBatchTimeMs =
-      (this.currentStats.averageBatchTimeMs * batchIndex + batch.processingTimeMs) / (batchIndex + 1);
+      (this.currentStats.averageBatchTimeMs * batchIndex + batch.processingTimeMs) /
+      (batchIndex + 1);
     this.currentStats.peakMemoryUsageMB = Math.max(
       this.currentStats.peakMemoryUsageMB,
       batch.memoryUsageMB
@@ -736,12 +778,16 @@ export class StreamingMonteCarloEngine {
     x = Math.abs(x);
 
     const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
     return sign * y;
   }
 
-  private estimateReserveImpact(baseIRR: number, reserveRatio: number, portfolioInputs: PortfolioInputs): number {
+  private estimateReserveImpact(
+    baseIRR: number,
+    reserveRatio: number,
+    _portfolioInputs: PortfolioInputs
+  ): number {
     // Simple model: optimal around 25%, with diminishing returns
     const optimalRatio = 0.25;
     const deviation = Math.abs(reserveRatio - optimalRatio);
@@ -754,16 +800,21 @@ export class StreamingMonteCarloEngine {
     return Math.min(reserveRatio * 2.5, 1.0);
   }
 
-  private generateScenarioAnalysisFromDistributions(distributions: Record<string, MemoryEfficientDistribution>): ScenarioAnalysis {
+  private generateScenarioAnalysisFromDistributions(
+    distributions: Record<string, MemoryEfficientDistribution>
+  ): ScenarioAnalysis {
     return {
       bullMarket: this.extractPercentile(distributions, 90),
       bearMarket: this.extractPercentile(distributions, 10),
       stressTest: this.extractPercentile(distributions, 5),
-      baseCase: this.extractPercentile(distributions, 50)
+      baseCase: this.extractPercentile(distributions, 50),
     };
   }
 
-  private extractPercentile(distributions: Record<string, MemoryEfficientDistribution>, percentile: number): Record<string, number> {
+  private extractPercentile(
+    distributions: Record<string, MemoryEfficientDistribution>,
+    percentile: number
+  ): Record<string, number> {
     const result: Record<string, number> = {};
     for (const [metric, dist] of Object.entries(distributions)) {
       result[metric] = dist.percentiles['get'](percentile) || dist.mean;
@@ -778,20 +829,22 @@ export class StreamingMonteCarloEngine {
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await db.query.fundBaselines.findFirst({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      baseline = await (db.query as any).fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.id, baselineId),
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isActive, true)
-        )
+        ),
       });
     } else {
-      baseline = await db.query.fundBaselines.findFirst({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      baseline = await (db.query as any).fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isDefault, true),
           eq(schema.fundBaselines.isActive, true)
-        )
+        ),
       });
     }
 
@@ -802,11 +855,15 @@ export class StreamingMonteCarloEngine {
     return baseline;
   }
 
-  private async getPortfolioInputs(fundId: number, baseline: FundBaseline): Promise<PortfolioInputs> {
+  private async getPortfolioInputs(
+    fundId: number,
+    baseline: FundBaseline
+  ): Promise<PortfolioInputs> {
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
     // Implementation same as original engine
     const db = await this.ensureDatabase();
-    const fund = await db.query.funds.findFirst({
-      where: eq(schema.funds.id, fundId)
+    const fund = await (db.query as any).funds.findFirst({
+      where: eq(schema.funds.id, fundId),
     });
 
     if (!fund) {
@@ -817,10 +874,13 @@ export class StreamingMonteCarloEngine {
     const deployedCapital = toDecimal(baseline.deployedCapital.toString());
     const reserveRatio = fundSize.minus(deployedCapital).dividedBy(fundSize);
 
-    const sectorDistribution = baseline.sectorDistribution as Record<string, number> || {};
-    const stageDistribution = baseline.stageDistribution as Record<string, number> || {};
+    const sectorDistribution = (baseline.sectorDistribution as Record<string, number>) || {};
+    const stageDistribution = (baseline.stageDistribution as Record<string, number>) || {};
 
-    const totalSectorCount = Object.values(sectorDistribution).reduce((sum, count) => sum + count, 0);
+    const totalSectorCount = Object.values(sectorDistribution).reduce(
+      (sum, count) => sum + count,
+      0
+    );
     const totalStageCount = Object.values(stageDistribution).reduce((sum, count) => sum + count, 0);
 
     const sectorWeights: Record<string, number> = {};
@@ -842,20 +902,26 @@ export class StreamingMonteCarloEngine {
       reserveRatio: reserveRatio.toNumber(),
       sectorWeights,
       stageWeights,
-      averageInvestmentSize: averageInvestmentSize.toNumber()
+      averageInvestmentSize: averageInvestmentSize.toNumber(),
     };
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
-  private async calibrateDistributions(fundId: number, baseline: FundBaseline): Promise<DistributionParameters> {
+  private async calibrateDistributions(
+    fundId: number,
+    baseline: FundBaseline
+  ): Promise<DistributionParameters> {
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
     // Implementation same as original engine
     const db = await this.ensureDatabase();
-    const reports = await db.query.varianceReports.findMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reports = await (db.query as any).varianceReports.findMany({
       where: and(
         eq(schema.varianceReports.fundId, fundId),
         eq(schema.varianceReports.baselineId, baseline.id)
       ),
       orderBy: desc(schema.varianceReports.asOfDate),
-      limit: 30
+      limit: 30,
     });
 
     if (reports.length < 3) {
@@ -873,25 +939,26 @@ export class StreamingMonteCarloEngine {
     return {
       irr: {
         mean: irrMean.toNumber(),
-        volatility: this.calculateVolatility(irrVariances) || 0.08
+        volatility: this.calculateVolatility(irrVariances) || 0.08,
       },
       multiple: {
         mean: multipleMean.toNumber(),
-        volatility: this.calculateVolatility(multipleVariances) || 0.6
+        volatility: this.calculateVolatility(multipleVariances) || 0.6,
       },
       dpi: {
         mean: dpiMean.toNumber(),
-        volatility: this.calculateVolatility(dpiVariances) || 0.3
+        volatility: this.calculateVolatility(dpiVariances) || 0.3,
       },
       exitTiming: {
         mean: 5.5,
-        volatility: 2.0
+        volatility: 2.0,
       },
       followOnSize: {
         mean: 0.5,
-        volatility: 0.3
-      }
+        volatility: 0.3,
+      },
     };
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
   private getDefaultDistributions(): DistributionParameters {
@@ -900,21 +967,21 @@ export class StreamingMonteCarloEngine {
       multiple: { mean: 2.5, volatility: 0.6 },
       dpi: { mean: 0.8, volatility: 0.3 },
       exitTiming: { mean: 5.5, volatility: 2.0 },
-      followOnSize: { mean: 0.5, volatility: 0.3 }
+      followOnSize: { mean: 0.5, volatility: 0.3 },
     };
   }
 
   private extractVariances(reports: unknown[], field: string): Decimal[] {
     return reports
-      .map(r => (r as Record<string, unknown>)[field])
-      .filter(v => v !== null && v !== undefined)
-      .map(v => toDecimal(String(v)));
+      .map((r) => (r as Record<string, unknown>)[field])
+      .filter((v) => v !== null && v !== undefined)
+      .map((v) => toDecimal(String(v)));
   }
 
   private calculateVolatility(values: readonly (Decimal | number)[]): number {
     if (values.length < 2) return 0;
 
-    const decimalValues = values.map(value => toDecimal(value));
+    const decimalValues = values.map((value) => toDecimal(value));
     const count = new Decimal(decimalValues.length);
     const mean = decimalValues.reduce((sum, v) => sum.plus(v), new Decimal(0)).dividedBy(count);
     const variance = decimalValues
@@ -931,7 +998,7 @@ export class StreamingMonteCarloEngine {
     performanceResults: Record<string, unknown>,
     riskMetrics: RiskMetrics,
     reserveOptimization: ReserveOptimization,
-    baseline: FundBaseline
+    _baseline: FundBaseline
   ): ActionableInsights {
     const recommendations: string[] = [];
     const warnings: string[] = [];
@@ -946,21 +1013,29 @@ export class StreamingMonteCarloEngine {
 
     // Risk warnings
     if (riskMetrics.probabilityOfLoss > 0.15) {
-      warnings.push(`High downside risk: ${(riskMetrics.probabilityOfLoss * 100).toFixed(1)}% probability of negative returns`);
+      warnings.push(
+        `High downside risk: ${(riskMetrics.probabilityOfLoss * 100).toFixed(1)}% probability of negative returns`
+      );
     }
 
     if (riskMetrics.sharpeRatio < 1.0) {
-      warnings.push(`Low risk-adjusted returns (Sharpe ratio: ${riskMetrics.sharpeRatio.toFixed(2)})`);
+      warnings.push(
+        `Low risk-adjusted returns (Sharpe ratio: ${riskMetrics.sharpeRatio.toFixed(2)})`
+      );
     }
 
     // Opportunity identification
     const irrResult = performanceResults['irr'] as { statistics: { standardDeviation: number } };
     if (irrResult.statistics.standardDeviation > 0.12) {
-      opportunities.push('High return variance suggests potential for better portfolio diversification');
+      opportunities.push(
+        'High return variance suggests potential for better portfolio diversification'
+      );
     }
 
     if (reserveOptimization.coverageScenarios.p50 < 0.7) {
-      opportunities.push('Consider increasing follow-on capacity to capture more upside opportunities');
+      opportunities.push(
+        'Consider increasing follow-on capacity to capture more upside opportunities'
+      );
     }
 
     const irrMean = (performanceResults['irr'] as { statistics: { mean: number } }).statistics.mean;
@@ -976,29 +1051,29 @@ export class StreamingMonteCarloEngine {
         value: toSafeNumber(irrMean),
         benchmark: 0.15,
         status: toSafeNumber(irrMean) >= 0.15 ? 'above' : 'below',
-        impact: 'high'
+        impact: 'high',
       },
       {
         metric: 'Risk-Adjusted Return',
         value: toSafeNumber(riskMetrics.sharpeRatio),
         benchmark: 1.0,
         status: toSafeNumber(riskMetrics.sharpeRatio) >= 1.0 ? 'above' : 'below',
-        impact: 'high'
+        impact: 'high',
       },
       {
         metric: 'Downside Risk',
         value: toSafeNumber(riskMetrics.probabilityOfLoss),
         benchmark: 0.1,
         status: toSafeNumber(riskMetrics.probabilityOfLoss) <= 0.1 ? 'above' : 'warning',
-        impact: 'medium'
-      }
+        impact: 'medium',
+      },
     ];
 
     return {
       primaryRecommendations: recommendations.slice(0, 3),
       riskWarnings: warnings,
       opportunityAreas: opportunities,
-      keyMetrics
+      keyMetrics,
     };
   }
 

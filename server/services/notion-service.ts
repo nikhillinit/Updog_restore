@@ -12,13 +12,16 @@ import type {
   NotionPage,
   NotionDatabase,
   NotionDatabaseMapping,
-  PortfolioCompanyNotionConfig} from '@shared/notion-schema';
+  PortfolioCompanyNotionConfig,
+  NotionRichText,
+  NotionProperty,
+} from '@shared/notion-schema';
 import {
   extractPlainText,
   parseNotionNumber,
   parseNotionDate,
   parseNotionSelect,
-  parseNotionMultiSelect
+  parseNotionMultiSelect,
 } from '@shared/notion-schema';
 import { db } from '../db';
 import { eq, desc } from 'drizzle-orm';
@@ -47,7 +50,7 @@ export class NotionService {
     if (!this.clients.has(cacheKey)) {
       const client = new Client({
         auth: this.decryptToken(connection.accessToken),
-        notionVersion: '2022-06-28'
+        notionVersion: '2022-06-28',
       });
       this.clients.set(cacheKey, client);
     }
@@ -72,7 +75,7 @@ export class NotionService {
     if (rateLimitData.requestCount >= 3) {
       const waitTime = 1000 - (now - rateLimitData.lastRequest);
       if (waitTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
       rateLimitData.requestCount = 0;
       rateLimitData.lastRequest = Date.now();
@@ -89,33 +92,37 @@ export class NotionService {
   /**
    * Handle OAuth callback and create workspace connection
    */
-  async handleOAuthCallback(
-    code: string,
-    fundId: string
-  ): Promise<NotionWorkspaceConnection> {
+  async handleOAuthCallback(code: string, fundId: string): Promise<NotionWorkspaceConnection> {
     try {
       const auth = Buffer.from(
-        `${process.env["NOTION_CLIENT_ID"]}:${process.env["NOTION_CLIENT_SECRET"]}`
+        `${process.env['NOTION_CLIENT_ID']}:${process.env['NOTION_CLIENT_SECRET']}`
       ).toString('base64');
 
       const response = await fetch('https://api.notion.com/v1/oauth/token', {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${auth}`,
+          Authorization: `Basic ${auth}`,
           'Content-Type': 'application/json',
-          'Notion-Version': '2022-06-28'
+          'Notion-Version': '2022-06-28',
         },
         body: JSON.stringify({
           grant_type: 'authorization_code',
           code,
-          redirect_uri: process.env["NOTION_REDIRECT_URI"]
-        })
+          redirect_uri: process.env['NOTION_REDIRECT_URI'],
+        }),
       });
 
-      const tokenData = await response["json"]();
+      const tokenData = (await response['json']()) as {
+        workspace_id: string;
+        workspace_name?: string;
+        access_token: string;
+        bot_id: string;
+        owner: { type: 'user' | 'workspace'; user?: unknown };
+        error_description?: string;
+      };
 
       if (!response.ok) {
-        throw new Error(`OAuth error: ${tokenData.error_description}`);
+        throw new Error(`OAuth error: ${tokenData.error_description || 'Unknown error'}`);
       }
 
       // Create workspace connection
@@ -126,17 +133,17 @@ export class NotionService {
         workspaceName: tokenData.workspace_name || 'Unknown Workspace',
         accessToken: this.encryptToken(tokenData.access_token),
         botId: tokenData.bot_id,
-        owner: tokenData.owner,
+        owner: tokenData.owner as NotionWorkspaceConnection['owner'],
         capabilities: {
           read_content: true,
           update_content: tokenData.owner.type === 'workspace',
           insert_content: tokenData.owner.type === 'workspace',
           read_user_with_email: true,
-          read_user_without_email: true
+          read_user_without_email: true,
         },
         status: 'active',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       // TODO: Save to database
@@ -161,24 +168,25 @@ export class NotionService {
       const client = this.getClient(connection);
       await this.enforceRateLimit(connection.id);
 
-      const response = await client.users.me({});
+      const _response = await client.users.me({});
 
       return {
         valid: true,
         capabilities: Object.keys(connection.capabilities).filter(
-          key => connection.capabilities[key as keyof typeof connection.capabilities]
+          (key) => connection.capabilities[key as keyof typeof connection.capabilities]
         ),
-        errors: []
+        errors: [],
       };
     } catch (error) {
-      const errorMessage = error instanceof APIResponseError
-        ? `${error.status}: ${error.message}`
-        : 'Unknown connection error';
+      const errorMessage =
+        error instanceof APIResponseError
+          ? `${error.status}: ${error.message}`
+          : 'Unknown connection error';
 
       return {
         valid: false,
         capabilities: [],
-        errors: [errorMessage]
+        errors: [errorMessage],
       };
     }
   }
@@ -200,13 +208,18 @@ export class NotionService {
       while (hasMore) {
         await this.enforceRateLimit(connection.id);
 
-        const response = await client.search({
+        const searchParams: Record<string, unknown> = {
           filter: { property: 'object', value: 'database' },
-          ...(nextCursor && { start_cursor: nextCursor }),
-          page_size: 100
-        });
+          page_size: 100,
+        };
 
-        databases.push(...response.results as NotionDatabase[]);
+        if (nextCursor) {
+          searchParams['start_cursor'] = nextCursor;
+        }
+
+        const response = await client.search(searchParams as Parameters<typeof client.search>[0]);
+
+        databases.push(...(response.results as NotionDatabase[]));
         hasMore = response.has_more;
         nextCursor = response.next_cursor || undefined;
       }
@@ -264,7 +277,7 @@ export class NotionService {
       return {
         properties,
         suggestedMappings,
-        dataTypes
+        dataTypes,
       };
     } catch (error) {
       console.error('Database analysis error:', error);
@@ -283,9 +296,10 @@ export class NotionService {
     connection: NotionWorkspaceConnection,
     mapping: NotionDatabaseMapping
   ): Promise<NotionSyncJob> {
-    const direction = mapping.syncSettings.direction === 'bidirectional'
-      ? 'pull'
-      : (mapping.syncSettings.direction.replace('_only', '') as 'pull' | 'push');
+    const direction =
+      mapping.syncSettings.direction === 'bidirectional'
+        ? 'pull'
+        : (mapping.syncSettings.direction.replace('_only', '') as 'pull' | 'push');
 
     const job: NotionSyncJob = {
       id: crypto.randomUUID(),
@@ -299,9 +313,9 @@ export class NotionService {
         processed: 0,
         success: 0,
         failed: 0,
-        skipped: 0
+        skipped: 0,
       },
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     try {
@@ -329,7 +343,7 @@ export class NotionService {
           errors.push({
             type: 'extraction_error',
             message: error instanceof Error ? error.message : 'Unknown error',
-            notionPageId: page.id
+            notionPageId: page.id,
           });
           job.progress.failed++;
         }
@@ -346,12 +360,11 @@ export class NotionService {
         recordsCreated: processResult.created,
         recordsUpdated: processResult.updated,
         recordsDeleted: 0,
-        errors
+        errors,
       };
 
       await this.saveSyncJob(job);
       return job;
-
     } catch (error) {
       job.status = 'failed';
       job.completedAt = new Date();
@@ -359,10 +372,12 @@ export class NotionService {
         recordsCreated: 0,
         recordsUpdated: 0,
         recordsDeleted: 0,
-        errors: [{
-          type: 'sync_error',
-          message: error instanceof Error ? error.message : 'Unknown sync error'
-        }]
+        errors: [
+          {
+            type: 'sync_error',
+            message: error instanceof Error ? error.message : 'Unknown sync error',
+          },
+        ],
       };
 
       await this.saveSyncJob(job);
@@ -385,13 +400,20 @@ export class NotionService {
     while (hasMore) {
       await this.enforceRateLimit(connection.id);
 
-      const response = await client.databases.query({
+      const queryParams: Record<string, unknown> = {
         database_id: databaseId,
-        ...(nextCursor && { start_cursor: nextCursor }),
-        page_size: 100
-      });
+        page_size: 100,
+      };
 
-      pages.push(...response.results as NotionPage[]);
+      if (nextCursor) {
+        queryParams['start_cursor'] = nextCursor;
+      }
+
+      const response = await client.databases.query(
+        queryParams as Parameters<typeof client.databases.query>[0]
+      );
+
+      pages.push(...(response.results as NotionPage[]));
       hasMore = response.has_more;
       nextCursor = response.next_cursor || undefined;
     }
@@ -410,7 +432,7 @@ export class NotionService {
       notionPageId: page.id,
       notionUrl: page.url,
       lastModified: new Date(page.last_edited_time),
-      createdAt: new Date(page.created_time)
+      createdAt: new Date(page.created_time),
     };
 
     // Extract mapped properties
@@ -427,9 +449,9 @@ export class NotionService {
           break;
         case 'number':
           value = parseNotionNumber(notionProperty);
-          if (mappingConfig.transform === 'currency' && value) {
+          if (mappingConfig.transform === 'currency' && typeof value === 'number') {
             value = Math.round(value * 100) / 100; // Round to 2 decimal places
-          } else if (mappingConfig.transform === 'percentage' && value) {
+          } else if (mappingConfig.transform === 'percentage' && typeof value === 'number') {
             value = value / 100;
           }
           break;
@@ -462,8 +484,9 @@ export class NotionService {
       .filter(([_, config]) => config.required)
       .map(([systemField]) => systemField);
 
-    const hasAllRequired = requiredFields.every(field =>
-      extracted[field] !== undefined && extracted[field] !== null && extracted[field] !== ''
+    const hasAllRequired = requiredFields.every(
+      (field) =>
+        extracted[field] !== undefined && extracted[field] !== null && extracted[field] !== ''
     );
 
     return hasAllRequired ? extracted : null;
@@ -519,14 +542,28 @@ export class NotionService {
       // Extract company data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const companyData = {
-        name: extractPlainText(properties?.['Name'] || properties?.['name']),
-        stage: parseNotionSelect(properties?.['Stage'] || properties?.['stage']),
-        sector: parseNotionSelect(properties?.['Sector'] || properties?.['sector']),
-        location: extractPlainText(properties?.['Location'] || properties?.['location']),
-        website: extractPlainText(properties?.['Website'] || properties?.['website']),
-        founded: parseNotionDate(properties?.['Founded'] || properties?.['founded']),
-        employees: parseNotionNumber(properties?.['Employees'] || properties?.['employees']),
-        description: extractPlainText(properties?.['Description'] || properties?.['description']),
+        name: extractPlainText((properties?.['Name'] || properties?.['name']) as NotionRichText[]),
+        stage: parseNotionSelect(
+          (properties?.['Stage'] || properties?.['stage']) as NotionProperty
+        ),
+        sector: parseNotionSelect(
+          (properties?.['Sector'] || properties?.['sector']) as NotionProperty
+        ),
+        location: extractPlainText(
+          (properties?.['Location'] || properties?.['location']) as NotionRichText[]
+        ),
+        website: extractPlainText(
+          (properties?.['Website'] || properties?.['website']) as NotionRichText[]
+        ),
+        founded: parseNotionDate(
+          (properties?.['Founded'] || properties?.['founded']) as NotionProperty
+        ),
+        employees: parseNotionNumber(
+          (properties?.['Employees'] || properties?.['employees']) as NotionProperty
+        ),
+        description: extractPlainText(
+          (properties?.['Description'] || properties?.['description']) as NotionRichText[]
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -536,13 +573,10 @@ export class NotionService {
       }
 
       // Check if company exists by Notion page ID (stored in metadata)
-      const existingCompanies = await db
-        .select()
-        .from(portfolioCompanies)
-        .limit(100);
+      const existingCompanies = await db.select().from(portfolioCompanies).limit(100);
 
       // Find existing company by name since we can't store metadata in this schema
-      const existing = existingCompanies.find(c => c.name === companyData.name);
+      const existing = existingCompanies.find((c) => c.name === companyData.name);
 
       if (existing) {
         // Update existing company
@@ -557,12 +591,18 @@ export class NotionService {
           .where(eq(portfolioCompanies.id, existing.id));
         console.log('[notion-service] Updated portfolio company:', companyData.name);
       } else {
-        console.log('[notion-service] Portfolio company from Notion needs manual linking:', companyData.name);
+        console.log(
+          '[notion-service] Portfolio company from Notion needs manual linking:',
+          companyData.name
+        );
         // Don't auto-create - just log for manual review
         // Companies should be created through the normal workflow
       }
     } catch (error) {
-      console.error('[notion-service] Failed to process portfolio company data:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to process portfolio company data:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -571,12 +611,22 @@ export class NotionService {
       // Extract investment data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const investmentData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        amount: parseNotionNumber(properties?.['Amount'] || properties?.['amount']),
-        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        round: parseNotionSelect(properties?.['Round'] || properties?.['round']),
-        valuation: parseNotionNumber(properties?.['Valuation'] || properties?.['valuation']),
-        ownership: parseNotionNumber(properties?.['Ownership'] || properties?.['ownership']),
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
+        ),
+        amount: parseNotionNumber(
+          (properties?.['Amount'] || properties?.['amount']) as NotionProperty
+        ),
+        date: parseNotionDate((properties?.['Date'] || properties?.['date']) as NotionProperty),
+        round: parseNotionSelect(
+          (properties?.['Round'] || properties?.['round']) as NotionProperty
+        ),
+        valuation: parseNotionNumber(
+          (properties?.['Valuation'] || properties?.['valuation']) as NotionProperty
+        ),
+        ownership: parseNotionNumber(
+          (properties?.['Ownership'] || properties?.['ownership']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -609,9 +659,7 @@ export class NotionService {
           .limit(100);
 
         // Find existing investment by round/amount since we can't store metadata in this schema
-        const existing = existingInvestments.find(i =>
-          i.round === investmentData.round
-        );
+        const existing = existingInvestments.find((i) => i.round === investmentData.round);
 
         if (existing) {
           await db
@@ -619,17 +667,25 @@ export class NotionService {
             .set({
               amount: investmentData.amount?.toString() || existing.amount,
               round: investmentData.round || existing.round,
-              investmentDate: investmentData.date ? new Date(investmentData.date) : existing.investmentDate,
+              investmentDate: investmentData.date
+                ? new Date(investmentData.date)
+                : existing.investmentDate,
               // Note: Notion sync metadata would require schema changes to store
             })
             .where(eq(investments.id, existing.id));
           console.log('[notion-service] Updated investment for:', investmentData.companyName);
         }
       } else {
-        console.log('[notion-service] Company not found for investment:', investmentData.companyName);
+        console.log(
+          '[notion-service] Company not found for investment:',
+          investmentData.companyName
+        );
       }
     } catch (error) {
-      console.error('[notion-service] Failed to process investment data:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to process investment data:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -638,12 +694,22 @@ export class NotionService {
       // Extract KPI data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const kpiData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        metric: extractPlainText(properties?.['Metric'] || properties?.['metric']),
-        value: parseNotionNumber(properties?.['Value'] || properties?.['value']),
-        period: extractPlainText(properties?.['Period'] || properties?.['period']),
-        date: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        category: parseNotionSelect(properties?.['Category'] || properties?.['category']),
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
+        ),
+        metric: extractPlainText(
+          (properties?.['Metric'] || properties?.['metric']) as NotionRichText[]
+        ),
+        value: parseNotionNumber(
+          (properties?.['Value'] || properties?.['value']) as NotionProperty
+        ),
+        period: extractPlainText(
+          (properties?.['Period'] || properties?.['period']) as NotionRichText[]
+        ),
+        date: parseNotionDate((properties?.['Date'] || properties?.['date']) as NotionProperty),
+        category: parseNotionSelect(
+          (properties?.['Category'] || properties?.['category']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -663,7 +729,10 @@ export class NotionService {
       // KPIs would typically be stored in a separate kpis table
       // For now, log for manual review or future implementation
     } catch (error) {
-      console.error('[notion-service] Failed to process KPI data:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to process KPI data:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -672,13 +741,27 @@ export class NotionService {
       // Extract board report data from Notion page properties
       const properties = data['properties'] as Record<string, unknown> | undefined;
       const reportData = {
-        companyName: extractPlainText(properties?.['Company'] || properties?.['company']),
-        reportDate: parseNotionDate(properties?.['Date'] || properties?.['date']),
-        reportType: parseNotionSelect(properties?.['Type'] || properties?.['type']),
-        status: parseNotionSelect(properties?.['Status'] || properties?.['status']),
-        summary: extractPlainText(properties?.['Summary'] || properties?.['summary']),
-        highlights: parseNotionMultiSelect(properties?.['Highlights'] || properties?.['highlights']),
-        concerns: parseNotionMultiSelect(properties?.['Concerns'] || properties?.['concerns']),
+        companyName: extractPlainText(
+          (properties?.['Company'] || properties?.['company']) as NotionRichText[]
+        ),
+        reportDate: parseNotionDate(
+          (properties?.['Date'] || properties?.['date']) as NotionProperty
+        ),
+        reportType: parseNotionSelect(
+          (properties?.['Type'] || properties?.['type']) as NotionProperty
+        ),
+        status: parseNotionSelect(
+          (properties?.['Status'] || properties?.['status']) as NotionProperty
+        ),
+        summary: extractPlainText(
+          (properties?.['Summary'] || properties?.['summary']) as NotionRichText[]
+        ),
+        highlights: parseNotionMultiSelect(
+          (properties?.['Highlights'] || properties?.['highlights']) as NotionProperty
+        ),
+        concerns: parseNotionMultiSelect(
+          (properties?.['Concerns'] || properties?.['concerns']) as NotionProperty
+        ),
         notionPageId: data['id'] as string,
       };
 
@@ -698,7 +781,10 @@ export class NotionService {
       // Board reports would typically be stored in a separate table
       // For now, log for manual review or future implementation
     } catch (error) {
-      console.error('[notion-service] Failed to process board report data:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to process board report data:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -723,20 +809,26 @@ export class NotionService {
       companyId,
       companyName,
       integrationStatus: 'pending_approval',
-      sharedDatabases: sharedDatabaseConfigs.map(db => ({
+      sharedDatabases: sharedDatabaseConfigs.map((db) => ({
         databaseId: db.databaseId,
         databaseName: 'Database', // TODO: Fetch actual name
-        purpose: db.purpose,
-        accessLevel: db.accessLevel
+        purpose: db.purpose as
+          | 'board_reports'
+          | 'kpi_metrics'
+          | 'financial_data'
+          | 'product_updates'
+          | 'hiring_updates'
+          | 'fundraising_updates',
+        accessLevel: db.accessLevel as 'read_only' | 'comment_only' | 'edit',
       })),
       automationRules: [],
       communicationSettings: {
         allowNotifications: true,
         notificationChannels: ['email', 'in_app'],
-        reportingSchedule: 'monthly'
+        reportingSchedule: 'monthly',
       },
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     // TODO: Save to database and send approval request
@@ -750,7 +842,7 @@ export class NotionService {
 
   private encryptToken(token: string): string {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
+    const key = Buffer.from(process.env['NOTION_ENCRYPTION_KEY'] || '', 'hex');
     const iv = crypto.randomBytes(16);
 
     const cipher = crypto.createCipheriv(algorithm, key, iv);
@@ -764,7 +856,7 @@ export class NotionService {
 
   private decryptToken(encryptedToken: string): string {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
+    const key = Buffer.from(process.env['NOTION_ENCRYPTION_KEY'] || '', 'hex');
     const parts = encryptedToken.split(':');
 
     // Handle both old format (iv:encrypted) and new format (iv:authTag:encrypted)
@@ -832,7 +924,10 @@ export class NotionService {
         console.log('[notion-service] Created connection:', connection.workspaceId);
       }
     } catch (error) {
-      console.error('[notion-service] Failed to save connection:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to save connection:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -889,7 +984,10 @@ export class NotionService {
       });
       console.log('[notion-service] Created sync job for connection:', job.connectionId);
     } catch (error) {
-      console.error('[notion-service] Failed to save sync job:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to save sync job:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -905,25 +1003,29 @@ export class NotionService {
         .limit(1);
 
       // Map domain types to DB schema types
-      const dbSharedDatabases = config.sharedDatabases?.map(db => ({
-        databaseId: db.databaseId,
-        databaseName: db.databaseName,
-        purpose: db.purpose,
-        accessLevel: db.accessLevel,
-      })) ?? null;
+      const dbSharedDatabases =
+        config.sharedDatabases?.map((db) => ({
+          databaseId: db.databaseId,
+          databaseName: db.databaseName,
+          purpose: db.purpose,
+          accessLevel: db.accessLevel,
+        })) ?? null;
 
-      const dbAutomationRules = config.automationRules?.map(rule => ({
-        id: rule.id,
-        trigger: rule.trigger,
-        action: rule.action,
-        isActive: rule.enabled ?? true,
-      })) ?? null;
+      const dbAutomationRules =
+        config.automationRules?.map((rule) => ({
+          id: rule.id,
+          trigger: rule.trigger,
+          action: rule.action,
+          isActive: rule.enabled ?? true,
+        })) ?? null;
 
-      const dbCommunicationSettings = config.communicationSettings ? {
-        allowNotifications: config.communicationSettings.allowNotifications,
-        notificationChannels: config.communicationSettings.notificationChannels,
-        reportingSchedule: config.communicationSettings.reportingSchedule ?? 'monthly',
-      } : null;
+      const dbCommunicationSettings = config.communicationSettings
+        ? {
+            allowNotifications: config.communicationSettings.allowNotifications,
+            notificationChannels: config.communicationSettings.notificationChannels,
+            reportingSchedule: config.communicationSettings.reportingSchedule ?? 'monthly',
+          }
+        : null;
 
       if (existing.length > 0) {
         // Update existing config
@@ -953,7 +1055,10 @@ export class NotionService {
         console.log('[notion-service] Created portfolio config for company:', config.companyId);
       }
     } catch (error) {
-      console.error('[notion-service] Failed to save portfolio config:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to save portfolio config:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -995,7 +1100,10 @@ export class NotionService {
         updatedAt: result.updatedAt,
       } as NotionWorkspaceConnection;
     } catch (error) {
-      console.error('[notion-service] Failed to get connection:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to get connection:',
+        error instanceof Error ? error.message : String(error)
+      );
       return null;
     }
   }
@@ -1010,7 +1118,7 @@ export class NotionService {
 
       // Map DB rows to domain type (shape differs from schema type)
       // Note: fundId not stored in DB, would need to be looked up via mapping table
-      return results.map(result => ({
+      return results.map((result) => ({
         id: result.id,
         fundId: '', // DB schema doesn't include fundId - would need separate lookup
         workspaceId: result.workspaceId,
@@ -1031,7 +1139,10 @@ export class NotionService {
         updatedAt: result.updatedAt,
       })) as NotionWorkspaceConnection[];
     } catch (error) {
-      console.error('[notion-service] Failed to list connections:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to list connections:',
+        error instanceof Error ? error.message : String(error)
+      );
       return [];
     }
   }
@@ -1051,19 +1162,23 @@ export class NotionService {
         outbound: 'push',
         bidirectional: 'bidirectional',
       };
-      const typeMap: Record<string, 'full_sync' | 'incremental_sync' | 'single_page' | 'webhook_trigger'> = {
+      const typeMap: Record<
+        string,
+        'full_sync' | 'incremental_sync' | 'single_page' | 'webhook_trigger'
+      > = {
         full: 'full_sync',
         incremental: 'incremental_sync',
         manual: 'single_page',
       };
-      const statusMap: Record<string, 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'> = {
-        pending: 'queued',
-        running: 'running',
-        completed: 'completed',
-        failed: 'failed',
-      };
+      const statusMap: Record<string, 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'> =
+        {
+          pending: 'queued',
+          running: 'running',
+          completed: 'completed',
+          failed: 'failed',
+        };
 
-      return results.map(result => ({
+      return results.map((result) => ({
         id: result.id,
         connectionId: result.connectionId,
         type: typeMap[result.syncType] ?? 'full_sync',
@@ -1082,7 +1197,10 @@ export class NotionService {
         createdAt: result.createdAt,
       })) as NotionSyncJob[];
     } catch (error) {
-      console.error('[notion-service] Failed to get sync jobs:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[notion-service] Failed to get sync jobs:',
+        error instanceof Error ? error.message : String(error)
+      );
       return [];
     }
   }

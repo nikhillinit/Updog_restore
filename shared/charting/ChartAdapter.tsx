@@ -129,19 +129,22 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
   
   const renderLines = () => {
     if (series && series.length > 0) {
-      return series.map((s: ChartSeries, index: number) => (
-        <Line
-          key={s.key}
-          type={curve}
-          dataKey={s.key}
-          stroke={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
-          strokeWidth={2}
-          dot={{ r: 4 }}
-          activeDot={{ r: 6 }}
-          name={s.name}
-          animationDuration={mergedConfig.animation ? 300 : 0}
-        />
-      ));
+      return series.map((s: ChartSeries, index: number) => {
+        const strokeColor = s.color ?? mergedConfig.colors[index % mergedConfig.colors.length];
+        return (
+          <Line
+            key={s.key}
+            type={curve}
+            dataKey={s.key}
+            stroke={strokeColor}
+            strokeWidth={2}
+            dot={{ r: 4 }}
+            activeDot={{ r: 6 }}
+            name={s.name}
+            animationDuration={mergedConfig.animation ? 300 : 0}
+          />
+        );
+      });
     }
     
     return (
@@ -211,18 +214,21 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
 
   const renderAreas = () => {
     if (series && series.length > 0) {
-      return series.map((s: ChartSeries, index: number) => (
-        <Area
-          key={s.key}
-          type={curve}
-          dataKey={s.key}
-          {...(stacked ? { stackId: '1' } : {})}
-          stroke={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
-          fill={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
-          fillOpacity={0.6}
-          name={s.name}
-        />
-      ));
+      return series.map((s: ChartSeries, index: number) => {
+        const areaColor = s.color ?? mergedConfig.colors[index % mergedConfig.colors.length];
+        return (
+          <Area
+            key={s.key}
+            type={curve}
+            dataKey={s.key}
+            {...(stacked ? { stackId: '1' } : {})}
+            stroke={areaColor}
+            fill={areaColor}
+            fillOpacity={0.6}
+            name={s.name}
+          />
+        );
+      });
     }
     
     return (

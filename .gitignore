@@ -36,6 +36,9 @@ logs
 *.log
 *.tmp
 
+# Claude Code temporary files
+tmpclaude-*-cwd
+
 # Runtime data
 pids
 *.pid

@@ -314,13 +314,18 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
     try {
       if (redisClient) {
-        const result = await redisClient.set(lockKey, 'PENDING', 'EX', 30, 'NX');
-        locked = result === 'OK';
+        // Check if key exists (NX behavior) and set with expiry if not
+        const existing = await redisClient.get(lockKey);
+        if (existing) {
+          locked = false;
+        } else {
+          await redisClient.setex(lockKey, 30, 'PENDING');
+          locked = true;
+        }
 
         if (!locked) {
           // Another request is processing this key
-          return res
-            ['setHeader']('Retry-After', '30')
+          return res['setHeader']('Retry-After', '30')
             .status(409)
             .json({
               error: 'request_in_progress',

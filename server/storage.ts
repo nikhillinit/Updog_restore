@@ -1,11 +1,25 @@
 import {
-  funds, portfolioCompanies, investments, fundMetrics, activities, users,
-  type Fund, type PortfolioCompany, type Investment, type FundMetrics, type Activity, type User,
-  type InsertFund, type InsertPortfolioCompany, type InsertInvestment,
-  type InsertFundMetrics, type InsertActivity, type InsertUser
-} from "../schema/src/index.js";
-import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+  funds,
+  portfolioCompanies,
+  investments,
+  fundMetrics,
+  activities,
+  users,
+  type Fund,
+  type PortfolioCompany,
+  type Investment,
+  type FundMetrics,
+  type Activity,
+  type User,
+  type InsertFund,
+  type InsertPortfolioCompany,
+  type InsertInvestment,
+  type InsertFundMetrics,
+  type InsertActivity,
+  type InsertUser,
+} from '../schema/src/index.js';
+import { db } from './db';
+import { eq, sql } from 'drizzle-orm';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -54,8 +68,14 @@ export interface IStorage {
   getInvestments(fundId?: number): Promise<Investment[]>;
   getInvestment(_id: number): Promise<Investment | undefined>;
   createInvestment(_investment: InsertInvestment): Promise<Investment>;
-  addInvestmentRound(_investmentId: number, _round: Partial<InvestmentRound>): Promise<InvestmentRound>;
-  addPerformanceCase(_investmentId: number, _performanceCase: Partial<PerformanceCase>): Promise<PerformanceCase>;
+  addInvestmentRound(
+    _investmentId: number,
+    _round: Partial<InvestmentRound>
+  ): Promise<InvestmentRound>;
+  addPerformanceCase(
+    _investmentId: number,
+    _performanceCase: Partial<PerformanceCase>
+  ): Promise<PerformanceCase>;
 
   // Metrics methods
   getFundMetrics(_fundId: number): Promise<FundMetrics[]>;
@@ -112,13 +132,13 @@ export class MemStorage implements IStorage {
     // Sample fund
     const sampleFund: Fund = {
       id: 1,
-      name: "Press On Ventures Fund I",
-      size: "100000000",
-      deployedCapital: "67500000",
-      managementFee: "0.025",
-      carryPercentage: "0.20",
+      name: 'Press On Ventures Fund I',
+      size: '100000000',
+      deployedCapital: '67500000',
+      managementFee: '0.025',
+      carryPercentage: '0.20',
       vintageYear: 2020,
-      status: "active",
+      status: 'active',
       createdAt: new Date(),
     };
     this.funds.set(1, sampleFund);
@@ -129,48 +149,48 @@ export class MemStorage implements IStorage {
       {
         id: 1,
         fundId: 1,
-        name: "TechCorp",
-        sector: "Fintech",
-        stage: "Series B",
-        investmentAmount: "5000000",
-        currentValuation: "12500000",
+        name: 'TechCorp',
+        sector: 'Fintech',
+        stage: 'Series B',
+        investmentAmount: '5000000',
+        currentValuation: '12500000',
         foundedYear: 2019,
-        status: "Growing",
-        description: "Leading fintech platform",
-        dealTags: ["B2B", "SaaS", "Fintech"],
+        status: 'Growing',
+        description: 'Leading fintech platform',
+        dealTags: ['B2B', 'SaaS', 'Fintech'],
         createdAt: new Date(),
       },
       {
         id: 2,
         fundId: 1,
-        name: "HealthAI",
-        sector: "Healthcare",
-        stage: "Series A",
-        investmentAmount: "3200000",
-        currentValuation: "8100000",
+        name: 'HealthAI',
+        sector: 'Healthcare',
+        stage: 'Series A',
+        investmentAmount: '3200000',
+        currentValuation: '8100000',
         foundedYear: 2020,
-        status: "Growing",
-        description: "AI-powered healthcare solutions",
-        dealTags: ["Healthcare", "AI", "B2B"],
+        status: 'Growing',
+        description: 'AI-powered healthcare solutions',
+        dealTags: ['Healthcare', 'AI', 'B2B'],
         createdAt: new Date(),
       },
       {
         id: 3,
         fundId: 1,
-        name: "DataFlow",
-        sector: "SaaS",
-        stage: "Series C",
-        investmentAmount: "8500000",
-        currentValuation: "25500000",
+        name: 'DataFlow',
+        sector: 'SaaS',
+        stage: 'Series C',
+        investmentAmount: '8500000',
+        currentValuation: '25500000',
         foundedYear: 2018,
-        status: "Scaling",
-        description: "Enterprise data analytics platform",
-        dealTags: ["SaaS", "Analytics", "Enterprise"],
+        status: 'Scaling',
+        description: 'Enterprise data analytics platform',
+        dealTags: ['SaaS', 'Analytics', 'Enterprise'],
         createdAt: new Date(),
       },
     ];
-    
-    sampleCompanies.forEach(company => {
+
+    sampleCompanies.forEach((company) => {
       this.portfolioCompanies.set(company.id, company);
     });
     this.currentCompanyId = 4;
@@ -181,10 +201,10 @@ export class MemStorage implements IStorage {
         id: 1,
         fundId: 1,
         companyId: 1,
-        type: "investment",
-        title: "Series B Investment - TechCorp",
-        description: "$5M follow-on investment completed",
-        amount: "5000000",
+        type: 'investment',
+        title: 'Series B Investment - TechCorp',
+        description: '$5M follow-on investment completed',
+        amount: '5000000',
         activityDate: new Date(Date.now() - 2 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -192,10 +212,10 @@ export class MemStorage implements IStorage {
         id: 2,
         fundId: 1,
         companyId: 2,
-        type: "milestone",
-        title: "New Deal Signed - HealthAI",
-        description: "Series A term sheet executed",
-        amount: "3200000",
+        type: 'milestone',
+        title: 'New Deal Signed - HealthAI',
+        description: 'Series A term sheet executed',
+        amount: '3200000',
         activityDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -203,16 +223,16 @@ export class MemStorage implements IStorage {
         id: 3,
         fundId: 1,
         companyId: 3,
-        type: "update",
-        title: "Portfolio Update - DataFlow",
-        description: "Q3 metrics show 150% revenue growth",
+        type: 'update',
+        title: 'Portfolio Update - DataFlow',
+        description: 'Q3 metrics show 150% revenue growth',
         amount: null,
         activityDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
     ];
 
-    sampleActivities.forEach(activity => {
+    sampleActivities.forEach((activity) => {
       this.activities.set(activity.id, activity);
     });
     this.currentActivityId = 4;
@@ -222,11 +242,11 @@ export class MemStorage implements IStorage {
       id: 1,
       fundId: 1,
       metricDate: new Date(),
-      totalValue: "150000000",
-      irr: "0.284",
-      multiple: "2.22",
-      dpi: "0.45",
-      tvpi: "2.22",
+      totalValue: '150000000',
+      irr: '0.284',
+      multiple: '2.22',
+      dpi: '0.45',
+      tvpi: '2.22',
       createdAt: new Date(),
     };
     this.fundMetrics.set(1, sampleMetrics);
@@ -239,7 +259,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    return Array.from(this.users.values()).find((user) => user.username === username);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -264,12 +284,12 @@ export class MemStorage implements IStorage {
       id,
       name: insertFund.name,
       size: String(insertFund.size),
-      deployedCapital: "0", // Default value from schema
+      deployedCapital: '0', // Default value from schema
       managementFee: String(insertFund.managementFee),
       carryPercentage: String(insertFund.carryPercentage),
       vintageYear: insertFund.vintageYear,
-      status: "active", // Default value from schema
-      createdAt: new Date()
+      status: 'active', // Default value from schema
+      createdAt: new Date(),
     };
     this.funds.set(id, fund);
     return fund;
@@ -278,7 +298,7 @@ export class MemStorage implements IStorage {
   // Portfolio methods
   async getPortfolioCompanies(fundId?: number): Promise<PortfolioCompany[]> {
     const companies = Array.from(this.portfolioCompanies.values());
-    return fundId ? companies.filter(c => c.fundId === fundId) : companies;
+    return fundId ? companies.filter((c) => c.fundId === fundId) : companies;
   }
 
   async getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined> {
@@ -291,12 +311,12 @@ export class MemStorage implements IStorage {
       ...insertCompany,
       id,
       createdAt: new Date(),
-      status: "active", // Default value from schema
+      status: 'active', // Default value from schema
       description: null, // Optional field
       fundId: null, // Optional field
       currentValuation: null, // Optional field
       foundedYear: null, // Optional field
-      dealTags: null // Optional field
+      dealTags: null, // Optional field
     };
     this.portfolioCompanies.set(id, company);
     return company;
@@ -305,7 +325,7 @@ export class MemStorage implements IStorage {
   // Investment methods
   async getInvestments(fundId?: number): Promise<Investment[]> {
     const investments = Array.from(this.investments.values());
-    return fundId ? investments.filter(i => i.fundId === fundId) : investments;
+    return fundId ? investments.filter((i) => i.fundId === fundId) : investments;
   }
 
   async getInvestment(id: number): Promise<Investment | undefined> {
@@ -324,13 +344,16 @@ export class MemStorage implements IStorage {
       ownershipPercentage: null, // Optional field
       valuationAtInvestment: null, // Optional field
       dealTags: null, // Optional field
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.investments.set(id, investment);
     return investment;
   }
 
-  async addInvestmentRound(investmentId: number, roundData: Partial<InvestmentRound>): Promise<InvestmentRound> {
+  async addInvestmentRound(
+    investmentId: number,
+    roundData: Partial<InvestmentRound>
+  ): Promise<InvestmentRound> {
     const investment = this.investments.get(investmentId);
     if (!investment) {
       throw new Error('Investment not found');
@@ -343,9 +366,9 @@ export class MemStorage implements IStorage {
       valuation: roundData.valuation ?? 0,
       amount: roundData.amount ?? 0,
       ownership: roundData.ownership ?? 0,
-      leadInvestor: roundData.leadInvestor,
-      status: roundData.status,
-      type: roundData.type
+      ...(roundData.leadInvestor !== undefined && { leadInvestor: roundData.leadInvestor }),
+      ...(roundData.status !== undefined && { status: roundData.status }),
+      ...(roundData.type !== undefined && { type: roundData.type }),
     };
 
     // Note: In a real implementation, rounds would be stored in a separate table
@@ -353,7 +376,10 @@ export class MemStorage implements IStorage {
     return round;
   }
 
-  async addPerformanceCase(investmentId: number, caseData: Partial<PerformanceCase>): Promise<PerformanceCase> {
+  async addPerformanceCase(
+    investmentId: number,
+    caseData: Partial<PerformanceCase>
+  ): Promise<PerformanceCase> {
     const investment = this.investments.get(investmentId);
     if (!investment) {
       throw new Error('Investment not found');
@@ -365,8 +391,8 @@ export class MemStorage implements IStorage {
       exitValuation: caseData.exitValuation ?? 0,
       exitDate: caseData.exitDate ?? '',
       probability: caseData.probability ?? 0,
-      type: caseData.type,
-      description: caseData.description
+      ...(caseData.type !== undefined && { type: caseData.type }),
+      ...(caseData.description !== undefined && { description: caseData.description }),
     };
 
     // Note: In a real implementation, performance cases would be stored in a separate table
@@ -376,7 +402,7 @@ export class MemStorage implements IStorage {
 
   // Metrics methods
   async getFundMetrics(fundId: number): Promise<FundMetrics[]> {
-    return Array.from(this.fundMetrics.values()).filter(m => m.fundId === fundId);
+    return Array.from(this.fundMetrics.values()).filter((m) => m.fundId === fundId);
   }
 
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
@@ -389,7 +415,7 @@ export class MemStorage implements IStorage {
       irr: null, // Optional field
       multiple: null, // Optional field
       dpi: null, // Optional field
-      tvpi: null // Optional field
+      tvpi: null, // Optional field
     };
     this.fundMetrics.set(id, metrics);
     return metrics;
@@ -398,7 +424,7 @@ export class MemStorage implements IStorage {
   // Activity methods
   async getActivities(fundId?: number): Promise<Activity[]> {
     const activities = Array.from(this.activities.values());
-    return fundId ? activities.filter(a => a.fundId === fundId) : activities;
+    return fundId ? activities.filter((a) => a.fundId === fundId) : activities;
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
@@ -410,7 +436,7 @@ export class MemStorage implements IStorage {
       description: null, // Optional field
       fundId: null, // Optional field
       companyId: null, // Optional field
-      amount: null // Optional field
+      amount: null, // Optional field
     };
     this.activities.set(id, activity);
     return activity;
@@ -446,10 +472,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     if (!user) throw new Error('Failed to create user');
     return user;
   }
@@ -471,7 +494,7 @@ export class DatabaseStorage implements IStorage {
         size: insertFund.size.toString(),
         managementFee: insertFund.managementFee.toString(),
         carryPercentage: insertFund.carryPercentage.toString(),
-        vintageYear: insertFund.vintageYear
+        vintageYear: insertFund.vintageYear,
       })
       .returning();
     if (!fund) throw new Error('Failed to create fund');
@@ -480,13 +503,19 @@ export class DatabaseStorage implements IStorage {
 
   async getPortfolioCompanies(fundId?: number): Promise<PortfolioCompany[]> {
     if (fundId) {
-      return await db.select().from(portfolioCompanies).where(eq(portfolioCompanies.fundId, fundId));
+      return await db
+        .select()
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.fundId, fundId));
     }
     return await db.select().from(portfolioCompanies);
   }
 
   async getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined> {
-    const [company] = await db.select().from(portfolioCompanies).where(eq(portfolioCompanies.id, id));
+    const [company] = await db
+      .select()
+      .from(portfolioCompanies)
+      .where(eq(portfolioCompanies.id, id));
     return company || undefined;
   }
 
@@ -497,7 +526,7 @@ export class DatabaseStorage implements IStorage {
         name: insertCompany.name,
         sector: insertCompany.sector,
         stage: insertCompany.stage,
-        investmentAmount: insertCompany.investmentAmount.toString()
+        investmentAmount: insertCompany.investmentAmount.toString(),
       })
       .returning();
     if (!company) throw new Error('Failed to create portfolio company');
@@ -517,10 +546,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
-    const result = await db
-      .insert(investments)
-      .values(insertInvestment)
-      .returning();
+    const result = await db.insert(investments).values(insertInvestment).returning();
     const investment = result[0]!;
     if (!investment) {
       throw new Error('Failed to create investment');
@@ -528,7 +554,10 @@ export class DatabaseStorage implements IStorage {
     return investment;
   }
 
-  async addInvestmentRound(investmentId: number, roundData: Partial<InvestmentRound>): Promise<InvestmentRound> {
+  async addInvestmentRound(
+    investmentId: number,
+    roundData: Partial<InvestmentRound>
+  ): Promise<InvestmentRound> {
     // For database implementation, this would involve a separate rounds table
     // For now, we'll return mock data as the schema might need extending
     return {
@@ -538,13 +567,16 @@ export class DatabaseStorage implements IStorage {
       valuation: roundData.valuation ?? 0,
       amount: roundData.amount ?? 0,
       ownership: roundData.ownership ?? 0,
-      leadInvestor: roundData.leadInvestor,
-      status: roundData.status,
-      type: roundData.type
+      ...(roundData.leadInvestor !== undefined && { leadInvestor: roundData.leadInvestor }),
+      ...(roundData.status !== undefined && { status: roundData.status }),
+      ...(roundData.type !== undefined && { type: roundData.type }),
     };
   }
 
-  async addPerformanceCase(investmentId: number, caseData: Partial<PerformanceCase>): Promise<PerformanceCase> {
+  async addPerformanceCase(
+    investmentId: number,
+    caseData: Partial<PerformanceCase>
+  ): Promise<PerformanceCase> {
     // For database implementation, this would involve a separate performance_cases table
     // For now, we'll return mock data as the schema might need extending
     return {
@@ -553,8 +585,8 @@ export class DatabaseStorage implements IStorage {
       exitValuation: caseData.exitValuation ?? 0,
       exitDate: caseData.exitDate ?? '',
       probability: caseData.probability ?? 0,
-      type: caseData.type,
-      description: caseData.description
+      ...(caseData.type !== undefined && { type: caseData.type }),
+      ...(caseData.description !== undefined && { description: caseData.description }),
     };
   }
 
@@ -563,10 +595,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
-    const result = await db
-      .insert(fundMetrics)
-      .values(insertMetrics)
-      .returning();
+    const result = await db.insert(fundMetrics).values(insertMetrics).returning();
     const metrics = result[0]!;
     if (!metrics) {
       throw new Error('Failed to create fund metrics');
@@ -582,10 +611,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
-    const result = await db
-      .insert(activities)
-      .values(insertActivity)
-      .returning();
+    const result = await db.insert(activities).values(insertActivity).returning();
     const activity = result[0]!;
     if (!activity) {
       throw new Error('Failed to create activity');
@@ -595,7 +621,4 @@ export class DatabaseStorage implements IStorage {
 }
 
 // Use DatabaseStorage when DATABASE_URL is available, otherwise use MemStorage
-export const storage = process.env['DATABASE_URL'] 
-  ? new DatabaseStorage() 
-  : new MemStorage();
-
+export const storage = process.env['DATABASE_URL'] ? new DatabaseStorage() : new MemStorage();

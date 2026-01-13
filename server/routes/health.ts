@@ -300,7 +300,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
         port: parseInt(process.env["REDIS_PORT"] || '6379'),
         maxRetriesPerRequest: 1,
         retryStrategy: () => null,
-      });
+      } as unknown as ConstructorParameters<typeof Redis>[0]);
 
       // Check if queues exist and have workers
       const queues = ['reserve-calc', 'pacing-calc'];
@@ -523,7 +523,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
             try {
               const health = JSON.parse(data) as { workers?: Array<{ name: string; status: string; jobsProcessed: number; lastJobTime: string }> };
               const worker = health.workers?.find((w) =>
-                w.name.includes(workerType)
+                w.name.includes(workerType!)
               );
 
               if (worker) {

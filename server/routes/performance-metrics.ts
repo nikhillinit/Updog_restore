@@ -39,10 +39,10 @@ router["get"]('/summary', (req: Request, res: Response) => {
       },
       health: {
         overall: metrics.alerts.filter(a => a.severity === 'critical').length === 0 ? 'healthy' : 'degraded',
-        monteCarloPerformance: metrics.summary['monte_carlo_simulation']?.avgDuration || 0,
+        monteCarloPerformance: (metrics.summary['monte_carlo_simulation'] as { avgDuration: number } | undefined)?.avgDuration || 0,
         apiPerformance: Object.entries(metrics.summary)
           .filter(([key]) => key.startsWith('GET ') || key.startsWith('POST '))
-          .reduce((avg, [, stats]: [string, { avgDuration: number }]) => avg + stats.avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
+          .reduce((avg, [, stats]) => avg + (stats as { avgDuration: number }).avgDuration, 0) / Math.max(1, Object.keys(metrics.summary).length)
       }
     };
 
@@ -208,18 +208,18 @@ router["get"]('/operations', (req: Request, res: Response) => {
       operations = operations.filter(([opName]) => operationNames.includes(opName));
     }
 
-    const formattedOperations = operations.map(([operation, stats]: [string, { count: number; avgDuration: number; minDuration: number; maxDuration: number; p95Duration: number; slowCount: number; criticalCount: number }]) => ({
+    const formattedOperations = operations.map(([operation, stats]) => ({
       operation,
       stats: {
-        count: stats.count,
-        avgDuration: Math.round(stats.avgDuration),
-        minDuration: Math.round(stats.minDuration),
-        maxDuration: Math.round(stats.maxDuration),
-        p95Duration: Math.round(stats.p95Duration),
-        slowCount: stats.slowCount,
-        criticalCount: stats.criticalCount
+        count: (stats as { count: number }).count,
+        avgDuration: Math.round((stats as { avgDuration: number }).avgDuration),
+        minDuration: Math.round((stats as { minDuration: number }).minDuration),
+        maxDuration: Math.round((stats as { maxDuration: number }).maxDuration),
+        p95Duration: Math.round((stats as { p95Duration: number }).p95Duration),
+        slowCount: (stats as { slowCount: number }).slowCount,
+        criticalCount: (stats as { criticalCount: number }).criticalCount
       },
-      health: stats.criticalCount === 0 ? (stats.slowCount === 0 ? 'healthy' : 'slow') : 'critical'
+      health: (stats as { criticalCount: number; slowCount: number }).criticalCount === 0 ? ((stats as { criticalCount: number; slowCount: number }).slowCount === 0 ? 'healthy' : 'slow') : 'critical'
     }));
 
     // Sort by average duration (slowest first)

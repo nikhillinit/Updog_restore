@@ -1,7 +1,7 @@
 // Wizard validation guardrails for fund setup
 // Implements the exact LP-credible constraints mentioned in the strategy
 
-import type { FundModelWire } from '@shared/fund-wire-schema';
+import type { FundModelWire, Stage, StageAllocation } from '@shared/fund-wire-schema';
 
 export interface ValidationError {
   field: string;
@@ -112,7 +112,10 @@ function validateInvestmentStrategy(
   warnings: ValidationError[]
 ): void {
   // Validate allocations sum to 100%
-  const totalAllocation = strategy.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+  const totalAllocation = strategy.allocations.reduce(
+    (sum: number, alloc: { percentage: number }) => sum + alloc.percentage,
+    0
+  );
   if (Math.abs(totalAllocation - 100) > 0.01) {
     errors.push({
       field: 'investmentStrategy.allocations',
@@ -123,7 +126,7 @@ function validateInvestmentStrategy(
   }
 
   // Validate stage constraints: graduation% + exit% ≤ 100%
-  strategy.stages.forEach((stage, index) => {
+  strategy.stages.forEach((stage: Stage, index: number) => {
     const total = stage.graduationRate + stage.exitRate;
     if (total > 100.01) {
       // Small tolerance for floating point
@@ -171,7 +174,7 @@ function validateInvestmentStrategy(
   }
 
   // Warn about unusual allocation patterns
-  strategy.allocations.forEach((alloc, index) => {
+  strategy.allocations.forEach((alloc: StageAllocation, index: number) => {
     if (alloc.percentage > 60) {
       warnings.push({
         field: `investmentStrategy.allocations[${index}]`,

@@ -2,7 +2,7 @@
 // Provides pre-configured fund scenarios for different use cases
 
 import type { FundModelWire } from '@shared/fund-wire-schema';
-import type { CapitalFirstInputsV2 } from './capital-first';
+import type { CapitalFirstInputsV2, StageKey, FollowOnRule } from './capital-first';
 
 export interface DemoScenario {
   id: string;
@@ -33,13 +33,13 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       'Balanced allocation across Pre-Seed to Series A',
       'Conservative graduation rates (20-35%)',
       'Mixed follow-on strategy (ownership + fixed)',
-      'Target 8.5x MOIC over 6.5 years'
+      'Target 8.5x MOIC over 6.5 years',
     ],
     kpis: {
       expectedTVPI: 2.8,
       expectedIRR: 0.22,
       reserveRatio: 0.35,
-      riskLevel: 'medium'
+      riskLevel: 'medium',
     },
     fundData: {
       id: 'demo-saas-001',
@@ -50,28 +50,28 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       state: {
         foundation: {
           startDate: '2024-01-01',
-          termMonths: 120
+          termMonths: 120,
         },
         capital: {
-          totalCommitment: 15_000_000
+          totalCommitment: 15_000_000,
         },
         fees: {
           managementFee: 0.02,
-          carryPercentage: 0.20
+          carryPercentage: 0.2,
         },
         investmentStrategy: {
           allocations: [
             { id: 'preseed', category: 'Pre-Seed', percentage: 25 },
             { id: 'seed', category: 'Seed', percentage: 40 },
             { id: 'series_a', category: 'Series A', percentage: 30 },
-            { id: 'series_b', category: 'Series B+', percentage: 5 }
+            { id: 'series_b', category: 'Series B+', percentage: 5 },
           ],
           stages: [
             { id: 'preseed', name: 'Pre-Seed', graduationRate: 20, exitRate: 5 },
             { id: 'seed', name: 'Seed', graduationRate: 35, exitRate: 10 },
             { id: 'series_a', name: 'Series A', graduationRate: 50, exitRate: 25 },
-            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 65 }
-          ]
+            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 65 },
+          ],
         },
         followOnRules: [
           {
@@ -80,18 +80,18 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 80,
             targetOwnershipPct: 12,
-            nextRoundSize: 5_000_000
+            nextRoundSize: 5_000_000,
           },
           {
             from: 'seed',
             to: 'series_a',
             mode: 'fixed_check',
             participationPct: 60,
-            fixedAmount: 750_000
-          }
-        ]
-      }
-    }
+            fixedAmount: 750_000,
+          },
+        ],
+      },
+    },
   },
 
   {
@@ -103,13 +103,13 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       '60% allocation to Pre-Seed (high conviction)',
       'Lower graduation rates (climate challenges)',
       'Higher carry (25%) for risk compensation',
-      'Longer fund life (12 years) for deep tech'
+      'Longer fund life (12 years) for deep tech',
     ],
     kpis: {
       expectedTVPI: 3.2,
       expectedIRR: 0.18,
       reserveRatio: 0.25,
-      riskLevel: 'high'
+      riskLevel: 'high',
     },
     fundData: {
       id: 'demo-climate-002',
@@ -120,26 +120,26 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       state: {
         foundation: {
           startDate: '2024-06-01',
-          termMonths: 144
+          termMonths: 144,
         },
         capital: {
-          totalCommitment: 20_000_000
+          totalCommitment: 20_000_000,
         },
         fees: {
           managementFee: 0.025,
-          carryPercentage: 0.25
+          carryPercentage: 0.25,
         },
         investmentStrategy: {
           allocations: [
             { id: 'preseed', category: 'Pre-Seed', percentage: 60 },
             { id: 'seed', category: 'Seed', percentage: 30 },
-            { id: 'series_a', category: 'Series A', percentage: 10 }
+            { id: 'series_a', category: 'Series A', percentage: 10 },
           ],
           stages: [
             { id: 'preseed', name: 'Pre-Seed', graduationRate: 15, exitRate: 3 },
             { id: 'seed', name: 'Seed', graduationRate: 25, exitRate: 8 },
-            { id: 'series_a', name: 'Series A', graduationRate: 0, exitRate: 45 }
-          ]
+            { id: 'series_a', name: 'Series A', graduationRate: 0, exitRate: 45 },
+          ],
         },
         followOnRules: [
           {
@@ -148,11 +148,11 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 70,
             targetOwnershipPct: 15,
-            nextRoundSize: 3_000_000
-          }
-        ]
-      }
-    }
+            nextRoundSize: 3_000_000,
+          },
+        ],
+      },
+    },
   },
 
   {
@@ -164,13 +164,13 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       'Series B+ focus (80% allocation)',
       'High graduation rates (45-60%)',
       'Large follow-on reserves (45%)',
-      'Shorter time to exit (4 years avg)'
+      'Shorter time to exit (4 years avg)',
     ],
     kpis: {
       expectedTVPI: 2.1,
       expectedIRR: 0.28,
       reserveRatio: 0.45,
-      riskLevel: 'low'
+      riskLevel: 'low',
     },
     fundData: {
       id: 'demo-growth-003',
@@ -181,26 +181,26 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       state: {
         foundation: {
           startDate: '2024-03-01',
-          termMonths: 96
+          termMonths: 96,
         },
         capital: {
-          totalCommitment: 50_000_000
+          totalCommitment: 50_000_000,
         },
         fees: {
           managementFee: 0.02,
-          carryPercentage: 0.20
+          carryPercentage: 0.2,
         },
         investmentStrategy: {
           allocations: [
             { id: 'series_a', category: 'Series A', percentage: 20 },
             { id: 'series_b', category: 'Series B', percentage: 50 },
-            { id: 'series_c', category: 'Series C+', percentage: 30 }
+            { id: 'series_c', category: 'Series C+', percentage: 30 },
           ],
           stages: [
             { id: 'series_a', name: 'Series A', graduationRate: 60, exitRate: 15 },
             { id: 'series_b', name: 'Series B', graduationRate: 45, exitRate: 35 },
-            { id: 'series_c', name: 'Series C+', graduationRate: 0, exitRate: 80 }
-          ]
+            { id: 'series_c', name: 'Series C+', graduationRate: 0, exitRate: 80 },
+          ],
         },
         followOnRules: [
           {
@@ -208,7 +208,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             to: 'series_b',
             mode: 'fixed_check',
             participationPct: 80,
-            fixedAmount: 2_000_000
+            fixedAmount: 2_000_000,
           },
           {
             from: 'series_b',
@@ -216,11 +216,11 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 60,
             targetOwnershipPct: 8,
-            nextRoundSize: 25_000_000
-          }
-        ]
-      }
-    }
+            nextRoundSize: 25_000_000,
+          },
+        ],
+      },
+    },
   },
 
   {
@@ -232,13 +232,13 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       '+5% more allocation to Seed stage',
       'Higher graduation rates (+5% each)',
       'Different follow-on mix (fixed first)',
-      'Demonstrates strategy impact on outcomes'
+      'Demonstrates strategy impact on outcomes',
     ],
     kpis: {
       expectedTVPI: 3.0,
       expectedIRR: 0.24,
-      reserveRatio: 0.40,
-      riskLevel: 'medium'
+      reserveRatio: 0.4,
+      riskLevel: 'medium',
     },
     fundData: {
       id: 'demo-whatif-004',
@@ -249,28 +249,28 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       state: {
         foundation: {
           startDate: '2024-01-01',
-          termMonths: 120
+          termMonths: 120,
         },
         capital: {
-          totalCommitment: 15_000_000
+          totalCommitment: 15_000_000,
         },
         fees: {
           managementFee: 0.02,
-          carryPercentage: 0.20
+          carryPercentage: 0.2,
         },
         investmentStrategy: {
           allocations: [
             { id: 'preseed', category: 'Pre-Seed', percentage: 20 },
             { id: 'seed', category: 'Seed', percentage: 45 },
             { id: 'series_a', category: 'Series A', percentage: 30 },
-            { id: 'series_b', category: 'Series B+', percentage: 5 }
+            { id: 'series_b', category: 'Series B+', percentage: 5 },
           ],
           stages: [
             { id: 'preseed', name: 'Pre-Seed', graduationRate: 25, exitRate: 5 },
             { id: 'seed', name: 'Seed', graduationRate: 40, exitRate: 10 },
             { id: 'series_a', name: 'Series A', graduationRate: 55, exitRate: 20 },
-            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 70 }
-          ]
+            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 70 },
+          ],
         },
         followOnRules: [
           {
@@ -278,7 +278,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             to: 'seed',
             mode: 'fixed_check',
             participationPct: 85,
-            fixedAmount: 400_000
+            fixedAmount: 400_000,
           },
           {
             from: 'seed',
@@ -286,11 +286,11 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 70,
             targetOwnershipPct: 10,
-            nextRoundSize: 12_000_000
-          }
-        ]
-      }
-    }
+            nextRoundSize: 12_000_000,
+          },
+        ],
+      },
+    },
   },
 
   {
@@ -302,13 +302,13 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       'No fixed term (evergreen structure)',
       'Balanced allocation across all stages',
       'Moderate risk profile',
-      'Continuous capital recycling'
+      'Continuous capital recycling',
     ],
     kpis: {
       expectedTVPI: 2.6,
-      expectedIRR: 0.20,
+      expectedIRR: 0.2,
       reserveRatio: 0.38,
-      riskLevel: 'medium'
+      riskLevel: 'medium',
     },
     fundData: {
       id: 'demo-evergreen-005',
@@ -319,28 +319,28 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       state: {
         foundation: {
           startDate: '2024-09-01',
-          termMonths: null
+          termMonths: null,
         },
         capital: {
-          totalCommitment: 25_000_000
+          totalCommitment: 25_000_000,
         },
         fees: {
           managementFee: 0.022,
-          carryPercentage: 0.22
+          carryPercentage: 0.22,
         },
         investmentStrategy: {
           allocations: [
             { id: 'preseed', category: 'Pre-Seed', percentage: 35 },
             { id: 'seed', category: 'Seed', percentage: 35 },
             { id: 'series_a', category: 'Series A', percentage: 25 },
-            { id: 'series_b', category: 'Series B+', percentage: 5 }
+            { id: 'series_b', category: 'Series B+', percentage: 5 },
           ],
           stages: [
             { id: 'preseed', name: 'Pre-Seed', graduationRate: 18, exitRate: 7 },
             { id: 'seed', name: 'Seed', graduationRate: 32, exitRate: 13 },
             { id: 'series_a', name: 'Series A', graduationRate: 48, exitRate: 27 },
-            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 62 }
-          ]
+            { id: 'series_b', name: 'Series B+', graduationRate: 0, exitRate: 62 },
+          ],
         },
         followOnRules: [
           {
@@ -349,7 +349,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 75,
             targetOwnershipPct: 14,
-            nextRoundSize: 4_500_000
+            nextRoundSize: 4_500_000,
           },
           {
             from: 'seed',
@@ -357,26 +357,26 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
             mode: 'maintain_ownership',
             participationPct: 65,
             targetOwnershipPct: 9,
-            nextRoundSize: 15_000_000
-          }
-        ]
-      }
-    }
-  }
+            nextRoundSize: 15_000_000,
+          },
+        ],
+      },
+    },
+  },
 ];
 
 /**
  * Get demo scenario by ID
  */
 export function getDemoScenario(id: string): DemoScenario | undefined {
-  return DEMO_SCENARIOS.find(scenario => scenario.id === id);
+  return DEMO_SCENARIOS.find((scenario) => scenario.id === id);
 }
 
 /**
  * Get demo scenarios by category
  */
 export function getDemoScenariosByCategory(category: DemoScenario['category']): DemoScenario[] {
-  return DEMO_SCENARIOS.filter(scenario => scenario.category === category);
+  return DEMO_SCENARIOS.filter((scenario) => scenario.category === category);
 }
 
 /**
@@ -389,13 +389,13 @@ export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFir
 
   // Create allocation percentages map
   const allocationPctByStage: Record<string, number> = {};
-  allocations.forEach(alloc => {
+  allocations.forEach((alloc: { id: string; percentage: number }) => {
     allocationPctByStage[alloc.id] = alloc.percentage;
   });
 
   // Create graduation percentages map
   const graduationPctByStage: Record<string, number> = {};
-  stages.forEach(stage => {
+  stages.forEach((stage: { id: string; graduationRate: number }) => {
     graduationPctByStage[stage.id] = stage.graduationRate;
   });
 
@@ -405,7 +405,7 @@ export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFir
     preseed: totalCommitment < 20_000_000 ? 250_000 : 500_000,
     seed: totalCommitment < 30_000_000 ? 500_000 : 1_000_000,
     seriesA: totalCommitment < 30_000_000 ? 1_000_000 : 2_000_000,
-    seriesBplus: totalCommitment < 30_000_000 ? 2_000_000 : 5_000_000
+    seriesBplus: totalCommitment < 30_000_000 ? 2_000_000 : 5_000_000,
   };
 
   // Estimate market data
@@ -413,17 +413,17 @@ export function scenarioToCapitalFirstInputs(scenario: DemoScenario): CapitalFir
     preseed: { valuationPost: 3_000_000, roundSize: 1_500_000 },
     seed: { valuationPost: 8_000_000, roundSize: 5_000_000 },
     seriesA: { valuationPost: 25_000_000, roundSize: 15_000_000 },
-    seriesBplus: { valuationPost: 75_000_000, roundSize: 40_000_000 }
+    seriesBplus: { valuationPost: 75_000_000, roundSize: 40_000_000 },
   };
 
   return {
     totalCommitment: totalCommitment,
     feeDragPct: 12, // Estimate: 2% annual over 6 years
-    allocationPctByStage: allocationPctByStage as any,
-    initialCheckByStage: initialCheckByStage as any,
-    graduationPctByStage: graduationPctByStage as any,
+    allocationPctByStage: allocationPctByStage as Record<StageKey, number>,
+    initialCheckByStage: initialCheckByStage as Record<StageKey, number>,
+    graduationPctByStage: graduationPctByStage as Record<StageKey, number>,
     marketByStage,
-    followOnRules: (fundData['state']?.followOnRules || []) as any
+    followOnRules: (fundData['state']?.followOnRules || []) as FollowOnRule[],
   };
 }
 
@@ -437,7 +437,7 @@ export function getDemoQueryParam(scenarioId: string): string {
     'demo-climate-002': 'climate',
     'demo-growth-003': 'growth',
     'demo-whatif-004': 'whatif',
-    'demo-evergreen-005': 'evergreen'
+    'demo-evergreen-005': 'evergreen',
   };
   return mapping[scenarioId] || scenarioId;
 }
@@ -447,11 +447,11 @@ export function getDemoQueryParam(scenarioId: string): string {
  */
 export function parseDemoQueryParam(param: string): string | undefined {
   const mapping: Record<string, string> = {
-    'saas': 'demo-saas-001',
-    'climate': 'demo-climate-002',
-    'growth': 'demo-growth-003',
-    'whatif': 'demo-whatif-004',
-    'evergreen': 'demo-evergreen-005'
+    saas: 'demo-saas-001',
+    climate: 'demo-climate-002',
+    growth: 'demo-growth-003',
+    whatif: 'demo-whatif-004',
+    evergreen: 'demo-evergreen-005',
   };
   return mapping[param] || param;
 }
