@@ -233,7 +233,14 @@ export default defineConfig(({ mode }: { mode: string }) => {
       // Dev telemetry stub - always returns 204 for telemetry endpoints
       {
         name: 'dev-telemetry-stub',
-        configureServer(server: { middlewares: { use: (path: string, handler: (req: http.IncomingMessage, res: http.ServerResponse) => void) => void } }) {
+        configureServer(server: {
+          middlewares: {
+            use: (
+              path: string,
+              handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
+            ) => void;
+          };
+        }) {
           server.middlewares.use(
             '/api/telemetry/wizard',
             async (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -269,6 +276,13 @@ export default defineConfig(({ mode }: { mode: string }) => {
         gzipSize: true,
         brotliSize: true,
         open: false,
+      }),
+      // JSON data for programmatic analysis (Tier C)
+      visualizer({
+        filename: 'dist/stats.json',
+        template: 'raw-data',
+        gzipSize: true,
+        brotliSize: true,
       }),
     ].filter(Boolean) as Plugin[],
     esbuild: {
