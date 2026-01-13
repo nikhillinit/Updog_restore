@@ -9,20 +9,20 @@ import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 
 export interface UserContext {
-  userId: string;       // JWT 'sub' claim
-  orgId: string;        // From JWT or user's default org
-  fundId?: string;      // From route param or user's default fund
-  email: string;        // JWT 'email' claim
-  role: string;         // JWT 'role' claim
-  partnerId?: string;   // Partner ID if user is a partner
+  userId: string; // JWT 'sub' claim
+  orgId: string; // From JWT or user's default org
+  fundId?: string; // From route param or user's default fund
+  email: string; // JWT 'email' claim
+  role: string; // JWT 'role' claim
+  partnerId?: string; // Partner ID if user is a partner
 }
 
 export interface JWTClaims {
-  sub: string;          // User ID
+  sub: string; // User ID
   email: string;
   role: string;
-  org_id?: string;      // Organization ID
-  partner_id?: string;  // Partner ID if applicable
+  org_id?: string; // Organization ID
+  partner_id?: string; // Partner ID if applicable
   exp: number;
   iat: number;
 }
@@ -35,32 +35,35 @@ import { getAuthToken } from './headers-helper';
 
 export function extractUserContext(req: Request): UserContext | null {
   const token = getAuthToken(req.headers);
-  
+
   if (!token) {
     return null;
   }
-  
+
   try {
     // Verify JWT and extract claims using centralized auth
     const claims = verifyAccessToken(token) as JWTClaims;
-    
+
     // Build context from verified JWT claims only
     const context: UserContext = {
       userId: claims.sub,
       email: claims.email,
       role: claims.role,
       orgId: claims.org_id || '', // Will be resolved from database if not in JWT
-      ...(claims.partner_id && { partnerId: claims.partner_id })
+      ...(claims.partner_id && { partnerId: claims.partner_id }),
     };
-    
+
     // Fund ID comes from route params, not headers
     if (req.params['fundId']) {
       context.fundId = req.params['fundId'];
     }
 
     return context;
-  } catch (error: unknown) {
-    console.error('JWT verification failed:', error);
+  } catch (error) {
+    console.error(
+      'JWT verification failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     return null;
   }
 }
@@ -74,31 +77,25 @@ export function requireSecureContext(
   next: NextFunction
 ): void {
   const context = extractUserContext(req);
-  
+
   if (!context) {
-    res["status"](401)["json"]({
+    res['status'](401)['json']({
       error: 'unauthorized',
-      message: 'Valid JWT token required'
+      message: 'Valid JWT token required',
     });
     return;
   }
-  
+
   // Ignore any client-supplied user headers
-  const suspiciousHeaders = [
-    'x-user-id',
-    'x-user-email', 
-    'x-org-id',
-    'x-partner-id',
-    'x-role'
-  ];
-  
+  const suspiciousHeaders = ['x-user-id', 'x-user-email', 'x-org-id', 'x-partner-id', 'x-role'];
+
   for (const header of suspiciousHeaders) {
     if (req.headers[header]) {
       console.warn(`Client attempted to send ${header} header, ignoring`);
       delete req.headers[header];
     }
   }
-  
+
   // Attach verified context to request
   req.context = context;
   next();
@@ -108,11 +105,8 @@ export function requireSecureContext(
  * Set database session context for RLS
  * Must be called within a transaction
  */
-export async function setDatabaseContext(
-  tx: unknown,
-  context: UserContext
-): Promise<void> {
-  const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<unknown>;
+export async function setDatabaseContext(tx: unknown, context: UserContext): Promise<void> {
+  const txExecute = (tx as unknown as { execute: (query: unknown) => Promise<unknown> }).execute;
 
   // Set session variables for RLS policies
   await txExecute(sql`SET LOCAL app.current_user = ${context.userId}`);
@@ -151,17 +145,15 @@ export async function executeWithContext<T>(
  * Validate fund access for user
  * Ensures user's org has access to the fund
  */
-export async function validateFundAccess(
-  context: UserContext,
-  fundId: string
-): Promise<boolean> {
+export async function validateFundAccess(context: UserContext, fundId: string): Promise<boolean> {
   const result = await executeWithContext(context, async (tx) => {
-    const funds = await (tx as Record<string, unknown>)['execute'](sql`
+    const txExecute = (tx as { execute: (query: unknown) => Promise<{ rows: unknown[] }> }).execute;
+    const funds = await txExecute(sql`
       SELECT id FROM funds
       WHERE id = ${fundId}
       AND organization_id = ${context.orgId}
       LIMIT 1
-    `) as { rows: unknown[] };
+    `);
 
     return funds.rows.length > 0;
   });
@@ -172,11 +164,11 @@ export async function validateFundAccess(
 /**
  * Hierarchical flag resolution with secure context
  */
-export async function resolveFlags(
-  context: UserContext
-): Promise<Record<string, unknown>> {
+export async function resolveFlags(context: UserContext): Promise<Record<string, unknown>> {
   return await executeWithContext(context, async (tx) => {
-    const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    const txExecute = (tx as Record<string, unknown>)['execute'] as (
+      query: unknown
+    ) => Promise<{ rows: Array<Record<string, unknown>> }>;
 
     // Get flags at each level
     const [globalFlags, orgFlags, fundFlags, userFlags] = await Promise.all([
@@ -196,12 +188,14 @@ export async function resolveFlags(
       `),
 
       // Fund flags (if fund context exists)
-      context.fundId ? txExecute(sql`
+      context.fundId
+        ? txExecute(sql`
         SELECT key, value FROM feature_flags
         WHERE scope = 'fund'
         AND scope_id = ${context.fundId}::uuid
         AND enabled = true
-      `) : { rows: [] },
+      `)
+        : { rows: [] },
 
       // User flags
       txExecute(sql`
@@ -209,7 +203,7 @@ export async function resolveFlags(
         WHERE scope = 'user'
         AND scope_id = ${context.userId}::uuid
         AND enabled = true
-      `)
+      `),
     ]);
 
     // Merge flags with proper precedence: user > fund > org > global
@@ -248,11 +242,11 @@ export function getFlagsCacheHeaders(_context: UserContext): Record<string, stri
     'Cache-Control': 'private, max-age=15, must-revalidate',
     'Surrogate-Control': 'no-store', // Prevent CDN caching
   };
-  
+
   // Build Vary header based on actual context sources
   // Since context comes from JWT, vary on Authorization
   headers['Vary'] = 'Authorization';
-  
+
   return headers;
 }
 
@@ -270,7 +264,9 @@ export async function auditLog(
   }
 ): Promise<void> {
   await executeWithContext(context, async (tx) => {
-    const txExecute = (tx as Record<string, unknown>)['execute'] as (query: unknown) => Promise<unknown>;
+    const txExecute = (tx as Record<string, unknown>)['execute'] as (
+      query: unknown
+    ) => Promise<unknown>;
 
     await txExecute(sql`
       INSERT INTO audit_events (

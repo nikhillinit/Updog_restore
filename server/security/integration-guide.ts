@@ -7,7 +7,7 @@
 
 import type express from 'express';
 type Application = ReturnType<typeof express>;
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 // Security middleware imports
 import {
@@ -53,7 +53,7 @@ import {
  */
 
 export async function setupSecurityMiddleware(app: Application): Promise<void> {
-  console.log('🔒 Initializing security middleware...');
+  console.log('[SECURITY] Initializing security middleware...');
 
   // Initialize Redis connection for rate limiting
   await initializeSecurityMiddleware();
@@ -90,7 +90,7 @@ export async function setupSecurityMiddleware(app: Application): Promise<void> {
   // 9. Error logging middleware (should be last)
   app.use(errorLogger);
 
-  console.log('✅ Security middleware initialized');
+  console.log('[SECURITY] Security middleware initialized');
 }
 
 /**
@@ -167,11 +167,11 @@ export function createValidationMiddleware<T>(schema: { safeParse: (data: unknow
  */
 
 export function setupSecureRoutes(app: Application): void {
-  console.log('🛡️  Setting up secure routes...');
+  console.log('[SECURITY] Setting up secure routes...');
 
   // Monte Carlo simulation endpoint with full security
   app.post('/api/monte-carlo/simulate',
-    ...monteCarloSecurityStack,
+    ...(monteCarloSecurityStack as RequestHandler[]),
     createValidationMiddleware(MonteCarloSchemas.Request),
     async (req: Request, res: Response) => {
       try {
@@ -212,7 +212,7 @@ export function setupSecureRoutes(app: Application): void {
 
   // Fund creation endpoint with high security
   app.post('/api/funds',
-    ...highSecurityStack,
+    ...(highSecurityStack as RequestHandler[]),
     createValidationMiddleware(FinancialSchemas.FundBasics),
     async (req: Request, res: Response) => {
       try {
@@ -244,7 +244,7 @@ export function setupSecureRoutes(app: Application): void {
 
   // Investment entry endpoint
   app.post('/api/investments',
-    ...highSecurityStack,
+    ...(highSecurityStack as RequestHandler[]),
     createValidationMiddleware(FinancialSchemas.Investment),
     async (req: Request, res: Response) => {
       try {
@@ -300,7 +300,7 @@ export function setupSecureRoutes(app: Application): void {
     }
   );
 
-  console.log('✅ Secure routes configured');
+  console.log('[SECURITY] Secure routes configured');
 }
 
 /**
@@ -366,7 +366,7 @@ export function validateSecurityEnvironment(): void {
     process.exit(1);
   }
 
-  console.log('✅ Security environment validation passed');
+  console.log('[SECURITY] Security environment validation passed');
 }
 
 /**
@@ -376,7 +376,7 @@ export function validateSecurityEnvironment(): void {
  */
 
 export async function initializeCompleteSecurity(app: Application): Promise<void> {
-  console.log('🚀 Initializing complete security system...');
+  console.log('[SECURITY] Initializing complete security system...');
 
   // 1. Validate environment
   validateSecurityEnvironment();
@@ -390,7 +390,7 @@ export async function initializeCompleteSecurity(app: Application): Promise<void
   // 4. Setup security monitoring
   setupSecurityMonitoring(app);
 
-  console.log('🔒 Complete security system initialized successfully');
+  console.log('[SECURITY] Complete security system initialized successfully');
   console.log('   - Structured logging enabled');
   console.log('   - Input validation and sanitization active');
   console.log('   - Rate limiting configured');
@@ -425,7 +425,7 @@ await initializeCompleteSecurity(app);
 // Start server
 const port = process.env['PORT'] || 5000;
 app.listen(port, () => {
-  console.log(`🚀 Secure server running on port ${port}`);
+  console.log(`[SECURITY] Secure server running on port ${port}`);
 });
 */
 

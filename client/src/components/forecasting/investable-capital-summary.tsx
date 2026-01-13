@@ -134,7 +134,7 @@ export default function InvestableCapitalSummary() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
                   <YAxis dataKey="round" type="category" width={100} />
-                  <Tooltip formatter={(value: number) => [formatCurrency(value), '']} />
+                  <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', '']} />
                   <Bar dataKey="total" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>

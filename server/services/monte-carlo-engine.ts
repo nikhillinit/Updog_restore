@@ -252,7 +252,7 @@ export class MonteCarloEngine {
     const simulationId = uuidv4();
 
     // Start performance tracking
-    monteCarloTracker.startSimulation(simulationId, config);
+    monteCarloTracker.startSimulation(simulationId, config as unknown as Record<string, unknown>);
     const timer = monitor.createTimer('monte_carlo_simulation', 'monte_carlo');
 
     try {
@@ -1009,7 +1009,7 @@ export async function exampleUsage(): Promise<void> {
     });
 
     // Performance metrics are now automatically tracked within the engine
-    console.log(`\n🎯 Performance Summary:`);
+    console.log(`\nPerformance Summary:`);
     console.log(`   Execution Time: ${results.executionTimeMs}ms`);
     console.log(`   Scenarios Generated: ${results.irr.scenarios.length}`);
     console.log(`   Throughput: ${(results.irr.scenarios.length / (results.executionTimeMs / 1000)).toFixed(1)} scenarios/sec`);

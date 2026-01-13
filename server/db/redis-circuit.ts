@@ -7,7 +7,7 @@ import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 import { createCacheFromEnv } from './redis-factory';
 
 // Redis connection configuration
-const redisConfig = {
+const _redisConfig = {
   host: process.env['REDIS_HOST'] || 'localhost',
   port: parseInt(process.env['REDIS_PORT'] || '6379', 10),
   password: process.env['REDIS_PASSWORD'],
@@ -54,7 +54,7 @@ if (process.env['REDIS_URL'] === 'memory://') {
     on: () => {},
   };
 } else {
-  redis = createCacheFromEnv() as RedisClient;
+  redis = createCacheFromEnv() as unknown as RedisClient;
 }
 
 // Redis event handlers for monitoring
@@ -94,8 +94,12 @@ const redisBreakerConfig = {
 // But we'll pass operations dynamically in each method call
 const redisBreaker = new CircuitBreaker<unknown>(
   redisBreakerConfig,
-  async () => { throw new Error('Operation not provided'); },
-  async () => { throw new Error('Fallback not provided'); }
+  async () => {
+    throw new Error('Operation not provided');
+  },
+  async () => {
+    throw new Error('Fallback not provided');
+  }
 );
 
 // Register with the breaker registry for monitoring
@@ -117,8 +121,12 @@ class MemoryCache {
       }
     }
 
-    const expiry = ttl ? Date.now() + (ttl * 1000) : undefined;
-    this.cache.set(key, { value, ...(expiry && { expiry }) });
+    const expiry = ttl ? Date.now() + ttl * 1000 : undefined;
+    if (expiry !== undefined) {
+      this.cache.set(key, { value, expiry });
+    } else {
+      this.cache.set(key, { value });
+    }
   }
 
   get(key: string): string | number | Buffer | null {
@@ -172,12 +180,14 @@ function recordMetrics(metrics: CacheMetrics) {
   if (cacheMetrics.length > MAX_METRICS) {
     cacheMetrics.shift();
   }
-  
+
   // Log slow operations
   if (metrics.duration > 100) {
-    console.warn(`[Redis] Slow operation (${metrics.duration}ms): ${metrics.operation} ${metrics.key}`);
+    console.warn(
+      `[Redis] Slow operation (${metrics.duration}ms): ${metrics.operation} ${metrics.key}`
+    );
   }
-  
+
   // Log fallback usage
   if (metrics.fallback) {
     console.info(`[Redis] Using memory fallback for: ${metrics.key}`);
@@ -189,11 +199,11 @@ function recordMetrics(metrics: CacheMetrics) {
  */
 export function getCacheMetrics() {
   const totalOps = cacheMetrics.length;
-  const hits = cacheMetrics.filter(m => m.hit).length;
-  const errors = cacheMetrics.filter(m => m.error).length;
-  const fallbacks = cacheMetrics.filter(m => m.fallback).length;
+  const hits = cacheMetrics.filter((m) => m.hit).length;
+  const errors = cacheMetrics.filter((m) => m.error).length;
+  const fallbacks = cacheMetrics.filter((m) => m.fallback).length;
   const avgDuration = cacheMetrics.reduce((sum, m) => sum + m.duration, 0) / totalOps || 0;
-  
+
   return {
     totalOps,
     hitRate: totalOps > 0 ? (hits / totalOps) * 100 : 0,
@@ -213,7 +223,7 @@ export async function get(key: string): Promise<string | null> {
   let hit = false;
   let error: Error | undefined;
   let fallback = false;
-  
+
   try {
     // Skip circuit breaker if disabled
     if (process.env['CB_CACHE_ENABLED'] === 'false') {
@@ -271,7 +281,7 @@ export async function set(
   const start = Date.now();
   let error: Error | undefined;
   let fallback = false;
-  
+
   try {
     // Always update memory cache as backup
     memoryCache.set(key, value, ttl);
@@ -323,7 +333,7 @@ export async function set(
 export async function del(key: string): Promise<void> {
   const start = Date.now();
   let error: Error | undefined;
-  
+
   try {
     // Always delete from memory cache
     memoryCache.del(key);
@@ -335,11 +345,14 @@ export async function del(key: string): Promise<void> {
     }
 
     // Try Redis with circuit breaker
-    await redisBreaker.run(async () => redis.del(key), async () => {
-      // Memory cache already cleared, so operation succeeds
-      console.warn(`[Redis] Failed to delete from Redis: ${key}`);
-      return 0;
-    });
+    await redisBreaker.run(
+      async () => redis.del(key),
+      async () => {
+        // Memory cache already cleared, so operation succeeds
+        console.warn(`[Redis] Failed to delete from Redis: ${key}`);
+        return 0;
+      }
+    );
   } catch (err) {
     error = err as Error;
     // Memory cache already cleared, so operation succeeds
@@ -361,7 +374,7 @@ export async function del(key: string): Promise<void> {
 export async function getJSON<T>(key: string): Promise<T | null> {
   const value = await get(key);
   if (!value) return null;
-  
+
   try {
     return JSON.parse(value) as T;
   } catch (error) {
@@ -387,11 +400,14 @@ export async function incr(key: string): Promise<number> {
       return await redis.incr(key);
     }
 
-    const result = await redisBreaker.run(async () => redis.incr(key), async () => {
-      console.error(`[Redis] Failed to increment ${key}`);
-      // Return 0 as fallback
-      return 0;
-    });
+    const result = await redisBreaker.run(
+      async () => redis.incr(key),
+      async () => {
+        console.error(`[Redis] Failed to increment ${key}`);
+        // Return 0 as fallback
+        return 0;
+      }
+    );
     return typeof result === 'number' ? result : 0;
   } catch (error) {
     console.error(`[Redis] Failed to increment ${key}:`, error);
@@ -423,7 +439,11 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
 /**
  * Health check for Redis connection
  */
-export async function healthCheck(): Promise<{ healthy: boolean; latency?: number; error?: string }> {
+export async function healthCheck(): Promise<{
+  healthy: boolean;
+  latency?: number;
+  error?: string;
+}> {
   const start = Date.now();
 
   try {
@@ -469,33 +489,28 @@ export async function withBackoff<T>(
     factor?: number;
   } = {}
 ): Promise<T> {
-  const {
-    maxRetries = 3,
-    initialDelay = 50,
-    maxDelay = 5000,
-    factor = 2,
-  } = options;
-  
+  const { maxRetries = 3, initialDelay = 50, maxDelay = 5000, factor = 2 } = options;
+
   let lastError: Error | undefined;
   let delay = initialDelay;
-  
+
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (i === maxRetries) {
         throw error;
       }
-      
+
       console.log(`[Redis Backoff] Retry ${i + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
       delay = Math.min(delay * factor, maxDelay);
     }
   }
-  
+
   throw lastError;
 }
 
@@ -516,12 +531,6 @@ export default {
   closeRedis,
   getCacheMetrics,
 };
-
-
-
-
-
-
 
 /**
  * Get circuit breaker stats
