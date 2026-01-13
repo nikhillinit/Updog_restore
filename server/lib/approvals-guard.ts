@@ -6,11 +6,7 @@
 import { db } from '../db.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { approvalMetrics } from '../observability/production-metrics.js';
-import { 
-  validateDistinctSigners, 
-  canonicalJsonHash, 
-  ApprovalRateLimiter 
-} from './quick-wins.js';
+import { validateDistinctSigners, canonicalJsonHash, ApprovalRateLimiter } from './quick-wins.js';
 import { reserveApprovals } from '../../shared/schemas/reserve-approvals.js';
 
 // Initialize rate limiter for approval creation
@@ -49,16 +45,12 @@ export function computeStrategyHash(strategyData: unknown): string {
 export async function verifyApproval(
   options: ApprovalVerificationOptions
 ): Promise<ApprovalVerificationResult> {
-  const {
-    strategyId,
-    inputsHash,
-    minApprovals = 2,
-    requireDistinctPartners = true
-  } = options;
+  const { strategyId, inputsHash, minApprovals = 2, requireDistinctPartners = true } = options;
 
   try {
     // Find matching approval request
-    const [approval] = await db.select()
+    const [approval] = await db
+      .select()
       .from(reserveApprovals)
       .where(
         and(
@@ -72,7 +64,8 @@ export async function verifyApproval(
 
     if (!approval) {
       // Check if there's a pending approval
-      const [pending] = await db.select()
+      const [pending] = await db
+        .select()
         .from(reserveApprovals)
         .where(
           and(
@@ -87,13 +80,13 @@ export async function verifyApproval(
         return {
           ok: false,
           approvalId: pending.id,
-          reason: 'Approval is pending and requires partner signatures'
+          reason: 'Approval is pending and requires partner signatures',
         };
       }
 
       return {
         ok: false,
-        reason: 'No approval found for this strategy and inputs combination'
+        reason: 'No approval found for this strategy and inputs combination',
       };
     }
 
@@ -116,7 +109,7 @@ export async function verifyApproval(
         ok: false,
         approvalId: approval.id,
         reason: `Insufficient approvals: ${sigCount}/${minApprovals}`,
-        signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
+        signatures: signatures.rows as unknown as { partnerEmail: string; approvedAt: Date }[],
       };
     }
 
@@ -126,7 +119,7 @@ export async function verifyApproval(
       const validation = validateDistinctSigners(
         signatures.rows.map((s: Record<string, unknown>) => ({
           partnerId: String(s['partner_id']), // Use actual partner_id from partners table
-          partnerEmail: String(s['partner_email'])
+          partnerEmail: String(s['partner_email']),
         }))
       );
 
@@ -136,7 +129,7 @@ export async function verifyApproval(
           ok: false,
           approvalId: approval.id,
           reason: `Approvals must be from ${minApprovals} distinct partners (found ${validation.uniqueCount} unique)`,
-          signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
+          signatures: signatures.rows as unknown as { partnerEmail: string; approvedAt: Date }[],
         };
       }
     }
@@ -155,7 +148,7 @@ export async function verifyApproval(
         ok: false,
         approvalId: approval.id,
         reason: 'Approval has expired',
-        signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
+        signatures: signatures.rows as unknown as { partnerEmail: string; approvedAt: Date }[],
       };
     }
 
@@ -166,20 +159,19 @@ export async function verifyApproval(
     return {
       ok: true,
       approvalId: approval.id,
-      signatures: signatures.rows as Array<{ partnerEmail: string; approvedAt: Date; }>,
-      ...(approval.calculationHash && { calculationHash: approval.calculationHash })
+      signatures: signatures.rows as Array<{ partnerEmail: string; approvedAt: Date }>,
+      ...(approval.calculationHash && { calculationHash: approval.calculationHash }),
     };
-
   } catch (error) {
     console.error('Error verifying approval:', error);
-    
+
     // Record failed verification
     const timer = approvalMetrics.verifyDuration.startTimer({ result: 'error' });
     timer();
-    
+
     return {
       ok: false,
-      reason: `Failed to verify approval: ${  (error as Error).message}`
+      reason: `Failed to verify approval: ${(error as Error).message}`,
     };
   }
 }
@@ -214,7 +206,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       if (!strategyId) {
         return res.status(400).json({
           error: 'strategy_id_required',
-          message: 'Strategy ID is required for approval verification'
+          message: 'Strategy ID is required for approval verification',
         });
       }
 
@@ -224,7 +216,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       const result = await verifyApproval({
         strategyId: String(strategyId),
         inputsHash,
-        ...options
+        ...options,
       });
 
       if (!result.ok) {
@@ -235,16 +227,16 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
           details: {
             strategyId,
             inputsHash,
-            signatures: result.signatures
-          }
+            signatures: result.signatures,
+          },
         });
       }
 
       // Attach approval info to request for downstream use
       const approvalInfo = {
-        id: result.approvalId,
-        signatures: result.signatures,
-        calculationHash: result.calculationHash
+        ...(result.approvalId !== undefined && { id: result.approvalId }),
+        ...(result.signatures !== undefined && { signatures: result.signatures }),
+        ...(result.calculationHash !== undefined && { calculationHash: result.calculationHash }),
       };
       // eslint-disable-next-line require-atomic-updates -- sequential guard checks
       req.approval = approvalInfo;
@@ -254,7 +246,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
       console.error('Approval middleware error:', error);
       res.status(500).json({
         error: 'approval_verification_failed',
-        message: 'Failed to verify approval'
+        message: 'Failed to verify approval',
       });
     }
   };
@@ -305,7 +297,6 @@ export async function createApprovalIfNeeded(
     riskLevel: 'low' | 'medium' | 'high';
   }
 ): Promise<{ requiresApproval: boolean; approvalId?: string; rateLimited?: boolean }> {
-
   const needsApproval = requiresApproval(
     action,
     impact.estimatedAmount,
@@ -324,10 +315,11 @@ export async function createApprovalIfNeeded(
   if (!rateLimitCheck.allowed) {
     return {
       requiresApproval: true,
-      rateLimited: true
+      rateLimited: true,
     };
   }
-  const existing = await db.select()
+  const existing = await db
+    .select()
     .from(reserveApprovals)
     .where(
       and(
@@ -341,13 +333,14 @@ export async function createApprovalIfNeeded(
   if (existing.length > 0) {
     return {
       requiresApproval: true,
-      approvalId: existing[0]!.id
+      approvalId: existing[0]!.id,
     };
   }
 
   // Create new approval request
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
-  const result = await db.insert(reserveApprovals)
+  const result = await db
+    .insert(reserveApprovals)
     .values({
       strategyId,
       requestedBy,
@@ -357,7 +350,7 @@ export async function createApprovalIfNeeded(
       affectedFunds: impact.affectedFunds,
       estimatedAmount: Math.round(impact.estimatedAmount * 100),
       riskLevel: impact.riskLevel,
-      expiresAt
+      expiresAt,
     })
     .returning();
 
@@ -368,6 +361,6 @@ export async function createApprovalIfNeeded(
 
   return {
     requiresApproval: true,
-    approvalId: approval.id
+    approvalId: approval.id,
   };
 }

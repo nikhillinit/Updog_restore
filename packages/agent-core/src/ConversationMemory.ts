@@ -41,17 +41,22 @@ import { Logger } from './Logger';
 import { promises as fs } from 'fs';
 import pMap from 'p-map';
 
+/**
+ * Minimal Redis client interface for type safety
+ * Compatible with node-redis and ioredis clients
+ */
+export interface RedisClientLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<unknown>;
+  setEx(key: string, seconds: number, value: string): Promise<unknown>;
+  del(key: string | string[]): Promise<number>;
+}
+
 const logger = new Logger({ level: 'info', agent: 'conversation-memory' });
 
 // Configuration constants from environment
-const MAX_CONVERSATION_TURNS = parseInt(
-  process.env['MAX_CONVERSATION_TURNS'] || '50',
-  10
-);
-const CONVERSATION_TIMEOUT_HOURS = parseInt(
-  process.env['CONVERSATION_TIMEOUT_HOURS'] || '3',
-  10
-);
+const MAX_CONVERSATION_TURNS = parseInt(process.env['MAX_CONVERSATION_TURNS'] || '50', 10);
+const CONVERSATION_TIMEOUT_HOURS = parseInt(process.env['CONVERSATION_TIMEOUT_HOURS'] || '3', 10);
 const CONVERSATION_TIMEOUT_MS = CONVERSATION_TIMEOUT_HOURS * 3600 * 1000;
 
 /**
@@ -94,8 +99,14 @@ export interface ConversationStorage {
 
   // NEW: Memory-specific methods (optional - for future hybrid memory implementation)
   setMemory?(key: string, value: string, metadata: MemoryMetadata): Promise<void>;
-  getMemoriesByTenant?(tenantId: string, tags?: string[]): Promise<Array<{key: string, value: string}>>;
-  searchMemories?(query: string, tenantId: string): Promise<Array<{key: string, value: string, score: number}>>;
+  getMemoriesByTenant?(
+    tenantId: string,
+    tags?: string[]
+  ): Promise<Array<{ key: string; value: string }>>;
+  searchMemories?(
+    query: string,
+    tenantId: string
+  ): Promise<Array<{ key: string; value: string; score: number }>>;
 }
 
 /**
@@ -113,10 +124,7 @@ export interface MemoryMetadata {
  * In-memory storage implementation (fallback when Redis unavailable)
  */
 class InMemoryStorage implements ConversationStorage {
-  private store = new Map<
-    string,
-    { value: string; expiresAt: number | null }
-  >();
+  private store = new Map<string, { value: string; expiresAt: number | null }>();
   private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
@@ -165,9 +173,9 @@ class InMemoryStorage implements ConversationStorage {
  * Redis storage implementation (production)
  */
 class RedisStorage implements ConversationStorage {
-  private client: unknown; // Redis client type
+  private client: RedisClientLike;
 
-  constructor(client: unknown) {
+  constructor(client: RedisClientLike) {
     this.client = client;
   }
 
@@ -208,9 +216,7 @@ let storageInstance: ConversationStorage | null = null;
 /**
  * Initialize conversation storage backend
  */
-export function initializeStorage(
-  redisClient?: unknown
-): ConversationStorage {
+export function initializeStorage(redisClient?: RedisClientLike): ConversationStorage {
   if (redisClient) {
     logger.info('Using Redis for conversation storage');
     storageInstance = new RedisStorage(redisClient);
@@ -280,9 +286,7 @@ export async function createThread(
 /**
  * Retrieve thread context from storage
  */
-export async function getThread(
-  threadId: string
-): Promise<ThreadContext | null> {
+export async function getThread(threadId: string): Promise<ThreadContext | null> {
   if (!isValidUUID(threadId)) {
     return null;
   }
@@ -294,7 +298,7 @@ export async function getThread(
 
     if (!data) return null;
 
-    const parsed = JSON.parse(data);
+    const parsed: unknown = JSON.parse(data);
     return ThreadContextSchema.parse(parsed);
   } catch (error: unknown) {
     logger.debug('Thread retrieval failed', { threadId, error });
@@ -374,10 +378,7 @@ export async function addTurn(
  * @param maxDepth - Maximum chain depth (prevent infinite loops)
  * @returns Array of threads in chronological order (oldest first)
  */
-export async function getThreadChain(
-  threadId: string,
-  maxDepth = 20
-): Promise<ThreadContext[]> {
+export async function getThreadChain(threadId: string, maxDepth = 20): Promise<ThreadContext[]> {
   const chain: ThreadContext[] = [];
   const seen = new Set<string>();
   let currentId: string | undefined = threadId;
@@ -511,9 +512,7 @@ async function formatFileContent(filePath: string): Promise<string> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     const lines = content.split('\n');
-    const formatted = lines
-      .map((line, idx) => `${idx + 1}→${line}`)
-      .join('\n');
+    const formatted = lines.map((line, idx) => `${idx + 1}→${line}`).join('\n');
 
     return `\n--- FILE: ${filePath} ---\n${formatted}\n--- END FILE ---\n`;
   } catch (error: unknown) {
@@ -546,11 +545,7 @@ export async function buildConversationHistory(
     includeFiles?: boolean;
   } = {}
 ): Promise<{ history: string; tokens: number }> {
-  const {
-    maxFileTokens = 50000,
-    maxHistoryTokens = 100000,
-    includeFiles = true,
-  } = options;
+  const { maxFileTokens = 50000, maxHistoryTokens = 100000, includeFiles = true } = options;
 
   // Handle thread chains
   let allTurns = context.turns;
@@ -579,14 +574,10 @@ export async function buildConversationHistory(
       const plan = await planFileInclusion(files, maxFileTokens);
 
       parts.push('=== FILES REFERENCED IN THIS CONVERSATION ===');
-      parts.push(
-        'The following files have been shared and analyzed during our conversation.'
-      );
+      parts.push('The following files have been shared and analyzed during our conversation.');
 
       if (plan.skip.length > 0) {
-        parts.push(
-          `[NOTE: ${plan.skip.length} files omitted due to token constraints]`
-        );
+        parts.push(`[NOTE: ${plan.skip.length} files omitted due to token constraints]`);
       }
 
       parts.push('Refer to these when analyzing the context below:');
@@ -596,7 +587,7 @@ export async function buildConversationHistory(
       const formattedFiles = await pMap(
         plan.include,
         async (file: string) => await formatFileContent(file),
-        { concurrency: 5 }  // Read 5 files simultaneously
+        { concurrency: 5 } // Read 5 files simultaneously
       );
       parts.push(...formattedFiles);
 
@@ -684,8 +675,7 @@ export async function buildConversationHistory(
  * UUID validation for security
  */
 function isValidUUID(str: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }
 

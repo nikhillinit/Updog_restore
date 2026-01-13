@@ -182,8 +182,8 @@ export class WasmRunner extends EventEmitter {
               memoryUsedBytes: memoryUsage,
               nonFiniteCount,
               deterministicHash,
-              cpuTimeMs: msg.cpuTime,
-              gasUsed: msg.gasUsed
+              ...(msg.cpuTime !== undefined && { cpuTimeMs: msg.cpuTime }),
+              ...(msg.gasUsed !== undefined && { gasUsed: msg.gasUsed })
             },
             warnings
           };
@@ -280,15 +280,16 @@ export class WasmRunner extends EventEmitter {
           exec.options
         );
         
-        executing.add(promise as Promise<WasmExecutionResult<T>>);
+        const typedPromise = promise as Promise<WasmExecutionResult<T>>;
+        executing.add(typedPromise);
 
-        promise.then(
-          (result: WasmExecutionResult<T>) => {
+        typedPromise.then(
+          (result) => {
             results.push(result);
-            executing.delete(promise as Promise<WasmExecutionResult<T>>);
+            executing.delete(typedPromise);
           },
           (error: WasmExecutionError) => {
-            executing.delete(promise as Promise<WasmExecutionResult<T>>);
+            executing.delete(typedPromise);
             throw error;
           }
         );

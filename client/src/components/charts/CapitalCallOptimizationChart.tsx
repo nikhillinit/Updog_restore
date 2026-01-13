@@ -366,18 +366,18 @@ export default function CapitalCallOptimizationChart({
               <h4 className="font-medium mb-3">Recommendations</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 {schedule.efficiency >= 90 && (
-                  <p>✅ Excellent optimization - schedule is highly efficient</p>
+                  <p>[PASS] Excellent optimization - schedule is highly efficient</p>
                 )}
                 {schedule.efficiency < 75 && (
-                  <p>⚠️ Consider consolidating smaller calls to improve efficiency</p>
+                  <p>[WARN] Consider consolidating smaller calls to improve efficiency</p>
                 )}
                 {schedule.calls.length > 6 && (
-                  <p>💡 High call frequency may increase administrative overhead</p>
+                  <p>[INFO] High call frequency may increase administrative overhead</p>
                 )}
                 {schedule.utilizationRate > 80 && (
-                  <p>🎯 High utilization rate maximizes capital efficiency</p>
+                  <p>[GOAL] High utilization rate maximizes capital efficiency</p>
                 )}
-                <p>📈 Regular review recommended as investment pipeline evolves</p>
+                <p>[TREND] Regular review recommended as investment pipeline evolves</p>
               </div>
             </div>
           </div>
