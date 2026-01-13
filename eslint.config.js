@@ -58,6 +58,15 @@ export default [
       'tools/**',
       'ai-utils/**', // Experimental AI development tools
       'notebooks/**', // Jupyter notebooks and examples
+      'examples/**', // Example code
+      'docs/**', // Documentation files
+      'msw/**', // Mock Service Worker test fixtures
+      'server - memory shim/**', // Memory mode shim files
+      'eslint-rules/**', // ESLint rule definitions (CommonJS)
+      'src/**', // Legacy source directory (pre-refactor)
+      'k6/**', // k6 load testing scenarios (different runtime)
+      'playwright.config.simple.ts', // Simplified Playwright config
+      'server/lib/wasm-worker.js', // WASM worker (special case)
       '**/*.gen.ts',
       '**/*.d.ts',
       '.next/**',

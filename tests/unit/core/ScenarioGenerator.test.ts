@@ -5,10 +5,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type { ScenarioConfig } from '@shared/core/optimization/ScenarioGenerator';
 import {
   ScenarioGenerator,
-  ScenarioConfig,
-  BucketConfig,
   validateScenarioConfig,
   createScenarioGenerator,
   createDefaultScenarioConfig,
@@ -190,7 +189,13 @@ describe('ScenarioGenerator', () => {
           { name: 'Seed', capitalAllocation: 100, moicCalibration: { median: 1.0, p90: 3.5 } },
         ],
         correlationWeights: { macro: 0.5, systematic: 0.25, idiosyncratic: 0.25 },
-        recycling: { enabled: false, mode: 'same-bucket', reinvestmentRate: 0, avgHoldingPeriod: 5, fundLifetime: 10 },
+        recycling: {
+          enabled: false,
+          mode: 'same-bucket',
+          reinvestmentRate: 0,
+          avgHoldingPeriod: 5,
+          fundLifetime: 10,
+        },
         seed: 'moic-test',
       };
 
@@ -273,7 +278,13 @@ describe('ScenarioGenerator', () => {
           { name: 'Series A', capitalAllocation: 50, moicCalibration: { median: 1.5, p90: 3.5 } },
         ],
         correlationWeights: { macro: 0.5, systematic: 0.25, idiosyncratic: 0.25 },
-        recycling: { enabled: false, mode: 'same-bucket', reinvestmentRate: 0, avgHoldingPeriod: 5, fundLifetime: 10 },
+        recycling: {
+          enabled: false,
+          mode: 'same-bucket',
+          reinvestmentRate: 0,
+          avgHoldingPeriod: 5,
+          fundLifetime: 10,
+        },
         seed: 'reproducibility-test-123',
       };
 
@@ -373,7 +384,13 @@ describe('ScenarioGenerator', () => {
           systematic: 0.1,
           idiosyncratic: 0.1,
         },
-        recycling: { enabled: false, mode: 'same-bucket', reinvestmentRate: 0, avgHoldingPeriod: 5, fundLifetime: 10 },
+        recycling: {
+          enabled: false,
+          mode: 'same-bucket',
+          reinvestmentRate: 0,
+          avgHoldingPeriod: 5,
+          fundLifetime: 10,
+        },
         seed: 'correlation-test',
       };
 
@@ -389,9 +406,14 @@ describe('ScenarioGenerator', () => {
       const meanA = bucketA.reduce((sum, v) => sum + v, 0) / bucketA.length;
       const meanB = bucketB.reduce((sum, v) => sum + v, 0) / bucketB.length;
 
-      const cov = bucketA.reduce((sum, v, i) => sum + (v - meanA) * (bucketB[i] - meanB), 0) / bucketA.length;
-      const stdA = Math.sqrt(bucketA.reduce((sum, v) => sum + Math.pow(v - meanA, 2), 0) / bucketA.length);
-      const stdB = Math.sqrt(bucketB.reduce((sum, v) => sum + Math.pow(v - meanB, 2), 0) / bucketB.length);
+      const cov =
+        bucketA.reduce((sum, v, i) => sum + (v - meanA) * (bucketB[i] - meanB), 0) / bucketA.length;
+      const stdA = Math.sqrt(
+        bucketA.reduce((sum, v) => sum + Math.pow(v - meanA, 2), 0) / bucketA.length
+      );
+      const stdB = Math.sqrt(
+        bucketB.reduce((sum, v) => sum + Math.pow(v - meanB, 2), 0) / bucketB.length
+      );
 
       const correlation = cov / (stdA * stdB);
 
