@@ -228,22 +228,25 @@ export const ChartTooltipContent = React.forwardRef<
   const { config } = useChart()
   const { className, hideLabel, hideIndicator, indicator, nameKey, labelKey, ...rest } = props
 
-  if (!props.active || !props.payload?.length) {
+  if (!props.active || !Array.isArray(props.payload) || !props.payload.length) {
     return null
   }
 
+  const tooltipProps: Record<string, unknown> = {
+    ref,
+    className,
+    hideLabel,
+    hideIndicator,
+    indicator,
+    config,
+    ...rest
+  };
+
+  if (nameKey) tooltipProps['nameKey'] = nameKey;
+  if (labelKey) tooltipProps['labelKey'] = labelKey;
+
   return (
-    <ChartTooltip
-      ref={ref}
-      className={className}
-      hideLabel={hideLabel}
-      hideIndicator={hideIndicator}
-      indicator={indicator}
-      nameKey={nameKey}
-      labelKey={labelKey}
-      config={config}
-      {...rest}
-    />
+    <ChartTooltip {...tooltipProps} />
   )
 })
 
@@ -264,18 +267,22 @@ export const ChartLegend = React.forwardRef<
     Object.entries(props).filter(([_, value]) => value !== undefined)
   );
 
-  return (
-    <Legend
-      ref={ref as unknown as React.Ref<SVGElement>}
-      className={cn(
-        "flex flex-wrap items-center justify-center gap-4 text-xs",
-        className
-      )}
-      content={ChartLegendContent as unknown as React.ComponentType<unknown>}
-      {...filteredProps}
-      {...(nameKey && { nameKey })}
-    />
-  )
+  if (nameKey) {
+    filteredProps['nameKey'] = nameKey;
+  }
+
+  const legendProps = {
+    ref: ref as unknown as React.Ref<SVGElement>,
+    className: cn(
+      "flex flex-wrap items-center justify-center gap-4 text-xs",
+      className
+    ),
+    content: ChartLegendContent as never,
+    ...filteredProps
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Legend {...(legendProps as any)} />
 })
 
 ChartLegend.displayName = "ChartLegend"
@@ -350,7 +357,8 @@ const RechartsDispatcher = React.forwardRef<HTMLDivElement, { component: string;
     return null;
   }
 
-  return <Component ref={ref} {...(rest as Record<string, unknown>)} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Component ref={ref} {...(rest as any)} />;
 });
 
 export default RechartsDispatcher;

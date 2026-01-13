@@ -186,7 +186,7 @@ export function FundStrategyBuilder({
   }));
 
   const CustomTooltip = ({ active, payload }: {active?: boolean; payload?: Array<{payload: {name: string; value: number; amount: number}}>}) => {
-    if (active && payload && payload.length) {
+    if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">

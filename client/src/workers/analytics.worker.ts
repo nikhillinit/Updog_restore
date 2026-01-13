@@ -32,7 +32,11 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     if (type === 'xirr') {
       if (CANCELLED.has(id)) return;
       if (!payload?.cashFlows) throw new Error('Missing cashFlows in xirr request');
-      const res = xirrNewtonBisection(payload.cashFlows, payload.guess ?? 0.1);
+      const cashFlows = payload.cashFlows.map(cf => ({
+        date: typeof cf.date === 'string' ? new Date(cf.date) : cf.date,
+        amount: cf.amount
+      }));
+      const res = xirrNewtonBisection(cashFlows, payload.guess ?? 0.1);
       if (!CANCELLED.has(id)) self.postMessage({ id, result: res } as WorkerResponse);
       return;
     }
@@ -40,7 +44,11 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     if (type === 'waterfall') {
       if (CANCELLED.has(id)) return;
       if (!payload) throw new Error('Missing payload in waterfall request');
-      const res = calculateAmericanWaterfallLedger(payload.config, payload.contributions, payload.exits);
+      const res = calculateAmericanWaterfallLedger(
+        payload.config as Parameters<typeof calculateAmericanWaterfallLedger>[0],
+        payload.contributions as Parameters<typeof calculateAmericanWaterfallLedger>[1],
+        payload.exits as Parameters<typeof calculateAmericanWaterfallLedger>[2]
+      );
       if (!CANCELLED.has(id)) self.postMessage({ id, result: res } as WorkerResponse);
       return;
     }

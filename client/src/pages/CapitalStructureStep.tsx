@@ -346,6 +346,7 @@ export default function CapitalStructureStep() {
     // Skip the first stage (entry stage) and calculate for subsequent stages
     for (let i = 1; i < stageProgression.length; i++) {
       const stage = stageProgression[i];
+      if (!stage) continue;
       const dealsAtThisStage = stage.startingDeals || 0;
 
       if (dealsAtThisStage === 0) continue;

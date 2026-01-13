@@ -72,9 +72,9 @@ export function VarianceChart({
     }));
   }, [data]);
 
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: unknown[]; label?: string }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0]!.payload;
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: VarianceDataPoint & { index: number; absVariance: number; formattedMetric: string; severityColor: string } }>; label?: string }) => {
+    if (active && payload && payload.length && payload[0]) {
+      const data = payload[0].payload;
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 mb-2">{data.metric}</p>
@@ -313,9 +313,9 @@ export function VarianceTrendChart({
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [data]);
 
-  const TrendTooltip = ({ active, payload }: { active?: boolean; payload?: unknown[] }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0]!.payload;
+  const TrendTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { timestamp: number; variance: number; metric: string; formattedDate: string; absVariance: number } }> }) => {
+    if (active && payload && payload.length && payload[0]) {
+      const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.formattedDate}</p>

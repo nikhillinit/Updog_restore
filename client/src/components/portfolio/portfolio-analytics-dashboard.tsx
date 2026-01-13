@@ -500,7 +500,7 @@ export default function PortfolioAnalyticsDashboard() {
               <CardTitle className="flex items-center justify-between">
                 <span>Chart Builder</span>
                 <div className="flex items-center space-x-2">
-                  <Tabs value={displayMode} onValueChange={(value) => setDisplayMode(value)}>
+                  <Tabs value={displayMode} onValueChange={(value) => setDisplayMode(value as 'results' | 'chart' | 'both')}>
                     <TabsList>
                       <TabsTrigger value="results">Results</TabsTrigger>
                       <TabsTrigger value="chart">Chart</TabsTrigger>
@@ -522,8 +522,8 @@ export default function PortfolioAnalyticsDashboard() {
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Chart Type</label>
-                  <Select value={currentChart.type} onValueChange={(value) => 
-                    setCurrentChart(prev => ({ ...prev, type: value }))
+                  <Select value={currentChart.type} onValueChange={(value) =>
+                    setCurrentChart(prev => ({ ...prev, type: value as 'bar' | 'line' | 'pie' | 'area' }))
                   }>
                     <SelectTrigger>
                       <SelectValue />

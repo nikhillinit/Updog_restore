@@ -404,7 +404,7 @@ export default function InvestmentDetail() {
 
           <div className="space-y-4">
             {investment.rounds && investment.rounds.length > 0 ? (
-              investment.rounds.map((round: Record<string, unknown>) => (
+              (investment.rounds as Record<string, unknown>[]).map((round: Record<string, unknown>) => (
                 <Card key={round['id'] as string}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -626,7 +626,7 @@ export default function InvestmentDetail() {
 
           <div className="space-y-4">
             {investment.performanceCases && investment.performanceCases.length > 0 ? (
-              investment.performanceCases.map((performanceCase: Record<string, unknown>) => (
+              (investment.performanceCases as Record<string, unknown>[]).map((performanceCase: Record<string, unknown>) => (
                 <Card key={performanceCase['id'] as string}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -638,7 +638,7 @@ export default function InvestmentDetail() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant="outline">{performanceCase['probability'] as number}% probability</Badge>
-                        {performanceCase['hasLiqPrefs'] && (
+                        {(performanceCase['hasLiqPrefs'] as boolean | undefined) && (
                           <Badge variant="destructive" className="text-xs">Liq Prefs Active</Badge>
                         )}
                         <Button
@@ -670,7 +670,7 @@ export default function InvestmentDetail() {
                         </p>
                       </div>
                     </div>
-                    {performanceCase['description'] && (
+                    {(performanceCase['description'] as string | undefined) && (
                       <div className="mt-3 pt-3 border-t">
                         <p className="text-sm text-muted-foreground">{performanceCase['description'] as string}</p>
                       </div>
@@ -881,7 +881,7 @@ export default function InvestmentDetail() {
           company: investment?.name || "",
           amount: investment?.amount || 0
         }}
-        performanceCase={selectedPerformanceCase || { id: "default", name: "Base Case" }}
+        performanceCase={selectedPerformanceCase ? { id: selectedPerformanceCase['id'] as string, name: selectedPerformanceCase['name'] as string } : { id: "default", name: "Base Case" }}
       />
     </div>
   );

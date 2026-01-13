@@ -1,34 +1,8 @@
 {
   "version": "2.0.0",
-  "projects": {
-    "client": {
-      "errors": [
-        "client/src/components/analytics/VarianceChart.tsx:TS2339:0ad88a1c",
-        "client/src/components/portfolio/portfolio-analytics-dashboard.tsx:TS2345:93e224b6",
-        "client/src/components/portfolio/portfolio-analytics-dashboard.tsx:TS2345:ec685256",
-        "client/src/components/ui/recharts-bundle.tsx:TS2322:19e9562e",
-        "client/src/components/ui/recharts-bundle.tsx:TS2339:d8dbb823",
-        "client/src/components/ui/recharts-bundle.tsx:TS2375:790a5f41",
-        "client/src/components/ui/recharts-bundle.tsx:TS2741:a1732ff1",
-        "client/src/pages/investment-detail.tsx:TS2322:171553a7",
-        "client/src/pages/investment-detail.tsx:TS2322:51b3afbb",
-        "client/src/pages/investment-detail.tsx:TS2345:1b0e578e",
-        "client/src/pages/investment-detail.tsx:TS2345:49bf3b18",
-        "client/src/pages/investment-detail.tsx:TS2739:53c4cbc0",
-        "client/src/services/funds.ts:TS2322:2208a4d8",
-        "client/src/services/funds.ts:TS2322:dd41a169",
-        "client/src/services/funds.ts:TS2345:0360dd42",
-        "client/src/vitals.ts:TS2352:2cb17006",
-        "client/src/vitals.ts:TS2352:4fa15f44",
-        "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
-        "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
-      ],
-      "total": 19,
-      "lastUpdated": "2026-01-13T04:23:52.291Z"
-    }
-  },
-  "totalErrors": 19,
-  "timestamp": "2026-01-13T04:23:52.291Z",
+  "projects": {},
+  "totalErrors": 0,
+  "timestamp": "2026-01-13T11:37:49.708Z",
   "buildMode": "per-project",
-  "elapsedMs": 23443
+  "elapsedMs": 22480
 }
