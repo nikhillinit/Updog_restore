@@ -85,8 +85,8 @@ export default function PacingTimelineChart() {
                 <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
                 <YAxis stroke="#666" fontSize={12} label={{ value: 'Deployment ($M)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip
-                  formatter={(value: number | undefined, name: string | undefined) => [
-                    `$${(value ?? 0).toFixed(1)}M`,
+                  formatter={(value, name) => [
+                    value !== undefined ? `$${Number(value).toFixed(1)}M` : '',
                     name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative'
                   ]}
                   labelFormatter={(label: any) => `Quarter: ${label}`}

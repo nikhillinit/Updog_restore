@@ -298,7 +298,7 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Liquidity Score']}
+                      formatter={(value) => [value !== undefined ? `${value}%` : '', 'Liquidity Score']}
                       labelFormatter={(name) => `${name}`}
                     />
                     <Bar dataKey="liquidity" fill="#3B82F6" />
@@ -325,13 +325,13 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label={(props: any) => `${props.sector || ''}: ${formatCurrency(props.value || 0)}`}
+                      label={(props: { sector?: string; value?: number }) => `${props.sector || ''}: ${formatCurrency(props.value || 0)}`}
                     >
                       {sectorDistribution.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number | undefined) => formatCurrency(value ?? 0)} />
+                    <Tooltip formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -422,8 +422,10 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip
-                    formatter={(value: number | undefined, name: string | undefined) => [
-                      name === 'current' ? `$${value ?? 0}` : `${(value ?? 0) >= 0 ? '+' : ''}${value ?? 0}%`,
+                    formatter={(value, name) => [
+                      value !== undefined
+                        ? (name === 'current' ? `$${value}` : `${Number(value) >= 0 ? '+' : ''}${value}%`)
+                        : '',
                       name === 'current' ? 'Current Price' : 'Price Change'
                     ]}
                   />

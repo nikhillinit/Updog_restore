@@ -262,9 +262,9 @@ export default function GraduationReservesDemo() {
                 <YAxis yAxisId="left" label={{ value: 'Reserves ($M)', angle: -90, position: 'insideLeft' }} />
                 <YAxis yAxisId="right" orientation="right" label={{ value: 'Reserve Ratio (%)', angle: 90, position: 'insideRight' }} />
                 <Tooltip
-                  formatter={(value: any, name: string | undefined) => {
-                    if (name === 'reserveRatio') return [`${value ?? 0}%`, 'Reserve Ratio'];
-                    return [`$${value ?? 0}M`, name ?? ''];
+                  formatter={(value, name) => {
+                    if (name === 'reserveRatio') return [value !== undefined ? `${value}%` : '', 'Reserve Ratio'];
+                    return [value !== undefined ? `$${value}M` : '', name ?? ''];
                   }}
                 />
                 <Legend />

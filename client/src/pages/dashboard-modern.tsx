@@ -374,7 +374,7 @@ export default function ModernDashboard() {
                     <XAxis dataKey="month" stroke="#666" fontSize={12} />
                     <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value}M`} />
                     <Tooltip
-                      formatter={(value: any, name: string | undefined) => [`$${value ?? 0}M`, name === 'deployed' ? 'Deployed' : 'Committed']}
+                      formatter={(value, name) => [value !== undefined ? `$${value}M` : '', name === 'deployed' ? 'Deployed' : 'Committed']}
                       contentStyle={{
                         backgroundColor: '#FFFFFF',
                         border: '1px solid #E0D8D1',

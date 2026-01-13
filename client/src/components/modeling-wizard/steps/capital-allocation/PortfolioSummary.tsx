@@ -218,8 +218,8 @@ export function PortfolioSummary({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number | undefined, name: string | undefined, props: any) => [
-                    `${(value ?? 0).toFixed(1)}% (${formatCurrency(props.payload.amount)}M)`,
+                  formatter={(value, name, props) => [
+                    value !== undefined ? `${Number(value).toFixed(1)}% (${formatCurrency(props?.payload?.amount)}M)` : '',
                     name ?? '',
                   ]}
                 />
@@ -280,8 +280,8 @@ export function PortfolioSummary({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number | undefined, name: string | undefined, props: any) => [
-                    `${(value ?? 0).toFixed(1)}% (${formatCurrency(props.payload.amount)}M)`,
+                  formatter={(value, name, props) => [
+                    value !== undefined ? `${Number(value).toFixed(1)}% (${formatCurrency(props?.payload?.amount)}M)` : '',
                     name ?? '',
                   ]}
                 />

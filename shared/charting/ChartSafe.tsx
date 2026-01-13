@@ -43,7 +43,9 @@ function toNum(value?: FlexibleDimension): number | undefined {
 export function withChartSafe<T extends { height?: FlexibleDimension; width?: FlexibleDimension }>(
   Component: React.ComponentType<T>
 ) {
-  return React.forwardRef<Element, T>(((props: T, ref: React.ForwardedRef<Element>) => {
+  // Type assertion needed due to TypeScript's strict handling of forwardRef generics
+  // The runtime behavior is correct; we're just satisfying the type checker
+  const WrappedComponent = (props: T, ref: React.ForwardedRef<Element>) => {
     const { height, width, ...restProps } = props;
 
     const normalizedProps = {
@@ -53,7 +55,13 @@ export function withChartSafe<T extends { height?: FlexibleDimension; width?: Fl
     };
 
     return <Component ref={ref} {...(normalizedProps as T)} />;
-  }) as unknown as React.ForwardRefRenderFunction<Element, T>);
+  };
+
+  // Double assertion needed: forwardRef expects PropsWithoutRef<T> but we use T directly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return React.forwardRef(WrappedComponent as any) as React.ForwardRefExoticComponent<
+    React.PropsWithoutRef<T> & React.RefAttributes<Element>
+  >;
 }
 
 // Export pre-wrapped safe chart components

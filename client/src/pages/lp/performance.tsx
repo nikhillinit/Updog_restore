@@ -168,7 +168,7 @@ export default function LPPerformance() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v: number) => `${v.toFixed(0)}%`} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value: number | undefined) => `${(value ?? 0).toFixed(2)}%`} />
+                    <Tooltip formatter={(value) => value !== undefined ? `${Number(value).toFixed(2)}%` : ''} />
                     <Line type="monotone" dataKey="irr" stroke="#2563eb" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -191,7 +191,7 @@ export default function LPPerformance() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}x`} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value: number | undefined) => `${(value ?? 0).toFixed(2)}x`} />
+                    <Tooltip formatter={(value) => value !== undefined ? `${Number(value).toFixed(2)}x` : ''} />
                     <Legend />
                     <Line type="monotone" dataKey="tvpi" stroke="#059669" strokeWidth={2} name="TVPI" />
                     <Line type="monotone" dataKey="dpi" stroke="#d97706" strokeWidth={2} name="DPI" />

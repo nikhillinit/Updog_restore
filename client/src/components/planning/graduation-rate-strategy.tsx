@@ -471,7 +471,7 @@ export default function GraduationRateStrategy() {
                     <XAxis dataKey="round" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number | undefined) => [value ?? 0, "Companies"]}
+                      formatter={(value) => [value !== undefined ? Number(value) : 0, "Companies"]}
                     />
                     <Area 
                       type="monotone" 

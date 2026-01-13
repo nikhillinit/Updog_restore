@@ -121,7 +121,7 @@ export default function PortfolioInsights() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number | undefined) => [formatCurrency(value ?? 0), 'Invested']} />
+                    <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', 'Invested']} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -162,7 +162,7 @@ export default function PortfolioInsights() {
                       fontSize={12}
                     />
                     <Tooltip
-                      formatter={(value: number | undefined) => [`${(value ?? 0).toFixed(2)}x`, 'MOIC']}
+                      formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}x` : '', 'MOIC']}
                     />
                     <Bar 
                       dataKey="moic" 

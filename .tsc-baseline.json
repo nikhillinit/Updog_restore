@@ -24,19 +24,11 @@
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
       "total": 19,
-      "lastUpdated": "2026-01-13T00:59:58.557Z"
-    },
-    "shared": {
-      "errors": [
-        "shared/charting/ChartSafe.tsx:TS2345:68c4687b",
-        "shared/charting/polymorphic.ts:TS2345:e11ad950"
-      ],
-      "total": 2,
-      "lastUpdated": "2026-01-13T00:59:58.557Z"
+      "lastUpdated": "2026-01-13T04:23:52.291Z"
     }
   },
-  "totalErrors": 21,
-  "timestamp": "2026-01-13T00:59:58.557Z",
+  "totalErrors": 19,
+  "timestamp": "2026-01-13T04:23:52.291Z",
   "buildMode": "per-project",
-  "elapsedMs": 22817
+  "elapsedMs": 23443
 }

@@ -298,7 +298,7 @@ export default function ReturnTheFundPage() {
                               tickFormatter={(value: any) => `${(value * 100).toFixed(1)}%`}
                             />
                             <Tooltip
-                              formatter={(value: number | undefined) => [`${(value ?? 0).toFixed(2)}%`, 'Ownership']}
+                              formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}%` : '', 'Ownership']}
                             />
                             <Bar 
                               dataKey="ownership" 
@@ -326,7 +326,7 @@ export default function ReturnTheFundPage() {
                               tickFormatter={(value: any) => `$${value}mm`}
                             />
                             <Tooltip
-                              formatter={(value: number | undefined) => [`$${value ?? 0}mm`, 'Return the Fund']}
+                              formatter={(value) => [value !== undefined ? `$${value}mm` : '', 'Return the Fund']}
                             />
                             <Bar 
                               dataKey="returnTheFund" 
