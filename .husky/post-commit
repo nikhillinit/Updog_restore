@@ -102,3 +102,6 @@ if echo "$COMMIT_MSG" | grep -qiE "(complete|finish|done).*(phase|step|milestone
     fi
   fi
 fi
+
+# Explicit success exit to prevent false failures from conditional checks
+exit 0
