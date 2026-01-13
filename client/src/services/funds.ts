@@ -132,13 +132,17 @@ function finalizePayload(payload: Json): FundPayload {
 
     // If stages exist, ensure values are sane
     if (Array.isArray(p.stages)) {
-      p.stages = p.stages.map(s => ({
-        ...s,
-        name: typeof s.name === 'string' ? s.name.trim() : s.name,
-        graduate: clampPct(Number(s.graduate)),
-        exit: clampPct(Number(s.exit)),
-        months: clampInt(Number(s.months) || 12, 1, 120),
-      }));
+      p.stages = p.stages.map(s => {
+        const stage: StageData = {
+          graduate: clampPct(Number(s.graduate)),
+          exit: clampPct(Number(s.exit)),
+          months: clampInt(Number(s.months) || 12, 1, 120),
+        };
+        if (typeof s.name === 'string') {
+          stage.name = s.name.trim();
+        }
+        return stage;
+      });
     }
 
     // Version tag enables non-breaking evolution
@@ -146,7 +150,7 @@ function finalizePayload(payload: Json): FundPayload {
 
     return p;
   } catch {
-    return payload; // never block on "safety"; better to ship the payload than throw here
+    return payload as FundPayload; // never block on "safety"; better to ship the payload than throw here
   }
 }
 
@@ -162,7 +166,7 @@ export async function startCreateFund(
   const useTelemetry = opts.telemetry ?? true;
 
   const finalized = finalizePayload(payload);
-  const hash = computeCreateFundHash(finalized);
+  const hash = computeCreateFundHash(finalized as Json);
 
   // Optional: 1 ms hold only in test to avoid flicker; keep 0 in prod if you prefer.
   const holdForMs = import.meta.env?.MODE === 'test' ? 1 : 0;
