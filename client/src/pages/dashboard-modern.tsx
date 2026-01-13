@@ -373,10 +373,10 @@ export default function ModernDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#E0D8D1" opacity={0.3} />
                     <XAxis dataKey="month" stroke="#666" fontSize={12} />
                     <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value}M`} />
-                    <Tooltip 
-                      formatter={(value: any, name: string) => [`$${value}M`, name === 'deployed' ? 'Deployed' : 'Committed']}
+                    <Tooltip
+                      formatter={(value: any, name: string | undefined) => [`$${value ?? 0}M`, name === 'deployed' ? 'Deployed' : 'Committed']}
                       contentStyle={{
-                        backgroundColor: '#FFFFFF', 
+                        backgroundColor: '#FFFFFF',
                         border: '1px solid #E0D8D1',
                         borderRadius: '8px'
                       }}

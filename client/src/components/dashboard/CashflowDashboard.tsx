@@ -278,7 +278,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => formatCurrencyShort(value)} />
+                    <Tooltip formatter={(value: number | undefined) => formatCurrencyShort(value ?? 0)} />
                     <Area type="monotone" dataKey="inflows" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
                     <Area type="monotone" dataKey="outflows" stackId="2" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
                   </AreaChart>
@@ -297,7 +297,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => formatCurrencyShort(value)} />
+                    <Tooltip formatter={(value: number | undefined) => formatCurrencyShort(value ?? 0)} />
                     <Bar dataKey="netFlow" fill="#3b82f6" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -319,7 +319,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatCurrencyShort(value)} />
+                  <Tooltip formatter={(value: number | undefined) => formatCurrencyShort(value ?? 0)} />
                   <Line type="monotone" dataKey="cash" stroke="#3b82f6" strokeWidth={3} name="Available Cash" />
                   <Line type="monotone" dataKey="committed" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Undrawn Commitments" />
                 </LineChart>
@@ -377,7 +377,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrencyShort(value)} />
+                    <Tooltip formatter={(value: number | undefined) => formatCurrencyShort(value ?? 0)} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>

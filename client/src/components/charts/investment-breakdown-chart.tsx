@@ -31,10 +31,10 @@ interface InvestmentBreakdownChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: number, name: string, props: any) => {
+const formatTooltipValue = (value: number | undefined, name: string | undefined, props: any) => {
   const amount = props.payload?.amount;
   return [
-    `${value}% ${amount ? `($${amount}M)` : ''}`,
+    `${value ?? 0}% ${amount ? `($${amount}M)` : ''}`,
     'Portfolio Allocation'
   ];
 };

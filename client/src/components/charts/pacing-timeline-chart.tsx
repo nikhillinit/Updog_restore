@@ -84,9 +84,9 @@ export default function PacingTimelineChart() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
                 <YAxis stroke="#666" fontSize={12} label={{ value: 'Deployment ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    `$${value.toFixed(1)}M`, 
+                <Tooltip
+                  formatter={(value: number | undefined, name: string | undefined) => [
+                    `$${(value ?? 0).toFixed(1)}M`,
                     name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative'
                   ]}
                   labelFormatter={(label: any) => `Quarter: ${label}`}

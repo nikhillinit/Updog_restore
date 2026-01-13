@@ -298,7 +298,7 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number) => [`${value}%`, 'Liquidity Score']}
+                      formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Liquidity Score']}
                       labelFormatter={(name) => `${name}`}
                     />
                     <Bar dataKey="liquidity" fill="#3B82F6" />
@@ -331,7 +331,7 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                         <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value: number | undefined) => formatCurrency(value ?? 0)} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -422,8 +422,8 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip
-                    formatter={(value: number, name: string) => [
-                      name === 'current' ? `$${value}` : `${value >= 0 ? '+' : ''}${value}%`,
+                    formatter={(value: number | undefined, name: string | undefined) => [
+                      name === 'current' ? `$${value ?? 0}` : `${(value ?? 0) >= 0 ? '+' : ''}${value ?? 0}%`,
                       name === 'current' ? 'Current Price' : 'Price Change'
                     ]}
                   />

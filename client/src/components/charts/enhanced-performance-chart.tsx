@@ -28,9 +28,9 @@ interface EnhancedPerformanceChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: any, name: string) => {
+const formatTooltipValue = (value: any, name: string | undefined) => {
   if (typeof value !== 'number') return [value, name];
-  
+
   switch (name) {
     case 'IRR':
       return [`${(value * 100).toFixed(1)}%`, 'Internal Rate of Return'];

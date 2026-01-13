@@ -470,8 +470,8 @@ export default function GraduationRateStrategy() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
                     <YAxis />
-                    <Tooltip 
-                      formatter={(value: number) => [value, "Companies"]}
+                    <Tooltip
+                      formatter={(value: number | undefined) => [value ?? 0, "Companies"]}
                     />
                     <Area 
                       type="monotone" 

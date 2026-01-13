@@ -4,48 +4,17 @@
     "client": {
       "errors": [
         "client/src/components/analytics/VarianceChart.tsx:TS2339:0ad88a1c",
-        "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:4d6a5b07",
-        "client/src/components/charts/CapitalCallOptimizationChart.tsx:TS2322:e7ab2a0f",
-        "client/src/components/charts/enhanced-performance-chart.tsx:TS2322:f803e330",
-        "client/src/components/charts/investment-breakdown-chart.tsx:TS2322:f803e330",
-        "client/src/components/charts/pacing-timeline-chart.tsx:TS2322:e7ab2a0f",
-        "client/src/components/dashboard/CashflowDashboard.tsx:TS2322:303b7d5f",
-        "client/src/components/forecasting/investable-capital-summary.tsx:TS2322:48208ebb",
-        "client/src/components/forecasting/portfolio-insights.tsx:TS2322:c04d96f0",
-        "client/src/components/forecasting/portfolio-insights.tsx:TS2322:e127026b",
-        "client/src/components/forecasting/projected-performance.tsx:TS2322:aba324b2",
-        "client/src/components/modeling-wizard/steps/capital-allocation/PortfolioSummary.tsx:TS2322:00fa1f1b",
-        "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e127026b",
-        "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e425ea8b",
-        "client/src/components/performance/PerformanceDashboard.tsx:TS2322:e7ab2a0f",
-        "client/src/components/planning/exit-analysis.tsx:TS2322:073cd836",
-        "client/src/components/planning/exit-analysis.tsx:TS2322:37ee2082",
-        "client/src/components/planning/exit-analysis.tsx:TS2322:cda5dedd",
-        "client/src/components/planning/graduation-rate-strategy.tsx:TS2322:ed3a7286",
-        "client/src/components/planning/portfolio-construction.tsx:TS2322:32fb016b",
-        "client/src/components/planning/portfolio-construction.tsx:TS2322:97bc88c9",
-        "client/src/components/planning/portfolio-construction.tsx:TS2322:f78bbe45",
-        "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:bc38163e",
-        "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e20ecc40",
-        "client/src/components/portfolio/SecondaryMarketAnalysis.tsx:TS2322:e7ab2a0f",
         "client/src/components/portfolio/portfolio-analytics-dashboard.tsx:TS2345:93e224b6",
         "client/src/components/portfolio/portfolio-analytics-dashboard.tsx:TS2345:ec685256",
-        "client/src/components/reserves/graduation-reserves-demo.tsx:TS2322:620e1143",
         "client/src/components/ui/recharts-bundle.tsx:TS2322:19e9562e",
         "client/src/components/ui/recharts-bundle.tsx:TS2339:d8dbb823",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:790a5f41",
         "client/src/components/ui/recharts-bundle.tsx:TS2741:a1732ff1",
-        "client/src/pages/dashboard-modern.tsx:TS2322:87cd28b8",
         "client/src/pages/investment-detail.tsx:TS2322:171553a7",
         "client/src/pages/investment-detail.tsx:TS2322:51b3afbb",
         "client/src/pages/investment-detail.tsx:TS2345:1b0e578e",
         "client/src/pages/investment-detail.tsx:TS2345:49bf3b18",
         "client/src/pages/investment-detail.tsx:TS2739:53c4cbc0",
-        "client/src/pages/lp/performance.tsx:TS2322:57e18cc7",
-        "client/src/pages/lp/performance.tsx:TS2322:dfe560c5",
-        "client/src/pages/portfolio-constructor.tsx:TS2322:e20ecc40",
-        "client/src/pages/return-the-fund.tsx:TS2322:0a9918fa",
-        "client/src/pages/return-the-fund.tsx:TS2322:59c9ac27",
         "client/src/services/funds.ts:TS2322:2208a4d8",
         "client/src/services/funds.ts:TS2322:dd41a169",
         "client/src/services/funds.ts:TS2345:0360dd42",
@@ -54,8 +23,8 @@
         "client/src/workers/analytics.worker.ts:TS2345:0bd48d5f",
         "client/src/workers/analytics.worker.ts:TS2345:39559e3c"
       ],
-      "total": 50,
-      "lastUpdated": "2026-01-12T16:13:28.883Z"
+      "total": 19,
+      "lastUpdated": "2026-01-13T00:59:58.557Z"
     },
     "shared": {
       "errors": [
@@ -63,11 +32,11 @@
         "shared/charting/polymorphic.ts:TS2345:e11ad950"
       ],
       "total": 2,
-      "lastUpdated": "2026-01-12T16:13:28.883Z"
+      "lastUpdated": "2026-01-13T00:59:58.557Z"
     }
   },
-  "totalErrors": 52,
-  "timestamp": "2026-01-12T16:13:28.883Z",
+  "totalErrors": 21,
+  "timestamp": "2026-01-13T00:59:58.557Z",
   "buildMode": "per-project",
-  "elapsedMs": 47482
+  "elapsedMs": 22817
 }

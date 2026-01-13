@@ -420,8 +420,8 @@ export default function PortfolioConstruction() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                       <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
-                      <Tooltip 
-                        formatter={(value: number) => [formatCurrency(value), "Amount"]}
+                      <Tooltip
+                        formatter={(value: number | undefined) => [formatCurrency(value ?? 0), "Amount"]}
                         labelFormatter={(label: any) => `Category: ${label}`}
                       />
                       <Bar dataKey="value" fill="#3b82f6" />
@@ -522,9 +522,9 @@ export default function PortfolioConstruction() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
                     <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
-                    <Tooltip 
-                      formatter={(value: number, name) => [
-                        formatCurrency(value), 
+                    <Tooltip
+                      formatter={(value: number | undefined, name: any | undefined) => [
+                        formatCurrency(value ?? 0),
                         name === 'available' ? 'Available Investment Amount' : 'Actual Invested Amount'
                       ]}
                     />
@@ -570,8 +570,8 @@ export default function PortfolioConstruction() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" />
                     <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
-                    <Tooltip 
-                      formatter={(value: number) => [formatCurrency(value), "Amount"]}
+                    <Tooltip
+                      formatter={(value: number | undefined) => [formatCurrency(value ?? 0), "Amount"]}
                     />
                     <Bar dataKey="amount" fill="#3b82f6" />
                   </BarChart>
@@ -598,8 +598,8 @@ export default function PortfolioConstruction() {
                       tickFormatter={(value: any) => `$${value}K`}
                     />
                     <YAxis tickFormatter={(value: any) => `$${value}B`} />
-                    <Tooltip 
-                      formatter={(value: number) => [`$${value.toFixed(1)}B`, "Exit Value Required"]}
+                    <Tooltip
+                      formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(1)}B`, "Exit Value Required"]}
                       labelFormatter={(label: any) => `Fund Size: $${label}K`}
                     />
                     <Area 
