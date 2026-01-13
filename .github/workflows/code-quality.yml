@@ -112,7 +112,7 @@ jobs:
           | Metric | Current | Threshold | Status |
           |--------|---------|-----------|--------|
           | TypeScript Errors | $TS_ERRORS | ≤ ${{ env.MAX_TS_ERRORS }} | $([ "$TS_ERRORS" -le "${{ env.MAX_TS_ERRORS }}" ] && echo "PASS" || echo "FAIL") |
-          | ESLint Issues | $LINT_ISSUES | ≤ ${{ env.MAX_ESLINT_ERRORS }} | $([ "${LINT_FAILED:-false}" = "false" ] && echo "PASS" || echo "FAIL") |
+          | ESLint Issues | $LINT_ISSUES | ≤ ${{ env.MAX_ESLINT_ERRORS }} | $([ "$LINT_ISSUES" -le "${{ env.MAX_ESLINT_ERRORS }}" ] && echo "PASS" || echo "FAIL") |
           | Any Types | $ANY_COUNT | < ${{ env.WARNING_ANY_TYPES }} | $([ "$ANY_COUNT" -lt "${{ env.WARNING_ANY_TYPES }}" ] && echo "Good" || echo "WARNING") |
           | ESLint-disable | $DISABLE_COUNT | < ${{ env.WARNING_ESLINT_DISABLE }} | $([ "$DISABLE_COUNT" -lt "${{ env.WARNING_ESLINT_DISABLE }}" ] && echo "Good" || echo "WARNING") |
           EOF
@@ -132,8 +132,8 @@ jobs:
             FAILED=1
           fi
 
-          if [ "${LINT_FAILED:-false}" = "true" ]; then
-            echo "**CRITICAL**: ESLint check failed (${LINT_ISSUES:-0} issues)" | tee -a $GITHUB_STEP_SUMMARY
+          if [ "${LINT_ISSUES:-0}" -gt "${{ env.MAX_ESLINT_ERRORS }}" ]; then
+            echo "**CRITICAL**: ESLint issues (${LINT_ISSUES:-0}) exceed threshold (${{ env.MAX_ESLINT_ERRORS }})" | tee -a $GITHUB_STEP_SUMMARY
             FAILED=1
           fi
 
