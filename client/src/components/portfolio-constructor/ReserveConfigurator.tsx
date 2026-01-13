@@ -255,7 +255,7 @@ export function ReserveConfigurator({
   }));
 
   const CustomTooltip = ({ active, payload }: {active?: boolean; payload?: Array<{payload: {name: string; value: number; amount: number}}>}) => {
-    if (active && payload && payload.length) {
+    if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
@@ -596,17 +596,20 @@ export function ReserveConfigurator({
                   formatter={(value, name) => [`$${(Number(value) / 1000000).toFixed(1)}M`, name]}
                   labelFormatter={(label) => `Month ${String(label).slice(1)}`}
                 />
-                {reservePools.map((pool, index) => (
-                  <Area
-                    key={pool.id}
-                    type="monotone"
-                    dataKey={pool.name}
-                    stackId="1"
-                    stroke={POOL_COLORS[index % POOL_COLORS.length]}
-                    fill={POOL_COLORS[index % POOL_COLORS.length]}
-                    fillOpacity={0.6}
-                  />
-                ))}
+                {reservePools.map((pool, index) => {
+                  const color = POOL_COLORS[index % POOL_COLORS.length] || '#6b7280';
+                  return (
+                    <Area
+                      key={pool.id}
+                      type="monotone"
+                      dataKey={pool.name}
+                      stackId="1"
+                      stroke={color}
+                      fill={color}
+                      fillOpacity={0.6}
+                    />
+                  );
+                })}
               </AreaChart>
             </ResponsiveContainer>
           </div>

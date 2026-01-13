@@ -443,7 +443,10 @@ export default function PortfolioConstructor() {
                   <Label>Reserve Percentage: {strategy.reservePercentage}%</Label>
                   <Slider
                     value={[strategy.reservePercentage]}
-                    onValueChange={([value]) => updateStrategy('reservePercentage', value)}
+                    onValueChange={(values) => {
+                      const value = values[0];
+                      if (value !== undefined) updateStrategy('reservePercentage', value);
+                    }}
                     max={70}
                     min={20}
                     step={5}
