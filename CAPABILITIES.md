@@ -331,7 +331,7 @@ Integration (+46% growth from 13 baseline)
 - **api-design-principles** - REST API design for Express + TypeScript + Zod +
   BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
 
-### Quality Gate & Infrastructure Skills (7) - UPDATED 2025-12-20
+### Quality Gate & Infrastructure Skills (8) - UPDATED 2026-01-13
 
 - **test-pyramid** - E2E scope control, test level governance (unit vs
   integration vs E2E)
@@ -347,6 +347,8 @@ Integration (+46% growth from 13 baseline)
   validation, tolerance norms
 - **claude-infra-integrity** - .claude/ directory consistency, agent naming,
   skill references
+- **bundle-size** - Bundle size analysis, budget enforcement, regression
+  detection. Capability tiers (A/B/C) with explicit AI claim constraints (NEW)
 
 ### Superpowers Slash Commands
 
