@@ -15,15 +15,17 @@ fund modeling platform, organized by Phoenix execution phase.
 All Phoenix agents should reference this canonical domain knowledge for VC fund
 modeling validation. Phase 2 documentation is COMPLETE (Nov 6, 2025).
 
-| Category | Files | Use Case |
-|----------|-------|----------|
-| Phase 1 Deterministic | `xirr.md`, `waterfall.md`, `fees.md`, `capital-allocation.md`, `exit-recycling.md` | Truth case validation |
-| Phase 2 Engines | `reserves/` (4), `pacing/` (4), `cohorts/` (3), `monte-carlo/` (4) | Engine implementation |
-| Summary | `PHASE2-COMPLETE.md` | Phase 2 deliverables overview |
+| Category              | Files                                                                              | Use Case                      |
+| --------------------- | ---------------------------------------------------------------------------------- | ----------------------------- |
+| Phase 1 Deterministic | `xirr.md`, `waterfall.md`, `fees.md`, `capital-allocation.md`, `exit-recycling.md` | Truth case validation         |
+| Phase 2 Engines       | `reserves/` (4), `pacing/` (4), `cohorts/` (3), `monte-carlo/` (4)                 | Engine implementation         |
+| Summary               | `PHASE2-COMPLETE.md`                                                               | Phase 2 deliverables overview |
 
-**Quality**: 91-99% validation scores (Phase 1), 95-99% self-validation (Phase 2)
+**Quality**: 91-99% validation scores (Phase 1), 95-99% self-validation
+(Phase 2)
 
-**See Also**: `.claude/skills/notebooklm.md` for querying external NotebookLM notebooks
+**See Also**: `.claude/skills/notebooklm.md` for querying external NotebookLM
+notebooks
 
 ---
 
@@ -475,7 +477,8 @@ Task("phoenix-brand-reporting-stylist", "Review MainDashboardV2 branding")
 
 - 2025-12-10: Initial registry (9 skills + 9 agents)
 - Phoenix v2.32: Command enhancements integrated
-- 2025-12-14: v2.34 - Added Domain Knowledge Sources section, NotebookLM cross-reference
+- 2025-12-14: v2.34 - Added Domain Knowledge Sources section, NotebookLM
+  cross-reference
 
 **See Also**:
 
