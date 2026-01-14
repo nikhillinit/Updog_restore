@@ -252,7 +252,7 @@ Deviation documented: excelParity: false ✅
 > **Bounded Rate Policy (ADR-015)**
 >
 > Excel parity is maintained for all IRRs within the bounded range [-99.9999%, >
-> +900%]. Scenarios exceeding these bounds are clamped and marked with
+> > +900%]. Scenarios exceeding these bounds are clamped and marked with
 > `excelParity: false`. This is intentional behavior to ensure numerical
 > stability in downstream calculations.
 
