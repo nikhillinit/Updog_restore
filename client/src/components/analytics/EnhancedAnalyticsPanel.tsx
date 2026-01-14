@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, DollarSign, BarChart3, Calculator } from 'lucide-react';
 import type { XIRRResult } from '@/lib/finance/xirr';
-import type { AmericanWaterfallResult } from '@/lib/waterfall/american-ledger';
+import type {
+  AmericanWaterfallResult,
+  AmericanWaterfallConfig,
+} from '@/lib/waterfall/american-ledger';
 
 interface IrrResult extends XIRRResult {}
 
@@ -92,7 +95,7 @@ export function EnhancedAnalyticsPanel({
     let cancelled = false;
     setActiveCalculations((prev) => new Set(prev).add(id));
 
-    calculateWaterfall(wConfig, contributions, exits, id).then((res) => {
+    calculateWaterfall(wConfig as AmericanWaterfallConfig, contributions, exits, id).then((res) => {
       if (!cancelled) {
         setMetrics((m) => ({ ...m, wf: res as DistributionStats }));
         setActiveCalculations((prev) => {
