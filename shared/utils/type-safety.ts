@@ -8,8 +8,7 @@
 export const optionalProp = <K extends string, V>(
   key: K,
   value: V | undefined
-// eslint-disable-next-line @typescript-eslint/ban-types
-): Record<K, V> | {} => {
+): Record<K, V> | Record<string, never> => {
   return value !== undefined ? { [key]: value } as Record<K, V> : {};
 };
 
