@@ -9,9 +9,9 @@
  * - Access tracking
  *
  * @quarantine
- * @reason Database migration required - tables not deployed to production
+ * @reason Feature flag disabled - requires ENABLE_SCENARIO_COMPARISON=true and database migration
  * @owner nikhil
- * @exit Run npm run db:push after product approval, enable feature flag
+ * @exit Run npm run db:push after product approval, set ENABLE_SCENARIO_COMPARISON=true
  * @date 2026-01-14
  */
 
@@ -21,13 +21,16 @@ import express from 'express';
 import { registerRoutes } from '../../server/routes';
 import { errorHandler } from '../../server/errors';
 
-describe.skip('Scenario Comparison API', () => {
-  // TODO: Re-enable after database migration
+// Conditional describe - only run when ENABLE_SCENARIO_COMPARISON is set
+const describeMaybe =
+  process.env.ENABLE_SCENARIO_COMPARISON === 'true' ? describe : describe.skip;
+
+describeMaybe('Scenario Comparison API', () => {
+  // Feature-flagged test suite
+  // Required: ENABLE_SCENARIO_COMPARISON=true
   // Required tables: fund_strategy_models, portfolio_scenarios,
   //   reserve_allocation_strategies, performance_forecasts
-  // Defined: shared/schema.ts:1210-1580
   // Migration: npm run db:push (requires product approval)
-  // Blocked by: Feature not yet released to production
 
   let server: ReturnType<typeof import('http').createServer>;
   let app: express.Express;
@@ -401,5 +404,67 @@ describe.skip('Scenario Comparison API', () => {
         expect(response.body.data.comparisonName).not.toContain('<script>');
       }
     });
+  });
+});
+
+// ============================================================================
+// Feature Flag Disabled Tests (always run)
+// ============================================================================
+
+describe('Scenario Comparison API - Feature Flag Disabled', () => {
+  let server: ReturnType<typeof import('http').createServer>;
+  let originalEnv: string | undefined;
+
+  beforeAll(async () => {
+    // Store original value and ensure flag is disabled
+    originalEnv = process.env.ENABLE_SCENARIO_COMPARISON;
+    process.env.ENABLE_SCENARIO_COMPARISON = 'false';
+
+    const app = express();
+    app.set('trust proxy', false);
+    app.use(express.json({ limit: '1mb' }));
+
+    server = await registerRoutes(app);
+    app.use(errorHandler());
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, () => resolve());
+    });
+  });
+
+  afterAll(async () => {
+    // Restore original value
+    if (originalEnv !== undefined) {
+      process.env.ENABLE_SCENARIO_COMPARISON = originalEnv;
+    } else {
+      delete process.env.ENABLE_SCENARIO_COMPARISON;
+    }
+
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+    });
+  });
+
+  it('should return 501 Not Implemented for POST /api/portfolio/comparisons', async () => {
+    const response = await request(server)
+      .post('/api/portfolio/comparisons')
+      .send({
+        fundId: 1,
+        baseScenarioId: '00000000-0000-0000-0000-000000000001',
+        comparisonScenarioIds: ['00000000-0000-0000-0000-000000000002'],
+      });
+
+    expect(response.status).toBe(501);
+    expect(response.body.error).toBe('NOT_IMPLEMENTED');
+    expect(response.body.message).toContain('Scenario comparison feature is not enabled');
+  });
+
+  it('should return 501 Not Implemented for GET /api/portfolio/comparisons/:id', async () => {
+    const response = await request(server).get(
+      '/api/portfolio/comparisons/00000000-0000-0000-0000-000000000001'
+    );
+
+    expect(response.status).toBe(501);
+    expect(response.body.error).toBe('NOT_IMPLEMENTED');
   });
 });
