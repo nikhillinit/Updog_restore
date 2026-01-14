@@ -33,6 +33,8 @@ jobs:
         run: npm run check || npm run typecheck || true
 
       - name: Lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run lint || true
 
       - name: Unit tests (main workspace)
