@@ -5,10 +5,10 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 // ANSI color codes
-const red = "\x1b[31m";
-const green = "\x1b[32m";
-const yellow = "\x1b[33m";
-const reset = "\x1b[0m";
+const red = '\x1b[31m';
+const green = '\x1b[32m';
+const yellow = '\x1b[33m';
+const reset = '\x1b[0m';
 
 console.log('[doctor:sidecar] Checking tools_local workspace...');
 
@@ -57,7 +57,9 @@ function checkVersion(name, expected) {
       console.log(`${green}[doctor:sidecar] ✅ ${name}@${version} (exact match)${reset}`);
       return true;
     } else {
-      console.error(`${yellow}[doctor:sidecar] ⚠️ ${name}@${version} (expected ${expected})${reset}`);
+      console.error(
+        `${yellow}[doctor:sidecar] ⚠️ ${name}@${version} (expected ${expected})${reset}`
+      );
       return false;
     }
   } catch {
@@ -71,25 +73,25 @@ console.log('[doctor:sidecar] Checking sidecar binaries...');
 const binariesOk = [
   checkBinary('vite', 'tools_local/node_modules/vite/bin/vite.js'),
   checkBinary('tsx', 'tools_local/node_modules/tsx/dist/cli.mjs'),
-  checkBinary('concurrently', 'tools_local/node_modules/concurrently/dist/bin/concurrently.js')
-].every(ok => ok);
+  checkBinary('concurrently', 'tools_local/node_modules/concurrently/dist/bin/concurrently.js'),
+].every((ok) => ok);
 
 // Check runtime dependencies
 console.log('[doctor:sidecar] Checking sidecar runtime dependencies...');
 const runtimeOk = [
-  checkSidecarModule('rollup'),    // vite dependency
-  checkSidecarModule('postcss'),   // vite dependency
-  checkSidecarModule('chokidar'),  // file watching
-  checkSidecarModule('yargs')      // concurrently dependency
-].every(ok => ok);
+  checkSidecarModule('rollup'), // vite dependency
+  checkSidecarModule('postcss'), // vite dependency
+  checkSidecarModule('chokidar'), // file watching
+  checkSidecarModule('yargs'), // concurrently dependency
+].every((ok) => ok);
 
 // Check versions
 console.log('[doctor:sidecar] Checking sidecar versions...');
 const versionsOk = [
   checkVersion('vite', '5.4.11'),
   checkVersion('tsx', '4.19.2'),
-  checkVersion('concurrently', '9.2.1')
-].every(ok => ok);
+  checkVersion('concurrently', '9.2.1'),
+].every((ok) => ok);
 
 if (!binariesOk || !runtimeOk || !versionsOk) {
   console.error('');
@@ -102,4 +104,6 @@ if (!binariesOk || !runtimeOk || !versionsOk) {
   process.exit(1);
 }
 
-console.log(`${green}[doctor:sidecar] ✅ Sidecar tools_local is ready for Windows development${reset}`);
+console.log(
+  `${green}[doctor:sidecar] ✅ Sidecar tools_local is ready for Windows development${reset}`
+);

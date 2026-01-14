@@ -1,16 +1,19 @@
 # Analytics & Reporting Testing Rubric
 
 **Domain:** Performance dashboards, variance analysis, time-travel, exports
-**Estimated Time:** 50 minutes
-**Prerequisites:** Test fund with investment history, completed transactions
+**Estimated Time:** 50 minutes **Prerequisites:** Test fund with investment
+history, completed transactions
 
 ---
 
 ## Overview
 
-This rubric covers all analytics dashboards, reporting features, and data export capabilities. The platform provides multiple lenses for analyzing fund performance.
+This rubric covers all analytics dashboards, reporting features, and data export
+capabilities. The platform provides multiple lenses for analyzing fund
+performance.
 
 **Key Features:**
+
 - Performance dashboards (fund-level, portfolio-level, company-level)
 - Variance analysis (budget vs actual, plan vs execution)
 - Time-travel reporting (historical snapshots, point-in-time views)
@@ -23,10 +26,12 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ## Test Cases
 
 ### TC-AR-001: Fund Performance Dashboard
+
 **Objective:** Verify fund-level performance metrics display correctly
 **Steps:**
 
 **Test 1a: Overview Metrics**
+
 1. Navigate to fund dashboard (`/funds/{fundId}`)
 2. Verify key metrics displayed:
    - Total Fund Size: $50M
@@ -38,6 +43,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Exited Companies: 2
 
 **Test 1b: Performance Metrics**
+
 1. Verify performance section displays:
    - Gross MOIC: 1.85x
    - Net MOIC: 1.62x (after fees)
@@ -47,6 +53,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - TVPI (Total Value to Paid-In): 1.85x
 
 **Test 1c: Metric Calculation Accuracy**
+
 1. Export underlying data
 2. Verify MOIC = (Realized Value + Unrealized Value) / Total Invested
 3. Verify TVPI = DPI + RVPI (Residual Value to Paid-In)
@@ -57,10 +64,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-002: Portfolio Performance Table
-**Objective:** Verify portfolio-level performance breakdown
-**Steps:**
+
+**Objective:** Verify portfolio-level performance breakdown **Steps:**
 
 **Test 2a: Table Display**
+
 1. Navigate to Portfolio Performance tab
 2. Verify table columns:
    - Company Name
@@ -74,6 +82,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 3. Verify all active + exited companies listed
 
 **Test 2b: Sorting**
+
 1. Click "MOIC" column header
 2. Verify descending sort (highest MOIC first)
 3. Click "Invested Amount" column
@@ -82,6 +91,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 6. Verify descending sort (highest returns first)
 
 **Test 2c: Performance Indicators**
+
 1. Verify MOIC >3.0x highlighted in green
 2. Verify MOIC <1.0x highlighted in red
 3. Verify IRR >25% has "Top Performer" badge
@@ -92,10 +102,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-003: Interactive Charts - Fund Composition
-**Objective:** Verify chart rendering and interactivity
-**Steps:**
+
+**Objective:** Verify chart rendering and interactivity **Steps:**
 
 **Test 3a: Pie Chart - Sector Allocation**
+
 1. Navigate to Fund Overview dashboard
 2. Verify pie chart displays sector allocation:
    - Software: 35%
@@ -110,6 +121,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Number of companies
 
 **Test 3b: Bar Chart - Stage Distribution**
+
 1. Verify bar chart displays investment by stage:
    - Seed: $8M (5 companies)
    - Series A: $12M (4 companies)
@@ -119,6 +131,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 4. Verify bars colored by performance (green/yellow/red)
 
 **Test 3c: Line Chart - Deployment Over Time**
+
 1. Verify line chart shows cumulative deployment:
    - X-axis: Months since fund inception
    - Y-axis: Cumulative deployed capital
@@ -131,10 +144,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-004: Variance Analysis - Budget vs Actual
-**Objective:** Verify variance tracking and alerting
-**Steps:**
+
+**Objective:** Verify variance tracking and alerting **Steps:**
 
 **Test 4a: Deployment Variance**
+
 1. Navigate to Variance Analysis page
 2. Verify deployment variance table:
    - Quarter 1: Budgeted $5M, Actual $4M, Variance -$1M (-20%)
@@ -146,6 +160,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - On target: Green
 
 **Test 4b: Sector Allocation Variance**
+
 1. View sector allocation variance:
    - Software: Target 40%, Actual 35%, Variance -5%
    - Healthcare: Target 20%, Actual 25%, Variance +5%
@@ -153,6 +168,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 3. Verify alerts for >10% variance from target
 
 **Test 4c: Management Fee Variance**
+
 1. View fee variance:
    - Budgeted annual fee: $1M (2% of $50M)
    - Actual fee: $980K (includes fee discounts)
@@ -164,10 +180,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-005: Time-Travel Reporting
-**Objective:** Verify historical point-in-time reporting
-**Steps:**
+
+**Objective:** Verify historical point-in-time reporting **Steps:**
 
 **Test 5a: Select Historical Date**
+
 1. Navigate to Time-Travel page
 2. Select date: 2024-06-30 (mid-year snapshot)
 3. Click "View Snapshot"
@@ -177,6 +194,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Performance metrics as of that date
 
 **Test 5b: Compare Two Snapshots**
+
 1. Select date 1: 2024-03-31 (Q1 end)
 2. Select date 2: 2024-06-30 (Q2 end)
 3. Click "Compare Periods"
@@ -187,6 +205,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Exits in period (1 company)
 
 **Test 5c: Quarterly Trend Analysis**
+
 1. Select: "Show Quarterly Trends"
 2. Verify line chart displays quarterly evolution:
    - Q1 2024: MOIC 1.3x
@@ -200,10 +219,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-006: Custom Report Builder
-**Objective:** Verify custom report generation
-**Steps:**
+
+**Objective:** Verify custom report generation **Steps:**
 
 **Test 6a: Create Custom Report**
+
 1. Navigate to Reports page
 2. Click "Create Custom Report"
 3. Configure report:
@@ -216,6 +236,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 5. Verify report preview displays
 
 **Test 6b: Report Sections**
+
 1. Verify generated report includes:
    - Executive Summary (key metrics)
    - Portfolio Overview (table)
@@ -225,6 +246,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 2. Verify all sections render correctly
 
 **Test 6c: Save Report Template**
+
 1. Click "Save as Template"
 2. Name template: "Quarterly Board Report"
 3. Verify template saved
@@ -232,6 +254,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 5. Verify template listed in "My Templates"
 
 **Test 6d: Reuse Template**
+
 1. Select "Quarterly Board Report" template
 2. Change date range: Q1 2025
 3. Click "Generate"
@@ -243,10 +266,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-007: Data Export - CSV
-**Objective:** Verify CSV export functionality
-**Steps:**
+
+**Objective:** Verify CSV export functionality **Steps:**
 
 **Test 7a: Export Portfolio Data**
+
 1. Navigate to Portfolio Performance table
 2. Click "Export to CSV"
 3. Verify CSV file downloads: `portfolio-performance-{date}.csv`
@@ -257,6 +281,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 7. Verify currency formatted as numbers (not text)
 
 **Test 7b: Export with Filters**
+
 1. Apply filters: Sector = Software, Status = Active
 2. Click "Export to CSV"
 3. Open exported file
@@ -264,6 +289,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 5. Verify filter criteria noted in filename or header row
 
 **Test 7c: Export Transaction History**
+
 1. Navigate to Transaction History page
 2. Click "Export to CSV"
 3. Verify CSV includes:
@@ -276,10 +302,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-008: Data Export - Excel
-**Objective:** Verify Excel export with formatting
-**Steps:**
+
+**Objective:** Verify Excel export with formatting **Steps:**
 
 **Test 8a: Export Fund Overview to Excel**
+
 1. Navigate to Fund Dashboard
 2. Click "Export to Excel"
 3. Verify Excel file downloads: `fund-overview-{date}.xlsx`
@@ -291,6 +318,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Performance (charts)
 
 **Test 8b: Excel Formatting**
+
 1. Verify Summary sheet includes:
    - Formatted header row (bold, colored)
    - Currency cells formatted as currency ($X,XXX.XX)
@@ -299,6 +327,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 2. Verify no cell value errors (#DIV/0!, #N/A)
 
 **Test 8c: Excel Charts**
+
 1. Navigate to Performance worksheet
 2. Verify embedded charts:
    - Sector allocation pie chart
@@ -310,10 +339,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-009: Data Export - PDF
-**Objective:** Verify PDF export for professional reporting
-**Steps:**
+
+**Objective:** Verify PDF export for professional reporting **Steps:**
 
 **Test 9a: Export Report to PDF**
+
 1. Generate custom report (from TC-AR-006)
 2. Click "Export to PDF"
 3. Verify PDF downloads: `board-report-q4-2024.pdf`
@@ -325,11 +355,13 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Section breaks
 
 **Test 9b: PDF Chart Rendering**
+
 1. Verify all charts render as vector graphics (sharp, not pixelated)
 2. Verify chart legends included
 3. Verify color scheme maintained (not grayscale)
 
 **Test 9c: PDF Table Formatting**
+
 1. Verify tables fit page width
 2. Verify no awkward page breaks mid-table
 3. Verify currency and percentage formatting preserved
@@ -339,10 +371,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-010: Real-Time Dashboard Updates
-**Objective:** Verify dashboards update when data changes
-**Steps:**
+
+**Objective:** Verify dashboards update when data changes **Steps:**
 
 **Test 10a: Live Update on Investment**
+
 1. Open Fund Dashboard in browser tab
 2. In separate tab, record new investment: $2M
 3. Return to dashboard tab
@@ -353,6 +386,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 5. Verify no full page reload required
 
 **Test 10b: Live Update on Exit**
+
 1. Keep dashboard open
 2. Record company exit in separate tab
 3. Return to dashboard
@@ -362,6 +396,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - MOIC recalculated with exit proceeds
 
 **Test 10c: WebSocket Connection**
+
 1. Open browser DevTools → Network tab
 2. Filter by WS (WebSocket)
 3. Verify WebSocket connection established
@@ -374,10 +409,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-011: Performance Attribution Analysis
-**Objective:** Verify performance attribution breakdown
-**Steps:**
+
+**Objective:** Verify performance attribution breakdown **Steps:**
 
 **Test 11a: Attribution by Sector**
+
 1. Navigate to Performance Attribution page
 2. Select: "By Sector"
 3. Verify attribution table shows:
@@ -388,6 +424,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 4. Verify all sectors sum to total fund MOIC
 
 **Test 11b: Attribution by Vintage**
+
 1. Select: "By Vintage Year"
 2. Verify attribution by investment year:
    - 2024 vintage: 0.30x contribution (early stage)
@@ -396,6 +433,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 3. Verify chart visualizes contributions
 
 **Test 11c: Top/Bottom Contributors**
+
 1. View "Top 5 Contributors" section
 2. Verify lists top 5 companies by MOIC contribution
 3. View "Bottom 5 Contributors" section
@@ -406,10 +444,11 @@ This rubric covers all analytics dashboards, reporting features, and data export
 ---
 
 ### TC-AR-012: Benchmark Comparisons
-**Objective:** Verify fund performance vs industry benchmarks
-**Steps:**
+
+**Objective:** Verify fund performance vs industry benchmarks **Steps:**
 
 **Test 12a: Load Benchmark Data**
+
 1. Navigate to Benchmarks page
 2. Select benchmark: "Cambridge Associates VC Index"
 3. Verify benchmark data loads:
@@ -418,6 +457,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
    - Bottom Quartile MOIC: 0.8x
 
 **Test 12b: Compare Fund to Benchmark**
+
 1. Verify comparison table:
    - Fund MOIC: 1.85x
    - Benchmark Median: 1.6x
@@ -426,6 +466,7 @@ This rubric covers all analytics dashboards, reporting features, and data export
 2. Verify visual indicator (green if above median)
 
 **Test 12c: Benchmark Chart Overlay**
+
 1. View fund performance chart
 2. Enable "Show Benchmark" toggle
 3. Verify benchmark line overlaid on fund line
@@ -459,7 +500,7 @@ After completing all test cases, verify:
 Document any reporting bugs:
 
 | Test Case | Issue Description | Severity | GitHub Issue |
-|-----------|-------------------|----------|--------------|
+| --------- | ----------------- | -------- | ------------ |
 | TC-AR-XXX | [Description]     | [Level]  | #XXX         |
 
 ---
@@ -467,16 +508,19 @@ Document any reporting bugs:
 ## Chart Libraries
 
 **Recharts (Primary):**
+
 - Line charts, Bar charts, Area charts
 - Responsive, composable
 - TypeScript support
 
 **Nivo (Advanced):**
+
 - Heatmaps, Sunburst, Sankey diagrams
 - SVG-based, animated
 - Used for complex visualizations
 
 **Verify Both Libraries:**
+
 - [ ] Recharts renders basic charts
 - [ ] Nivo renders advanced visualizations
 - [ ] Charts resize responsively
@@ -489,6 +533,7 @@ Document any reporting bugs:
 ## Export Format Specifications
 
 **CSV:**
+
 - UTF-8 encoding
 - Comma delimiter
 - Quote strings with commas
@@ -496,6 +541,7 @@ Document any reporting bugs:
 - No currency symbols in numbers (export as numeric)
 
 **Excel:**
+
 - .xlsx format (not .xls)
 - Multiple worksheets
 - Formatted cells (currency, percentage, date)
@@ -503,6 +549,7 @@ Document any reporting bugs:
 - No macros or VBA
 
 **PDF:**
+
 - Letter size (8.5" x 11")
 - 1" margins
 - Vector graphics for charts
@@ -513,6 +560,9 @@ Document any reporting bugs:
 
 ## Related Documentation
 
-- [cheatsheets/data-visualization.md](../../cheatsheets/data-visualization.md) - Chart patterns
-- [client/src/components/charts/](../../client/src/components/charts/) - Chart components
-- [server/routes/reports.ts](../../server/routes/reports.ts) - Report API endpoints
+- [cheatsheets/data-visualization.md](../../cheatsheets/data-visualization.md) -
+  Chart patterns
+- [client/src/components/charts/](../../client/src/components/charts/) - Chart
+  components
+- [server/routes/reports.ts](../../server/routes/reports.ts) - Report API
+  endpoints
