@@ -15,7 +15,7 @@ import { z } from 'zod';
 const PositiveNumber = z.number().positive().finite();
 const PositiveInteger = z.number().int().positive().finite();
 const Percentage = z.number().min(0).max(1).finite();
-const PercentageAsFloat = z.number().min(0).max(100).finite();
+const _PercentageAsFloat = z.number().min(0).max(100).finite(); // Reserved for future use
 const MonetaryAmount = z.number().min(0).max(1e12).finite(); // Max $1 trillion
 const IRR = z.number().min(-1).max(10).finite(); // -100% to 1000%
 const Multiple = z.number().min(0).max(100).finite(); // 0x to 100x
@@ -31,20 +31,37 @@ const UUID = z.string().uuid();
 
 // Sector and stage enums for validation
 const SectorEnum = z.enum([
-  'fintech', 'healthtech', 'edtech', 'enterprise_software', 'consumer',
-  'biotech', 'deep_tech', 'climate_tech', 'cybersecurity', 'ai_ml',
-  'blockchain', 'mobility', 'real_estate', 'food_tech', 'other'
+  'fintech',
+  'healthtech',
+  'edtech',
+  'enterprise_software',
+  'consumer',
+  'biotech',
+  'deep_tech',
+  'climate_tech',
+  'cybersecurity',
+  'ai_ml',
+  'blockchain',
+  'mobility',
+  'real_estate',
+  'food_tech',
+  'other',
 ]);
 
 const StageEnum = z.enum([
-  'pre_seed', 'seed', 'series_a', 'series_b', 'series_c',
-  'series_d_plus', 'growth', 'late_stage', 'public'
+  'pre_seed',
+  'seed',
+  'series_a',
+  'series_b',
+  'series_c',
+  'series_d_plus',
+  'growth',
+  'late_stage',
+  'public',
 ]);
 
 // Power law distribution specific stages
-const PowerLawStageEnum = z.enum([
-  'pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'
-]);
+const PowerLawStageEnum = z.enum(['pre-seed', 'seed', 'series-a', 'series-b', 'series-c+']);
 
 // Market scenario validation
 const MarketScenarioEnum = z.enum(['bull', 'bear', 'neutral']);
@@ -53,339 +70,419 @@ const MarketScenarioEnum = z.enum(['bull', 'bear', 'neutral']);
 // CORE MONTE CARLO SCHEMAS
 // =============================================================================
 
-export const SimulationConfigSchema = z.object({
-  fundId: FundId,
-  runs: PositiveInteger.min(100).max(50000),
-  timeHorizonYears: PositiveInteger.min(1).max(15),
-  baselineId: UUID.optional(),
-  portfolioSize: PositiveInteger.min(1).max(1000).optional(),
-  deploymentScheduleMonths: PositiveInteger.min(1).max(120).optional(),
-  randomSeed: z.number().int().min(1).max(2147483647).optional()
-}).strict();
-
-export const MarketEnvironmentSchema = z.object({
-  scenario: MarketScenarioEnum,
-  exitMultipliers: z.object({
-    mean: Multiple.min(0.1).max(50),
-    volatility: PositiveNumber.min(0.01).max(5)
-  }),
-  failureRate: Percentage,
-  followOnProbability: Percentage
-}).strict();
-
-export const PortfolioInputsSchema = z.object({
-  fundSize: MonetaryAmount.min(1000000), // Min $1M fund
-  deployedCapital: MonetaryAmount,
-  reserveRatio: Percentage,
-  sectorWeights: z.record(SectorEnum, Percentage),
-  stageWeights: z.record(StageEnum, Percentage),
-  averageInvestmentSize: MonetaryAmount.min(10000) // Min $10K investment
-}).strict().refine(
-  (data: any) => data.deployedCapital <= data.fundSize,
-  { message: "Deployed capital cannot exceed fund size" }
-).refine(
-  (data: any) => (Object.values(data.sectorWeights) as number[]).reduce((sum: number, weight: number) => sum + weight, 0) <= 1.01,
-  { message: "Sector weights cannot exceed 100%" }
-).refine(
-  (data: any) => (Object.values(data.stageWeights) as number[]).reduce((sum: number, weight: number) => sum + weight, 0) <= 1.01,
-  { message: "Stage weights cannot exceed 100%" }
-);
-
-export const DistributionParametersSchema = z.object({
-  irr: z.object({
-    mean: IRR.min(-0.5).max(3), // -50% to 300%
-    volatility: PositiveNumber.min(0.01).max(2)
-  }),
-  multiple: z.object({
-    mean: Multiple.min(0.1).max(20),
-    volatility: PositiveNumber.min(0.01).max(10)
-  }),
-  dpi: z.object({
-    mean: PositiveNumber.min(0).max(5),
-    volatility: PositiveNumber.min(0.01).max(2)
-  }),
-  exitTiming: z.object({
-    mean: PositiveNumber.min(1).max(15), // 1-15 years
-    volatility: PositiveNumber.min(0.1).max(5)
-  }),
-  followOnSize: z.object({
-    mean: PositiveNumber.min(0).max(5), // 0-500% of initial
-    volatility: PositiveNumber.min(0.01).max(2)
+export const SimulationConfigSchema = z
+  .object({
+    fundId: FundId,
+    runs: PositiveInteger.min(100).max(50000),
+    timeHorizonYears: PositiveInteger.min(1).max(15),
+    baselineId: UUID.optional(),
+    portfolioSize: PositiveInteger.min(1).max(1000).optional(),
+    deploymentScheduleMonths: PositiveInteger.min(1).max(120).optional(),
+    randomSeed: z.number().int().min(1).max(2147483647).optional(),
   })
-}).strict();
+  .strict();
+
+export const MarketEnvironmentSchema = z
+  .object({
+    scenario: MarketScenarioEnum,
+    exitMultipliers: z.object({
+      mean: Multiple.min(0.1).max(50),
+      volatility: PositiveNumber.min(0.01).max(5),
+    }),
+    failureRate: Percentage,
+    followOnProbability: Percentage,
+  })
+  .strict();
+
+export const PortfolioInputsSchema = z
+  .object({
+    fundSize: MonetaryAmount.min(1000000), // Min $1M fund
+    deployedCapital: MonetaryAmount,
+    reserveRatio: Percentage,
+    sectorWeights: z.record(SectorEnum, Percentage),
+    stageWeights: z.record(StageEnum, Percentage),
+    averageInvestmentSize: MonetaryAmount.min(10000), // Min $10K investment
+  })
+  .strict()
+  .refine((data) => data.deployedCapital <= data.fundSize, {
+    message: 'Deployed capital cannot exceed fund size',
+  })
+  .refine(
+    (data) =>
+      (Object.values(data.sectorWeights) as number[]).reduce(
+        (sum: number, weight: number) => sum + weight,
+        0
+      ) <= 1.01,
+    { message: 'Sector weights cannot exceed 100%' }
+  )
+  .refine(
+    (data) =>
+      (Object.values(data.stageWeights) as number[]).reduce(
+        (sum: number, weight: number) => sum + weight,
+        0
+      ) <= 1.01,
+    { message: 'Stage weights cannot exceed 100%' }
+  );
+
+export const DistributionParametersSchema = z
+  .object({
+    irr: z.object({
+      mean: IRR.min(-0.5).max(3), // -50% to 300%
+      volatility: PositiveNumber.min(0.01).max(2),
+    }),
+    multiple: z.object({
+      mean: Multiple.min(0.1).max(20),
+      volatility: PositiveNumber.min(0.01).max(10),
+    }),
+    dpi: z.object({
+      mean: PositiveNumber.min(0).max(5),
+      volatility: PositiveNumber.min(0.01).max(2),
+    }),
+    exitTiming: z.object({
+      mean: PositiveNumber.min(1).max(15), // 1-15 years
+      volatility: PositiveNumber.min(0.1).max(5),
+    }),
+    followOnSize: z.object({
+      mean: PositiveNumber.min(0).max(5), // 0-500% of initial
+      volatility: PositiveNumber.min(0.01).max(2),
+    }),
+  })
+  .strict();
 
 // =============================================================================
 // POWER LAW DISTRIBUTION SCHEMAS
 // =============================================================================
 
-export const PowerLawConfigSchema = z.object({
-  failureRate: Percentage.default(0.70),
-  modestReturnRate: Percentage.default(0.15),
-  goodOutcomeRate: Percentage.default(0.10),
-  homeRunRate: Percentage.default(0.04),
-  unicornRate: Percentage.default(0.01),
-  alpha: PositiveNumber.min(0.5).max(3.0).default(1.16),
-  xMin: PositiveNumber.min(1.0).max(10.0).default(3.0),
-  maxReturn: PositiveNumber.min(50.0).max(1000.0).default(200.0)
-}).strict().refine(
-  (data) => {
-    const total = data.failureRate + data.modestReturnRate + data.goodOutcomeRate + data.homeRunRate + data.unicornRate;
-    return Math.abs(total - 1.0) < 0.001; // Allow for small floating point errors
-  },
-  { message: "Return rate probabilities must sum to 1.0" }
-);
+export const PowerLawConfigSchema = z
+  .object({
+    failureRate: Percentage.default(0.7),
+    modestReturnRate: Percentage.default(0.15),
+    goodOutcomeRate: Percentage.default(0.1),
+    homeRunRate: Percentage.default(0.04),
+    unicornRate: Percentage.default(0.01),
+    alpha: PositiveNumber.min(0.5).max(3.0).default(1.16),
+    xMin: PositiveNumber.min(1.0).max(10.0).default(3.0),
+    maxReturn: PositiveNumber.min(50.0).max(1000.0).default(200.0),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      const total =
+        data.failureRate +
+        data.modestReturnRate +
+        data.goodOutcomeRate +
+        data.homeRunRate +
+        data.unicornRate;
+      return Math.abs(total - 1.0) < 0.001; // Allow for small floating point errors
+    },
+    { message: 'Return rate probabilities must sum to 1.0' }
+  );
 
 export const ReturnCategoryEnum = z.enum(['failure', 'modest', 'good', 'homeRun', 'unicorn']);
 
-export const ReturnSampleSchema = z.object({
-  multiple: PositiveNumber,
-  category: ReturnCategoryEnum,
-  stage: PowerLawStageEnum,
-  probability: Percentage
-}).strict();
-
-export const InvestmentScenarioSchema = z.object({
-  multiple: PositiveNumber,
-  irr: z.number().min(-1).max(10).finite(),
-  category: ReturnCategoryEnum,
-  exitTiming: PositiveNumber.min(0.5).max(20),
-  stage: PowerLawStageEnum.optional()
-}).strict();
-
-export const PortfolioReturnDistributionSchema = z.object({
-  samples: z.array(ReturnSampleSchema).min(1).max(1000000),
-  statistics: z.object({
-    mean: PositiveNumber,
-    median: PositiveNumber,
-    standardDeviation: PositiveNumber,
-    skewness: z.number().finite(),
-    kurtosis: z.number().finite(),
-    powerLawAlpha: PositiveNumber.min(0.5).max(5.0)
-  }),
-  percentiles: z.object({
-    p5: PositiveNumber,
-    p25: PositiveNumber,
-    p50: PositiveNumber,
-    p75: PositiveNumber,
-    p95: PositiveNumber,
-    p99: PositiveNumber
+export const ReturnSampleSchema = z
+  .object({
+    multiple: PositiveNumber,
+    category: ReturnCategoryEnum,
+    stage: PowerLawStageEnum,
+    probability: Percentage,
   })
-}).strict().refine(
-  (data) => {
-    const p = data.percentiles;
-    return p.p5 <= p.p25 && p.p25 <= p.p50 && p.p50 <= p.p75 && p.p75 <= p.p95 && p.p95 <= p.p99;
-  },
-  { message: "Percentiles must be in ascending order" }
-);
+  .strict();
 
-export const StageDistributionSchema = z.record(PowerLawStageEnum, PositiveNumber)
+export const InvestmentScenarioSchema = z
+  .object({
+    multiple: PositiveNumber,
+    irr: z.number().min(-1).max(10).finite(),
+    category: ReturnCategoryEnum,
+    exitTiming: PositiveNumber.min(0.5).max(20),
+    stage: PowerLawStageEnum.optional(),
+  })
+  .strict();
+
+export const PortfolioReturnDistributionSchema = z
+  .object({
+    samples: z.array(ReturnSampleSchema).min(1).max(1000000),
+    statistics: z.object({
+      mean: PositiveNumber,
+      median: PositiveNumber,
+      standardDeviation: PositiveNumber,
+      skewness: z.number().finite(),
+      kurtosis: z.number().finite(),
+      powerLawAlpha: PositiveNumber.min(0.5).max(5.0),
+    }),
+    percentiles: z.object({
+      p5: PositiveNumber,
+      p25: PositiveNumber,
+      p50: PositiveNumber,
+      p75: PositiveNumber,
+      p95: PositiveNumber,
+      p99: PositiveNumber,
+    }),
+  })
+  .strict()
   .refine(
     (data) => {
-      const total = Object.values(data).reduce((sum, weight) => sum + weight, 0);
-      return total > 0;
+      const p = data.percentiles;
+      return p.p5 <= p.p25 && p.p25 <= p.p50 && p.p50 <= p.p75 && p.p75 <= p.p95 && p.p95 <= p.p99;
     },
-    { message: "Stage distribution weights must sum to a positive number" }
+    { message: 'Percentiles must be in ascending order' }
   );
+
+export const StageDistributionSchema = z.record(PowerLawStageEnum, PositiveNumber).refine(
+  (data) => {
+    const total = Object.values(data).reduce((sum, weight) => sum + weight, 0);
+    return total > 0;
+  },
+  { message: 'Stage distribution weights must sum to a positive number' }
+);
 
 // =============================================================================
 // RESULTS AND METRICS SCHEMAS
 // =============================================================================
 
-export const PerformanceDistributionSchema = z.object({
-  scenarios: z.array(z.number().finite()).min(1).max(50000),
-  percentiles: z.object({
-    p5: z.number().finite(),
-    p25: z.number().finite(),
-    p50: z.number().finite(),
-    p75: z.number().finite(),
-    p95: z.number().finite()
-  }),
-  statistics: z.object({
-    mean: z.number().finite(),
-    standardDeviation: PositiveNumber,
-    min: z.number().finite(),
-    max: z.number().finite()
-  }),
-  confidenceIntervals: z.object({
-    ci68: z.tuple([z.number().finite(), z.number().finite()]),
-    ci95: z.tuple([z.number().finite(), z.number().finite()])
+export const PerformanceDistributionSchema = z
+  .object({
+    scenarios: z.array(z.number().finite()).min(1).max(50000),
+    percentiles: z.object({
+      p5: z.number().finite(),
+      p25: z.number().finite(),
+      p50: z.number().finite(),
+      p75: z.number().finite(),
+      p95: z.number().finite(),
+    }),
+    statistics: z.object({
+      mean: z.number().finite(),
+      standardDeviation: PositiveNumber,
+      min: z.number().finite(),
+      max: z.number().finite(),
+    }),
+    confidenceIntervals: z.object({
+      ci68: z.tuple([z.number().finite(), z.number().finite()]),
+      ci95: z.tuple([z.number().finite(), z.number().finite()]),
+    }),
   })
-}).strict();
+  .strict();
 
-export const RiskMetricsSchema = z.object({
-  valueAtRisk: z.object({
-    var5: z.number().finite(),
-    var10: z.number().finite()
-  }),
-  conditionalValueAtRisk: z.object({
-    cvar5: z.number().finite(),
-    cvar10: z.number().finite()
-  }),
-  probabilityOfLoss: Percentage,
-  downsideRisk: PositiveNumber,
-  sharpeRatio: z.number().min(-10).max(10).finite(),
-  sortinoRatio: z.number().min(-10).max(10).finite(),
-  maxDrawdown: Percentage
-}).strict();
+// Standalone statistics schema for individual metric validation
+export const StatisticsSchema = z
+  .object({
+    mean: z.number().finite(),
+    standardDeviation: z.number().positive().finite(),
+    min: z.number().finite(),
+    max: z.number().finite(),
+  })
+  .strict();
 
-export const ReserveOptimizationSchema = z.object({
-  currentReserveRatio: Percentage,
-  optimalReserveRatio: Percentage,
-  improvementPotential: z.number().min(-1).max(1).finite(),
-  coverageScenarios: z.object({
-    p25: Percentage,
-    p50: Percentage,
-    p75: Percentage
-  }),
-  allocationRecommendations: z.array(z.object({
-    reserveRatio: Percentage,
-    expectedIRR: IRR,
-    riskAdjustedReturn: z.number().finite(),
-    followOnCoverage: Percentage
-  }))
-}).strict();
+export type Statistics = z.infer<typeof StatisticsSchema>;
+
+export const RiskMetricsSchema = z
+  .object({
+    valueAtRisk: z.object({
+      var5: z.number().finite(),
+      var10: z.number().finite(),
+    }),
+    conditionalValueAtRisk: z.object({
+      cvar5: z.number().finite(),
+      cvar10: z.number().finite(),
+    }),
+    probabilityOfLoss: Percentage,
+    downsideRisk: PositiveNumber,
+    sharpeRatio: z.number().min(-10).max(10).finite(),
+    sortinoRatio: z.number().min(-10).max(10).finite(),
+    maxDrawdown: Percentage,
+  })
+  .strict();
+
+export const ReserveOptimizationSchema = z
+  .object({
+    currentReserveRatio: Percentage,
+    optimalReserveRatio: Percentage,
+    improvementPotential: z.number().min(-1).max(1).finite(),
+    coverageScenarios: z.object({
+      p25: Percentage,
+      p50: Percentage,
+      p75: Percentage,
+    }),
+    allocationRecommendations: z.array(
+      z.object({
+        reserveRatio: Percentage,
+        expectedIRR: IRR,
+        riskAdjustedReturn: z.number().finite(),
+        followOnCoverage: Percentage,
+      })
+    ),
+  })
+  .strict();
 
 // =============================================================================
 // FUND AND INVESTMENT SCHEMAS
 // =============================================================================
 
-export const FundBasicsSchema = z.object({
-  name: SafeString,
-  size: MonetaryAmount.min(100000), // Min $100K
-  managementFee: Percentage,
-  carryPercentage: Percentage,
-  vintageYear: YearRange,
-  status: z.enum(['active', 'closed', 'fundraising', 'liquidating'])
-}).strict();
+export const FundBasicsSchema = z
+  .object({
+    name: SafeString,
+    size: MonetaryAmount.min(100000), // Min $100K
+    managementFee: Percentage,
+    carryPercentage: Percentage,
+    vintageYear: YearRange,
+    status: z.enum(['active', 'closed', 'fundraising', 'liquidating']),
+  })
+  .strict();
 
-export const InvestmentSchema = z.object({
-  fundId: FundId,
-  companyName: SafeString,
-  sector: SectorEnum,
-  stage: StageEnum,
-  investmentAmount: MonetaryAmount.min(1000), // Min $1K
-  investmentDate: z.date(),
-  round: ShortString,
-  ownershipPercentage: Percentage.optional(),
-  valuationAtInvestment: MonetaryAmount.optional(),
-  dealTags: z.array(ShortString).max(10).optional()
-}).strict();
+export const InvestmentSchema = z
+  .object({
+    fundId: FundId,
+    companyName: SafeString,
+    sector: SectorEnum,
+    stage: StageEnum,
+    investmentAmount: MonetaryAmount.min(1000), // Min $1K
+    investmentDate: z.date(),
+    round: ShortString,
+    ownershipPercentage: Percentage.optional(),
+    valuationAtInvestment: MonetaryAmount.optional(),
+    dealTags: z.array(ShortString).max(10).optional(),
+  })
+  .strict();
 
-export const CompanyValuationSchema = z.object({
-  companyId: PositiveInteger,
-  newValuation: MonetaryAmount.min(1000),
-  valuationDate: z.date(),
-  valuationMethod: z.enum(['market', 'dcf', 'comparable', 'liquidation', 'other']),
-  notes: LongString.optional(),
-  userId: UserId
-}).strict();
+export const CompanyValuationSchema = z
+  .object({
+    companyId: PositiveInteger,
+    newValuation: MonetaryAmount.min(1000),
+    valuationDate: z.date(),
+    valuationMethod: z.enum(['market', 'dcf', 'comparable', 'liquidation', 'other']),
+    notes: LongString.optional(),
+    userId: UserId,
+  })
+  .strict();
 
 // =============================================================================
 // FINANCIAL CALCULATIONS SCHEMAS
 // =============================================================================
 
-export const PacingAnalysisSchema = z.object({
-  fundId: FundId,
-  targetPacingMonths: PositiveInteger.min(6).max(120),
-  currentDeployedCapital: MonetaryAmount,
-  remainingCapital: MonetaryAmount,
-  targetInvestmentsPerQuarter: PositiveInteger.min(1).max(50),
-  averageInvestmentSize: MonetaryAmount.min(10000),
-  seasonalityFactors: z.record(z.string().regex(/^Q[1-4]$/), PositiveNumber.min(0.1).max(3)).optional()
-}).strict();
+export const PacingAnalysisSchema = z
+  .object({
+    fundId: FundId,
+    targetPacingMonths: PositiveInteger.min(6).max(120),
+    currentDeployedCapital: MonetaryAmount,
+    remainingCapital: MonetaryAmount,
+    targetInvestmentsPerQuarter: PositiveInteger.min(1).max(50),
+    averageInvestmentSize: MonetaryAmount.min(10000),
+    seasonalityFactors: z
+      .record(z.string().regex(/^Q[1-4]$/), PositiveNumber.min(0.1).max(3))
+      .optional(),
+  })
+  .strict();
 
-export const ReserveAnalysisSchema = z.object({
-  fundId: FundId,
-  currentReserveAmount: MonetaryAmount,
-  portfolioSize: PositiveInteger.min(1).max(1000),
-  followOnStrategy: z.enum(['aggressive', 'balanced', 'conservative']),
-  targetReserveRatio: Percentage,
-  followOnMultiplier: PositiveNumber.min(0.1).max(10),
-  timeHorizonMonths: PositiveInteger.min(6).max(180)
-}).strict();
+export const ReserveAnalysisSchema = z
+  .object({
+    fundId: FundId,
+    currentReserveAmount: MonetaryAmount,
+    portfolioSize: PositiveInteger.min(1).max(1000),
+    followOnStrategy: z.enum(['aggressive', 'balanced', 'conservative']),
+    targetReserveRatio: Percentage,
+    followOnMultiplier: PositiveNumber.min(0.1).max(10),
+    timeHorizonMonths: PositiveInteger.min(6).max(180),
+  })
+  .strict();
 
-export const CohortAnalysisSchema = z.object({
-  fundId: FundId,
-  cohortType: z.enum(['vintage', 'sector', 'stage', 'custom']),
-  cohortCriteria: z.record(z.string(), z.any()).optional(),
-  benchmarkMetrics: z.array(z.enum(['irr', 'multiple', 'dpi', 'tvpi'])),
-  timeHorizonYears: PositiveInteger.min(1).max(15)
-}).strict();
+export const CohortAnalysisSchema = z
+  .object({
+    fundId: FundId,
+    cohortType: z.enum(['vintage', 'sector', 'stage', 'custom']),
+    cohortCriteria: z.record(z.string(), z.any()).optional(),
+    benchmarkMetrics: z.array(z.enum(['irr', 'multiple', 'dpi', 'tvpi'])),
+    timeHorizonYears: PositiveInteger.min(1).max(15),
+  })
+  .strict();
 
 // =============================================================================
 // USER INPUT SANITIZATION SCHEMAS
 // =============================================================================
 
-export const UserInputSchema = z.object({
-  userId: UserId,
-  sessionId: UUID.optional(),
-  ipAddress: z.string().ip().optional(),
-  userAgent: z.string().max(500).optional(),
-  timestamp: z.date()
-}).strict();
+export const UserInputSchema = z
+  .object({
+    userId: UserId,
+    sessionId: UUID.optional(),
+    ipAddress: z.string().ip().optional(),
+    userAgent: z.string().max(500).optional(),
+    timestamp: z.date(),
+  })
+  .strict();
 
-export const SearchQuerySchema = z.object({
-  query: z.string().min(1).max(100).trim(),
-  filters: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
-  sortBy: z.string().max(50).optional(),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: PositiveInteger.max(1000).default(1),
-  limit: PositiveInteger.min(1).max(100).default(20)
-}).strict();
+export const SearchQuerySchema = z
+  .object({
+    query: z.string().min(1).max(100).trim(),
+    filters: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+    sortBy: z.string().max(50).optional(),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    page: PositiveInteger.max(1000).default(1),
+    limit: PositiveInteger.min(1).max(100).default(20),
+  })
+  .strict();
 
 // =============================================================================
 // API REQUEST/RESPONSE SCHEMAS
 // =============================================================================
 
-export const MonteCarloRequestSchema = z.object({
-  config: SimulationConfigSchema,
-  marketEnvironment: MarketEnvironmentSchema.optional(),
-  userContext: UserInputSchema
-}).strict();
-
-export const MonteCarloResponseSchema = z.object({
-  simulationId: UUID,
-  config: SimulationConfigSchema,
-  executionTimeMs: PositiveInteger,
-  irr: PerformanceDistributionSchema,
-  multiple: PerformanceDistributionSchema,
-  dpi: PerformanceDistributionSchema,
-  tvpi: PerformanceDistributionSchema,
-  totalValue: PerformanceDistributionSchema,
-  riskMetrics: RiskMetricsSchema,
-  reserveOptimization: ReserveOptimizationSchema,
-  scenarios: z.record(z.string(), z.record(z.string(), z.number().finite())),
-  insights: z.object({
-    primaryRecommendations: z.array(SafeString).max(5),
-    riskWarnings: z.array(SafeString).max(10),
-    opportunityAreas: z.array(SafeString).max(10),
-    keyMetrics: z.array(z.object({
-      metric: SafeString,
-      value: z.number().finite(),
-      benchmark: z.number().finite(),
-      status: z.enum(['above', 'below', 'at', 'warning']),
-      impact: z.enum(['high', 'medium', 'low'])
-    }))
+export const MonteCarloRequestSchema = z
+  .object({
+    config: SimulationConfigSchema,
+    marketEnvironment: MarketEnvironmentSchema.optional(),
+    userContext: UserInputSchema,
   })
-}).strict();
+  .strict();
+
+export const MonteCarloResponseSchema = z
+  .object({
+    simulationId: UUID,
+    config: SimulationConfigSchema,
+    executionTimeMs: PositiveInteger,
+    irr: PerformanceDistributionSchema,
+    multiple: PerformanceDistributionSchema,
+    dpi: PerformanceDistributionSchema,
+    tvpi: PerformanceDistributionSchema,
+    totalValue: PerformanceDistributionSchema,
+    riskMetrics: RiskMetricsSchema,
+    reserveOptimization: ReserveOptimizationSchema,
+    scenarios: z.record(z.string(), z.record(z.string(), z.number().finite())),
+    insights: z.object({
+      primaryRecommendations: z.array(SafeString).max(5),
+      riskWarnings: z.array(SafeString).max(10),
+      opportunityAreas: z.array(SafeString).max(10),
+      keyMetrics: z.array(
+        z.object({
+          metric: SafeString,
+          value: z.number().finite(),
+          benchmark: z.number().finite(),
+          status: z.enum(['above', 'below', 'at', 'warning']),
+          impact: z.enum(['high', 'medium', 'low']),
+        })
+      ),
+    }),
+  })
+  .strict();
 
 // =============================================================================
 // BULK OPERATIONS SCHEMAS
 // =============================================================================
 
-export const BulkInvestmentSchema = z.object({
-  investments: z.array(InvestmentSchema).min(1).max(100),
-  batchId: UUID.optional(),
-  validateOnly: z.boolean().default(false),
-  userContext: UserInputSchema
-}).strict();
+export const BulkInvestmentSchema = z
+  .object({
+    investments: z.array(InvestmentSchema).min(1).max(100),
+    batchId: UUID.optional(),
+    validateOnly: z.boolean().default(false),
+    userContext: UserInputSchema,
+  })
+  .strict();
 
-export const BulkValuationUpdateSchema = z.object({
-  valuations: z.array(CompanyValuationSchema).min(1).max(50),
-  batchId: UUID.optional(),
-  effectiveDate: z.date(),
-  userContext: UserInputSchema
-}).strict();
+export const BulkValuationUpdateSchema = z
+  .object({
+    valuations: z.array(CompanyValuationSchema).min(1).max(50),
+    batchId: UUID.optional(),
+    effectiveDate: z.date(),
+    userContext: UserInputSchema,
+  })
+  .strict();
 
 // =============================================================================
 // EXPORT ALL SCHEMAS
@@ -400,7 +497,7 @@ export const MonteCarloSchemas = {
   RiskMetrics: RiskMetricsSchema,
   ReserveOptimization: ReserveOptimizationSchema,
   Request: MonteCarloRequestSchema,
-  Response: MonteCarloResponseSchema
+  Response: MonteCarloResponseSchema,
 };
 
 export const PowerLawSchemas = {
@@ -408,7 +505,7 @@ export const PowerLawSchemas = {
   ReturnSample: ReturnSampleSchema,
   InvestmentScenario: InvestmentScenarioSchema,
   PortfolioReturnDistribution: PortfolioReturnDistributionSchema,
-  StageDistribution: StageDistributionSchema
+  StageDistribution: StageDistributionSchema,
 };
 
 export const FinancialSchemas = {
@@ -419,12 +516,12 @@ export const FinancialSchemas = {
   ReserveAnalysis: ReserveAnalysisSchema,
   CohortAnalysis: CohortAnalysisSchema,
   BulkInvestment: BulkInvestmentSchema,
-  BulkValuationUpdate: BulkValuationUpdateSchema
+  BulkValuationUpdate: BulkValuationUpdateSchema,
 };
 
 export const SecuritySchemas = {
   UserInput: UserInputSchema,
-  SearchQuery: SearchQuerySchema
+  SearchQuery: SearchQuerySchema,
 };
 
 // Type exports for TypeScript
@@ -466,10 +563,104 @@ export const validateStageDistribution = (data: unknown) => {
 export const createValidationError = (error: z.ZodError) => {
   return {
     isValid: false,
-    errors: error.errors.map(err => ({
+    errors: error.errors.map((err) => ({
       field: err.path.join('.'),
       message: err.message,
       code: err.code,
-    }))
+    })),
   };
 };
+
+// =============================================================================
+// TEST SCHEMAS (Zero-Variance Bridge)
+// =============================================================================
+
+/**
+ * Relaxed distribution parameters for zero-variance testing.
+ * Allows volatility = 0 for deterministic scenario generation.
+ *
+ * NEVER use in production - allows degenerate inputs.
+ */
+export const DistributionParametersSchemaTest = z
+  .object({
+    irr: z.object({
+      mean: z.number().min(-0.5).max(3),
+      volatility: z.number().min(0).max(2), // Test: allows 0
+    }),
+    multiple: z.object({
+      mean: z.number().min(0.1).max(20),
+      volatility: z.number().min(0).max(10), // Test: allows 0
+    }),
+    dpi: z.object({
+      mean: z.number().min(0).max(5),
+      volatility: z.number().min(0).max(2), // Test: allows 0
+    }),
+    exitTiming: z.object({
+      mean: z.number().min(1).max(15),
+      volatility: z.number().min(0).max(5), // Test: allows 0
+    }),
+    followOnSize: z.object({
+      mean: z.number().min(0).max(5),
+      volatility: z.number().min(0).max(2), // Test: allows 0
+    }),
+  })
+  .strict();
+
+export type DistributionParametersTest = z.infer<typeof DistributionParametersSchemaTest>;
+
+/**
+ * Relaxed statistics schema for zero-variance testing.
+ * Allows stdDev = 0 when all scenarios are identical.
+ *
+ * NEVER use in production.
+ */
+export const StatisticsSchemaTest = z.object({
+  mean: z.number().finite(),
+  standardDeviation: z.number().min(0).finite(), // Test: allows 0
+  min: z.number().finite(),
+  max: z.number().finite(),
+});
+
+export type StatisticsTest = z.infer<typeof StatisticsSchemaTest>;
+
+/**
+ * Relaxed risk metrics for zero-variance testing.
+ * Allows degenerate values (downsideRisk=0, maxDrawdown=0).
+ *
+ * NEVER use in production.
+ */
+export const RiskMetricsSchemaTest = z.object({
+  valueAtRisk: z.object({
+    var5: z.number().finite(),
+    var10: z.number().finite(),
+  }),
+  conditionalValueAtRisk: z.object({
+    cvar5: z.number().finite(),
+    cvar10: z.number().finite(),
+  }),
+  probabilityOfLoss: z.number().min(0).max(1),
+  downsideRisk: z.number().min(0).finite(), // Test: allows 0
+  sharpeRatio: z.number().finite(), // Test: must be finite (not NaN)
+  sortinoRatio: z.number().finite(), // Test: must be finite (not NaN)
+  maxDrawdown: z.number().min(0).max(1), // Test: allows 0
+});
+
+export type RiskMetricsTest = z.infer<typeof RiskMetricsSchemaTest>;
+
+/**
+ * Factory for conditional schema selection.
+ * Use in tests to switch between production and test schemas.
+ */
+export function createDistributionSchemaForTest(options: { allowZeroVariance?: boolean } = {}) {
+  return options.allowZeroVariance
+    ? DistributionParametersSchemaTest
+    : DistributionParametersSchema;
+}
+
+export function createStatisticsSchemaForTest(options: { allowZeroVariance?: boolean } = {}) {
+  return options.allowZeroVariance ? StatisticsSchemaTest : StatisticsSchema;
+}
+
+export function createRiskMetricsSchemaForTest(options: { allowZeroVariance?: boolean } = {}) {
+  return options.allowZeroVariance ? RiskMetricsSchemaTest : RiskMetricsSchema;
+}
