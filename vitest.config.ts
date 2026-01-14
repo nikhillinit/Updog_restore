@@ -100,6 +100,7 @@ export default defineConfig({
             'tests/integration/**/*.test.ts',
             'tests/api/**/*.test.ts',
           ],
+          exclude: ['**/*.quarantine.test.ts', 'tests/quarantine/**/*'],
           setupFiles: [
             './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
             './tests/setup/db-delegate-link.ts', // wire delegate before any tests

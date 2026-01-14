@@ -89,7 +89,7 @@ For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 | Precision/numeric drift         | `phoenix-precision-guardian` agent |
 | XIRR/fees issues                | `xirr-fees-validator` agent        |
 | Architecture decisions          | DECISIONS.md                       |
-| Troubleshooting                 | SIDECAR_GUIDE.md                   |
+| Troubleshooting                 | cheatsheets/daily-workflow.md      |
 
 **Machine-readable index**: `docs/_generated/router-index.json` **Staleness
 report**: `docs/_generated/staleness-report.md` **Regenerate**:
@@ -194,9 +194,10 @@ npm run doctor
 
 ### Legacy Note
 
-The sidecar architecture (`tools_local/`) was eliminated on 2025-12-20.
-All dependencies are now installed directly via `npm install`.
-See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for historical reference only.
+The sidecar architecture (`tools_local/`) was eliminated on 2025-12-20. All
+dependencies are now installed directly via `npm install`. See
+[docs/archive/2025-sidecar/](docs/archive/2025-sidecar/) for historical
+reference only.
 
 ## Quality & Documentation Standards
 

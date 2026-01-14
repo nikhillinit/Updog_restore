@@ -1,8 +1,8 @@
 # Sidecar Architecture Guide
 
-> **DEPRECATED (2025-12-20)**: The sidecar architecture has been eliminated.
-> All dependencies are now installed directly via `npm install`.
-> This document is retained for historical reference only.
+> **DEPRECATED (2025-12-20)**: The sidecar architecture has been eliminated. All
+> dependencies are now installed directly via `npm install`. This document is
+> retained for historical reference only.
 >
 > **Current setup**: Just run `npm install` - no sidecar needed.
 
