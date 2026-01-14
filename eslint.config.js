@@ -66,6 +66,7 @@ export default [
       'eslint-rules/**', // ESLint rule definitions (CommonJS)
       'src/**', // Legacy source directory (pre-refactor)
       'k6/**', // k6 load testing scenarios (different runtime)
+      'tests/k6/**', // k6 test scenarios (different runtime)
       'tests/performance/**/*.js', // k6 load tests (different runtime)
       'playwright.config.simple.ts', // Simplified Playwright config
       'server/lib/wasm-worker.js', // WASM worker (special case)
