@@ -104,6 +104,7 @@ async function checkDatabase(): Promise<DatabaseCheckResult> {
 
   for (const tableName of lpTableNames) {
     try {
+      // eslint-disable-next-line povc-security/no-sql-raw-in-routes -- tableName from hardcoded constant array, not user input
       await db.execute(sql.raw(`SELECT 1 FROM "${tableName}" LIMIT 1`));
       tables[tableName] = { status: 'healthy' };
     } catch (error) {
@@ -176,11 +177,7 @@ async function checkReportStorage(): Promise<ReportStorageCheckResult> {
       writable = false;
     }
 
-    const status: HealthStatus = !isDirectory
-      ? 'unhealthy'
-      : writable
-        ? 'healthy'
-        : 'degraded';
+    const status: HealthStatus = !isDirectory ? 'unhealthy' : writable ? 'healthy' : 'degraded';
 
     return {
       status,

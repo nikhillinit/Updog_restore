@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+/* eslint-disable custom/no-hardcoded-fund-metrics -- Demo dashboard with sample data */
+
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -13,21 +11,21 @@ import { Line } from 'recharts/es6/cartesian/Line';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
-import { useState } from "react";
-import { useFundContext } from "@/contexts/FundContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { TrendingUp, Building2, Target } from "lucide-react";
-import PortfolioConcentration from "./portfolio-concentration";
+import { useState } from 'react';
+import { useFundContext } from '@/contexts/FundContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { TrendingUp, Building2, Target } from 'lucide-react';
+import PortfolioConcentration from './portfolio-concentration';
 
 export default function Dashboard() {
   const { currentFund, isLoading } = useFundContext();
-  const [viewType, setViewType] = useState("construction"); // construction | current
-  const [activeTab, setActiveTab] = useState("fund");
+  const [viewType, setViewType] = useState('construction'); // construction | current
+  const [activeTab, setActiveTab] = useState('fund');
 
   if (isLoading || !currentFund) {
     return (
@@ -57,34 +55,34 @@ export default function Dashboard() {
 
   // Sample data for charts
   const investableCapitalData = [
-    { name: "Pre-Seed", initial: 41062250, followOn: 20531125 },
-    { name: "Seed", initial: 61593375, followOn: 30796688 },
-    { name: "Series A", initial: 82124500, followOn: 41062250 },
-    { name: "Warrants", initial: 0, followOn: 0 },
+    { name: 'Pre-Seed', initial: 41062250, followOn: 20531125 },
+    { name: 'Seed', initial: 61593375, followOn: 30796688 },
+    { name: 'Series A', initial: 82124500, followOn: 41062250 },
+    { name: 'Warrants', initial: 0, followOn: 0 },
   ];
 
   const pacingData = [
-    { period: "Jan 22", cumulative: 15, inPeriod: 3 },
-    { period: "Apr 22", cumulative: 25, inPeriod: 5 },
-    { period: "Jul 22", cumulative: 35, inPeriod: 4 },
-    { period: "Oct 22", cumulative: 45, inPeriod: 6 },
-    { period: "Jan 23", cumulative: 55, inPeriod: 4 },
-    { period: "Apr 23", cumulative: 65, inPeriod: 5 },
-    { period: "Jul 23", cumulative: 75, inPeriod: 3 },
-    { period: "Oct 23", cumulative: 85, inPeriod: 4 },
-    { period: "Jan 24", cumulative: 90, inPeriod: 2 },
+    { period: 'Jan 22', cumulative: 15, inPeriod: 3 },
+    { period: 'Apr 22', cumulative: 25, inPeriod: 5 },
+    { period: 'Jul 22', cumulative: 35, inPeriod: 4 },
+    { period: 'Oct 22', cumulative: 45, inPeriod: 6 },
+    { period: 'Jan 23', cumulative: 55, inPeriod: 4 },
+    { period: 'Apr 23', cumulative: 65, inPeriod: 5 },
+    { period: 'Jul 23', cumulative: 75, inPeriod: 3 },
+    { period: 'Oct 23', cumulative: 85, inPeriod: 4 },
+    { period: 'Jan 24', cumulative: 90, inPeriod: 2 },
   ];
 
   const capitalCallsData = [
-    { period: "Jan 22", amount: 25000000, cumulative: 25000000 },
-    { period: "Apr 22", amount: 20000000, cumulative: 45000000 },
-    { period: "Jul 22", amount: 30000000, cumulative: 75000000 },
-    { period: "Oct 22", amount: 25000000, cumulative: 100000000 },
-    { period: "Jan 23", amount: 30000000, cumulative: 130000000 },
-    { period: "Apr 23", amount: 25000000, cumulative: 155000000 },
-    { period: "Jul 23", amount: 20000000, cumulative: 175000000 },
-    { period: "Oct 23", amount: 15000000, cumulative: 190000000 },
-    { period: "Jan 24", amount: 10000000, cumulative: 200000000 },
+    { period: 'Jan 22', amount: 25000000, cumulative: 25000000 },
+    { period: 'Apr 22', amount: 20000000, cumulative: 45000000 },
+    { period: 'Jul 22', amount: 30000000, cumulative: 75000000 },
+    { period: 'Oct 22', amount: 25000000, cumulative: 100000000 },
+    { period: 'Jan 23', amount: 30000000, cumulative: 130000000 },
+    { period: 'Apr 23', amount: 25000000, cumulative: 155000000 },
+    { period: 'Jul 23', amount: 20000000, cumulative: 175000000 },
+    { period: 'Oct 23', amount: 15000000, cumulative: 190000000 },
+    { period: 'Jan 24', amount: 10000000, cumulative: 200000000 },
   ];
 
   const InvestableCapitalSummary = () => (
@@ -133,7 +131,9 @@ export default function Dashboard() {
         <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="text-3xl font-inter font-bold text-charcoal">{projectedInvestments}</div>
+              <div className="text-3xl font-inter font-bold text-charcoal">
+                {projectedInvestments}
+              </div>
               <div className="text-charcoal/70 font-medium mt-1">Projected</div>
               <div className="text-sm text-charcoal/70 mt-2">Number of Initial Investments</div>
               <div className="flex justify-center space-x-4 mt-4">
@@ -155,13 +155,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg font-inter text-charcoal">Investable Capital Breakdown</CardTitle>
+            <CardTitle className="text-lg font-inter text-charcoal">
+              Investable Capital Breakdown
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-charcoal/70">Committed Capital</span>
-                <span className="font-mono text-charcoal">${(committedCapital / 1000000).toFixed(0)}M</span>
+                <span className="font-mono text-charcoal">
+                  ${(committedCapital / 1000000).toFixed(0)}M
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-charcoal/70">Cashless Commit</span>
@@ -182,7 +186,9 @@ export default function Dashboard() {
               <div className="border-t border-charcoal/20 pt-4">
                 <div className="flex justify-between items-center font-bold">
                   <span className="text-charcoal">Total Investable</span>
-                  <span className="font-mono text-charcoal">${(investableCapital / 1000000).toFixed(1)}M</span>
+                  <span className="font-mono text-charcoal">
+                    ${(investableCapital / 1000000).toFixed(1)}M
+                  </span>
                 </div>
               </div>
             </div>
@@ -191,14 +197,22 @@ export default function Dashboard() {
 
         <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg font-inter text-charcoal">Capital Allocation by Entry Round</CardTitle>
+            <CardTitle className="text-lg font-inter text-charcoal">
+              Capital Allocation by Entry Round
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={investableCapitalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart
+                data={investableCapitalData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" />
                 <XAxis dataKey="name" tick={{ fill: '#292929' }} />
-                <YAxis tick={{ fill: '#292929' }} tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
+                <YAxis
+                  tick={{ fill: '#292929' }}
+                  tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`}
+                />
                 <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
                 <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
               </BarChart>
@@ -224,7 +238,13 @@ export default function Dashboard() {
                 <XAxis dataKey="period" />
                 <YAxis />
                 <Bar dataKey="inPeriod" fill="#3b82f6" name="In-Period" />
-                <Line type="monotone" dataKey="cumulative" stroke="#1d4ed8" strokeWidth={2} name="Cumulative" />
+                <Line
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#1d4ed8"
+                  strokeWidth={2}
+                  name="Cumulative"
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
@@ -241,7 +261,13 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="period" />
                 <YAxis />
-                <Area type="monotone" dataKey="cumulative" stackId="1" stroke="#1d4ed8" fill="#3b82f6" />
+                <Area
+                  type="monotone"
+                  dataKey="cumulative"
+                  stackId="1"
+                  stroke="#1d4ed8"
+                  fill="#3b82f6"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -268,7 +294,13 @@ export default function Dashboard() {
               <XAxis dataKey="period" />
               <YAxis tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
               <Bar dataKey="amount" fill="#3b82f6" name="In Period" />
-              <Line type="monotone" dataKey="cumulative" stroke="#1d4ed8" strokeWidth={3} name="Cumulative" />
+              <Line
+                type="monotone"
+                dataKey="cumulative"
+                stroke="#1d4ed8"
+                strokeWidth={3}
+                name="Cumulative"
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
@@ -289,11 +321,15 @@ export default function Dashboard() {
                 <div className="grid grid-cols-3 gap-6 mt-2">
                   <div>
                     <div className="text-sm font-medium text-charcoal/70">Committed</div>
-                    <div className="text-lg font-bold text-charcoal">${(committedCapital / 1000000).toFixed(0)}M</div>
+                    <div className="text-lg font-bold text-charcoal">
+                      ${(committedCapital / 1000000).toFixed(0)}M
+                    </div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-charcoal/70">Investable</div>
-                    <div className="text-lg font-bold text-charcoal">${(investableCapital / 1000000).toFixed(1)}M</div>
+                    <div className="text-lg font-bold text-charcoal">
+                      ${(investableCapital / 1000000).toFixed(1)}M
+                    </div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-charcoal/70">Reserve Ratio</div>
@@ -310,7 +346,9 @@ export default function Dashboard() {
                 <div className="grid grid-cols-3 gap-4 mt-2">
                   <div>
                     <div className="text-sm font-medium text-charcoal/70">Projected Fund Value</div>
-                    <div className="text-lg font-bold text-charcoal">${(projectedFundValue / 1000000).toFixed(0)}M</div>
+                    <div className="text-lg font-bold text-charcoal">
+                      ${(projectedFundValue / 1000000).toFixed(0)}M
+                    </div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-charcoal/70">Gross Multiple</div>
@@ -324,32 +362,44 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Label htmlFor="view-toggle" className="text-sm font-medium text-charcoal">View Actual</Label>
-              <Switch 
+              <Label htmlFor="view-toggle" className="text-sm font-medium text-charcoal">
+                View Actual
+              </Label>
+              <Switch
                 id="view-toggle"
-                checked={viewType === "current"} 
-                onCheckedChange={(checked: any) => setViewType(checked ? "current" : "construction")}
+                checked={viewType === 'current'}
+                onCheckedChange={(checked: any) =>
+                  setViewType(checked ? 'current' : 'construction')
+                }
               />
             </div>
             <div className="flex space-x-2">
-              <Badge 
-                variant={viewType === "construction" ? "default" : "secondary"}
-                className={viewType === "construction" ? "bg-charcoal text-white" : "bg-white text-charcoal border-charcoal/20"}
+              <Badge
+                variant={viewType === 'construction' ? 'default' : 'secondary'}
+                className={
+                  viewType === 'construction'
+                    ? 'bg-charcoal text-white'
+                    : 'bg-white text-charcoal border-charcoal/20'
+                }
               >
                 Construction Forecast
               </Badge>
-              <Badge 
-                variant={viewType === "current" ? "default" : "secondary"}
-                className={viewType === "current" ? "bg-charcoal text-white" : "bg-white text-charcoal border-charcoal/20"}
+              <Badge
+                variant={viewType === 'current' ? 'default' : 'secondary'}
+                className={
+                  viewType === 'current'
+                    ? 'bg-charcoal text-white'
+                    : 'bg-white text-charcoal border-charcoal/20'
+                }
               >
                 Current Forecast
               </Badge>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               className="border-charcoal/20 text-charcoal hover:bg-charcoal hover:text-white transition-colors"
             >
@@ -382,19 +432,19 @@ export default function Dashboard() {
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
               <TabsTrigger value="line-of-credit">Line of Credit</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="investable-capital">
               <InvestableCapitalSummary />
             </TabsContent>
-            
+
             <TabsContent value="pacing-analysis">
               <PacingAnalysis />
             </TabsContent>
-            
+
             <TabsContent value="capital-calls">
               <CapitalCalls />
             </TabsContent>
-            
+
             <TabsContent value="commitments">
               <Card>
                 <CardHeader>
@@ -405,7 +455,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="recycling">
               <Card>
                 <CardHeader>
@@ -416,7 +466,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="expenses">
               <Card>
                 <CardHeader>
@@ -427,7 +477,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="line-of-credit">
               <Card>
                 <CardHeader>
@@ -489,7 +539,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Portfolio Concentration */}
             <PortfolioConcentration />
-            
+
             {/* Additional Insights Components */}
             <Card>
               <CardHeader>
@@ -500,21 +550,27 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                     <div>
                       <p className="font-medium text-blue-900">Top Performing Sector</p>
-                      <p className="text-sm text-blue-700">SaaS companies showing 3.2x average MOIC</p>
+                      <p className="text-sm text-blue-700">
+                        SaaS companies showing 3.2x average MOIC
+                      </p>
                     </div>
                     <TrendingUp className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                     <div>
                       <p className="font-medium text-green-900">Geographic Performance</p>
-                      <p className="text-sm text-green-700">SF Bay Area leading with 28% portfolio value</p>
+                      <p className="text-sm text-green-700">
+                        SF Bay Area leading with 28% portfolio value
+                      </p>
                     </div>
                     <Building2 className="h-5 w-5 text-green-600" />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                     <div>
                       <p className="font-medium text-amber-900">Stage Distribution</p>
-                      <p className="text-sm text-amber-700">42% concentrated in Seed stage investments</p>
+                      <p className="text-sm text-amber-700">
+                        42% concentrated in Seed stage investments
+                      </p>
                     </div>
                     <Target className="h-5 w-5 text-amber-600" />
                   </div>
