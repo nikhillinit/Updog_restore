@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
+const noDbImportInSkippedTests = require('./eslint-rules/no-db-import-in-skipped-tests.cjs');
 const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
 
 // Boundary enforcement rules for server/client/shared separation
@@ -158,6 +159,7 @@ export default [
       custom: {
         rules: {
           'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
+          'no-db-import-in-skipped-tests': noDbImportInSkippedTests,
         },
       },
       'povc-security': povcSecurityPlugin,
@@ -359,6 +361,8 @@ export default [
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
+      // Prevent pool creation at import time in skipped tests (Phase 5 regression gate)
+      'custom/no-db-import-in-skipped-tests': 'error',
     },
   },
   // Core reserves - deterministic math enforcement
