@@ -7,10 +7,13 @@
  * - GET /api/portfolio/comparisons/:id - Get cached comparison
  *
  * Phase 2 (Future PR): Add persistence for saved configurations
+ *
+ * Feature Flag: ENABLE_SCENARIO_COMPARISON
+ * When disabled, all routes return 501 Not Implemented
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { scenarios } from '@shared/schema';
@@ -20,6 +23,28 @@ import type { ScenarioDatabaseRow } from '../services/comparison-service.js';
 import { createClient } from 'redis';
 
 const router = Router();
+
+// ============================================================================
+// Feature Flag Middleware
+// ============================================================================
+
+/**
+ * Middleware to check if scenario comparison feature is enabled.
+ * Returns 501 Not Implemented when ENABLE_SCENARIO_COMPARISON !== 'true'
+ */
+function requireFeatureFlag(_req: Request, res: Response, next: NextFunction) {
+  if (process.env['ENABLE_SCENARIO_COMPARISON'] !== 'true') {
+    return res.status(501).json({
+      success: false,
+      error: 'NOT_IMPLEMENTED',
+      message: 'Scenario comparison feature is not enabled. Set ENABLE_SCENARIO_COMPARISON=true to enable.',
+    });
+  }
+  next();
+}
+
+// Apply feature flag check to all routes in this router
+router.use(requireFeatureFlag);
 
 // ============================================================================
 // Redis Client Setup
