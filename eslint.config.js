@@ -66,6 +66,7 @@ export default [
       'eslint-rules/**', // ESLint rule definitions (CommonJS)
       'src/**', // Legacy source directory (pre-refactor)
       'k6/**', // k6 load testing scenarios (different runtime)
+      'tests/performance/**/*.js', // k6 load tests (different runtime)
       'playwright.config.simple.ts', // Simplified Playwright config
       'server/lib/wasm-worker.js', // WASM worker (special case)
       '**/*.gen.ts',
@@ -363,6 +364,20 @@ export default [
       '@typescript-eslint/no-unsafe-argument': 'off',
       // Prevent pool creation at import time in skipped tests (Phase 5 regression gate)
       'custom/no-db-import-in-skipped-tests': 'error',
+    },
+  },
+  // Security test files - allow testing dangerous patterns
+  {
+    files: ['tests/unit/security/**/*.ts'],
+    rules: {
+      'no-script-url': 'off', // Testing XSS scenarios requires javascript: URLs
+    },
+  },
+  // NaN equality test - intentionally testing NaN comparison
+  {
+    files: ['tests/unit/nan-equality.test.ts'],
+    rules: {
+      'use-isnan': 'off', // Testing NaN equality edge cases
     },
   },
   // Core reserves - deterministic math enforcement
