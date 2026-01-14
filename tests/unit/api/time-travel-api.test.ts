@@ -13,6 +13,12 @@
  * - Call service methods with correct arguments
  * - Format HTTP responses
  * - Handle concurrent requests
+ *
+ * @quarantine
+ * @reason Middleware dependencies - validation and queue provider not mockable in unit tests
+ * @owner nikhil
+ * @exit Refactor to use dependency injection or move to integration tests
+ * @date 2026-01-14
  */
 
 /**
@@ -45,18 +51,18 @@ vi.mock('../../../server/services/time-travel-analytics', () => {
 
 // Mock validation middleware
 vi.mock('../../../server/middleware/validation', () => ({
-  validateRequest: () => (req: any, res: any, next: any) => next()
+  validateRequest: () => (req: any, res: any, next: any) => next(),
 }));
 
 // Mock async handler
 vi.mock('../../../server/middleware/async', () => ({
-  asyncHandler: (fn: any) => fn
+  asyncHandler: (fn: any) => fn,
 }));
 
 // Mock errors
 vi.mock('../../../server/errors', () => ({
   NotFoundError: class NotFoundError extends Error {},
-  ValidationError: class ValidationError extends Error {}
+  ValidationError: class ValidationError extends Error {},
 }));
 
 // Mock logger
@@ -64,13 +70,13 @@ vi.mock('../../../server/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
-    warn: vi.fn()
-  }
+    warn: vi.fn(),
+  },
 }));
 
 // Mock metrics
 vi.mock('../../../server/metrics', () => ({
-  recordBusinessMetric: vi.fn()
+  recordBusinessMetric: vi.fn(),
 }));
 
 // Mock database (for snapshot creation endpoint that checks fund existence)
@@ -78,10 +84,10 @@ vi.mock('../../../server/db', () => ({
   db: {
     query: {
       funds: {
-        findFirst: vi.fn()
-      }
-    }
-  }
+        findFirst: vi.fn(),
+      },
+    },
+  },
 }));
 
 // Import the router and mock instance after mocking
@@ -89,7 +95,7 @@ import { db } from '../../../server/db';
 import timelineRouter from '../../../server/routes/timeline';
 import * as TimeTravelService from '../../../server/services/time-travel-analytics';
 
-const mockDb = db as any;
+const _mockDb = db as any;
 // Access the mock service instance
 const mockService = (TimeTravelService as any).__mockServiceInstance;
 
@@ -107,12 +113,12 @@ describe('Time-Travel Analytics API', () => {
     // Mock cache provider
     app.locals.cache = {
       get: vi.fn(),
-      set: vi.fn()
+      set: vi.fn(),
     };
 
     // Mock providers for snapshot creation
     app.locals.providers = {
-      queue: { enabled: false }
+      queue: { enabled: false },
     };
 
     // Mount the router at /api/timeline to match the API endpoints
@@ -132,7 +138,7 @@ describe('Time-Travel Analytics API', () => {
         fundId: 1,
         timeRange: {
           start: '2024-12-15T16:30:00Z',
-          end: '2024-12-31T17:00:00Z'
+          end: '2024-12-31T17:00:00Z',
         },
         events: [
           {
@@ -141,7 +147,7 @@ describe('Time-Travel Analytics API', () => {
             eventTime: '2024-12-15T16:30:00Z',
             operation: 'create',
             entityType: 'company',
-            metadata: { companyId: 1, amount: 500000 }
+            metadata: { companyId: 1, amount: 500000 },
           },
           {
             id: 'event-2',
@@ -149,8 +155,8 @@ describe('Time-Travel Analytics API', () => {
             eventTime: '2024-12-31T17:00:00Z',
             operation: 'update',
             entityType: 'company',
-            metadata: { companyId: 1, newValuation: 600000 }
-          }
+            metadata: { companyId: 1, newValuation: 600000 },
+          },
         ],
         snapshots: [
           {
@@ -158,29 +164,27 @@ describe('Time-Travel Analytics API', () => {
             snapshotTime: '2024-12-31T23:59:59Z',
             eventCount: 15,
             stateHash: 'abc123',
-            metadata: { type: 'quarterly' }
-          }
+            metadata: { type: 'quarterly' },
+          },
         ],
         pagination: {
           total: 2,
           limit: 100,
           offset: 0,
-          hasMore: false
-        }
+          hasMore: false,
+        },
       };
 
       mockService.getTimelineEvents.mockResolvedValue(mockResult);
 
-      const response = await request(app)
-        .get('/api/timeline/1')
-        .expect(200);
+      const response = await request(app).get('/api/timeline/1').expect(200);
 
       // Verify service was called correctly
       expect(mockService.getTimelineEvents).toHaveBeenCalledWith(1, {
         startTime: undefined,
         endTime: undefined,
         limit: 100,
-        offset: 0
+        offset: 0,
       });
 
       // Verify HTTP response
@@ -192,7 +196,7 @@ describe('Time-Travel Analytics API', () => {
         fundId: 1,
         timeRange: {
           start: '2024-01-01T00:00:00Z',
-          end: '2024-12-31T23:59:59Z'
+          end: '2024-12-31T23:59:59Z',
         },
         events: [],
         snapshots: [],
@@ -200,14 +204,16 @@ describe('Time-Travel Analytics API', () => {
           total: 0,
           limit: 50,
           offset: 10,
-          hasMore: false
-        }
+          hasMore: false,
+        },
       };
 
       mockService.getTimelineEvents.mockResolvedValue(mockResult);
 
       const response = await request(app)
-        .get('/api/timeline/1?startTime=2024-01-01T00:00:00Z&endTime=2024-12-31T23:59:59Z&limit=50&offset=10')
+        .get(
+          '/api/timeline/1?startTime=2024-01-01T00:00:00Z&endTime=2024-12-31T23:59:59Z&limit=50&offset=10'
+        )
         .expect(200);
 
       // Verify service was called with parsed parameters
@@ -215,7 +221,7 @@ describe('Time-Travel Analytics API', () => {
         startTime: new Date('2024-01-01T00:00:00Z'),
         endTime: new Date('2024-12-31T23:59:59Z'),
         limit: 50,
-        offset: 10
+        offset: 10,
       });
 
       expect(response.body).toEqual(mockResult);
@@ -238,7 +244,7 @@ describe('Time-Travel Analytics API', () => {
           id: 'snapshot-1',
           time: new Date('2024-12-30T23:59:59Z'),
           eventCount: 10,
-          stateHash: 'abc123'
+          stateHash: 'abc123',
         },
         state: timeTravelFixtures.snapshots.quarterlySnapshot.portfolio_state,
         eventsApplied: 1,
@@ -247,9 +253,9 @@ describe('Time-Travel Analytics API', () => {
             id: 'event-1',
             eventTime: new Date('2024-12-31T12:00:00Z'),
             eventType: 'valuation',
-            operation: 'update'
-          }
-        ]
+            operation: 'update',
+          },
+        ],
       };
 
       mockService.getStateAtTime.mockResolvedValue(mockResult);
@@ -280,10 +286,10 @@ describe('Time-Travel Analytics API', () => {
           id: 'cached-snapshot',
           time: new Date('2024-12-30T23:59:59Z'),
           eventCount: 5,
-          stateHash: 'cached123'
+          stateHash: 'cached123',
         },
         state: { totalValue: 2500000 },
-        eventsApplied: 0
+        eventsApplied: 0,
       };
 
       // Service returns cached result
@@ -349,24 +355,26 @@ describe('Time-Travel Analytics API', () => {
           timestamp2: '2024-12-31T23:59:59.000Z',
           state1: {
             snapshotId: 'snapshot-1',
-            eventCount: 5
+            eventCount: 5,
           },
           state2: {
             snapshotId: 'snapshot-2',
-            eventCount: 8
-          }
+            eventCount: 8,
+          },
         },
         differences: [{ op: 'replace', path: '', value: 'States differ' }],
         summary: {
           totalChanges: 1,
-          timeSpan: 86400000 // 1 day in milliseconds
-        }
+          timeSpan: 86400000, // 1 day in milliseconds
+        },
       };
 
       mockService.compareStates.mockResolvedValue(mockResult);
 
       const response = await request(app)
-        .get('/api/timeline/1/compare?timestamp1=2024-11-30T23:59:59Z&timestamp2=2024-12-31T23:59:59Z&includeDiff=true')
+        .get(
+          '/api/timeline/1/compare?timestamp1=2024-11-30T23:59:59Z&timestamp2=2024-12-31T23:59:59Z&includeDiff=true'
+        )
         .expect(200);
 
       // Verify service was called correctly
@@ -402,24 +410,26 @@ describe('Time-Travel Analytics API', () => {
           timestamp2: '2024-12-31T23:59:59.000Z',
           state1: {
             snapshotId: 'snapshot-1',
-            eventCount: 5
+            eventCount: 5,
           },
           state2: {
             snapshotId: 'snapshot-2',
-            eventCount: 8
-          }
+            eventCount: 8,
+          },
         },
         differences: null,
         summary: {
           totalChanges: 0,
-          timeSpan: 86400000
-        }
+          timeSpan: 86400000,
+        },
       };
 
       mockService.compareStates.mockResolvedValue(mockResult);
 
       const response = await request(app)
-        .get('/api/timeline/1/compare?timestamp1=2024-11-30T23:59:59Z&timestamp2=2024-12-31T23:59:59Z&includeDiff=false')
+        .get(
+          '/api/timeline/1/compare?timestamp1=2024-11-30T23:59:59Z&timestamp2=2024-12-31T23:59:59Z&includeDiff=false'
+        )
         .expect(200);
 
       expect(response.body.differences).toBeNull();
@@ -442,7 +452,7 @@ describe('Time-Travel Analytics API', () => {
             operation: 'create',
             entityType: 'company',
             metadata: { amount: 500000 },
-            fundName: 'Fund 1'
+            fundName: 'Fund 1',
           },
           {
             id: 'event-2',
@@ -452,17 +462,15 @@ describe('Time-Travel Analytics API', () => {
             operation: 'update',
             entityType: 'company',
             metadata: { proceeds: 1000000 },
-            fundName: 'Fund 2'
-          }
+            fundName: 'Fund 2',
+          },
         ],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       mockService.getLatestEvents.mockResolvedValue(mockResult);
 
-      const response = await request(app)
-        .get('/api/timeline/events/latest?limit=10')
-        .expect(200);
+      const response = await request(app).get('/api/timeline/events/latest?limit=10').expect(200);
 
       // Verify service was called correctly
       expect(mockService.getLatestEvents).toHaveBeenCalledWith(10, undefined);
@@ -484,10 +492,10 @@ describe('Time-Travel Analytics API', () => {
             eventTime: new Date('2024-12-31T16:30:00Z'),
             operation: 'create',
             entityType: 'company',
-            fundName: 'Fund 1'
-          }
+            fundName: 'Fund 1',
+          },
         ],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       mockService.getLatestEvents.mockResolvedValue(mockResult);
@@ -505,14 +513,12 @@ describe('Time-Travel Analytics API', () => {
     it('should use default limit when not provided', async () => {
       const mockResult = {
         events: [],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       mockService.getLatestEvents.mockResolvedValue(mockResult);
 
-      const response = await request(app)
-        .get('/api/timeline/events/latest')
-        .expect(200);
+      const response = await request(app).get('/api/timeline/events/latest').expect(200);
 
       // Verify service was called with default limit
       expect(mockService.getLatestEvents).toHaveBeenCalledWith(20, undefined);
@@ -533,10 +539,10 @@ describe('Time-Travel Analytics API', () => {
           id: 'snapshot-1',
           time: new Date('2024-12-30T23:59:59Z'),
           eventCount: 10,
-          stateHash: 'abc123'
+          stateHash: 'abc123',
         },
         state: { totalValue: 2500000 },
-        eventsApplied: 3
+        eventsApplied: 3,
       };
 
       mockService.getStateAtTime.mockResolvedValue(mockResult);
@@ -558,7 +564,7 @@ describe('Time-Travel Analytics API', () => {
     });
 
     it('should handle invalid JSON in request body', async () => {
-      const response = await request(app)
+      const _response = await request(app)
         .post('/api/timeline/1/snapshot')
         .type('json')
         .send('{"invalid": json}')
@@ -575,24 +581,24 @@ describe('Time-Travel Analytics API', () => {
           id: 'snapshot-1',
           time: new Date('2024-12-30T23:59:59Z'),
           eventCount: 10,
-          stateHash: 'abc123'
+          stateHash: 'abc123',
         },
         state: { totalValue: 2500000 },
-        eventsApplied: 0
+        eventsApplied: 0,
       };
 
       // Service handles caching internally
       mockService.getStateAtTime.mockResolvedValue(mockResult);
 
       // Make concurrent requests
-      const requests = Array(5).fill(null).map(() =>
-        request(app).get('/api/timeline/1/state?timestamp=2024-12-31T23:59:59Z')
-      );
+      const requests = Array(5)
+        .fill(null)
+        .map(() => request(app).get('/api/timeline/1/state?timestamp=2024-12-31T23:59:59Z'));
 
       const responses = await Promise.all(requests);
 
       // All should succeed
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect(response.status).toBe(200);
         expect(response.body.snapshot.id).toBe('snapshot-1');
       });
@@ -611,19 +617,17 @@ describe('Time-Travel Analytics API', () => {
           id: 'snapshot-1',
           time: new Date('2024-12-30T23:59:59Z'),
           eventCount: 10,
-          stateHash: 'abc123'
+          stateHash: 'abc123',
         },
         state: { totalValue: 2500000 },
-        eventsApplied: 0
+        eventsApplied: 0,
       };
 
       // Service handles caching internally
       mockService.getStateAtTime.mockResolvedValue(mockResult);
 
       // First request
-      await request(app)
-        .get('/api/timeline/1/state?timestamp=2024-12-31T23:59:59Z')
-        .expect(200);
+      await request(app).get('/api/timeline/1/state?timestamp=2024-12-31T23:59:59Z').expect(200);
 
       // Second request
       const response = await request(app)
@@ -638,14 +642,16 @@ describe('Time-Travel Analytics API', () => {
     });
 
     it('should handle large timeline queries efficiently', async () => {
-      const largeEventSet = Array(100).fill(null).map((_, i) => ({
-        id: `event-${i}`,
-        eventType: 'investment',
-        eventTime: new Date(Date.now() - i * 86400000),
-        operation: 'create',
-        entityType: 'company',
-        metadata: { amount: Math.random() * 1000000 }
-      }));
+      const largeEventSet = Array(100)
+        .fill(null)
+        .map((_, i) => ({
+          id: `event-${i}`,
+          eventType: 'investment',
+          eventTime: new Date(Date.now() - i * 86400000),
+          operation: 'create',
+          entityType: 'company',
+          metadata: { amount: Math.random() * 1000000 },
+        }));
 
       const mockResult = {
         fundId: 1,
@@ -656,16 +662,14 @@ describe('Time-Travel Analytics API', () => {
           total: 1000,
           limit: 100,
           offset: 0,
-          hasMore: true
-        }
+          hasMore: true,
+        },
       };
 
       mockService.getTimelineEvents.mockResolvedValue(mockResult);
 
       const startTime = Date.now();
-      const response = await request(app)
-        .get('/api/timeline/1?limit=100')
-        .expect(200);
+      const response = await request(app).get('/api/timeline/1?limit=100').expect(200);
       const executionTime = Date.now() - startTime;
 
       expect(response.body.events).toHaveLength(100);
@@ -691,15 +695,13 @@ describe('Time-Travel Analytics API', () => {
           total: 0,
           limit: 99999, // Service receives the raw value
           offset: -1,
-          hasMore: false
-        }
+          hasMore: false,
+        },
       };
 
       mockService.getTimelineEvents.mockResolvedValue(mockResult);
 
-      const response = await request(app)
-        .get('/api/timeline/1?limit=99999&offset=-1')
-        .expect(200);
+      const response = await request(app).get('/api/timeline/1?limit=99999&offset=-1').expect(200);
 
       // Validation middleware should catch these, but if not, service handles it
       expect(response.body.events).toEqual([]);
@@ -710,7 +712,7 @@ describe('Time-Travel Analytics API', () => {
         fundId: 1,
         timeRange: {
           start: '2024-01-01T00:00:00+00:00',
-          end: undefined
+          end: undefined,
         },
         events: [],
         snapshots: [],
@@ -718,8 +720,8 @@ describe('Time-Travel Analytics API', () => {
           total: 0,
           limit: 100,
           offset: 0,
-          hasMore: false
-        }
+          hasMore: false,
+        },
       };
 
       mockService.getTimelineEvents.mockResolvedValue(mockResult);
@@ -753,24 +755,26 @@ describe('Time-Travel Analytics API', () => {
           timestamp2: '2024-12-31T23:59:59.000Z',
           state1: {
             snapshotId: 'snapshot-1',
-            eventCount: 5
+            eventCount: 5,
           },
           state2: {
             snapshotId: 'snapshot-1',
-            eventCount: 5
-          }
+            eventCount: 5,
+          },
         },
         differences: [],
         summary: {
           totalChanges: 0,
-          timeSpan: 0
-        }
+          timeSpan: 0,
+        },
       };
 
       mockService.compareStates.mockResolvedValue(mockResult);
 
       const response = await request(app)
-        .get('/api/timeline/1/compare?timestamp1=2024-12-31T23:59:59Z&timestamp2=2024-12-31T23:59:59Z')
+        .get(
+          '/api/timeline/1/compare?timestamp1=2024-12-31T23:59:59Z&timestamp2=2024-12-31T23:59:59Z'
+        )
         .expect(200);
 
       expect(response.body.summary.timeSpan).toBe(0);
@@ -784,24 +788,26 @@ describe('Time-Travel Analytics API', () => {
           timestamp2: '2024-01-01T00:00:00.000Z',
           state1: {
             snapshotId: 'snapshot-2',
-            eventCount: 10
+            eventCount: 10,
           },
           state2: {
             snapshotId: 'snapshot-1',
-            eventCount: 2
-          }
+            eventCount: 2,
+          },
         },
         differences: [{ op: 'replace', path: '', value: 'States differ' }],
         summary: {
           totalChanges: 1,
-          timeSpan: 31535999000 // ~365 days in milliseconds
-        }
+          timeSpan: 31535999000, // ~365 days in milliseconds
+        },
       };
 
       mockService.compareStates.mockResolvedValue(mockResult);
 
       const response = await request(app)
-        .get('/api/timeline/1/compare?timestamp1=2024-12-31T23:59:59Z&timestamp2=2024-01-01T00:00:00Z')
+        .get(
+          '/api/timeline/1/compare?timestamp1=2024-12-31T23:59:59Z&timestamp2=2024-01-01T00:00:00Z'
+        )
         .expect(200);
 
       expect(response.body.summary.timeSpan).toBeGreaterThan(0);

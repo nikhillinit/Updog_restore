@@ -9,6 +9,12 @@
  * @group api
  * @group allocations
  * @group integration
+ *
+ * @quarantine
+ * @reason Feature flag disabled - requires ENABLE_PHASE4_TESTS=true and real PostgreSQL
+ * @owner nikhil
+ * @exit Enable feature flag in CI, convert to database mocks, or move to E2E suite
+ * @date 2026-01-14
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
