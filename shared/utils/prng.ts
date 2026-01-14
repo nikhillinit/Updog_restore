@@ -46,9 +46,19 @@ export class PRNG {
    * @param mean - Mean of the normal distribution
    * @param stdDev - Standard deviation of the normal distribution
    * @returns Random number from normal distribution
+   *
+   * Zero-Variance Bridge: When stdDev <= 0, returns mean directly (deterministic).
+   * This enables Monte Carlo validation where vol=0 should produce identical scenarios.
    */
   nextNormal(mean: number = 0, stdDev: number = 1): number {
-    const u1 = this.next();
+    // Fast path: zero or negative stdDev always returns mean (deterministic mode)
+    if (stdDev <= 0) {
+      return mean;
+    }
+
+    // Clamp u1 to prevent log(0) = -Infinity which cascades to NaN
+    // Using 1e-10 caps at ~4.6 sigma events (Number.MIN_VALUE would allow 38 sigma)
+    const u1 = Math.max(this.next(), 1e-10);
     const u2 = this.next();
 
     // Box-Muller transform
