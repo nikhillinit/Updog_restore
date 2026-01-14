@@ -3,6 +3,12 @@
  *
  * Task 2.5: Validates the orchestrator's expectation mode,
  * stochastic mode, and reproducibility guarantees.
+ *
+ * @quarantine
+ * @reason Stochastic mode tests require Monte Carlo engine completion (Phase 2)
+ * @owner nikhil
+ * @exit Complete Phase 2 Monte Carlo implementation, enable stochastic tests
+ * @date 2026-01-14
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

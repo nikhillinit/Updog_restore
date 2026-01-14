@@ -275,6 +275,7 @@
     "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1",
     "test:main": "vitest run",
     "test:quarantine": "vitest -c vitest.config.quarantine.ts run",
+    "quarantine:report": "node scripts/quarantine-report.mjs",
     "test:plan": "bash scripts/test-plan.sh",
     "predev": "node scripts/ensure-sidecar.mjs",
     "prebuild": "node scripts/ensure-sidecar.mjs",

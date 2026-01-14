@@ -7,6 +7,12 @@
  * - Saved configuration CRUD
  * - Export functionality
  * - Access tracking
+ *
+ * @quarantine
+ * @reason Database migration required - tables not deployed to production
+ * @owner nikhil
+ * @exit Run npm run db:push after product approval, enable feature flag
+ * @date 2026-01-14
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

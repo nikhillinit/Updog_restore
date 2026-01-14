@@ -8,6 +8,12 @@
  * - Comparing scenarios
  * - Listing available scenarios
  * - Authentication and validation
+ *
+ * @quarantine
+ * @reason Feature flag disabled - requires ENABLE_BACKTESTING_TESTS=true
+ * @owner nikhil
+ * @exit Enable feature flag after backtesting feature is production-ready
+ * @date 2026-01-14
  */
 
 /**
