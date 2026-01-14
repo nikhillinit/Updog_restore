@@ -8,6 +8,8 @@ import type { XIRRResult } from '@/lib/finance/xirr';
 import type {
   AmericanWaterfallResult,
   AmericanWaterfallConfig,
+  ContributionCF,
+  ExitCF,
 } from '@/lib/waterfall/american-ledger';
 
 interface IrrResult extends XIRRResult {}
@@ -95,7 +97,12 @@ export function EnhancedAnalyticsPanel({
     let cancelled = false;
     setActiveCalculations((prev) => new Set(prev).add(id));
 
-    calculateWaterfall(wConfig as AmericanWaterfallConfig, contributions, exits, id).then((res) => {
+    calculateWaterfall(
+      wConfig as AmericanWaterfallConfig,
+      contributions as ContributionCF[],
+      exits as ExitCF[],
+      id
+    ).then((res) => {
       if (!cancelled) {
         setMetrics((m) => ({ ...m, wf: res as DistributionStats }));
         setActiveCalculations((prev) => {
