@@ -52,8 +52,15 @@ import {
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
+import { enforceSchemaIsolation, handleSchemaViolation } from '../middleware/schema-isolation';
 
 const router = Router();
+
+// ============================================================================
+// SCHEMA ISOLATION - Prevent LP access to simulation data
+// ============================================================================
+router.use(enforceSchemaIsolation('lp_portal'));
+router.use(handleSchemaViolation);
 
 // ============================================================================
 // RATE LIMITERS
