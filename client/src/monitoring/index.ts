@@ -4,40 +4,79 @@
  * excluded from the production bundle when VITE_SENTRY_DSN is not set
  */
 
+// Extended navigator and window types for DNT
+interface ExtendedNavigator extends Navigator {
+  msDoNotTrack?: string;
+}
+
+interface ExtendedWindow extends Window {
+  doNotTrack?: string;
+}
+
 // Check Do Not Track setting
-const isDNT = typeof navigator !== 'undefined' && 
-  (navigator.doNotTrack === '1' || 
-   (navigator as any).msDoNotTrack === '1' ||
-   (window as any).doNotTrack === '1');
+const _isDNT = typeof navigator !== 'undefined' &&
+  (navigator.doNotTrack === '1' ||
+   (navigator as ExtendedNavigator).msDoNotTrack === '1' ||
+   (window as ExtendedWindow).doNotTrack === '1');
 
 // Check user opt-out preference
-const isOptedOut = typeof localStorage !== 'undefined' && 
+const _isOptedOut = typeof localStorage !== 'undefined' &&
   localStorage.getItem('analyticsOptOut') === '1';
 
 // Compile-time flag set by Vite based on VITE_SENTRY_DSN
 declare const __SENTRY__: boolean;
 
 // Type definitions for when Sentry is excluded
+interface SentryUser {
+  id?: string;
+  email?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface SentryContext {
+  [key: string]: unknown;
+}
+
+interface SentryBreadcrumb {
+  message?: string;
+  category?: string;
+  level?: string;
+  [key: string]: unknown;
+}
+
+interface SentryInitOptions {
+  dsn?: string;
+  environment?: string;
+  [key: string]: unknown;
+}
+
+interface ReplayOptions {
+  maskAllText?: boolean;
+  blockAllMedia?: boolean;
+  [key: string]: unknown;
+}
+
 interface MockScope {
   setMeasurement: (_key: string, value: number) => void;
   setTag: (_key: string, value: string) => void;
-  setContext: (_key: string, value: any) => void;
-  setUser: (_user: any) => void;
+  setContext: (_key: string, value: SentryContext) => void;
+  setUser: (_user: SentryUser) => void;
   setLevel: (_level: string) => void;
 }
 
 interface MockSentry {
-  init: (options?: any) => void;
-  captureException: (_error: any, context?: any) => string;
+  init: (options?: SentryInitOptions) => void;
+  captureException: (_error: Error | unknown, context?: SentryContext) => string;
   captureMessage: (_message: string, level?: string) => string;
-  addBreadcrumb: (_breadcrumb: any) => void;
+  addBreadcrumb: (_breadcrumb: SentryBreadcrumb) => void;
   withScope: (_callback: (_scope: MockScope) => void) => void;
-  setUser: (_user: any) => void;
+  setUser: (_user: SentryUser) => void;
   setTag: (_key: string, value: string) => void;
-  setContext: (_key: string, value: any) => void;
+  setContext: (_key: string, value: SentryContext) => void;
   configureScope: (_callback: (_scope: MockScope) => void) => void;
-  browserTracingIntegration: () => any;
-  replayIntegration: (options?: any) => any;
+  browserTracingIntegration: () => Record<string, unknown>;
+  replayIntegration: (options?: ReplayOptions) => Record<string, unknown>;
 }
 
 // No-op implementations when Sentry is excluded
@@ -54,11 +93,11 @@ const noopSentry: MockSentry = {
   captureException: () => 'noop',
   captureMessage: () => 'noop',
   addBreadcrumb: () => {},
-  withScope: (callback: any) => callback(noopScope),
+  withScope: (callback: (_scope: MockScope) => void) => callback(noopScope),
   setUser: () => {},
   setTag: () => {},
   setContext: () => {},
-  configureScope: (callback: any) => callback(noopScope),
+  configureScope: (callback: (_scope: MockScope) => void) => callback(noopScope),
   browserTracingIntegration: () => ({}),
   replayIntegration: () => ({}),
 };

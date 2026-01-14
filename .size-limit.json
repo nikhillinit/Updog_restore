@@ -1,6 +1,6 @@
 [
   {
-    "name": "Critical Path (main entry)",
+    "name": "Initial Load (Critical Path)",
     "path": "dist/assets/index-*.js",
     "limit": "150 KB",
     "gzip": true
@@ -18,9 +18,9 @@
     "gzip": true
   },
   {
-    "name": "Total Bundle Size",
-    "path": "dist/assets/*.js",
-    "limit": "600 KB",
+    "name": "Chart Components (Recharts)",
+    "path": "dist/assets/ActiveShapeUtils-*.js",
+    "limit": "300 KB",
     "gzip": true
   }
 ]

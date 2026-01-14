@@ -63,7 +63,7 @@ vi.mock('../../server/db/typed-query', () => ({
 }));
 
 import versionsRouter from '../../server/routes/portfolio/versions';
-import { typedFindFirst, typedFindMany, typedInsert } from '../../server/db/typed-query';
+import { typedFindFirst, typedFindMany } from '../../server/db/typed-query';
 
 describe('Snapshot Version API', () => {
   let app: express.Express;

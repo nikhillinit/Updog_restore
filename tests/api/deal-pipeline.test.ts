@@ -14,22 +14,36 @@
  * @group integration
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import request from 'supertest';
-import { makeApp } from '../../server/app';
-import { pool } from '../../server/db/pg-circuit';
 import type { Express } from 'express';
+import type { Pool } from 'pg';
 
-describe.skip('Deal Pipeline API', () => {
+// Conditional describe - only run when ENABLE_PHASE4_TESTS is set
+const describeMaybe = process.env.ENABLE_PHASE4_TESTS === 'true' ? describe : describe.skip;
+
+describeMaybe('Deal Pipeline API', () => {
   // TODO: Re-enable after database migration
   // Required tables: deal_opportunities, due_diligence_items, pipeline_stages
   // Defined: shared/schema.ts deal pipeline section
   // Migration: npm run db:push (requires product approval)
   // Blocked by: Sprint 1 feature not yet released to production
 
+  // Dynamic imports - only load when suite actually runs
+  let pool: Pool;
+  let makeApp: typeof import('../../server/app').makeApp;
+
   let app: Express;
   let testFundId: number;
   let testDealId: number;
+
+  beforeAll(async () => {
+    // Dynamic import prevents pool creation when suite is skipped
+    const dbModule = await import('../../server/db/pg-circuit');
+    pool = dbModule.pool;
+    const appModule = await import('../../server/app');
+    makeApp = appModule.makeApp;
+  });
 
   beforeEach(async () => {
     app = makeApp();
