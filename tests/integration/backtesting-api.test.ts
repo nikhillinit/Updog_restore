@@ -22,14 +22,18 @@ import request from 'supertest';
 import express from 'express';
 import { registerRoutes } from '../../server/routes';
 import { errorHandler } from '../../server/errors';
-import { pool } from '../../server/db';
+import type { Pool } from 'pg';
 
-describe.skip('Backtesting API', () => {
+// Conditional describe - re-enable when cleanup complete
+const describeMaybe = process.env.ENABLE_BACKTESTING_TESTS === 'true' ? describe : describe.skip;
+
+describeMaybe('Backtesting API', () => {
   // TODO: Fix database pool cleanup issue (Option 2)
   // Issue: Neon serverless pool not properly cleaned up in afterAll
   // Error: "Cannot read properties of null (reading 'close')" from timeout handler
   // Root cause: Module initialization order - pool created before NODE_ENV set
   // Tracked in: Option 2 comprehensive integration test cleanup plan
+  let _pool: Pool | null = null;
   let server: ReturnType<typeof import('http').createServer>;
   let app: express.Express;
   let authToken: string;
@@ -58,6 +62,10 @@ describe.skip('Backtesting API', () => {
     request(server).get(path).set('Authorization', `Bearer ${authToken}`);
 
   beforeAll(async () => {
+    // Dynamic import prevents pool creation when suite is skipped
+    const dbModule = await import('../../server/db');
+    _pool = dbModule.pgPool;
+
     app = express();
     app.set('trust proxy', false);
     app.use(express.json({ limit: '1mb' }));
@@ -75,21 +83,8 @@ describe.skip('Backtesting API', () => {
   });
 
   afterAll(async () => {
-    // Clean up database pool FIRST (before server close)
-    // This prevents Neon serverless timeout errors
-    if (pool && typeof pool === 'object' && 'end' in pool) {
-      try {
-        await (pool as { end: () => Promise<void> }).end();
-      } catch (error) {
-        // Ignore pool cleanup errors - pool might already be closed
-        console.warn(
-          'Pool cleanup warning:',
-          error instanceof Error ? error.message : 'Unknown error'
-        );
-      }
-    }
-
-    // Close HTTP server last
+    // NOTE: Pool cleanup handled by globalTeardown, not here
+    // This prevents "singleton suicide" in parallel test runs
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });

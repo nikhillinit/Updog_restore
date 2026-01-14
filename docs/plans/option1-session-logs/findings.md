@@ -426,3 +426,58 @@ Skip pattern - Pragmatic temporary solution
 
 **Session completed**: 2026-01-13 04:50 UTC **Next session**: Option 2
 implementation (estimated 4-5 hours)
+
+---
+
+## Post-Session Update: Ultrathink Analysis (2026-01-13)
+
+### Critical Architecture Corrections Identified
+
+Three "stop ship" defects were found in the original Option 2 plan that would
+cause test suite failures in CI:
+
+**Defect 1: Singleton Suicide**
+
+- Problem: Calling `pool.end()` in per-file `afterAll` kills shared singleton
+- Impact: Parallel test files crash with "Client has been closed"
+- Fix: Use `globalTeardown` instead of per-file cleanup
+
+**Defect 2: Fake Transaction Isolation**
+
+- Problem: Drizzle auto-commits transactions on successful callback
+- Impact: Tests write data that persists, causing duplicate key violations
+- Fix: Use `RollbackToken` pattern - throw error to force rollback
+
+**Defect 3: Static Import Race Condition**
+
+- Problem: ESM imports execute BEFORE `beforeAll` runs
+- Impact: db.ts initializes with wrong env before test setup
+- Fix: Use dynamic imports inside `beforeAll`
+
+### New Phase 0 Added
+
+Highest-leverage fix: Ban top-level DB imports in skipped files.
+
+Key offenders:
+
+- `tests/integration/scenario-comparison-mvp.test.ts`
+- `tests/api/allocations.test.ts`
+- `tests/integration/circuit-breaker-db.test.ts`
+
+### Key Pattern Signature (Updated)
+
+**If you encounter similar errors, search for:**
+
+- "Singleton Suicide" / "Client has been closed"
+- "RollbackToken" pattern
+- "Dynamic imports in beforeAll"
+- "globalTeardown vs per-file afterAll"
+
+### Option 2 Plan Updated
+
+- Added Phase 0 (critical, blocking)
+- Corrected helper architecture
+- Changed target from 90% to 100% pass rate
+- Added regression prevention gates
+
+See: `docs/plans/option2-session-logs/task_plan.md` (revised)

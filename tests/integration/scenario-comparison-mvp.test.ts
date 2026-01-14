@@ -11,13 +11,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import { registerRoutes } from '../../server/routes.js';
-import { errorHandler } from '../../server/errors.js';
-import { db } from '../../server/db/index.js';
 import { scenarios, scenarioCases } from '@shared/schema';
 import { v4 as uuid } from 'uuid';
 
-describe.skip('Scenario Comparison MVP API', () => {
+// Conditional describe - only run when ENABLE_PHASE4_TESTS is set
+const describeMaybe = process.env.ENABLE_PHASE4_TESTS === 'true' ? describe : describe.skip;
+
+describeMaybe('Scenario Comparison MVP API', () => {
   // TODO: Re-enable after database migration
   // Required tables: fund_strategy_models, portfolio_scenarios,
   //   reserve_allocation_strategies, performance_forecasts
@@ -32,7 +32,20 @@ describe.skip('Scenario Comparison MVP API', () => {
   let baseScenarioId: string;
   let comparisonScenarioId: string;
 
+  // Dynamic imports - only load when suite actually runs
+  let db: Awaited<typeof import('../../server/db/index.js')>['db'];
+  let registerRoutes: typeof import('../../server/routes.js').registerRoutes;
+  let errorHandler: typeof import('../../server/errors.js').errorHandler;
+
   beforeAll(async () => {
+    // Dynamic imports prevent DB connection when suite is skipped
+    const dbModule = await import('../../server/db/index.js');
+    db = dbModule.db;
+    const routesModule = await import('../../server/routes.js');
+    registerRoutes = routesModule.registerRoutes;
+    const errorsModule = await import('../../server/errors.js');
+    errorHandler = errorsModule.errorHandler;
+
     // Setup Express app
     app = express();
     app.set('trust proxy', false);

@@ -8,30 +8,45 @@
  * from server/db module. Skipping until proper integration test environment is configured.
  */
 import { describe, it, expect, beforeAll, afterAll, vi, test } from 'vitest';
-import {
-  q,
-  query,
-  queryWithRetry,
-  pgPool,
-  redisGet,
-  redisSet,
-  cache,
-  checkDatabaseHealth,
-  shutdownDatabases,
-} from '../../server/db';
-import { breakerRegistry } from '../../server/infra/circuit-breaker/breaker-registry';
+
+// Type imports only - no runtime side effects
+import type { Pool as PgPoolType } from 'pg';
 
 if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
 
-describe.skip('Database Circuit Breakers', () => {
-  // Skip tests if in CI without database
-  const skipInCI = process.env.CI && !process.env.DATABASE_URL;
+// Conditional describe - only run when DATABASE_URL is available
+const describeMaybe = process.env.DATABASE_URL ? describe : describe.skip;
 
-  beforeAll(() => {
-    if (skipInCI) {
-      console.log('Skipping database tests in CI without DATABASE_URL');
-      return;
-    }
+describeMaybe('Database Circuit Breakers', () => {
+  // Dynamic imports - loaded only when suite runs
+  let q: (sql: string, params?: unknown[]) => Promise<unknown[]>;
+  let query: (sql: string, params?: unknown[]) => Promise<unknown>;
+  let queryWithRetry: Awaited<typeof import('../../server/db')>['queryWithRetry'];
+  let _pgPool: PgPoolType;
+  let redisGet: Awaited<typeof import('../../server/db')>['redisGet'];
+  let redisSet: Awaited<typeof import('../../server/db')>['redisSet'];
+  let cache: Awaited<typeof import('../../server/db')>['cache'];
+  let checkDatabaseHealth: Awaited<typeof import('../../server/db')>['checkDatabaseHealth'];
+  let _shutdownDatabases: Awaited<typeof import('../../server/db')>['shutdownDatabases'];
+  let breakerRegistry: Awaited<
+    typeof import('../../server/infra/circuit-breaker/breaker-registry')
+  >['breakerRegistry'];
+
+  beforeAll(async () => {
+    // Dynamic imports - only execute when suite actually runs
+    const dbModule = await import('../../server/db');
+    q = dbModule.q;
+    query = dbModule.query;
+    queryWithRetry = dbModule.queryWithRetry;
+    _pgPool = dbModule.pgPool;
+    redisGet = dbModule.redisGet;
+    redisSet = dbModule.redisSet;
+    cache = dbModule.cache;
+    checkDatabaseHealth = dbModule.checkDatabaseHealth;
+    _shutdownDatabases = dbModule.shutdownDatabases;
+
+    const breakerModule = await import('../../server/infra/circuit-breaker/breaker-registry');
+    breakerRegistry = breakerModule.breakerRegistry;
 
     // Enable circuit breakers for tests
     process.env.CB_DB_ENABLED = 'true';
@@ -39,19 +54,19 @@ describe.skip('Database Circuit Breakers', () => {
   });
 
   afterAll(async () => {
-    if (!skipInCI) {
-      await shutdownDatabases();
-    }
+    // NOTE: Pool cleanup handled by globalTeardown, not here
+    // This prevents "singleton suicide" in parallel test runs
+    vi.clearAllMocks();
   });
 
   describe('PostgreSQL Circuit Breaker', () => {
-    it.skipIf(skipInCI)('should execute successful queries', async () => {
+    it('should execute successful queries', async () => {
       const result = await q('SELECT 1 as value');
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({ value: 1 });
     });
 
-    it.skipIf(skipInCI)('should handle query timeout', async () => {
+    it('should handle query timeout', async () => {
       // Simulate slow query
       const slowQuery = 'SELECT pg_sleep(15)'; // 15 second sleep
 
@@ -62,7 +77,7 @@ describe.skip('Database Circuit Breakers', () => {
       console.log('Circuit breaker state after timeout:', state);
     });
 
-    it.skipIf(skipInCI)('should retry with backoff', async () => {
+    it('should retry with backoff', async () => {
       let attempts = 0;
       const _failingQuery = vi.fn().mockImplementation(() => {
         attempts++;
@@ -82,7 +97,7 @@ describe.skip('Database Circuit Breakers', () => {
       expect(result).toBeDefined();
     });
 
-    it.skipIf(skipInCI)('should record query metrics', async () => {
+    it('should record query metrics', async () => {
       // Execute some queries
       await q('SELECT 1');
       await q('SELECT 2');
@@ -96,7 +111,7 @@ describe.skip('Database Circuit Breakers', () => {
   });
 
   describe('Redis Circuit Breaker', () => {
-    it.skipIf(skipInCI)('should handle get/set operations', async () => {
+    it('should handle get/set operations', async () => {
       const key = 'test:circuit:key';
       const value = 'test-value';
 
@@ -106,7 +121,7 @@ describe.skip('Database Circuit Breakers', () => {
       expect(retrieved).toBe(value);
     });
 
-    it.skipIf(skipInCI)('should fall back to memory cache on Redis failure', async () => {
+    it('should fall back to memory cache on Redis failure', async () => {
       const key = 'test:fallback:key';
       const value = 'fallback-value';
 
@@ -125,7 +140,7 @@ describe.skip('Database Circuit Breakers', () => {
       await redis.connect();
     });
 
-    it.skipIf(skipInCI)('should handle JSON operations', async () => {
+    it('should handle JSON operations', async () => {
       const key = 'test:json:key';
       const data = { id: 1, name: 'Test', values: [1, 2, 3] };
 
@@ -135,7 +150,7 @@ describe.skip('Database Circuit Breakers', () => {
       expect(retrieved).toEqual(data);
     });
 
-    it.skipIf(skipInCI)('should record cache metrics', async () => {
+    it('should record cache metrics', async () => {
       // Perform some operations
       await redisSet('metric:1', 'value1');
       await redisGet('metric:1'); // Hit
@@ -149,7 +164,7 @@ describe.skip('Database Circuit Breakers', () => {
   });
 
   describe('Combined Health Checks', () => {
-    it.skipIf(skipInCI)('should check all database health', async () => {
+    it('should check all database health', async () => {
       const health = await checkDatabaseHealth();
 
       expect(health).toHaveProperty('postgres');
@@ -180,15 +195,21 @@ describe.skip('Database Circuit Breakers', () => {
       expect(Array.isArray(degraded)).toBe(true);
 
       // Should initially have no degraded services
-      if (!skipInCI) {
-        expect(degraded).toHaveLength(0);
-      }
+      expect(degraded).toHaveLength(0);
     });
   });
 });
 
-describe.skip('Chaos Testing', () => {
-  const _skipInCI = process.env.CI && !process.env.DATABASE_URL;
+describeMaybe.skip('Chaos Testing', () => {
+  // Dynamic imports - loaded only when suite runs
+  let pgPool: PgPoolType;
+  let cache: Awaited<typeof import('../../server/db')>['cache'];
+
+  beforeAll(async () => {
+    const dbModule = await import('../../server/db');
+    pgPool = dbModule.pgPool;
+    cache = dbModule.cache;
+  });
 
   it('should handle database connection loss', async () => {
     // Simulate connection pool exhaustion
