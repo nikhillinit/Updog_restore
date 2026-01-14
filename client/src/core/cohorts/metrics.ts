@@ -6,12 +6,7 @@
  */
 
 import type { CashFlowEvent, CohortRow, CoverageSummaryType } from '@shared/types';
-import {
-  groupEventsByCohortSector,
-  aggregateCashFlowsByDate,
-  calculateCashFlowTotals,
-  hasResidualValue,
-} from './cash-flows';
+import { aggregateCashFlowsByDate, calculateCashFlowTotals, hasResidualValue } from './cash-flows';
 
 /**
  * Newton-Raphson XIRR implementation
@@ -63,7 +58,7 @@ export function calculateXIRR(
   // NPV derivative function
   const npvDerivative = (rate: number): number => {
     return daysFromStart.reduce((sum, cf) => {
-      return sum + (-cf.days / 365) * cf.amount / Math.pow(1 + rate, cf.days / 365 + 1);
+      return sum + ((-cf.days / 365) * cf.amount) / Math.pow(1 + rate, cf.days / 365 + 1);
     }, 0);
   };
 

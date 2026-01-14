@@ -92,6 +92,7 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
+          globalTeardown: './tests/setup/global-teardown.ts',
           // Simplified: All .test.ts files run in Node environment (including perf tests)
           include: [
             'tests/unit/**/*.test.ts',

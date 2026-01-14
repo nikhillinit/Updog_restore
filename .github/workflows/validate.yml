@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CACHE_BUSTER: v2  # Bump this to force cache refresh
+  CACHE_BUSTER: v2 # Bump this to force cache refresh
 
 jobs:
   validate:
@@ -37,6 +37,8 @@ jobs:
           fi
 
       - name: Lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           if npm run | grep -qE '^\s+lint\s*$'; then
             npm run lint || true  # Allow warnings initially

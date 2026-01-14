@@ -24,10 +24,7 @@ import {
   investments,
   investmentLots,
 } from '@shared/schema';
-import {
-  CohortAnalyzeRequestSchema,
-  CohortAnalyzeResponseSchema,
-} from '@shared/types';
+import { CohortAnalyzeRequestSchema, CohortAnalyzeResponseSchema } from '@shared/types';
 import { normalizeSector, slugifySector } from '@shared/utils/sector-normalization';
 
 const router = express.Router();
@@ -37,10 +34,7 @@ const router = express.Router();
  */
 function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'ZodError'
+    typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
 }
 
@@ -195,9 +189,7 @@ router['post']('/analyze', async (req: Request, res: Response) => {
       .where(eq(investments.fundId, fundId));
 
     // Import and run the analysis engine dynamically to avoid circular imports
-    const { analyzeCohorts } = await import(
-      '../../client/src/core/cohorts/advanced-engine.js'
-    );
+    const { analyzeCohorts } = await import('../../client/src/core/cohorts/advanced-engine.js');
 
     const response = analyzeCohorts({
       request,
@@ -287,10 +279,7 @@ router['get']('/unmapped', async (req: Request, res: Response) => {
       })
       .from(sectorMappings)
       .where(
-        and(
-          eq(sectorMappings.fundId, fundId),
-          eq(sectorMappings.taxonomyVersion, taxonomyVersion)
-        )
+        and(eq(sectorMappings.fundId, fundId), eq(sectorMappings.taxonomyVersion, taxonomyVersion))
       );
 
     const mappedValues = new Set(existingMappings.map((m) => m.rawValueNormalized));
@@ -465,7 +454,7 @@ router['get']('/definitions', async (req: Request, res: Response) => {
   try {
     const { fundId, unit, includeArchived } = ListDefinitionsQuerySchema.parse(req.query);
 
-    let query = db
+    const query = db
       .select()
       .from(cohortDefinitions)
       .where(eq(cohortDefinitions.fundId, fundId))
@@ -620,7 +609,7 @@ router['post']('/seed', async (req: Request, res: Response) => {
     }
 
     // Create system "Unmapped" sector
-    const [unmappedSector] = await db
+    const [_unmappedSector] = await db
       .insert(sectorTaxonomy)
       .values({
         fundId,

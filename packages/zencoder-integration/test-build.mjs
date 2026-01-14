@@ -1,4 +1,4 @@
-/* eslint-disable no-undef */
+ 
 // Build verification test - checks that the package built correctly
 import { readFileSync, existsSync } from 'fs';
 
