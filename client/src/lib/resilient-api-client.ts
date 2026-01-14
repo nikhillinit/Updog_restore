@@ -3,6 +3,9 @@
  * Provides reliable communication with the backend API
  */
 
+import type { EngineAllocation } from '@/core/reserves/types';
+import type { ParityDataset, ParityValidationResult } from '@/lib/excel-parity-validator';
+
 interface ApiClientConfig {
   baseUrl?: string;
   timeoutMs?: number;
@@ -19,12 +22,53 @@ interface CircuitBreakerState {
   state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 }
 
-function isRetryableError(error: any): boolean {
+interface RetryableErrorLike {
+  name?: string;
+  status?: number;
+}
+
+interface HttpError extends Error {
+  status?: number;
+}
+
+type ReserveCalculationInput = ParityDataset['input'];
+
+interface ReserveCalculationResponse {
+  allocations: EngineAllocation[];
+  totalAllocated: number;
+  remaining: number;
+  rid: string;
+}
+
+interface ParityValidationSummary {
+  passed: number;
+  failed: number;
+  results: ParityValidationResult[];
+  overallPassRate: number;
+}
+
+type ParityValidationResponse = ParityValidationResult | ParityValidationSummary;
+
+interface ReservesHealthResponse {
+  status?: 'ok' | 'degraded' | 'down';
+  features?: Record<string, boolean>;
+  version?: string;
+  timestamp?: string;
+}
+
+interface ReservesConfigResponse {
+  '/healthz': string;
+  '/readyz': string;
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false;
+  const { name, status } = error as RetryableErrorLike;
   // Network errors
-  if (error.name === 'AbortError' || error.name === 'TypeError') return true;
-  
+  if (name === 'AbortError' || name === 'TypeError') return true;
+
   // HTTP status codes that should be retried
-  const status = error.status;
+  if (typeof status !== 'number') return false;
   return status >= 500 || status === 429 || status === 408 || status === 0;
 }
 
@@ -44,7 +88,7 @@ export class ResilientApiClient {
 
   constructor(config: ApiClientConfig = {}) {
     this.config = {
-      baseUrl: config.baseUrl || import.meta.env.VITE_API_BASE_URL || '',
+      baseUrl: config.baseUrl || (import.meta.env.VITE_API_BASE_URL as string | undefined) || '',
       timeoutMs: config.timeoutMs || 15000,
       maxRetries: config.maxRetries || 3,
       baseDelayMs: config.baseDelayMs || 1000,
@@ -160,12 +204,12 @@ export class ResilientApiClient {
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
-        const error = new Error(errorText) as any;
+        const error: HttpError = new Error(errorText);
         error.status = response.status;
         throw error;
       }
       
-      return await response.json();
+      return await response.json() as T;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -189,12 +233,12 @@ export class ResilientApiClient {
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
-        const error = new Error(errorText) as any;
+        const error: HttpError = new Error(errorText);
         error.status = response.status;
         throw error;
       }
       
-      return await response.json();
+      return await response.json() as T;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -271,33 +315,28 @@ export const reservesApi = {
   /**
    * Calculate reserve allocations
    */
-  calculate: async (data: {
-    companies: any[];
-    availableReserves: number;
-    policies: any[];
-    constraints?: any;
-  }) => {
-    return apiClient.post<any>('/v1/reserves/calculate', data);
+  calculate: async (data: ReserveCalculationInput) => {
+    return apiClient.post<ReserveCalculationResponse>('/v1/reserves/calculate', data);
   },
 
   /**
    * Validate parity with Excel
    */
-  validateParity: async (dataset?: any) => {
-    return apiClient.post<any>('/v1/reserves/validate-parity', { dataset });
+  validateParity: async (dataset?: ParityDataset | ParityDataset[]) => {
+    return apiClient.post<ParityValidationResponse>('/v1/reserves/validate-parity', { dataset });
   },
 
   /**
    * Get API health status
    */
   health: async () => {
-    return apiClient.get<any>('/v1/reserves/health');
+    return apiClient.get<ReservesHealthResponse>('/v1/reserves/health');
   },
 
   /**
    * Get API configuration
    */
   config: async () => {
-    return apiClient.get<any>('/v1/reserves/config');
+    return apiClient.get<ReservesConfigResponse>('/v1/reserves/config');
   },
 };

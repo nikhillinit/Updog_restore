@@ -13,10 +13,29 @@ import { adaptFundToReservesInput, adaptReservesConfig } from '@/adapters/reserv
 import { metrics, auditLog } from '@/metrics/reserves-metrics';
 import { formatQuarter, getCurrentQuarter } from '@/lib/quarter-time';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+import type { Fund } from '@shared/schema';
+import type { ReservesConfig } from '@shared/schemas/reserves-schemas';
+
+interface ReserveCalculationResult {
+  ok: boolean;
+  data?: {
+    metadata: {
+      total_available_cents: number;
+      total_allocated_cents: number;
+      companies_funded: number;
+    };
+    remaining_cents: number;
+  };
+  warnings?: string[];
+  error?: string;
+  metrics?: {
+    duration_ms: number;
+  };
+}
 
 interface ReserveStepProps {
-  fund: any; // Your existing fund type
-  onComplete: (_reserveConfig: any) => void;
+  fund: Fund;
+  onComplete: (_reserveConfig: ReservesConfig) => void;
   onBack?: () => void;
 }
 
@@ -37,7 +56,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
   });
   
   // Results state
-  const [calculationResult, setCalculationResult] = useState<any>(null);
+  const [calculationResult, setCalculationResult] = useState<ReserveCalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -111,9 +130,12 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
   
   // Run calculation on config change
   useEffect(() => {
-    if (fund?.companies?.length > 0) {
+    const hasCompanies = fund && 'companies' in fund && Array.isArray(fund.companies) && fund.companies.length > 0;
+    if (hasCompanies) {
       runCalculation();
     }
+    // Disable exhaustive-deps: runCalculation uses fund internally, adding it would cause infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservePercent, enableRemainPass, capPolicy, defaultCapPercent, stageCaps]);
   
   // Handle completion
@@ -170,7 +192,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                   max="100"
                   step="1"
                   value={reservePercent}
-                  onChange={(e: any) => setReservePercent(Number(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReservePercent(Number(e.target.value))}
                   className="w-20"
                   aria-label="Reserve percentage"
                 />
@@ -218,7 +240,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="cap-policy">Cap Strategy</Label>
-            <Select value={capPolicy} onValueChange={(value: any) => setCapPolicy(value)}>
+            <Select value={capPolicy} onValueChange={(value: 'fixed' | 'stage' | 'custom') => setCapPolicy(value)}>
               <SelectTrigger id="cap-policy">
                 <SelectValue />
               </SelectTrigger>
@@ -242,7 +264,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                     max="200"
                     step="5"
                     value={defaultCapPercent}
-                    onChange={(e: any) => setDefaultCapPercent(Number(e.target.value))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDefaultCapPercent(Number(e.target.value))}
                     className="w-20"
                     aria-label="Default cap percentage"
                   />
@@ -286,7 +308,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                       min="0"
                       max="200"
                       value={cap}
-                      onChange={(e: any) => setStageCaps(prev => ({ ...prev, [stage]: Number(e.target.value) }))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStageCaps(prev => ({ ...prev, [stage]: Number(e.target.value) }))}
                       className="w-16"
                       aria-label={`${stage} cap input`}
                     />
@@ -349,7 +371,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {warnings.map((warning: any, i: any) => (
+              {warnings.map((warning: string, i: number) => (
                 <li key={i}>{warning}</li>
               ))}
             </ul>
@@ -363,7 +385,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {errors.map((error: any, i: any) => (
+              {errors.map((error: string, i: number) => (
                 <li key={i}>{error}</li>
               ))}
             </ul>
