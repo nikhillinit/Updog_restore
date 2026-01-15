@@ -641,7 +641,13 @@ async function main(): Promise<void> {
         '.claude/skills/**/*.md',
         '.claude/commands/*.md',
       ],
-      exclude_paths: ['docs/_generated/**', 'docs/archive/**', '**/node_modules/**'],
+      exclude_paths: [
+        'docs/_generated/**',
+        'docs/archive/**',
+        '**/node_modules/**',
+        '_archive/**',
+        'scripts/archive/**',
+      ],
       generic_terms: ['test', 'error', 'fix', 'update', 'change', 'help'],
     },
     decision_tree: {},
@@ -968,8 +974,9 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove timestamps, staleness, and environment-variable fields for comparison
-    // These fields can vary by OS, timezone, or file system enumeration order
+    // Remove environment-variable fields for comparison
+    // These fields vary by OS, timezone, gitignored files, or file system enumeration order
+    // We only validate the routing STRUCTURE (patterns, decision_tree, agents) not doc inventory
     function stripNonStructuralFields(obj: any): void {
       if (!obj || typeof obj !== 'object') return;
 
@@ -981,16 +988,11 @@ Documents without proper YAML frontmatter:
       // Strip all stats (counts can vary by environment due to gitignored files)
       delete obj.stats;
 
-      // Strip docs array hasExecutionClaims (can vary by OS line ending detection)
-      if (Array.isArray(obj.docs)) {
-        obj.docs.forEach((doc: any) => {
-          delete doc.staleDays;
-          delete doc.isStale;
-          delete doc.hasExecutionClaims; // Varies by OS line endings
-        });
-      }
+      // Strip entire docs array - varies by environment due to gitignored files
+      // CI and local dev environments have different file sets
+      delete obj.docs;
 
-      // Strip RouterFast-specific timestamp in nested scoring object
+      // Strip RouterFast-specific fields that vary by environment
       if (obj.scoring && typeof obj.scoring === 'object') {
         delete obj.scoring.generatedAt;
       }

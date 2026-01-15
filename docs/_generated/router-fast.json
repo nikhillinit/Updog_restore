@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-15T20:20:32.760Z",
+  "generatedAt": "2026-01-15T20:47:19.193Z",
   "keyword_to_docs": {
     "adr": ["docs/adr/"],
     "agent": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
