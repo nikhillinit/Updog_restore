@@ -13,7 +13,10 @@ maintenance burden and slowing CI/CD feedback loops. This rationalization keeps
 15 essential quality and security gates while archiving 42 experimental,
 duplicate, or redundant workflows.
 
-### Kept (15 Essential Workflows)
+### Kept (14 Essential Workflows)
+
+**Note:** `sidecar-windows.yml` removed - sidecar architecture eliminated
+2025-12-20 (see docs/archive/2025-sidecar/)
 
 **Quality Gates (9):**
 
@@ -27,14 +30,13 @@ duplicate, or redundant workflows.
 - `pr-tests.yml` - PR-specific test validation
 - `validate.yml` - General validation checks
 
-**Security Gates (6):**
+**Security Gates (5):**
 
 - `codeql.yml` - GitHub code scanning (SAST)
 - `security-scan.yml` - Security vulnerability scan
 - `security-tests.yml` - Security test suite
 - `zap-baseline.yml` - OWASP ZAP security testing
 - `dockerfile-lint.yml` - Dockerfile security linting
-- `sidecar-windows.yml` - Windows sidecar validation (critical for build)
 
 ---
 
@@ -220,18 +222,19 @@ git commit -m "chore(ci): restore [workflow-name] workflow"
 
 **After Rationalization:**
 
-- Active workflows: 15
+- Active workflows: 14 (15 minus sidecar-windows.yml, removed 2025-12-20)
 - Archived workflows: 42
 - Expected CI runtime: ~6-8 minutes (estimated)
 - Workflow maintenance burden: Low
 
-**Reduction:** 73.7% (42/57 workflows archived)
+**Reduction:** 75.4% (43/57 workflows archived/removed)
 
 ---
 
 ## See Also
 
-- **Active Workflows:** `.github/workflows/` (15 files)
+- **Active Workflows:** `.github/workflows/` (14 files)
+- **Sidecar Archive:** `docs/archive/2025-sidecar/` (eliminated 2025-12-20)
 - **CLAUDE.md:** Updated workflow count documentation
 - **Phase 3 Handoff:** `HANDOFF-PHASE3-COMPACTION.md`
 

@@ -1,0 +1,291 @@
+name: CI Gate Optimized
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Determine if this is a docs-only change
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - 'package*.json'
+              - '.github/workflows/**'
+              - 'server/**'
+              - 'client/**'
+              - 'shared/**'
+              - 'scripts/**'
+              - 'tests/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - '.github/*.md'
+              - '!CHANGELOG.md'
+
+  # Phase 1: Setup and compile TypeScript once
+  setup:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    name: Setup & Build Cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=tsc-${{ hashFiles('**/*.ts', '**/*.tsx', '**/tsconfig*.json') }}" >> $GITHUB_OUTPUT
+      
+      - name: Cache TypeScript build
+        id: tsc-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+            node_modules/.cache
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            tsc-
+      
+      - run: npm ci
+      
+      - name: Build TypeScript incrementally
+        if: steps.tsc-cache.outputs.cache-hit != 'true'
+        run: |
+          npx tsc -b tsconfig.client.json tsconfig.server.json --incremental
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsbuild
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+          retention-days: 1
+
+  # Phase 2: Parallel type checking and linting
+  check:
+    name: Check ${{ matrix.job }}
+    needs: [changes, setup]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [client, server, lint, security]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Restore TypeScript cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+            node_modules/.cache
+          key: ${{ needs.setup.outputs.cache-key }}
+      
+      - run: npm ci
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tsbuild
+      
+      - name: Run check
+        run: |
+          case "${{ matrix.job }}" in
+            client)
+              npm run check:client
+              ;;
+            server)
+              npm run check:server
+              ;;
+            lint)
+              npm run lint
+              ;;
+            security)
+              npm audit --audit-level=moderate
+              ;;
+          esac
+
+  # Phase 3: Parallel test execution
+  test:
+    name: Test ${{ matrix.group }}
+    needs: [changes, check]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: unit
+            needs-db: false
+            needs-redis: false
+          - group: integration-db
+            needs-db: true
+            needs-redis: false
+          - group: integration-redis
+            needs-db: false
+            needs-redis: true
+          - group: e2e
+            needs-db: true
+            needs-redis: true
+    
+    services:
+      postgres:
+        image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: ${{ matrix.needs-redis && 'redis:7-alpine' || '' }}
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Cache test results
+        uses: actions/cache@v4
+        with:
+          path: |
+            coverage/
+            .vitest-cache/
+          key: test-${{ matrix.group }}-${{ github.sha }}
+          restore-keys: |
+            test-${{ matrix.group }}-
+      
+      - run: npm ci
+      
+      - name: Setup database
+        if: matrix.needs-db
+        run: |
+          npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+      
+      - name: Run tests
+        run: |
+          npm run test:${{ matrix.group }}
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test' || '' }}
+          REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
+      
+      - name: Upload coverage
+        if: matrix.group == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          fail_ci_if_error: false
+
+  # Phase 4: Build validation
+  build:
+    name: Build Production
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Build production bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Check bundle size
+        run: |
+          npm run bundle:check
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: |
+            dist/
+            !dist/**/*.map
+          retention-days: 7
+
+  # Final gate
+  gate:
+    name: CI Gate Status
+    needs: [check, test, build]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Gate Status
+        run: |
+          if [[ "${{ needs.check.result }}" != "success" || 
+                "${{ needs.test.result }}" != "success" || 
+                "${{ needs.build.result }}" != "success" ]]; then
+            echo "CI Gate Failed"
+            echo "Check: ${{ needs.check.result }}"
+            echo "Test: ${{ needs.test.result }}"
+            echo "Build: ${{ needs.build.result }}"
+            exit 1
+          fi
+          echo "✅ CI Gate Passed"

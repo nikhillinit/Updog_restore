@@ -1,0 +1,221 @@
+groups:
+  - name: lp_api_alerts
+    rules:
+      # ======================================================================
+      # P1 ALERTS - CRITICAL
+      # ======================================================================
+
+      # LP API error rate > 1% for 5 minutes (P1)
+      - alert: LPAPIHighErrorRate
+        expr: |
+          (
+            sum(rate(lp_api_errors_total[5m]))
+            /
+            sum(rate(lp_api_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          priority: P1
+          service: lp-api
+        annotations:
+          summary: 'LP API error rate above 1%'
+          description: 'LP API error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 1%). This indicates a systemic issue affecting LP experience.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-api-errors.md'
+
+      # Report generation failure rate > 10% (P1)
+      - alert: LPReportGenerationHighFailureRate
+        expr: |
+          (
+            sum(rate(lp_reports_failed_total[10m]))
+            /
+            (sum(rate(lp_reports_generated_total[10m])) + sum(rate(lp_reports_failed_total[10m])))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          priority: P1
+          service: lp-api
+        annotations:
+          summary: 'LP report generation failure rate above 10%'
+          description: 'LP report generation failure rate is {{ $value | humanizePercentage }} over the last 10 minutes. LPs cannot access their reports.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-report-failures.md'
+
+      # LP API completely down (no requests for 2 minutes)
+      - alert: LPAPINoTraffic
+        expr: |
+          sum(rate(lp_api_requests_total[2m])) == 0
+        for: 2m
+        labels:
+          severity: critical
+          priority: P1
+          service: lp-api
+        annotations:
+          summary: 'LP API receiving no traffic'
+          description: 'LP API has received no requests for 2 minutes. Service may be completely down.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-api-down.md'
+
+      # ======================================================================
+      # P2 ALERTS - HIGH PRIORITY
+      # ======================================================================
+
+      # LP API p99 latency > 2000ms for 10 minutes (P2)
+      - alert: LPAPIHighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(lp_api_request_duration_ms_bucket[5m])) by (le, endpoint)
+          ) > 2000
+        for: 10m
+        labels:
+          severity: warning
+          priority: P2
+          service: lp-api
+        annotations:
+          summary: 'LP API p99 latency above 2000ms'
+          description: 'LP API p99 latency for {{ $labels.endpoint }} is {{ $value }}ms (threshold: 2000ms). User experience degraded.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-api-latency.md'
+
+      # LP API p95 latency > 500ms for 5 minutes (P2)
+      - alert: LPAPIElevatedLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(lp_api_request_duration_ms_bucket[5m])) by (le, endpoint)
+          ) > 500
+        for: 5m
+        labels:
+          severity: warning
+          priority: P2
+          service: lp-api
+        annotations:
+          summary: 'LP API p95 latency above 500ms'
+          description: 'LP API p95 latency for {{ $labels.endpoint }} is {{ $value }}ms (threshold: 500ms). Performance degradation detected.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-api-latency.md'
+
+      # Report generation taking > 30 seconds (P2)
+      - alert: LPReportGenerationSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(lp_report_generation_duration_ms_bucket[10m])) by (le, report_type)
+          ) > 30000
+        for: 10m
+        labels:
+          severity: warning
+          priority: P2
+          service: lp-api
+        annotations:
+          summary: 'LP report generation p95 above 30 seconds'
+          description: 'LP report generation p95 for {{ $labels.report_type }} is {{ $value | humanizeDuration }}. Reports taking too long to generate.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-report-slow.md'
+
+      # ======================================================================
+      # P3 ALERTS - MEDIUM PRIORITY
+      # ======================================================================
+
+      # Cache hit rate < 50% for 30 minutes (P3)
+      - alert: LPAPILowCacheHitRate
+        expr: |
+          (
+            sum(rate(lp_cache_hits_total[30m]))
+            /
+            (sum(rate(lp_cache_hits_total[30m])) + sum(rate(lp_cache_misses_total[30m])))
+          ) < 0.50
+        for: 30m
+        labels:
+          severity: info
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'LP API cache hit rate below 50%'
+          description: 'LP API cache hit rate is {{ $value | humanizePercentage }} over the last 30 minutes. Cache may need tuning or TTLs may be too short.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-cache-optimization.md'
+
+      # High rate of 4xx errors (client errors)
+      - alert: LPAPIHighClientErrors
+        expr: |
+          (
+            sum(rate(lp_api_requests_total{status=~"4.."}[10m]))
+            /
+            sum(rate(lp_api_requests_total[10m]))
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: info
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'LP API client error rate above 5%'
+          description: 'LP API 4xx error rate is {{ $value | humanizePercentage }}. May indicate integration issues or user confusion.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-client-errors.md'
+
+      # Endpoint-specific error rate (per-endpoint monitoring)
+      - alert: LPAPIEndpointErrors
+        expr: |
+          (
+            sum(rate(lp_api_errors_total[5m])) by (endpoint)
+            /
+            sum(rate(lp_api_requests_total[5m])) by (endpoint)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'LP API endpoint {{ $labels.endpoint }} error rate above 5%'
+          description: 'Endpoint {{ $labels.endpoint }} error rate is {{ $value | humanizePercentage }}. Specific endpoint may have issues.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-endpoint-errors.md'
+
+  # ========================================================================
+  # LP BUSINESS METRICS
+  # ========================================================================
+  - name: lp_business_metrics
+    rules:
+      # Unusual spike in report generation requests
+      - alert: LPReportGenerationSpike
+        expr: |
+          (
+            rate(lp_reports_generated_total[5m])
+            >
+            avg_over_time(rate(lp_reports_generated_total[5m])[1h:5m]) * 3
+          )
+        for: 10m
+        labels:
+          severity: info
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'Unusual spike in LP report generation'
+          description: 'Report generation rate is 3x higher than the 1-hour average. May indicate automated scraping or bulk report generation.'
+
+      # No report generation activity for extended period
+      - alert: LPReportGenerationStalled
+        expr: |
+          sum(rate(lp_reports_generated_total[1h])) == 0
+          AND
+          sum(rate(lp_reports_failed_total[1h])) == 0
+        for: 2h
+        labels:
+          severity: info
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'No LP report generation activity for 2 hours'
+          description: 'No reports have been generated or failed in the last 2 hours. Report queue may be stalled.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbooks/lp-report-queue-stalled.md'
+
+      # Capital activity events anomaly
+      - alert: LPCapitalActivityAnomaly
+        expr: |
+          (
+            rate(lp_capital_activity_events_total[10m])
+            >
+            avg_over_time(rate(lp_capital_activity_events_total[10m])[24h:10m]) * 5
+          )
+        for: 15m
+        labels:
+          severity: info
+          priority: P3
+          service: lp-api
+        annotations:
+          summary: 'Unusual spike in capital activity events'
+          description: 'Capital activity event rate is 5x higher than the 24-hour average. May indicate data import or bulk processing.'

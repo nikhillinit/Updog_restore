@@ -1,0 +1,147 @@
+# prometheus-rules.yaml
+groups:
+  - name: fund-calc-api
+    rules:
+      # Target up/down (Prometheus 'up' metric)
+      - alert: TargetDown
+        expr: up{job="fund-calc-api"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Target down: fund-calc-api'
+          description: 'All instances for job=fund-calc-api are down for 2m.'
+
+      - alert: RedisDown
+        expr: redis_up{job="fund-calc-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redis connection lost'
+          description: 'redis_up == 0 for 2m. Check network, credentials, or Redis cluster health.'
+
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state{job="fund-calc-api",component="redis"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Circuit breaker opened (redis)'
+          description: 'Breaker state is open for 1m. Confirm Redis availability and app fallback behavior.'
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="fund-calc-api",status=~"5.."}[5m]))
+            /
+          sum(rate(http_requests_total{job="fund-calc-api"}[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Error rate > 1% (5m)'
+          description: '5xx ratio exceeded 1% over 5 minutes.'
+
+      - alert: P95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (
+              rate(http_request_duration_seconds_bucket{job="fund-calc-api"}[5m])
+            )
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p95 latency > 500ms'
+          description: 'p95 request latency exceeded 500ms for 10 minutes.'
+
+      - alert: CacheHitRateLow
+        expr: |
+          (sum(rate(cache_hits_total{job="fund-calc-api"}[5m])) /
+           (sum(rate(cache_hits_total{job="fund-calc-api"}[5m])) + sum(rate(cache_misses_total{job="fund-calc-api"}[5m]))))
+          < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Cache hit rate < 80%'
+          description: 'Investigate cache sizing/keys and backend latency.'
+
+      # Fund creation specific alerts
+      - alert: FundCreateConflictSpike
+        expr: |
+          sum(rate(http_requests_total{job="fund-calc-api",endpoint="/api/funds",status="409"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High rate of 409 conflicts on fund creation'
+          description: 'More than 0.1 requests/sec getting 409 conflicts. Check for duplicate submissions or race conditions.'
+
+      - alert: FundCreateLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (
+              rate(http_request_duration_seconds_bucket{job="fund-calc-api",endpoint="/api/funds",method="POST"}[5m])
+            )
+          ) > 2.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Fund creation p95 latency > 2s'
+          description: 'Fund creation taking longer than 2 seconds at p95. Check database performance and validation logic.'
+
+      - alert: FundCreateFailureRate
+        expr: |
+          sum(rate(http_requests_total{job="fund-calc-api",endpoint="/api/funds",method="POST",status!~"2.."}[5m]))
+            /
+          sum(rate(http_requests_total{job="fund-calc-api",endpoint="/api/funds",method="POST"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Fund creation failure rate > 5%'
+          description: 'More than 5% of fund creation requests are failing. Immediate investigation required.'
+
+  - name: slo-burn
+    # 99.9% availability SLO (0.1% error budget)
+    rules:
+      # Fast burn (5m / 1h windows)
+      - alert: SLOBurnFast
+        expr: |
+          (
+            sum(rate(http_requests_total{job="fund-calc-api",status=~"5.."}[5m])) /
+            sum(rate(http_requests_total{job="fund-calc-api"}[5m]))
+          ) > 0.05
+          and
+          (
+            sum(rate(http_requests_total{job="fund-calc-api",status=~"5.."}[1h])) /
+            sum(rate(http_requests_total{job="fund-calc-api"}[1h]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'SLO fast-burn ( >5% over 5m and >1% over 1h )'
+          description: 'Error budget burning too quickly; initiate mitigation.'
+
+      # Slow burn (30m / 6h windows)
+      - alert: SLOBurnSlow
+        expr: |
+          (
+            sum(rate(http_requests_total{job="fund-calc-api",status=~"5.."}[30m])) /
+            sum(rate(http_requests_total{job="fund-calc-api"}[30m]))
+          ) > 0.02
+          and
+          (
+            sum(rate(http_requests_total{job="fund-calc-api",status=~"5.."}[6h])) /
+            sum(rate(http_requests_total{job="fund-calc-api"}[6h]))
+          ) > 0.005
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'SLO slow-burn'
+          description: 'Prolonged elevated error rate; plan remediation.'

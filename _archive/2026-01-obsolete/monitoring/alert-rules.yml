@@ -1,0 +1,84 @@
+groups:
+  - name: circuit_breaker_alerts
+    rules:
+      # Circuit breaker is open (critical services down)
+      - alert: CircuitBreakerOpen
+        expr: updog_circuit_breaker_state{state="OPEN"} == 2
+        for: 1m
+        labels:
+          severity: critical
+          service: updog
+        annotations:
+          summary: 'Circuit breaker {{ $labels.breaker_name }} is OPEN'
+          description: 'Circuit breaker {{ $labels.breaker_name }} has been OPEN for more than 1 minute. This indicates {{ $labels.breaker_name }} service is failing.'
+          runbook_url: 'https://github.com/your-org/updog/blob/main/docs/runbook.md#circuit-breaker-open'
+
+      # High failure rate (potential issues)
+      - alert: CircuitBreakerHighFailureRate
+        expr: rate(updog_circuit_breaker_failures_total[5m]) / rate(updog_circuit_breaker_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: updog
+        annotations:
+          summary: 'High failure rate for {{ $labels.breaker_name }}'
+          description: 'Circuit breaker {{ $labels.breaker_name }} has failure rate > 10% over 5 minutes'
+
+      # Circuit breaker stuck in half-open
+      - alert: CircuitBreakerStuckHalfOpen
+        expr: updog_circuit_breaker_state{state="HALF_OPEN"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: updog
+        annotations:
+          summary: 'Circuit breaker {{ $labels.breaker_name }} stuck in HALF_OPEN'
+          description: 'Circuit breaker {{ $labels.breaker_name }} has been in HALF_OPEN state for more than 5 minutes'
+
+  - name: performance_alerts
+    rules:
+      # High latency (p95 > 400ms threshold from k6 guard)
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(updog_circuit_breaker_request_duration_seconds_bucket[5m])) > 0.4
+        for: 2m
+        labels:
+          severity: warning
+          service: updog
+        annotations:
+          summary: 'High latency detected'
+          description: 'P95 latency is {{ $value }}s for {{ $labels.breaker_name }}, above 400ms threshold'
+
+      # Burn rate alert (error budget consumption)
+      - alert: HighErrorBurnRate
+        expr: rate(updog_circuit_breaker_failures_total[1m]) / rate(updog_circuit_breaker_requests_total[1m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+          service: updog
+        annotations:
+          summary: 'High error burn rate'
+          description: 'Error rate is {{ $value | humanizePercentage }} for {{ $labels.breaker_name }}, consuming error budget quickly'
+
+  - name: application_health
+    rules:
+      # Application not responding
+      - alert: UpDogDown
+        expr: up{job="updog"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: updog
+        annotations:
+          summary: 'UpDog application is down'
+          description: 'UpDog application has been down for more than 1 minute'
+
+      # Memory usage high
+      - alert: HighMemoryUsage
+        expr: updog_process_resident_memory_bytes / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+          service: updog
+        annotations:
+          summary: 'High memory usage'
+          description: 'UpDog is using {{ $value }}MB of memory, above 512MB threshold'

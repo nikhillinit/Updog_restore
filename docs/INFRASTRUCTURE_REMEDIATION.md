@@ -1,19 +1,29 @@
 # Infrastructure Remediation Guide
 
+**ARCHIVE NOTICE:** The local observability stack
+(docker-compose.observability.yml, monitoring/, observability/) has been
+archived to `_archive/2026-01-obsolete/observability/`. This document is
+preserved for historical reference and procedures that may apply to production
+monitoring (server/observability/\*).
+
 ## Overview
 
-This guide documents the fixes applied to resolve critical infrastructure issues in the Updog deployment system. These fixes address fake/broken components that were previously non-functional.
+This guide documents the fixes applied to resolve critical infrastructure issues
+in the Updog deployment system. These fixes address fake/broken components that
+were previously non-functional.
 
 ## Critical Issues Fixed
 
 ### 1. Database Rollback System (FAKE → REAL)
 
 **Problem:**
+
 - Previous rollback script only removed migration records
 - No actual schema reversion
 - Printed warnings but didn't execute rollback SQL
 
 **Solution:**
+
 - Implemented `rollback-engine.ts` with real rollback execution
 - Generates reverse SQL from migration files
 - Creates database backups before rollback
@@ -39,6 +49,7 @@ tsx scripts/migrations/rollback-engine.ts rollback <migration-name> --force
 ```
 
 **Features:**
+
 - Automatic SQL reversal (CREATE → DROP, ADD COLUMN → DROP COLUMN)
 - Database backup before rollback
 - Transaction safety
@@ -57,11 +68,13 @@ npm run schema:test
 ### 2. Worker Health Checks (BROKEN → WORKING)
 
 **Problem:**
+
 - Docker health check tried HTTP request to Redis port 6379
 - No actual verification of worker process status
 - False positives/negatives
 
 **Solution:**
+
 - Fixed `Dockerfile.worker` health check script
 - Connects to worker health server (port 9000)
 - Verifies actual worker status via health API
@@ -106,6 +119,7 @@ docker inspect --format='{{.State.Health.Status}}' <container-id>
 ### 3. Missing Health Endpoints (404 → 200)
 
 **Problem:**
+
 - Smoke tests expected endpoints that didn't exist
 - `/api/health/db`, `/api/health/cache`, `/api/health/queues`
 - `/api/health/schema`, `/api/health/migrations`, `/api/health/version`
@@ -113,6 +127,7 @@ docker inspect --format='{{.State.Health.Status}}' <container-id>
 - 40% of smoke tests failed
 
 **Solution:**
+
 - Implemented all missing endpoints in `server/routes/health.ts`
 - Real database connectivity checks
 - Redis/cache status verification
@@ -123,6 +138,7 @@ docker inspect --format='{{.State.Health.Status}}' <container-id>
 **Endpoints Implemented:**
 
 #### `/api/health/db`
+
 Database connectivity check
 
 ```json
@@ -134,6 +150,7 @@ Database connectivity check
 ```
 
 #### `/api/health/cache`
+
 Redis cache status
 
 ```json
@@ -145,6 +162,7 @@ Redis cache status
 ```
 
 #### `/api/health/queues`
+
 BullMQ queue status
 
 ```json
@@ -167,6 +185,7 @@ BullMQ queue status
 ```
 
 #### `/api/health/schema`
+
 Database schema verification
 
 ```json
@@ -186,6 +205,7 @@ Database schema verification
 ```
 
 #### `/api/health/migrations`
+
 Migration status
 
 ```json
@@ -204,6 +224,7 @@ Migration status
 ```
 
 #### `/api/version`
+
 Application version info
 
 ```json
@@ -218,6 +239,7 @@ Application version info
 ```
 
 #### `/api/health/alerts`
+
 Active system alerts
 
 ```json
@@ -236,6 +258,7 @@ Active system alerts
 ```
 
 #### `/api/health/workers/:workerType`
+
 Worker status (reserve, pacing)
 
 ```json
@@ -271,12 +294,13 @@ curl http://localhost:5000/api/health/workers/pacing
 ### 4. Monitoring Deployment (CONFIG → RUNNING)
 
 **Problem:**
+
 - Prometheus/Grafana config files exist
 - Nothing actually running
 - No metrics collection
 
-**Solution:**
-Deploy monitoring stack using existing Docker Compose configuration
+**Solution:** Deploy monitoring stack using existing Docker Compose
+configuration
 
 **Deploy Monitoring:**
 
@@ -342,6 +366,7 @@ scrape_configs:
 **Grafana Dashboards:**
 
 Pre-configured dashboards located in:
+
 - `observability/grafana/dashboards/agent-dashboard.json`
 - `observability/grafana/provisioning/datasources/prometheus.yml`
 
@@ -390,21 +415,25 @@ npx playwright test tests/smoke/production.spec.ts -g "Workers"
 All tests should now pass:
 
 ✅ Infrastructure Health
-  - Health check responds
-  - Readiness check responds
-  - Metrics endpoint (authenticated)
+
+- Health check responds
+- Readiness check responds
+- Metrics endpoint (authenticated)
 
 ✅ Database Connectivity
-  - Database connection
-  - Critical tables exist
+
+- Database connection
+- Critical tables exist
 
 ✅ Redis Connectivity
-  - Redis cache connected
-  - Queue system operational
+
+- Redis cache connected
+- Queue system operational
 
 ✅ Worker Status
-  - Reserve worker operational
-  - Pacing worker operational
+
+- Reserve worker operational
+- Pacing worker operational
 
 ### Smoke Test Coverage
 
@@ -671,10 +700,12 @@ Alerts are configured in `observability/prometheus/alerts.yml`:
 ### Health Endpoints Return 503
 
 **Symptoms:**
+
 - `/api/health/db` returns 503
 - Database connection errors
 
 **Fix:**
+
 ```bash
 # Check database connectivity
 psql $DATABASE_URL -c "SELECT 1"
@@ -686,10 +717,12 @@ curl http://localhost:5000/api/health/detailed
 ### Worker Health Checks Fail
 
 **Symptoms:**
+
 - Docker health check fails
 - Worker container unhealthy
 
 **Fix:**
+
 ```bash
 # Check worker logs
 docker logs <container-id>
@@ -704,10 +737,12 @@ docker exec <container-id> redis-cli -h $REDIS_HOST ping
 ### Smoke Tests Fail
 
 **Symptoms:**
+
 - Tests timeout
 - 404 errors
 
 **Fix:**
+
 ```bash
 # Verify application is running
 curl $PRODUCTION_URL/health
@@ -723,10 +758,12 @@ docker logs <app-container>
 ### Monitoring Not Collecting Metrics
 
 **Symptoms:**
+
 - Prometheus shows targets as down
 - No data in Grafana
 
 **Fix:**
+
 ```bash
 # Verify Prometheus config
 docker exec prometheus cat /etc/prometheus/prometheus.yml
@@ -747,9 +784,10 @@ docker-compose -f docker-compose.observability.yml restart prometheus
 
 This remediation fixes all critical infrastructure issues:
 
-✅ **Real Database Rollback** - Actual schema reversion with verification
-✅ **Working Worker Health Checks** - Connects to health server, verifies status
-✅ **All Health Endpoints** - 9 new endpoints implemented and tested
-✅ **Monitoring Deployment** - Prometheus, Grafana, AlertManager running
+✅ **Real Database Rollback** - Actual schema reversion with verification ✅
+**Working Worker Health Checks** - Connects to health server, verifies status ✅
+**All Health Endpoints** - 9 new endpoints implemented and tested ✅
+**Monitoring Deployment** - Prometheus, Grafana, AlertManager running
 
-All changes are backward compatible and can be deployed safely. Smoke tests should now pass 100% (was 60%).
+All changes are backward compatible and can be deployed safely. Smoke tests
+should now pass 100% (was 60%).

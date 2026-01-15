@@ -1,0 +1,144 @@
+global:
+  # The smarthost and SMTP configuration
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@updog.example.com'
+  smtp_auth_username: ''
+  smtp_auth_password: ''
+
+  # Slack webhook URL (set via environment variable)
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# The directory from which notification templates are read.
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# The root route on which each incoming alert enters.
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'web.hook'
+  routes:
+    # High severity alerts get immediate notification
+    - match:
+        severity: critical
+      receiver: critical-alerts
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 1h
+
+    # Page alerts for production issues
+    - match:
+        severity: page
+      receiver: page-alerts
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    # Warning alerts - less urgent
+    - match:
+        severity: warning
+      receiver: warning-alerts
+      group_interval: 15m
+      repeat_interval: 24h
+
+    # Ticket alerts - create issues but don't page
+    - match:
+        severity: ticket
+      receiver: ticket-alerts
+      group_interval: 30m
+      repeat_interval: 24h
+
+    # Frontend team alerts
+    - match:
+        team: frontend
+      receiver: frontend-team
+      group_by: ['alertname', 'device']
+
+    # Backend team alerts
+    - match:
+        team: backend
+      receiver: backend-team
+      group_by: ['alertname', 'service']
+
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/alerts'
+        send_resolved: true
+
+  - name: critical-alerts
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-critical'
+        title: '🚨 CRITICAL: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Team:* {{ .Labels.team }}
+          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+          {{ end }}
+        send_resolved: true
+
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/alerts/critical'
+        send_resolved: true
+
+  - name: page-alerts
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-page'
+        title: '📟 PAGE: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Team:* {{ .Labels.team }}
+          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+          {{ end }}
+        send_resolved: true
+
+  - name: warning-alerts
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-warning'
+        title: '⚠️  WARNING: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  - name: ticket-alerts
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/alerts/tickets'
+        send_resolved: true
+
+  - name: frontend-team
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#frontend-alerts'
+        title: '🖥️  Frontend Alert: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  - name: backend-team
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#backend-alerts'
+        title: '⚙️  Backend Alert: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+# Inhibition rules allow to mute a set of alerts given that another alert is firing.
+inhibit_rules:
+  # Inhibit any warning if the same alert is already critical
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+  # Inhibit slow burn if fast burn is firing
+  - source_match_re:
+      alertname: '.*FastBurn'
+    target_match_re:
+      alertname: '.*SlowBurn'
+    equal: ['service']

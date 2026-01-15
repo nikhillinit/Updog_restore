@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: povc-prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - observability
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: povc-grafana
+    ports:
+      - '3001:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/agent-dashboard.json
+    networks:
+      - observability
+    depends_on:
+      - prometheus
+
+  # AlertManager for handling alerts
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: povc-alertmanager
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - observability
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: povc-node-exporter
+    ports:
+      - '9100:9100'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - observability
+
+  # pgwatch2 for PostgreSQL monitoring
+  pgwatch2:
+    image: cybertec/pgwatch2:latest
+    container_name: povc-pgwatch2
+    ports:
+      - '8081:8080'
+    environment:
+      - PW2_PGHOST=postgres
+      - PW2_PGPORT=5432
+      - PW2_PGDATABASE=povc_dev
+      - PW2_PGUSER=postgres
+      - PW2_PGPASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - PW2_WEBPORT=8080
+      - PW2_GRAFANA_BASEURL=http://grafana:3000
+      - PW2_GRAFANAUSER=admin
+      - PW2_GRAFANAPASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+    volumes:
+      - pgwatch2_data:/pgwatch2/persistent-config
+    networks:
+      - observability
+      - povc_network # Connect to main network to reach postgres
+    depends_on:
+      - grafana
+
+networks:
+  observability:
+    driver: bridge
+  povc_network:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  pgwatch2_data:

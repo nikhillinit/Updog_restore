@@ -103,6 +103,7 @@ export default [
       'api/**',
       '.venv/**',
       'archive/**',
+      '_archive/**',
       'artifacts/**',
       'code-reviewer/**',
       'dev-automation/**',
