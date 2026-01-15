@@ -972,9 +972,13 @@ Documents without proper YAML frontmatter:
     // Staleness fields (staleDays, isStale, stats.stale_docs) use mode-specific timestamps
     function stripNonStructuralFields(obj: any): void {
       if (!obj || typeof obj !== 'object') return;
+
+      // Strip timestamp fields (present in both RouterIndex and RouterFast)
       delete obj.generatedAt;
       delete obj.staleDays;
       delete obj.isStale;
+
+      // Strip RouterIndex-specific staleness fields
       if (obj.stats) {
         delete obj.stats.stale_docs;
       }
@@ -983,6 +987,11 @@ Documents without proper YAML frontmatter:
           delete doc.staleDays;
           delete doc.isStale;
         });
+      }
+
+      // Strip RouterFast-specific timestamp in nested scoring object
+      if (obj.scoring && typeof obj.scoring === 'object') {
+        delete obj.scoring.generatedAt;
       }
     }
 
