@@ -47,7 +47,22 @@ jobs:
       - name: Save bundle metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          cp size-limit-results.json bundle-metrics.json
+          # Maintain legacy schema for report-metrics job:
+          # it expects bundle-metrics.json to be an object with numeric `.size` (bytes).
+          # Compute total size from critical path bundles, preserve size-limit detail.
+
+          TOTAL_SIZE=$(cat size-limit-results.json | jq '[.[].size] | add')
+
+          cat > bundle-metrics.json << METRICS
+          {
+            "size": ${TOTAL_SIZE},
+            "timestamp": "$(date -Iseconds)",
+            "entries": $(cat size-limit-results.json)
+          }
+          METRICS
+
+          # Validate schema before upload
+          jq -e '(.size | type=="number")' bundle-metrics.json >/dev/null
 
       - name: Upload metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
