@@ -23,30 +23,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and check bundle
+      - name: Build application
+        run: npm run build:web
+
+      - name: Check bundle size with size-limit
         run: |
-          npm run build:web
+          # Use size-limit with .size-limit.json config
+          # This checks per-bundle limits (initial load, charts, etc.)
+          # instead of naively summing all chunks including lazy-loaded ones
+          echo "Running size-limit check..."
+          npx size-limit --json > size-limit-results.json
 
-          # Check bundle size (400KB target)
-          MAX_SIZE=409600  # 400KB in bytes
-          ACTUAL_SIZE=$(du -b dist/assets/*.js | awk '{sum+=$1} END {print sum}')
+          # Display results
+          echo ""
+          echo "Bundle Size Results:"
+          cat size-limit-results.json | npx -y json -a name size limit passed || cat size-limit-results.json
+          echo ""
 
-          echo "Bundle size: $ACTUAL_SIZE bytes (max: $MAX_SIZE)"
-
-          if [ $ACTUAL_SIZE -gt $MAX_SIZE ]; then
-            echo "[FAIL] Bundle size exceeds limit!"
-            echo "Actual: $ACTUAL_SIZE bytes"
-            echo "Max allowed: $MAX_SIZE bytes"
+          # Check if any limits exceeded
+          if npx size-limit; then
+            echo "[PASS] All bundle size limits within bounds"
+          else
+            echo "[FAIL] Bundle size limits exceeded!"
             exit 1
           fi
-
-          echo "[PASS] Bundle size within limits"
 
       - name: Save bundle metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          echo "$ACTUAL_SIZE" > bundle-size.txt
-          echo "{ \"size\": $ACTUAL_SIZE, \"timestamp\": \"$(date -Iseconds)\" }" > bundle-metrics.json
+          cp size-limit-results.json bundle-metrics.json
 
       - name: Upload metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

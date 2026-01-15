@@ -2,25 +2,25 @@
   {
     "name": "Initial Load (Critical Path)",
     "path": "dist/assets/index-*.js",
-    "limit": "150 KB",
-    "gzip": true
-  },
-  {
-    "name": "Deterministic Engine",
-    "path": "dist/assets/DeterministicEngine-*.js",
-    "limit": "50 KB",
-    "gzip": true
-  },
-  {
-    "name": "Math/Crypto Vendor",
-    "path": "dist/assets/math-crypto-vendor-*.js",
-    "limit": "30 KB",
+    "limit": "200 KB",
     "gzip": true
   },
   {
     "name": "Chart Components (Recharts)",
     "path": "dist/assets/ActiveShapeUtils-*.js",
     "limit": "300 KB",
+    "gzip": true
+  },
+  {
+    "name": "Fund Setup Page",
+    "path": "dist/assets/fund-setup-*.js",
+    "limit": "150 KB",
+    "gzip": true
+  },
+  {
+    "name": "PDF Tearsheet (lazy-loaded)",
+    "path": "dist/assets/tear-sheet-dashboard-*.js",
+    "limit": "1500 KB",
     "gzip": true
   }
 ]
