@@ -41,9 +41,9 @@ export default function Dashboard() {
   // Fund metrics calculation
   const committedCapital = currentFund.size || 200000000;
   const investableCapital = committedCapital * 1.026; // 205,311,250
-  const managementFees = committedCapital * 0.15;
-  const fundExpenses = committedCapital * 0.0171;
-  const exitProceedsRecycled = 40000000;
+  const _managementFees = committedCapital * 0.15;
+  const _fundExpenses = committedCapital * 0.0171;
+  const _exitProceedsRecycled = 40000000;
   const reserveRatio = 42.5;
   const projectedInvestments = 90;
   const projectedFundValue = investableCapital * 5.41;
