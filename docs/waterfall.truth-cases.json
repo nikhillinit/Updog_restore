@@ -197,8 +197,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "420000.00",
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -214,7 +214,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "420000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "320000.00",
+          "gpAmount": "80000.00"
         }
       ]
     }
@@ -381,8 +386,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "120000.00",
+      "lpDistribution": "1160000.00",
+      "gpDistribution": "40000.00",
       "totalDistributed": "1200000.00",
       "breakdown": [
         {
@@ -398,7 +403,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "120000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "80000.00",
+          "gpAmount": "20000.00"
         }
       ]
     }
@@ -441,8 +451,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1128000.00",
-      "gpDistribution": "72000.00",
+      "lpDistribution": "1164000.00",
+      "gpDistribution": "36000.00",
       "totalDistributed": "1200000.00",
       "breakdown": [
         {
@@ -457,13 +467,13 @@
         },
         {
           "tier": "gp_catch_up",
-          "lpAmount": "0.00",
-          "gpAmount": "60000.00"
+          "lpAmount": "20000.00",
+          "gpAmount": "20000.00"
         },
         {
           "tier": "carry",
-          "lpAmount": "48000.00",
-          "gpAmount": "12000.00"
+          "lpAmount": "64000.00",
+          "gpAmount": "16000.00"
         }
       ]
     }
@@ -506,8 +516,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1000000.00",
-      "gpDistribution": "500000.00",
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -521,9 +531,9 @@
           "gpAmount": "0.00"
         },
         {
-          "tier": "gp_catch_up",
-          "lpAmount": "0.00",
-          "gpAmount": "500000.00"
+          "tier": "carry",
+          "lpAmount": "400000.00",
+          "gpAmount": "100000.00"
         }
       ]
     }
@@ -566,8 +576,8 @@
       "dealCost": "1020000.00"
     },
     "expected": {
-      "lpDistribution": "1101600.00",
-      "gpDistribution": "398400.00",
+      "lpDistribution": "1404000.00",
+      "gpDistribution": "96000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -583,7 +593,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "398400.00"
+          "gpAmount": "20400.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "302400.00",
+          "gpAmount": "75600.00"
         }
       ]
     }
@@ -765,8 +780,8 @@
       "dealCost": "10000000.00"
     },
     "expected": {
-      "lpDistribution": "10800000.00",
-      "gpDistribution": "89200000.00",
+      "lpDistribution": "82000000.00",
+      "gpDistribution": "18000000.00",
       "totalDistributed": "100000000.00",
       "breakdown": [
         {
@@ -782,7 +797,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "89200000.00"
+          "gpAmount": "200000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "71200000.00",
+          "gpAmount": "17800000.00"
         }
       ]
     }

@@ -255,19 +255,51 @@ export function calculateAmericanWaterfall(
       }
 
       case 'gp_catch_up': {
-        // GP catch-up
-        const catchUpRate = tier.catchUpRate || new Decimal(1);
-        const allocation = Decimal.min(remaining, remaining.times(catchUpRate));
+        // GP catch-up with target cap (US VC Standard: 100% catch-up to 20% carry)
+        // 1. Get Carry Rate from carry tier (default: 20%)
+        const carryTier = sortedTiers.find((t) => t.tierType === 'carry');
+        const carryRate = new Decimal(carryTier?.rate ?? 0.2);
 
-        gpTotal = gpTotal.plus(allocation);
+        // 2. Get Catch-up Rate (default: 100%)
+        const catchUpRate = new Decimal(tier.catchUpRate ?? 1);
+
+        // Safety: If catch-up rate is 0, skip tier
+        if (catchUpRate.eq(0)) break;
+
+        // 3. Calculate Target Catch-up Amount using parity formula
+        // Formula: Target = (PreferredPaid * CarryRate) / (1 - CarryRate)
+        // This ensures GP reaches target carry % of total preferred distributions
+        const preferredPaid =
+          breakdown.find((b) => b.tier === 'preferred_return')?.lpAmount || new Decimal(0);
+
+        const denominator = new Decimal(1).minus(carryRate);
+        const targetCatchUp = denominator.eq(0)
+          ? new Decimal(0) // Safety for 100% carry edge case
+          : preferredPaid.times(carryRate).div(denominator);
+
+        // 4. Calculate Gross Flow Needed to hit target
+        // If 100% catch-up: need exactly $target (GP gets all)
+        // If 50% catch-up: need $target / 0.5 (since half goes to LP)
+        const grossFlowNeeded = targetCatchUp.div(catchUpRate);
+
+        // 5. Allocate from Remaining (capped at gross flow needed)
+        const allocation = Decimal.min(remaining, grossFlowNeeded);
+        const gpAllocation = allocation.times(catchUpRate);
+        const lpAllocation = allocation.minus(gpAllocation);
+
+        // 6. Update State
+        gpTotal = gpTotal.plus(gpAllocation);
+        lpTotal = lpTotal.plus(lpAllocation);
         remaining = remaining.minus(allocation);
 
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: new Decimal(0),
-          gpAmount: allocation,
-        });
+        if (allocation.gt(0)) {
+          breakdown.push({
+            tier: tier.tierType,
+            amount: allocation,
+            lpAmount: lpAllocation,
+            gpAmount: gpAllocation,
+          });
+        }
         break;
       }
 

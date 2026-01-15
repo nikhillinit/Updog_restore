@@ -218,13 +218,18 @@ describe('Waterfall Invariants (Property-Based Tests)', () => {
 
       // Total GP distribution
       const gpTotal = excelRound(result.gpDistribution.toNumber(), 2);
+      const dealCostNum = excelRound(dealCost.toNumber(), 2);
       const totalDistributed = excelRound(result.totalDistributed.toNumber(), 2);
 
-      // Calculate actual GP share
-      const gpShare = totalDistributed > 0 ? gpTotal / totalDistributed : 0;
+      // Calculate profits (exit proceeds - deal cost)
+      const profits = totalDistributed - dealCostNum;
 
-      // After catch-up completes, GP share should be close to target carry
-      // (Allow tolerance for partial catch-up or rounding)
+      // Calculate actual GP share of PROFITS (not total distributed)
+      // GP should receive carry_rate% of profits after catch-up completes
+      const gpShareOfProfits = profits > 0 ? gpTotal / profits : 0;
+
+      // After catch-up completes, GP share of profits should be close to target carry
+      // (Allow tolerance for rounding)
       //
       // Note: This only holds if catch-up fully completes. If proceeds are insufficient
       // to complete catch-up, GP may have less than target carry.
@@ -235,9 +240,9 @@ describe('Waterfall Invariants (Property-Based Tests)', () => {
 
       if (carryTierResult && carryTierResult.amount.toNumber() > 0) {
         // Carry tier has allocation → catch-up completed
-        // GP share should equal target carry rate (within rounding)
-        expect(gpShare).toBeGreaterThanOrEqual(targetCarryRate - 0.01);
-        expect(gpShare).toBeLessThanOrEqual(targetCarryRate + 0.01);
+        // GP share of profits should equal target carry rate (within rounding)
+        expect(gpShareOfProfits).toBeGreaterThanOrEqual(targetCarryRate - 0.01);
+        expect(gpShareOfProfits).toBeLessThanOrEqual(targetCarryRate + 0.01);
       }
     }
   });
