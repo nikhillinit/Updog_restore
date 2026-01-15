@@ -968,21 +968,31 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove timestamps and staleness fields for comparison
-    // Staleness fields (staleDays, isStale, stats.stale_docs) use mode-specific timestamps
+    // Remove timestamps, staleness, and environment-variable fields for comparison
+    // These fields can vary by OS, timezone, or file system enumeration order
     function stripNonStructuralFields(obj: any): void {
       if (!obj || typeof obj !== 'object') return;
+
+      // Strip timestamp fields (present in both RouterIndex and RouterFast)
       delete obj.generatedAt;
       delete obj.staleDays;
       delete obj.isStale;
-      if (obj.stats) {
-        delete obj.stats.stale_docs;
-      }
+
+      // Strip all stats (counts can vary by environment due to gitignored files)
+      delete obj.stats;
+
+      // Strip docs array hasExecutionClaims (can vary by OS line ending detection)
       if (Array.isArray(obj.docs)) {
         obj.docs.forEach((doc: any) => {
           delete doc.staleDays;
           delete doc.isStale;
+          delete doc.hasExecutionClaims; // Varies by OS line endings
         });
+      }
+
+      // Strip RouterFast-specific timestamp in nested scoring object
+      if (obj.scoring && typeof obj.scoring === 'object') {
+        delete obj.scoring.generatedAt;
       }
     }
 
