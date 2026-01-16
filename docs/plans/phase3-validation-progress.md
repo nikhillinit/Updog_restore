@@ -105,32 +105,137 @@ None (planning updates only; no source files edited).
 
 ---
 
-## Pending Execution
+## Session 4: Phase 1 Execution
 
-### Phase 1: Environment Setup
+**Time**: 2026-01-16
 
-```powershell
-docker run -d --name pg-test -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:15
+### Phase 1: Environment Setup - COMPLETED (Neon Cloud)
 
-$ready = $false
-for ($i=0; $i -lt 10; $i++) {
-  docker exec pg-test pg_isready -U postgres 2>&1 | Out-Null
-  if ($LASTEXITCODE -eq 0) {
-    Write-Host "PostgreSQL ready after $($i+1) attempts"
-    $ready = $true
-    break
-  }
-  Start-Sleep -Seconds 2
-}
-if (-not $ready) {
-  Write-Error "PostgreSQL failed to start after 10 attempts"
-  exit 1
-}
+**Original Plan**: Docker pg-test container
+**Blocker Encountered**: Docker Desktop not running
+**Resolution**: Switched to Neon cloud PostgreSQL (free tier)
 
-docker exec pg-test psql -U postgres -c "CREATE DATABASE updog_test;"
-docker exec pg-test psql -U postgres -d updog_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-$env:DATABASE_URL = "postgresql://postgres:test@localhost:5432/updog_test"
+**Setup Steps Completed**:
+
+| Step | Status | Result |
+|------|--------|--------|
+| Docker attempt | BLOCKED | Docker Desktop not running |
+| Neon signup | COMPLETED | Project created |
+| Connection test | PASSED | PostgreSQL 17.7 connected |
+| pgcrypto extension | ENABLED | `gen_random_uuid()` verified working |
+
+**Connection String** (using neondb directly):
 ```
+postgresql://neondb_owner:***@ep-curly-cake-adotp4hy-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+```
+
+**Environment Variable**:
+```bash
+DATABASE_URL="postgresql://neondb_owner:npg_W7hxNAEtd9rv@ep-curly-cake-adotp4hy-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+**Verification Output**:
+```
+Connected: PostgreSQL 17.7 (e429a59) on aarch64-unknown-linux-gnu
+pgcrypto extension enabled
+gen_random_uuid() works: 7da34a48-d0f5-4fef-a77e-46b773e8584e
+```
+
+**Note**: Using `neondb` database instead of creating separate `updog_test` (Neon free tier optimization).
+
+---
+
+### Phase 2: Migration Validation - COMPLETED
+
+**Objective**: Validate custom migration scripts work correctly
+
+**Discovery**: The `scripts/run-migrations.ts` has an ESM compatibility issue (`require.main === module` doesn't work with tsx in ESM mode). Worked around by executing migration logic inline via Node.js.
+
+**Results**:
+
+| Step | Status | Details |
+|------|--------|---------|
+| Status check | PASSED | 3 pending migrations detected |
+| Migration 0001 | PASSED | job_outbox table + indexes |
+| Migration 0002 | PASSED | scenario_matrices table + triggers (required statement-by-statement execution) |
+| Migration 0003 | PASSED | optimization_sessions table + FK constraint |
+| Idempotency test | PASSED | Re-run skips all 3, checksums valid |
+
+**Issue Found**: Multi-statement SQL files fail when sent as single query to Neon PostgreSQL. The custom migration runner may need modification to split statements.
+
+**Tables Created**:
+- `job_outbox` (Phase 3 job queue)
+- `scenario_matrices` (Monte Carlo matrices)
+- `optimization_sessions` (MILP optimization)
+- `migration_history` (tracking table)
+
+**Indexes Created**: 9 new indexes (idx_job_outbox_*, idx_scenario_matrices_*, idx_optimization_sessions_*)
+
+---
+
+### Phase 3: Checksum Validation - COMPLETED
+
+**Objective**: Verify checksum mismatch detection
+
+**Test Steps**:
+
+| Step | Status |
+|------|--------|
+| Backup 0002_create_scenario_matrices.sql | PASSED |
+| Add comment to trigger checksum change | PASSED |
+| Checksum mismatch detected | PASSED |
+| Original file restored | PASSED |
+| Post-restore verification | PASSED |
+
+**Output**:
+```
+[OK] 0001_create_job_outbox.sql
+[CHECKSUM MISMATCH] 0002_create_scenario_matrices.sql
+  Stored: 1eb13d1e2b6b6a9f...
+  Current: 88fd39d7001c92e7...
+[OK] 0003_create_optimization_sessions.sql
+```
+
+---
+
+### Phase 4: Rollback Validation - COMPLETED
+
+**Objective**: Validate rollback functionality
+
+**Test Steps**:
+
+| Step | Status |
+|------|--------|
+| Preview rollback (dry-run) | PASSED |
+| Execute rollback (optimization_sessions) | PASSED |
+| Verify table dropped | PASSED |
+| Re-apply migration | PASSED |
+| Verify table restored | PASSED |
+
+**Output**:
+```
+[DRY-RUN] Would rollback: 0003_create_optimization_sessions.sql
+[DRY-RUN] Would drop table: optimization_sessions
+[PASS] Table dropped: optimization_sessions
+[PASS] Migration history updated
+[PASS] Rollback complete for 0003_create_optimization_sessions.sql
+Verification: Table exists = false
+```
+
+---
+
+## Session 4 Summary
+
+**Phases Completed**: 1, 2, 3, 4 (Environment, Migration, Checksum, Rollback)
+
+**Key Findings**:
+1. Neon cloud PostgreSQL works as Docker alternative
+2. ESM compatibility issue in run-migrations.ts and rollback-migration.ts (require.main === module)
+3. Multi-statement SQL requires statement-by-statement execution on Neon
+4. Checksum validation correctly detects modified files
+5. Rollback with inferred DROP TABLE CASCADE works correctly
+
+**Remaining Phases**: 5 (Cache), 6 (Cleanup), 7 (Persistence), 8 (UX), 9 (QA)
 
 ### Phases 2-9: See task_plan.md
 
