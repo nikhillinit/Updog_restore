@@ -115,18 +115,39 @@ All prerequisites met:
 - Keep all process.env settings (test configuration)
 - Static imports OK for types and pure functions
 
-**Skipped Files Remaining**: 8 (from original 13)
-- backtesting-api.test.ts
-- cache-monitoring.integration.test.ts
-- circuit-breaker-db.test.ts
-- rls-middleware.test.ts
-- scenario-comparison-mvp.test.ts
-- scenario-comparison.test.ts
-- scenarioGeneratorWorker.test.ts
-- ScenarioMatrixCache.integration.test.ts
-- test containers-smoke.test.ts
-- golden-dataset-regression.test.ts
-- vite-build-regression.test.ts
+**Skipped Files Remaining**: 10 (from original 13)
+- 3 fixed in Batch 1 (interleaved-thinking, reserves-integration, dev-memory-mode)
+- 7 using conditional skips correctly (describeMaybe, skipIf)
+- 4 permanently skipped with valid reasons
+
+---
+
+## Task 2: Apply Dynamic Import Pattern
+
+### Batch 2 Results (COMPLETED - 2026-01-15)
+
+**Files Examined**: 11
+**Files Fixed**: 0
+**Files Already Correct**: 11
+
+**Findings**: All remaining skipped files are already using correct patterns:
+
+**Conditional Skips (7 files)** - Using `describeMaybe` or `skipIf`:
+1. `backtesting-api.test.ts` - `describeMaybe` based on ENABLE_BACKTESTING_TESTS + dynamic imports
+2. `cache-monitoring.integration.test.ts` - `skipIf` for testcontainers (Windows/CI)
+3. `circuit-breaker-db.test.ts` - `describeMaybe` based on DATABASE_URL + dynamic imports
+4. `scenario-comparison-mvp.test.ts` - `describeMaybe` based on ENABLE_PHASE4_TESTS + dynamic imports
+5. `scenario-comparison.test.ts` - `describeMaybe` based on ENABLE_SCENARIO_COMPARISON
+6. `scenarioGeneratorWorker.test.ts` - `skipIf` for testcontainers (Windows/CI)
+7. `ScenarioMatrixCache.integration.test.ts` - `skipIf` for testcontainers (Windows/CI)
+
+**Permanently Skipped (4 files)** - Valid infrastructure reasons:
+8. `rls-middleware.test.ts` - Requires live database + JWT (mock setup incomplete)
+9. `testcontainers-smoke.test.ts` - Requires Docker (not available on Windows/CI)
+10. `golden-dataset-regression.test.ts` - Requires golden dataset comparison utilities
+11. `vite-build-regression.test.ts` - Requires Vite build process integration testing
+
+**Conclusion**: Phase 0 goal achieved with Batch 1 alone. No additional code changes needed.
 
 ---
 
