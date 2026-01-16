@@ -10,6 +10,10 @@ on:
       - 'package.json'
       - '.size-limit.json'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   build-base:
     name: Build Base Branch

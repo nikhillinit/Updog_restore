@@ -1,0 +1,14 @@
+field,value,unit,notes
+carryPct,0.200000,decimal,GP carried interest percentage
+fundSize,100000000.000000,USD,Total committed capital
+managementFeePct,0.020000,decimal,Annual management fee percentage
+stage_0_allocation,0.300000,decimal,Pre-seed allocation percentage
+stage_0_avgCheck,0.500000,USD_millions,Pre-seed average check size in millions
+stage_0_followOnPct,0.250000,decimal,Pre-seed follow-on reserve percentage
+stage_0_name,pre_seed,text,Pre-seed stage identifier
+stage_0_targetCount,60,integer,Pre-seed target investment count
+stage_1_allocation,0.700000,decimal,Seed allocation percentage
+stage_1_avgCheck,1.500000,USD_millions,Seed average check size in millions
+stage_1_followOnPct,0.350000,decimal,Seed follow-on reserve percentage
+stage_1_name,seed,text,Seed stage identifier
+stage_1_targetCount,47,integer,Seed target investment count
