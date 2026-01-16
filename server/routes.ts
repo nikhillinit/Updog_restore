@@ -34,7 +34,7 @@ import type {
   CohortSummary,
 } from '@shared/types';
 import { monitor } from './middleware/performance-monitor.js';
-import { config } from './config/index.js';
+import { getConfig } from './config/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -746,7 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const vintageYearQuery = req.query['vintageYear'];
       const cohortSizeQuery = req.query['cohortSize'];
 
-      let fundId = config.DEFAULT_FUND_ID; // Default fund (from env config)
+      let fundId = getConfig().DEFAULT_FUND_ID; // Default fund (from env config)
       let vintageYear = new Date().getFullYear() - 1; // Default to last year
       let cohortSize = 10; // Default cohort size
 
