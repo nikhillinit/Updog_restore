@@ -2,19 +2,19 @@
  * Integration test for memory-only development mode
  * Verifies zero Redis connections in dev:quick
  * @group integration
- * FIXME: Requires full server infrastructure (providers, Redis, Express setup)
+ * Tests: Memory-only providers, Redis-free operation, server initialization
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import { loadEnv } from '../../server/config/index.js';
-import { buildProviders } from '../../server/providers.js';
-import { createServer } from '../../server/server.js';
 import type { Express } from 'express';
 
-describe.skip('Dev memory mode', () => {
+describe('Dev memory mode', () => {
   let app: Express;
   let providers: any;
+  let loadEnv: typeof import('../../server/config/index.js').loadEnv;
+  let buildProviders: typeof import('../../server/providers.js').buildProviders;
+  let createServer: typeof import('../../server/server.js').createServer;
 
   beforeAll(async () => {
     // Set up memory-only environment
@@ -24,6 +24,15 @@ describe.skip('Dev memory mode', () => {
     delete process.env.RATE_LIMIT_REDIS_URL;
     delete process.env.QUEUE_REDIS_URL;
     delete process.env.SESSION_REDIS_URL;
+
+    // Dynamic imports to prevent side effects at module load time
+    const configModule = await import('../../server/config/index.js');
+    const providersModule = await import('../../server/providers.js');
+    const serverModule = await import('../../server/server.js');
+
+    loadEnv = configModule.loadEnv;
+    buildProviders = providersModule.buildProviders;
+    createServer = serverModule.createServer;
 
     const cfg = loadEnv();
     providers = await buildProviders(cfg);

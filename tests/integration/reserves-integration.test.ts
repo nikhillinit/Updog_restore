@@ -2,7 +2,7 @@
  * Integration tests for Reserves v1.1 end-to-end scenarios
  * Tests real-world fund scenarios with production-like data volumes
  * @group integration
- * FIXME: Requires Reserves v1.1 engine with shadow intelligence and predictive cache
+ * Tests: Reserve calculation engine, shadow intelligence, predictive cache
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -11,7 +11,7 @@ import { shadowIntelligence } from '@/lib/shadow-intelligence';
 import { predictiveCache } from '@/lib/predictive-cache';
 import type { Company, ReservesConfig, ReservesInput } from '@shared/types/reserves-v11';
 
-describe.skip('Reserves v1.1 Integration Tests', () => {
+describe('Reserves v1.1 Integration Tests', () => {
   let largeDataset: Company[];
 
   beforeAll(async () => {

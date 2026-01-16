@@ -6,7 +6,7 @@
  * - Database queries for fund data access
  * - Extended reasoning for complex analysis
  * @group integration
- * FIXME: Requires Anthropic API integration and database mocking infrastructure
+ * Mocks: Anthropic SDK, database pool, and database module
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -34,7 +34,7 @@ vi.mock('../../server/db', () => ({
   pool: null,
 }));
 
-describe.skip('Interleaved Thinking API', () => {
+describe('Interleaved Thinking API', () => {
   let app: Application;
   let mockAnthropicCreate: ReturnType<typeof vi.fn>;
 
