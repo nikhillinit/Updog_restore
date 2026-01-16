@@ -144,6 +144,8 @@ nul
 # Local data files
 Default Parameters/
 *.csv
+# Exception: golden dataset fixtures needed for tests
+!tests/fixtures/golden-datasets/**/*.csv
 
 # Claude settings (local only)
 .claude/settings.local.json

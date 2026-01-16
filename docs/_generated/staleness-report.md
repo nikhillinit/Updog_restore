@@ -1,20 +1,20 @@
 # Staleness Report
 
-_Generated: 2026-01-06T10:26:40.552Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-01-15T20:47:20.062Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 729   |
-| Stale Documents     | 714   |
-| Missing Frontmatter | 642   |
+| Total Documents     | 751   |
+| Stale Documents     | 737   |
+| Missing Frontmatter | 663   |
 
 ### By Status
 
 | Status  | Count |
 | ------- | ----- |
-| UNKNOWN | 710   |
+| UNKNOWN | 732   |
 | ACTIVE  | 14    |
 | ready   | 3     |
 | active  | 2     |
@@ -29,10 +29,10 @@ Documents that need review (older than their cadence threshold):
 | `.agents-metrics.md`                                   | Never        | 999      | No                   | Unassigned |
 | `.claude/ANTI-DRIFT-CHECKLIST.md`                      | Never        | 999      | YES - verify!        | Unassigned |
 | `.claude/DELIVERY-SUMMARY.md`                          | Never        | 999      | No                   | Unassigned |
+| `.claude/PHOENIX-AGENTS-REGISTRY.md`                   | Never        | 999      | No                   | Unassigned |
 | `.claude/PHOENIX-TOOL-ROUTING.md`                      | Never        | 999      | No                   | Unassigned |
 | `.claude/PROJECT-UNDERSTANDING.md`                     | Never        | 999      | No                   | Unassigned |
 | `.claude/WORKFLOW.md`                                  | Never        | 999      | No                   | Unassigned |
-| `.claude/agents/PHOENIX-AGENTS.md`                     | Never        | 999      | No                   | Unassigned |
 | `.claude/agents/baseline-regression-explainer.md`      | Never        | 999      | No                   | Unassigned |
 | `.claude/agents/chaos-engineer.md`                     | Never        | 999      | No                   | Unassigned |
 | `.claude/agents/code-explorer.md`                      | Never        | 999      | No                   | Unassigned |
@@ -76,7 +76,7 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/enable-agent-memory.md`              | Never        | 999      | No                   | Unassigned |
 | `.claude/commands/evaluate-tools.md`                   | Never        | 999      | No                   | Unassigned |
 
-_...and 664 more stale documents._
+_...and 687 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -236,20 +236,33 @@ be verified:
 - [ ] **docs/plans/2025-12-29-pr-318-merge-validation-plan.md** (999 days old)
 - [ ] **docs/plans/2026-01-04-phase1-implementation-plan.md** (999 days old)
 - [ ] **docs/plans/2026-01-04-portfolio-optimization-design.md** (999 days old)
+- [ ] **docs/plans/2026-01-10-eslint-root-cause-fixes.md** (999 days old)
+- [ ] **docs/plans/2026-01-10-express-request-augmentation.md** (999 days old)
+- [ ] **docs/plans/2026-01-10-tech-debt-remediation-phase2-revised.md** (999
+      days old)
+- [ ] **docs/plans/2026-01-10-tech-debt-remediation-phase2.md** (999 days old)
+- [ ] **docs/plans/2026-01-11-typescript-baseline-reduction.md** (999 days old)
+- [ ] **docs/plans/2026-01-13-integration-test-cleanup.md** (999 days old)
 - [ ] **docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md** (999 days old)
 - [ ] **docs/plans/FOUNDATION-HARDENING-STRATEGY.md** (999 days old)
 - [ ] **docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md** (999 days
       old)
+- [ ] **docs/plans/OPTION2-INTEGRATION-TEST-CLEANUP.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION2-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION3-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/PHASE3-SESSION4-KICKOFF.md** (999 days old)
+- [ ] **docs/plans/PHASE3-SESSION5-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-AGENT-STRATEGY.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-COMPLETE-GUIDE.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-JSDOM-RTL-KICKOFF.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE2-SUCCESS.md** (999 days old)
 - [ ] **docs/plans/WEEK2.5-PHASE3-PR-SUMMARY.md** (999 days old)
+- [ ] **docs/plans/option1-session-logs/findings.md** (999 days old)
+- [ ] **docs/plans/option1-session-logs/progress.md** (999 days old)
+- [ ] **docs/plans/option1-session-logs/task_plan.md** (999 days old)
+- [ ] **docs/plans/option2-session-logs/task_plan.md** (999 days old)
 - [ ] **docs/plans/xstate-persistence-implementation.md** (999 days old)
 - [ ] **docs/processes/CONTRIBUTING.md** (999 days old)
 - [ ] **docs/processes/code-review-checklist.md** (999 days old)
@@ -259,8 +272,6 @@ be verified:
 - [ ] **docs/releases/stage-normalization-v3.4.md** (999 days old)
 - [ ] **docs/replit.md** (999 days old)
 - [ ] **docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md** (999 days old)
-- [ ] **docs/runbooks/synthetics-debug.md** (999 days old)
-- [ ] **docs/schemas/schema-mapping.md** (999 days old)
 - [ ] **docs/skills-application-log.md** (999 days old)
 - [ ] **docs/sprint-g2c-backlog.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-b-stage-validation-prep.md** (999 days
@@ -280,10 +291,10 @@ Documents without proper YAML frontmatter:
 - [ ] `.agents-metrics.md`
 - [ ] `.claude/ANTI-DRIFT-CHECKLIST.md`
 - [ ] `.claude/DELIVERY-SUMMARY.md`
+- [ ] `.claude/PHOENIX-AGENTS-REGISTRY.md`
 - [ ] `.claude/PHOENIX-TOOL-ROUTING.md`
 - [ ] `.claude/PROJECT-UNDERSTANDING.md`
 - [ ] `.claude/WORKFLOW.md`
-- [ ] `.claude/agents/PHOENIX-AGENTS.md`
 - [ ] `.claude/commands/evaluate-tools.md`
 - [ ] `.claude/commands/wshobson/deps-audit.md`
 - [ ] `.claude/commands/wshobson/tech-debt.md`
@@ -318,6 +329,8 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude/skills/async-error-resilience.md`
 - [ ] `.claude/skills/baseline-governance/SKILL.md`
 - [ ] `.claude/skills/brainstorming.md`
+- [ ] `.claude/skills/bundle-size/references/capability-tiers.md`
+- [ ] `.claude/skills/bundle-size/references/troubleshooting.md`
 - [ ] `.claude/skills/claude-infra-integrity/SKILL.md`
 - [ ] `.claude/skills/continuous-improvement.md`
 - [ ] `.claude/skills/database-schema-evolution.md`
@@ -332,6 +345,19 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude/skills/notebooklm.md`
 - [ ] `.claude/skills/pattern-recognition.md`
 - [ ] `.claude/skills/phoenix-workflow-orchestrator/SKILL.md`
+- [ ] `.claude/skills/planning-with-files/CHANGELOG.md`
+- [ ] `.claude/skills/planning-with-files/MIGRATION.md`
+- [ ] `.claude/skills/planning-with-files/README.md`
+- [ ] `.claude/skills/planning-with-files/docs/cursor.md`
+- [ ] `.claude/skills/planning-with-files/docs/installation.md`
+- [ ] `.claude/skills/planning-with-files/docs/quickstart.md`
+- [ ] `.claude/skills/planning-with-files/docs/troubleshooting.md`
+- [ ] `.claude/skills/planning-with-files/docs/windows.md`
+- [ ] `.claude/skills/planning-with-files/docs/workflow.md`
+- [ ] `.claude/skills/planning-with-files/examples/README.md`
+- [ ] `.claude/skills/planning-with-files/templates/findings.md`
+- [ ] `.claude/skills/planning-with-files/templates/progress.md`
+- [ ] `.claude/skills/planning-with-files/templates/task_plan.md`
 - [ ] `.claude/skills/prompt-caching-usage.md`
 - [ ] `.claude/skills/react-hook-form-stability/SKILL.md`
 - [ ] `.claude/skills/react-performance-optimization.md`
@@ -353,16 +379,12 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude/testing/HANDOFF-MEMO-v2.md`
 - [ ] `.claude/testing/HANDOFF-MEMO.md`
 - [ ] `.claude/testing/immediate-actions-summary.md`
-- [ ] `.claude/testing/lp-test-status-report.md`
 - [ ] `.claude/testing/platform-test-checklist.md`
 - [ ] `.claude/testing/platform-testing-rubric-index.md`
-- [ ] `.claude/testing/rubric-analytics-reporting.md`
 - [ ] `.claude/testing/rubric-api-integration.md`
 - [ ] `.claude/testing/rubric-calculation-engines.md`
 - [ ] `.claude/testing/rubric-cross-cutting.md`
 - [ ] `.claude/testing/rubric-fund-setup.md`
-- [ ] `.claude/testing/rubric-lp-portal.md`
-- [ ] `.claude/testing/rubric-portfolio-management.md`
 - [ ] `.claude/testing/scenario-comparison-manual-test-rubric.md`
 - [ ] `.claude/testing/seed-script-remaining-fixes.md`
 - [ ] `.claude/testing/test-baseline-report-2025-12-23.md`
@@ -381,6 +403,7 @@ Documents without proper YAML frontmatter:
 - [ ] `DEV_BOOTSTRAP_README.md`
 - [ ] `DOCUMENTATION-NAVIGATION-GUIDE.md`
 - [ ] `ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md`
+- [ ] `ESLINT_DISABLE_AUDIT.md`
 - [ ] `FEATURE_FLAGS_READY.md`
 - [ ] `FOUNDATION-HARDENING-PLAN.md`
 - [ ] `HANDOFF-MEMO-2025-10-30.md`
@@ -446,7 +469,6 @@ Documents without proper YAML frontmatter:
 - [ ] `SESSION-HANDOFF-PHASE0-PORTFOLIO-2025-11-10.md`
 - [ ] `SESSION-HANDOFF-PORTFOLIO-PARALLEL-2025-11-10.md`
 - [ ] `SESSION_V5_COMPLETE_SUMMARY.md`
-- [ ] `SIDECAR_GUIDE.md`
 - [ ] `STABILIZATION-BUNDLE.md`
 - [ ] `STEP_2_AND_4_IMPROVEMENTS.md`
 - [ ] `SUPERPOWERS-INTEGRATION-SUMMARY.md`
@@ -502,7 +524,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/.templates/DEPRECATION-HEADER.md`
 - [ ] `docs/.templates/DOC-FRONTMATTER-SCHEMA.md`
 - [ ] `docs/ADR-00X-resilience-circuit-breaker.md`
-- [ ] `docs/ADR-015-XIRR-BOUNDED-RATES.md`
 - [ ] `docs/ANALYTICS_IMPLEMENTATION.md`
 - [ ] `docs/ARCHITECTURAL-DEBT.md`
 - [ ] `docs/BUILD_READINESS.md`
@@ -592,21 +613,22 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/adr/ADR-006-fee-calculation-standards.md`
 - [ ] `docs/adr/ADR-007-exit-recycling-policy.md`
 - [ ] `docs/adr/ADR-008-capital-allocation-policy.md`
+- [ ] `docs/adr/ADR-009-RESERVED.md`
 - [ ] `docs/adr/ADR-010-monte-carlo-validation-strategy.md`
 - [ ] `docs/adr/ADR-011-stage-normalization-v2.md`
 - [ ] `docs/adr/ADR-012-mem0-integration.md`
 - [ ] `docs/adr/ADR-013-scenario-comparison-activation.md`
+- [ ] `docs/adr/ADR-014-RESERVED.md`
+- [ ] `docs/adr/ADR-015-XIRR-BOUNDED-RATES.md`
 - [ ] `docs/adr/README.md`
 - [ ] `docs/agent-2-mobile-executive-dashboard.md`
 - [ ] `docs/ai-enhanced-components-guide.md`
-- [ ] `docs/ai-optimization/AGENTS.md`
 - [ ] `docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md`
 - [ ] `docs/ai-optimization/AI_COLLABORATION_GUIDE.md`
 - [ ] `docs/ai-optimization/AI_ORCHESTRATOR_IMPLEMENTATION.md`
 - [ ] `docs/ai-optimization/BACKTEST_QUICKSTART.md`
 - [ ] `docs/ai-optimization/CODEX-REVIEW-AGENT-SETUP.md`
 - [ ] `docs/ai-optimization/CODEX_AGENT_MIGRATION.md`
-- [ ] `docs/ai-optimization/MULTI_AI_REVIEW_SYNTHESIS.md`
 - [ ] `docs/analysis/perf-watch-memoization-root-cause.md`
 - [ ] `docs/analysis/strategic-review-2025-11-27/00-INDEX.md`
 - [ ] `docs/analysis/strategic-review-2025-11-27/01-EXECUTIVE-SUMMARY.md`
@@ -639,7 +661,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/commands-and-plugins-inventory.md`
 - [ ] `docs/components/NumericInput.md`
 - [ ] `docs/components/reallocation-tab-implementation.md`
-- [ ] `docs/components/reserve-adapter-integration.md`
 - [ ] `docs/components/reserve-engine-architecture.md`
 - [ ] `docs/components/reserve-engine-delivery.md`
 - [ ] `docs/components/reserve-engine-spec.md`
@@ -668,7 +689,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/failure-triage.md`
 - [ ] `docs/feature-flags.md`
 - [ ] `docs/fixes/PR-112-MANAGEMENT-FEE-HORIZON-FIX.md`
-- [ ] `docs/fixes/vercel-sidecar-ci-fix.md`
 - [ ] `docs/fixes/vite-build-vercel-fix.md`
 - [ ] `docs/forecasting/CALIBRATION_GUIDE.md`
 - [ ] `docs/forecasting/power-law-implementation.md`
@@ -680,8 +700,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/foundation/PHASE4-KICKOFF.md`
 - [ ] `docs/foundation/PHASE4-SESSION1-SUMMARY.md`
 - [ ] `docs/fund-allocation-phase1b.md`
-- [ ] `docs/gates/GATE_TRACKING.md`
-- [ ] `docs/gates/RACI_MATRIX.md`
 - [ ] `docs/governance/abort-matrix.md`
 - [ ] `docs/governance/decision-log.md`
 - [ ] `docs/governance/risk-matrix.md`
@@ -690,7 +708,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/integration/SCHEMA-MIGRATION-PLAN.md`
 - [ ] `docs/integration/mem0-integration.md`
 - [ ] `docs/integration/upstash-setup.md`
-- [ ] `docs/internal/WEEK46-VALIDATION-NOTES.md`
 - [ ] `docs/internal/architecture/state-flow.md`
 - [ ] `docs/internal/checklists/definition-of-done.md`
 - [ ] `docs/internal/checklists/self-review.md`
@@ -702,6 +719,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/internal/validation/02-zod-patterns.md`
 - [ ] `docs/internal/validation/03-type-system.md`
 - [ ] `docs/internal/validation/04-integration.md`
+- [ ] `docs/investigation/ci-failure-analysis-2026-01-10.md`
 - [ ] `docs/iterations/ALIGNMENT-STATUS.md`
 - [ ] `docs/iterations/IMPLEMENTATION-STATUS.md`
 - [ ] `docs/iterations/PR2-PROGRESS.md`
@@ -784,15 +802,25 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/2026-01-04-phase1-implementation-plan.md`
 - [ ] `docs/plans/2026-01-04-portfolio-optimization-design.md`
 - [ ] `docs/plans/2026-01-04-portfolio-optimization-handoff.md`
+- [ ] `docs/plans/2026-01-10-eslint-p2-p3-fixes.md`
+- [ ] `docs/plans/2026-01-10-eslint-root-cause-fixes.md`
+- [ ] `docs/plans/2026-01-10-express-request-augmentation.md`
+- [ ] `docs/plans/2026-01-10-tech-debt-remediation-phase2-revised.md`
+- [ ] `docs/plans/2026-01-10-tech-debt-remediation-phase2.md`
+- [ ] `docs/plans/2026-01-11-typescript-baseline-reduction.md`
+- [ ] `docs/plans/2026-01-13-integration-test-cleanup.md`
+- [ ] `docs/plans/2026-01-14-gp-catchup-parity-fix-design.md`
 - [ ] `docs/plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md`
 - [ ] `docs/plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md`
 - [ ] `docs/plans/FOUNDATION-HARDENING-STRATEGY.md`
 - [ ] `docs/plans/HANDOFF-SUMMARY.md`
 - [ ] `docs/plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md`
+- [ ] `docs/plans/OPTION2-INTEGRATION-TEST-CLEANUP.md`
 - [ ] `docs/plans/PHASE3-SESSION1-SUMMARY.md`
 - [ ] `docs/plans/PHASE3-SESSION2-KICKOFF.md`
 - [ ] `docs/plans/PHASE3-SESSION3-KICKOFF.md`
 - [ ] `docs/plans/PHASE3-SESSION4-KICKOFF.md`
+- [ ] `docs/plans/PHASE3-SESSION5-KICKOFF.md`
 - [ ] `docs/plans/WEEK1-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2-TOOL-ROUTING-EXECUTION.md`
 - [ ] `docs/plans/WEEK2.5-FOUNDATION-HARDENING-KICKOFF.md`
@@ -804,6 +832,12 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/WEEK2.5-PHASE2-SUCCESS.md`
 - [ ] `docs/plans/WEEK2.5-PHASE3-PR-SUMMARY.md`
 - [ ] `docs/plans/WORKFLOW-ENGINE-INTEGRATION-PLAN.md`
+- [ ] `docs/plans/option1-session-logs/findings.md`
+- [ ] `docs/plans/option1-session-logs/progress.md`
+- [ ] `docs/plans/option1-session-logs/task_plan.md`
+- [ ] `docs/plans/option2-session-logs/progress.md`
+- [ ] `docs/plans/option2-session-logs/task_plan.md`
+- [ ] `docs/plans/recharts-formatter-type-fix-plan.md`
 - [ ] `docs/plans/xstate-persistence-implementation.md`
 - [ ] `docs/policies/feasibility-constraints.md`
 - [ ] `docs/portfolio-construction-modeling.md`
@@ -865,11 +899,9 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/runbooks/stage-normalization-rollout.md`
 - [ ] `docs/runbooks/stage-validation.md`
 - [ ] `docs/runbooks/synthetic-monitoring.md`
-- [ ] `docs/runbooks/synthetics-debug.md`
 - [ ] `docs/schema.md`
 - [ ] `docs/schemas/README.md`
 - [ ] `docs/schemas/schema-helpers-integration.md`
-- [ ] `docs/schemas/schema-mapping.md`
 - [ ] `docs/security/CODACY_REMEDIATION_2025.md`
 - [ ] `docs/security/cve-exceptions.md`
 - [ ] `docs/skills-application-log.md`

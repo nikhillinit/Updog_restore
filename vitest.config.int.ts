@@ -6,17 +6,27 @@ export default defineConfig({
     alias: {
       '@/': path.resolve(__dirname, './client/src/'),
       '@shared/': path.resolve(__dirname, './shared/'),
-      '@assets/': path.resolve(__dirname, './assets/')
-    }
+      '@assets/': path.resolve(__dirname, './assets/'),
+    },
   },
   test: {
     name: 'integration',
     include: [
       'tests/integration/**/*.int.spec.ts',
       'tests/integration/**/*.spec.ts',
-      'tests/integration/**/*.test.ts'
+      'tests/integration/**/*.test.ts',
+      'tests/api/**/*.test.ts',
+      'tests/api/**/*.spec.ts',
     ],
-    exclude: ['tests/unit/**/*', 'tests/synthetics/**/*'],
+    exclude: [
+      'tests/unit/**/*',
+      'tests/synthetics/**/*',
+      // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
+      'tests/integration/testcontainers-smoke.test.ts',
+      'tests/integration/ScenarioMatrixCache.integration.test.ts',
+      'tests/integration/cache-monitoring.integration.test.ts',
+      'tests/integration/scenarioGeneratorWorker.test.ts',
+    ],
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
@@ -28,8 +38,8 @@ export default defineConfig({
     pool: 'forks', // Better isolation for integration tests
     poolOptions: {
       forks: {
-        singleFork: true // Prevent parallel execution that could conflict
-      }
-    }
-  }
+        singleFork: true, // Prevent parallel execution that could conflict
+      },
+    },
+  },
 });

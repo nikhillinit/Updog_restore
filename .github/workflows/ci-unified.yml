@@ -230,7 +230,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -314,7 +314,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -600,7 +600,9 @@ jobs:
             fs.readdirSync(dir, {withFileTypes: true}).forEach(entry => {
               const fullPath = path.join(dir, entry.name);
 
-              if (entry.isDirectory() && !entry.name.includes('node_modules')) {
+              // Skip node_modules, archive dirs (historical docs), and _archive
+              const skipDirs = ['node_modules', 'archive', '_archive'];
+              if (entry.isDirectory() && !skipDirs.some(s => entry.name.includes(s))) {
                 scanDir(fullPath);
               } else if (entry.isFile() && entry.name.endsWith('.md')) {
                 const content = fs.readFileSync(fullPath, 'utf8');

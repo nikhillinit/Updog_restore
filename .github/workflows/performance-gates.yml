@@ -23,30 +23,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and check bundle
+      - name: Build application
+        run: npm run build:web
+
+      - name: Check bundle size with size-limit
         run: |
-          npm run build:web
+          # Use size-limit with .size-limit.json config for per-bundle limits
+          echo "Running size-limit check..."
+          npx size-limit --json > size-limit-results.json || true
 
-          # Check bundle size (400KB target)
-          MAX_SIZE=409600  # 400KB in bytes
-          ACTUAL_SIZE=$(du -b dist/assets/*.js | awk '{sum+=$1} END {print sum}')
+          echo ""
+          echo "Bundle Size Results:"
+          cat size-limit-results.json
+          echo ""
 
-          echo "Bundle size: $ACTUAL_SIZE bytes (max: $MAX_SIZE)"
-
-          if [ $ACTUAL_SIZE -gt $MAX_SIZE ]; then
-            echo "[FAIL] Bundle size exceeds limit!"
-            echo "Actual: $ACTUAL_SIZE bytes"
-            echo "Max allowed: $MAX_SIZE bytes"
+          if npx size-limit; then
+            echo "[PASS] All bundle size limits within bounds"
+          else
+            echo "[FAIL] Bundle size limits exceeded!"
             exit 1
           fi
-
-          echo "[PASS] Bundle size within limits"
 
       - name: Save bundle metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          echo "$ACTUAL_SIZE" > bundle-size.txt
-          echo "{ \"size\": $ACTUAL_SIZE, \"timestamp\": \"$(date -Iseconds)\" }" > bundle-metrics.json
+          # Maintain legacy schema for report-metrics job:
+          # it expects bundle-metrics.json to be an object with numeric `.size` (bytes).
+          # Compute total size from critical path bundles, preserve size-limit detail.
+
+          TOTAL_SIZE=$(cat size-limit-results.json | jq '[.[].size] | add')
+
+          cat > bundle-metrics.json << METRICS
+          {
+            "size": ${TOTAL_SIZE},
+            "timestamp": "$(date -Iseconds)",
+            "entries": $(cat size-limit-results.json)
+          }
+          METRICS
+
+          # Validate schema before upload
+          jq -e '(.size | type=="number")' bundle-metrics.json >/dev/null
 
       - name: Upload metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -65,7 +81,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -103,8 +119,18 @@ jobs:
         run: |
           export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test"
           export REDIS_URL="redis://localhost:6379"
+          export NODE_ENV="development"
+          export JWT_SECRET="ci-perf-test-jwt-secret-minimum-32-characters-required"
           npm run dev:api &
-          sleep 5
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:5000/healthz > /dev/null; then
+              echo "Server ready"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
 
       - name: Run k6 performance tests
         uses: grafana/k6-action@v0.3.1

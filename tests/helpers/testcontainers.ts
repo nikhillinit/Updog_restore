@@ -18,6 +18,8 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import * as schema from '@shared/schema';
+import { readdirSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Container lifecycle state
@@ -75,7 +77,26 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
       migrationsFolder: './migrations',
       migrationsTable: 'drizzle_migrations',
     });
-    console.log('[testcontainers] Migrations complete');
+    console.log('[testcontainers] Drizzle migrations complete');
+
+    // Apply shared migrations as raw SQL (no Drizzle metadata in shared/migrations)
+    const sharedMigrationsDir = './shared/migrations';
+    if (existsSync(sharedMigrationsDir)) {
+      console.log('[testcontainers] Applying shared migrations (raw SQL)...');
+      const sqlFiles = readdirSync(sharedMigrationsDir)
+        .filter((f) => f.endsWith('.sql'))
+        .sort(); // Ensure order: 0001, 0002, 0003...
+
+      for (const file of sqlFiles) {
+        const filePath = join(sharedMigrationsDir, file);
+        const sql = readFileSync(filePath, 'utf8');
+        console.log(`[testcontainers] Applying ${file}...`);
+        await pool.query(sql);
+      }
+      console.log(`[testcontainers] Applied ${sqlFiles.length} shared migrations`);
+    }
+
+    console.log('[testcontainers] All migrations complete');
   } catch (error) {
     console.error('[testcontainers] Migration failed', error);
     throw error;
