@@ -4,6 +4,8 @@
 ScenarioMatrixCache integration, finish FeesExpensesStep UX fixes, and complete
 ADR-016 persistence refactor.
 
+**Phases**: 9 total (Env Setup → Migration → Checksum → Rollback → Cache → Cleanup → Persistence → UX → QA)
+
 **Branch**: `claude/validate-phase3-migrations-RnKRq`
 
 **Environment**: Windows PowerShell (no Git Bash per
@@ -30,10 +32,19 @@ npm install @eslint/js
 docker run -d --name pg-test -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:15
 
 # 2. Wait until DB is ready (retry up to 10x)
+$ready = $false
 for ($i=0; $i -lt 10; $i++) {
-  docker exec pg-test pg_isready -U postgres
-  if ($LASTEXITCODE -eq 0) { break }
+  docker exec pg-test pg_isready -U postgres 2>&1 | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "PostgreSQL ready after $($i+1) attempts"
+    $ready = $true
+    break
+  }
   Start-Sleep -Seconds 2
+}
+if (-not $ready) {
+  Write-Error "PostgreSQL failed to start after 10 attempts"
+  exit 1
 }
 
 # 3. Create test database
@@ -63,6 +74,9 @@ $env:DATABASE_URL = "postgresql://postgres:test@localhost:5432/updog_test"
 - Manual Redis container NOT needed - integration tests use Testcontainers
 - Phases 2-4 validate the custom migration runner against the manual pg-test DB
 - Phase 5 uses Testcontainers and will NOT use pg-test or the custom runner
+- **If pre-commit lint hook fails:**
+  - Option A: Install dependency: `npm install @eslint/js`
+  - Option B: Bypass hook: `git commit --no-verify`
 
 ---
 
@@ -171,9 +185,10 @@ npm run db:migrate:custom         # Re-apply migration
 
 ```powershell
 # Set CI=true ONLY for this command (bypasses Windows skip)
+$originalCI = $env:CI
 $env:CI = "true"
 npm run test:integration -- tests/integration/ScenarioMatrixCache.integration.test.ts
-Remove-Item Env:CI
+if ($originalCI) { $env:CI = $originalCI } else { Remove-Item Env:CI }
 ```
 
 **Checklist**:

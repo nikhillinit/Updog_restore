@@ -89,13 +89,15 @@ None (planning updates only; no source files edited).
 
 | Area                    | Correction                                                                  |
 | ----------------------- | --------------------------------------------------------------------------- |
-| pg_isready              | Changed to PowerShell retry loop (10 iterations, 2s sleep)                  |
-| ESLint install          | Moved to isolated optional section                                          |
+| pg_isready              | Enhanced PowerShell retry loop with failure handling and status output      |
+| ESLint install          | Moved to isolated optional section with hook bypass guidance                |
 | Phase separation        | Added explicit notes: Phases 2-4 = manual pg-test, Phase 5 = Testcontainers |
 | Table drop verification | Added `docker exec pg-test psql ... "\dt"` command                          |
 | Docker Desktop          | Added requirement note for Phase 5                                          |
 | Files Modified          | Clarified: planning files only, no source edits                             |
 | Local Path              | Added `C:\dev\Updog_restore\` to header                                     |
+| CI=true scoping         | Added safety check to preserve original CI value                            |
+| Phase numbering         | Added quick reference: 9 phases summary                                     |
 
 ### Source Files Modified in Session 3
 
@@ -110,10 +112,19 @@ None (planning updates only; no source files edited).
 ```powershell
 docker run -d --name pg-test -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:15
 
+$ready = $false
 for ($i=0; $i -lt 10; $i++) {
-  docker exec pg-test pg_isready -U postgres
-  if ($LASTEXITCODE -eq 0) { break }
+  docker exec pg-test pg_isready -U postgres 2>&1 | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "PostgreSQL ready after $($i+1) attempts"
+    $ready = $true
+    break
+  }
   Start-Sleep -Seconds 2
+}
+if (-not $ready) {
+  Write-Error "PostgreSQL failed to start after 10 attempts"
+  exit 1
 }
 
 docker exec pg-test psql -U postgres -c "CREATE DATABASE updog_test;"
@@ -169,12 +180,8 @@ $env:DATABASE_URL = "postgresql://postgres:test@localhost:5432/updog_test"
 
 ## Files Location
 
-Planning files in Claude session:
+Committed to repo in commit b119bd5:
 
-- `/root/.claude/plans/task_plan.md`
-- `/root/.claude/plans/findings.md`
-- `/root/.claude/plans/progress.md`
-
-If copying to repo:
-
-- `C:\dev\Updog_restore\docs\plans\phase3-validation-plan.md`
+- `C:\dev\Updog_restore\docs\plans\phase3-validation-task-plan.md`
+- `C:\dev\Updog_restore\docs\plans\phase3-validation-findings.md`
+- `C:\dev\Updog_restore\docs\plans\phase3-validation-progress.md`
