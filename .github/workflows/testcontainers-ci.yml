@@ -85,7 +85,7 @@ jobs:
           set -e
           for attempt in 1 2 3; do
             echo "Smoke test attempt $attempt..."
-            if npm test -- tests/integration/testcontainers-smoke.test.ts; then
+            if npx vitest run -c vitest.config.testcontainers.ts tests/integration/testcontainers-smoke.test.ts; then
               exit 0
             fi
             echo "Smoke test failed; retrying in 10s..."
@@ -95,7 +95,7 @@ jobs:
 
       # Full integration suite once containers are verified.
       - name: Run full integration test suite
-        run: npm test
+        run: npx vitest run -c vitest.config.testcontainers.ts
 
       # Upload test artifacts on failure for debugging.
       - name: Upload test results
