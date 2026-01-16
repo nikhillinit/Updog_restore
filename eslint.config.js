@@ -82,6 +82,7 @@ export default [
       '.tsbuildinfo*',
       '.migration-backup/**',
       '.backup/**',
+      '_archive/**', // Archived obsolete code
       'packages/*/dist/**',
       'packages/*/build/**',
       'ml-service/dist/**',
