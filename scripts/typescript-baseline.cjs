@@ -31,7 +31,14 @@ const crypto = require('crypto');
 // ============================================================================
 
 const BASELINE_FILE = path.join(__dirname, '..', '.tsc-baseline.json');
-const REPO_ROOT = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+const REPO_ROOT = process.env.GITHUB_WORKSPACE
+  || (() => {
+    try {
+      return execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+    } catch {
+      return path.dirname(__dirname);
+    }
+  })();
 
 const PROJECTS = {
   client: 'tsconfig.client.json',
