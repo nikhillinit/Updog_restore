@@ -98,9 +98,9 @@ Since then:
 | Metric | Original Value | Current Value | Source |
 |--------|----------------|---------------|--------|
 | Active Workflows | 15 | 17 | .github/workflows/ directory |
-| Skipped Tests | 674 | 866 | grep count of skip patterns |
+| Skipped Tests | 674 | 865 | rg line count of skip patterns |
 | Pre-existing Failures | 5 | 3 | CI runs + documentation |
-| Recent PRs Documented | 1 (#409) | 6 (#409-#418) | git log |
+| Recent PRs Documented | 1 (#409) | 7 (#409-#418) | git log |
 | Node.js Support | 18.x, 20.x | 20.19.0+ only | CI matrix changes |
 
 ---
@@ -117,10 +117,10 @@ If the updated report introduces errors:
 
 ## Success Criteria
 
-- [ ] All numbers cross-referenced with source files
-- [ ] All PRs #409-#418 documented
-- [ ] Pre-existing failures table accurately reflects current state
-- [ ] Recommendations updated to focus on remaining issues only
-- [ ] Planning files committed and pushed
-- [ ] Working tree clean
-- [ ] No regressions in report accuracy
+- [x] All numbers cross-referenced with source files
+- [x] All PRs #409-#418 (7 PRs total) documented
+- [x] Pre-existing failures table accurately reflects current state
+- [x] Recommendations updated to focus on remaining issues only
+- [x] Planning files committed and pushed
+- [x] Working tree clean
+- [x] No regressions in report accuracy (corrections applied)

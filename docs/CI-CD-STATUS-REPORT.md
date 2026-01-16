@@ -20,7 +20,7 @@ The project has achieved **significant CI/CD stability improvements** through sy
 - Node.js support: Standardized to >=20.19.0
 
 **Current State:**
-- 17 active CI workflows (15 quality gates + 2 docs validators)
+- 17 active CI workflows (9 quality gates + 5 security + 3 docs validators)
 - 3 pre-existing failures (security, api-performance, Vercel)
 - 100% Phase 0 validation (all 6 calculation modules passing)
 - Baseline comparison approach: PRs evaluated on delta, not perfection
@@ -42,17 +42,17 @@ The project maintains 17 active workflows after rationalization on 2025-11-09:
 8. **dependency-validation.yml** - Dependency validation
 9. **testcontainers-ci.yml** - Docker-based integration tests (label-triggered)
 
-### Security Workflows (6 workflows)
+### Security Workflows (5 workflows)
 10. **codeql.yml** - CodeQL security analysis
 11. **security-scan.yml** - Security scanning
 12. **security-tests.yml** - Security validation
 13. **zap-baseline.yml** - OWASP ZAP security baseline
 14. **dockerfile-lint.yml** - Dockerfile linting
-15. *(Testcontainers also provides security validation)*
 
-### Documentation Workflows (2 workflows)
-16. **docs-validate.yml** - Documentation validation
-17. **docs-routing-check.yml** - Discovery routing validation
+### Documentation Workflows (3 workflows)
+15. **docs-validate.yml** - Documentation validation
+16. **docs-routing-check.yml** - Discovery routing validation
+17. **verify-strategic-docs.yml** - Strategic documentation checks
 
 **Note:** 42 experimental/redundant workflows were archived on 2025-11-09.
 
@@ -158,7 +158,7 @@ These failures existed before PR #409 and remain as documented technical debt:
 
 ## Quality Gate Protocol
 
-The project enforces quality gates via `.github/WORKFLOW.md` and `CI-PHILOSOPHY.md`:
+The project enforces quality gates via `.github/CI-PHILOSOPHY.md`:
 
 ### Merge Criteria (Baseline Comparison Approach)
 
@@ -183,7 +183,7 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 ### CI Workflow Architecture
 
-**Pre-commit checks:** Linting, type checking, tests must pass
+**Pre-commit checks:** lint-staged + emoji/bigint guards; type checking and tests run in CI
 **PR checks:** Full suite of 9 quality workflows run
 **Push-to-main checks:** Additional performance and metrics jobs
 **Retry logic:** Tests retry 2x in CI to reduce flakiness
@@ -239,7 +239,7 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 ### Quarantined Tests
 
-**Total:** 5 quarantine test files (983 lines)
+**Total:** 5 quarantine test files (896 lines)
 - `tests/integration/operations-endpoint.quarantine.test.ts`
 - `tests/integration/ops-webhook.quarantine.test.ts`
 - `tests/quarantine/fund-setup.smoke.quarantine.test.tsx`
@@ -250,7 +250,12 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 ### Skipped Tests
 
-**Count:** 866 instances of `describe.skip`, `it.skip`, `test.skip`, `xdescribe`, `xit`, `xtest` across test suite
+**Count:** 865 lines containing skip patterns (`describe.skip`, `it.skip`, `test.skip`, `xdescribe`, `xit`, `xtest`)
+
+**Verification Command:**
+```bash
+rg -n -g "*.ts" -g "*.tsx" "describe\.skip|it\.skip|test\.skip|xdescribe|xit|xtest" tests/ | wc -l
+```
 
 **Recommendation:** Review and address skip reasons to reduce test gaps.
 
@@ -282,7 +287,7 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 ### 1. Skipped Tests (Medium Priority)
 
-- **Count:** 866 skip instances across codebase (increase from 674 in previous assessment)
+- **Count:** 865 lines across codebase (increase from 674 in previous assessment)
 - **Recommendation:** Audit skip reasons, create tickets for blocked tests
 - **Potential Impact:** May be hiding test gaps or environment issues
 
@@ -309,7 +314,7 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 - **22,390 ESLint violations** - Can be addressed incrementally
 - **482 TypeScript baseline errors** - Can be addressed incrementally
-- **Recommendation:** Use `/baseline:progress` to track improvements over time
+- **Recommendation:** Use `npm run baseline:progress` to track improvements over time
 - **Strategy:** Zero NEW violations required, baseline ratcheted down over time
 
 ---
@@ -318,7 +323,7 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 ### Immediate (This Week)
 
-1. ~~Review and document the 674 skipped tests~~ → **UPDATE:** 866 skipped tests (128 increase)
+1. ~~Review and document the 674 skipped tests~~ → **UPDATE:** 865 skipped tests (191 increase)
    - Audit skip reasons
    - Create tickets for legitimately blocked tests
    - Remove obsolete skips
@@ -371,12 +376,12 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
    - Target: Zero baseline errors by Q2 2026
 
 3. Quarantine root cause analysis
-   - 5 quarantine test files (983 lines)
+   - 5 quarantine test files (896 lines)
    - Determine why tests need quarantine
    - Fix underlying issues or document accepted limitations
 
 4. Audit and reduce skipped tests
-   - 866 instances need review
+   - 865 lines need review
    - May reveal missing test coverage or flaky tests
    - Target: <500 skipped tests by Q2 2026
 
@@ -406,7 +411,6 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 **CI Configuration:**
 - `.github/workflows/` - All workflow files (17 active)
 - `.github/CI-PHILOSOPHY.md` - Baseline comparison philosophy
-- `.github/WORKFLOW.md` - Quality gate protocol
 
 **Test Configuration:**
 - `vitest.config.ts` - Main test configuration
@@ -483,10 +487,10 @@ PRs are evaluated based on **delta from baseline**, not absolute quality:
 
 **Changes Since Last Report:**
 - Updated workflow count: 15 → 17
-- Added 6 PRs to "Recently Fixed Issues" (#409-#418)
+- Added 7 PRs to "Recently Fixed Issues" (#409-#418)
 - Created "Recently Resolved" section (2 issues: Governance Guards, scenario_matrices)
 - Updated pre-existing failures: 5 → 3
-- Updated skipped tests: 674 → 866
+- Updated skipped tests: 674 → 865
 - Added testcontainers architecture documentation
 - Updated Node.js requirement: >=20.19.0
 - Clarified Vercel status: External integration or N/A

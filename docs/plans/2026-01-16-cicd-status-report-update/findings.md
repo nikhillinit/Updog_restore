@@ -125,7 +125,7 @@ These 2 resolved failures need to be:
 
 ### Report Update Required
 
-The "Recently Fixed Issues" section must expand from 3 issues (all PR #409) to include impacts from all 6 PRs.
+The "Recently Fixed Issues" section must expand from 3 issues (all PR #409) to include impacts from all 7 PRs.
 
 ---
 
@@ -303,7 +303,7 @@ Update "Test Infrastructure Status" to note:
 |----------|-----------|
 | Use existing report structure | Maintains consistency, makes delta comparison easy |
 | Add "Recently Resolved" section | Celebrates progress, reduces cognitive noise of failures list |
-| Expand "Recently Fixed Issues" to all 6 PRs | Accurate historical record, gives credit for all work |
+| Expand "Recently Fixed Issues" to all 7 PRs | Accurate historical record, gives credit for all work |
 | Update workflow count to 17 | Matches actual file count, includes all active workflows |
 | Use CI-PHILOSOPHY.md as baseline source | Authoritative source, maintained by project |
 | Document testcontainers architecture | New pattern introduced in PR #416, critical for understanding test infrastructure |
