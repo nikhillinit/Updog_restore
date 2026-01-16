@@ -103,8 +103,8 @@ const envSchema = z.object({
 export function loadEnv() {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    console.error('❌ Invalid configuration:', parsed.error.format());
-    process.exit(1);
+    console.error('[config] Invalid configuration:', parsed.error.format());
+    throw new Error(`Invalid configuration: ${parsed.error.message}`);
   }
 
   const config = parsed.data;
@@ -249,31 +249,49 @@ export function loadEnv() {
   return config;
 }
 
-export const config = loadEnv();
+// Lazy-loaded config to avoid import-time side effects (critical for Vercel Preview)
+let _cachedConfig: ReturnType<typeof loadEnv> | null = null;
 
-// Helper functions
+export function getConfig() {
+  if (!_cachedConfig) {
+    _cachedConfig = loadEnv();
+  }
+  return _cachedConfig;
+}
+
+// Legacy export for backwards compatibility - use getConfig() in new code
+// This getter ensures config is lazily loaded on first access
+export const config = new Proxy({} as ReturnType<typeof loadEnv>, {
+  get(_target, prop) {
+    return getConfig()[prop as keyof ReturnType<typeof loadEnv>];
+  },
+});
+
+// Helper functions - use lazy getter to avoid import-time evaluation
 export function isDevelopment() {
-  return config.NODE_ENV === 'development';
+  return getConfig().NODE_ENV === 'development';
 }
 
 export function isProduction() {
-  return config.NODE_ENV === 'production';
+  return getConfig().NODE_ENV === 'production';
 }
 
 export function isTest() {
-  return config.NODE_ENV === 'test';
+  return getConfig().NODE_ENV === 'test';
 }
 
 // Version information
 export function getVersion() {
-  return config.npm_package_version || config.RELEASE || config.GIT_SHA || 'dev';
+  const cfg = getConfig();
+  return cfg.npm_package_version || cfg.RELEASE || cfg.GIT_SHA || 'dev';
 }
 
 // Default labels for metrics
 export function getDefaultLabels() {
+  const cfg = getConfig();
   return {
     service: 'fund-platform-api',
     version: getVersion(),
-    environment: config.NODE_ENV,
+    environment: cfg.NODE_ENV,
   };
 }
