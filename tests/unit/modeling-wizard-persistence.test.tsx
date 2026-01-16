@@ -73,9 +73,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    * - persistToStorage executes second
    * - No way to block navigation on persistence failure
    */
-  // RED PHASE: Will pass after invoke refactor
-  // Current implementation uses actions (goToNextStep, persistToStorage) instead of invoke pattern
-  it.skip('[RED] should persist data BEFORE navigating to next step', async () => {
+  // GREEN PHASE: Invoke refactor complete - test enabled
+  // Implementation uses invoke pattern with persistDataService
+  it('[GREEN] should persist data BEFORE navigating to next step', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
@@ -143,9 +143,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    * - No error state, no user notification
    * - Data loss!
    */
-  // RED PHASE: Will pass after invoke refactor
-  // Current implementation doesn't block navigation on persistence failure
-  it.skip('[RED] should NOT navigate when persistence fails (QuotaExceededError)', async () => {
+  // GREEN PHASE: Invoke refactor complete - test enabled
+  // Implementation blocks navigation on persistence failure
+  it('[GREEN] should NOT navigate when persistence fails (QuotaExceededError)', async () => {
     const actor = createActor(modelingWizardMachine, {
       input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
