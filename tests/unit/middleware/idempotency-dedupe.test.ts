@@ -6,12 +6,12 @@ import { describe, it, expect, beforeAll, beforeEach, test } from 'vitest';
 import type { Express } from 'express';
 import express from 'express';
 import request from 'supertest';
-import { idempotency, clearIdempotencyCache } from '../../server/middleware/idempotency';
-import { dedupe, clearDedupeCache } from '../../server/middleware/dedupe';
+import { idempotency, clearIdempotencyCache } from '../../../server/middleware/idempotency';
+import { dedupe, clearDedupeCache } from '../../../server/middleware/dedupe';
 
-if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+// Redis is mocked via node-setup-redis.ts - no DEMO_CI skip needed
 
-describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
+describe('Idempotency Middleware', () => {
   let app: Express;
   let requestCount = 0;
 
@@ -83,7 +83,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
       expect(response2.status).toBe(201);
       expect(response2.body.id).toBe('fund-123');
       expect(response2.body.requestCount).toBe(1); // Same as first
-      expect(response2.headers['x-idempotent-replay']).toBe('true');
+      expect(response2.headers['idempotency-replay']).toBe('true');
       
       // Handler should only be called once
       expect(requestCount).toBe(1);
@@ -130,7 +130,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         .set('X-Idempotency-Key', idempotencyKey)
         .send(payload);
       
-      expect(response2.headers['x-idempotent-replay']).toBe('true');
+      expect(response2.headers['idempotency-replay']).toBe('true');
       expect(requestCount).toBe(1);
     });
     
@@ -280,7 +280,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         .set('Idempotency-Key', 'key-1')
         .send({ id: 1 });
 
-      expect(response1.headers['x-idempotent-replay']).toBe('true');
+      expect(response1.headers['idempotency-replay']).toBe('true');
 
       // With LRU: key-1 accessed recently, should still be cached
       // With FIFO: key-1 would be evicted first
@@ -334,7 +334,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         .send({ id: 'A' })
         .expect(200);
 
-      expect(accessA.headers['x-idempotent-replay']).toBe('true'); // Cached
+      expect(accessA.headers['idempotency-replay']).toBe('true'); // Cached
       expect(requestCount).toBe(3); // No new request, replayed from cache
 
       // Step 3: Access key-C as well (moves to end after A)
@@ -344,7 +344,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         .send({ id: 'C' })
         .expect(200);
 
-      expect(accessC.headers['x-idempotent-replay']).toBe('true'); // Cached
+      expect(accessC.headers['idempotency-replay']).toBe('true'); // Cached
       expect(requestCount).toBe(3); // Still no new requests
 
       // Current LRU order: [B, A, C]  (B never accessed, A and C both accessed)
@@ -375,9 +375,9 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         .expect(200);
 
       // All should be replayed from cache (LRU behavior validated)
-      expect(replayA.headers['x-idempotent-replay']).toBe('true');
-      expect(replayB.headers['x-idempotent-replay']).toBe('true');
-      expect(replayC.headers['x-idempotent-replay']).toBe('true');
+      expect(replayA.headers['idempotency-replay']).toBe('true');
+      expect(replayB.headers['idempotency-replay']).toBe('true');
+      expect(replayC.headers['idempotency-replay']).toBe('true');
       expect(requestCount).toBe(3); // No additional handler calls
 
       // This test validates:
@@ -468,7 +468,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
       // Headers should be preserved
       expect(response2.headers['x-custom-header']).toBe('test-value');
       expect(response2.headers['x-rate-limit']).toBe('100');
-      expect(response2.headers['x-idempotent-replay']).toBe('true');
+      expect(response2.headers['idempotency-replay']).toBe('true');
     });
   });
 });
@@ -737,7 +737,7 @@ describe('Idempotency + Deduplication Combined', () => {
       .set('Idempotency-Key', 'idem-123')
       .send(payload);
     
-    expect(response2.headers['x-idempotent-replay']).toBe('true');
+    expect(response2.headers['idempotency-replay']).toBe('true');
     expect(response2.body.processCount).toBe(1);
     
     // No idempotency key but same payload (handled by dedupe middleware)
