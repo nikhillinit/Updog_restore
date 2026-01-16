@@ -18,7 +18,15 @@ export default defineConfig({
       'tests/api/**/*.test.ts',
       'tests/api/**/*.spec.ts',
     ],
-    exclude: ['tests/unit/**/*', 'tests/synthetics/**/*'],
+    exclude: [
+      'tests/unit/**/*',
+      'tests/synthetics/**/*',
+      // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
+      'tests/integration/testcontainers-smoke.test.ts',
+      'tests/integration/ScenarioMatrixCache.integration.test.ts',
+      'tests/integration/cache-monitoring.integration.test.ts',
+      'tests/integration/scenarioGeneratorWorker.test.ts',
+    ],
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
