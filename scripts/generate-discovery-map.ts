@@ -641,7 +641,13 @@ async function main(): Promise<void> {
         '.claude/skills/**/*.md',
         '.claude/commands/*.md',
       ],
-      exclude_paths: ['docs/_generated/**', 'docs/archive/**', '**/node_modules/**'],
+      exclude_paths: [
+        'docs/_generated/**',
+        'docs/archive/**',
+        '**/node_modules/**',
+        '_archive/**',
+        'scripts/archive/**',
+      ],
       generic_terms: ['test', 'error', 'fix', 'update', 'change', 'help'],
     },
     decision_tree: {},
@@ -968,21 +974,27 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove timestamps and staleness fields for comparison
-    // Staleness fields (staleDays, isStale, stats.stale_docs) use mode-specific timestamps
+    // Remove environment-variable fields for comparison
+    // These fields vary by OS, timezone, gitignored files, or file system enumeration order
+    // We only validate the routing STRUCTURE (patterns, decision_tree, agents) not doc inventory
     function stripNonStructuralFields(obj: any): void {
       if (!obj || typeof obj !== 'object') return;
+
+      // Strip timestamp fields (present in both RouterIndex and RouterFast)
       delete obj.generatedAt;
       delete obj.staleDays;
       delete obj.isStale;
-      if (obj.stats) {
-        delete obj.stats.stale_docs;
-      }
-      if (Array.isArray(obj.docs)) {
-        obj.docs.forEach((doc: any) => {
-          delete doc.staleDays;
-          delete doc.isStale;
-        });
+
+      // Strip all stats (counts can vary by environment due to gitignored files)
+      delete obj.stats;
+
+      // Strip entire docs array - varies by environment due to gitignored files
+      // CI and local dev environments have different file sets
+      delete obj.docs;
+
+      // Strip RouterFast-specific fields that vary by environment
+      if (obj.scoring && typeof obj.scoring === 'object') {
+        delete obj.scoring.generatedAt;
       }
     }
 

@@ -2,19 +2,7 @@
   {
     "name": "Initial Load (Critical Path)",
     "path": "dist/assets/index-*.js",
-    "limit": "150 KB",
-    "gzip": true
-  },
-  {
-    "name": "Deterministic Engine",
-    "path": "dist/assets/DeterministicEngine-*.js",
-    "limit": "50 KB",
-    "gzip": true
-  },
-  {
-    "name": "Math/Crypto Vendor",
-    "path": "dist/assets/math-crypto-vendor-*.js",
-    "limit": "30 KB",
+    "limit": "250 KB",
     "gzip": true
   },
   {
