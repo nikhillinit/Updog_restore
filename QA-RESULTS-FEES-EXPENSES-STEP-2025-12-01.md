@@ -165,7 +165,7 @@ Execute blocked tests in integration environment with full wizard context. See
 ### Issue #1: No Error Messages Display (UX Issue)
 
 **Severity:** Medium (non-blocking) **Type:** User Experience Enhancement
-**Status:** Tracked for follow-up PR
+**Status:** FIXED (2026-01-16)
 
 **Description:**
 
@@ -208,6 +208,28 @@ react-hook-form's `errors` object:
 **Priority:** Medium (UX polish, not functionality blocker)
 
 **Effort Estimate:** 1-2 hours
+
+**Resolution (2026-01-16):**
+
+Error displays added for all validated fields:
+
+- Fee Basis (Select)
+- Step-down After Year
+- Step-down New Rate
+- Admin Annual Amount
+- Admin Growth Rate
+
+Pattern used:
+
+```tsx
+{
+  errors.field?.path && (
+    <p className="text-sm text-error mt-1">{errors.field.path.message}</p>
+  );
+}
+```
+
+**Verified:** TypeScript compilation passed.
 
 ---
 
@@ -540,3 +562,44 @@ Windows 11 **Node Version:** 18.x **npm Version:** 9.x
 
 **Test Execution Time:** ~30 minutes **QA Engineer:** Manual + Automated
 **Review Date:** 2025-12-01 **Approval Status:** APPROVED
+
+---
+
+## Update: 2026-01-16 - Phase 3 Validation Session
+
+### Issue #1 Resolution: Error Message Display
+
+**Status:** FIXED
+
+**Changes Made:**
+
+- Added error displays for 5 fields in `FeesExpensesStep.tsx`:
+  1. Fee Basis (Select) - line 133-135
+  2. Step-down After Year - line 164-166
+  3. Step-down New Rate - line 180-182
+  4. Admin Annual Amount - line 205-207
+  5. Admin Growth Rate - line 222-224
+
+**Verification:**
+
+- TypeScript compilation: PASSED
+- Pattern consistent with existing `managementFee.rate` error display
+
+### Remaining Blocked Tests (11)
+
+The 11 blocked tests remain deferred to integration QA in full wizard context:
+
+- Unmount Protection Tests: 2.1, 2.2, 2.3, 2.4
+- Form Reset Tests: 3.1, 3.2, 3.3
+- Edge Case Tests: 4.1, 4.2, 4.3, 4.4
+
+**Reason:** Requires XState wizard state machine and step navigation.
+
+### ADR-016 Persistence Refactor (Issue #153)
+
+**Status:** VERIFIED WORKING
+
+- Invoke pattern implemented correctly in `modeling-wizard.machine.ts`
+- NEXT, BACK, GOTO events target `persisting` state before navigation
+- 2 RED PHASE tests enabled and passing as GREEN
+- Total: 10/12 tests passing (2 remaining for specific error types)
