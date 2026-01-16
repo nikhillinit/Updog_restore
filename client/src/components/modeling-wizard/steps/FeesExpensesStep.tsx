@@ -130,6 +130,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                 <SelectItem value="fmv">Fair Market Value</SelectItem>
               </SelectContent>
             </Select>
+            {errors.managementFee?.basis && (
+              <p className="text-sm text-error mt-1">{errors.managementFee.basis.message}</p>
+            )}
           </div>
         </div>
 
@@ -158,6 +161,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.afterYear && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.afterYear.message}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="newRate" className="font-poppins">
@@ -171,6 +179,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 1.5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.newRate && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.newRate.message}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -193,6 +206,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
               placeholder="e.g., 0.5"
               className="mt-2"
             />
+            {errors.adminExpenses?.annualAmount && (
+              <p className="text-sm text-error mt-1">{errors.adminExpenses.annualAmount.message}</p>
+            )}
           </div>
 
           <div>
@@ -207,6 +223,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
               placeholder="e.g., 3.0"
               className="mt-2"
             />
+            {errors.adminExpenses?.growthRate && (
+              <p className="text-sm text-error mt-1">{errors.adminExpenses.growthRate.message}</p>
+            )}
           </div>
         </div>
       </div>
