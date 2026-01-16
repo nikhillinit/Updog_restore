@@ -22,7 +22,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -68,3 +68,4 @@ jobs:
         env:
           BASE_URL: http://localhost:3333
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+          JWT_SECRET: 'ci-security-test-jwt-secret-minimum-32-characters'
