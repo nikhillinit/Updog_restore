@@ -85,6 +85,48 @@
 
 ---
 
+## Phase 2 Implementation (2026-01-17 19:50)
+
+### Codex Session: Implementation Plan (019bcd6d-c5a9-7513-ba4f-f19c5d414e79)
+- Generated detailed test plan with 6 test scenarios
+- Identified prerequisites: pgcrypto, vector extensions
+- Confirmed skipIf pattern alignment with existing tests
+
+### Actions Taken
+1. Created `tests/integration/migration-runner.test.ts`
+2. Added to vitest.config.int.ts exclude list (requires Docker)
+3. Uses raw PostgreSqlContainer (not setupTestDB)
+
+### Tests Implemented (6 tests, 127 LOC)
+| Test | Purpose | Coverage |
+|------|---------|----------|
+| `reports pending migrations on a fresh database` | Fresh state detection | getMigrationState |
+| `applies all migrations when no target is specified` | Full migration | runMigrationsToVersion |
+| `applies migrations up to the target version` | Partial migration | runMigrationsToVersion(target) |
+| `reflects seeded migration history without running migrations` | History seeding | seedMigrationHistory |
+| `resets the database back to latest migration state` | Reset flow | resetDatabase |
+| `throws when target migration is unknown` | Error handling | Invalid target |
+
+### Verification
+- TypeScript: PASS (no errors)
+- ESLint: PASS (no errors)
+- Testcontainers: Requires Docker (CI will validate via testcontainers-ci.yml)
+
+### Files Modified
+- `tests/integration/migration-runner.test.ts` (+127 lines, new)
+- `vitest.config.int.ts` (+1 line, exclude entry)
+
+---
+
+## Phase 2 Complete
+
+Total implementation for Issue #360:
+- **Phase 1**: 74 LOC, 5 tests (matrixKey edge cases)
+- **Phase 2**: 127 LOC, 6 tests (migration runner)
+- **Total**: 201 LOC, 11 tests
+
+---
+
 ## Next Steps
-1. Commit Phase 1 changes
-2. Proceed to Phase 2 (migration-runner.test.ts) if desired
+1. Commit Phase 2 changes
+2. Create PR for review
