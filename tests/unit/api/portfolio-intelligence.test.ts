@@ -1092,14 +1092,17 @@ describe('Portfolio Intelligence API Routes', () => {
   });
 
   describe('Performance and Rate Limiting', () => {
-    // @group integration
-    // FIXME: Security middleware not applied to portfolio-intelligence routes
-    // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
-    // See: server/middleware/security.ts lines 463-470 for middleware stack
+    /**
+     * @quarantine
+     * @owner @devops-team
+     * @reason Test infrastructure does not support rate limiting verification
+     * @exitCriteria Mock time control, request isolation, and dedicated Redis instance
+     * @addedDate 2026-01-17
+     *
+     * Note: Security middleware IS applied (server/routes/portfolio-intelligence.ts:91)
+     * Rate limiting requires dedicated test infrastructure to verify.
+     */
     it.skip('should enforce rate limiting', async () => {
-      // TODO: Re-enable when test infrastructure supports rate limiting
-      // Requires: Mock time control, request isolation, dedicated Redis instance
-      // Blocked by: Test environment lacks rate limit mocking infrastructure
       const requests = Array.from({ length: 20 }, () =>
         request(app).get('/api/portfolio/strategies/1')
       );
@@ -1148,9 +1151,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
   describe('Security and Input Validation', () => {
     // @group integration
-    // FIXME: Security middleware not applied to portfolio-intelligence routes
-    // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
-    // See: server/middleware/security.ts lines 463-470 for middleware stack
+    // Note: Security middleware applied at server/routes/portfolio-intelligence.ts:91
     it('should reject HTML in request body', async () => {
       const maliciousData = {
         name: '<script>alert("xss")</script>Malicious Strategy',
@@ -1172,9 +1173,6 @@ describe('Portfolio Intelligence API Routes', () => {
     });
 
     // @group integration
-    // FIXME: Security middleware not applied to portfolio-intelligence routes
-    // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
-    // See: server/middleware/security.ts lines 463-470 for middleware stack
     it('should reject SQL injection in query params', async () => {
       const sqlInjectionAttempt = {
         name: "'; DROP TABLE strategies; --",
@@ -1195,9 +1193,6 @@ describe('Portfolio Intelligence API Routes', () => {
     });
 
     // @group integration
-    // FIXME: Security middleware not applied to portfolio-intelligence routes
-    // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
-    // See: server/middleware/security.ts lines 463-470 for middleware stack
     it('should reject invalid UUIDs in path params', async () => {
       const invalidUUIDs = [
         'not-a-uuid',

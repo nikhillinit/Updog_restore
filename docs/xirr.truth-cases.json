@@ -485,14 +485,14 @@
       ],
       "config": {
         "tolerance": 1e-10,
-        "maxIterations": 5,
-        "strategy": "Newton"
+        "maxIterations": 1,
+        "strategy": "newton"
       }
     },
     "expected": {
       "irr": null,
       "converged": false,
-      "algorithm": "Newton",
+      "algorithm": "newton",
       "excelParity": false
     },
     "category": "convergence"

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/fund';
 import { DashboardPage } from './page-objects/DashboardPage';
 import { NavigationPage } from './page-objects/NavigationPage';
 
@@ -6,19 +6,20 @@ test.describe('Dashboard Functionality', () => {
   let dashboardPage: DashboardPage;
   let navigationPage: NavigationPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, fund }) => {
     dashboardPage = new DashboardPage(page);
     navigationPage = new NavigationPage(page);
+
+    // Fund fixture ensures fund exists via API seeding
+    console.log(`Testing with fund: ${fund.fundName} (id: ${fund.fundId})`);
 
     // Navigate to dashboard
     await dashboardPage.goto('dashboard');
     await dashboardPage.waitForLoadingToComplete();
 
-    // If redirected to fund setup, skip dashboard tests
-    const currentUrl = await dashboardPage.page.url();
-    if (currentUrl.includes('/fund-setup')) {
-      test.skip();
-    }
+    // Skip if still redirected to fund-setup (fund fixture should prevent this)
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/fund-setup'), 'Fund setup redirect');
   });
 
   test('should display fund overview with key metrics', async () => {

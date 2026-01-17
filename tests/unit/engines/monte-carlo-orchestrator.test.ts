@@ -5,10 +5,13 @@
  * stochastic mode, and reproducibility guarantees.
  *
  * @quarantine
- * @reason Stochastic mode tests require Monte Carlo engine completion (Phase 2)
- * @owner nikhil
- * @exit Complete Phase 2 Monte Carlo implementation, enable stochastic tests
- * @date 2026-01-14
+ * @owner @phoenix-team
+ * @reason Stochastic mode tests require Phase 2 Monte Carlo completion
+ * @exitCriteria Phase 2 Monte Carlo merged (tracking: phoenix-phase2-planning.md)
+ * @addedDate 2026-01-14
+ *
+ * Note: Expectation mode tests are active. Only stochastic mode tests
+ * require Phase 2 infrastructure (distribution sampling, multi-run aggregation).
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

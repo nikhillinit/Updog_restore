@@ -1,8 +1,10 @@
 import { mapAsync } from "../../client/src/lib";
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/fund';
 
 test.describe('Performance Tests', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, fund }) => {
+    // Fund fixture ensures fund exists via API seeding
+    console.log(`Testing with fund: ${fund.fundName} (id: ${fund.fundId})`);
     // Enable performance metrics collection
     await page.coverage.startJSCoverage();
     await page.coverage.startCSSCoverage();
@@ -42,10 +44,8 @@ test.describe('Performance Tests', () => {
     const loadTime = Date.now() - startTime;
     const currentUrl = await page.url();
     
-    // Skip if redirected
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    // Skip if redirected (fund fixture should prevent fund-setup redirect)
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Dashboard should load within 3 seconds
     expect(loadTime).toBeLessThan(3000);
@@ -56,10 +56,8 @@ test.describe('Performance Tests', () => {
   test('should have acceptable Core Web Vitals', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Wait for page to fully load
     await page.waitForLoadState('networkidle');
@@ -132,10 +130,8 @@ test.describe('Performance Tests', () => {
   test('should not have memory leaks on navigation', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Get initial memory usage
     const initialMemory = await page.evaluate(() => {
@@ -187,10 +183,8 @@ test.describe('Performance Tests', () => {
   test('should handle large data sets efficiently', async ({ page }) => {
     await page.goto('/portfolio');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Wait for initial load
     await page.waitForLoadState('networkidle');
@@ -228,10 +222,8 @@ test.describe('Performance Tests', () => {
   test('should load images efficiently', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Wait for page load
     await page.waitForLoadState('networkidle');
@@ -319,10 +311,8 @@ test.describe('Performance Tests', () => {
   test('should handle concurrent requests efficiently', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Wait for initial load
     await page.waitForLoadState('networkidle');
@@ -363,10 +353,8 @@ test.describe('Performance Tests', () => {
   test('should maintain performance under load simulation', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Simulate user interactions rapidly
     const startTime = Date.now();
@@ -399,10 +387,8 @@ test.describe('Performance Tests', () => {
     // First visit
     await page.goto('/dashboard', { waitUntil: 'networkidle' });
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     const firstLoadTime = Date.now();
     await page.waitForLoadState('domcontentloaded');

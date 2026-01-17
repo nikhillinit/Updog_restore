@@ -7,7 +7,7 @@
  * Root cause: Mock setup incomplete - missing exports like q(), query(), queryWithRetry()
  * from server/db module. Skipping until proper integration test environment is configured.
  */
-import { describe, it, expect, beforeAll, afterAll, vi, test } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 // Type imports only - no runtime side effects
 import type { Pool as PgPoolType } from 'pg';
