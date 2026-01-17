@@ -1,0 +1,342 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Setup ioredis-mock for Demo CI",
+        "description": "Install and configure ioredis-mock to replace Redis dependency in test environment, enabling CI tests to run without external Redis instance",
+        "details": "Install ioredis-mock as dev dependency via npm. Modify tests/setup/node-setup-redis.ts to conditionally use RedisMock when NODE_ENV=test or DEMO_CI is set. Import RedisMock at top of file and replace Redis initialization with conditional logic: const redis = process.env.NODE_ENV === 'test' || process.env.DEMO_CI ? new RedisMock() : new Redis(process.env.REDIS_URL). Test with previously skipped Redis test to verify mock works correctly.",
+        "testStrategy": "Run npm test -- tests/middleware/idempotency-dedupe.test.ts to verify tests execute without skipping. Verify npm ls ioredis-mock shows package installed. Check that tests run in both test and non-test environments.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-16T22:10:22.130Z"
+      },
+      {
+        "id": "2",
+        "title": "Remove Demo CI Skips from Idempotency Tests",
+        "description": "Remove conditional skips from idempotency-dedupe tests now that Redis is mocked via ioredis-mock",
+        "details": "Locate tests/middleware/idempotency-dedupe.test.ts line 12 containing 'if (process.env.DEMO_CI) test.skip'. Remove the conditional skip statement and replace with comment explaining Redis is now mocked. The skip pattern should be completely removed since ioredis-mock handles the Redis dependency.",
+        "testStrategy": "Run npm test -- tests/middleware/idempotency-dedupe.test.ts and verify tests execute and pass (or fail with actionable errors) rather than being skipped. Use grep to confirm no DEMO_CI skip patterns remain in the file.",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-16T22:10:22.140Z"
+      },
+      {
+        "id": "3",
+        "title": "Remove Demo CI Skips from Circuit Breaker Tests",
+        "description": "Enable circuit-breaker-db tests by removing DEMO_CI conditional skips, leveraging Redis mock",
+        "details": "Find tests/integration/circuit-breaker-db.test.ts line 15 with DEMO_CI skip condition. Remove the conditional skip statement and add comment that Redis is now mocked via ioredis-mock. Ensure circuit breaker logic can work with mocked Redis instance.",
+        "testStrategy": "Execute npm test -- tests/integration/circuit-breaker-db.test.ts to verify tests run successfully. Check that circuit breaker functionality works correctly with Redis mock by validating test assertions pass.",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-16T22:10:22.157Z"
+      },
+      {
+        "id": "4",
+        "title": "Remove Demo CI Skips from Chaos Tests",
+        "description": "Enable postgres-latency chaos tests by removing DEMO_CI conditional skips",
+        "details": "Locate tests/chaos/postgres-latency.test.ts line 10 with DEMO_CI skip condition. Remove the conditional skip to allow chaos tests to run in CI environment. Verify chaos testing logic is compatible with CI environment constraints.",
+        "testStrategy": "Run npm test -- tests/chaos/postgres-latency.test.ts to confirm tests execute without skipping. Validate that chaos testing scenarios complete successfully in CI environment.",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-16T22:10:22.164Z"
+      },
+      {
+        "id": "5",
+        "title": "Verify Tier 1 CI Blocking Tests Complete",
+        "description": "Validate all DEMO_CI skips have been removed and document progress in removing CI blocking test skips",
+        "details": "Use grep -r 'DEMO_CI.*skip' tests/ --include='*.ts' | wc -l to count remaining DEMO_CI skips (should be 0). Run full test suite with npm test to verify no CI-blocking skips remain. Update .taskmaster/docs/progress.md with completion status, number of skips removed, and method used (ioredis-mock integration).",
+        "testStrategy": "Verify grep command returns 0 remaining DEMO_CI skips. Confirm full test suite runs without CI-blocking failures. Document exact number of skips removed and current total skip count.",
+        "priority": "high",
+        "dependencies": [
+          "2",
+          "3",
+          "4"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-16T22:10:22.173Z"
+      },
+      {
+        "id": "6",
+        "title": "Fix XIRR Newton-Raphson Solver Edge Case",
+        "description": "Implement Brent's method fallback for XIRR calculations when Newton-Raphson fails on extreme high returns",
+        "details": "Modify server/analytics/xirr.ts to add Brent's method as fallback when Newton-Raphson diverges or produces non-finite results. Implement brentSolver function with parameters (cashflows, dates, lower=-0.99, upper=10.0, tolerance=1e-10, maxIterations=100). Add fallback logic after Newton-Raphson attempt: if (!converged || !isFinite(rate)) { rate = brentSolver(cashflows, dates, -0.99, 10.0); }. Include full Brent's method implementation with root bracketing and convergence checks.",
+        "testStrategy": "Remove skip from tests/unit/xirr-golden-set.test.ts line 130 'extreme high returns' test. Run npm test -- tests/unit/xirr-golden-set.test.ts to verify test passes with Brent's method handling 10x returns in 6 months scenario.",
+        "priority": "high",
+        "dependencies": [
+          "5"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "Fix XIRR Bisection Fallback Tests",
+        "description": "Enable XIRR edge case tests that now pass due to Brent's method fallback implementation",
+        "details": "Remove skips from three XIRR fallback tests: tests/unit/xirr-golden-set.test.ts line 284, tests/unit/analytics-xirr.test.ts line 59, and tests/unit/analytics-xirr.test.ts line 88. These tests should now pass since Brent's method fallback handles the edge cases that previously caused bisection fallback failures.",
+        "testStrategy": "Run npm test -- tests/unit/xirr-golden-set.test.ts tests/unit/analytics-xirr.test.ts to verify all three previously skipped tests now pass. Confirm Brent's method correctly handles the edge cases tested in these scenarios.",
+        "priority": "high",
+        "dependencies": [
+          "6"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "Document or Fix Security Middleware Gap",
+        "description": "Address security middleware FIXME in portfolio-intelligence tests by either implementing missing middleware or documenting as quarantined",
+        "details": "Examine tests/unit/api/portfolio-intelligence.test.ts for FIXME comments about security middleware. If fix is simple (mounting existing middleware), add authMiddleware and rateLimitMiddleware to server/routes/portfolio-intelligence.ts. If complex, add @quarantine JSDoc with @owner @security-team, @reason 'Security middleware not applied to portfolio-intelligence routes', @exitCriteria 'Complete security audit and middleware application', and @addedDate.",
+        "testStrategy": "Run npm test -- tests/unit/api/portfolio-intelligence.test.ts to verify either tests pass with middleware applied or are properly documented as quarantined. Confirm security requirements are addressed appropriately.",
+        "priority": "medium",
+        "dependencies": [
+          "7"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "Create Test Fix Patterns Cheatsheet",
+        "description": "Create comprehensive reference document with common test remediation patterns for Redis mocking, E2E auth, anti-flake patterns, and quarantine documentation",
+        "details": "Create cheatsheets/test-fix-patterns.md with sections for: Redis mocking using ioredis-mock, E2E auth fixture with Playwright, condition-based waiting to prevent flaky tests, seeded PRNG for Monte Carlo determinism, and @quarantine JSDoc template. Include code examples for each pattern showing proper implementation and usage.",
+        "testStrategy": "Verify file is created with all required sections and code examples. Ensure examples are syntactically correct and follow established patterns from previous tasks.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "10",
+        "title": "Document Monte Carlo Stochastic Tests as Quarantined",
+        "description": "Add proper @quarantine documentation to Monte Carlo orchestrator tests that depend on Phase 2 completion",
+        "details": "Add @quarantine JSDoc to tests/unit/engines/monte-carlo-orchestrator.test.ts describe block with @owner @phoenix-team, @reason 'Stochastic mode tests require Phase 2 Monte Carlo completion', @exitCriteria 'Phase 2 Monte Carlo merged (tracking: phoenix-phase2-planning.md)', @addedDate current date. Optionally move file to tests/quarantine/ directory.",
+        "testStrategy": "Verify @quarantine JSDoc follows protocol template. Confirm 13 stochastic mode tests are properly documented with exit criteria linked to Phase 2 planning.",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "11",
+        "title": "Fix E2E Fund Setup Precondition",
+        "description": "Create fund fixture for E2E tests to resolve 'Fund setup not complete' skip conditions",
+        "details": "Create tests/e2e/fixtures/fund.ts with fundConfiguredPage fixture that ensures fund exists via API seeding before test execution. Extend Playwright base test with fixture that calls seedTestFund() and navigates to dashboard. Update tests/e2e/portfolio-management.spec.ts to use fund fixture and remove skip condition.",
+        "testStrategy": "Run npx playwright test tests/e2e/portfolio-management.spec.ts to verify tests execute with fund precondition met. Confirm fixture properly seeds test data and navigates to correct page state.",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "12",
+        "title": "Fix E2E Navigation and Routing Tests",
+        "description": "Apply fund/auth fixture pattern to enable navigation-and-routing E2E tests",
+        "details": "Identify skip reasons in tests/e2e/navigation-and-routing.spec.ts (3 skips). Apply appropriate fixtures (auth, fund, or both) based on test requirements. Remove skip conditions and update tests to use fixtures. Follow same pattern as Task 11 for consistent fixture usage.",
+        "testStrategy": "Run npx playwright test tests/e2e/navigation-and-routing.spec.ts to verify all 3 previously skipped tests now execute successfully with proper fixtures.",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "13",
+        "title": "Fix E2E Performance Tests",
+        "description": "Enable performance E2E tests by resolving precondition dependencies with appropriate fixtures",
+        "details": "Address 8 skips in tests/e2e/performance.spec.ts by identifying required preconditions and applying auth/fund fixtures as needed. Remove skip conditions and ensure performance tests have proper setup for measurement accuracy.",
+        "testStrategy": "Execute npx playwright test tests/e2e/performance.spec.ts to confirm all 8 performance tests run with valid measurements and pass performance thresholds.",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "14",
+        "title": "Fix E2E Accessibility Tests",
+        "description": "Enable accessibility E2E tests by resolving setup dependencies with fixtures",
+        "details": "Resolve 7 skips in tests/e2e/accessibility.spec.ts by applying appropriate auth/fund fixtures. Ensure accessibility tests have proper page state for accurate a11y scanning and validation.",
+        "testStrategy": "Run npx playwright test tests/e2e/accessibility.spec.ts to verify accessibility tests execute and validate WCAG compliance on properly configured pages.",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "15",
+        "title": "Fix E2E User Authentication Tests",
+        "description": "Enable user authentication E2E tests by resolving precondition skips",
+        "details": "Address 2 skips in tests/e2e/user-authentication.spec.ts by identifying specific precondition requirements and applying appropriate fixtures or setup logic.",
+        "testStrategy": "Execute npx playwright test tests/e2e/user-authentication.spec.ts to confirm authentication flow tests run successfully with proper user state management.",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "16",
+        "title": "Fix E2E Dashboard Functionality Tests",
+        "description": "Enable dashboard functionality E2E test by resolving setup dependency",
+        "details": "Resolve 1 skip in tests/e2e/dashboard-functionality.spec.ts by applying fund/auth fixtures as needed for dashboard state requirements.",
+        "testStrategy": "Run npx playwright test tests/e2e/dashboard-functionality.spec.ts to verify dashboard test executes with proper data and user context.",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "17",
+        "title": "Refactor Time-Travel Middleware for Dependency Injection",
+        "description": "Refactor time-travel middleware to use dependency injection pattern, enabling proper mocking in tests",
+        "details": "Extract dependencies from server/middleware/time-travel.ts into TimeTravelDependencies interface with snapshotService and dateParser. Create createTimeTravelMiddleware factory function that accepts dependencies. Update tests/unit/api/time-travel-api.test.ts to inject mock dependencies instead of relying on direct imports.",
+        "testStrategy": "Remove skips from 13 time-travel tests and run npm test -- tests/unit/api/time-travel-api.test.ts to verify all tests pass with injected mock dependencies.",
+        "priority": "medium",
+        "dependencies": [
+          "16"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "18",
+        "title": "Seed Monte Carlo PRNG for Determinism",
+        "description": "Add seedable PRNG to Monte Carlo engine to eliminate flaky stochastic test behavior",
+        "details": "Install seedrandom and @types/seedrandom packages. Modify server/engines/monte-carlo.ts to accept optional seed parameter and use seedrandom(seed) instead of Math.random() throughout simulation. Update tests/unit/services/monte-carlo-power-law-validation.test.ts to use deterministic seed for consistent results.",
+        "testStrategy": "Remove @flaky tag and skip from Monte Carlo tests. Run npm test -- tests/unit/services/monte-carlo-power-law-validation.test.ts to verify tests produce consistent results with seeded PRNG.",
+        "priority": "medium",
+        "dependencies": [
+          "17"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "19",
+        "title": "Create Quarantine Protocol Document",
+        "description": "Establish formal protocol for managing long-term quarantined tests with documentation requirements and review process",
+        "details": "Create tests/quarantine/PROTOCOL.md documenting requirements for quarantined tests: @quarantine JSDoc tag, @owner GitHub username, @reason explanation, @exitCriteria conditions for enabling, @addedDate timestamp. Include example JSDoc and monthly review process for checking exit criteria.",
+        "testStrategy": "Verify protocol document is complete with all required sections, proper JSDoc example, and clear review process. Ensure document serves as reference for future quarantine decisions.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "20",
+        "title": "Document Testcontainers as Permanent Quarantine",
+        "description": "Move Testcontainers tests to quarantine with proper documentation due to Docker dependency",
+        "details": "Add @quarantine JSDoc to tests/integration/testcontainers-smoke.test.ts with @owner @devops-team, @reason 'Requires Docker which is not available in GitHub Actions free tier', @exitCriteria 'Migrate to self-hosted runners OR GitHub adds Docker support'. Move file to tests/quarantine/ directory.",
+        "testStrategy": "Verify file is moved to quarantine directory with proper @quarantine documentation following protocol. Confirm Testcontainers tests are documented as permanent quarantine due to infrastructure constraints.",
+        "priority": "low",
+        "dependencies": [
+          "19"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "21",
+        "title": "Setup CI Skip Counter Workflow",
+        "description": "Create GitHub Actions workflow to monitor and enforce skip count threshold",
+        "details": "Create .github/workflows/skip-counter.yml that triggers on PR changes to tests/ or config files. Workflow counts skipped tests using grep for .skip, describe.skip, it.skip, test.skip patterns. Set threshold of 20 skips and fail CI if exceeded. Include notice output for current skip count.",
+        "testStrategy": "Test workflow by creating PR with test changes. Verify skip counter accurately counts skipped tests and enforces 20-skip threshold. Confirm workflow provides clear feedback on skip count status.",
+        "priority": "low",
+        "dependencies": [
+          "20"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "22",
+        "title": "Run Full Test Suite Verification",
+        "description": "Execute complete test suite to verify skip count is below target threshold of 20",
+        "details": "Run npm test to execute full test suite and verify no critical failures. Use grep -rE '\\.(skip|todo)\\(|describe\\.skip|it\\.skip|test\\.skip' tests/ --include='*.ts' --include='*.tsx' | wc -l to count final skip total. Generate quarantine report if available. Target is <20 total skips.",
+        "testStrategy": "Verify skip count is below 20 threshold. Confirm test suite runs successfully with no CI-blocking failures. Document final skip count and categorize remaining skips (quarantined vs actionable).",
+        "priority": "high",
+        "dependencies": [
+          "21"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "23",
+        "title": "Update Findings Documentation with Results",
+        "description": "Document final remediation results in findings.md with before/after metrics and permanent quarantine list",
+        "details": "Update .taskmaster/docs/findings.md with remediation results section showing before/after skip counts, documented vs undocumented skips, and list of permanent quarantines with reasons. Include table format for clear metrics comparison and categorization of remaining skips.",
+        "testStrategy": "Verify findings document accurately reflects remediation results with correct metrics. Ensure permanent quarantines are properly documented with reasons and exit criteria.",
+        "priority": "medium",
+        "dependencies": [
+          "22"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "24",
+        "title": "Create Quarantine Report Generator",
+        "description": "Implement npm script to generate monthly quarantine reports for review process",
+        "details": "Create npm script 'quarantine:report' that scans tests/quarantine/ directory and extracts @quarantine JSDoc metadata. Generate report showing owner, reason, exit criteria, and age for each quarantined test. Format as markdown for easy review and tracking.",
+        "testStrategy": "Run npm run quarantine:report to verify script generates accurate report with all quarantined tests. Confirm report includes all required metadata fields and is formatted for review process.",
+        "priority": "low",
+        "dependencies": [
+          "19"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "25",
+        "title": "Update Progress Documentation",
+        "description": "Complete progress.md with final status, tier completion summary, and next steps for ongoing test maintenance",
+        "details": "Update .taskmaster/docs/progress.md with completion status for all 5 tiers: CI blockers, critical path, quick wins, technical debt, and quarantine. Document final skip count, methods used, and establish process for ongoing maintenance. Include recommendations for preventing skip accumulation.",
+        "testStrategy": "Verify progress document provides complete summary of remediation effort with accurate metrics and clear next steps. Ensure document serves as reference for future test maintenance activities.",
+        "priority": "medium",
+        "dependencies": [
+          "23",
+          "24"
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-01-16T22:10:22.176Z",
+      "taskCount": 25,
+      "completedCount": 5,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

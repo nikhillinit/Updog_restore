@@ -12,7 +12,8 @@ import { describe, it, expect, beforeAll, afterAll, vi, test } from 'vitest';
 // Type imports only - no runtime side effects
 import type { Pool as PgPoolType } from 'pg';
 
-if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+// Redis now mocked via InMemoryRedis in server/db/redis-circuit.ts
+// Skips automatically if no DATABASE_URL (integration requires real DB)
 
 // Conditional describe - only run when DATABASE_URL is available
 const describeMaybe = process.env.DATABASE_URL ? describe : describe.skip;

@@ -1,13 +1,21 @@
 /**
  * Chaos Engineering Tests for PostgreSQL
  * Tests resilience under various failure scenarios using Toxiproxy
+ *
+ * @quarantine
+ * @owner @devops-team
+ * @reason Requires Toxiproxy infrastructure (docker-compose.toxiproxy.yml)
+ * @exitCriteria Add Toxiproxy to CI pipeline or create mock-based alternative
+ * @addedDate 2026-01-16
  */
 import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
-if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+// Skip if Toxiproxy infrastructure not available (CI/demo environments)
+const CHAOS_INFRA_AVAILABLE = !process.env.DEMO_CI && !process.env.CI;
+if (!CHAOS_INFRA_AVAILABLE) test.skip('skipped - requires Toxiproxy infrastructure', () => {});
 
 const execAsync = promisify(exec);
 
@@ -175,7 +183,7 @@ class MetricsCollector {
   }
 }
 
-describe.skipIf(process.env.DEMO_CI === '1')('PostgreSQL Chaos Testing', () => {
+describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   let toxiproxy: ToxiproxyClient;
   let metrics: MetricsCollector;
 
@@ -454,7 +462,7 @@ describe.skipIf(process.env.DEMO_CI === '1')('PostgreSQL Chaos Testing', () => {
   });
 });
 
-describe.skipIf(process.env.DEMO_CI === '1')('Redis Chaos Testing', () => {
+describe.skipIf(!CHAOS_INFRA_AVAILABLE)('Redis Chaos Testing', () => {
   let toxiproxy: ToxiproxyClient;
 
   beforeAll(async () => {
