@@ -243,3 +243,6 @@ cleanup_*.log
 .migration-backup/
 .npm-cache/
 .npm-tmp/
+
+# Archive directory for old backups and logs
+_archive/
