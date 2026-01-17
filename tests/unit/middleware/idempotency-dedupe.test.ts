@@ -282,23 +282,24 @@ describe('Idempotency Middleware', () => {
       });
 
       // Make 3 requests with different keys
+      // Note: 100ms delays needed in CI for async storage completion
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', 'key-1')
         .send({ id: 1 });
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', 'key-2')
         .send({ id: 2 });
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', 'key-3')
         .send({ id: 3 });
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Access key-1 again (should move to end of LRU)
       const response1 = await request(smallCacheApp)
@@ -624,8 +625,10 @@ describe('Request Deduplication Middleware', () => {
   
   describe('Singleflight Pattern', () => {
     it('should coalesce concurrent identical requests', async () => {
-      const payload = { fundSize: 50000000 };
-      
+      // Use unique payload to avoid cross-test cache pollution
+      // (Redis cache is shared across tests, clearDedupeCache only clears memory)
+      const payload = { fundSize: 99999999, testId: `singleflight-${Date.now()}` };
+
       // Launch multiple concurrent requests
       const promises = Array(5).fill(null).map(() =>
         request(app)
