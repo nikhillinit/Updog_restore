@@ -98,7 +98,7 @@ jobs:
             const fs = require('fs');
             const diff = JSON.parse(fs.readFileSync('bundle-size-diff.json', 'utf8'));
 
-            let comment = '## 📦 Bundle Size Report\n\n';
+            let comment = '## Bundle Size Report\n\n';
             comment += '| Bundle | Current | Base | Diff | Status |\n';
             comment += '|--------|---------|------|------|--------|\n';
 
@@ -111,10 +111,16 @@ jobs:
               ? '[FAIL] **Some bundles exceed limits!**'
               : '[PASS] All bundles within limits');
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const prNumber = context.payload.pull_request?.number || context.issue?.number;
+            if (!prNumber) {
+              console.log('No PR number found, skipping comment');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
               owner: context.repo.owner,
-              repo: context.repo.name,
+              repo: context.repo.repo,
               body: comment
             });
 
