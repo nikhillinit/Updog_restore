@@ -169,14 +169,15 @@ function compareResults() {
       name: currentEntry.name,
       limit: limitBytes,
       limitFormatted,
-      current: currentBytes,
-      currentFormatted: formatSize(currentBytes),
-      base: baseBytes,
-      baseFormatted: baseBytes !== null ? formatSize(baseBytes) : null,
-      diff: diffFromBase,
-      diffFormatted: diffFromBase !== null ? formatSize(Math.abs(diffFromBase)) : null,
+      current: formatSize(currentBytes),
+      currentBytes,
+      base: baseBytes !== null ? formatSize(baseBytes) : 'N/A',
+      baseBytes,
+      diff: diffFromBase !== null ? formatSize(Math.abs(diffFromBase)) : 'N/A',
+      deltaBytes: diffFromBase,
       diffPercent: diffPercent !== null ? diffPercent.toFixed(2) : null,
       passed,
+      withinLimit: passed,
       status: passed ? 'PASS' : 'FAIL'
     };
 
@@ -204,13 +205,12 @@ function compareResults() {
 
     console.log(`${statusIcon} ${result.name}`);
     console.log(`   Limit:   ${result.limitFormatted}`);
-    console.log(`   Current: ${result.currentFormatted} (${statusText})`);
+    console.log(`   Current: ${result.current} (${statusText})`);
 
-    if (result.base !== null) {
+    if (result.baseBytes !== null) {
       const diffIcon = diffFromBase < 0 ? '↓' : diffFromBase > 0 ? '↑' : '→';
-      const diffColor = diffFromBase < 0 ? '' : diffFromBase > 0 ? '' : '';
-      console.log(`   Base:    ${result.baseFormatted}`);
-      console.log(`   Change:  ${diffIcon} ${result.diffFormatted} (${diffPercent > 0 ? '+' : ''}${diffPercent.toFixed(2)}%)`);
+      console.log(`   Base:    ${result.base}`);
+      console.log(`   Change:  ${diffIcon} ${result.diff} (${diffPercent > 0 ? '+' : ''}${diffPercent.toFixed(2)}%)`);
     }
 
     console.log('');
@@ -229,8 +229,8 @@ function compareResults() {
 
   console.log('');
 
-  // Write comparison to file
-  writeFileSync(outputFile, JSON.stringify(comparison, null, 2), 'utf-8');
+  // Write comparison to file - output array directly for workflow compatibility
+  writeFileSync(outputFile, JSON.stringify(comparison.results, null, 2), 'utf-8');
   console.log(`📝 Detailed comparison written to: ${outputFile}\n`);
 
   // Exit with appropriate code
