@@ -282,29 +282,30 @@ describe('Idempotency Middleware', () => {
       });
 
       // Make 3 requests with different keys
-      // Note: 100ms delays needed in CI for async storage completion
+      // Use unique keys to avoid cross-test cache pollution (Redis stub persists across tests)
+      const testPrefix = `lru-simple-${Date.now()}`;
       await request(smallCacheApp)
         .post('/api/test')
-        .set('Idempotency-Key', 'key-1')
+        .set('Idempotency-Key', `${testPrefix}-1`)
         .send({ id: 1 });
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
-        .set('Idempotency-Key', 'key-2')
+        .set('Idempotency-Key', `${testPrefix}-2`)
         .send({ id: 2 });
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await request(smallCacheApp)
         .post('/api/test')
-        .set('Idempotency-Key', 'key-3')
+        .set('Idempotency-Key', `${testPrefix}-3`)
         .send({ id: 3 });
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Access key-1 again (should move to end of LRU)
       const response1 = await request(smallCacheApp)
         .post('/api/test')
-        .set('Idempotency-Key', 'key-1')
+        .set('Idempotency-Key', `${testPrefix}-1`)
         .send({ id: 1 });
 
       expect(response1.headers['idempotency-replay']).toBe('true');
