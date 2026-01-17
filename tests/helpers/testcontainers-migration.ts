@@ -216,6 +216,19 @@ export async function runMigrationsToVersion(
   try {
     console.log(`[testcontainers-migration] Running migrations from ${folderToUse}`);
     console.log(`[testcontainers-migration] Target: ${normalizedTarget}, ordered: ${ordered.join(', ')}`);
+
+    // Check search_path and current schema
+    const schemaCheck = await pool.query('SHOW search_path');
+    console.log(`[testcontainers-migration] search_path: ${JSON.stringify(schemaCheck.rows)}`);
+
+    // Verify extensions exist
+    const extCheck = await pool.query("SELECT extname FROM pg_extension WHERE extname IN ('pgcrypto', 'vector')");
+    console.log(`[testcontainers-migration] Extensions: ${extCheck.rows.map((r: { extname: string }) => r.extname).join(', ')}`);
+
+    // List files in migrations folder
+    const files = fs.readdirSync(folderToUse).filter(f => f.endsWith('.sql') || f === 'meta');
+    console.log(`[testcontainers-migration] Folder contents: ${files.join(', ')}`);
+
     const db = drizzle(pool);
     await migrate(db, {
       migrationsFolder: folderToUse,
