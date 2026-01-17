@@ -311,6 +311,82 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
       });
     });
 
+    describe('Canonical Key Generation - Edge Cases (Issue #360)', () => {
+      it('should be order-insensitive for buckets', () => {
+        const config1 = createTestConfig('bucket-order-test');
+        // Original order: bucket-a, bucket-b
+        const config2 = createTestConfig('bucket-order-test');
+        // Reverse the bucket order
+        config2.buckets = [...config2.buckets].reverse();
+
+        const key1 = (cache as any).generateCanonicalKey(config1);
+        const key2 = (cache as any).generateCanonicalKey(config2);
+
+        // Should generate same key - buckets are sorted by name internally
+        expect(key1).toBe(key2);
+      });
+
+      it('should round values within 5-decimal tolerance (same key)', () => {
+        const config1 = createTestConfig('rounding-tolerance-test');
+        config1.buckets[0].capitalAllocation = 0.60000001; // 8 decimals
+
+        const config2 = createTestConfig('rounding-tolerance-test');
+        config2.buckets[0].capitalAllocation = 0.60000002; // 8 decimals, differs at 8th place
+
+        const key1 = (cache as any).generateCanonicalKey(config1);
+        const key2 = (cache as any).generateCanonicalKey(config2);
+
+        // Should generate same key - difference is beyond 5 decimal precision
+        expect(key1).toBe(key2);
+      });
+
+      it('should detect changes at 5-decimal boundary (different key)', () => {
+        const config1 = createTestConfig('rounding-boundary-test');
+        config1.buckets[0].capitalAllocation = 0.60001; // 5 decimals
+
+        const config2 = createTestConfig('rounding-boundary-test');
+        config2.buckets[0].capitalAllocation = 0.60002; // 5 decimals, differs at 5th place
+
+        const key1 = (cache as any).generateCanonicalKey(config1);
+        const key2 = (cache as any).generateCanonicalKey(config2);
+
+        // Should generate different keys - difference is within 5 decimal precision
+        expect(key1).not.toBe(key2);
+      });
+
+      it('should store matrix_key matching generated configHash', async () => {
+        const config = createTestConfig('persistence-key-test');
+
+        // Generate and store matrix
+        const result = await cache.getOrGenerate(config);
+        const expectedKey = result.metadata.configHash;
+
+        // Verify PostgreSQL stored the same key
+        const pgRows = await pgPool.query(
+          'SELECT matrix_key FROM scenario_matrices WHERE fund_id = $1',
+          [config.fundId]
+        );
+
+        expect(pgRows.rows).toHaveLength(1);
+        expect(pgRows.rows[0].matrix_key).toBe(expectedKey);
+      });
+
+      it('should use scenario-matrix:<hash> prefix for Redis keys', async () => {
+        const config = createTestConfig('redis-prefix-test');
+
+        // Generate and store matrix
+        const result = await cache.getOrGenerate(config);
+        const configHash = result.metadata.configHash;
+
+        // Verify Redis key format
+        const expectedRedisKey = `scenario-matrix:${configHash}`;
+        const redisData = await redis.get(expectedRedisKey);
+
+        expect(redisData).toBeTruthy();
+        expect(expectedRedisKey).toMatch(/^scenario-matrix:[a-f0-9]{64}$/);
+      });
+    });
+
     describe('Concurrency and Race Conditions', () => {
       it('should handle concurrent cache misses without duplicates', async () => {
         const config = createTestConfig('concurrent-test');

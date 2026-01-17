@@ -26,6 +26,7 @@ export default defineConfig({
       'tests/integration/ScenarioMatrixCache.integration.test.ts',
       'tests/integration/cache-monitoring.integration.test.ts',
       'tests/integration/scenarioGeneratorWorker.test.ts',
+      'tests/integration/migration-runner.test.ts',
     ],
     environment: 'node',
     testTimeout: 30000,
