@@ -214,11 +214,14 @@ export async function runMigrationsToVersion(
   }
 
   try {
+    console.log(`[testcontainers-migration] Running migrations from ${folderToUse}`);
+    console.log(`[testcontainers-migration] Target: ${normalizedTarget}, ordered: ${ordered.join(', ')}`);
     const db = drizzle(pool);
     await migrate(db, {
       migrationsFolder: folderToUse,
       migrationsTable: MIGRATIONS_TABLE,
     });
+    console.log('[testcontainers-migration] Drizzle migrate() completed');
   } catch (error) {
     console.error('[testcontainers-migration] Migration failed', error);
     throw error;
