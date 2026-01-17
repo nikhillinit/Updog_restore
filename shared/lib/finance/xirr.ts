@@ -46,9 +46,10 @@ type XIRRStrategy = 'hybrid' | 'newton' | 'bisection';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Rate bounds: from -99.9999% to +900%
+// Rate bounds: from -99.9999% to +20,000%
+// Extended to handle extreme returns (e.g., 10x in 6 months = ~9,900% IRR)
 const MIN_RATE = -0.999999;
-const MAX_RATE = 9.0;
+const MAX_RATE = 200;
 
 /**
  * Normalize a JS Date to UTC midnight and return the corresponding
@@ -167,12 +168,35 @@ function solveNewton(
 }
 
 /**
- * Brent wrapper.
+ * Brent wrapper with adaptive bracket expansion.
+ * Expands upper bound until a sign change is found or MAX_RATE is reached.
  */
 function solveBrent(flows: CashFlow[], t0: Date, tolerance: number): XIRRResult {
   const f = (r: number) => npvAt(r, flows, t0);
 
-  const result = brent(f, -0.95, 15, {
+  // Adaptive bracket expansion for extreme IRRs
+  let lo = -0.95;
+  let hi = 15;
+  const fLo = f(lo);
+  let fHi = f(hi);
+
+  // Expand upper bound until sign change or MAX_RATE reached
+  while (Number.isFinite(fHi) && fLo * fHi > 0 && hi < MAX_RATE) {
+    hi = Math.min(hi * 2, MAX_RATE);
+    fHi = f(hi);
+  }
+
+  // Cannot bracket a root - return failure
+  if (!Number.isFinite(fHi) || fLo * fHi > 0) {
+    return {
+      irr: null,
+      converged: false,
+      iterations: 0,
+      method: 'brent',
+    };
+  }
+
+  const result = brent(f, lo, hi, {
     tolerance: Math.min(tolerance, 1e-8),
     maxIterations: 200,
   });
@@ -306,14 +330,8 @@ export function xirrNewtonBisection(
     return newtonResult;
   }
 
-  // If Newton used all iterations (timeout), treat that as a hard failure and
-  // do not silently "fix" it with fallback.
-  const timedOut = newtonResult.iterations >= maxIterations;
-  if (timedOut) {
-    return newtonResult;
-  }
-
-  // Newton failed early (derivative/divergence) -> try Brent
+  // Newton failed (timeout, divergence, or derivative issue) -> try Brent
+  // Note: We always try fallbacks regardless of Newton failure mode
   const brentResult = solveBrent(flows, t0, tolerance);
   if (brentResult.converged) {
     return {

@@ -1,6 +1,6 @@
 # Cheatsheets Index
 
-Complete reference to all 30 project cheatsheets, organized by category.
+Complete reference to all 31 project cheatsheets, organized by category.
 
 **Quick Navigation:** Use Ctrl+F / Cmd+F to search for specific topics.
 
@@ -42,7 +42,7 @@ Complete reference to all 30 project cheatsheets, organized by category.
 
 ---
 
-## Testing (3 files + skills)
+## Testing (4 files + skills)
 
 - **[testing.md](testing.md)** - Test strategy, Vitest configuration, golden
   test suites, TDD workflows
@@ -50,6 +50,8 @@ Complete reference to all 30 project cheatsheets, organized by category.
   test patterns, integration testing
 - **[testcontainers-guide.md](testcontainers-guide.md)** - Docker-based
   integration testing, container setup, CI/CD configuration
+- **[test-fix-patterns.md](test-fix-patterns.md)** - Redis mocking, E2E auth
+  fixtures, anti-flake patterns, @quarantine JSDoc
 
 **Related Skills & Agents** (in `.claude/`):
 

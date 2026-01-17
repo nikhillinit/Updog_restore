@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/fund';
 import { NavigationPage } from './page-objects/NavigationPage';
 import { DashboardPage } from './page-objects/DashboardPage';
 import { FundSetupPage } from './page-objects/FundSetupPage';
@@ -8,10 +8,12 @@ test.describe('Navigation and Routing', () => {
   let dashboardPage: DashboardPage;
   let fundSetupPage: FundSetupPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, fund }) => {
     navigationPage = new NavigationPage(page);
     dashboardPage = new DashboardPage(page);
     fundSetupPage = new FundSetupPage(page);
+    // Fund fixture ensures fund exists via API seeding
+    console.log(`Testing with fund: ${fund.fundName} (id: ${fund.fundId})`);
   });
 
   test('should handle homepage redirection logic', async () => {
@@ -35,11 +37,9 @@ test.describe('Navigation and Routing', () => {
     // Start from dashboard
     await dashboardPage.goto('dashboard');
     
-    // Skip if redirected to fund setup (no fund configured)
-    const currentUrl = await navigationPage.page.url();
-    if (currentUrl.includes('/fund-setup')) {
-      test.skip('No fund configured, skipping navigation test');
-    }
+    // Skip if redirected to fund setup (fund fixture should prevent this)
+    const currentUrl = navigationPage.page.url();
+    test.skip(currentUrl.includes('/fund-setup'), 'No fund configured');
     
     await dashboardPage.verifyDashboardLoaded();
     
@@ -69,11 +69,9 @@ test.describe('Navigation and Routing', () => {
   test('should show active navigation state correctly', async () => {
     await dashboardPage.goto('dashboard');
     
-    const currentUrl = await navigationPage.page.url();
-    if (currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to fund setup');
-    }
-    
+    const currentUrl = navigationPage.page.url();
+    test.skip(currentUrl.includes('/fund-setup'), 'Redirected to fund setup');
+
     // Verify active state on dashboard
     await navigationPage.verifyActiveNavigation('dashboard');
     
@@ -245,11 +243,9 @@ test.describe('Navigation and Routing', () => {
   test('should handle browser back/forward navigation', async () => {
     await dashboardPage.goto('dashboard');
     
-    const currentUrl = await navigationPage.page.url();
-    if (currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to fund setup');
-    }
-    
+    const currentUrl = navigationPage.page.url();
+    test.skip(currentUrl.includes('/fund-setup'), 'Redirected to fund setup');
+
     // Navigate to portfolio
     if (await navigationPage.portfolioLink.isVisible()) {
       await navigationPage.navigateToPortfolio();

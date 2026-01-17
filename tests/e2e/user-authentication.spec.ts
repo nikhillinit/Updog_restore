@@ -119,42 +119,41 @@ test.describe('User Authentication Flow', () => {
 
   test('should handle user registration flow', async () => {
     await authPage.goto('register');
-    
-    if (await authPage.registerForm.isVisible()) {
-      // Fill registration form
-      await authPage.register(testUser);
-      
-      // Verify registration result
-      await authPage.verifyRegistrationSuccess();
-      
-      // Take screenshot of registration result
-      await authPage.takeScreenshot('registration-completed');
-    } else {
-      // Registration might not be available in demo mode
-      test.skip('Registration form not available');
-    }
+
+    // Skip if registration form not available (demo mode)
+    const hasRegisterForm = await authPage.registerForm.isVisible();
+    test.skip(!hasRegisterForm, 'Registration form not available');
+
+    // Fill registration form
+    await authPage.register(testUser);
+
+    // Verify registration result
+    await authPage.verifyRegistrationSuccess();
+
+    // Take screenshot of registration result
+    await authPage.takeScreenshot('registration-completed');
   });
 
   test('should validate registration form fields', async () => {
     await authPage.goto('register');
-    
-    if (await authPage.registerForm.isVisible()) {
-      // Test email validation
-      await authPage.verifyFormValidation('email');
-      
-      // Test password validation
-      await authPage.verifyFormValidation('password');
-      
-      // Test required fields
-      await authPage.registerButton.click();
-      
-      // Should prevent submission with empty required fields
-      const currentUrl = await authPage.page.url();
-      const stillOnRegister = currentUrl.includes('/register');
-      expect(stillOnRegister).toBeTruthy();
-    } else {
-      test.skip('Registration form not available');
-    }
+
+    // Skip if registration form not available (demo mode)
+    const hasRegisterForm = await authPage.registerForm.isVisible();
+    test.skip(!hasRegisterForm, 'Registration form not available');
+
+    // Test email validation
+    await authPage.verifyFormValidation('email');
+
+    // Test password validation
+    await authPage.verifyFormValidation('password');
+
+    // Test required fields
+    await authPage.registerButton.click();
+
+    // Should prevent submission with empty required fields
+    const currentUrl = await authPage.page.url();
+    const stillOnRegister = currentUrl.includes('/register');
+    expect(stillOnRegister).toBeTruthy();
   });
 
   test('should handle password visibility toggle', async () => {
