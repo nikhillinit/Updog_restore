@@ -222,6 +222,22 @@ export async function runMigrationsToVersion(
       migrationsTable: MIGRATIONS_TABLE,
     });
     console.log('[testcontainers-migration] Drizzle migrate() completed');
+
+    // Verify table was created
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = '${MIGRATIONS_TABLE}'
+      ) as exists
+    `);
+    console.log(`[testcontainers-migration] Table ${MIGRATIONS_TABLE} exists: ${tableCheck.rows[0]?.exists}`);
+
+    // Log what's in the table
+    if (tableCheck.rows[0]?.exists) {
+      const countResult = await pool.query(`SELECT COUNT(*) as cnt FROM ${MIGRATIONS_TABLE}`);
+      console.log(`[testcontainers-migration] Migration records: ${countResult.rows[0]?.cnt}`);
+    }
   } catch (error) {
     console.error('[testcontainers-migration] Migration failed', error);
     throw error;
@@ -278,12 +294,13 @@ export async function getMigrationState(
     }
 
     const applied: Array<{ name: string; appliedAt: Date }> = [];
-    const entryByMillis = new Map<number, string>();
 
-    if (journal?.entries?.length) {
-      for (const entry of journal.entries) {
-        entryByMillis.set(entry.when, entry.tag);
-      }
+    // Build hash -> tag lookup from migration files
+    const tagByHash = new Map<string, string>();
+    for (const tag of ordered) {
+      const sqlFile = path.join(migrationsFolder, `${tag}.sql`);
+      const hash = hashMigration(sqlFile, tag);
+      tagByHash.set(hash, tag);
     }
 
     if (columns.has('name')) {
@@ -298,6 +315,7 @@ export async function getMigrationState(
         applied.push({ name: row.name, appliedAt });
       }
     } else {
+      // Map by hash when name column doesn't exist
       const result = await db.execute(sql`
         SELECT hash, created_at
         FROM ${sql.identifier(MIGRATIONS_TABLE)}
@@ -305,9 +323,9 @@ export async function getMigrationState(
       `);
 
       for (const row of result.rows as Array<{ hash: string; created_at: unknown }>) {
-        const millis = toMillis(row.created_at);
-        const name = entryByMillis.get(millis) ?? `unknown_${millis}`;
-        applied.push({ name, appliedAt: new Date(millis) });
+        const name = tagByHash.get(row.hash) ?? `unknown_${row.hash.substring(0, 8)}`;
+        const appliedAt = new Date(toMillis(row.created_at));
+        applied.push({ name, appliedAt });
       }
     }
 
