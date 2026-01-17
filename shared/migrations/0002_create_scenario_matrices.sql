@@ -75,7 +75,7 @@ CREATE TRIGGER scenario_matrices_updated_at
 -- Comments
 COMMENT ON TABLE scenario_matrices IS 'Monte Carlo MOIC matrices with metadata (S x B dimensional arrays)';
 COMMENT ON COLUMN scenario_matrices.moic_matrix IS 'Correction #2: BYTEA storage eliminates 33% base64 overhead and alignment bugs';
-COMMENT ON CONSTRAINT scenario_matrices_complete_payload IS 'Correction #1: Enforces all payload fields present when status=complete';
+COMMENT ON CONSTRAINT scenario_matrices_complete_payload ON scenario_matrices IS 'Correction #1: Enforces all payload fields present when status=complete';
 COMMENT ON COLUMN scenario_matrices.scenario_states IS 'Array of {id, params} for S scenarios';
 COMMENT ON COLUMN scenario_matrices.bucket_params IS '{min, max, count, distribution} for B buckets';
 COMMENT ON COLUMN scenario_matrices.s_opt IS '{algorithm, params, convergence} metadata';
