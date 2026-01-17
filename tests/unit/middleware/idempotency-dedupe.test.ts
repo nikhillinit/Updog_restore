@@ -2,7 +2,7 @@
  * Idempotency and Deduplication Tests
  * Validates exactly-once processing and request deduplication
  */
-import { describe, it, expect, beforeAll, beforeEach, test } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import type { Express } from 'express';
 import express from 'express';
 import request from 'supertest';

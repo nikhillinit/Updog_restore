@@ -89,6 +89,7 @@ async function seedTestFund(baseURL: string): Promise<FundFixture> {
  * ```
  */
 export const test = base.extend<{ fund: FundFixture }>({
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture, not React
   fund: async ({ baseURL }, use) => {
     const fund = await seedTestFund(baseURL!);
     await use(fund);

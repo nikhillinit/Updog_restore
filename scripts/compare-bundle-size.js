@@ -29,18 +29,25 @@ const rootDir = join(__dirname, '..');
 const BYTES_PER_KB = 1024;
 
 /**
- * Parse size string to bytes
- * @param {string} sizeStr - e.g., "150 KB", "1.5 MB"
- * @returns {number} Size in bytes
+ * Parse size value to bytes
+ * Handles both string format ("150 KB") and numeric bytes from size-limit
+ * @param {string|number|null|undefined} value - size value
+ * @returns {number|null} Size in bytes, or null if not provided
  */
-function parseSize(sizeStr) {
-  const match = sizeStr.match(/^([\d.]+)\s*(KB|MB|B)$/i);
-  if (!match) {
-    throw new Error(`Invalid size format: ${sizeStr}`);
+function parseSize(value) {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid size format: ${value}`);
   }
 
-  const [, value, unit] = match;
-  const numValue = parseFloat(value);
+  const match = value.trim().match(/^([\d.]+)\s*(KB|MB|B)$/i);
+  if (!match) {
+    throw new Error(`Invalid size format: ${value}`);
+  }
+
+  const [, numStr, unit] = match;
+  const numValue = parseFloat(numStr);
 
   switch (unit.toUpperCase()) {
     case 'B':
@@ -143,18 +150,25 @@ function compareResults() {
   for (const currentEntry of current) {
     const baseEntry = base?.find(b => b.name === currentEntry.name);
 
-    const limitBytes = parseSize(currentEntry.limit);
+    // size-limit outputs sizeLimit (bytes) not limit (string)
+    const limitBytes = parseSize(currentEntry.sizeLimit ?? currentEntry.limit);
     const currentBytes = currentEntry.size;
     const baseBytes = baseEntry?.size || null;
 
-    const passed = currentEntry.passed;
+    // Treat missing passed field as non-failure
+    const passed = currentEntry.passed !== false;
     const diffFromBase = baseBytes !== null ? currentBytes - baseBytes : null;
     const diffPercent = baseBytes !== null ? percentDiff(currentBytes, baseBytes) : null;
+
+    // Format limit for display - use sizeLimit if available, else config string
+    const limitFormatted = typeof currentEntry.sizeLimit === 'number'
+      ? formatSize(currentEntry.sizeLimit)
+      : (currentEntry.limit ?? 'No limit');
 
     const result = {
       name: currentEntry.name,
       limit: limitBytes,
-      limitFormatted: currentEntry.limit,
+      limitFormatted,
       current: currentBytes,
       currentFormatted: formatSize(currentBytes),
       base: baseBytes,
