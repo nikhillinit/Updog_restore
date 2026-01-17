@@ -2,23 +2,24 @@
  * Time-Travel Analytics API Tests
  *
  * Tests HTTP layer in isolation by mocking service layer.
- *
- * NOTE: 13 tests skipped due to middleware dependencies:
- * - Validation errors: Tested in integration tests (Zod schemas validated separately)
- * - Service error propagation: Requires full error handling middleware
- * - Snapshot creation: Requires queue provider integration
- *
- * These tests verify routes correctly:
- * - Parse HTTP parameters
- * - Call service methods with correct arguments
- * - Format HTTP responses
- * - Handle concurrent requests
+ * Uses createTimelineRouter factory with mock service injection.
  *
  * @quarantine
- * @reason Middleware dependencies - validation and queue provider not mockable in unit tests
- * @owner nikhil
- * @exit Refactor to use dependency injection or move to integration tests
- * @date 2026-01-14
+ * @owner @core-team
+ * @reason 13 tests require validation middleware or queue integration not mockable in unit context
+ * @exitCriteria Use createTimelineRouter with conditional validation mock, or move to integration tests
+ * @addedDate 2026-01-14
+ *
+ * Skipped tests cover:
+ * - Validation errors (Zod schemas - tested separately in integration)
+ * - Service error propagation (requires full error handling middleware)
+ * - Snapshot creation (requires queue provider integration)
+ *
+ * Active tests verify:
+ * - HTTP parameter parsing
+ * - Service method calls with correct arguments
+ * - HTTP response formatting
+ * - Concurrent request handling
  */
 
 /**

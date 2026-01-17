@@ -1,5 +1,5 @@
 import { mapAsync } from "../../client/src/lib";
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/fund';
 import AxeBuilder from '@axe-core/playwright';
 
 test.describe('Accessibility Tests', () => {
@@ -19,11 +19,9 @@ test.describe('Accessibility Tests', () => {
       // Wait for page to load
       await page.waitForLoadState('networkidle');
       
-      // Skip if redirected to auth or different page
-      const currentUrl = await page.url();
-      if (currentUrl.includes('/login') || currentUrl.includes('/auth')) {
-        test.skip('Redirected to authentication');
-      }
+      // Skip if redirected to auth (fund fixture should handle fund-setup)
+      const currentUrl = page.url();
+      test.skip(currentUrl.includes('/login') || currentUrl.includes('/auth'), 'Redirected to authentication');
       
       // Run axe accessibility scan
       const accessibilityScanResults = await new AxeBuilder({ page })
@@ -44,11 +42,9 @@ test.describe('Accessibility Tests', () => {
   test('should be keyboard navigable', async ({ page }) => {
     await page.goto('/dashboard');
     
-    // Skip if not accessible
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Page not accessible or redirected');
-    }
+    // Skip if not accessible (fund fixture should handle fund-setup)
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Page not accessible or redirected');
     
     // Test Tab navigation
     await page.keyboard.press('Tab');
@@ -180,11 +176,9 @@ test.describe('Accessibility Tests', () => {
   test('should have proper color contrast', async ({ page }) => {
     await page.goto('/dashboard');
     
-    // Skip if redirected
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    // Skip if redirected (fund fixture should handle fund-setup)
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Run axe scan focused on color contrast
     const accessibilityScanResults = await new AxeBuilder({ page })
@@ -204,10 +198,8 @@ test.describe('Accessibility Tests', () => {
   test('should provide alternative text for images', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Get all images
     const images = await page.locator('img').all();
@@ -227,10 +219,8 @@ test.describe('Accessibility Tests', () => {
   test('should support screen readers with proper ARIA landmarks', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Check for ARIA landmarks
     const landmarks = await page.locator('[role="main"], [role="navigation"], [role="banner"], [role="contentinfo"], main, nav, header, footer').count();
@@ -246,10 +236,8 @@ test.describe('Accessibility Tests', () => {
   test('should handle focus management in modals', async ({ page }) => {
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Look for buttons that might open modals
     const modalTriggers = await page.locator('button:has-text("Add"), button:has-text("Create"), button:has-text("Edit")').all();
@@ -306,10 +294,8 @@ test.describe('Accessibility Tests', () => {
     
     await page.goto('/dashboard');
     
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/login') || currentUrl.includes('/fund-setup')) {
-      test.skip('Redirected to different page');
-    }
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login') || currentUrl.includes('/fund-setup'), 'Redirected to different page');
     
     // Page should still be functional
     const body = await page.textContent('body');

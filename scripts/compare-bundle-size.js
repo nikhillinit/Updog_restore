@@ -29,18 +29,25 @@ const rootDir = join(__dirname, '..');
 const BYTES_PER_KB = 1024;
 
 /**
- * Parse size string to bytes
- * @param {string} sizeStr - e.g., "150 KB", "1.5 MB"
- * @returns {number} Size in bytes
+ * Parse size value to bytes
+ * Handles both string format ("150 KB") and numeric bytes from size-limit
+ * @param {string|number|null|undefined} value - size value
+ * @returns {number|null} Size in bytes, or null if not provided
  */
-function parseSize(sizeStr) {
-  const match = sizeStr.match(/^([\d.]+)\s*(KB|MB|B)$/i);
-  if (!match) {
-    throw new Error(`Invalid size format: ${sizeStr}`);
+function parseSize(value) {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid size format: ${value}`);
   }
 
-  const [, value, unit] = match;
-  const numValue = parseFloat(value);
+  const match = value.trim().match(/^([\d.]+)\s*(KB|MB|B)$/i);
+  if (!match) {
+    throw new Error(`Invalid size format: ${value}`);
+  }
+
+  const [, numStr, unit] = match;
+  const numValue = parseFloat(numStr);
 
   switch (unit.toUpperCase()) {
     case 'B':
@@ -143,26 +150,34 @@ function compareResults() {
   for (const currentEntry of current) {
     const baseEntry = base?.find(b => b.name === currentEntry.name);
 
-    const limitBytes = parseSize(currentEntry.limit);
+    // size-limit outputs sizeLimit (bytes) not limit (string)
+    const limitBytes = parseSize(currentEntry.sizeLimit ?? currentEntry.limit);
     const currentBytes = currentEntry.size;
     const baseBytes = baseEntry?.size || null;
 
-    const passed = currentEntry.passed;
+    // Treat missing passed field as non-failure
+    const passed = currentEntry.passed !== false;
     const diffFromBase = baseBytes !== null ? currentBytes - baseBytes : null;
     const diffPercent = baseBytes !== null ? percentDiff(currentBytes, baseBytes) : null;
+
+    // Format limit for display - use sizeLimit if available, else config string
+    const limitFormatted = typeof currentEntry.sizeLimit === 'number'
+      ? formatSize(currentEntry.sizeLimit)
+      : (currentEntry.limit ?? 'No limit');
 
     const result = {
       name: currentEntry.name,
       limit: limitBytes,
-      limitFormatted: currentEntry.limit,
-      current: currentBytes,
-      currentFormatted: formatSize(currentBytes),
-      base: baseBytes,
-      baseFormatted: baseBytes !== null ? formatSize(baseBytes) : null,
-      diff: diffFromBase,
-      diffFormatted: diffFromBase !== null ? formatSize(Math.abs(diffFromBase)) : null,
+      limitFormatted,
+      current: formatSize(currentBytes),
+      currentBytes,
+      base: baseBytes !== null ? formatSize(baseBytes) : 'N/A',
+      baseBytes,
+      diff: diffFromBase !== null ? formatSize(Math.abs(diffFromBase)) : 'N/A',
+      deltaBytes: diffFromBase,
       diffPercent: diffPercent !== null ? diffPercent.toFixed(2) : null,
       passed,
+      withinLimit: passed,
       status: passed ? 'PASS' : 'FAIL'
     };
 
@@ -190,13 +205,12 @@ function compareResults() {
 
     console.log(`${statusIcon} ${result.name}`);
     console.log(`   Limit:   ${result.limitFormatted}`);
-    console.log(`   Current: ${result.currentFormatted} (${statusText})`);
+    console.log(`   Current: ${result.current} (${statusText})`);
 
-    if (result.base !== null) {
+    if (result.baseBytes !== null) {
       const diffIcon = diffFromBase < 0 ? '↓' : diffFromBase > 0 ? '↑' : '→';
-      const diffColor = diffFromBase < 0 ? '' : diffFromBase > 0 ? '' : '';
-      console.log(`   Base:    ${result.baseFormatted}`);
-      console.log(`   Change:  ${diffIcon} ${result.diffFormatted} (${diffPercent > 0 ? '+' : ''}${diffPercent.toFixed(2)}%)`);
+      console.log(`   Base:    ${result.base}`);
+      console.log(`   Change:  ${diffIcon} ${result.diff} (${diffPercent > 0 ? '+' : ''}${diffPercent.toFixed(2)}%)`);
     }
 
     console.log('');
@@ -215,8 +229,8 @@ function compareResults() {
 
   console.log('');
 
-  // Write comparison to file
-  writeFileSync(outputFile, JSON.stringify(comparison, null, 2), 'utf-8');
+  // Write comparison to file - output array directly for workflow compatibility
+  writeFileSync(outputFile, JSON.stringify(comparison.results, null, 2), 'utf-8');
   console.log(`📝 Detailed comparison written to: ${outputFile}\n`);
 
   // Exit with appropriate code

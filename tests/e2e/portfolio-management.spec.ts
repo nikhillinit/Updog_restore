@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/fund';
 import { PortfolioPage } from './page-objects/PortfolioPage';
 import { DashboardPage } from './page-objects/DashboardPage';
 import { NavigationPage } from './page-objects/NavigationPage';
@@ -8,19 +8,23 @@ test.describe('Portfolio Management', () => {
   let dashboardPage: DashboardPage;
   let navigationPage: NavigationPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, fund }) => {
     portfolioPage = new PortfolioPage(page);
     dashboardPage = new DashboardPage(page);
     navigationPage = new NavigationPage(page);
 
+    // Fund fixture ensures fund exists via API seeding
+    console.log(`Testing with fund: ${fund.fundName} (id: ${fund.fundId})`);
+
     // Navigate to portfolio page
     await portfolioPage.goto('portfolio');
-    
-    // Check if redirected to setup or auth
-    const currentUrl = await portfolioPage.page.url();
-    if (currentUrl.includes('/fund-setup') || currentUrl.includes('/login')) {
-      test.skip('Fund setup not complete or authentication required');
-    }
+
+    // Wait for page to stabilize - demo mode may take a moment
+    await page.waitForTimeout(500);
+
+    // Check if still redirected to login (skip test if auth required)
+    const currentUrl = page.url();
+    test.skip(currentUrl.includes('/login'), 'Authentication required');
   });
 
   test('should display portfolio overview with key metrics', async () => {
