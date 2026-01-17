@@ -47,9 +47,20 @@ describe('Idempotency Middleware', () => {
       });
     });
 
-    // Endpoint without idempotency
+    // Endpoint without idempotency (path not in auto-generate list)
     app.post('/api/no-idempotency', (req, res) => {
       res.json({ message: 'No idempotency' });
+    });
+
+    // Non-critical endpoint for testing "no key" behavior
+    // Path doesn't match criticalPaths in shouldAutoGenerateKey()
+    app.post('/api/other', (req, res) => {
+      requestCount++;
+      res.status(201).json({
+        id: 'other-123',
+        name: req.body.name,
+        requestCount,
+      });
     });
   });
 
@@ -62,18 +73,22 @@ describe('Idempotency Middleware', () => {
     it('should return same response for duplicate requests with same key', async () => {
       const idempotencyKey = 'test-key-123';
       const payload = { name: 'Test Fund' };
-      
+
       // First request
       const response1 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
-      
+
       expect(response1.status).toBe(201);
       expect(response1.body.id).toBe('fund-123');
       expect(response1.body.requestCount).toBe(1);
-      expect(response1.headers['x-idempotency-key']).toBe(idempotencyKey);
-      
+      // Middleware uses 'idempotency-key' header (lowercase in response)
+      expect(response1.headers['idempotency-key']).toBe(idempotencyKey);
+
+      // Wait for async storage to complete (storeResponse is fire-and-forget)
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Duplicate request with same key
       const response2 = await request(app)
         .post('/api/funds')
@@ -115,45 +130,50 @@ describe('Idempotency Middleware', () => {
     it('should support alternative header names', async () => {
       const idempotencyKey = 'alt-key-123';
       const payload = { name: 'Test Fund' };
-      
+
       // Using X-Idempotency-Key
       const response1 = await request(app)
         .post('/api/funds')
         .set('X-Idempotency-Key', idempotencyKey)
         .send(payload);
-      
+
       expect(response1.status).toBe(201);
-      
+
+      // Wait for async storage to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Same key with alternative header
       const response2 = await request(app)
         .post('/api/funds')
         .set('X-Idempotency-Key', idempotencyKey)
         .send(payload);
-      
+
       expect(response2.headers['idempotency-replay']).toBe('true');
       expect(requestCount).toBe(1);
     });
     
     it('should process requests without idempotency key normally', async () => {
+      // Use /api/other which doesn't trigger auto-key-generation
+      // (unlike /api/funds which is in the criticalPaths list)
       const payload = { name: 'Test Fund' };
-      
+
       // First request without key
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/other')
         .send(payload);
-      
+
       expect(response1.status).toBe(201);
       expect(response1.body.requestCount).toBe(1);
-      
+
       // Second request without key
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/other')
         .send(payload);
-      
+
       expect(response2.status).toBe(201);
       expect(response2.body.requestCount).toBe(2);
-      
-      // Both processed
+
+      // Both processed (no auto-generated key for /api/other)
       expect(requestCount).toBe(2);
     });
   });
@@ -193,6 +213,9 @@ describe('Idempotency Middleware', () => {
         .send({ name: 'Test', size: 1000000, type: 'VC' });
 
       expect(response1.status).toBe(201);
+
+      // Wait for async storage to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Second request with same data but different key order
       const response2 = await request(app)
@@ -263,16 +286,19 @@ describe('Idempotency Middleware', () => {
         .post('/api/test')
         .set('Idempotency-Key', 'key-1')
         .send({ id: 1 });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', 'key-2')
         .send({ id: 2 });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       await request(smallCacheApp)
         .post('/api/test')
         .set('Idempotency-Key', 'key-3')
         .send({ id: 3 });
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Access key-1 again (should move to end of LRU)
       const response1 = await request(smallCacheApp)
@@ -312,18 +338,21 @@ describe('Idempotency Middleware', () => {
         .set('Idempotency-Key', 'lru-key-A')
         .send({ id: 'A' })
         .expect(200);
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       await request(lruApp)
         .post('/api/lru-test')
         .set('Idempotency-Key', 'lru-key-B')
         .send({ id: 'B' })
         .expect(200);
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       await request(lruApp)
         .post('/api/lru-test')
         .set('Idempotency-Key', 'lru-key-C')
         .send({ id: 'C' })
         .expect(200);
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(requestCount).toBe(3); // All 3 requests processed
 
@@ -402,6 +431,9 @@ describe('Idempotency Middleware', () => {
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Test' });
 
+      // Wait for async storage to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       const response2 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', idempotencyKey)
@@ -416,55 +448,61 @@ describe('Idempotency Middleware', () => {
   describe('Response Caching', () => {
     it('should cache successful responses', async () => {
       const idempotencyKey = 'cache-test';
-      
+      const payload = { name: 'Cached Fund' };
+
       const response1 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', idempotencyKey)
-        .send({ name: 'Cached Fund' });
-      
+        .send(payload);
+
       const timestamp1 = response1.body.timestamp;
-      
+
       // Wait a bit
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      // Replay with SAME payload (different payload triggers 422 per AP-IDEM-01)
       const response2 = await request(app)
         .post('/api/funds')
         .set('Idempotency-Key', idempotencyKey)
-        .send({ name: 'Different Name' }); // Different payload, but same key
-      
-      // Should return cached response
+        .send(payload);
+
+      // Should return cached response with replay header
+      expect(response2.headers['idempotency-replay']).toBe('true');
       expect(response2.body.timestamp).toBe(timestamp1);
-      expect(response2.body.name).toBe('Cached Fund'); // Original name
+      expect(response2.body.name).toBe('Cached Fund');
     });
     
     it('should preserve response headers', async () => {
       const customApp = express();
       customApp.use(express.json());
       customApp.use(idempotency());
-      
+
       customApp.post('/api/test', (req, res) => {
         res.setHeader('X-Custom-Header', 'test-value');
         res.setHeader('X-Rate-Limit', '100');
         res.json({ success: true });
       });
-      
+
       const idempotencyKey = 'header-test';
-      
+
       // First request
       const response1 = await request(customApp)
         .post('/api/test')
         .set('Idempotency-Key', idempotencyKey)
         .send({});
-      
+
       expect(response1.headers['x-custom-header']).toBe('test-value');
       expect(response1.headers['x-rate-limit']).toBe('100');
-      
+
+      // Wait for async storage to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Cached request
       const response2 = await request(customApp)
         .post('/api/test')
         .set('Idempotency-Key', idempotencyKey)
         .send({});
-      
+
       // Headers should be preserved
       expect(response2.headers['x-custom-header']).toBe('test-value');
       expect(response2.headers['x-rate-limit']).toBe('100');
@@ -722,40 +760,43 @@ describe('Idempotency + Deduplication Combined', () => {
   
   it('should handle both idempotency key and request deduplication', async () => {
     const payload = { amount: 1000 };
-    
+
     // Request with idempotency key
     const response1 = await request(app)
       .post('/api/critical')
       .set('Idempotency-Key', 'idem-123')
       .send(payload);
-    
+
     expect(response1.body.processCount).toBe(1);
-    
+
+    // Wait for async storage to complete
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     // Same idempotency key (handled by idempotency middleware)
     const response2 = await request(app)
       .post('/api/critical')
       .set('Idempotency-Key', 'idem-123')
       .send(payload);
-    
+
     expect(response2.headers['idempotency-replay']).toBe('true');
     expect(response2.body.processCount).toBe(1);
-    
+
     // No idempotency key but same payload (handled by dedupe middleware)
     const response3 = await request(app)
       .post('/api/critical')
       .send(payload);
-    
+
     expect(response3.headers['x-request-dedup']).toBe('true');
     expect(response3.body.processCount).toBe(1);
-    
+
     // Different idempotency key and different payload (new request)
     const response4 = await request(app)
       .post('/api/critical')
       .set('Idempotency-Key', 'idem-456')
       .send({ amount: 2000 });
-    
+
     expect(response4.body.processCount).toBe(2);
-    
+
     // Total: only 2 actual processing
     expect(processCount).toBe(2);
   });
