@@ -37,22 +37,67 @@ interface RedisClient {
   status?: () => AsyncIterable<{ type: string }>;
 }
 
+// In-memory Redis stub for test/memory mode
+class InMemoryRedis {
+  private store = new Map<string, { value: string; expiry?: number }>();
+  private counters = new Map<string, number>();
+
+  async get(key: string): Promise<string | null> {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+    if (entry.expiry && Date.now() > entry.expiry) {
+      this.store.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  async set(key: string, value: string | number | Buffer): Promise<unknown> {
+    this.store.set(key, { value: String(value) });
+    return 'OK';
+  }
+
+  async setex(key: string, ttl: number, value: string | number | Buffer): Promise<unknown> {
+    const expiry = Date.now() + ttl * 1000;
+    this.store.set(key, { value: String(value), expiry });
+    return 'OK';
+  }
+
+  async del(key: string): Promise<number> {
+    const existed = this.store.has(key);
+    this.store.delete(key);
+    this.counters.delete(key);
+    return existed ? 1 : 0;
+  }
+
+  async incr(key: string): Promise<number> {
+    const current = this.counters.get(key) || 0;
+    const next = current + 1;
+    this.counters.set(key, next);
+    return next;
+  }
+
+  async expire(key: string, seconds: number): Promise<number | boolean> {
+    const entry = this.store.get(key);
+    if (!entry) return false;
+    entry.expiry = Date.now() + seconds * 1000;
+    return true;
+  }
+
+  async ping(): Promise<string> {
+    return 'PONG';
+  }
+
+  async quit(): Promise<void> {}
+
+  on(_event: string, _listener: (...args: unknown[]) => void): void {}
+}
+
 // Create Redis client using typed factory (skip in memory mode)
 let redis: RedisClient;
 if (process.env['REDIS_URL'] === 'memory://') {
-  console.log('[Redis Circuit] Memory mode detected, skipping Redis client creation');
-  // Create a no-op Redis client stub for memory mode
-  redis = {
-    get: async () => null,
-    set: async () => {},
-    setex: async () => {},
-    del: async () => 0,
-    incr: async () => 0,
-    expire: async () => false,
-    ping: async () => 'PONG',
-    quit: async () => {},
-    on: () => {},
-  };
+  console.log('[Redis Circuit] Memory mode detected, using in-memory Redis stub');
+  redis = new InMemoryRedis() as unknown as RedisClient;
 } else {
   redis = createCacheFromEnv() as unknown as RedisClient;
 }

@@ -1,11 +1,18 @@
 /**
  * Smoke Tests for Critical User Flows
  * Run every 5 minutes in production via synthetic monitoring
+ *
+ * @quarantine
+ * @owner @qa-team
+ * @reason Requires running application at BASE_URL for synthetic monitoring
+ * @exitCriteria Run manually with `npm run test:smoke` against deployed environment
+ * @addedDate 2026-01-16
  */
 import { test, expect } from '@playwright/test';
 
-// Skip in demo CI (requires full environment)
-if (process.env.DEMO_CI) test.skip();
+// Skip in CI environments - smoke tests require deployed application
+const SMOKE_ENV_AVAILABLE = !process.env.DEMO_CI && !process.env.CI;
+if (!SMOKE_ENV_AVAILABLE) test.skip();
 
 // Get configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
