@@ -218,6 +218,7 @@ export async function runMigrationsToVersion(
     await migrate(db, {
       migrationsFolder: folderToUse,
       migrationsTable: MIGRATIONS_TABLE,
+      migrationsSchema: 'public', // Use public schema (drizzle defaults to 'drizzle' schema)
     });
   } catch (error) {
     console.error('[testcontainers-migration] Migration failed', error);
@@ -275,12 +276,13 @@ export async function getMigrationState(
     }
 
     const applied: Array<{ name: string; appliedAt: Date }> = [];
-    const entryByMillis = new Map<number, string>();
 
-    if (journal?.entries?.length) {
-      for (const entry of journal.entries) {
-        entryByMillis.set(entry.when, entry.tag);
-      }
+    // Build hash -> tag lookup from migration files
+    const tagByHash = new Map<string, string>();
+    for (const tag of ordered) {
+      const sqlFile = path.join(migrationsFolder, `${tag}.sql`);
+      const hash = hashMigration(sqlFile, tag);
+      tagByHash.set(hash, tag);
     }
 
     if (columns.has('name')) {
@@ -295,6 +297,7 @@ export async function getMigrationState(
         applied.push({ name: row.name, appliedAt });
       }
     } else {
+      // Map by hash when name column doesn't exist
       const result = await db.execute(sql`
         SELECT hash, created_at
         FROM ${sql.identifier(MIGRATIONS_TABLE)}
@@ -302,9 +305,9 @@ export async function getMigrationState(
       `);
 
       for (const row of result.rows as Array<{ hash: string; created_at: unknown }>) {
-        const millis = toMillis(row.created_at);
-        const name = entryByMillis.get(millis) ?? `unknown_${millis}`;
-        applied.push({ name, appliedAt: new Date(millis) });
+        const name = tagByHash.get(row.hash) ?? `unknown_${row.hash.substring(0, 8)}`;
+        const appliedAt = new Date(toMillis(row.created_at));
+        applied.push({ name, appliedAt });
       }
     }
 

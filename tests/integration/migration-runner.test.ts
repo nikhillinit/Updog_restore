@@ -41,13 +41,25 @@ let adminPool: Pool;
 /**
  * Reset schema to clean state with required extensions.
  * Called in beforeEach for test isolation.
+ *
+ * Note: Extensions must be created AFTER schema recreation because
+ * DROP SCHEMA CASCADE removes them. We use CASCADE on DROP EXTENSION
+ * to handle any dependencies cleanly.
  */
 async function resetSchema(): Promise<void> {
+  // Drop extensions first to avoid CASCADE issues
+  await adminPool.query('DROP EXTENSION IF EXISTS vector CASCADE');
+  await adminPool.query('DROP EXTENSION IF EXISTS pgcrypto CASCADE');
+
+  // Recreate public schema
   await adminPool.query('DROP SCHEMA IF EXISTS public CASCADE');
   await adminPool.query('CREATE SCHEMA public');
   await adminPool.query('GRANT ALL ON SCHEMA public TO public');
-  await adminPool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
-  await adminPool.query('CREATE EXTENSION IF NOT EXISTS vector');
+
+  // Recreate extensions in the new schema
+  // pgcrypto provides gen_random_uuid() used by migrations
+  await adminPool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public');
+  await adminPool.query('CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public');
 }
 
 /**
