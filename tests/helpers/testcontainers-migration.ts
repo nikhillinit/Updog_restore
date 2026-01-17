@@ -214,43 +214,12 @@ export async function runMigrationsToVersion(
   }
 
   try {
-    console.log(`[testcontainers-migration] Running migrations from ${folderToUse}`);
-    console.log(`[testcontainers-migration] Target: ${normalizedTarget}, ordered: ${ordered.join(', ')}`);
-
-    // Check search_path and current schema
-    const schemaCheck = await pool.query('SHOW search_path');
-    console.log(`[testcontainers-migration] search_path: ${JSON.stringify(schemaCheck.rows)}`);
-
-    // Verify extensions exist
-    const extCheck = await pool.query("SELECT extname FROM pg_extension WHERE extname IN ('pgcrypto', 'vector')");
-    console.log(`[testcontainers-migration] Extensions: ${extCheck.rows.map((r: { extname: string }) => r.extname).join(', ')}`);
-
-    // List files in migrations folder
-    const files = fs.readdirSync(folderToUse).filter(f => f.endsWith('.sql') || f === 'meta');
-    console.log(`[testcontainers-migration] Folder contents: ${files.join(', ')}`);
-
     const db = drizzle(pool);
     await migrate(db, {
       migrationsFolder: folderToUse,
       migrationsTable: MIGRATIONS_TABLE,
+      migrationsSchema: 'public', // Use public schema (drizzle defaults to 'drizzle' schema)
     });
-    console.log('[testcontainers-migration] Drizzle migrate() completed');
-
-    // Verify table was created
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_schema = 'public'
-        AND table_name = '${MIGRATIONS_TABLE}'
-      ) as exists
-    `);
-    console.log(`[testcontainers-migration] Table ${MIGRATIONS_TABLE} exists: ${tableCheck.rows[0]?.exists}`);
-
-    // Log what's in the table
-    if (tableCheck.rows[0]?.exists) {
-      const countResult = await pool.query(`SELECT COUNT(*) as cnt FROM ${MIGRATIONS_TABLE}`);
-      console.log(`[testcontainers-migration] Migration records: ${countResult.rows[0]?.cnt}`);
-    }
   } catch (error) {
     console.error('[testcontainers-migration] Migration failed', error);
     throw error;
