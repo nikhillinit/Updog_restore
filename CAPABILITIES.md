@@ -501,11 +501,60 @@ continuous-improvement (refine)
 - **/log-decision** - Update DECISIONS.md
 - **/create-cheatsheet [topic]** - Create documentation
 
+### Reflection & Learning Commands (NEW)
+
+- **/retrospective** - Codify a lesson learned into the reflection system
+- **/advise** - Pre-flight check before coding in high-risk domains
+- **/session-learnings** - Extract learnings from planning-with-files outputs
+
 ### Custom Commands
 
-- **/evaluate-tools** - Run tool evaluation framework (NEW)
+- **/evaluate-tools** - Run tool evaluation framework
 
 ##  Memory Systems
+
+### Reflection System (Team Memory) NEW (2026-01-18)
+
+**Codified lessons learned with regression test backing.**
+
+**Location:** `docs/skills/` (reflections) + `tests/regressions/` (tests)
+
+**Components:**
+- **REFL-*.md** - Individual reflections documenting anti-patterns and verified fixes
+- **SKILLS_INDEX.md** - Auto-generated machine-readable index
+- **manage_skills.py** - Script to create, validate, and index reflections
+- **Regression tests** - Each VERIFIED reflection has a test preventing regression
+
+**Commands:**
+- `/retrospective --title "Title"` - Create new reflection after fixing a bug
+- `/advise "task description"` - Get pre-flight constraints before coding
+- `/session-learnings` - Extract learnings from planning-with-files outputs
+
+**Workflow:**
+1. Fix a bug or discover a pattern
+2. Run `/retrospective --title "Description"` to create reflection + test
+3. Fill in anti-pattern and verified fix details
+4. Implement regression test
+5. Change status `DRAFT` → `VERIFIED`
+
+**High-Risk Domains (Auto-Trigger /advise):**
+- Fund Logic: Waterfalls, Reserves, Fees, Carry
+- State Management: Hydration, Persistence
+- Math/Currency: Rounding, Precision, XIRR
+- Portfolio Calculations: Capital allocation, Exit recycling
+
+**Integration:**
+- Planning-with-files outputs → `/session-learnings` → Reflection candidates
+- CHANGELOG.md fix entries → Reflection suggestions
+- Conversation patterns → Learning detection
+
+**Validation:**
+```bash
+python scripts/manage_skills.py validate  # CI integrity check
+python scripts/manage_skills.py rebuild   # Regenerate index
+```
+
+**See:** `docs/skills/README.md` for complete documentation
 
 ### Native Memory Tool Integration  NEW (2025-11-05)
 
