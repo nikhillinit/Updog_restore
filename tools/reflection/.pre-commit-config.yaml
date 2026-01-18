@@ -1,0 +1,36 @@
+# Pre-commit hooks for Reflection System validation
+# Install: pip install pre-commit && pre-commit install
+# Manual run: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      # Validate reflection database integrity
+      - id: validate-reflections
+        name: Validate Reflections
+        entry: python3 scripts/manage_skills.py validate
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Validates reflection IDs, required fields, test existence, and bidirectional links"
+
+      # Check index freshness (rebuild if stale)
+      - id: rebuild-reflections-index
+        name: Rebuild Reflections Index
+        entry: python3 scripts/manage_skills.py rebuild
+        language: system
+        pass_filenames: false
+        files: ^docs/skills/REFL-.*\.md$
+        stages: [commit]
+        description: "Regenerates SKILLS_INDEX.md when reflection files change"
+
+      # Run regression tests for modified reflections
+      - id: run-regression-tests
+        name: Run Regression Tests
+        entry: npx vitest run tests/regressions/ --reporter=verbose
+        language: system
+        pass_filenames: false
+        files: ^tests/regressions/REFL-.*\.test\.ts$
+        stages: [commit]
+        description: "Runs regression tests when test files are modified"

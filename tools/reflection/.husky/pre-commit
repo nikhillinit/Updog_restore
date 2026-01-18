@@ -1,0 +1,44 @@
+#!/bin/sh
+# Husky pre-commit hook for Reflection System validation
+# Install: npx husky install && npx husky add .husky/pre-commit
+
+# Exit on error
+set -e
+
+echo "[INFO] Validating reflection database..."
+
+# Check if any reflection files are staged
+STAGED_REFLECTIONS=$(git diff --cached --name-only --diff-filter=ACM | grep -E "^docs/skills/REFL-.*\.md$" || true)
+STAGED_TESTS=$(git diff --cached --name-only --diff-filter=ACM | grep -E "^tests/regressions/REFL-.*\.test\.ts$" || true)
+
+if [ -n "$STAGED_REFLECTIONS" ] || [ -n "$STAGED_TESTS" ]; then
+    echo "[INFO] Reflection or test files staged for commit. Running validation..."
+
+    # Validate reflection database integrity
+    python3 scripts/manage_skills.py validate
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] Reflection validation failed. Fix errors before committing."
+        exit 1
+    fi
+
+    # Check if index needs regeneration
+    python3 scripts/manage_skills.py rebuild --check
+    if [ $? -ne 0 ]; then
+        echo "[WARN] Index is stale. Regenerating..."
+        python3 scripts/manage_skills.py rebuild
+        git add docs/skills/SKILLS_INDEX.md
+        echo "[OK] Index regenerated and staged."
+    fi
+
+    # Run regression tests for modified test files
+    if [ -n "$STAGED_TESTS" ]; then
+        echo "[INFO] Running regression tests..."
+        npx vitest run tests/regressions/ --reporter=dot
+        if [ $? -ne 0 ]; then
+            echo "[ERROR] Regression tests failed. Fix tests before committing."
+            exit 1
+        fi
+    fi
+fi
+
+echo "[OK] Pre-commit validation passed."

@@ -2,52 +2,80 @@
   "agents": [
     {
       "name": "phoenix-truth-case-runner",
-      "phase": ["0"],
+      "phase": [
+        "0"
+      ],
       "skill": "phoenix-truth-case-orchestrator"
     },
     {
       "name": "phoenix-precision-guardian",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-precision-guard"
     },
     {
       "name": "waterfall-specialist",
-      "phase": ["0", "1B"],
+      "phase": [
+        "0",
+        "1B"
+      ],
       "skill": "phoenix-waterfall-ledger-semantics"
     },
     {
       "name": "xirr-fees-validator",
-      "phase": ["0", "1B"],
+      "phase": [
+        "0",
+        "1B"
+      ],
       "skill": "phoenix-xirr-fees-validator"
     },
     {
       "name": "phoenix-capital-allocation-analyst",
-      "phase": ["0", "1A"],
+      "phase": [
+        "0",
+        "1A"
+      ],
       "skill": "phoenix-capital-exit-investigator"
     },
     {
       "name": "phoenix-docs-scribe",
-      "phase": ["1A"],
+      "phase": [
+        "1A"
+      ],
       "skill": "phoenix-docs-sync"
     },
     {
       "name": "phoenix-probabilistic-engineer",
-      "phase": ["2"],
+      "phase": [
+        "2"
+      ],
       "skill": "phoenix-advanced-forecasting"
     },
     {
       "name": "phoenix-reserves-optimizer",
-      "phase": ["2"],
+      "phase": [
+        "2"
+      ],
       "skill": "phoenix-reserves-optimizer"
     },
     {
       "name": "phoenix-brand-reporting-stylist",
-      "phase": ["3"],
+      "phase": [
+        "3"
+      ],
       "skill": "phoenix-brand-reporting"
     }
   ],
   "config": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score_to_route": 2
   },
   "decision_tree": {
@@ -68,7 +96,13 @@
         "route": "CAPABILITIES.md"
       },
       "id": "capability_check",
-      "keywords": ["implement", "create", "add", "build", "new feature"],
+      "keywords": [
+        "implement",
+        "create",
+        "add",
+        "build",
+        "new feature"
+      ],
       "next": "Q2",
       "question": "Does this involve implementing something NEW?"
     },
@@ -112,7 +146,13 @@
         "route": "CHANGELOG.md"
       },
       "id": "history_check",
-      "keywords": ["changed", "history", "changelog", "recent", "update"],
+      "keywords": [
+        "changed",
+        "history",
+        "changelog",
+        "recent",
+        "update"
+      ],
       "next": "Q5",
       "question": "Is this about recent changes or history?"
     },
@@ -121,7 +161,12 @@
         "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"SIDECAR_GUIDE.md\""
       },
       "id": "category_routing",
-      "keywords": ["develop", "code", "implement", "feature"],
+      "keywords": [
+        "develop",
+        "code",
+        "implement",
+        "feature"
+      ],
       "next": "Q6",
       "question": "Which category does this fall into?"
     },
@@ -168,7 +213,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "routing", "discovery"],
+        "categories": [
+          "agents",
+          "routing",
+          "discovery"
+        ],
         "keywords": [
           "agent-directory",
           "agent-selection",
@@ -184,7 +233,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-DIRECTORY.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -192,7 +241,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "metrics", "performance"],
+        "categories": [
+          "agents",
+          "metrics",
+          "performance"
+        ],
         "keywords": [
           "agent-metrics",
           "usage-tracking",
@@ -209,7 +262,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-METRICS.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -241,7 +294,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["discovery", "agents", "routing"],
+        "categories": [
+          "discovery",
+          "agents",
+          "routing"
+        ],
         "keywords": [
           "discovery-map",
           "routing",
@@ -258,7 +315,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/DISCOVERY-MAP.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -1214,8 +1271,16 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "agents", "routing"],
-        "keywords": ["test-strategy", "test-agents", "test-selection"],
+        "categories": [
+          "testing",
+          "agents",
+          "routing"
+        ],
+        "keywords": [
+          "test-strategy",
+          "test-agents",
+          "test-selection"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Team'",
         "review_cadence": "P30D",
@@ -1226,7 +1291,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/docs/TEST-STRATEGY.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -1294,20 +1359,27 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "planning", "architecture"],
+        "categories": [
+          "tech-debt",
+          "planning",
+          "architecture"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 2,
         "review_cadence": "P30D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": ".claude/plan.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -2500,7 +2572,12 @@
       "frontmatter": {
         "description": "Reduce regressions by discovering tests, running them, then editing code",
         "name": "test-first-change",
-        "tags": ["testing", "tdd", "quality", "regression"],
+        "tags": [
+          "testing",
+          "tdd",
+          "quality",
+          "regression"
+        ],
         "version": "1.0.0"
       },
       "hasExecutionClaims": false,
@@ -2756,7 +2833,10 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools"],
+        "categories": [
+          "development",
+          "skills-tools"
+        ],
         "keywords": [
           "capabilities",
           "agents",
@@ -2772,14 +2852,17 @@
         "route_hint": "'Read this FIRST before implementing anything new.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery", "feature_planning"]
+        "use_cases": [
+          "capability_discovery",
+          "feature_planning"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-12",
       "owner": "'Core Team'",
       "path": "CAPABILITIES.md",
-      "staleDays": 34,
+      "staleDays": 37,
       "status": "ACTIVE"
     },
     {
@@ -2874,6 +2957,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "DOCKER-WSL2-SETUP-GUIDE.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "DOCUMENTATION-NAVIGATION-GUIDE.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -2919,7 +3014,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "quality", "sprint-planning"],
+        "categories": [
+          "testing",
+          "quality",
+          "sprint-planning"
+        ],
         "keywords": [
           "foundation-hardening",
           "test-repair",
@@ -2929,20 +3028,26 @@
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 1,
-        "related_prs": ["282"],
+        "related_prs": [
+          "282"
+        ],
         "review_cadence": "'Post-sprint'",
         "route_hint": "'Execution-ready plan for Foundation Hardening Sprint'",
         "source_of_truth": true,
         "status": "ACTIVE",
         "supersedes": "FOUNDATION-HARDENING-PLAN.md",
-        "use_cases": ["test_repair", "quality_improvement", "sprint_execution"]
+        "use_cases": [
+          "test_repair",
+          "quality_improvement",
+          "sprint_execution"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "FOUNDATION-HARDENING-EXECUTION-PLAN.md",
-      "staleDays": 30,
+      "staleDays": 33,
       "status": "ACTIVE"
     },
     {
@@ -4045,6 +4150,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "cheatsheets/codex-collaboration-protocol.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "cheatsheets/coding-pairs-playbook.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -4324,6 +4441,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "cheatsheets/test-fix-patterns.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "cheatsheets/test-pyramid.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -4445,6 +4574,18 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/CA-SEMANTIC-LOCK.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/CI-CD-STATUS-REPORT.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -4609,7 +4750,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools", "ai-automation"],
+        "categories": [
+          "development",
+          "skills-tools",
+          "ai-automation"
+        ],
         "keywords": [
           "agents",
           "tools",
@@ -4626,14 +4771,17 @@
         "route_hint": "Complete inventory of AI tools and automation.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["tool_discovery", "agent_selection"]
+        "use_cases": [
+          "tool_discovery",
+          "agent_selection"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-12",
       "owner": "Core Team",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
-      "staleDays": 34,
+      "staleDays": 37,
       "status": "ACTIVE"
     },
     {
@@ -4701,8 +4849,17 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["documentation", "navigation"],
-        "keywords": ["index", "docs", "navigation", "routing", "documentation"],
+        "categories": [
+          "documentation",
+          "navigation"
+        ],
+        "keywords": [
+          "index",
+          "docs",
+          "navigation",
+          "routing",
+          "documentation"
+        ],
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 2,
@@ -4710,14 +4867,17 @@
         "route_hint": "'Central navigation for all documentation.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["doc_discovery", "onboarding"]
+        "use_cases": [
+          "doc_discovery",
+          "onboarding"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/INDEX.md",
-      "staleDays": 30,
+      "staleDays": 33,
       "status": "ACTIVE"
     },
     {
@@ -4965,7 +5125,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["phoenix", "validation", "vc-modeling"],
+        "categories": [
+          "phoenix",
+          "validation",
+          "vc-modeling"
+        ],
         "keywords": [
           "phoenix",
           "truth-case",
@@ -4984,14 +5148,17 @@
         "route_hint": "Entry point for all Phoenix project work.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_validation", "vc_modeling"]
+        "use_cases": [
+          "phoenix_validation",
+          "vc_modeling"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
       "lastUpdated": "2025-12-14",
       "owner": "Phoenix Team",
       "path": "docs/PHOENIX-SOT/README.md",
-      "staleDays": 32,
+      "staleDays": 35,
       "status": "ACTIVE"
     },
     {
@@ -6070,6 +6237,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/ci/triage.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/circuit-notion-checklist.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -6958,7 +7137,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["database", "performance", "architecture"],
+        "categories": [
+          "database",
+          "performance",
+          "architecture"
+        ],
         "last_updated": "2025-12-23",
         "status": "active",
         "title": "LP Reporting Dashboard - Database Optimization Guide"
@@ -6968,7 +7151,7 @@
       "lastUpdated": "2025-12-23",
       "owner": null,
       "path": "docs/lp-reporting-database-optimization.md",
-      "staleDays": 23,
+      "staleDays": 26,
       "status": "active"
     },
     {
@@ -7947,6 +8130,126 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-15-ci-routing-bundle-fix/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-15-ci-routing-bundle-fix/progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-15-ci-routing-bundle-fix/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-cicd-status-report-update/CORRECTIONS.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-cicd-status-report-update/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-cicd-status-report-update/progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-cicd-status-report-update/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-test-remediation-design.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-16-test-remediation.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/2026-01-17-jcurve-complexity-refactor.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
       "lastUpdated": null,
@@ -8080,21 +8383,28 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["phoenix", "foundation-hardening", "coordination"],
+        "categories": [
+          "phoenix",
+          "foundation-hardening",
+          "coordination"
+        ],
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 1,
         "review_cadence": "'P30D'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_hardening_coordination", "divergence_triage"]
+        "use_cases": [
+          "phoenix_hardening_coordination",
+          "divergence_triage"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
-      "staleDays": 30,
+      "staleDays": 33,
       "status": "ACTIVE"
     },
     {
@@ -8237,6 +8547,90 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/plans/integration-test-phase0-validation/conclusion.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0-validation/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0-validation/progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0-validation/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0/progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/integration-test-phase0/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/plans/option1-session-logs/findings.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -8286,6 +8680,42 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/plans/option2-session-logs/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/phase3-validation-findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/phase3-validation-progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/phase3-validation-task-plan.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -9338,7 +9768,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "development", "type-safety"],
+        "categories": [
+          "tech-debt",
+          "development",
+          "type-safety"
+        ],
         "keywords": [
           "typescript",
           "any-elimination",
@@ -9350,14 +9784,16 @@
         "priority": 2,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution"]
+        "use_cases": [
+          "task_execution"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -9619,7 +10055,11 @@
         "- event": "'xirr_consolidation_complete'",
         "action": "'Update status to REFERENCE'",
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "financial-calculations"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "financial-calculations"
+        ],
         "keywords": [
           "xirr",
           "consolidation",
@@ -9631,14 +10071,17 @@
         "priority": 1,
         "review_cadence": "P60D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-roadmap.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -9646,21 +10089,31 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "documentation"],
-        "keywords": ["xirr", "executive-summary", "consolidation"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "documentation"
+        ],
+        "keywords": [
+          "xirr",
+          "executive-summary",
+          "consolidation"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 1,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery"]
+        "use_cases": [
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-summary.md",
-      "staleDays": 17,
+      "staleDays": 20,
       "status": "ACTIVE"
     },
     {
@@ -9724,7 +10177,7 @@
       "status": "UNKNOWN"
     }
   ],
-  "generatedAt": "2026-01-15T20:47:19.193Z",
+  "generatedAt": "2026-01-18T11:14:14.371Z",
   "patterns": [
     {
       "category": "Security",
@@ -9803,7 +10256,13 @@
       "agent": "xirr-fees-validator",
       "category": "Phoenix",
       "id": "phoenix_xirr",
-      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "priority": 14,
       "target": ".claude/agents/xirr-fees-validator.md"
     },
@@ -9904,7 +10363,13 @@
     {
       "category": "CI/CD",
       "id": "ci_cd",
-      "keywords": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "keywords": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "priority": 31,
       "target": "docs/workflows/README.md"
     },
@@ -10100,7 +10565,13 @@
     {
       "category": "Quality",
       "id": "quality_gates",
-      "keywords": ["gate", "quality gate", "raci", "gate tracking", "approval"],
+      "keywords": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
       "priority": 94,
       "target": "docs/gates/"
     },
@@ -10174,21 +10645,654 @@
     {
       "category": "Troubleshooting",
       "id": "troubleshooting",
-      "keywords": ["error", "broken", "issue", "problem", "not working"],
+      "keywords": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
       "priority": 100,
       "target": "SIDECAR_GUIDE.md"
+    },
+    {
+      "category": "Development",
+      "id": "planning",
+      "keywords": [
+        "plan",
+        "planning",
+        "design",
+        "architect",
+        "strategy",
+        "approach",
+        "blueprint"
+      ],
+      "priority": 101,
+      "target": ".claude/skills/writing-plans.md"
+    },
+    {
+      "category": "Development",
+      "id": "brainstorming",
+      "keywords": [
+        "brainstorm",
+        "ideate",
+        "explore options",
+        "alternatives",
+        "creative"
+      ],
+      "priority": 102,
+      "target": ".claude/skills/brainstorming.md"
+    },
+    {
+      "category": "Development",
+      "id": "task_decomposition",
+      "keywords": [
+        "break down",
+        "decompose",
+        "split task",
+        "subtasks",
+        "chunk"
+      ],
+      "priority": 103,
+      "target": ".claude/skills/task-decomposition.md"
+    },
+    {
+      "category": "Development",
+      "id": "implementation",
+      "keywords": [
+        "implement",
+        "build",
+        "create",
+        "develop",
+        "new feature",
+        "add feature"
+      ],
+      "priority": 104,
+      "target": "CAPABILITIES.md"
+    },
+    {
+      "agent": "code-explorer",
+      "category": "Development",
+      "id": "code_exploration",
+      "keywords": [
+        "understand code",
+        "explore codebase",
+        "how does",
+        "find where",
+        "trace code",
+        "code flow"
+      ],
+      "priority": 105,
+      "target": ".claude/agents/code-explorer.md"
+    },
+    {
+      "agent": "test-scaffolder",
+      "category": "Testing",
+      "id": "test_scaffolding",
+      "keywords": [
+        "scaffold test",
+        "new test suite",
+        "test infrastructure",
+        "setup tests",
+        "test boilerplate"
+      ],
+      "priority": 106,
+      "target": ".claude/agents/test-scaffolder.md"
+    },
+    {
+      "agent": "test-automator",
+      "category": "Testing",
+      "id": "test_automation",
+      "keywords": [
+        "automate test",
+        "test automation",
+        "test strategy",
+        "test coverage",
+        "comprehensive test"
+      ],
+      "priority": 107,
+      "target": ".claude/agents/test-automator.md"
+    },
+    {
+      "agent": "playwright-test-author",
+      "category": "Testing",
+      "id": "playwright_tests",
+      "keywords": [
+        "playwright",
+        "e2e test",
+        "browser test",
+        "end to end",
+        "ui test"
+      ],
+      "priority": 108,
+      "target": ".claude/agents/playwright-test-author.md"
+    },
+    {
+      "agent": "pr-test-analyzer",
+      "category": "Testing",
+      "id": "pr_test_analysis",
+      "keywords": [
+        "pr tests",
+        "test gaps",
+        "missing tests",
+        "test coverage pr"
+      ],
+      "priority": 109,
+      "target": ".claude/agents/pr-test-analyzer.md"
+    },
+    {
+      "agent": "test-repair",
+      "category": "Testing",
+      "id": "flaky_tests",
+      "keywords": [
+        "flaky",
+        "intermittent",
+        "random failure",
+        "sometimes pass",
+        "race condition test"
+      ],
+      "priority": 110,
+      "target": ".claude/agents/test-repair.md"
+    },
+    {
+      "agent": "silent-failure-hunter",
+      "category": "Quality",
+      "id": "silent_failures",
+      "keywords": [
+        "silent failure",
+        "swallowed exception",
+        "catch empty",
+        "error ignored",
+        "missing error handling"
+      ],
+      "priority": 111,
+      "target": ".claude/agents/silent-failure-hunter.md"
+    },
+    {
+      "agent": "type-design-analyzer",
+      "category": "Quality",
+      "id": "type_design",
+      "keywords": [
+        "type design",
+        "typescript types",
+        "type safety",
+        "generic types",
+        "type inference"
+      ],
+      "priority": 112,
+      "target": ".claude/agents/type-design-analyzer.md"
+    },
+    {
+      "agent": "comment-analyzer",
+      "category": "Quality",
+      "id": "comment_analysis",
+      "keywords": [
+        "comments",
+        "code comments",
+        "documentation accuracy",
+        "outdated comments"
+      ],
+      "priority": 113,
+      "target": ".claude/agents/comment-analyzer.md"
+    },
+    {
+      "agent": "devops-troubleshooter",
+      "category": "DevOps",
+      "id": "devops_issues",
+      "keywords": [
+        "devops",
+        "infrastructure",
+        "container",
+        "docker",
+        "kubernetes",
+        "k8s"
+      ],
+      "priority": 114,
+      "target": ".claude/agents/devops-troubleshooter.md"
+    },
+    {
+      "agent": "incident-responder",
+      "category": "DevOps",
+      "id": "incident_response",
+      "keywords": [
+        "incident",
+        "outage",
+        "production down",
+        "pager",
+        "on call",
+        "sev1",
+        "sev2"
+      ],
+      "priority": 115,
+      "target": ".claude/agents/incident-responder.md"
+    },
+    {
+      "agent": "chaos-engineer",
+      "category": "Testing",
+      "id": "chaos_testing",
+      "keywords": [
+        "chaos",
+        "resilience",
+        "fault injection",
+        "failure testing",
+        "chaos monkey"
+      ],
+      "priority": 116,
+      "target": ".claude/agents/chaos-engineer.md"
+    },
+    {
+      "agent": "schema-drift-checker",
+      "category": "Database",
+      "id": "schema_drift",
+      "keywords": [
+        "schema drift",
+        "schema mismatch",
+        "zod schema",
+        "drizzle schema",
+        "schema alignment"
+      ],
+      "priority": 117,
+      "target": ".claude/agents/schema-drift-checker.md"
+    },
+    {
+      "agent": "db-migration",
+      "category": "Database",
+      "command": "/db-validate",
+      "id": "db_migration",
+      "keywords": [
+        "migration",
+        "db:push",
+        "schema change",
+        "alter table",
+        "database migration"
+      ],
+      "priority": 118,
+      "target": ".claude/agents/db-migration.md"
+    },
+    {
+      "agent": "perf-guard",
+      "category": "Performance",
+      "id": "perf_guard",
+      "keywords": [
+        "performance regression",
+        "perf guard",
+        "bundle analysis",
+        "size regression"
+      ],
+      "priority": 119,
+      "target": ".claude/agents/perf-guard.md"
+    },
+    {
+      "agent": "perf-regression-triager",
+      "category": "Performance",
+      "id": "perf_regression",
+      "keywords": [
+        "perf regression",
+        "slower",
+        "benchmark failed",
+        "performance degraded"
+      ],
+      "priority": 120,
+      "target": ".claude/agents/perf-regression-triager.md"
+    },
+    {
+      "agent": "baseline-regression-explainer",
+      "category": "Quality",
+      "id": "baseline_regression",
+      "keywords": [
+        "baseline",
+        "baseline failed",
+        "quality regression",
+        "lint regression",
+        "type regression"
+      ],
+      "priority": 121,
+      "target": ".claude/agents/baseline-regression-explainer.md"
+    },
+    {
+      "agent": "parity-auditor",
+      "category": "Phoenix",
+      "id": "excel_parity",
+      "keywords": [
+        "excel parity",
+        "excel match",
+        "spreadsheet",
+        "calculation mismatch",
+        "truth case failed"
+      ],
+      "priority": 122,
+      "target": ".claude/agents/parity-auditor.md"
+    },
+    {
+      "agent": "workflow-orchestrator",
+      "category": "Orchestration",
+      "id": "workflow_orchestration",
+      "keywords": [
+        "orchestrate",
+        "chain agents",
+        "auto validate",
+        "multi-agent",
+        "agent chain"
+      ],
+      "priority": 123,
+      "target": ".claude/agents/workflow-orchestrator.md"
+    },
+    {
+      "agent": "context-orchestrator",
+      "category": "Orchestration",
+      "id": "context_management",
+      "keywords": [
+        "context",
+        "context window",
+        "memory management",
+        "conversation context"
+      ],
+      "priority": 124,
+      "target": ".claude/agents/context-orchestrator.md"
+    },
+    {
+      "agent": "dx-optimizer",
+      "category": "Development",
+      "id": "dx_optimization",
+      "keywords": [
+        "developer experience",
+        "dx",
+        "tooling",
+        "workflow friction",
+        "onboarding"
+      ],
+      "priority": 125,
+      "target": ".claude/agents/dx-optimizer.md"
+    },
+    {
+      "agent": "legacy-modernizer",
+      "category": "Development",
+      "id": "legacy_code",
+      "keywords": [
+        "legacy",
+        "modernize",
+        "technical debt",
+        "outdated",
+        "refactor legacy"
+      ],
+      "priority": 126,
+      "target": ".claude/agents/legacy-modernizer.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "thinking_frameworks",
+      "keywords": [
+        "think deeper",
+        "analyze thoroughly",
+        "critical thinking",
+        "systematic analysis"
+      ],
+      "priority": 130,
+      "target": ".claude/skills/extended-thinking-framework.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "inversion_thinking",
+      "keywords": [
+        "inversion",
+        "what could go wrong",
+        "failure modes",
+        "anti-patterns",
+        "avoid mistakes"
+      ],
+      "priority": 131,
+      "target": ".claude/skills/inversion-thinking.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "pattern_recognition",
+      "keywords": [
+        "pattern",
+        "recurring",
+        "similar issues",
+        "common pattern"
+      ],
+      "priority": 132,
+      "target": ".claude/skills/pattern-recognition.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "analogical_thinking",
+      "keywords": [
+        "analogy",
+        "similar to",
+        "like",
+        "compare to"
+      ],
+      "priority": 133,
+      "target": ".claude/skills/analogical-thinking.md"
+    },
+    {
+      "category": "Orchestration",
+      "id": "parallel_agents",
+      "keywords": [
+        "parallel",
+        "concurrent",
+        "simultaneously",
+        "multiple agents"
+      ],
+      "priority": 134,
+      "target": ".claude/skills/dispatching-parallel-agents.md"
+    },
+    {
+      "category": "Development",
+      "id": "async_resilience",
+      "keywords": [
+        "async error",
+        "retry",
+        "circuit breaker",
+        "resilience",
+        "graceful degradation"
+      ],
+      "priority": 135,
+      "target": ".claude/skills/async-error-resilience.md"
+    },
+    {
+      "category": "Performance",
+      "id": "react_performance",
+      "keywords": [
+        "react performance",
+        "re-render",
+        "useMemo",
+        "useCallback",
+        "memoization"
+      ],
+      "priority": 136,
+      "target": ".claude/skills/react-performance-optimization.md"
+    },
+    {
+      "category": "Development",
+      "id": "api_design",
+      "keywords": [
+        "api design",
+        "rest api",
+        "endpoint design",
+        "api patterns"
+      ],
+      "priority": 137,
+      "target": ".claude/skills/api-design-principles.md"
+    },
+    {
+      "category": "Development",
+      "id": "architecture_patterns",
+      "keywords": [
+        "architecture pattern",
+        "design pattern",
+        "clean architecture",
+        "hexagonal"
+      ],
+      "priority": 138,
+      "target": ".claude/skills/architecture-patterns.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_log_change",
+      "keywords": [
+        "log change",
+        "changelog",
+        "record change"
+      ],
+      "priority": 140,
+      "target": ".claude/commands/log-change.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_log_decision",
+      "keywords": [
+        "log decision",
+        "adr",
+        "record decision",
+        "architecture decision"
+      ],
+      "priority": 141,
+      "target": ".claude/commands/log-decision.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_pre_commit",
+      "keywords": [
+        "pre-commit",
+        "before commit",
+        "commit check",
+        "quality check"
+      ],
+      "priority": 142,
+      "target": ".claude/commands/pre-commit-check.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_pr_ready",
+      "keywords": [
+        "pr ready",
+        "pull request ready",
+        "before pr",
+        "pr validation"
+      ],
+      "priority": 143,
+      "target": ".claude/commands/pr-ready.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_catalog",
+      "keywords": [
+        "catalog",
+        "list tools",
+        "available tools",
+        "what tools"
+      ],
+      "priority": 144,
+      "target": ".claude/commands/catalog-tooling.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_workflows",
+      "keywords": [
+        "workflows",
+        "which tool",
+        "tool helper",
+        "find command"
+      ],
+      "priority": 145,
+      "target": ".claude/commands/workflows.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_deps_audit",
+      "keywords": [
+        "dependency audit",
+        "security audit",
+        "npm audit",
+        "vulnerable"
+      ],
+      "priority": 146,
+      "target": ".claude/commands/wshobson/deps-audit.md"
+    },
+    {
+      "category": "Commands",
+      "id": "cmd_tech_debt",
+      "keywords": [
+        "tech debt",
+        "technical debt",
+        "debt analysis"
+      ],
+      "priority": 147,
+      "target": ".claude/commands/wshobson/tech-debt.md"
+    },
+    {
+      "category": "Quality",
+      "id": "cheat_anti_patterns",
+      "keywords": [
+        "anti-pattern",
+        "bad practice",
+        "code smell",
+        "avoid"
+      ],
+      "priority": 150,
+      "target": "cheatsheets/anti-pattern-prevention.md"
+    },
+    {
+      "category": "Testing",
+      "id": "cheat_testing_patterns",
+      "keywords": [
+        "testing pattern",
+        "test pattern",
+        "service testing",
+        "api testing"
+      ],
+      "priority": 151,
+      "target": "cheatsheets/service-testing-patterns.md"
+    },
+    {
+      "category": "Testing",
+      "id": "cheat_testcontainers",
+      "keywords": [
+        "testcontainer",
+        "docker test",
+        "integration test docker"
+      ],
+      "priority": 152,
+      "target": "cheatsheets/testcontainers-guide.md"
+    },
+    {
+      "category": "Development",
+      "id": "cheat_daily_workflow",
+      "keywords": [
+        "daily workflow",
+        "how to start",
+        "getting started",
+        "workflow"
+      ],
+      "priority": 153,
+      "target": "cheatsheets/daily-workflow.md"
+    },
+    {
+      "category": "AI Tools",
+      "id": "cheat_codex",
+      "keywords": [
+        "codex",
+        "codex cli",
+        "openai codex",
+        "consult codex"
+      ],
+      "priority": 154,
+      "target": "cheatsheets/codex-collaboration-protocol.md"
     }
   ],
   "stats": {
     "by_status": {
       "ACTIVE": 14,
-      "UNKNOWN": 732,
+      "UNKNOWN": 757,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 663,
-    "stale_docs": 737,
-    "total_docs": 751
+    "missing_frontmatter": 688,
+    "stale_docs": 762,
+    "total_docs": 776
   },
   "version": "2.0"
 }

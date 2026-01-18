@@ -2,205 +2,1226 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-15T20:47:19.193Z",
+  "generatedAt": "2026-01-18T11:14:14.371Z",
   "keyword_to_docs": {
-    "adr": ["docs/adr/"],
-    "agent": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "agent architecture": ["cheatsheets/agent-architecture.md"],
-    "agent core": ["cheatsheets/agent-architecture.md"],
-    "agent framework": ["cheatsheets/agent-architecture.md"],
-    "agent memory": ["cheatsheets/agent-memory-integration.md"],
-    "ai": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "alerting": ["docs/observability/"],
-    "already built": ["CAPABILITIES.md"],
-    "approval": ["docs/gates/"],
-    "architecture decision": ["docs/adr/"],
-    "auth": ["SIDECAR_GUIDE.md"],
-    "base agent": ["cheatsheets/agent-architecture.md"],
-    "baseline": [".claude/commands/phoenix-truth.md"],
-    "benchmark": ["cheatsheets/pr-merge-verification.md"],
-    "blue green": ["docs/runbooks/"],
-    "broken": ["SIDECAR_GUIDE.md"],
-    "broken test": [".claude/agents/test-repair.md"],
-    "bundle": ["packages/bundle-optimization-agents.md"],
-    "bundle optimization": ["packages/bundle-optimization-agents.md"],
-    "bundle size": ["packages/bundle-optimization-agents.md"],
-    "calibration": ["docs/forecasting/"],
-    "canary": ["docs/runbooks/"],
-    "canonical": ["docs/notebooklm-sources/"],
-    "capability": ["CAPABILITIES.md"],
+    "add feature": [
+      "CAPABILITIES.md"
+    ],
+    "adr": [
+      "docs/adr/",
+      ".claude/commands/log-decision.md"
+    ],
+    "agent": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "agent architecture": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent chain": [
+      ".claude/agents/workflow-orchestrator.md"
+    ],
+    "agent core": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent framework": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "agent memory": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "ai": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "alerting": [
+      "docs/observability/"
+    ],
+    "already built": [
+      "CAPABILITIES.md"
+    ],
+    "alter table": [
+      ".claude/agents/db-migration.md"
+    ],
+    "alternatives": [
+      ".claude/skills/brainstorming.md"
+    ],
+    "analogy": [
+      ".claude/skills/analogical-thinking.md"
+    ],
+    "analyze thoroughly": [
+      ".claude/skills/extended-thinking-framework.md"
+    ],
+    "anti-pattern": [
+      "cheatsheets/anti-pattern-prevention.md"
+    ],
+    "anti-patterns": [
+      ".claude/skills/inversion-thinking.md"
+    ],
+    "api design": [
+      ".claude/skills/api-design-principles.md"
+    ],
+    "api patterns": [
+      ".claude/skills/api-design-principles.md"
+    ],
+    "api testing": [
+      "cheatsheets/service-testing-patterns.md"
+    ],
+    "approach": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "approval": [
+      "docs/gates/"
+    ],
+    "architect": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "architecture decision": [
+      "docs/adr/",
+      ".claude/commands/log-decision.md"
+    ],
+    "architecture pattern": [
+      ".claude/skills/architecture-patterns.md"
+    ],
+    "async error": [
+      ".claude/skills/async-error-resilience.md"
+    ],
+    "auth": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "auto validate": [
+      ".claude/agents/workflow-orchestrator.md"
+    ],
+    "automate test": [
+      ".claude/agents/test-automator.md"
+    ],
+    "available tools": [
+      ".claude/commands/catalog-tooling.md"
+    ],
+    "avoid": [
+      "cheatsheets/anti-pattern-prevention.md"
+    ],
+    "avoid mistakes": [
+      ".claude/skills/inversion-thinking.md"
+    ],
+    "bad practice": [
+      "cheatsheets/anti-pattern-prevention.md"
+    ],
+    "base agent": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "baseline": [
+      ".claude/commands/phoenix-truth.md",
+      ".claude/agents/baseline-regression-explainer.md"
+    ],
+    "baseline failed": [
+      ".claude/agents/baseline-regression-explainer.md"
+    ],
+    "before commit": [
+      ".claude/commands/pre-commit-check.md"
+    ],
+    "before pr": [
+      ".claude/commands/pr-ready.md"
+    ],
+    "benchmark": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "benchmark failed": [
+      ".claude/agents/perf-regression-triager.md"
+    ],
+    "blue green": [
+      "docs/runbooks/"
+    ],
+    "blueprint": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "brainstorm": [
+      ".claude/skills/brainstorming.md"
+    ],
+    "break down": [
+      ".claude/skills/task-decomposition.md"
+    ],
+    "broken": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "broken test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "browser test": [
+      ".claude/agents/playwright-test-author.md"
+    ],
+    "build": [
+      "CAPABILITIES.md"
+    ],
+    "bundle": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "bundle analysis": [
+      ".claude/agents/perf-guard.md"
+    ],
+    "bundle optimization": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "bundle size": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "calculation mismatch": [
+      ".claude/agents/parity-auditor.md"
+    ],
+    "calibration": [
+      "docs/forecasting/"
+    ],
+    "canary": [
+      "docs/runbooks/"
+    ],
+    "canonical": [
+      "docs/notebooklm-sources/"
+    ],
+    "capability": [
+      "CAPABILITIES.md"
+    ],
     "capital allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "carry": [".claude/agents/waterfall-specialist.md"],
-    "carry fee": [".claude/agents/xirr-fees-validator.md"],
-    "cd": ["docs/workflows/README.md"],
-    "chaos": ["docs/chaos-engineering/"],
-    "chaos engineering": ["docs/chaos-engineering/"],
-    "check code": [".claude/agents/code-reviewer.md"],
-    "ci": ["docs/workflows/README.md"],
-    "claude": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "clawback": [".claude/agents/waterfall-specialist.md"],
-    "clean up": [".claude/agents/code-simplifier.md"],
-    "code review": [".claude/agents/code-reviewer.md"],
-    "code splitting": ["packages/bundle-optimization-agents.md"],
-    "cohort engine": ["docs/notebooklm-sources/"],
-    "cohorts": ["docs/notebooklm-sources/"],
-    "context": ["docs/INDEX.md"],
-    "coverage": ["docs/INDEX.md"],
-    "credential": ["SIDECAR_GUIDE.md"],
-    "dashboard": ["docs/observability/"],
-    "database": ["SIDECAR_GUIDE.md"],
-    "db": ["SIDECAR_GUIDE.md"],
-    "debug": [".claude/agents/debug-expert.md"],
-    "debugging": [".claude/agents/debug-expert.md"],
-    "decimal": [".claude/agents/phoenix-precision-guardian.md"],
-    "deploy": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "deployment": [".claude/agents/phoenix-capital-allocation-analyst.md"],
-    "deterministic": [".claude/commands/phoenix-truth.md"],
-    "disaster recovery": ["docs/runbooks/"],
-    "distribution": [".claude/commands/phoenix-phase2.md"],
-    "docs": [".claude/agents/docs-architect.md"],
-    "document": [".claude/agents/docs-architect.md"],
-    "documentation": [".claude/agents/docs-architect.md"],
-    "domain knowledge": ["docs/notebooklm-sources/"],
-    "dr": ["docs/runbooks/"],
-    "drizzle": ["SIDECAR_GUIDE.md"],
-    "e2e": ["docs/INDEX.md"],
-    "embedding": ["docs/INDEX.md"],
-    "env": ["SIDECAR_GUIDE.md"],
-    "error": ["SIDECAR_GUIDE.md"],
-    "existing solution": ["CAPABILITIES.md"],
-    "exit recycling": [".claude/agents/phoenix-capital-allocation-analyst.md"],
-    "expectation mode": [".claude/commands/phoenix-phase2.md"],
-    "failing test": [".claude/agents/test-repair.md"],
-    "failure injection": ["docs/chaos-engineering/"],
-    "feature": ["CAPABILITIES.md"],
-    "fees": [".claude/agents/xirr-fees-validator.md"],
-    "fix test": [".claude/agents/test-repair.md"],
-    "forecasting": ["docs/forecasting/"],
-    "fund calculations": ["docs/notebooklm-sources/"],
-    "game day": ["docs/chaos-engineering/"],
-    "gate": ["docs/gates/"],
-    "gate tracking": ["docs/gates/"],
-    "github actions": ["docs/workflows/README.md"],
-    "gp": [".claude/agents/waterfall-specialist.md"],
-    "grafana": ["docs/observability/"],
-    "hybrid memory": ["cheatsheets/agent-memory-integration.md"],
-    "improve code": [".claude/agents/code-simplifier.md"],
-    "incident": ["docs/runbooks/"],
-    "inference": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "integration": ["docs/INDEX.md"],
-    "investigate": [".claude/agents/debug-expert.md"],
-    "irr": [".claude/agents/xirr-fees-validator.md"],
-    "issue": ["SIDECAR_GUIDE.md"],
-    "jest": ["docs/INDEX.md"],
-    "jsdoc": [".claude/agents/docs-architect.md"],
-    "json schema": ["docs/schemas/"],
-    "key": ["SIDECAR_GUIDE.md"],
-    "kpi": ["docs/observability/"],
-    "latency": ["cheatsheets/pr-merge-verification.md"],
-    "lazy loading": ["packages/bundle-optimization-agents.md"],
-    "ledger": [".claude/agents/waterfall-specialist.md"],
-    "llm": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "lp": [".claude/agents/waterfall-specialist.md"],
-    "management fee": [".claude/agents/xirr-fees-validator.md"],
-    "mem0": ["docs/adr/"],
-    "memory": ["docs/INDEX.md"],
-    "memory integration": ["cheatsheets/agent-memory-integration.md"],
-    "memory scope": ["cheatsheets/agent-memory-integration.md"],
-    "metrics": ["docs/observability/"],
-    "migration": ["SIDECAR_GUIDE.md"],
-    "model": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "modeling wizard": ["docs/wizard/"],
-    "monitoring": ["docs/observability/"],
-    "monte carlo": [".claude/commands/phoenix-phase2.md"],
-    "multi-agent": ["cheatsheets/agent-architecture.md"],
-    "not working": ["SIDECAR_GUIDE.md"],
-    "notebooklm": ["docs/notebooklm-sources/"],
-    "numeric drift": [".claude/agents/phoenix-precision-guardian.md"],
-    "optimization": ["cheatsheets/pr-merge-verification.md"],
-    "orchestration": ["cheatsheets/agent-architecture.md"],
-    "pacing": ["docs/notebooklm-sources/"],
-    "pacing engine": ["docs/notebooklm-sources/"],
-    "parsefloat": [".claude/agents/phoenix-precision-guardian.md"],
-    "pass rate": [".claude/commands/phoenix-truth.md"],
-    "password": ["SIDECAR_GUIDE.md"],
-    "pattern learning": ["cheatsheets/agent-memory-integration.md"],
-    "perf": ["cheatsheets/pr-merge-verification.md"],
-    "performance": ["cheatsheets/pr-merge-verification.md"],
-    "pgvector": ["docs/INDEX.md"],
-    "phase 2": [".claude/commands/phoenix-phase2.md"],
-    "pipeline": ["docs/workflows/README.md"],
-    "postgres": ["SIDECAR_GUIDE.md"],
-    "power law": ["docs/forecasting/"],
-    "pr review": [".claude/agents/code-reviewer.md"],
-    "precision": [".claude/agents/phoenix-precision-guardian.md"],
-    "probabilistic": [".claude/commands/phoenix-phase2.md"],
-    "problem": ["SIDECAR_GUIDE.md"],
-    "prod": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "production": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "prometheus": ["docs/observability/"],
-    "prompt": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "pull request": [".claude/agents/code-reviewer.md"],
-    "quality gate": ["docs/gates/"],
-    "raci": ["docs/gates/"],
-    "readme": [".claude/agents/docs-architect.md"],
-    "reduce complexity": [".claude/agents/code-simplifier.md"],
-    "refactor": [".claude/agents/code-simplifier.md"],
-    "release": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "repair test": [".claude/agents/test-repair.md"],
-    "reserve engine": ["docs/notebooklm-sources/"],
-    "reserves": ["docs/notebooklm-sources/"],
-    "review": [".claude/agents/code-reviewer.md"],
-    "rls testing": ["docs/chaos-engineering/"],
-    "rollback": ["docs/runbooks/"],
-    "rollout": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "root cause": [".claude/agents/debug-expert.md"],
-    "rounding": [".claude/agents/phoenix-precision-guardian.md"],
-    "runbook": ["docs/runbooks/"],
-    "schema": ["docs/schemas/", "SIDECAR_GUIDE.md"],
-    "secret": ["SIDECAR_GUIDE.md"],
-    "security": ["SIDECAR_GUIDE.md"],
-    "seeded": [".claude/commands/phoenix-phase2.md"],
-    "semantic search": ["docs/INDEX.md"],
-    "shipping": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "simplify": [".claude/agents/code-simplifier.md"],
-    "slow": ["cheatsheets/pr-merge-verification.md"],
-    "sql": ["SIDECAR_GUIDE.md"],
-    "stack trace": [".claude/agents/debug-expert.md"],
+    "carry": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "carry fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "catalog": [
+      ".claude/commands/catalog-tooling.md"
+    ],
+    "catch empty": [
+      ".claude/agents/silent-failure-hunter.md"
+    ],
+    "cd": [
+      "docs/workflows/README.md"
+    ],
+    "chain agents": [
+      ".claude/agents/workflow-orchestrator.md"
+    ],
+    "changelog": [
+      ".claude/commands/log-change.md"
+    ],
+    "chaos": [
+      "docs/chaos-engineering/",
+      ".claude/agents/chaos-engineer.md"
+    ],
+    "chaos engineering": [
+      "docs/chaos-engineering/"
+    ],
+    "chaos monkey": [
+      ".claude/agents/chaos-engineer.md"
+    ],
+    "check code": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "chunk": [
+      ".claude/skills/task-decomposition.md"
+    ],
+    "ci": [
+      "docs/workflows/README.md"
+    ],
+    "circuit breaker": [
+      ".claude/skills/async-error-resilience.md"
+    ],
+    "claude": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "clawback": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "clean architecture": [
+      ".claude/skills/architecture-patterns.md"
+    ],
+    "clean up": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "code comments": [
+      ".claude/agents/comment-analyzer.md"
+    ],
+    "code flow": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "code review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "code smell": [
+      "cheatsheets/anti-pattern-prevention.md"
+    ],
+    "code splitting": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "codex": [
+      "cheatsheets/codex-collaboration-protocol.md"
+    ],
+    "codex cli": [
+      "cheatsheets/codex-collaboration-protocol.md"
+    ],
+    "cohort engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "cohorts": [
+      "docs/notebooklm-sources/"
+    ],
+    "comments": [
+      ".claude/agents/comment-analyzer.md"
+    ],
+    "commit check": [
+      ".claude/commands/pre-commit-check.md"
+    ],
+    "common pattern": [
+      ".claude/skills/pattern-recognition.md"
+    ],
+    "compare to": [
+      ".claude/skills/analogical-thinking.md"
+    ],
+    "comprehensive test": [
+      ".claude/agents/test-automator.md"
+    ],
+    "concurrent": [
+      ".claude/skills/dispatching-parallel-agents.md"
+    ],
+    "consult codex": [
+      "cheatsheets/codex-collaboration-protocol.md"
+    ],
+    "container": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "context": [
+      "docs/INDEX.md",
+      ".claude/agents/context-orchestrator.md"
+    ],
+    "context window": [
+      ".claude/agents/context-orchestrator.md"
+    ],
+    "conversation context": [
+      ".claude/agents/context-orchestrator.md"
+    ],
+    "coverage": [
+      "docs/INDEX.md"
+    ],
+    "create": [
+      "CAPABILITIES.md"
+    ],
+    "creative": [
+      ".claude/skills/brainstorming.md"
+    ],
+    "credential": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "critical thinking": [
+      ".claude/skills/extended-thinking-framework.md"
+    ],
+    "daily workflow": [
+      "cheatsheets/daily-workflow.md"
+    ],
+    "dashboard": [
+      "docs/observability/"
+    ],
+    "database": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "database migration": [
+      ".claude/agents/db-migration.md"
+    ],
+    "db": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "db:push": [
+      ".claude/agents/db-migration.md"
+    ],
+    "debt analysis": [
+      ".claude/commands/wshobson/tech-debt.md"
+    ],
+    "debug": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "debugging": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "decimal": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "decompose": [
+      ".claude/skills/task-decomposition.md"
+    ],
+    "dependency audit": [
+      ".claude/commands/wshobson/deps-audit.md"
+    ],
+    "deploy": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "deployment": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "design": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "design pattern": [
+      ".claude/skills/architecture-patterns.md"
+    ],
+    "deterministic": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "develop": [
+      "CAPABILITIES.md"
+    ],
+    "developer experience": [
+      ".claude/agents/dx-optimizer.md"
+    ],
+    "devops": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "disaster recovery": [
+      "docs/runbooks/"
+    ],
+    "distribution": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "docker": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "docker test": [
+      "cheatsheets/testcontainers-guide.md"
+    ],
+    "docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "document": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "documentation": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "documentation accuracy": [
+      ".claude/agents/comment-analyzer.md"
+    ],
+    "domain knowledge": [
+      "docs/notebooklm-sources/"
+    ],
+    "dr": [
+      "docs/runbooks/"
+    ],
+    "drizzle": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "drizzle schema": [
+      ".claude/agents/schema-drift-checker.md"
+    ],
+    "dx": [
+      ".claude/agents/dx-optimizer.md"
+    ],
+    "e2e": [
+      "docs/INDEX.md"
+    ],
+    "e2e test": [
+      ".claude/agents/playwright-test-author.md"
+    ],
+    "embedding": [
+      "docs/INDEX.md"
+    ],
+    "end to end": [
+      ".claude/agents/playwright-test-author.md"
+    ],
+    "endpoint design": [
+      ".claude/skills/api-design-principles.md"
+    ],
+    "env": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "error": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "error ignored": [
+      ".claude/agents/silent-failure-hunter.md"
+    ],
+    "excel match": [
+      ".claude/agents/parity-auditor.md"
+    ],
+    "excel parity": [
+      ".claude/agents/parity-auditor.md"
+    ],
+    "existing solution": [
+      "CAPABILITIES.md"
+    ],
+    "exit recycling": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "expectation mode": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "explore codebase": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "explore options": [
+      ".claude/skills/brainstorming.md"
+    ],
+    "failing test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "failure injection": [
+      "docs/chaos-engineering/"
+    ],
+    "failure modes": [
+      ".claude/skills/inversion-thinking.md"
+    ],
+    "failure testing": [
+      ".claude/agents/chaos-engineer.md"
+    ],
+    "fault injection": [
+      ".claude/agents/chaos-engineer.md"
+    ],
+    "feature": [
+      "CAPABILITIES.md"
+    ],
+    "fees": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "find command": [
+      ".claude/commands/workflows.md"
+    ],
+    "find where": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "fix test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "flaky": [
+      ".claude/agents/test-repair.md"
+    ],
+    "forecasting": [
+      "docs/forecasting/"
+    ],
+    "fund calculations": [
+      "docs/notebooklm-sources/"
+    ],
+    "game day": [
+      "docs/chaos-engineering/"
+    ],
+    "gate": [
+      "docs/gates/"
+    ],
+    "gate tracking": [
+      "docs/gates/"
+    ],
+    "generic types": [
+      ".claude/agents/type-design-analyzer.md"
+    ],
+    "getting started": [
+      "cheatsheets/daily-workflow.md"
+    ],
+    "github actions": [
+      "docs/workflows/README.md"
+    ],
+    "gp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "graceful degradation": [
+      ".claude/skills/async-error-resilience.md"
+    ],
+    "grafana": [
+      "docs/observability/"
+    ],
+    "hexagonal": [
+      ".claude/skills/architecture-patterns.md"
+    ],
+    "how does": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "how to start": [
+      "cheatsheets/daily-workflow.md"
+    ],
+    "hybrid memory": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "ideate": [
+      ".claude/skills/brainstorming.md"
+    ],
+    "implement": [
+      "CAPABILITIES.md"
+    ],
+    "improve code": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "incident": [
+      "docs/runbooks/",
+      ".claude/agents/incident-responder.md"
+    ],
+    "inference": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "infrastructure": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "integration": [
+      "docs/INDEX.md"
+    ],
+    "integration test docker": [
+      "cheatsheets/testcontainers-guide.md"
+    ],
+    "intermittent": [
+      ".claude/agents/test-repair.md"
+    ],
+    "inversion": [
+      ".claude/skills/inversion-thinking.md"
+    ],
+    "investigate": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "irr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "issue": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "jest": [
+      "docs/INDEX.md"
+    ],
+    "jsdoc": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "json schema": [
+      "docs/schemas/"
+    ],
+    "k8s": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "key": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "kpi": [
+      "docs/observability/"
+    ],
+    "kubernetes": [
+      ".claude/agents/devops-troubleshooter.md"
+    ],
+    "latency": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "lazy loading": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "ledger": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "legacy": [
+      ".claude/agents/legacy-modernizer.md"
+    ],
+    "like": [
+      ".claude/skills/analogical-thinking.md"
+    ],
+    "lint regression": [
+      ".claude/agents/baseline-regression-explainer.md"
+    ],
+    "list tools": [
+      ".claude/commands/catalog-tooling.md"
+    ],
+    "llm": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "log change": [
+      ".claude/commands/log-change.md"
+    ],
+    "log decision": [
+      ".claude/commands/log-decision.md"
+    ],
+    "lp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "management fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "mem0": [
+      "docs/adr/"
+    ],
+    "memoization": [
+      ".claude/skills/react-performance-optimization.md"
+    ],
+    "memory": [
+      "docs/INDEX.md"
+    ],
+    "memory integration": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "memory management": [
+      ".claude/agents/context-orchestrator.md"
+    ],
+    "memory scope": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "metrics": [
+      "docs/observability/"
+    ],
+    "migration": [
+      "SIDECAR_GUIDE.md",
+      ".claude/agents/db-migration.md"
+    ],
+    "missing error handling": [
+      ".claude/agents/silent-failure-hunter.md"
+    ],
+    "missing tests": [
+      ".claude/agents/pr-test-analyzer.md"
+    ],
+    "model": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "modeling wizard": [
+      "docs/wizard/"
+    ],
+    "modernize": [
+      ".claude/agents/legacy-modernizer.md"
+    ],
+    "monitoring": [
+      "docs/observability/"
+    ],
+    "monte carlo": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "multi-agent": [
+      "cheatsheets/agent-architecture.md",
+      ".claude/agents/workflow-orchestrator.md"
+    ],
+    "multiple agents": [
+      ".claude/skills/dispatching-parallel-agents.md"
+    ],
+    "new feature": [
+      "CAPABILITIES.md"
+    ],
+    "new test suite": [
+      ".claude/agents/test-scaffolder.md"
+    ],
+    "not working": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "notebooklm": [
+      "docs/notebooklm-sources/"
+    ],
+    "npm audit": [
+      ".claude/commands/wshobson/deps-audit.md"
+    ],
+    "numeric drift": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "on call": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "onboarding": [
+      ".claude/agents/dx-optimizer.md"
+    ],
+    "openai codex": [
+      "cheatsheets/codex-collaboration-protocol.md"
+    ],
+    "optimization": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "orchestrate": [
+      ".claude/agents/workflow-orchestrator.md"
+    ],
+    "orchestration": [
+      "cheatsheets/agent-architecture.md"
+    ],
+    "outage": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "outdated": [
+      ".claude/agents/legacy-modernizer.md"
+    ],
+    "outdated comments": [
+      ".claude/agents/comment-analyzer.md"
+    ],
+    "pacing": [
+      "docs/notebooklm-sources/"
+    ],
+    "pacing engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "pager": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "parallel": [
+      ".claude/skills/dispatching-parallel-agents.md"
+    ],
+    "parsefloat": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "pass rate": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "password": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "pattern": [
+      ".claude/skills/pattern-recognition.md"
+    ],
+    "pattern learning": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "perf": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "perf guard": [
+      ".claude/agents/perf-guard.md"
+    ],
+    "perf regression": [
+      ".claude/agents/perf-regression-triager.md"
+    ],
+    "performance": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "performance degraded": [
+      ".claude/agents/perf-regression-triager.md"
+    ],
+    "performance regression": [
+      ".claude/agents/perf-guard.md"
+    ],
+    "pgvector": [
+      "docs/INDEX.md"
+    ],
+    "phase 2": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "pipeline": [
+      "docs/workflows/README.md"
+    ],
+    "plan": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "planning": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "playwright": [
+      ".claude/agents/playwright-test-author.md"
+    ],
+    "postgres": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "power law": [
+      "docs/forecasting/"
+    ],
+    "pr ready": [
+      ".claude/commands/pr-ready.md"
+    ],
+    "pr review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "pr tests": [
+      ".claude/agents/pr-test-analyzer.md"
+    ],
+    "pr validation": [
+      ".claude/commands/pr-ready.md"
+    ],
+    "pre-commit": [
+      ".claude/commands/pre-commit-check.md"
+    ],
+    "precision": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "probabilistic": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "problem": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "prod": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "production": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "production down": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "prometheus": [
+      "docs/observability/"
+    ],
+    "prompt": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "pull request": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "pull request ready": [
+      ".claude/commands/pr-ready.md"
+    ],
+    "quality check": [
+      ".claude/commands/pre-commit-check.md"
+    ],
+    "quality gate": [
+      "docs/gates/"
+    ],
+    "quality regression": [
+      ".claude/agents/baseline-regression-explainer.md"
+    ],
+    "race condition test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "raci": [
+      "docs/gates/"
+    ],
+    "random failure": [
+      ".claude/agents/test-repair.md"
+    ],
+    "re-render": [
+      ".claude/skills/react-performance-optimization.md"
+    ],
+    "react performance": [
+      ".claude/skills/react-performance-optimization.md"
+    ],
+    "readme": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "record change": [
+      ".claude/commands/log-change.md"
+    ],
+    "record decision": [
+      ".claude/commands/log-decision.md"
+    ],
+    "recurring": [
+      ".claude/skills/pattern-recognition.md"
+    ],
+    "reduce complexity": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "refactor": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "refactor legacy": [
+      ".claude/agents/legacy-modernizer.md"
+    ],
+    "release": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "repair test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "reserve engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "reserves": [
+      "docs/notebooklm-sources/"
+    ],
+    "resilience": [
+      ".claude/agents/chaos-engineer.md",
+      ".claude/skills/async-error-resilience.md"
+    ],
+    "rest api": [
+      ".claude/skills/api-design-principles.md"
+    ],
+    "retry": [
+      ".claude/skills/async-error-resilience.md"
+    ],
+    "review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "rls testing": [
+      "docs/chaos-engineering/"
+    ],
+    "rollback": [
+      "docs/runbooks/"
+    ],
+    "rollout": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "root cause": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "rounding": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "runbook": [
+      "docs/runbooks/"
+    ],
+    "scaffold test": [
+      ".claude/agents/test-scaffolder.md"
+    ],
+    "schema": [
+      "docs/schemas/",
+      "SIDECAR_GUIDE.md"
+    ],
+    "schema alignment": [
+      ".claude/agents/schema-drift-checker.md"
+    ],
+    "schema change": [
+      ".claude/agents/db-migration.md"
+    ],
+    "schema drift": [
+      ".claude/agents/schema-drift-checker.md"
+    ],
+    "schema mismatch": [
+      ".claude/agents/schema-drift-checker.md"
+    ],
+    "secret": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "security": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "security audit": [
+      ".claude/commands/wshobson/deps-audit.md"
+    ],
+    "seeded": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "semantic search": [
+      "docs/INDEX.md"
+    ],
+    "service testing": [
+      "cheatsheets/service-testing-patterns.md"
+    ],
+    "setup tests": [
+      ".claude/agents/test-scaffolder.md"
+    ],
+    "sev1": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "sev2": [
+      ".claude/agents/incident-responder.md"
+    ],
+    "shipping": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "silent failure": [
+      ".claude/agents/silent-failure-hunter.md"
+    ],
+    "similar issues": [
+      ".claude/skills/pattern-recognition.md"
+    ],
+    "similar to": [
+      ".claude/skills/analogical-thinking.md"
+    ],
+    "simplify": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "simultaneously": [
+      ".claude/skills/dispatching-parallel-agents.md"
+    ],
+    "size regression": [
+      ".claude/agents/perf-guard.md"
+    ],
+    "slow": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "slower": [
+      ".claude/agents/perf-regression-triager.md"
+    ],
+    "sometimes pass": [
+      ".claude/agents/test-repair.md"
+    ],
+    "split task": [
+      ".claude/skills/task-decomposition.md"
+    ],
+    "spreadsheet": [
+      ".claude/agents/parity-auditor.md"
+    ],
+    "sql": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "stack trace": [
+      ".claude/agents/debug-expert.md"
+    ],
     "stage allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "stage normalization": ["docs/adr/"],
-    "state machine": ["docs/wizard/"],
-    "streaming": ["docs/adr/"],
-    "streaming monte carlo": ["docs/forecasting/"],
-    "tenant": ["cheatsheets/agent-memory-integration.md"],
-    "test": ["docs/INDEX.md"],
-    "test fail": [".claude/agents/test-repair.md"],
-    "tier": [".claude/agents/waterfall-specialist.md"],
-    "token": ["SIDECAR_GUIDE.md"],
-    "token budgeting": ["docs/adr/"],
-    "trace": [".claude/agents/debug-expert.md"],
-    "tree shaking": ["packages/bundle-optimization-agents.md"],
-    "truth case": [".claude/commands/phoenix-truth.md"],
-    "truth case schema": ["docs/schemas/"],
-    "truth source": ["docs/notebooklm-sources/"],
-    "unit test": ["docs/INDEX.md"],
-    "validation": [".claude/commands/phoenix-truth.md"],
-    "validation schema": ["docs/schemas/"],
-    "vc modeling": ["docs/notebooklm-sources/"],
-    "vector": ["docs/INDEX.md"],
-    "vitest": ["docs/INDEX.md"],
-    "waterfall": [".claude/agents/waterfall-specialist.md"],
-    "what can": ["CAPABILITIES.md"],
-    "wizard": ["docs/wizard/"],
-    "wizard step": ["docs/wizard/"],
-    "workflow": ["docs/workflows/README.md"],
-    "write docs": [".claude/agents/docs-architect.md"],
-    "xirr": [".claude/agents/xirr-fees-validator.md"],
-    "xstate": ["docs/wizard/"]
+    "stage normalization": [
+      "docs/adr/"
+    ],
+    "state machine": [
+      "docs/wizard/"
+    ],
+    "strategy": [
+      ".claude/skills/writing-plans.md"
+    ],
+    "streaming": [
+      "docs/adr/"
+    ],
+    "streaming monte carlo": [
+      "docs/forecasting/"
+    ],
+    "subtasks": [
+      ".claude/skills/task-decomposition.md"
+    ],
+    "swallowed exception": [
+      ".claude/agents/silent-failure-hunter.md"
+    ],
+    "systematic analysis": [
+      ".claude/skills/extended-thinking-framework.md"
+    ],
+    "tech debt": [
+      ".claude/commands/wshobson/tech-debt.md"
+    ],
+    "technical debt": [
+      ".claude/agents/legacy-modernizer.md",
+      ".claude/commands/wshobson/tech-debt.md"
+    ],
+    "tenant": [
+      "cheatsheets/agent-memory-integration.md"
+    ],
+    "test": [
+      "docs/INDEX.md"
+    ],
+    "test automation": [
+      ".claude/agents/test-automator.md"
+    ],
+    "test boilerplate": [
+      ".claude/agents/test-scaffolder.md"
+    ],
+    "test coverage": [
+      ".claude/agents/test-automator.md"
+    ],
+    "test coverage pr": [
+      ".claude/agents/pr-test-analyzer.md"
+    ],
+    "test fail": [
+      ".claude/agents/test-repair.md"
+    ],
+    "test gaps": [
+      ".claude/agents/pr-test-analyzer.md"
+    ],
+    "test infrastructure": [
+      ".claude/agents/test-scaffolder.md"
+    ],
+    "test pattern": [
+      "cheatsheets/service-testing-patterns.md"
+    ],
+    "test strategy": [
+      ".claude/agents/test-automator.md"
+    ],
+    "testcontainer": [
+      "cheatsheets/testcontainers-guide.md"
+    ],
+    "testing pattern": [
+      "cheatsheets/service-testing-patterns.md"
+    ],
+    "think deeper": [
+      ".claude/skills/extended-thinking-framework.md"
+    ],
+    "tier": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "token": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "token budgeting": [
+      "docs/adr/"
+    ],
+    "tool helper": [
+      ".claude/commands/workflows.md"
+    ],
+    "tooling": [
+      ".claude/agents/dx-optimizer.md"
+    ],
+    "trace": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "trace code": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "tree shaking": [
+      "packages/bundle-optimization-agents.md"
+    ],
+    "truth case": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "truth case failed": [
+      ".claude/agents/parity-auditor.md"
+    ],
+    "truth case schema": [
+      "docs/schemas/"
+    ],
+    "truth source": [
+      "docs/notebooklm-sources/"
+    ],
+    "type design": [
+      ".claude/agents/type-design-analyzer.md"
+    ],
+    "type inference": [
+      ".claude/agents/type-design-analyzer.md"
+    ],
+    "type regression": [
+      ".claude/agents/baseline-regression-explainer.md"
+    ],
+    "type safety": [
+      ".claude/agents/type-design-analyzer.md"
+    ],
+    "typescript types": [
+      ".claude/agents/type-design-analyzer.md"
+    ],
+    "ui test": [
+      ".claude/agents/playwright-test-author.md"
+    ],
+    "understand code": [
+      ".claude/agents/code-explorer.md"
+    ],
+    "unit test": [
+      "docs/INDEX.md"
+    ],
+    "usecallback": [
+      ".claude/skills/react-performance-optimization.md"
+    ],
+    "usememo": [
+      ".claude/skills/react-performance-optimization.md"
+    ],
+    "validation": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "validation schema": [
+      "docs/schemas/"
+    ],
+    "vc modeling": [
+      "docs/notebooklm-sources/"
+    ],
+    "vector": [
+      "docs/INDEX.md"
+    ],
+    "vitest": [
+      "docs/INDEX.md"
+    ],
+    "vulnerable": [
+      ".claude/commands/wshobson/deps-audit.md"
+    ],
+    "waterfall": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "what can": [
+      "CAPABILITIES.md"
+    ],
+    "what could go wrong": [
+      ".claude/skills/inversion-thinking.md"
+    ],
+    "what tools": [
+      ".claude/commands/catalog-tooling.md"
+    ],
+    "which tool": [
+      ".claude/commands/workflows.md"
+    ],
+    "wizard": [
+      "docs/wizard/"
+    ],
+    "wizard step": [
+      "docs/wizard/"
+    ],
+    "workflow": [
+      "docs/workflows/README.md",
+      "cheatsheets/daily-workflow.md"
+    ],
+    "workflow friction": [
+      ".claude/agents/dx-optimizer.md"
+    ],
+    "workflows": [
+      ".claude/commands/workflows.md"
+    ],
+    "write docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "xirr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "xstate": [
+      "docs/wizard/"
+    ],
+    "zod schema": [
+      ".claude/agents/schema-drift-checker.md"
+    ]
   },
   "patterns": [
     {
@@ -320,7 +1341,13 @@
     {
       "agent": "xirr-fees-validator",
       "id": "phoenix_xirr",
-      "match_any": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "match_any": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "match_any_normalized": [
         "xirr",
         "irr",
@@ -479,7 +1506,13 @@
     },
     {
       "id": "ci_cd",
-      "match_any": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "match_any": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "match_any_normalized": [
         "ci",
         "cd",
@@ -911,7 +1944,13 @@
     },
     {
       "id": "troubleshooting",
-      "match_any": ["error", "broken", "issue", "problem", "not working"],
+      "match_any": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
       "match_any_normalized": [
         "error",
         "broken",
@@ -922,10 +1961,960 @@
       "priority": 100,
       "route_to": "SIDECAR_GUIDE.md",
       "why": "Troubleshooting routing (priority 100)"
+    },
+    {
+      "id": "planning",
+      "match_any": [
+        "plan",
+        "planning",
+        "design",
+        "architect",
+        "strategy",
+        "approach",
+        "blueprint"
+      ],
+      "match_any_normalized": [
+        "plan",
+        "planning",
+        "design",
+        "architect",
+        "strategy",
+        "approach",
+        "blueprint"
+      ],
+      "priority": 101,
+      "route_to": ".claude/skills/writing-plans.md",
+      "why": "Development routing (priority 101)"
+    },
+    {
+      "id": "brainstorming",
+      "match_any": [
+        "brainstorm",
+        "ideate",
+        "explore options",
+        "alternatives",
+        "creative"
+      ],
+      "match_any_normalized": [
+        "brainstorm",
+        "ideate",
+        "explore options",
+        "alternatives",
+        "creative"
+      ],
+      "priority": 102,
+      "route_to": ".claude/skills/brainstorming.md",
+      "why": "Development routing (priority 102)"
+    },
+    {
+      "id": "task_decomposition",
+      "match_any": [
+        "break down",
+        "decompose",
+        "split task",
+        "subtasks",
+        "chunk"
+      ],
+      "match_any_normalized": [
+        "break down",
+        "decompose",
+        "split task",
+        "subtasks",
+        "chunk"
+      ],
+      "priority": 103,
+      "route_to": ".claude/skills/task-decomposition.md",
+      "why": "Development routing (priority 103)"
+    },
+    {
+      "id": "implementation",
+      "match_any": [
+        "implement",
+        "build",
+        "create",
+        "develop",
+        "new feature",
+        "add feature"
+      ],
+      "match_any_normalized": [
+        "implement",
+        "build",
+        "create",
+        "develop",
+        "new feature",
+        "add feature"
+      ],
+      "priority": 104,
+      "route_to": "CAPABILITIES.md",
+      "why": "Development routing (priority 104)"
+    },
+    {
+      "agent": "code-explorer",
+      "id": "code_exploration",
+      "match_any": [
+        "understand code",
+        "explore codebase",
+        "how does",
+        "find where",
+        "trace code",
+        "code flow"
+      ],
+      "match_any_normalized": [
+        "understand code",
+        "explore codebase",
+        "how does",
+        "find where",
+        "trace code",
+        "code flow"
+      ],
+      "priority": 105,
+      "route_to": ".claude/agents/code-explorer.md",
+      "why": "Development routing (priority 105)"
+    },
+    {
+      "agent": "test-scaffolder",
+      "id": "test_scaffolding",
+      "match_any": [
+        "scaffold test",
+        "new test suite",
+        "test infrastructure",
+        "setup tests",
+        "test boilerplate"
+      ],
+      "match_any_normalized": [
+        "scaffold test",
+        "new test suite",
+        "test infrastructure",
+        "setup tests",
+        "test boilerplate"
+      ],
+      "priority": 106,
+      "route_to": ".claude/agents/test-scaffolder.md",
+      "why": "Testing routing (priority 106)"
+    },
+    {
+      "agent": "test-automator",
+      "id": "test_automation",
+      "match_any": [
+        "automate test",
+        "test automation",
+        "test strategy",
+        "test coverage",
+        "comprehensive test"
+      ],
+      "match_any_normalized": [
+        "automate test",
+        "test automation",
+        "test strategy",
+        "test coverage",
+        "comprehensive test"
+      ],
+      "priority": 107,
+      "route_to": ".claude/agents/test-automator.md",
+      "why": "Testing routing (priority 107)"
+    },
+    {
+      "agent": "playwright-test-author",
+      "id": "playwright_tests",
+      "match_any": [
+        "playwright",
+        "e2e test",
+        "browser test",
+        "end to end",
+        "ui test"
+      ],
+      "match_any_normalized": [
+        "playwright",
+        "e2e test",
+        "browser test",
+        "end to end",
+        "ui test"
+      ],
+      "priority": 108,
+      "route_to": ".claude/agents/playwright-test-author.md",
+      "why": "Testing routing (priority 108)"
+    },
+    {
+      "agent": "pr-test-analyzer",
+      "id": "pr_test_analysis",
+      "match_any": [
+        "pr tests",
+        "test gaps",
+        "missing tests",
+        "test coverage pr"
+      ],
+      "match_any_normalized": [
+        "pr tests",
+        "test gaps",
+        "missing tests",
+        "test coverage pr"
+      ],
+      "priority": 109,
+      "route_to": ".claude/agents/pr-test-analyzer.md",
+      "why": "Testing routing (priority 109)"
+    },
+    {
+      "agent": "test-repair",
+      "id": "flaky_tests",
+      "match_any": [
+        "flaky",
+        "intermittent",
+        "random failure",
+        "sometimes pass",
+        "race condition test"
+      ],
+      "match_any_normalized": [
+        "flaky",
+        "intermittent",
+        "random failure",
+        "sometimes pass",
+        "race condition test"
+      ],
+      "priority": 110,
+      "route_to": ".claude/agents/test-repair.md",
+      "why": "Testing routing (priority 110)"
+    },
+    {
+      "agent": "silent-failure-hunter",
+      "id": "silent_failures",
+      "match_any": [
+        "silent failure",
+        "swallowed exception",
+        "catch empty",
+        "error ignored",
+        "missing error handling"
+      ],
+      "match_any_normalized": [
+        "silent failure",
+        "swallowed exception",
+        "catch empty",
+        "error ignored",
+        "missing error handling"
+      ],
+      "priority": 111,
+      "route_to": ".claude/agents/silent-failure-hunter.md",
+      "why": "Quality routing (priority 111)"
+    },
+    {
+      "agent": "type-design-analyzer",
+      "id": "type_design",
+      "match_any": [
+        "type design",
+        "typescript types",
+        "type safety",
+        "generic types",
+        "type inference"
+      ],
+      "match_any_normalized": [
+        "type design",
+        "typescript types",
+        "type safety",
+        "generic types",
+        "type inference"
+      ],
+      "priority": 112,
+      "route_to": ".claude/agents/type-design-analyzer.md",
+      "why": "Quality routing (priority 112)"
+    },
+    {
+      "agent": "comment-analyzer",
+      "id": "comment_analysis",
+      "match_any": [
+        "comments",
+        "code comments",
+        "documentation accuracy",
+        "outdated comments"
+      ],
+      "match_any_normalized": [
+        "comments",
+        "code comments",
+        "documentation accuracy",
+        "outdated comments"
+      ],
+      "priority": 113,
+      "route_to": ".claude/agents/comment-analyzer.md",
+      "why": "Quality routing (priority 113)"
+    },
+    {
+      "agent": "devops-troubleshooter",
+      "id": "devops_issues",
+      "match_any": [
+        "devops",
+        "infrastructure",
+        "container",
+        "docker",
+        "kubernetes",
+        "k8s"
+      ],
+      "match_any_normalized": [
+        "devops",
+        "infrastructure",
+        "container",
+        "docker",
+        "kubernetes",
+        "k8s"
+      ],
+      "priority": 114,
+      "route_to": ".claude/agents/devops-troubleshooter.md",
+      "why": "DevOps routing (priority 114)"
+    },
+    {
+      "agent": "incident-responder",
+      "id": "incident_response",
+      "match_any": [
+        "incident",
+        "outage",
+        "production down",
+        "pager",
+        "on call",
+        "sev1",
+        "sev2"
+      ],
+      "match_any_normalized": [
+        "incident",
+        "outage",
+        "production down",
+        "pager",
+        "on call",
+        "sev1",
+        "sev2"
+      ],
+      "priority": 115,
+      "route_to": ".claude/agents/incident-responder.md",
+      "why": "DevOps routing (priority 115)"
+    },
+    {
+      "agent": "chaos-engineer",
+      "id": "chaos_testing",
+      "match_any": [
+        "chaos",
+        "resilience",
+        "fault injection",
+        "failure testing",
+        "chaos monkey"
+      ],
+      "match_any_normalized": [
+        "chaos",
+        "resilience",
+        "fault injection",
+        "failure testing",
+        "chaos monkey"
+      ],
+      "priority": 116,
+      "route_to": ".claude/agents/chaos-engineer.md",
+      "why": "Testing routing (priority 116)"
+    },
+    {
+      "agent": "schema-drift-checker",
+      "id": "schema_drift",
+      "match_any": [
+        "schema drift",
+        "schema mismatch",
+        "zod schema",
+        "drizzle schema",
+        "schema alignment"
+      ],
+      "match_any_normalized": [
+        "schema drift",
+        "schema mismatch",
+        "zod schema",
+        "drizzle schema",
+        "schema alignment"
+      ],
+      "priority": 117,
+      "route_to": ".claude/agents/schema-drift-checker.md",
+      "why": "Database routing (priority 117)"
+    },
+    {
+      "agent": "db-migration",
+      "command": "/db-validate",
+      "id": "db_migration",
+      "match_any": [
+        "migration",
+        "db:push",
+        "schema change",
+        "alter table",
+        "database migration"
+      ],
+      "match_any_normalized": [
+        "migration",
+        "db:push",
+        "schema change",
+        "alter table",
+        "database migration"
+      ],
+      "priority": 118,
+      "route_to": ".claude/agents/db-migration.md",
+      "why": "Database routing (priority 118)"
+    },
+    {
+      "agent": "perf-guard",
+      "id": "perf_guard",
+      "match_any": [
+        "performance regression",
+        "perf guard",
+        "bundle analysis",
+        "size regression"
+      ],
+      "match_any_normalized": [
+        "performance regression",
+        "perf guard",
+        "bundle analysis",
+        "size regression"
+      ],
+      "priority": 119,
+      "route_to": ".claude/agents/perf-guard.md",
+      "why": "Performance routing (priority 119)"
+    },
+    {
+      "agent": "perf-regression-triager",
+      "id": "perf_regression",
+      "match_any": [
+        "perf regression",
+        "slower",
+        "benchmark failed",
+        "performance degraded"
+      ],
+      "match_any_normalized": [
+        "perf regression",
+        "slower",
+        "benchmark failed",
+        "performance degraded"
+      ],
+      "priority": 120,
+      "route_to": ".claude/agents/perf-regression-triager.md",
+      "why": "Performance routing (priority 120)"
+    },
+    {
+      "agent": "baseline-regression-explainer",
+      "id": "baseline_regression",
+      "match_any": [
+        "baseline",
+        "baseline failed",
+        "quality regression",
+        "lint regression",
+        "type regression"
+      ],
+      "match_any_normalized": [
+        "baseline",
+        "baseline failed",
+        "quality regression",
+        "lint regression",
+        "type regression"
+      ],
+      "priority": 121,
+      "route_to": ".claude/agents/baseline-regression-explainer.md",
+      "why": "Quality routing (priority 121)"
+    },
+    {
+      "agent": "parity-auditor",
+      "id": "excel_parity",
+      "match_any": [
+        "excel parity",
+        "excel match",
+        "spreadsheet",
+        "calculation mismatch",
+        "truth case failed"
+      ],
+      "match_any_normalized": [
+        "excel parity",
+        "excel match",
+        "spreadsheet",
+        "calculation mismatch",
+        "truth case failed"
+      ],
+      "priority": 122,
+      "route_to": ".claude/agents/parity-auditor.md",
+      "why": "Phoenix routing (priority 122)"
+    },
+    {
+      "agent": "workflow-orchestrator",
+      "id": "workflow_orchestration",
+      "match_any": [
+        "orchestrate",
+        "chain agents",
+        "auto validate",
+        "multi-agent",
+        "agent chain"
+      ],
+      "match_any_normalized": [
+        "orchestrate",
+        "chain agents",
+        "auto validate",
+        "multi-agent",
+        "agent chain"
+      ],
+      "priority": 123,
+      "route_to": ".claude/agents/workflow-orchestrator.md",
+      "why": "Orchestration routing (priority 123)"
+    },
+    {
+      "agent": "context-orchestrator",
+      "id": "context_management",
+      "match_any": [
+        "context",
+        "context window",
+        "memory management",
+        "conversation context"
+      ],
+      "match_any_normalized": [
+        "context",
+        "context window",
+        "memory management",
+        "conversation context"
+      ],
+      "priority": 124,
+      "route_to": ".claude/agents/context-orchestrator.md",
+      "why": "Orchestration routing (priority 124)"
+    },
+    {
+      "agent": "dx-optimizer",
+      "id": "dx_optimization",
+      "match_any": [
+        "developer experience",
+        "dx",
+        "tooling",
+        "workflow friction",
+        "onboarding"
+      ],
+      "match_any_normalized": [
+        "developer experience",
+        "dx",
+        "tooling",
+        "workflow friction",
+        "onboarding"
+      ],
+      "priority": 125,
+      "route_to": ".claude/agents/dx-optimizer.md",
+      "why": "Development routing (priority 125)"
+    },
+    {
+      "agent": "legacy-modernizer",
+      "id": "legacy_code",
+      "match_any": [
+        "legacy",
+        "modernize",
+        "technical debt",
+        "outdated",
+        "refactor legacy"
+      ],
+      "match_any_normalized": [
+        "legacy",
+        "modernize",
+        "technical debt",
+        "outdated",
+        "refactor legacy"
+      ],
+      "priority": 126,
+      "route_to": ".claude/agents/legacy-modernizer.md",
+      "why": "Development routing (priority 126)"
+    },
+    {
+      "id": "thinking_frameworks",
+      "match_any": [
+        "think deeper",
+        "analyze thoroughly",
+        "critical thinking",
+        "systematic analysis"
+      ],
+      "match_any_normalized": [
+        "think deeper",
+        "analyze thoroughly",
+        "critical thinking",
+        "systematic analysis"
+      ],
+      "priority": 130,
+      "route_to": ".claude/skills/extended-thinking-framework.md",
+      "why": "Thinking routing (priority 130)"
+    },
+    {
+      "id": "inversion_thinking",
+      "match_any": [
+        "inversion",
+        "what could go wrong",
+        "failure modes",
+        "anti-patterns",
+        "avoid mistakes"
+      ],
+      "match_any_normalized": [
+        "inversion",
+        "what could go wrong",
+        "failure modes",
+        "anti-patterns",
+        "avoid mistakes"
+      ],
+      "priority": 131,
+      "route_to": ".claude/skills/inversion-thinking.md",
+      "why": "Thinking routing (priority 131)"
+    },
+    {
+      "id": "pattern_recognition",
+      "match_any": [
+        "pattern",
+        "recurring",
+        "similar issues",
+        "common pattern"
+      ],
+      "match_any_normalized": [
+        "pattern",
+        "recurring",
+        "similar issues",
+        "common pattern"
+      ],
+      "priority": 132,
+      "route_to": ".claude/skills/pattern-recognition.md",
+      "why": "Thinking routing (priority 132)"
+    },
+    {
+      "id": "analogical_thinking",
+      "match_any": [
+        "analogy",
+        "similar to",
+        "like",
+        "compare to"
+      ],
+      "match_any_normalized": [
+        "analogy",
+        "similar to",
+        "like",
+        "compare to"
+      ],
+      "priority": 133,
+      "route_to": ".claude/skills/analogical-thinking.md",
+      "why": "Thinking routing (priority 133)"
+    },
+    {
+      "id": "parallel_agents",
+      "match_any": [
+        "parallel",
+        "concurrent",
+        "simultaneously",
+        "multiple agents"
+      ],
+      "match_any_normalized": [
+        "parallel",
+        "concurrent",
+        "simultaneously",
+        "multiple agents"
+      ],
+      "priority": 134,
+      "route_to": ".claude/skills/dispatching-parallel-agents.md",
+      "why": "Orchestration routing (priority 134)"
+    },
+    {
+      "id": "async_resilience",
+      "match_any": [
+        "async error",
+        "retry",
+        "circuit breaker",
+        "resilience",
+        "graceful degradation"
+      ],
+      "match_any_normalized": [
+        "async error",
+        "retry",
+        "circuit breaker",
+        "resilience",
+        "graceful degradation"
+      ],
+      "priority": 135,
+      "route_to": ".claude/skills/async-error-resilience.md",
+      "why": "Development routing (priority 135)"
+    },
+    {
+      "id": "react_performance",
+      "match_any": [
+        "react performance",
+        "re-render",
+        "useMemo",
+        "useCallback",
+        "memoization"
+      ],
+      "match_any_normalized": [
+        "react performance",
+        "re-render",
+        "usememo",
+        "usecallback",
+        "memoization"
+      ],
+      "priority": 136,
+      "route_to": ".claude/skills/react-performance-optimization.md",
+      "why": "Performance routing (priority 136)"
+    },
+    {
+      "id": "api_design",
+      "match_any": [
+        "api design",
+        "rest api",
+        "endpoint design",
+        "api patterns"
+      ],
+      "match_any_normalized": [
+        "api design",
+        "rest api",
+        "endpoint design",
+        "api patterns"
+      ],
+      "priority": 137,
+      "route_to": ".claude/skills/api-design-principles.md",
+      "why": "Development routing (priority 137)"
+    },
+    {
+      "id": "architecture_patterns",
+      "match_any": [
+        "architecture pattern",
+        "design pattern",
+        "clean architecture",
+        "hexagonal"
+      ],
+      "match_any_normalized": [
+        "architecture pattern",
+        "design pattern",
+        "clean architecture",
+        "hexagonal"
+      ],
+      "priority": 138,
+      "route_to": ".claude/skills/architecture-patterns.md",
+      "why": "Development routing (priority 138)"
+    },
+    {
+      "id": "cmd_log_change",
+      "match_any": [
+        "log change",
+        "changelog",
+        "record change"
+      ],
+      "match_any_normalized": [
+        "log change",
+        "changelog",
+        "record change"
+      ],
+      "priority": 140,
+      "route_to": ".claude/commands/log-change.md",
+      "why": "Commands routing (priority 140)"
+    },
+    {
+      "id": "cmd_log_decision",
+      "match_any": [
+        "log decision",
+        "adr",
+        "record decision",
+        "architecture decision"
+      ],
+      "match_any_normalized": [
+        "log decision",
+        "adr",
+        "record decision",
+        "architecture decision"
+      ],
+      "priority": 141,
+      "route_to": ".claude/commands/log-decision.md",
+      "why": "Commands routing (priority 141)"
+    },
+    {
+      "id": "cmd_pre_commit",
+      "match_any": [
+        "pre-commit",
+        "before commit",
+        "commit check",
+        "quality check"
+      ],
+      "match_any_normalized": [
+        "pre-commit",
+        "before commit",
+        "commit check",
+        "quality check"
+      ],
+      "priority": 142,
+      "route_to": ".claude/commands/pre-commit-check.md",
+      "why": "Commands routing (priority 142)"
+    },
+    {
+      "id": "cmd_pr_ready",
+      "match_any": [
+        "pr ready",
+        "pull request ready",
+        "before pr",
+        "pr validation"
+      ],
+      "match_any_normalized": [
+        "pr ready",
+        "pull request ready",
+        "before pr",
+        "pr validation"
+      ],
+      "priority": 143,
+      "route_to": ".claude/commands/pr-ready.md",
+      "why": "Commands routing (priority 143)"
+    },
+    {
+      "id": "cmd_catalog",
+      "match_any": [
+        "catalog",
+        "list tools",
+        "available tools",
+        "what tools"
+      ],
+      "match_any_normalized": [
+        "catalog",
+        "list tools",
+        "available tools",
+        "what tools"
+      ],
+      "priority": 144,
+      "route_to": ".claude/commands/catalog-tooling.md",
+      "why": "Commands routing (priority 144)"
+    },
+    {
+      "id": "cmd_workflows",
+      "match_any": [
+        "workflows",
+        "which tool",
+        "tool helper",
+        "find command"
+      ],
+      "match_any_normalized": [
+        "workflows",
+        "which tool",
+        "tool helper",
+        "find command"
+      ],
+      "priority": 145,
+      "route_to": ".claude/commands/workflows.md",
+      "why": "Commands routing (priority 145)"
+    },
+    {
+      "id": "cmd_deps_audit",
+      "match_any": [
+        "dependency audit",
+        "security audit",
+        "npm audit",
+        "vulnerable"
+      ],
+      "match_any_normalized": [
+        "dependency audit",
+        "security audit",
+        "npm audit",
+        "vulnerable"
+      ],
+      "priority": 146,
+      "route_to": ".claude/commands/wshobson/deps-audit.md",
+      "why": "Commands routing (priority 146)"
+    },
+    {
+      "id": "cmd_tech_debt",
+      "match_any": [
+        "tech debt",
+        "technical debt",
+        "debt analysis"
+      ],
+      "match_any_normalized": [
+        "tech debt",
+        "technical debt",
+        "debt analysis"
+      ],
+      "priority": 147,
+      "route_to": ".claude/commands/wshobson/tech-debt.md",
+      "why": "Commands routing (priority 147)"
+    },
+    {
+      "id": "cheat_anti_patterns",
+      "match_any": [
+        "anti-pattern",
+        "bad practice",
+        "code smell",
+        "avoid"
+      ],
+      "match_any_normalized": [
+        "anti-pattern",
+        "bad practice",
+        "code smell",
+        "avoid"
+      ],
+      "priority": 150,
+      "route_to": "cheatsheets/anti-pattern-prevention.md",
+      "why": "Quality routing (priority 150)"
+    },
+    {
+      "id": "cheat_testing_patterns",
+      "match_any": [
+        "testing pattern",
+        "test pattern",
+        "service testing",
+        "api testing"
+      ],
+      "match_any_normalized": [
+        "testing pattern",
+        "test pattern",
+        "service testing",
+        "api testing"
+      ],
+      "priority": 151,
+      "route_to": "cheatsheets/service-testing-patterns.md",
+      "why": "Testing routing (priority 151)"
+    },
+    {
+      "id": "cheat_testcontainers",
+      "match_any": [
+        "testcontainer",
+        "docker test",
+        "integration test docker"
+      ],
+      "match_any_normalized": [
+        "testcontainer",
+        "docker test",
+        "integration test docker"
+      ],
+      "priority": 152,
+      "route_to": "cheatsheets/testcontainers-guide.md",
+      "why": "Testing routing (priority 152)"
+    },
+    {
+      "id": "cheat_daily_workflow",
+      "match_any": [
+        "daily workflow",
+        "how to start",
+        "getting started",
+        "workflow"
+      ],
+      "match_any_normalized": [
+        "daily workflow",
+        "how to start",
+        "getting started",
+        "workflow"
+      ],
+      "priority": 153,
+      "route_to": "cheatsheets/daily-workflow.md",
+      "why": "Development routing (priority 153)"
+    },
+    {
+      "id": "cheat_codex",
+      "match_any": [
+        "codex",
+        "codex cli",
+        "openai codex",
+        "consult codex"
+      ],
+      "match_any_normalized": [
+        "codex",
+        "codex cli",
+        "openai codex",
+        "consult codex"
+      ],
+      "priority": 154,
+      "route_to": "cheatsheets/codex-collaboration-protocol.md",
+      "why": "AI Tools routing (priority 154)"
     }
   ],
   "scoring": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score": 2
   },
   "version": "2.0"

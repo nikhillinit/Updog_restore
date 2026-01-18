@@ -1,0 +1,96 @@
+# CI workflow for Reflection System validation
+# Runs on every PR and push to main
+
+name: Validate Reflections
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/skills/**'
+      - 'tests/regressions/**'
+      - 'scripts/manage_skills.py'
+  pull_request:
+    paths:
+      - 'docs/skills/**'
+      - 'tests/regressions/**'
+      - 'scripts/manage_skills.py'
+
+jobs:
+  validate:
+    name: Validate Reflection Database
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Validate Reflections
+        run: python3 scripts/manage_skills.py validate
+
+      - name: Check Index Freshness
+        run: python3 scripts/manage_skills.py rebuild --check
+
+  regression-tests:
+    name: Run Regression Tests
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Regression Tests
+        run: npx vitest run tests/regressions/ --reporter=verbose
+
+  lint-reflections:
+    name: Lint Reflection Content
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for required sections
+        run: |
+          echo "Checking reflection files for required sections..."
+          errors=0
+          for file in docs/skills/REFL-*.md; do
+            if [ -f "$file" ] && [[ "$file" != *"template"* ]]; then
+              # Check for required sections
+              if ! grep -q "## 1. Problem" "$file"; then
+                echo "[ERROR] $file: Missing '## 1. Problem' section"
+                errors=$((errors + 1))
+              fi
+              if ! grep -q "## 2. Root Cause" "$file"; then
+                echo "[ERROR] $file: Missing '## 2. Root Cause' section"
+                errors=$((errors + 1))
+              fi
+              if ! grep -q "## 3. Solution" "$file"; then
+                echo "[ERROR] $file: Missing '## 3. Solution' section"
+                errors=$((errors + 1))
+              fi
+            fi
+          done
+          if [ $errors -gt 0 ]; then
+            echo "[ERROR] Found $errors missing sections"
+            exit 1
+          fi
+          echo "[OK] All reflection files have required sections"
