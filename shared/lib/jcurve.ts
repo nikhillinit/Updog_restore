@@ -75,13 +75,14 @@ export function computeJCurvePath(
   calledSoFar?: Decimal[],
   dpiSoFar?: Decimal[]
 ): JCurvePath {
+  // Setup
   const periodsPerYear = cfg.step === 'quarter' ? 4 : 1;
   const N = Math.ceil(cfg.horizonYears * periodsPerYear);
   const xs = Array.from({ length: N + 1 }, (_, i) => i / periodsPerYear);
   const K = cfg.targetTVPI.toNumber();
   const startTVPI = cfg.startTVPI?.toNumber() ?? 0.95;
 
-  // Step 1: Generate/fit TVPI curve
+  // Generate TVPI curve
   let tvpiDecimals: Decimal[];
   let paramsRecord: Record<string, number | Decimal> = {};
   let rmse: number | undefined;
@@ -89,72 +90,17 @@ export function computeJCurvePath(
   if (cfg.kind === 'piecewise') {
     const seed = generatePiecewiseSeed(xs, K, cfg);
     tvpiDecimals = seed.map(v => new Decimal(v));
-    rmse = undefined;
   } else {
-    const ysSeed = generatePiecewiseSeed(xs, K, cfg);
-
-    // Calibrate to actuals if provided (Current mode)
-    if (calledSoFar && calledSoFar.length > 0) {
-      const calledCum = cumulativeFromPeriods(calledSoFar);
-      const dpiCum = dpiSoFar
-        ? cumulativeFromPeriods(dpiSoFar)
-        : Array(calledCum.length).fill(new Decimal(0));
-
-      for (let i = 0; i < Math.min(calledSoFar.length, ysSeed.length); i++) {
-        const called = calledCum[i + 1];
-        if (called && called.gt(0)) {
-          // Crude observed TVPI approximation
-          const dpiVal = dpiCum[i + 1];
-          if (dpiVal) {
-            const approxTvpi = 1 + dpiVal.div(called).toNumber();
-            ysSeed[i] = approxTvpi || ysSeed[i];
-          }
-        }
-      }
-    }
-
-    const fit = fitTVPI(
-      cfg.kind === 'gompertz' ? 'gompertz' : 'logistic',
-      xs,
-      ysSeed,
-      K,
-      { maxIterations: 200 }
-    );
-    rmse = fit.rmse;
-
-    const tvpiArr = xs.map(t =>
-      new Decimal(
-        cfg.kind === 'gompertz'
-          ? gompertz(t, K, fit.params[0] ?? 1, fit.params[1] ?? 0.5)
-          : logistic(t, K, fit.params[0] ?? 0.8, fit.params[1] ?? 1)
-      )
-    );
-
-    // Sanitize: monotonic + endpoints
-    const firstElem = tvpiArr[0];
-    if (firstElem) {
-      tvpiArr[0] = Decimal.max(firstElem, new Decimal(startTVPI));
-    }
-    tvpiArr[tvpiArr.length - 1] = new Decimal(K);
-    for (let i = 1; i < tvpiArr.length; i++) {
-      const current = tvpiArr[i];
-      const previous = tvpiArr[i - 1];
-      if (current && previous && current.lt(previous)) {
-        tvpiArr[i] = previous;
-      }
-    }
-
-    tvpiDecimals = tvpiArr;
-    paramsRecord =
-      cfg.kind === 'gompertz'
-        ? { b: fit.params[0] ?? 1, c: fit.params[1] ?? 0.5 }
-        : { r: fit.params[0] ?? 0.8, t0: fit.params[1] ?? 1 };
+    const result = buildFittedTVPICurve(cfg, xs, K, startTVPI, calledSoFar, dpiSoFar);
+    tvpiDecimals = result.tvpi;
+    paramsRecord = result.params;
+    rmse = result.rmse;
   }
 
-  // Step 2: Generate capital calls (normalized)
+  // Generate capital calls
   const calls = generateCapitalCalls(cfg, N, calledSoFar);
 
-  // Step 3: Materialize NAV & DPI
+  // Materialize NAV & DPI
   const calledCumFull = cumulativeFromPeriods(calls);
   const feesCum = cumulativeFromPeriods(feeTimelinePerPeriod);
   const { nav, dpi } = materializeNAVandDPI(
@@ -165,20 +111,168 @@ export function computeJCurvePath(
     dpiSoFar
   );
 
-  // Step 4: Sensitivity bands
+  // Sensitivity bands
   const sensitivityBands = computeSensitivityBands(cfg, paramsRecord, rmse, N, xs);
 
-  const feesOut = padOrTrimDecimals(feeTimelinePerPeriod, N);
-
+  // Assemble result
   return {
     tvpi: tvpiDecimals,
     nav,
     dpi,
     calls,
-    fees: feesOut,
+    fees: padOrTrimDecimals(feeTimelinePerPeriod, N),
     params: paramsRecord,
     ...(rmse !== undefined ? { fitRMSE: rmse } : {}),
     ...(sensitivityBands !== undefined ? { sensitivityBands } : {}),
+  };
+}
+
+/**
+ * Ensure curve values are monotonically non-decreasing with clamped endpoints.
+ *
+ * @param values - Array of curve values (Decimal)
+ * @param startMin - Minimum value for first element
+ * @param endValue - Exact value for last element
+ * @returns Sanitized curve with monotonic guarantee
+ */
+export function sanitizeMonotonicCurve(
+  values: Decimal[],
+  startMin: Decimal,
+  endValue: Decimal
+): Decimal[] {
+  if (values.length === 0) return [];
+
+  const result = [...values];
+
+  // Clamp start to minimum
+  const firstVal = result[0];
+  if (firstVal) {
+    result[0] = Decimal.max(firstVal, startMin);
+  }
+
+  // Set end value exactly
+  result[result.length - 1] = endValue;
+
+  // Enforce monotonic non-decreasing
+  for (let i = 1; i < result.length; i++) {
+    const current = result[i];
+    const previous = result[i - 1];
+    if (current && previous && current.lt(previous)) {
+      result[i] = previous;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Adjust seed TVPI values based on actual capital calls and distributions.
+ * Used for "Current mode" when historical data is available.
+ *
+ * @param ysSeed - Initial TVPI seed values
+ * @param calledSoFar - Actual capital calls (periods)
+ * @param dpiSoFar - Actual distributions (periods, optional)
+ * @returns Calibrated seed values
+ */
+export function calibrateToActualCalls(
+  ysSeed: number[],
+  calledSoFar: Decimal[],
+  dpiSoFar?: Decimal[]
+): number[] {
+  if (!calledSoFar || calledSoFar.length === 0) {
+    return ysSeed;
+  }
+
+  const result = [...ysSeed];
+  const calledCum = cumulativeFromPeriods(calledSoFar);
+  const dpiCum = dpiSoFar
+    ? cumulativeFromPeriods(dpiSoFar)
+    : Array(calledCum.length).fill(new Decimal(0));
+
+  for (let i = 0; i < Math.min(calledSoFar.length, result.length); i++) {
+    const called = calledCum[i + 1];
+    if (called && called.gt(0)) {
+      const dpiVal = dpiCum[i + 1];
+      if (dpiVal) {
+        const approxTvpi = 1 + dpiVal.div(called).toNumber();
+        result[i] = approxTvpi || result[i];
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Result from building a fitted TVPI curve
+ */
+export interface FittedCurveResult {
+  tvpi: Decimal[];
+  params: Record<string, number | Decimal>;
+  rmse?: number;
+}
+
+/**
+ * Generate TVPI curve using Gompertz or Logistic fitting.
+ * Handles calibration to actuals and monotonic sanitization.
+ *
+ * @param cfg - J-curve configuration (must have kind 'gompertz' or 'logistic')
+ * @param xs - Time points array
+ * @param K - Target TVPI (number)
+ * @param startTVPI - Starting TVPI value
+ * @param calledSoFar - Optional actual capital calls
+ * @param dpiSoFar - Optional actual distributions
+ * @returns Fitted curve with parameters and RMSE
+ */
+export function buildFittedTVPICurve(
+  cfg: JCurveConfig,
+  xs: number[],
+  K: number,
+  startTVPI: number,
+  calledSoFar?: Decimal[],
+  dpiSoFar?: Decimal[]
+): FittedCurveResult {
+  // Generate seed and calibrate if actuals provided
+  let ysSeed = generatePiecewiseSeed(xs, K, cfg);
+  if (calledSoFar && calledSoFar.length > 0) {
+    ysSeed = calibrateToActualCalls(ysSeed, calledSoFar, dpiSoFar);
+  }
+
+  // Fit curve to seed
+  const fit = fitTVPI(
+    cfg.kind === 'gompertz' ? 'gompertz' : 'logistic',
+    xs,
+    ysSeed,
+    K,
+    { maxIterations: 200 }
+  );
+
+  // Generate TVPI array from fitted parameters
+  const tvpiArr = xs.map(t =>
+    new Decimal(
+      cfg.kind === 'gompertz'
+        ? gompertz(t, K, fit.params[0] ?? 1, fit.params[1] ?? 0.5)
+        : logistic(t, K, fit.params[0] ?? 0.8, fit.params[1] ?? 1)
+    )
+  );
+
+  // Sanitize curve
+  const sanitized = sanitizeMonotonicCurve(
+    tvpiArr,
+    new Decimal(startTVPI),
+    new Decimal(K)
+  );
+
+  // Build params record
+  const params: Record<string, number | Decimal> =
+    cfg.kind === 'gompertz'
+      ? { b: fit.params[0] ?? 1, c: fit.params[1] ?? 0.5 }
+      : { r: fit.params[0] ?? 0.8, t0: fit.params[1] ?? 1 };
+
+  return {
+    tvpi: sanitized,
+    params,
+    rmse: fit.rmse,
   };
 }
 
