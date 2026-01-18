@@ -12,6 +12,10 @@
 | **[REFL-004](docs/skills/REFL-004-schema-format-backward-compatibility.md)** | DRAFT | Schema Format Backward Compatibility | [x] | `docs/skills/REFL-004-schema-format-backward-compatibility.md` |
 | **[REFL-005](docs/skills/REFL-005-stale-test-files-with-api-mismatch.md)** | DRAFT | Stale Test Files with API Mismatch | [x] | `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` |
 | **[REFL-006](docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md)** | VERIFIED | XIRR Newton-Raphson Divergence on Extreme Returns | [x] | `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` |
+| **[REFL-007](docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md)** | VERIFIED | Global vi.mock Pollutes All Tests | [x] | `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` |
+| **[REFL-008](docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md)** | DRAFT | TypeScript Type Inference from Database Schemas | [x] | `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` |
+| **[REFL-009](docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md)** | VERIFIED | CRLF Line Endings Break Frontmatter Parsing | [x] | `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` |
+| **[REFL-010](docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md)** | VERIFIED | Trust Proxy Configuration for Rate Limiters | [x] | `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` |
 
 ## How to Add a Reflection
 
