@@ -197,9 +197,9 @@ describe('REFL-016: Vitest Include Patterns Miss New Test Directories', () => {
         return `${dir}/**/*.${ext}`;
       }
 
-      const suggestion = suggestPattern('tools/reflection/tests/parse.test.ts');
+      const suggestion = suggestPattern('client/src/components/Button.test.tsx');
 
-      expect(suggestion).toBe('tools/reflection/tests/**/*.test.ts');
+      expect(suggestion).toBe('client/src/components/**/*.test.tsx');
     });
 
     it('should detect when test count is suspiciously low', () => {
