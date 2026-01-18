@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { computeJCurvePath, sanitizeMonotonicCurve, calibrateToActualCalls, type JCurveConfig } from '@shared/lib/jcurve';
+import { computeJCurvePath, sanitizeMonotonicCurve, calibrateToActualCalls, buildFittedTVPICurve, type JCurveConfig } from '@shared/lib/jcurve';
 
 describe('computeJCurvePath golden snapshots', () => {
   const baseConfig: JCurveConfig = {
@@ -171,5 +171,48 @@ describe('calibrateToActualCalls', () => {
     const result = calibrateToActualCalls(ysSeed, calledSoFar, undefined);
 
     expect(result.length).toBe(3);
+  });
+});
+
+describe('buildFittedTVPICurve', () => {
+  const baseConfig: JCurveConfig = {
+    kind: 'gompertz',
+    horizonYears: 10,
+    investYears: 5,
+    targetTVPI: new Decimal(2.5),
+    startTVPI: new Decimal(0.95),
+    step: 'quarter',
+  };
+
+  it('should build gompertz curve with correct structure', () => {
+    const xs = Array.from({ length: 41 }, (_, i) => i / 4);
+    const result = buildFittedTVPICurve(baseConfig, xs, 2.5, 0.95);
+
+    expect(result.tvpi.length).toBe(41);
+    expect(result.params).toHaveProperty('b');
+    expect(result.params).toHaveProperty('c');
+    expect(typeof result.rmse).toBe('number');
+  });
+
+  it('should build logistic curve with correct params', () => {
+    const logisticConfig: JCurveConfig = { ...baseConfig, kind: 'logistic' };
+    const xs = Array.from({ length: 41 }, (_, i) => i / 4);
+    const result = buildFittedTVPICurve(logisticConfig, xs, 2.5, 0.95);
+
+    expect(result.params).toHaveProperty('r');
+    expect(result.params).toHaveProperty('t0');
+  });
+
+  it('should handle calibration with actuals', () => {
+    const xs = Array.from({ length: 41 }, (_, i) => i / 4);
+    const calledSoFar = [new Decimal(0.2), new Decimal(0.2)];
+    const dpiSoFar = [new Decimal(0), new Decimal(0)];
+
+    const result = buildFittedTVPICurve(
+      baseConfig, xs, 2.5, 0.95, calledSoFar, dpiSoFar
+    );
+
+    expect(result.tvpi.length).toBe(41);
+    expect(result.rmse).toBeDefined();
   });
 });

@@ -258,6 +258,79 @@ export function calibrateToActualCalls(
   return result;
 }
 
+/**
+ * Result from building a fitted TVPI curve
+ */
+export interface FittedCurveResult {
+  tvpi: Decimal[];
+  params: Record<string, number | Decimal>;
+  rmse?: number;
+}
+
+/**
+ * Generate TVPI curve using Gompertz or Logistic fitting.
+ * Handles calibration to actuals and monotonic sanitization.
+ *
+ * @param cfg - J-curve configuration (must have kind 'gompertz' or 'logistic')
+ * @param xs - Time points array
+ * @param K - Target TVPI (number)
+ * @param startTVPI - Starting TVPI value
+ * @param calledSoFar - Optional actual capital calls
+ * @param dpiSoFar - Optional actual distributions
+ * @returns Fitted curve with parameters and RMSE
+ */
+export function buildFittedTVPICurve(
+  cfg: JCurveConfig,
+  xs: number[],
+  K: number,
+  startTVPI: number,
+  calledSoFar?: Decimal[],
+  dpiSoFar?: Decimal[]
+): FittedCurveResult {
+  // Generate seed and calibrate if actuals provided
+  let ysSeed = generatePiecewiseSeed(xs, K, cfg);
+  if (calledSoFar && calledSoFar.length > 0) {
+    ysSeed = calibrateToActualCalls(ysSeed, calledSoFar, dpiSoFar);
+  }
+
+  // Fit curve to seed
+  const fit = fitTVPI(
+    cfg.kind === 'gompertz' ? 'gompertz' : 'logistic',
+    xs,
+    ysSeed,
+    K,
+    { maxIterations: 200 }
+  );
+
+  // Generate TVPI array from fitted parameters
+  const tvpiArr = xs.map(t =>
+    new Decimal(
+      cfg.kind === 'gompertz'
+        ? gompertz(t, K, fit.params[0] ?? 1, fit.params[1] ?? 0.5)
+        : logistic(t, K, fit.params[0] ?? 0.8, fit.params[1] ?? 1)
+    )
+  );
+
+  // Sanitize curve
+  const sanitized = sanitizeMonotonicCurve(
+    tvpiArr,
+    new Decimal(startTVPI),
+    new Decimal(K)
+  );
+
+  // Build params record
+  const params: Record<string, number | Decimal> =
+    cfg.kind === 'gompertz'
+      ? { b: fit.params[0] ?? 1, c: fit.params[1] ?? 0.5 }
+      : { r: fit.params[0] ?? 0.8, t0: fit.params[1] ?? 1 };
+
+  return {
+    tvpi: sanitized,
+    params,
+    rmse: fit.rmse,
+  };
+}
+
 /* ---------------------- Internal Helpers ---------------------- */
 
 function generatePiecewiseSeed(
