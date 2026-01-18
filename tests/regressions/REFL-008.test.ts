@@ -146,8 +146,8 @@ describe('REFL-008: TypeScript Type Inference from Database Schemas', () => {
       const newSchema = { ...oldSchema, email: 'varchar' };
 
       // Type inference picks up new field automatically
-      type OldUser = { [K in keyof typeof oldSchema]: unknown };
-      type NewUser = { [K in keyof typeof newSchema]: unknown };
+      type _OldUser = { [K in keyof typeof oldSchema]: unknown };
+      type _NewUser = { [K in keyof typeof newSchema]: unknown };
 
       const oldFields = Object.keys(oldSchema);
       const newFields = Object.keys(newSchema);

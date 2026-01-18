@@ -12,11 +12,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 describe('REFL-007: Global vi.mock Pollutes All Tests', () => {
   // Simulated module state tracking
-  let mockCallCount = 0;
+  let _mockCallCount = 0; // Tracks global mock calls (unused - demonstrates pollution)
   let factoryCallCount = 0;
 
   beforeEach(() => {
-    mockCallCount = 0;
+    _mockCallCount = 0;
     factoryCallCount = 0;
   });
 

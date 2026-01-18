@@ -2,7 +2,7 @@
 // This test is linked to: docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md
 // Do not rename without updating the reflection's test_file field.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 /**
  * REFL-012: Fire-and-Forget Async Creates Race Conditions
@@ -123,12 +123,12 @@ describe('REFL-012: Fire-and-Forget Async Creates Race Conditions', () => {
       // Small delay to let fire-and-forget complete
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const result2 = await handleRequestFireAndForget(fastStore, key);
+      const _result2 = await handleRequestFireAndForget(fastStore, key);
 
       // May work with fast storage, but it's not guaranteed!
       // This is the danger - tests pass locally, fail in production
       expect(result1.result).toBe(1);
-      // result2 might be 1 (cached) or 2 (processed again) - flaky!
+      // _result2 might be 1 (cached) or 2 (processed again) - flaky!
     });
   });
 

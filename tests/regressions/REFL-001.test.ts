@@ -2,7 +2,7 @@
 // This test is linked to: docs/skills/REFL-001-dynamic-imports-prevent-test-side-effects.md
 // Do not rename without updating the reflection's test_file field.
 
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 /**
  * REFL-001: Dynamic Imports Prevent Test Side Effects
