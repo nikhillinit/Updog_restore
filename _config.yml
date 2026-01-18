@@ -1,0 +1,10 @@
+# Jekyll configuration for GitHub Pages
+# Exclude files/directories that contain non-Jekyll Liquid-like syntax
+
+exclude:
+  - docs/references/attached_assets
+  - node_modules
+  - vendor
+  - package.json
+  - package-lock.json
+  - "*.log"
