@@ -91,8 +91,9 @@ describe('REFL-001: Dynamic Imports Prevent Test Side Effects', () => {
       ];
 
       // All of these are problematic at top level of test files
+      // Matches both named imports { x } and default imports
       for (const pattern of antiPatternExamples) {
-        expect(pattern).toMatch(/^import \{.*\} from/);
+        expect(pattern).toMatch(/^import .+ from/);
       }
     });
 
