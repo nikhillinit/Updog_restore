@@ -1,4 +1,7 @@
 #!/bin/bash
+# Use absolute path to jq on Windows (avoids PATH timing issues with first prompt)
+JQ="${HOME}/bin/jq.exe"
+[ -x "$JQ" ] || JQ="jq"  # Fallback to PATH if not found
 # =============================================================================
 # Discovery Hook - UserPromptSubmit
 # =============================================================================
@@ -20,7 +23,7 @@ MIN_KEYWORD_LENGTH=4
 INPUT=$(cat)
 
 # Extract prompt (handle both 'prompt' and 'user_prompt' fields)
-PROMPT=$(echo "$INPUT" | jq -r '.prompt // .user_prompt // ""' 2>/dev/null)
+PROMPT=$(echo "$INPUT" | $JQ -r '.prompt // .user_prompt // ""' 2>/dev/null)
 
 # Skip conditions
 if [ -z "$PROMPT" ] || [ ${#PROMPT} -lt 15 ]; then
@@ -146,7 +149,7 @@ done
 ROUTER_FILE="$PROJECT_ROOT/docs/_generated/router-fast.json"
 if [ -f "$ROUTER_FILE" ]; then
   # Pure jq pattern matching - ~50ms vs ~1.5s with npx tsx
-  ROUTER_RESULT=$(jq -r --arg query "$PROMPT_LOWER" '
+  ROUTER_RESULT=$($JQ -r --arg query "$PROMPT_LOWER" '
     .patterns[] |
     select(
       (.match_any_normalized // .match_any | map(ascii_downcase)) as $keywords |
@@ -163,13 +166,13 @@ if [ -f "$ROUTER_FILE" ]; then
         [$keywords[] | select($query | contains(.))] | length
       )
     }
-  ' "$ROUTER_FILE" 2>/dev/null | jq -s 'sort_by(-.score, .priority) | .[0] // empty' 2>/dev/null || true)
+  ' "$ROUTER_FILE" 2>/dev/null | $JQ -s 'sort_by(-.score, .priority) | .[0] // empty' 2>/dev/null || true)
 
   if [ -n "$ROUTER_RESULT" ]; then
-    ROUTE_AGENT=$(echo "$ROUTER_RESULT" | jq -r '.agent // ""')
-    ROUTE_CMD=$(echo "$ROUTER_RESULT" | jq -r '.command // ""')
-    ROUTE_TO=$(echo "$ROUTER_RESULT" | jq -r '.route_to // ""')
-    ROUTE_SCORE=$(echo "$ROUTER_RESULT" | jq -r '.score // 0')
+    ROUTE_AGENT=$(echo "$ROUTER_RESULT" | $JQ -r '.agent // ""')
+    ROUTE_CMD=$(echo "$ROUTER_RESULT" | $JQ -r '.command // ""')
+    ROUTE_TO=$(echo "$ROUTER_RESULT" | $JQ -r '.route_to // ""')
+    ROUTE_SCORE=$(echo "$ROUTER_RESULT" | $JQ -r '.score // 0')
 
     # Router matches get high base score
     BASE_SCORE=${ROUTE_SCORE:-2}
@@ -267,7 +270,7 @@ if [ "$KEYWORD_COUNT" -gt 0 ]; then
   # --- MCP Servers ---
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   if [ -f "$MCP_FILE" ]; then
-    MCP_SERVERS=$(jq -r '.mcpServers | keys[]' "$MCP_FILE" 2>/dev/null || true)
+    MCP_SERVERS=$($JQ -r '.mcpServers | keys[]' "$MCP_FILE" 2>/dev/null || true)
     for keyword in $KEYWORDS; do
       for server in $MCP_SERVERS; do
         if echo "$server" | grep -qi "$keyword"; then
