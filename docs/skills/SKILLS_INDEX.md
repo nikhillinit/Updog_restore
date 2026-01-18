@@ -16,6 +16,13 @@
 | **[REFL-008](docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md)** | DRAFT | TypeScript Type Inference from Database Schemas | [x] | `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` |
 | **[REFL-009](docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md)** | VERIFIED | CRLF Line Endings Break Frontmatter Parsing | [x] | `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` |
 | **[REFL-010](docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md)** | VERIFIED | Trust Proxy Configuration for Rate Limiters | [x] | `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` |
+| **[REFL-011](docs/skills/REFL-011-recharts-formatter-type-signatures.md)** | DRAFT | Recharts Formatter Type Signatures | [x] | `docs/skills/REFL-011-recharts-formatter-type-signatures.md` |
+| **[REFL-012](docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md)** | DRAFT | Fire-and-Forget Async Creates Race Conditions | [x] | `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` |
+| **[REFL-013](docs/skills/REFL-013-router-substring-matching-causes-false-positives.md)** | DRAFT | Router Substring Matching Causes False Positives | [x] | `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` |
+| **[REFL-014](docs/skills/REFL-014-test-key-reuse-across-test-cases.md)** | DRAFT | Test Key Reuse Across Test Cases | [x] | `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` |
+| **[REFL-015](docs/skills/REFL-015-postgresql-service-missing-test-database.md)** | DRAFT | PostgreSQL Service Missing Test Database | [x] | `docs/skills/REFL-015-postgresql-service-missing-test-database.md` |
+| **[REFL-016](docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md)** | DRAFT | Vitest Include Patterns Miss New Test Directories | [x] | `docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md` |
+| **[REFL-017](docs/skills/REFL-017-ci-workflow-permission-errors.md)** | DRAFT | CI Workflow Permission Errors | [x] | `docs/skills/REFL-017-ci-workflow-permission-errors.md` |
 
 ## How to Add a Reflection
 
