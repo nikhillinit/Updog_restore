@@ -1,5 +1,5 @@
-// REFLECTION_ID: REFL-001
-// This test is linked to: docs/skills/REFL-001-reserve-engine-null-safety.md
+// REFLECTION_ID: REFL-018
+// This test is linked to: docs/skills/REFL-018-reserve-engine-null-safety.md
 // Do not rename without updating the reflection's test_file field.
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -11,7 +11,7 @@ import { ReserveCalculationError } from '@shared/schemas/reserves-schemas';
 import type { ReserveAllocationInput } from '@shared/schemas/reserves-schemas';
 
 /**
- * REFL-001: Reserve Engine Null Safety Pattern
+ * REFL-018: Reserve Engine Null Safety Pattern
  *
  * This reflection documents the required error handling pattern for reserve
  * calculations when wizard context may be incomplete or null.
@@ -75,7 +75,7 @@ class NullSafeReserveCalculator {
   }
 }
 
-describe('REFL-001: Reserve Engine Null Safety', () => {
+describe('REFL-018: Reserve Engine Null Safety', () => {
   let calculator: NullSafeReserveCalculator;
 
   beforeEach(() => {
@@ -171,7 +171,7 @@ describe('REFL-001: Reserve Engine Null Safety', () => {
 // Real DeterministicReserveEngine Validation Tests
 // ============================================================================
 
-describe('REFL-001: ReserveCalculationError Integration', () => {
+describe('REFL-018: ReserveCalculationError Integration', () => {
   it('ReserveCalculationError has required structure', () => {
     const error = new ReserveCalculationError(
       'Test error message',
@@ -221,7 +221,7 @@ describe('REFL-001: ReserveCalculationError Integration', () => {
 // Real Engine Input Validation Tests (Integration with actual types)
 // ============================================================================
 
-describe('REFL-001: ReserveAllocationInput Validation Pattern', () => {
+describe('REFL-018: ReserveAllocationInput Validation Pattern', () => {
   it('should demonstrate validation pattern for real engine input', () => {
     // This shows the validation that MUST happen before calling real engine
     const validateInput = (input: Partial<ReserveAllocationInput>): void => {
@@ -252,12 +252,12 @@ describe('REFL-001: ReserveAllocationInput Validation Pattern', () => {
       .toThrowError(ReserveCalculationError);
 
     // Test: Zero reserves throws
-    expect(() => validateInput({ portfolio: [{}] as any, availableReserves: 0 }))
+    expect(() => validateInput({ portfolio: [{}] as unknown as ReserveAllocationInput['portfolio'], availableReserves: 0 }))
       .toThrowError(ReserveCalculationError);
 
     // Test: Negative fund size throws
     expect(() => validateInput({
-      portfolio: [{}] as any,
+      portfolio: [{}] as unknown as ReserveAllocationInput['portfolio'],
       availableReserves: 1000,
       totalFundSize: -100
     })).toThrowError(ReserveCalculationError);

@@ -23,6 +23,7 @@
 | **[REFL-015](docs/skills/REFL-015-postgresql-service-missing-test-database.md)** | DRAFT | PostgreSQL Service Missing Test Database | [x] | `docs/skills/REFL-015-postgresql-service-missing-test-database.md` |
 | **[REFL-016](docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md)** | DRAFT | Vitest Include Patterns Miss New Test Directories | [x] | `docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md` |
 | **[REFL-017](docs/skills/REFL-017-ci-workflow-permission-errors.md)** | DRAFT | CI Workflow Permission Errors | [x] | `docs/skills/REFL-017-ci-workflow-permission-errors.md` |
+| **[REFL-018](docs/skills/REFL-018-reserve-engine-null-safety.md)** | VERIFIED | Reserve Engine Null Safety | [x] | `docs/skills/REFL-018-reserve-engine-null-safety.md` |
 
 ## How to Add a Reflection
 
