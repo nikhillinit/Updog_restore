@@ -16,9 +16,15 @@ Safety Features:
 import sys
 import re
 import os
-import fcntl
 import tempfile
 from pathlib import Path
+
+# fcntl is Unix-only; Windows uses msvcrt or no locking
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -39,16 +45,23 @@ LOCK_FILE = Path(".reflection-lock")
 @contextmanager
 def atomic_lock():
     """Cross-process file lock for atomic ID generation."""
+    if not HAS_FCNTL:
+        # Windows: proceed without locking (single-user typical)
+        yield
+        return
+
     lock_path = SKILLS_DIR / ".lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
+    lock_fd = None
     try:
         lock_fd = open(lock_path, 'w')
         fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
         yield
     finally:
-        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-        lock_fd.close()
+        if lock_fd:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+            lock_fd.close()
 
 
 def parse_frontmatter(content: str, file_path: Path):
@@ -106,7 +119,12 @@ def get_reflections():
                 continue
 
             meta['filename'] = f.name
-            meta['path'] = f.relative_to(Path.cwd())
+            # Use path relative to script location, not CWD
+            try:
+                meta['path'] = f.relative_to(Path.cwd())
+            except ValueError:
+                # Fallback: use path relative to SKILLS_DIR parent
+                meta['path'] = f.relative_to(SKILLS_DIR.parent.parent) if SKILLS_DIR.parent.parent.exists() else f
             reflections.append(meta)
         except Exception as e:
             print(f"[WARN] Error parsing {f.name}: {e}", file=sys.stderr)
