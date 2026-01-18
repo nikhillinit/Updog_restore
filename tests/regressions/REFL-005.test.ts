@@ -12,7 +12,8 @@ import { describe, it, expect } from 'vitest';
  */
 describe('REFL-005: Stale Test Files with API Mismatch', () => {
   // Simulated API versions
-  interface APIv1 {
+  // APIv1 shown for documentation - demonstrates the old signature
+  interface _APIv1 {
     fetchUser(id: number): Promise<{ name: string }>;
   }
 

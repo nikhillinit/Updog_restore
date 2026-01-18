@@ -11,8 +11,8 @@ import { describe, it, expect } from 'vitest';
  * undefined in certain edge cases, but TypeScript defaults suggest it's always a string.
  */
 describe('REFL-011: Recharts Formatter Type Signatures', () => {
-  // Simulated chart data
-  interface DataPoint {
+  // Simulated chart data (demonstrates optional name pattern)
+  interface _DataPoint {
     x: number;
     y: number;
     name?: string;

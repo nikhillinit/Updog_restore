@@ -18,7 +18,7 @@ describe('REFL-016: Vitest Include Patterns Miss New Test Directories', () => {
     const normalizedPattern = pattern.replace(/\\/g, '/');
 
     // Convert glob pattern to regex - order matters!
-    let regexPattern = normalizedPattern
+    const regexPattern = normalizedPattern
       // Escape dots first
       .replace(/\./g, '\\.')
       // Handle ** (any directory depth)
@@ -120,8 +120,8 @@ describe('REFL-016: Vitest Include Patterns Miss New Test Directories', () => {
     });
 
     it('should use broad glob patterns', () => {
-      // Very broad pattern catches most conventions
-      const broadPattern = '**/*.{test,spec}.{ts,tsx}';
+      // Very broad pattern catches most conventions (shown for documentation)
+      const _broadPattern = '**/*.{test,spec}.{ts,tsx}';
 
       // Simulate matching with this pattern
       const files = [
