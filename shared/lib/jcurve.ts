@@ -182,6 +182,44 @@ export function computeJCurvePath(
   };
 }
 
+/**
+ * Ensure curve values are monotonically non-decreasing with clamped endpoints.
+ *
+ * @param values - Array of curve values (Decimal)
+ * @param startMin - Minimum value for first element
+ * @param endValue - Exact value for last element
+ * @returns Sanitized curve with monotonic guarantee
+ */
+export function sanitizeMonotonicCurve(
+  values: Decimal[],
+  startMin: Decimal,
+  endValue: Decimal
+): Decimal[] {
+  if (values.length === 0) return [];
+
+  const result = [...values];
+
+  // Clamp start to minimum
+  const firstVal = result[0];
+  if (firstVal) {
+    result[0] = Decimal.max(firstVal, startMin);
+  }
+
+  // Set end value exactly
+  result[result.length - 1] = endValue;
+
+  // Enforce monotonic non-decreasing
+  for (let i = 1; i < result.length; i++) {
+    const current = result[i];
+    const previous = result[i - 1];
+    if (current && previous && current.lt(previous)) {
+      result[i] = previous;
+    }
+  }
+
+  return result;
+}
+
 /* ---------------------- Internal Helpers ---------------------- */
 
 function generatePiecewiseSeed(

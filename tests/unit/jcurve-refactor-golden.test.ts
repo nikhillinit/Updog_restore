@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { computeJCurvePath, type JCurveConfig } from '@shared/lib/jcurve';
+import { computeJCurvePath, sanitizeMonotonicCurve, type JCurveConfig } from '@shared/lib/jcurve';
 
 describe('computeJCurvePath golden snapshots', () => {
   const baseConfig: JCurveConfig = {
@@ -100,5 +100,38 @@ describe('computeJCurvePath golden snapshots', () => {
     };
 
     expect(snapshot).toMatchSnapshot();
+  });
+});
+
+describe('sanitizeMonotonicCurve', () => {
+  it('should enforce monotonically non-decreasing values', () => {
+    const input = [
+      new Decimal(1.0),
+      new Decimal(1.2),
+      new Decimal(1.1), // dip - should be corrected
+      new Decimal(1.5),
+    ];
+    const result = sanitizeMonotonicCurve(input, new Decimal(0.9), new Decimal(1.5));
+
+    expect(result.map(d => d.toNumber())).toEqual([1.0, 1.2, 1.2, 1.5]);
+  });
+
+  it('should clamp start value to minimum', () => {
+    const input = [new Decimal(0.5), new Decimal(1.0)];
+    const result = sanitizeMonotonicCurve(input, new Decimal(0.9), new Decimal(1.0));
+
+    expect(result[0].toNumber()).toBe(0.9);
+  });
+
+  it('should set end value exactly', () => {
+    const input = [new Decimal(1.0), new Decimal(2.0)];
+    const result = sanitizeMonotonicCurve(input, new Decimal(0.9), new Decimal(2.5));
+
+    expect(result[result.length - 1].toNumber()).toBe(2.5);
+  });
+
+  it('should handle empty array', () => {
+    const result = sanitizeMonotonicCurve([], new Decimal(0.9), new Decimal(2.5));
+    expect(result).toEqual([]);
   });
 });
