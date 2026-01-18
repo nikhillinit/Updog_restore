@@ -829,3 +829,359 @@ describe('PR #1: Context Fields & Service Integration', () => {
     actor.stop();
   });
 });
+
+/**
+ * FeesExpensesStep - Wizard Integration Tests (Issue #235)
+ *
+ * These tests verify FeesExpensesStep behavior in full wizard context:
+ * - Data preservation through wizard navigation
+ * - Reset behavior
+ * - Step jumping
+ * - Error recovery
+ * - Concurrent operations
+ * - Multiple instances
+ * - Rapid navigation
+ *
+ * Related: PR #227 (infinite save loop fix), Issue #235 (integration QA)
+ */
+describe('FeesExpensesStep - Wizard Integration (Issue #235)', () => {
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>;
+    setItem: ReturnType<typeof vi.fn>;
+    removeItem: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+  };
+
+  // Valid test data for each step to enable navigation
+  const validGeneralInfo = {
+    fundName: 'Test Fund',
+    vintageYear: 2024,
+    fundSize: 100000000,
+    currency: 'USD' as const,
+    establishmentDate: '2024-01-01',
+    isEvergreen: false,
+    fundLife: 10,
+    investmentPeriod: 5,
+  };
+
+  const validSectorProfiles = {
+    sectorProfiles: [{ id: '1', name: 'Tech', allocation: 100 }],
+    stageAllocations: [{ stage: 'Seed', allocation: 100 }],
+  };
+
+  const validCapitalAllocation = {
+    initialCheckSize: 500000,
+    followOnStrategy: {
+      reserveRatio: 0.5,
+      followOnChecks: { A: 1000000, B: 2000000, C: 3000000 },
+    },
+    pacingModel: {
+      investmentsPerYear: 10,
+      deploymentCurve: 'linear' as const,
+    },
+  };
+
+  const validFeesExpenses = {
+    managementFee: {
+      rate: 2.0,
+      basis: 'committed' as const,
+      stepDown: { enabled: false },
+    },
+    adminExpenses: {
+      annualAmount: 50000,
+      growthRate: 3,
+    },
+  };
+
+  beforeEach(() => {
+    localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    Object.defineProperty(global, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Test: Wizard Completion Flow
+   * Verifies feesExpenses data is preserved when completing the entire wizard
+   */
+  it('preserves feesExpenses data through wizard completion flow', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Step 1: General Info
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 2: Sector Profiles
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 3: Capital Allocation
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 4: Fees & Expenses (the step we're testing)
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    const snapshot = actor.getSnapshot();
+
+    // Verify feesExpenses data is preserved in context
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+    expect(snapshot.context.completedSteps.has('feesExpenses')).toBe(true);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Wizard-level Reset
+   * Verifies feesExpenses data is cleared on RESET event
+   */
+  it('clears feesExpenses data on wizard-level reset', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Navigate to feesExpenses and save data
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Verify data was saved
+    let snapshot = actor.getSnapshot();
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    // Reset the wizard
+    actor.send({ type: 'RESET' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    snapshot = actor.getSnapshot();
+
+    // Verify feesExpenses data is cleared
+    expect(snapshot.context.steps.feesExpenses).toBeUndefined();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Step Jump Scenarios
+   * Verifies feesExpenses data is preserved when jumping between steps
+   */
+  it('preserves feesExpenses data when jumping between steps', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Complete steps to enable jumping
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Save feesExpenses
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Jump back to generalInfo
+    actor.send({ type: 'GOTO', step: 'generalInfo' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    let snapshot = actor.getSnapshot();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+
+    // Jump forward to feesExpenses
+    actor.send({ type: 'GOTO', step: 'feesExpenses' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    snapshot = actor.getSnapshot();
+    expect(snapshot.context.currentStep).toBe('feesExpenses');
+    // Data should be preserved after jumping
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Concurrent SAVE_STEP Events
+   * Verifies no data loss when multiple saves happen rapidly
+   */
+  it('handles concurrent SAVE_STEP events without data loss', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Navigate to feesExpenses
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Fire multiple SAVE_STEP events concurrently
+    const updates = [
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 1.5 } },
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 1.75 } },
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 2.0 } },
+    ];
+
+    // Send all updates without waiting
+    for (const data of updates) {
+      actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data });
+    }
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const snapshot = actor.getSnapshot();
+    // Last update should win
+    expect(snapshot.context.steps.feesExpenses?.managementFee.rate).toBe(2.0);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Multiple Wizard Instances
+   * Verifies data isolation between separate wizard instances
+   */
+  it('isolates feesExpenses data between multiple wizard instances', async () => {
+    const actor1 = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+    const actor2 = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor1.start();
+    actor2.start();
+
+    // Both move to active
+    actor1.send({ type: 'NEXT' });
+    actor2.send({ type: 'NEXT' });
+    await Promise.all([
+      waitFor(actor1, (state) => state.matches('active')),
+      waitFor(actor2, (state) => state.matches('active')),
+    ]);
+
+    // Actor 1: Save feesExpenses with rate 2.0
+    actor1.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Actor 2: Save feesExpenses with rate 3.0
+    const fees2 = {
+      ...validFeesExpenses,
+      managementFee: { ...validFeesExpenses.managementFee, rate: 3.0 },
+    };
+    actor2.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: fees2 });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Verify isolation
+    expect(actor1.getSnapshot().context.steps.feesExpenses?.managementFee.rate).toBe(2.0);
+    expect(actor2.getSnapshot().context.steps.feesExpenses?.managementFee.rate).toBe(3.0);
+
+    actor1.stop();
+    actor2.stop();
+  });
+
+  /**
+   * Test: Rapid Step Navigation
+   * Verifies no race conditions during rapid NEXT/BACK events
+   */
+  it('handles rapid NEXT/BACK navigation without race conditions', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save all steps quickly
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Rapid navigation
+    actor.send({ type: 'NEXT' }); // generalInfo -> sectorProfiles
+    actor.send({ type: 'NEXT' }); // sectorProfiles -> capitalAllocation
+    actor.send({ type: 'NEXT' }); // capitalAllocation -> feesExpenses
+    actor.send({ type: 'BACK' }); // feesExpenses -> capitalAllocation
+    actor.send({ type: 'NEXT' }); // capitalAllocation -> feesExpenses
+    actor.send({ type: 'NEXT' }); // feesExpenses -> waterfall (skipped if skipOptional)
+
+    await new Promise((r) => setTimeout(r, 150));
+
+    const snapshot = actor.getSnapshot();
+
+    // All data should still be preserved
+    expect(snapshot.context.steps.generalInfo).toEqual(validGeneralInfo);
+    expect(snapshot.context.steps.sectorProfiles).toEqual(validSectorProfiles);
+    expect(snapshot.context.steps.capitalAllocation).toEqual(validCapitalAllocation);
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    // No persistence errors
+    expect(snapshot.context.persistenceError).toBeNull();
+
+    actor.stop();
+  });
+});
