@@ -10,6 +10,29 @@ and this project adheres to
 
 ### Added
 
+- **Team Memory Reflection Regression Tests** (2026-01-18)
+  - Implemented 140 regression tests for REFL-001 through REFL-017
+  - Each test demonstrates anti-pattern behavior and verified fix
+  - Coverage includes:
+    - REFL-001: Substring matching false positives in routers
+    - REFL-002: Post-merge jobs not validated by PR CI
+    - REFL-003: Unhandled promise rejections in async middleware
+    - REFL-004: Missing error boundaries in React components
+    - REFL-005: Stale closure bugs in useEffect
+    - REFL-006: XIRR edge cases with extreme returns
+    - REFL-007: Decimal.js vs Number precision drift
+    - REFL-008: Optimistic UI without rollback
+    - REFL-009: Rate limiter key collisions
+    - REFL-010: Trust proxy configuration for rate limiters
+    - REFL-011: Recharts formatter type signatures
+    - REFL-012: Fire-and-forget async race conditions
+    - REFL-013: Router substring matching false positives
+    - REFL-014: Test key reuse across test cases
+    - REFL-015: PostgreSQL service missing test database
+    - REFL-016: Vitest include patterns miss new directories
+    - REFL-017: CI workflow permission errors
+  - Tests serve as executable documentation for Team Memory system
+
 - **Advanced Cohort Analysis** (2026-01-04)
   - Multi-dimensional portfolio analysis by vintage year and sector
   - **Data Layer** (5 new schema tables):
