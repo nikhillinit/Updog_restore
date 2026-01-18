@@ -1,6 +1,6 @@
 ---
 type: reflection
-id: REFL-001
+id: REFL-018
 title: Reserve Engine Null Safety
 status: VERIFIED
 date: 2026-01-18
@@ -21,7 +21,7 @@ keywords:
   - validation
   - reserve calculation
   - wizard state
-test_file: tests/regressions/REFL-001.test.ts
+test_file: tests/regressions/REFL-018.test.ts
 superseded_by: null
 ---
 
@@ -50,7 +50,7 @@ superseded_by: null
 3. Validate business rules (not negative, within bounds)
 
 ```typescript
-// ✅ VERIFIED IMPLEMENTATION
+// VERIFIED IMPLEMENTATION
 function calculateReserve(fundContext: FundContext | null): number {
   // Layer 1: Context validation - MUST throw, not return 0
   if (!fundContext) {
@@ -86,6 +86,6 @@ function calculateReserve(fundContext: FundContext | null): number {
 
 ## 3. Evidence
 
-* **Test Coverage:** `tests/regressions/REFL-001.test.ts` - 9 tests covering all three validation layers
+* **Test Coverage:** `tests/regressions/REFL-018.test.ts` - 9 tests covering all three validation layers
 * **Real Implementation:** `shared/core/reserves/DeterministicReserveEngine.ts` uses `ReserveCalculationError`
 * **Error Codes:** Enable programmatic handling - UI can redirect to correct wizard step
