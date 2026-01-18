@@ -41,53 +41,19 @@ if echo "$PROMPT" | grep -qiE "^(yes|no|ok|thanks|thank you|y|n|sure|done|good)$
 fi
 
 # =============================================================================
-# TASK BUNDLES - Groups of related skills/agents for common tasks
+# ROUTING SOURCE: docs/_generated/router-fast.json (single source of truth)
 # =============================================================================
-# Format: "trigger_phrase|type1:name1,type2:name2,..."
-
-declare -A TASK_BUNDLES=(
-  # Critical evaluation - thorough review with multiple perspectives
-  ["critical|critique|evaluate|assess|validate|verify|thorough"]="skill:inversion-thinking,skill:pattern-recognition,agent:code-reviewer,agent:silent-failure-hunter"
-
-  # Planning and design - structured approach to new work
-  ["plan|design|architect|strategy|approach"]="skill:brainstorming,skill:writing-plans,skill:task-decomposition,skill:architecture-patterns,agent:docs-architect"
-
-  # Deep debugging - systematic investigation
-  ["debug|investigate|root cause|trace|diagnose"]="skill:systematic-debugging,skill:root-cause-tracing,skill:inversion-thinking,agent:debug-expert"
-
-  # Code review workflow - giving or receiving reviews
-  ["review|code review|pr review|pull request"]="skill:requesting-code-review,skill:receiving-code-review,agent:code-reviewer,agent:silent-failure-hunter,agent:type-design-analyzer"
-
-  # Feature implementation - TDD workflow
-  ["implement|feature|new feature|build|create"]="skill:writing-plans,skill:executing-plans,skill:continuous-improvement,agent:test-automator"
-
-  # Testing strategy - thorough test coverage
-  ["test strategy|test plan|coverage|comprehensive test"]="skill:testing-anti-patterns,skill:condition-based-waiting,agent:test-automator,agent:test-repair,agent:pr-test-analyzer"
-
-  # Refactoring - safe code improvement
-  ["refactor|simplify|clean|improve code|technical debt"]="agent:code-simplifier,skill:iterative-improvement,skill:continuous-improvement,agent:code-reviewer"
-
-  # Performance - optimization and analysis
-  ["performance|optimize|slow|bottleneck|latency"]="agent:perf-guard,skill:pattern-recognition,agent:code-simplifier"
-
-  # Complex problem solving - multi-perspective thinking frameworks
-  ["complex|difficult|tricky|challenging|hard problem"]="skill:inversion-thinking,skill:analogical-thinking,skill:extended-thinking-framework,skill:task-decomposition"
-
-  # Anti-pattern prevention - quality and security
-  ["anti-pattern|security|safe|prevent|vulnerability|race condition"]="skill:pattern-recognition,skill:inversion-thinking,agent:silent-failure-hunter,agent:code-reviewer"
-
-  # Git workflow - branching and finishing work
-  ["branch|worktree|merge|finish|complete branch"]="skill:finishing-a-development-branch,skill:using-git-worktrees,skill:verification-before-completion"
-
-  # Parallel work - multi-agent coordination
-  ["parallel|concurrent|multiple|simultaneously"]="skill:dispatching-parallel-agents,skill:subagent-driven-development,skill:task-decomposition"
-
-  # Phoenix/VC domain - fund modeling specific
-  ["waterfall|carry|clawback|xirr|irr|fees|reserves|capital|allocation"]="agent:waterfall-specialist,agent:xirr-fees-validator,agent:phoenix-capital-allocation-analyst,agent:phoenix-reserves-optimizer"
-
-  # Documentation - writing and maintaining docs
-  ["document|documentation|docs|jsdoc|readme"]="agent:docs-architect,agent:phoenix-docs-scribe,skill:memory-management"
-)
+# All routing patterns are defined in docs/DISCOVERY-MAP.source.yaml
+# and generated to router-fast.json via: npm run docs:routing:generate
+#
+# To add new routing patterns:
+# 1. Edit docs/DISCOVERY-MAP.source.yaml
+# 2. Run: npm run docs:routing:generate
+# 3. Verify: npm run docs:routing:check
+#
+# Router priority: lower number = higher priority (checked first)
+# Current patterns: 82 (agents, skills, commands, cheatsheets, docs)
+# =============================================================================
 
 # =============================================================================
 # DISCOVERY FUNCTIONS
@@ -117,34 +83,14 @@ extract_keywords() {
     sort -u
 }
 
-# =============================================================================
-# PHASE 0: Bundle matching (highest priority - curated task bundles)
-# =============================================================================
-
+# Normalize prompt to lowercase for matching
 PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 
-for bundle_triggers in "${!TASK_BUNDLES[@]}"; do
-  # Split triggers by |
-  IFS='|' read -ra TRIGGERS <<< "$bundle_triggers"
-  for trigger in "${TRIGGERS[@]}"; do
-    if echo "$PROMPT_LOWER" | grep -qi "$trigger"; then
-      # Found a bundle match - add all bundled assets with high score
-      BUNDLE_ASSETS="${TASK_BUNDLES[$bundle_triggers]}"
-      IFS=',' read -ra ASSETS <<< "$BUNDLE_ASSETS"
-      for asset in "${ASSETS[@]}"; do
-        ASSET_TYPE=$(echo "$asset" | cut -d':' -f1)
-        ASSET_NAME=$(echo "$asset" | cut -d':' -f2)
-        # Bundle matches get score 60 (higher than router's 50 base)
-        add_match "bundle-$ASSET_TYPE" "$ASSET_NAME" "60"
-      done
-      break 2  # Only match one bundle per prompt
-    fi
-  done
-done
-
 # =============================================================================
-# PHASE 1: Router-based matching (highest priority) - Pure jq for speed
+# PHASE 1: Router-based matching (PRIMARY) - Pure jq for speed
 # =============================================================================
+# Router patterns are the authoritative source for all routing decisions.
+# 82 patterns cover: Phoenix domain, testing, development, commands, etc.
 
 ROUTER_FILE="$PROJECT_ROOT/docs/_generated/router-fast.json"
 if [ -f "$ROUTER_FILE" ]; then
@@ -317,13 +263,13 @@ if [ "$MATCH_COUNT" -ge 1 ]; then
   echo "$SORTED_MATCHES" | while IFS='|' read -r score type name; do
     if [ -n "$type" ] && [ -n "$name" ]; then
       case "$type" in
-        router-agent|agent|bundle-agent)
+        router-agent|agent)
           echo "  [AGENT] Task tool: subagent_type='$name'"
           ;;
         router-command|command)
           echo "  [COMMAND] $name"
           ;;
-        skill|bundle-skill)
+        skill)
           echo "  [SKILL] $name"
           ;;
         cheatsheet)
