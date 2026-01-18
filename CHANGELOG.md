@@ -33,6 +33,21 @@ and this project adheres to
     - REFL-017: CI workflow permission errors
   - Tests serve as executable documentation for Team Memory system
 
+- **REFL-018: Reserve Engine Null Safety** (2026-01-18)
+  - Migrated from legacy tools/reflection/ location
+  - Documents three-layer validation pattern for wizard state
+  - Error codes: E_CTX_UNINITIALIZED, E_FIELD_MISSING, E_BUSINESS_RULE
+
+### Changed
+
+- **Reflection System Consolidation** (2026-01-18)
+  - Consolidated duplicate reflection systems into single `docs/skills/` location
+  - Removed legacy `tools/reflection/` directory (was portable scaffold)
+  - Resolved ID collision: REFL-001/002 existed in both locations with different content
+  - SKILLS_INDEX.md now shows 18 reflections (single source of truth)
+  - Updated vitest.config.ts to remove legacy test include pattern
+  - See `docs/plans/reflection-consolidation-plan.md` for Codex-Claude analysis
+
 - **Advanced Cohort Analysis** (2026-01-04)
   - Multi-dimensional portfolio analysis by vintage year and sector
   - **Data Layer** (5 new schema tables):
