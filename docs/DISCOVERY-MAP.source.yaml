@@ -608,6 +608,589 @@ patterns:
     target: "SIDECAR_GUIDE.md"
     secondary: "cheatsheets/document-review-workflow.md"
 
+  # =============================================================================
+  # ADDITIONAL AGENTS (Complete Coverage)
+  # =============================================================================
+
+  # --- Planning & Design ---
+  - id: "planning"
+    priority: 101
+    category: "Development"
+    keywords:
+      - "plan"
+      - "planning"
+      - "design"
+      - "architect"
+      - "strategy"
+      - "approach"
+      - "blueprint"
+    target: ".claude/skills/writing-plans.md"
+    skill: "writing-plans"
+    secondary: ".claude/skills/brainstorming.md"
+
+  - id: "brainstorming"
+    priority: 102
+    category: "Development"
+    keywords:
+      - "brainstorm"
+      - "ideate"
+      - "explore options"
+      - "alternatives"
+      - "creative"
+    target: ".claude/skills/brainstorming.md"
+    skill: "brainstorming"
+
+  - id: "task_decomposition"
+    priority: 103
+    category: "Development"
+    keywords:
+      - "break down"
+      - "decompose"
+      - "split task"
+      - "subtasks"
+      - "chunk"
+    target: ".claude/skills/task-decomposition.md"
+    skill: "task-decomposition"
+
+  # --- Implementation & Feature Development ---
+  - id: "implementation"
+    priority: 104
+    category: "Development"
+    keywords:
+      - "implement"
+      - "build"
+      - "create"
+      - "develop"
+      - "new feature"
+      - "add feature"
+    target: "CAPABILITIES.md"
+    message: "Check existing solutions first, then use writing-plans skill"
+    skill: "writing-plans"
+
+  - id: "code_exploration"
+    priority: 105
+    category: "Development"
+    keywords:
+      - "understand code"
+      - "explore codebase"
+      - "how does"
+      - "find where"
+      - "trace code"
+      - "code flow"
+    target: ".claude/agents/code-explorer.md"
+    agent: "code-explorer"
+
+  # --- Testing Agents ---
+  - id: "test_scaffolding"
+    priority: 106
+    category: "Testing"
+    keywords:
+      - "scaffold test"
+      - "new test suite"
+      - "test infrastructure"
+      - "setup tests"
+      - "test boilerplate"
+    target: ".claude/agents/test-scaffolder.md"
+    agent: "test-scaffolder"
+
+  - id: "test_automation"
+    priority: 107
+    category: "Testing"
+    keywords:
+      - "automate test"
+      - "test automation"
+      - "test strategy"
+      - "test coverage"
+      - "comprehensive test"
+    target: ".claude/agents/test-automator.md"
+    agent: "test-automator"
+
+  - id: "playwright_tests"
+    priority: 108
+    category: "Testing"
+    keywords:
+      - "playwright"
+      - "e2e test"
+      - "browser test"
+      - "end to end"
+      - "ui test"
+    target: ".claude/agents/playwright-test-author.md"
+    agent: "playwright-test-author"
+
+  - id: "pr_test_analysis"
+    priority: 109
+    category: "Testing"
+    keywords:
+      - "pr tests"
+      - "test gaps"
+      - "missing tests"
+      - "test coverage pr"
+    target: ".claude/agents/pr-test-analyzer.md"
+    agent: "pr-test-analyzer"
+
+  - id: "flaky_tests"
+    priority: 110
+    category: "Testing"
+    keywords:
+      - "flaky"
+      - "intermittent"
+      - "random failure"
+      - "sometimes pass"
+      - "race condition test"
+    target: ".claude/agents/test-repair.md"
+    agent: "test-repair"
+    message: "Test repair agent has dedicated flakiness detection"
+
+  # --- Code Quality Agents ---
+  - id: "silent_failures"
+    priority: 111
+    category: "Quality"
+    keywords:
+      - "silent failure"
+      - "swallowed exception"
+      - "catch empty"
+      - "error ignored"
+      - "missing error handling"
+    target: ".claude/agents/silent-failure-hunter.md"
+    agent: "silent-failure-hunter"
+
+  - id: "type_design"
+    priority: 112
+    category: "Quality"
+    keywords:
+      - "type design"
+      - "typescript types"
+      - "type safety"
+      - "generic types"
+      - "type inference"
+    target: ".claude/agents/type-design-analyzer.md"
+    agent: "type-design-analyzer"
+
+  - id: "comment_analysis"
+    priority: 113
+    category: "Quality"
+    keywords:
+      - "comments"
+      - "code comments"
+      - "documentation accuracy"
+      - "outdated comments"
+    target: ".claude/agents/comment-analyzer.md"
+    agent: "comment-analyzer"
+
+  # --- CI/CD & DevOps Agents ---
+  - id: "devops_issues"
+    priority: 114
+    category: "DevOps"
+    keywords:
+      - "devops"
+      - "infrastructure"
+      - "container"
+      - "docker"
+      - "kubernetes"
+      - "k8s"
+    target: ".claude/agents/devops-troubleshooter.md"
+    agent: "devops-troubleshooter"
+
+  - id: "incident_response"
+    priority: 115
+    category: "DevOps"
+    keywords:
+      - "incident"
+      - "outage"
+      - "production down"
+      - "pager"
+      - "on call"
+      - "sev1"
+      - "sev2"
+    target: ".claude/agents/incident-responder.md"
+    agent: "incident-responder"
+
+  - id: "chaos_testing"
+    priority: 116
+    category: "Testing"
+    keywords:
+      - "chaos"
+      - "resilience"
+      - "fault injection"
+      - "failure testing"
+      - "chaos monkey"
+    target: ".claude/agents/chaos-engineer.md"
+    agent: "chaos-engineer"
+
+  # --- Schema & Migration Agents ---
+  - id: "schema_drift"
+    priority: 117
+    category: "Database"
+    keywords:
+      - "schema drift"
+      - "schema mismatch"
+      - "zod schema"
+      - "drizzle schema"
+      - "schema alignment"
+    target: ".claude/agents/schema-drift-checker.md"
+    agent: "schema-drift-checker"
+
+  - id: "db_migration"
+    priority: 118
+    category: "Database"
+    keywords:
+      - "migration"
+      - "db:push"
+      - "schema change"
+      - "alter table"
+      - "database migration"
+    target: ".claude/agents/db-migration.md"
+    agent: "db-migration"
+    command: "/db-validate"
+
+  # --- Performance Agents ---
+  - id: "perf_guard"
+    priority: 119
+    category: "Performance"
+    keywords:
+      - "performance regression"
+      - "perf guard"
+      - "bundle analysis"
+      - "size regression"
+    target: ".claude/agents/perf-guard.md"
+    agent: "perf-guard"
+
+  - id: "perf_regression"
+    priority: 120
+    category: "Performance"
+    keywords:
+      - "perf regression"
+      - "slower"
+      - "benchmark failed"
+      - "performance degraded"
+    target: ".claude/agents/perf-regression-triager.md"
+    agent: "perf-regression-triager"
+
+  # --- Baseline & Parity Agents ---
+  - id: "baseline_regression"
+    priority: 121
+    category: "Quality"
+    keywords:
+      - "baseline"
+      - "baseline failed"
+      - "quality regression"
+      - "lint regression"
+      - "type regression"
+    target: ".claude/agents/baseline-regression-explainer.md"
+    agent: "baseline-regression-explainer"
+
+  - id: "excel_parity"
+    priority: 122
+    category: "Phoenix"
+    keywords:
+      - "excel parity"
+      - "excel match"
+      - "spreadsheet"
+      - "calculation mismatch"
+      - "truth case failed"
+    target: ".claude/agents/parity-auditor.md"
+    agent: "parity-auditor"
+
+  # --- Orchestration Agents ---
+  - id: "workflow_orchestration"
+    priority: 123
+    category: "Orchestration"
+    keywords:
+      - "orchestrate"
+      - "chain agents"
+      - "auto validate"
+      - "multi-agent"
+      - "agent chain"
+    target: ".claude/agents/workflow-orchestrator.md"
+    agent: "workflow-orchestrator"
+
+  - id: "context_management"
+    priority: 124
+    category: "Orchestration"
+    keywords:
+      - "context"
+      - "context window"
+      - "memory management"
+      - "conversation context"
+    target: ".claude/agents/context-orchestrator.md"
+    agent: "context-orchestrator"
+
+  # --- Developer Experience ---
+  - id: "dx_optimization"
+    priority: 125
+    category: "Development"
+    keywords:
+      - "developer experience"
+      - "dx"
+      - "tooling"
+      - "workflow friction"
+      - "onboarding"
+    target: ".claude/agents/dx-optimizer.md"
+    agent: "dx-optimizer"
+
+  - id: "legacy_code"
+    priority: 126
+    category: "Development"
+    keywords:
+      - "legacy"
+      - "modernize"
+      - "technical debt"
+      - "outdated"
+      - "refactor legacy"
+    target: ".claude/agents/legacy-modernizer.md"
+    agent: "legacy-modernizer"
+
+  # =============================================================================
+  # SKILLS (Complete Coverage)
+  # =============================================================================
+
+  - id: "thinking_frameworks"
+    priority: 130
+    category: "Thinking"
+    keywords:
+      - "think deeper"
+      - "analyze thoroughly"
+      - "critical thinking"
+      - "systematic analysis"
+    target: ".claude/skills/extended-thinking-framework.md"
+    skill: "extended-thinking-framework"
+
+  - id: "inversion_thinking"
+    priority: 131
+    category: "Thinking"
+    keywords:
+      - "inversion"
+      - "what could go wrong"
+      - "failure modes"
+      - "anti-patterns"
+      - "avoid mistakes"
+    target: ".claude/skills/inversion-thinking.md"
+    skill: "inversion-thinking"
+
+  - id: "pattern_recognition"
+    priority: 132
+    category: "Thinking"
+    keywords:
+      - "pattern"
+      - "recurring"
+      - "similar issues"
+      - "common pattern"
+    target: ".claude/skills/pattern-recognition.md"
+    skill: "pattern-recognition"
+
+  - id: "analogical_thinking"
+    priority: 133
+    category: "Thinking"
+    keywords:
+      - "analogy"
+      - "similar to"
+      - "like"
+      - "compare to"
+    target: ".claude/skills/analogical-thinking.md"
+    skill: "analogical-thinking"
+
+  - id: "parallel_agents"
+    priority: 134
+    category: "Orchestration"
+    keywords:
+      - "parallel"
+      - "concurrent"
+      - "simultaneously"
+      - "multiple agents"
+    target: ".claude/skills/dispatching-parallel-agents.md"
+    skill: "dispatching-parallel-agents"
+
+  - id: "async_resilience"
+    priority: 135
+    category: "Development"
+    keywords:
+      - "async error"
+      - "retry"
+      - "circuit breaker"
+      - "resilience"
+      - "graceful degradation"
+    target: ".claude/skills/async-error-resilience.md"
+    skill: "async-error-resilience"
+
+  - id: "react_performance"
+    priority: 136
+    category: "Performance"
+    keywords:
+      - "react performance"
+      - "re-render"
+      - "useMemo"
+      - "useCallback"
+      - "memoization"
+    target: ".claude/skills/react-performance-optimization.md"
+    skill: "react-performance-optimization"
+
+  - id: "api_design"
+    priority: 137
+    category: "Development"
+    keywords:
+      - "api design"
+      - "rest api"
+      - "endpoint design"
+      - "api patterns"
+    target: ".claude/skills/api-design-principles.md"
+    skill: "api-design-principles"
+
+  - id: "architecture_patterns"
+    priority: 138
+    category: "Development"
+    keywords:
+      - "architecture pattern"
+      - "design pattern"
+      - "clean architecture"
+      - "hexagonal"
+    target: ".claude/skills/architecture-patterns.md"
+    skill: "architecture-patterns"
+
+  # =============================================================================
+  # COMMANDS (Complete Coverage)
+  # =============================================================================
+
+  - id: "cmd_log_change"
+    priority: 140
+    category: "Commands"
+    keywords:
+      - "log change"
+      - "changelog"
+      - "record change"
+    target: ".claude/commands/log-change.md"
+    command: "/log-change"
+
+  - id: "cmd_log_decision"
+    priority: 141
+    category: "Commands"
+    keywords:
+      - "log decision"
+      - "adr"
+      - "record decision"
+      - "architecture decision"
+    target: ".claude/commands/log-decision.md"
+    command: "/log-decision"
+
+  - id: "cmd_pre_commit"
+    priority: 142
+    category: "Commands"
+    keywords:
+      - "pre-commit"
+      - "before commit"
+      - "commit check"
+      - "quality check"
+    target: ".claude/commands/pre-commit-check.md"
+    command: "/pre-commit-check"
+
+  - id: "cmd_pr_ready"
+    priority: 143
+    category: "Commands"
+    keywords:
+      - "pr ready"
+      - "pull request ready"
+      - "before pr"
+      - "pr validation"
+    target: ".claude/commands/pr-ready.md"
+    command: "/pr-ready"
+
+  - id: "cmd_catalog"
+    priority: 144
+    category: "Commands"
+    keywords:
+      - "catalog"
+      - "list tools"
+      - "available tools"
+      - "what tools"
+    target: ".claude/commands/catalog-tooling.md"
+    command: "/catalog-tooling"
+
+  - id: "cmd_workflows"
+    priority: 145
+    category: "Commands"
+    keywords:
+      - "workflows"
+      - "which tool"
+      - "tool helper"
+      - "find command"
+    target: ".claude/commands/workflows.md"
+    command: "/workflows"
+
+  - id: "cmd_deps_audit"
+    priority: 146
+    category: "Commands"
+    keywords:
+      - "dependency audit"
+      - "security audit"
+      - "npm audit"
+      - "vulnerable"
+    target: ".claude/commands/wshobson/deps-audit.md"
+    command: "/wshobson:deps-audit"
+
+  - id: "cmd_tech_debt"
+    priority: 147
+    category: "Commands"
+    keywords:
+      - "tech debt"
+      - "technical debt"
+      - "debt analysis"
+    target: ".claude/commands/wshobson/tech-debt.md"
+    command: "/wshobson:tech-debt"
+
+  # =============================================================================
+  # CHEATSHEETS (Additional Coverage)
+  # =============================================================================
+
+  - id: "cheat_anti_patterns"
+    priority: 150
+    category: "Quality"
+    keywords:
+      - "anti-pattern"
+      - "bad practice"
+      - "code smell"
+      - "avoid"
+    target: "cheatsheets/anti-pattern-prevention.md"
+    message: "24 cataloged anti-patterns with prevention strategies"
+
+  - id: "cheat_testing_patterns"
+    priority: 151
+    category: "Testing"
+    keywords:
+      - "testing pattern"
+      - "test pattern"
+      - "service testing"
+      - "api testing"
+    target: "cheatsheets/service-testing-patterns.md"
+
+  - id: "cheat_testcontainers"
+    priority: 152
+    category: "Testing"
+    keywords:
+      - "testcontainer"
+      - "docker test"
+      - "integration test docker"
+    target: "cheatsheets/testcontainers-guide.md"
+
+  - id: "cheat_daily_workflow"
+    priority: 153
+    category: "Development"
+    keywords:
+      - "daily workflow"
+      - "how to start"
+      - "getting started"
+      - "workflow"
+    target: "cheatsheets/daily-workflow.md"
+
+  - id: "cheat_codex"
+    priority: 154
+    category: "AI Tools"
+    keywords:
+      - "codex"
+      - "codex cli"
+      - "openai codex"
+      - "consult codex"
+    target: "cheatsheets/codex-collaboration-protocol.md"
+    message: "Codex CLI integration for complex architectural decisions"
+
 # =============================================================================
 # AGENT REGISTRY (for cross-reference)
 # =============================================================================
