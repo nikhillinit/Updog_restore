@@ -1,6 +1,6 @@
 # Cheatsheets Index
 
-Complete reference to all 31 project cheatsheets, organized by category.
+Complete reference to all 32 project cheatsheets, organized by category.
 
 **Quick Navigation:** Use Ctrl+F / Cmd+F to search for specific topics.
 
@@ -17,7 +17,7 @@ Complete reference to all 31 project cheatsheets, organized by category.
 
 ---
 
-## Workflows (5 files)
+## Workflows (6 files)
 
 - **[daily-workflow.md](daily-workflow.md)** - Day-to-day development patterns
 - **[document-review-workflow.md](document-review-workflow.md)** - Plan
@@ -28,6 +28,8 @@ Complete reference to all 31 project cheatsheets, organized by category.
   Closed-loop refinement, iterative improvement
 - **[correct-workflow-example.md](correct-workflow-example.md)** - Reference
   implementation
+- **[codex-collaboration-protocol.md](codex-collaboration-protocol.md)** - Codex
+  CLI structured collaboration, planning docs, review cycles
 
 ---
 
