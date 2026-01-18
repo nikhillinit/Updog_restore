@@ -220,6 +220,44 @@ export function sanitizeMonotonicCurve(
   return result;
 }
 
+/**
+ * Adjust seed TVPI values based on actual capital calls and distributions.
+ * Used for "Current mode" when historical data is available.
+ *
+ * @param ysSeed - Initial TVPI seed values
+ * @param calledSoFar - Actual capital calls (periods)
+ * @param dpiSoFar - Actual distributions (periods, optional)
+ * @returns Calibrated seed values
+ */
+export function calibrateToActualCalls(
+  ysSeed: number[],
+  calledSoFar: Decimal[],
+  dpiSoFar?: Decimal[]
+): number[] {
+  if (!calledSoFar || calledSoFar.length === 0) {
+    return ysSeed;
+  }
+
+  const result = [...ysSeed];
+  const calledCum = cumulativeFromPeriods(calledSoFar);
+  const dpiCum = dpiSoFar
+    ? cumulativeFromPeriods(dpiSoFar)
+    : Array(calledCum.length).fill(new Decimal(0));
+
+  for (let i = 0; i < Math.min(calledSoFar.length, result.length); i++) {
+    const called = calledCum[i + 1];
+    if (called && called.gt(0)) {
+      const dpiVal = dpiCum[i + 1];
+      if (dpiVal) {
+        const approxTvpi = 1 + dpiVal.div(called).toNumber();
+        result[i] = approxTvpi || result[i];
+      }
+    }
+  }
+
+  return result;
+}
+
 /* ---------------------- Internal Helpers ---------------------- */
 
 function generatePiecewiseSeed(

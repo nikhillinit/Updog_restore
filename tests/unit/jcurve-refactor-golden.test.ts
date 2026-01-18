@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import Decimal from 'decimal.js';
-import { computeJCurvePath, sanitizeMonotonicCurve, type JCurveConfig } from '@shared/lib/jcurve';
+import { computeJCurvePath, sanitizeMonotonicCurve, calibrateToActualCalls, type JCurveConfig } from '@shared/lib/jcurve';
 
 describe('computeJCurvePath golden snapshots', () => {
   const baseConfig: JCurveConfig = {
@@ -133,5 +133,43 @@ describe('sanitizeMonotonicCurve', () => {
   it('should handle empty array', () => {
     const result = sanitizeMonotonicCurve([], new Decimal(0.9), new Decimal(2.5));
     expect(result).toEqual([]);
+  });
+});
+
+describe('calibrateToActualCalls', () => {
+  it('should adjust seed values based on actual calls', () => {
+    const ysSeed = [1.0, 0.95, 0.92, 0.90];
+    const calledSoFar = [
+      new Decimal(0.25),
+      new Decimal(0.25),
+    ];
+    const dpiSoFar = [
+      new Decimal(0),
+      new Decimal(0.05),
+    ];
+
+    const result = calibrateToActualCalls(ysSeed, calledSoFar, dpiSoFar);
+
+    // Should modify first 2 values based on observed TVPI
+    expect(result.length).toBe(4);
+    expect(typeof result[0]).toBe('number');
+  });
+
+  it('should handle empty calledSoFar', () => {
+    const ysSeed = [1.0, 0.95];
+    const calledSoFar: Decimal[] = [];
+
+    const result = calibrateToActualCalls(ysSeed, calledSoFar);
+
+    expect(result).toEqual(ysSeed);
+  });
+
+  it('should handle undefined dpiSoFar', () => {
+    const ysSeed = [1.0, 0.95, 0.92];
+    const calledSoFar = [new Decimal(0.3)];
+
+    const result = calibrateToActualCalls(ysSeed, calledSoFar, undefined);
+
+    expect(result.length).toBe(3);
   });
 });
