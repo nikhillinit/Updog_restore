@@ -95,7 +95,7 @@ export default defineConfig({
           globalTeardown: './tests/setup/global-teardown.ts',
           // Unit tests only - integration/api tests run via vitest.config.int.ts
           // Also includes reflection system regression tests
-          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tools/reflection/tests/**/*.test.ts'],
+          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/regressions/**/*.test.ts', 'tools/reflection/tests/**/*.test.ts'],
           exclude: ['**/*.quarantine.test.ts', 'tests/quarantine/**/*'],
           setupFiles: [
             './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
