@@ -469,7 +469,7 @@
     "@redocly/cli": "^2.14.5",
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.4",
-    "@size-limit/file": "^11.2.0",
+    "@size-limit/file": "^12.0.0",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.18",
     "@testcontainers/postgresql": "11.11.0",
