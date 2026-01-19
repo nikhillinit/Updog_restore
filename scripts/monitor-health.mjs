@@ -13,7 +13,7 @@ const args = process.argv.slice(2);
 const DURATION = parseInt(args[0] || '30'); // Default 30 minutes
 const ERROR_THRESHOLD = parseFloat(args[1] || '0.5'); // Default 0.5% error rate
 const PROD_HOST = process.env.PROD_HOST || 'http://localhost:5000';
-const CONFIG_PATH = process.env.CONFIG_PATH || './public/runtime-config.json';
+const CONFIG_PATH = process.env.CONFIG_PATH || './dist/public/runtime-config.json';
 
 // ANSI colors for output
 const colors = {

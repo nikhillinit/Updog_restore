@@ -1,13 +1,13 @@
 [
   {
     "name": "Initial Load (Critical Path)",
-    "path": "dist/assets/index-*.js",
+    "path": "dist/public/assets/index-*.js",
     "limit": "250 KB",
     "gzip": true
   },
   {
     "name": "Chart Components (Recharts)",
-    "path": "dist/assets/ActiveShapeUtils-*.js",
+    "path": "dist/public/assets/ActiveShapeUtils-*.js",
     "limit": "300 KB",
     "gzip": true
   }
