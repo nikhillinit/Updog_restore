@@ -48,6 +48,14 @@ and this project adheres to
   - Updated vitest.config.ts to remove legacy test include pattern
   - See `docs/plans/reflection-consolidation-plan.md` for Codex-Claude analysis
 
+- **Reflection System Phase 1 Stabilization** (2026-01-18)
+  - Fixed CWD dependency in `scripts/manage_skills.py` using `git rev-parse --show-toplevel`
+  - Script now works from any directory in the repository
+  - Added Related Documentation section to `docs/skills/README.md`
+  - Added cross-link footer to auto-generated `SKILLS_INDEX.md`
+  - Fixed path regression: links now use relative filenames, paths are repo-relative
+  - Forensic documentation added in `docs/planning/reflection-remediation/`
+
 - **Advanced Cohort Analysis** (2026-01-04)
   - Multi-dimensional portfolio analysis by vintage year and sector
   - **Data Layer** (5 new schema tables):
