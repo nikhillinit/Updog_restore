@@ -206,7 +206,7 @@ describe('False Positive Prevention', () => {
     const result = routeQuery('there is an issue with the code');
     // Should match troubleshooting, not gh_workflow
     expect(result).not.toBeNull();
-    expect(result!.route_to).toBe('SIDECAR_GUIDE.md');
+    expect(result!.route_to).toBe('docs/INDEX.md');
   });
 
   test('"review" in context of learning should not force code-reviewer', () => {
@@ -238,7 +238,7 @@ describe('Edge Cases', () => {
     const result = routeQuery('error');
     expect(result).not.toBeNull();
     // Should match troubleshooting (generic fallback)
-    expect(result!.route_to).toBe('SIDECAR_GUIDE.md');
+    expect(result!.route_to).toBe('docs/INDEX.md');
   });
 
   test('case insensitivity: WATERFALL == waterfall', () => {
