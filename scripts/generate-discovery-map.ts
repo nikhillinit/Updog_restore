@@ -637,6 +637,7 @@ async function main(): Promise<void> {
         'docs/*.md', // Top-level docs/ files (INDEX.md, etc.)
         'docs/**/*.md', // Nested docs/ subdirectories
         'cheatsheets/**/*.md',
+        '.claude/*.md', // Root-level .claude files (DISCOVERY-MAP.md, WORKFLOW.md)
         '.claude/agents/*.md',
         '.claude/skills/**/*.md',
         '.claude/commands/*.md',

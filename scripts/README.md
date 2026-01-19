@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+owner: Core Team
+review_cadence: P90D
+---
+
 # Scripts Directory
 
 This directory contains the production-ready deployment system with progressive rollouts, weighted error scoring, and automated safety nets.
