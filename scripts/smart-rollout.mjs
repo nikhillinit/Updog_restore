@@ -13,7 +13,7 @@ const INTERVALS = process.env.ROLLOUT_INTERVALS
   : [5, 10, 25, 50, 100];
 const WINDOW_MINUTES = parseInt(process.env.ROLLOUT_WINDOW || '10');
 const ERROR_THRESHOLD = parseFloat(process.env.ERROR_THRESHOLD || '0.3');
-const CONFIG_PATH = process.env.CONFIG_PATH || './public/runtime-config.json';
+const CONFIG_PATH = process.env.CONFIG_PATH || './dist/public/runtime-config.json';
 const METRICS_URL = process.env.METRICS_URL || 'http://localhost:5000/metrics';
 
 function log(message, level = 'info') {

@@ -39,3 +39,32 @@ All build stabilization changes implemented successfully:
 3. npm start now uses correct path (dist/index.js)
 4. postbuild verification gate added
 5. verify-api-url.mjs updated for new asset path
+
+### Iteration 3: Environment Alignment (COMPLETE)
+Additional fixes to fully align Docker/Railway/Vercel environments:
+
+1. **server/vite.ts serveStatic** - Fixed path resolution
+   - Before: `path.resolve(import.meta.dirname, "public")` → `server/public/` (wrong)
+   - After: `path.resolve(import.meta.dirname, "..", "dist", "public")` → `dist/public/` (correct)
+
+2. **Runtime assets moved** - Copied to client/public/ so Vite includes them:
+   - `runtime-config.json` - Runtime configuration
+   - `fonts/` - PDF generation fonts (Inter, Poppins)
+   - `dashboard.html` - Static dashboard
+
+3. **Dockerfile.railway aligned** - Now uses same entry as main Dockerfile:
+   - Before: `CMD ["node", "server/bootstrap.js"]`
+   - After: `CMD ["node", "dist/index.js"]`
+
+**Verification:**
+```
+OK: Server entry (1199495 bytes)
+OK: Frontend entry (795 bytes)
+OK: Frontend assets (directory)
+Build verification passed
+```
+
+**Assets in dist/public/:**
+- runtime-config.json (293 bytes)
+- dashboard.html (9853 bytes)
+- fonts/ (5 TTF files, ~1.5MB total)

@@ -5,7 +5,7 @@
 DURATION=${1:-30}  # Default 30 minutes
 ERROR_THRESHOLD=${2:-0.5}  # Default 0.5% error rate
 PROD_HOST=${PROD_HOST:-"http://localhost:5000"}
-CONFIG_PATH=${CONFIG_PATH:-"./public/runtime-config.json"}
+CONFIG_PATH=${CONFIG_PATH:-"./dist/public/runtime-config.json"}
 
 # Colors for output
 RED='\033[0;31m'
