@@ -18,7 +18,7 @@ import re
 import os
 import subprocess
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from datetime import datetime
 
 try:
@@ -47,6 +47,27 @@ def find_repo_root() -> Path:
             file=sys.stderr,
         )
         return Path.cwd()
+
+
+def normalize_rel_path(raw: str, field: str = "path") -> str:
+    """Normalize and validate a repo-relative path.
+
+    Args:
+        raw: The raw path string to normalize
+        field: Field name for error messages
+
+    Returns:
+        Normalized path with forward slashes
+
+    Raises:
+        ValueError: If path is absolute or contains path traversal
+    """
+    normalized = raw.replace("\\", "/")
+    if PureWindowsPath(normalized).is_absolute() or PurePosixPath(normalized).is_absolute():
+        raise ValueError(f"{field} must be repo-relative, got absolute path: {raw!r}")
+    if ".." in PurePosixPath(normalized).parts:
+        raise ValueError(f"{field} must not escape repo root: {raw!r}")
+    return normalized
 
 
 # Paths relative to repository root
@@ -248,6 +269,7 @@ def rebuild_index(check_mode=False):
         if r.get('superseded_by'):
             status = f"DEPRECATED -> {r.get('superseded_by')}"
         test_file = r.get('test_file', f"tests/regressions/{r.get('id')}.test.ts")
+        test_file = normalize_rel_path(test_file, "test_file")
         test_exists = "[x]" if (REPO_ROOT / test_file).exists() else "[ ]"
         # Link uses filename (same directory), Path column shows repo-relative path
         lines.append(f"| **[{r.get('id')}]({r.get('filename')})** | {status} | {r.get('title')} | {test_exists} | `{r.get('path')}` |")
@@ -377,18 +399,24 @@ def validate():
 
         # 4. Test Existence for VERIFIED
         test_path_str = r.get('test_file', f"tests/regressions/{rid}.test.ts")
-        test_path = Path(test_path_str)
+        try:
+            test_path_str = normalize_rel_path(test_path_str, "test_file")
+        except ValueError as e:
+            print(f"[ERROR] {filename}: {e}", file=sys.stderr)
+            errors += 1
+            continue
+        test_path = REPO_ROOT / test_path_str
 
         if r.get('status') == 'VERIFIED':
             if not test_path.exists():
-                print(f"[ERROR] {filename}: VERIFIED but missing test file at `{test_path}`", file=sys.stderr)
+                print(f"[ERROR] {filename}: VERIFIED but missing test file at `{test_path_str}`", file=sys.stderr)
                 errors += 1
 
         # 5. Bidirectional Link Validation
         if test_path.exists():
             test_reflection_id = extract_reflection_id_from_test(test_path)
             if test_reflection_id is None:
-                print(f"[WARN] {filename}: Test file {test_path} missing REFLECTION_ID header comment", file=sys.stderr)
+                print(f"[WARN] {filename}: Test file {test_path_str} missing REFLECTION_ID header comment", file=sys.stderr)
             elif test_reflection_id != rid:
                 print(f"[ERROR] {filename}: Bidirectional link mismatch. Reflection ID is `{rid}` but test declares `{test_reflection_id}`", file=sys.stderr)
                 errors += 1
