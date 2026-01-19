@@ -14,22 +14,21 @@
 - **Note**: CVEs apply to 7.x branch; 5.4.x line has backported fixes
 
 ### diff - GHSA-73rr-hh4g-fpgx (ReDoS)
-- **Status**: BLOCKED - npm override not taking effect
-- **Version**: 4.0.2 (target: 8.0.3+)
-- **Root Cause**: Transitive dependency via ts-node; npm overrides don't apply to hoisted deps
-- **Workaround Attempted**: `"diff": "^8.0.3"` in overrides
-- **Next Steps**: Upgrade ts-node or ts-morph to version that uses diff 8.x
+- **Status**: FIXED
+- **Version**: 4.0.2 → 8.0.3
+- **Resolution**: npm override applied after @react-pdf/renderer upgrade
+- **Note**: Combination of override + direct dependency upgrade allowed resolution
 
 ### @react-pdf/pdfkit - Obfuscated Code
-- **Status**: BLOCKED - npm override not taking effect
-- **Version**: 3.2.0 (target: 4.1.0)
-- **Root Cause**: Transitive via @react-pdf/renderer; override not honored
-- **Next Steps**: Upgrade @react-pdf/renderer to version with pdfkit 4.x
+- **Status**: FIXED
+- **Version**: 3.2.0 → 4.1.0
+- **Resolution**: Upgraded @react-pdf/renderer 3.4.5 → 4.3.2
+- **Note**: Direct dependency upgrade pulled in patched pdfkit 4.1.0
 
 ## Summary
 | Vulnerability | Status | Fixed Version |
 |--------------|--------|---------------|
 | glob CVE-2025-64756 | FIXED | 11.1.0 |
 | vite CVEs | N/A | 5.4.21 (not vulnerable) |
-| diff GHSA | BLOCKED | 4.0.2 (override failed) |
-| pdfkit Obfuscation | BLOCKED | 3.2.0 (override failed) |
+| diff GHSA | FIXED | 8.0.3 |
+| pdfkit Obfuscation | FIXED | 4.1.0 |

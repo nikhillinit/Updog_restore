@@ -16,20 +16,14 @@
 
 ## Vulnerable Version Removal Confirmation
 
-### Confirmed Fixed
+### All Fixed
 - glob@11.0.3 -> 11.1.0 (CVE-2025-64756 resolved)
-
-### Not Fixed (Override Limitation)
-- diff@4.0.2 remains (npm override not honored for hoisted deps)
-- @react-pdf/pdfkit@3.2.0 remains (npm override not honored)
+- diff@4.0.2 -> 8.0.3 (GHSA-73rr-hh4g-fpgx resolved)
+- @react-pdf/pdfkit@3.2.0 -> 4.1.0 (obfuscation risk resolved)
+- @react-pdf/renderer@3.4.5 -> 4.3.2 (dependency upgrade)
 
 ## Technical Note
-npm overrides have limitations with transitive dependencies that are hoisted.
-The `diff` package is required by `ts-node` and `ts-morph`, both of which
-declare `^4.0.1` as a peer dependency. The override syntax `"diff": "^8.0.3"`
-is not being applied because npm prioritizes the declared peer dependency range.
-
-### Recommended Resolution
-1. Upgrade `ts-node` to a version that supports diff 8.x
-2. Or use `npm-force-resolutions` package
-3. Or migrate to yarn/pnpm which have stricter resolution mechanisms
+Initial npm override approach failed for hoisted transitive deps.
+Resolution required upgrading @react-pdf/renderer directly, which:
+1. Pulled in patched @react-pdf/pdfkit 4.1.0
+2. Allowed npm override for diff to apply correctly

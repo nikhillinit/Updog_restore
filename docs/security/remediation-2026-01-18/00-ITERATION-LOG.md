@@ -37,7 +37,15 @@
 - Documented override limitations
 - Identified next steps for blocked fixes
 
+### Iteration 4: Direct Dependency Upgrade (Complete)
+- Upgraded @react-pdf/renderer 3.4.5 → 4.3.2
+- This pulled in @react-pdf/pdfkit 4.1.0 (fixed)
+- npm override for diff now applied (8.0.3)
+- All vulnerabilities resolved
+
 ## Final Status
-- 1 of 4 vulnerabilities fixed (glob)
-- 1 of 4 not applicable (vite already safe)
-- 2 of 4 blocked by npm override limitations
+- 4 of 4 vulnerabilities addressed
+- glob: FIXED (11.1.0)
+- vite: NOT VULNERABLE (5.4.21)
+- diff: FIXED (8.0.3)
+- pdfkit: FIXED (4.1.0)
