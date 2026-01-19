@@ -1105,14 +1105,17 @@
     {
       "docType": "command",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/evaluate-tools.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "command",
@@ -8983,74 +8986,92 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-fundcalc-comment-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-merge-review-final-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-review-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-summary-v1.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -13483,7 +13504,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-01-19T17:42:21.114Z",
+  "generatedAt": "2026-01-19T18:54:10.676Z",
   "patterns": [
     {
       "category": "Security",
@@ -14591,17 +14612,17 @@
   ],
   "stats": {
     "by_status": {
-      "ACTIVE": 604,
+      "ACTIVE": 605,
       "DRAFT": 7,
       "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
-      "HISTORICAL": 124,
-      "UNKNOWN": 77,
+      "HISTORICAL": 130,
+      "UNKNOWN": 70,
       "VERIFIED": 8,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 7,
-    "stale_docs": 101,
+    "missing_frontmatter": 0,
+    "stale_docs": 94,
     "total_docs": 829
   },
   "version": "2.0"
