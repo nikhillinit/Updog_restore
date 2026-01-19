@@ -323,7 +323,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
     },
     root: path.resolve(import.meta.dirname, 'client'),
     build: {
-      outDir: path.resolve(import.meta.dirname, 'dist'),
+      outDir: path.resolve(import.meta.dirname, 'dist/public'),
       emptyOutDir: true,
       sourcemap: process.env['VITE_SOURCEMAP'] === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
       minify: 'esbuild',

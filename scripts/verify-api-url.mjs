@@ -7,7 +7,7 @@ if (!expectUrl) {
   process.exit(1);
 }
 
-const distDir = path.resolve('dist', 'assets');
+const distDir = path.resolve('dist', 'public', 'assets');
 if (!fs.existsSync(distDir)) {
   console.error(`ERROR: Build directory not found at ${distDir}. Did 'vite build' run successfully?`);
   process.exit(1);
