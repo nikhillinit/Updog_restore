@@ -331,7 +331,7 @@
     "@opentelemetry/exporter-metrics-otlp-http": "^0.210.0",
     "@opentelemetry/resources": "^2.4.0",
     "@opentelemetry/sdk-node": "^0.210.0",
-    "@opentelemetry/semantic-conventions": "^1.38.0",
+    "@opentelemetry/semantic-conventions": "^1.39.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -361,9 +361,9 @@
     "@radix-ui/react-tooltip": "^1.2.0",
     "@react-pdf/renderer": "4.3.2",
     "@react-spring/web": "^10.0.1",
-    "@sentry/react": "^10.34.0",
+    "@sentry/react": "^10.35.0",
     "@slack/webhook": "^7.0.5",
-    "@tanstack/react-query": "^5.90.17",
+    "@tanstack/react-query": "^5.90.19",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/papaparse": "^5.5.0",
     "@types/swagger-ui-express": "^4.1.8",
@@ -372,7 +372,7 @@
     "@use-gesture/react": "^10.3.1",
     "@vercel/node": "2.15.10",
     "@xstate/react": "^6.0.0",
-    "baseline-browser-mapping": "2.9.14",
+    "baseline-browser-mapping": "2.9.15",
     "body-parser": "^2.2.2",
     "bullmq": "^5.66.5",
     "chalk": "^5.6.2",
@@ -398,9 +398,9 @@
     "helmet": "^8.1.0",
     "immer": "^10.2.0",
     "input-otp": "^1.4.2",
-    "ioredis": "^5.8.2",
+    "ioredis": "^5.9.2",
     "jsonwebtoken": "^9.0.3",
-    "jwks-rsa": "^3.2.0",
+    "jwks-rsa": "^3.2.1",
     "lru-cache": "^11.2.4",
     "lucide-react": "^0.562.0",
     "mathjs": "15.1.0",
@@ -567,7 +567,7 @@
     "xml2js": "0.6.2"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-arm64-gnu": "4.55.1",
+    "@rollup/rollup-linux-arm64-gnu": "4.55.2",
     "bufferutil": "^4.1.0"
   }
 }
