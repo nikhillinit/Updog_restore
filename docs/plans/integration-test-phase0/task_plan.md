@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Integration Test Phase 0: Dynamic Import Pattern
 
 **Branch**: fix/integration-test-phase0

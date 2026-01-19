@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Next Steps Checklist - Unified Metrics Layer
 ## Immediate Actions to Production-Ready
 

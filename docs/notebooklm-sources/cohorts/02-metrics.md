@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Cohort Performance Metrics - Formulas & Calculations
 
 **Module:** `client/src/core/cohorts/CohortEngine.ts` **Purpose:** Mathematical

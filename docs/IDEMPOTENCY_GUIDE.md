@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Idempotency and Request Deduplication Guide
 
 This guide explains how to use idempotency keys and request deduplication to ensure exactly-once processing and prevent duplicate operations.

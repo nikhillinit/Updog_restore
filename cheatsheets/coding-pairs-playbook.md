@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Coding Pairs Playbook
 
 **Purpose**: Eliminate CI failures through continuous pre-commit review

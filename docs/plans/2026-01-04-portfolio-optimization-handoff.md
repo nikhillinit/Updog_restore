@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Portfolio Construction & Optimization - Handoff Prompt
 
 **Context**: This is a handoff document for continuing the Portfolio Construction & Optimization design conversation. The design is complete and production-ready, but the context window is approaching limits.

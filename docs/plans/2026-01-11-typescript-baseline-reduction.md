@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # TypeScript Baseline Reduction: High-Leverage File Cleanup
 
 **Date:** 2026-01-11 **Goal:** Reduce TypeScript errors from 217 → 177 (18%

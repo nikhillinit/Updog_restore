@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Reflection Path Fix: Planning Document
 
 ## Problem Statement

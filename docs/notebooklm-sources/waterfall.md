@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Waterfall Calculation Module
 
 **Version:** 1.0 **Generated:** 2025-10-27 **Status:** ✅ Validated (Domain

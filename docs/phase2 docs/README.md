@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Export — Phase 2 Capital Allocation
 
 This export contains ready‑to‑use strategy documents, scripts, CI workflow,

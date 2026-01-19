@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PEER REVIEW: Builder API Work
 
 ## ✅ API QUALITY ASSESSMENT - APPROVED

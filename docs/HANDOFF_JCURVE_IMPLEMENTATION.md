@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # J-Curve Forecasting Implementation - Handoff Memo
 
 **Date:** 2025-01-20

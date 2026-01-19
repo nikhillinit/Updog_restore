@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # /retrospective
 
 Create a codified reflection from a bug fix or lesson learned.

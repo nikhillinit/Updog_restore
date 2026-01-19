@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Docker on ARM64 Windows - WSL2 Setup Guide
 
 ## Current Status: WORKING

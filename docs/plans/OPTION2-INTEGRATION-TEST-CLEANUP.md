@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Option 2: Comprehensive Integration Test Cleanup Plan
 
 **Status**: PLANNED **Created**: 2026-01-13 **Related**: PR

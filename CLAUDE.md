@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # CLAUDE.md
 
 **CRITICAL: Read CAPABILITIES.md FIRST before ANY task to check for existing

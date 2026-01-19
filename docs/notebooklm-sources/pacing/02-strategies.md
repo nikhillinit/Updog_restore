@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PacingEngine Strategies: Mathematical Formulas and Algorithms
 
 **Module:** `client/src/core/pacing/PacingEngine.ts` **Purpose:** Detailed

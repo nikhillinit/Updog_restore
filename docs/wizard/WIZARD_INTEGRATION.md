@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Wizard Component Integration Guide
 
 Complete guide for integrating the wizard component system with Zod validation, inline errors, and live totals.

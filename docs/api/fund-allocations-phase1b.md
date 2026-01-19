@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Fund Allocation Management API - Phase 1b Implementation
 
 **Date:** 2025-10-07

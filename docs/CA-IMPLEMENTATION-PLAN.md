@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Capital Allocation Phase 1 Implementation Plan
 
 **Branch**: `claude/ca-phase1-implementation-RFFN3`

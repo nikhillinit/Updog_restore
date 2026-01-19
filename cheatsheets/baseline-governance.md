@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Baseline Governance Guide
 
 **Purpose**: How to manage quality metric baselines and request changes

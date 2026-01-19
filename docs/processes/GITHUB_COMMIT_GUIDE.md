@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # GitHub Commit Guide - POVC Fund Model
 
 ## Current Status

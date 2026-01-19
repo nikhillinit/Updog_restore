@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Monte Carlo Simulation - Validation Strategy
 
 **Document Version**: 1.0.0 **Last Updated**: 2025-11-06 **Related**: ADR-010

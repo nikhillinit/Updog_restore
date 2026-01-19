@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-018: Typed Stage Normalization & Statistical Monte Carlo Testing
 
 **Date**: 2025-10-30 **Status**: Implemented **Impact**: Medium (affects Monte

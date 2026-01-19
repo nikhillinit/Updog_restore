@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-019: mem0 Integration for AI Agent Memory Management
 
 **Status:** Proposed **Date:** 2025-10-31 **Decision Makers:** Engineering Team,

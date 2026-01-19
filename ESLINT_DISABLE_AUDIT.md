@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ESLint Disable Audit
 
 **Generated:** 2026-01-11 **Baseline:** 3987 problems (762 errors, 3225

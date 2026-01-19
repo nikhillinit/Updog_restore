@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Project Standards and Conventions
 
 ## Core Architecture Decisions

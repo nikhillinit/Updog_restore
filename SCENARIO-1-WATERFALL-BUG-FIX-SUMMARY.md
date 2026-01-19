@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Scenario 1: Waterfall Type-Safety Bug Fix - Summary
 
 **Date**: 2025-11-29 **Task**: Find and fix TypeScript error or logical bug in

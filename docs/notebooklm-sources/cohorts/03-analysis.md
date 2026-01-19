@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Cohort Analysis - Practical Usage & Integration
 
 **Module:** `client/src/core/cohorts/CohortEngine.ts` **Purpose:** Real-world

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Security Scanner Skill - Usage Examples
 
 ## Example 1: Scan for Exposed Secrets

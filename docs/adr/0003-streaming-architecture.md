@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-0003: Streaming Architecture for Long-Running Operations
 
 ## Status

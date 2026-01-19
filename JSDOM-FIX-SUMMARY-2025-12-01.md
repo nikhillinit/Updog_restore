@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # jsdom Infrastructure Fix - Complete Resolution
 
 **Date:** 2025-12-01 **Issue:** GitHub #232 - jsdom test environment

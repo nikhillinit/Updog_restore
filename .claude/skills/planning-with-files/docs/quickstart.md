@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Quick Start Guide
 
 Follow these 5 steps to use the planning-with-files pattern.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1B Fee Truth Cases - Content Reference
 
 **File:** `docs/fees.truth-cases.json` **Status:** Content Generated, Ready for

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-006: Fee Calculation Standards and Architecture
 
 **Status:** Accepted **Date:** 2025-01-28 **Decision Makers:** Technical Team

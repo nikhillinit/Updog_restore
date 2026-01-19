@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Metrics & Meanings: AI Agent Evaluation
 
 ## Fund Performance Metrics

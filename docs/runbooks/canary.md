@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Canary & Rings — Success Criteria
 
 - Rings: 10% (N minutes) → 50% (N minutes) → 100%

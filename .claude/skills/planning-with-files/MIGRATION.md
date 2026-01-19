@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Migration Guide: v1.x to v2.0.0
 
 ## Overview

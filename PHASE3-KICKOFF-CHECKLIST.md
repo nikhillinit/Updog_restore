@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 3 Kickoff Checklist
 
 **Purpose:** Pre-flight verification before starting Phase 3 Portfolio Route

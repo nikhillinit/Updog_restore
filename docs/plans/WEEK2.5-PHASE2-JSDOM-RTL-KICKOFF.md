@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 2: jsdom/RTL React 18 Compatibility - Kickoff
 
 ## Executive Summary

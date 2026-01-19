@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # RLS Chaos Engineering Quick Reference Card
 
 **Print this page and keep it handy during Game Days**

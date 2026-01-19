@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Triage: Interleaved Thinking API Test Failures
 
 **Date:** 2025-11-14 **Investigator:** Claude (AI Agent) **Failures:** 17 out of

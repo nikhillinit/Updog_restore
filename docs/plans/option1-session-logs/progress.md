@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Option 1: Skip Unstable Tests - Progress Log
 
 ---

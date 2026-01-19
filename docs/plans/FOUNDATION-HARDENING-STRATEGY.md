@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Foundation Hardening Strategy
 
 **Branch:** `claude/plan-foundation-hardening-TZ75k`

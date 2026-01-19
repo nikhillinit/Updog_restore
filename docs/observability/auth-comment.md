@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR-A — Auth: RS256 JWT Restoration (Status: Blocked pending fixes)
 
 **Why blocked:** async error handling, strict verification, and rotation ergonomics need tightening before we ship RS256.

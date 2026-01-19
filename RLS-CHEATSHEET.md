@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # RLS Quick Reference Cheatsheet
 
 One-page reference for multi-tenant RLS development.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # POVC Fund Model - Commit Log
 
 ## Database Architect Commits ✅

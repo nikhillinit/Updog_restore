@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Sprint G2C Ceremony Calendar Setup
 
 ## Required Calendar Invites

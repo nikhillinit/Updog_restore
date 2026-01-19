@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Week 2.5 Foundation Hardening - Next Session Kickoff
 
 **Last Updated**: 2025-12-20

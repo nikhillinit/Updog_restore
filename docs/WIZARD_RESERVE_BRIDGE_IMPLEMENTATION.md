@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Wizard Reserve Bridge Implementation
 
 **Date:** 2025-10-07

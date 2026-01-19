@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # CI Failure Investigation Report
 **Date:** 2026-01-10
 **Investigator:** Debug Agent (Linus Mode)

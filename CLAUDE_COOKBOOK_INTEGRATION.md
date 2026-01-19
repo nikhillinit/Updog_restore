@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Claude Cookbook Integration Plan
 
 This document tracks integration of patterns from the

@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-19T16:54:56.638Z",
+  "generatedAt": "2026-01-19T17:42:21.114Z",
   "keyword_to_docs": {
     "add feature": [
       "CAPABILITIES.md"

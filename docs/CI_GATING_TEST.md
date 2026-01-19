@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # CI Gating Test
 
 This is a test documentation file to verify that the CI gating patch works correctly.

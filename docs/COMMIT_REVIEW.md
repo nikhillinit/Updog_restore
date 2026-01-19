@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Commit Review - Multi-Agent Proposal Workflow Implementation
 
 **Date:** 2025-01-15

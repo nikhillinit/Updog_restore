@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Chaos Scenario Catalog
 - Single-point: DB latency/failure, Redis fail, engine non-finite
 - Cascades: DB latency + Redis eviction + worker saturation

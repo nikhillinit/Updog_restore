@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # XIRR Excel Parity Analysis - Commit eda20590
 
 **Date**: 2025-12-11 **Branch**: phoenix/phase0-truth-cases **Commit**: eda20590

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Contributing to POVC Fund Model
 
 Thank you for contributing to the POVC Fund Model application! This guide will help you get started with contributing to the project.

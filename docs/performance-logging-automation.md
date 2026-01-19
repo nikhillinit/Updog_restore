@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Performance Logging Automation
 
 This document describes the automated performance logging system that runs `EXPLAIN ANALYZE` queries against the PostgreSQL database and tracks performance metrics over time.

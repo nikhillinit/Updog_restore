@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-014: Reserved
 
 **Date**: 2026-01-14 **Status**: Reserved

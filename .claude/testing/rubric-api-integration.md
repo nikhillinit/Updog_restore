@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # API Integration Testing Rubric
 
 **Domain:** REST API endpoints, validation, error handling, security
