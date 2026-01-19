@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Phoenix Phases 1.4-1.7 Plan Review: Critical Oversights & Refinements
 
 **Review Date:** 2025-12-29

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Claude Code Best Practices - Updog Integration
 
 Integration patterns from Anthropic's Claude Code developer guide, optimized for solo side-project development.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # XIRR Golden Set Migration Plan
 
 **Date**: 2025-12-09 **Phoenix Phase**: 0.2 (Truth Case Runner Setup)

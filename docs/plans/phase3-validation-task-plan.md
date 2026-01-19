@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Task Plan: Validate Phase 3 Migrations & Related Issues
 
 **Goal**: Validate Phase 3 migrations against real PostgreSQL, complete

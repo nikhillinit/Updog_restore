@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # LP Reporting Dashboard - Security Fixes Implementation
 
 **Date:** 2025-12-23

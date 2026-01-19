@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Tiny DoD Template (10 Lines)
 
 Use this template as a footer for every Phase 3 documentation file:

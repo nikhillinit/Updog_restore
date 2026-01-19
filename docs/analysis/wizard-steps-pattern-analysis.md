@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Pattern Analysis: Wizard Steps - watch() Usage
 
 **Date**: 2025-11-30

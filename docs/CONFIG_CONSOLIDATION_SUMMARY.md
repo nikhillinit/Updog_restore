@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Configuration Consolidation Summary
 
 **Date**: 2025-10-16

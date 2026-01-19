@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Handoff Memo: Skills Application to Real VC Fund Work
 
 **Date**: 2025-11-29 **Project**: Press On Ventures VC Fund Modeling Platform

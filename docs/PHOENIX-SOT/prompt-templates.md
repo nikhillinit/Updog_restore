@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Prompt Templates (Phoenix)
 
 > Canonical prompts for repeatable checks and validations. Audience: humans + AI

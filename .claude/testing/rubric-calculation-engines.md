@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Calculation Engines Testing Rubric
 
 **Domain:** Financial calculations (XIRR, waterfall, Monte Carlo, reserves, pacing)

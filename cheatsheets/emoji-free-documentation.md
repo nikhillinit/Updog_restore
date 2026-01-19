@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Emoji-Free Documentation Guide
 
 ## Why No Emojis?

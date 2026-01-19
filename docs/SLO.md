@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # SLOs & Error Budgets
 
 **Primary SLO**: p95 end-to-end latency ≤ 400 ms in normal conditions.

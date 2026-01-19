@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Integration Test Re-enablement - Continuation Prompt
 
 **Context**: This prompt is for continuing the integration test re-enablement work in a new conversation session.

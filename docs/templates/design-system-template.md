@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Design System Document Template
 **Version:** 1.0
 **Type:** UI/UX Design System Documentation

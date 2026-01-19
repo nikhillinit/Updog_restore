@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Cohort Analysis Engine - Overview
 
 **Module:** `client/src/core/cohorts/CohortEngine.ts` **Purpose:** Vintage

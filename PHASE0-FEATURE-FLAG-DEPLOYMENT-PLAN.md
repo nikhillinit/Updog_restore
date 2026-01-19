@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 0.2: Feature Flag & Phased Rollout Plan
 
 **Status:** Complete **Created:** 2025-01-08 **Priority:** P0 - Deployment

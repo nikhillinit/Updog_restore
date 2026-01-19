@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Updog_restore Hygiene Sprint - Kickoff Prompt
 
 **Date:** December 15, 2025 **Purpose:** Foundation stabilization before Phase 2

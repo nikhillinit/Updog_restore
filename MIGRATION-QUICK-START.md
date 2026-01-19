@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Schema Migration - Quick Start Guide
 
 **Status**: READY FOR EXECUTION **Risk**: LOW (zero downtime, fully reversible)

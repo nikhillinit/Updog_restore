@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # DEAL PIPELINE DEVELOPMENT TASKS
 
 ## Database Architect Phase: Pipeline Schema Design

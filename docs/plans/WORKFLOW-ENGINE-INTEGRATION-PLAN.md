@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Claude Workflow Engine Integration Plan
 
 **Created**: 2025-12-19

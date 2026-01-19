@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Fail–Open–Close Policy Matrix (Per Route/Dependency)
 
 | Route | Dependency | Policy | Fallback | Data Risk Notes |

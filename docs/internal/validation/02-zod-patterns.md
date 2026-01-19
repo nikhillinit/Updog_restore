@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Zod Patterns: Schema Composition & Refinements
 
 **Purpose:** Copy-paste ready Zod patterns for common validation scenarios in VC

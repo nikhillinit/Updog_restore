@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # CI Validator Guide
 
 **Purpose**: Quick reference for using and extending CI quality gate validators

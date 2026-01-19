@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Database Optimization: Performance & Reliability
 
 **Author**: Database Team **Last Updated**: 2025-11-06 **Status**:

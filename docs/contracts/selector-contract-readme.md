@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Fund KPI Selector Contract System
 
 Production-ready TypeScript implementation for calculating VC fund Key

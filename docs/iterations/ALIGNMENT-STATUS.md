@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Iteration A: Alignment Checkpoint Status
 
 **Date**: 2025-10-03

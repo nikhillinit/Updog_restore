@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Release Compatibility Matrix
 | PR/Feature | Depends on | Can ship alone? | Fallback if reverted | Data migration type |
 |---|---|---|---|---|

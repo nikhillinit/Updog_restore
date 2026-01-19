@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Database Expert Agent Memory: Schema TDD Workflow
 
 **Agent:** `agent:database-expert:updog`

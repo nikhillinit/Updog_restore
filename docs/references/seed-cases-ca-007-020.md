@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 Here are **ready‑to‑use seed cases for CA‑007 … CA‑020** that match your
 **v1.0.0 schema** (with `schemaVersion`, `description`, categories incl.
 `integration`, non‑negative **contributions**, and negative **distributions**

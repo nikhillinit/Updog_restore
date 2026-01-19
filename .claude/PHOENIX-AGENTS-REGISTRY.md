@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phoenix Agent & Skill Registry
 
 **Last Updated**: 2025-12-14 **Phoenix Version**: v2.34 **Total Components**: 9

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Platform-Wide Manual Testing Rubric - Index
 
 **Purpose:** Comprehensive manual testing guide for the Press On Ventures portfolio management platform

@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Rate Limiting Implementation - P1 Security Control
 
 **Date:** 2025-01-15

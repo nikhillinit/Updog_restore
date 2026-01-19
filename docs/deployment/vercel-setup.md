@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Vercel Production Setup Guide
 
 This guide documents the required Vercel dashboard settings for production

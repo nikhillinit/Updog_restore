@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Capital Allocation Semantic Lock
 
 **Status**: ACTIVE - Phase 1 Implementation In Progress

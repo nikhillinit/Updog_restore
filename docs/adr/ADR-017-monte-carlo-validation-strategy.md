@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-017: Monte Carlo Validation Strategy
 
 **Status**: Approved **Date**: 2025-10-30 **Owners**: Platform Engineering, Risk

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Foundation Hardening Sprint (Deferred - Scope Documentation Only)
 
 **Status:** NOT STARTED (awaiting Phase 0-1 commit) **Prepared:** 2025-12-15

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Automated Development Pipeline
 
 This guide sets up an automated pathway where AI handles debugging and UI improvements without manual file copying.

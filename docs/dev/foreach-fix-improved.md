@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Async forEach Fix - Production Guide
 
 > Replace problematic `forEach` patterns with proper async iteration utilities

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Database Layer Overview
 
 **Purpose:** Architectural overview of the database layer, CQRS pattern

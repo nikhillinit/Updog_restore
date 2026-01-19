@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1B: Fee Calculations Documentation - IN PROGRESS
 
 **Status:** Documentation Generated, Assembly Required **Date:** 2025-01-28

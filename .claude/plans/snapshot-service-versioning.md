@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Snapshot Service Versioning Implementation Plan
 
 **Feature**: Model versioning and scenario comparison for forecast snapshots

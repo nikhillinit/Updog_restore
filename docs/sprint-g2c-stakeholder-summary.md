@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Sprint G2C Stakeholder Summary
 **For:** PM/PO and Executive Sponsors  
 **Sprint Duration:** Day 15-21 (7 days)  

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Claude Code Skills Library
 
 This directory contains structured thinking frameworks and workflow skills to

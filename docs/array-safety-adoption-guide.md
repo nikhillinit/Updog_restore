@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Array Safety Utilities - Team Adoption Guide
 
 ## Overview

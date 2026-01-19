@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Documentation Navigation Guide
 
 **Last Updated**: 2025-11-04 **Purpose**: Quick reference for finding

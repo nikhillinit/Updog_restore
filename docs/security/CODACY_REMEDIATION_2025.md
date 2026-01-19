@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Codacy Security Remediation - January 2025
 
 ## Executive Summary

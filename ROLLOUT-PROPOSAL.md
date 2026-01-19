@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Updog Fund Modeling Platform - MVP Rollout Proposal
 
 **Version**: 1.0

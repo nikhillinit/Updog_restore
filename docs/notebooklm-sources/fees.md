@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Fee Calculations Module
 
 The fee calculations module handles all fee-related computations in the venture

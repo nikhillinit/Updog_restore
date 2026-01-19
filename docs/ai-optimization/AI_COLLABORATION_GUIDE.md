@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # AI Collaboration Methods - Complete Guide
 
 **Date:** October 5, 2025 **Status:** ✅ Production Ready **Features:** Debate,

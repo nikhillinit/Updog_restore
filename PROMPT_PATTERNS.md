@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Prompt Engineering Patterns
 
 **Document Status:** Living documentation of proven prompt patterns from Phase 1

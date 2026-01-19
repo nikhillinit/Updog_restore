@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Service Testing Patterns
 
 Guide for testing service and API layers with proper isolation.

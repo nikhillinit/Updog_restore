@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 > **DEPRECATED - 2025-12-11** This document has been superseded by
 > `docs/PHOENIX-SOT/execution-plan-v2.34.md`. Kept for provenance only. Do
 > **not** use for planning, agent invocation, or workflow execution. For current

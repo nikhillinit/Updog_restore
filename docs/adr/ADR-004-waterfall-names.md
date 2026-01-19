@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-004: Waterfall Calculation Naming and Rounding Contract
 
 **Status:** Accepted **Date:** 2025-10-27 **Decision Makers:** Technical Team

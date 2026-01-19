@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 0.1: Data Migration Strategy for share_price_cents
 
 **Status:** Analysis Complete **Created:** 2025-01-08 **Priority:** P0 -

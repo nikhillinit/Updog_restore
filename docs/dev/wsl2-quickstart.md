@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # WSL2 Quick Start - Linux Build Test
 
 **Time**: 5-10 minutes | **No Docker needed** ✅

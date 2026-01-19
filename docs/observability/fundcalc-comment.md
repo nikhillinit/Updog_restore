@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR-B — Deterministic Fund Calc Engine (Status: Changes requested)
 
 **Keep going—direction is good.** To align with the deterministic design and avoid accounting drift, please address the items below.

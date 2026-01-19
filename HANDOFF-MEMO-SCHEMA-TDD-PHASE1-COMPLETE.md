@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Handoff Memo: Portfolio Route Lot-Level MOIC - Phase 1 Complete
 
 **Date:** 2025-11-08

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Self-Review Checklist
 
 Run this checklist on every documentation file before considering it complete.

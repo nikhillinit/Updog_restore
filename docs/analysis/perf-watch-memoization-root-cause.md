@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Root Cause Investigation: watch() Defeating Memoization
 
 **Date**: 2025-11-30

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # ADR-015: XIRR Bounded Rate Strategy
 
 **Date**: 2025-12-10 **Status**: Accepted **Context**: Phoenix v2.33 XIRR

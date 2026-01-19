@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Modeling Wizard Architecture Design
 
 **Version:** 1.0 **Date:** 2025-10-02 **Author:** Claude Code **Status:** ✅

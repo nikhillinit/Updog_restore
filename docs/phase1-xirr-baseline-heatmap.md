@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1.1.1 XIRR Baseline Heatmap
 
 **Generated:** 2025-12-11T22:05:58.949Z  

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR Merge Verification - Quick Reference
 
 **Purpose:** Ensure accurate PR readiness assessment by comparing to baseline, not absolute standards

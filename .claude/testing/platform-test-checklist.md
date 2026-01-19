@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Platform Testing Quick Reference Checklist
 
 **Purpose:** Fast pre-release smoke test covering all critical paths

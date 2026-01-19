@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 0B Service Layer - Quick Reference
 
 **Date:** 2025-11-10

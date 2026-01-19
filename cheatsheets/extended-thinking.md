@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Extended Thinking Cheatsheet
 
 Quick reference for using Claude's extended thinking feature in the Updog

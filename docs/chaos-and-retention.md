@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Chaos Engineering & Audit Retention System
 
 This document describes the comprehensive chaos testing and audit retention system implemented for hardened production operations.

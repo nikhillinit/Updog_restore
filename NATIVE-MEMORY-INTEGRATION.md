@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Native Memory Tool Integration
 
 **Status**: ✅ Core Implementation Complete (Phase 1-4)
