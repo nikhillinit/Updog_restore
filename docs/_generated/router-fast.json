@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-01-19T18:54:10.676Z",
+  "generatedAt": "2026-01-19T21:24:40.733Z",
   "keyword_to_docs": {
     "add feature": [
       "CAPABILITIES.md"
@@ -85,7 +85,7 @@
       ".claude/skills/async-error-resilience.md"
     ],
     "auth": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "auto validate": [
       ".claude/agents/workflow-orchestrator.md"
@@ -140,7 +140,7 @@
       ".claude/skills/task-decomposition.md"
     ],
     "broken": [
-      "SIDECAR_GUIDE.md"
+      "docs/INDEX.md"
     ],
     "broken test": [
       ".claude/agents/test-repair.md"
@@ -307,7 +307,7 @@
       ".claude/skills/brainstorming.md"
     ],
     "credential": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "critical thinking": [
       ".claude/skills/extended-thinking-framework.md"
@@ -319,13 +319,13 @@
       "docs/observability/"
     ],
     "database": [
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "database migration": [
       ".claude/agents/db-migration.md"
     ],
     "db": [
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "db:push": [
       ".claude/agents/db-migration.md"
@@ -403,7 +403,7 @@
       "docs/runbooks/"
     ],
     "drizzle": [
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "drizzle schema": [
       ".claude/agents/schema-drift-checker.md"
@@ -427,10 +427,10 @@
       ".claude/skills/api-design-principles.md"
     ],
     "env": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "error": [
-      "SIDECAR_GUIDE.md"
+      "docs/INDEX.md"
     ],
     "error ignored": [
       ".claude/agents/silent-failure-hunter.md"
@@ -572,7 +572,7 @@
       ".claude/agents/xirr-fees-validator.md"
     ],
     "issue": [
-      "SIDECAR_GUIDE.md"
+      "docs/INDEX.md"
     ],
     "jest": [
       "docs/INDEX.md"
@@ -587,7 +587,7 @@
       ".claude/agents/devops-troubleshooter.md"
     ],
     "key": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "kpi": [
       "docs/observability/"
@@ -653,7 +653,7 @@
       "docs/observability/"
     ],
     "migration": [
-      "SIDECAR_GUIDE.md",
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md",
       ".claude/agents/db-migration.md"
     ],
     "missing error handling": [
@@ -691,7 +691,7 @@
       ".claude/agents/test-scaffolder.md"
     ],
     "not working": [
-      "SIDECAR_GUIDE.md"
+      "docs/INDEX.md"
     ],
     "notebooklm": [
       "docs/notebooklm-sources/"
@@ -748,7 +748,7 @@
       ".claude/commands/phoenix-truth.md"
     ],
     "password": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "pattern": [
       ".claude/skills/pattern-recognition.md"
@@ -793,7 +793,7 @@
       ".claude/agents/playwright-test-author.md"
     ],
     "postgres": [
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "power law": [
       "docs/forecasting/"
@@ -820,7 +820,7 @@
       ".claude/commands/phoenix-phase2.md"
     ],
     "problem": [
-      "SIDECAR_GUIDE.md"
+      "docs/INDEX.md"
     ],
     "prod": [
       "docs/workflows/PRODUCTION_SCRIPTS.md"
@@ -936,7 +936,7 @@
     ],
     "schema": [
       "docs/schemas/",
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "schema alignment": [
       ".claude/agents/schema-drift-checker.md"
@@ -951,10 +951,10 @@
       ".claude/agents/schema-drift-checker.md"
     ],
     "secret": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "security": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "security audit": [
       ".claude/commands/wshobson/deps-audit.md"
@@ -1014,7 +1014,7 @@
       ".claude/agents/parity-auditor.md"
     ],
     "sql": [
-      "SIDECAR_GUIDE.md"
+      "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     ],
     "stack trace": [
       ".claude/agents/debug-expert.md"
@@ -1099,7 +1099,7 @@
       ".claude/agents/waterfall-specialist.md"
     ],
     "token": [
-      "SIDECAR_GUIDE.md"
+      "SECURITY.md"
     ],
     "token budgeting": [
       "docs/adr/"
@@ -1247,7 +1247,7 @@
         "env"
       ],
       "priority": 5,
-      "route_to": "SIDECAR_GUIDE.md",
+      "route_to": "SECURITY.md",
       "why": "Security routing (priority 5)"
     },
     {
@@ -1570,7 +1570,7 @@
         "drizzle"
       ],
       "priority": 50,
-      "route_to": "SIDECAR_GUIDE.md",
+      "route_to": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md",
       "why": "Database routing (priority 50)"
     },
     {
@@ -1959,7 +1959,7 @@
         "not working"
       ],
       "priority": 100,
-      "route_to": "SIDECAR_GUIDE.md",
+      "route_to": "docs/INDEX.md",
       "why": "Troubleshooting routing (priority 100)"
     },
     {
