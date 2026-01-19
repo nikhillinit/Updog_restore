@@ -297,7 +297,15 @@
     "docs:verify:all": "npm run docs:verify && npm run validate:claude-md",
     "docs:routing:generate": "npx tsx scripts/generate-discovery-map.ts",
     "docs:routing:check": "npx tsx scripts/generate-discovery-map.ts --check",
-    "docs:routing:query": "npx tsx scripts/routeQueryFast.ts"
+    "docs:routing:query": "npx tsx scripts/routeQueryFast.ts",
+    "reflection:new": "python scripts/manage_skills.py new --title",
+    "reflection:check": "python scripts/manage_skills.py check --title",
+    "reflection:rebuild": "python scripts/manage_skills.py rebuild",
+    "reflection:rebuild:check": "python scripts/manage_skills.py rebuild --check",
+    "reflection:validate": "python scripts/manage_skills.py validate",
+    "reflection:wizard-index": "python scripts/manage_skills.py wizard-index",
+    "reflection:wizard-index:check": "python scripts/manage_skills.py wizard-index --check",
+    "reflection:metrics": "python scripts/manage_skills.py metrics"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
