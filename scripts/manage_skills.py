@@ -16,6 +16,7 @@ Safety Features:
 import sys
 import re
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 from datetime import datetime
@@ -26,9 +27,32 @@ try:
 except ImportError:
     HAS_YAML = False
 
-# Paths relative to project root
-SKILLS_DIR = Path("docs/skills")
-TESTS_DIR = Path("tests/regressions")
+
+def find_repo_root() -> Path:
+    """Find repository root with a git fallback."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        repo_root = result.stdout.strip()
+        if not repo_root:
+            raise RuntimeError("git returned empty repo root")
+        return Path(repo_root)
+    except Exception as e:
+        print(
+            f"[WARN] Could not determine repo root via git: {e}. Falling back to current working directory.",
+            file=sys.stderr,
+        )
+        return Path.cwd()
+
+
+# Paths relative to repository root
+REPO_ROOT = find_repo_root()
+SKILLS_DIR = REPO_ROOT / "docs/skills"
+TESTS_DIR = REPO_ROOT / "tests/regressions"
 INDEX_FILE = SKILLS_DIR / "SKILLS_INDEX.md"
 TEMPLATE_FILE = SKILLS_DIR / "template-refl.md"
 
@@ -242,7 +266,18 @@ def rebuild_index(check_mode=False):
         "",
         "- **VERIFIED**: Lesson confirmed with passing regression test",
         "- **DRAFT**: Lesson identified but not yet fully documented/tested",
-        "- **DEPRECATED**: Superseded by newer reflection"
+        "- **DEPRECATED**: Superseded by newer reflection",
+        "",
+        "---",
+        "",
+        "## Related Documentation",
+        "",
+        "| Document | Purpose |",
+        "|----------|---------|",
+        "| [README.md](README.md) | Reflection system overview and workflows |",
+        "| [CAPABILITIES.md](../../CAPABILITIES.md) | Available agents and tools |",
+        "| [cheatsheets/anti-pattern-prevention.md](../../cheatsheets/anti-pattern-prevention.md) | 24 cataloged anti-patterns |",
+        "| [DECISIONS.md](../../DECISIONS.md) | Architectural decisions |"
     ])
 
     index_content = "\n".join(lines) + "\n"

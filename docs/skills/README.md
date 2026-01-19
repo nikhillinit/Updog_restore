@@ -88,3 +88,22 @@ This runs in CI and fails on integrity errors.
 - State Management: Hydration, Persistence
 - Math/Currency: Rounding, Precision, XIRR
 - Portfolio Calculations: Capital allocation, Exit recycling
+
+## Related Documentation
+
+When working with the reflection system, consult these additional resources:
+
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| [SKILLS_INDEX.md](SKILLS_INDEX.md) | Reflection registry | Finding specific reflections |
+| [CAPABILITIES.md](../../CAPABILITIES.md) | Available agents and tools | Before complex tasks |
+| [cheatsheets/anti-pattern-prevention.md](../../cheatsheets/anti-pattern-prevention.md) | 24 cataloged anti-patterns | Code review |
+| [cheatsheets/daily-workflow.md](../../cheatsheets/daily-workflow.md) | Standard development workflow | Daily reference |
+| [DECISIONS.md](../../DECISIONS.md) | Architectural decisions | Understanding "why" |
+
+### Key Agents for Reflection-Related Work
+
+- **waterfall-specialist**: Domain expert for carry distribution calculations
+- **phoenix-precision-guardian**: Precision and type-safety hardening
+- **xirr-fees-validator**: Validation for XIRR and fee calculations
+- **test-repair**: Autonomous test failure detection and repair
