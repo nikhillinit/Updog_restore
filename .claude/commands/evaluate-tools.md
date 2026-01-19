@@ -1,4 +1,6 @@
 ---
+status: ACTIVE
+last_updated: 2026-01-19
 description:
   Run AI tool evaluation framework to test calculation accuracy and performance
 ---
