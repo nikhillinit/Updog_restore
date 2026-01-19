@@ -1,0 +1,26 @@
+name: Reflection Validation
+on:
+  pull_request:
+    paths:
+      - 'docs/skills/**'
+      - 'tests/regressions/REFL-*'
+      - 'scripts/manage_skills.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-reflections:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyYAML
+        run: python -m pip install --upgrade pip pyyaml
+      - name: Validate reflections
+        run: python scripts/manage_skills.py validate
+      - name: Check wizard index freshness
+        run: python scripts/manage_skills.py wizard-index --check
