@@ -233,7 +233,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-DIRECTORY.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -262,7 +262,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/AGENT-METRICS.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -315,7 +315,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/DISCOVERY-MAP.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -1006,6 +1006,18 @@
     {
       "docType": "command",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/commands/advise.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "command",
+      "exists": true,
       "frontmatter": {
         "allowed-tools": "Read, Grep, Glob",
         "description": "Comprehensive catalog of all development tooling and assets"
@@ -1202,6 +1214,30 @@
     {
       "docType": "command",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/commands/retrospective.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "command",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/commands/session-learnings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "command",
+      "exists": true,
       "frontmatter": {
         "allowed-tools": "Read, Bash",
         "description": "Initialize session context with Memory Manager integration"
@@ -1291,7 +1327,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Team'",
       "path": ".claude/docs/TEST-STRATEGY.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -1379,7 +1415,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": ".claude/plan.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -2290,6 +2326,23 @@
     {
       "docType": "skill",
       "exists": true,
+      "frontmatter": {
+        "auto_activate": true,
+        "description": "Extract and codify learnings from planning-with-files sessions",
+        "name": "session-learnings",
+        "trigger": "After completing work sessions, before closing PRs"
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": ".claude/skills/session-learnings/SKILL.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -2862,20 +2915,25 @@
       "lastUpdated": "2025-12-12",
       "owner": "'Core Team'",
       "path": "CAPABILITIES.md",
-      "staleDays": 37,
+      "staleDays": 38,
       "status": "ACTIVE"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "owner": "Core Team",
+        "review_cadence": "P7D",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": "Core Team",
       "path": "CHANGELOG.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -2928,14 +2986,19 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "owner": "Core Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": "Core Team",
       "path": "DECISIONS.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -3047,7 +3110,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "FOUNDATION-HARDENING-EXECUTION-PLAN.md",
-      "staleDays": 33,
+      "staleDays": 34,
       "status": "ACTIVE"
     },
     {
@@ -3989,14 +4052,19 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "owner": "Core Team",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": "Core Team",
       "path": "cheatsheets/INDEX.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -4781,7 +4849,7 @@
       "lastUpdated": "2025-12-12",
       "owner": "Core Team",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
-      "staleDays": 37,
+      "staleDays": 38,
       "status": "ACTIVE"
     },
     {
@@ -4877,7 +4945,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/INDEX.md",
-      "staleDays": 33,
+      "staleDays": 34,
       "status": "ACTIVE"
     },
     {
@@ -5158,7 +5226,7 @@
       "lastUpdated": "2025-12-14",
       "owner": "Phoenix Team",
       "path": "docs/PHOENIX-SOT/README.md",
-      "staleDays": 35,
+      "staleDays": 36,
       "status": "ACTIVE"
     },
     {
@@ -5733,42 +5801,6 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
-      "path": "docs/adr/ADR-010-monte-carlo-validation-strategy.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/adr/ADR-011-stage-normalization-v2.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/adr/ADR-012-mem0-integration.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
       "path": "docs/adr/ADR-013-scenario-comparison-activation.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -5794,6 +5826,42 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/adr/ADR-015-XIRR-BOUNDED-RATES.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/adr/ADR-017-monte-carlo-validation-strategy.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/adr/ADR-018-stage-normalization-v2.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/adr/ADR-019-mem0-integration.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -7151,7 +7219,7 @@
       "lastUpdated": "2025-12-23",
       "owner": null,
       "path": "docs/lp-reporting-database-optimization.md",
-      "staleDays": 26,
+      "staleDays": 27,
       "status": "active"
     },
     {
@@ -7842,6 +7910,174 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/build-stabilization/00-ITERATION-LOG.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/phase2-hardening/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/phase2-hardening/progress.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/phase2-hardening/task_plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/00-ITERATION-LOG.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/01-codex-findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/02-strategy-validation.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/03-risk-register.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/04-decision-log.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/05-phase1-plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/06-phase2-plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/07-asset-inventory.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/08-execution-checklist.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/planning/reflection-remediation/09-open-questions.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
       "lastUpdated": null,
@@ -8404,7 +8640,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "'Core Team'",
       "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
-      "staleDays": 33,
+      "staleDays": 34,
       "status": "ACTIVE"
     },
     {
@@ -8728,6 +8964,54 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/plans/recharts-formatter-type-fix-plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/reflection-consolidation-plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/reflection-path-fix/README.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/reflection-path-fix/findings.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/plans/reflection-path-fix/progress.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -9527,6 +9811,114 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/00-ITERATION-LOG.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/01-dependency-audit.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/02-risk-assessment.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/03-remediation-plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/04-verification-log.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/security/remediation-2026-01-18/05-lockfile-changes.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/session-learning-reports/2026-01-01-to-01-07-extraction.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/session-learning-reports/2026-01-08-to-01-18-extraction.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/session-learning-reports/2026-01-18-extraction.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": true,
       "isStale": true,
       "lastUpdated": null,
@@ -9546,6 +9938,787 @@
       "path": "docs/skills-application-synthesis.md",
       "staleDays": 999,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/README.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "tests",
+          "server",
+          "integration"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "ERR_MODULE_NOT_FOUND",
+          "ECONNREFUSED",
+          "SQLITE_ERROR"
+        ],
+        "id": "REFL-001",
+        "keywords": [
+          "dynamic-import",
+          "beforeAll",
+          "side-effects",
+          "vitest",
+          "integration-tests"
+        ],
+        "severity": "medium",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-001.test.ts",
+        "title": "Dynamic Imports Prevent Test Side Effects",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-001-dynamic-imports-prevent-test-side-effects.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "ci",
+          "github-actions",
+          "workflows"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-002",
+        "keywords": [
+          "post-merge",
+          "pr-ci",
+          "push-only",
+          "workflow-conditions",
+          "report-metrics"
+        ],
+        "severity": "high",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-002.test.ts",
+        "title": "Post-Merge Jobs Not Validated by PR CI",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "ci",
+          "scripts",
+          "filesystem"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-003",
+        "keywords": [
+          "cross-platform",
+          "windows",
+          "linux",
+          "git-ls-files",
+          "file-enumeration",
+          "deterministic"
+        ],
+        "severity": "medium",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-003.test.ts",
+        "title": "Cross-Platform File Enumeration Fragility",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          ""
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-004",
+        "keywords": [
+          ""
+        ],
+        "severity": "medium # critical | high | medium | low",
+        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-004.test.ts",
+        "title": "Schema Format Backward Compatibility",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-004-schema-format-backward-compatibility.md",
+      "staleDays": 999,
+      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          ""
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-005",
+        "keywords": [
+          ""
+        ],
+        "severity": "medium # critical | high | medium | low",
+        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-005.test.ts",
+        "title": "Stale Test Files with API Mismatch",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-005-stale-test-files-with-api-mismatch.md",
+      "staleDays": 999,
+      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "xirr",
+          "analytics",
+          "calculations"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "XIRR_NO_CONVERGENCE",
+          "XIRR_DIVERGED"
+        ],
+        "id": "REFL-006",
+        "keywords": [
+          "xirr",
+          "newton-raphson",
+          "brent",
+          "divergence",
+          "extreme-irr",
+          "financial-calculation"
+        ],
+        "severity": "critical",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-006.test.ts",
+        "title": "XIRR Newton-Raphson Divergence on Extreme Returns",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "tests",
+          "vitest",
+          "mocking"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-007",
+        "keywords": [
+          "vi.mock",
+          "global-mock",
+          "test-pollution",
+          "vitest",
+          "mock-factory"
+        ],
+        "severity": "high",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-007.test.ts",
+        "title": "Global vi.mock Pollutes All Tests",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          ""
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-008",
+        "keywords": [
+          ""
+        ],
+        "severity": "medium # critical | high | medium | low",
+        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-008.test.ts",
+        "title": "TypeScript Type Inference from Database Schemas",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md",
+      "staleDays": 999,
+      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "scripts",
+          "parsing",
+          "cross-platform"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-009",
+        "keywords": [
+          "crlf",
+          "lf",
+          "line-endings",
+          "frontmatter",
+          "yaml",
+          "windows",
+          "linux",
+          "regex"
+        ],
+        "severity": "medium",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-009.test.ts",
+        "title": "CRLF Line Endings Break Frontmatter Parsing",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "server",
+          "security",
+          "express",
+          "rate-limiting"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "ERR_TRUST_PROXY",
+          "RATE_LIMIT_BYPASS"
+        ],
+        "id": "REFL-010",
+        "keywords": [
+          "trust-proxy",
+          "rate-limiter",
+          "express",
+          "x-forwarded-for",
+          "reverse-proxy",
+          "load-balancer"
+        ],
+        "severity": "high",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-010.test.ts",
+        "title": "Trust Proxy Configuration for Rate Limiters",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "client",
+          "charts",
+          "recharts"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "TS2345",
+          "TS2322"
+        ],
+        "id": "REFL-011",
+        "keywords": [
+          "recharts",
+          "tooltip",
+          "formatter",
+          "typescript",
+          "undefined",
+          "callback"
+        ],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-011.test.ts",
+        "title": "Recharts Formatter Type Signatures",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-011-recharts-formatter-type-signatures.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "server",
+          "middleware",
+          "idempotency",
+          "redis"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "ERR_RACE_CONDITION",
+          "ERR_DUPLICATE_REQUEST"
+        ],
+        "id": "REFL-012",
+        "keywords": [
+          "fire-and-forget",
+          "async",
+          "race-condition",
+          "idempotency",
+          "storeResponse",
+          "await",
+          "mutex"
+        ],
+        "severity": "high",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-012.test.ts",
+        "title": "Fire-and-Forget Async Creates Race Conditions",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "routing",
+          "discovery",
+          "pattern-matching"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "ERR_ROUTE_MISMATCH"
+        ],
+        "id": "REFL-013",
+        "keywords": [
+          "router",
+          "includes",
+          "substring",
+          "word-boundary",
+          "false-positive",
+          "pattern-matching"
+        ],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-013.test.ts",
+        "title": "Router Substring Matching Causes False Positives",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-013-router-substring-matching-causes-false-positives.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "tests",
+          "vitest",
+          "redis",
+          "fixtures"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-014",
+        "keywords": [
+          "test-isolation",
+          "key-reuse",
+          "redis",
+          "beforeEach",
+          "uuid",
+          "flaky-tests"
+        ],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-014.test.ts",
+        "title": "Test Key Reuse Across Test Cases",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-014-test-key-reuse-across-test-cases.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "ci",
+          "database",
+          "postgresql",
+          "github-actions"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "ECONNREFUSED",
+          "database_does_not_exist"
+        ],
+        "id": "REFL-015",
+        "keywords": [
+          "postgresql",
+          "test-database",
+          "ci",
+          "github-actions",
+          "docker",
+          "service-container"
+        ],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-015.test.ts",
+        "title": "PostgreSQL Service Missing Test Database",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-015-postgresql-service-missing-test-database.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "tests",
+          "vitest",
+          "configuration"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-016",
+        "keywords": [
+          "vitest",
+          "include",
+          "glob",
+          "test-discovery",
+          "silent-failure",
+          "config"
+        ],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-016.test.ts",
+        "title": "Vitest Include Patterns Miss New Test Directories",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          "ci",
+          "github-actions",
+          "permissions"
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          "HttpError",
+          "404",
+          "403"
+        ],
+        "id": "REFL-017",
+        "keywords": [
+          "github-actions",
+          "permissions",
+          "pull-requests",
+          "write",
+          "GITHUB_TOKEN",
+          "workflow"
+        ],
+        "severity": "low",
+        "status": "DRAFT",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-017.test.ts",
+        "title": "CI Workflow Permission Errors",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-017-ci-workflow-permission-errors.md",
+      "staleDays": 999,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "date": "2026-01-18",
+        "id": "REFL-018",
+        "severity": "medium",
+        "status": "VERIFIED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-018.test.ts",
+        "title": "Reserve Engine Null Safety",
+        "type": "reflection",
+        "version": 1
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/REFL-018-reserve-engine-null-safety.md",
+      "staleDays": 999,
+      "status": "VERIFIED"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/SKILLS_INDEX.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/WIZARD_INDEX.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "components": [
+          ""
+        ],
+        "date": "2026-01-18",
+        "error_codes": [
+          ""
+        ],
+        "id": "REFL-000",
+        "keywords": [
+          ""
+        ],
+        "severity": "medium # critical | high | medium | low",
+        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
+        "superseded_by": "null",
+        "test_file": "tests/regressions/REFL-000.test.ts",
+        "title": "Short Descriptive Title",
+        "type": "reflection",
+        "version": 1,
+        "wizard_steps": [
+          ""
+        ]
+      },
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/skills/template-refl.md",
+      "staleDays": 999,
+      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
     },
     {
       "docType": "doc",
@@ -9793,7 +10966,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -10081,7 +11254,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-roadmap.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -10113,7 +11286,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "'Platform Developer'",
       "path": "docs/xirr-consolidation-summary.md",
-      "staleDays": 20,
+      "staleDays": 21,
       "status": "ACTIVE"
     },
     {
@@ -10177,7 +11350,7 @@
       "status": "UNKNOWN"
     }
   ],
-  "generatedAt": "2026-01-18T11:14:14.371Z",
+  "generatedAt": "2026-01-19T16:54:56.638Z",
   "patterns": [
     {
       "category": "Security",
@@ -11285,14 +12458,17 @@
   ],
   "stats": {
     "by_status": {
-      "ACTIVE": 14,
-      "UNKNOWN": 757,
+      "ACTIVE": 17,
+      "DRAFT": 7,
+      "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
+      "UNKNOWN": 788,
+      "VERIFIED": 8,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 688,
-    "stale_docs": 762,
-    "total_docs": 776
+    "missing_frontmatter": 718,
+    "stale_docs": 812,
+    "total_docs": 829
   },
   "version": "2.0"
 }

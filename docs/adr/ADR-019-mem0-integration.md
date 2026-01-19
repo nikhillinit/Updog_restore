@@ -1,4 +1,4 @@
-# ADR-012: mem0 Integration for AI Agent Memory Management
+# ADR-019: mem0 Integration for AI Agent Memory Management
 
 **Status:** Proposed **Date:** 2025-10-31 **Decision Makers:** Engineering Team,
 AI Architecture Team **Consulted:** Gemini AI Expert, OpenAI AI Expert, Deep

@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+owner: Core Team
+review_cadence: P90D
+---
+
 # Architecture Decision Records
 
 This file documents key architectural and technical decisions made during the

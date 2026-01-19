@@ -1,22 +1,25 @@
 # Staleness Report
 
-*Generated: 2026-01-18T11:14:15.171Z*
+*Generated: 2026-01-19T16:54:57.416Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 776 |
-| Stale Documents | 762 |
-| Missing Frontmatter | 688 |
+| Total Documents | 829 |
+| Stale Documents | 812 |
+| Missing Frontmatter | 718 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| UNKNOWN | 757 |
-| ACTIVE | 14 |
+| UNKNOWN | 788 |
+| ACTIVE | 17 |
+| VERIFIED | 8 |
+| DRAFT | 7 |
+| DRAFT # VERIFIED | DRAFT | DEPRECATED | 4 |
 | ready | 3 |
 | active | 2 |
 
@@ -71,13 +74,13 @@ Documents that need review (older than their cadence threshold):
 | `.claude/agents/waterfall-specialist.md` | Never | 999 | No | Unassigned |
 | `.claude/agents/workflow-orchestrator.md` | Never | 999 | YES - verify! | Unassigned |
 | `.claude/agents/xirr-fees-validator.md` | Never | 999 | No | Unassigned |
+| `.claude/commands/advise.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/catalog-tooling.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/db-validate.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/deploy-check.md` | Never | 999 | YES - verify! | Unassigned |
 | `.claude/commands/enable-agent-memory.md` | Never | 999 | No | Unassigned |
-| `.claude/commands/evaluate-tools.md` | Never | 999 | No | Unassigned |
 
-*...and 712 more stale documents.*
+*...and 762 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -90,6 +93,8 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **.claude/commands/fix-auto.md** (999 days old)
 - [ ] **.claude/commands/pr-ready.md** (999 days old)
 - [ ] **.claude/commands/pre-commit-check.md** (999 days old)
+- [ ] **.claude/commands/retrospective.md** (999 days old)
+- [ ] **.claude/commands/session-learnings.md** (999 days old)
 - [ ] **.claude/commands/workflows.md** (999 days old)
 - [ ] **.claude/commands/wshobson/deps-audit.md** (999 days old)
 - [ ] **.claude/integration-test-execution-summary.md** (999 days old)
@@ -121,9 +126,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **.claude/testing/week2-execution-report.md** (999 days old)
 - [ ] **ANTI_PATTERNS.md** (999 days old)
 - [ ] **BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md** (999 days old)
-- [ ] **CHANGELOG.md** (999 days old)
 - [ ] **COMPREHENSIVE-WORKFLOW-GUIDE.md** (999 days old)
-- [ ] **DECISIONS.md** (999 days old)
 - [ ] **HANDOFF-MEMO-2025-10-30.md** (999 days old)
 - [ ] **HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md** (999 days old)
 - [ ] **HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md** (999 days old)
@@ -221,6 +224,8 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/phase1b-waterfall-evaluator-hardening.md** (999 days old)
 - [ ] **docs/phase2 docs/CHECKLIST-Phase2.md** (999 days old)
 - [ ] **docs/phase2 docs/STRATEGY-Phase2-CapitalAllocation.md** (999 days old)
+- [ ] **docs/planning/phase2-hardening/task_plan.md** (999 days old)
+- [ ] **docs/planning/reflection-remediation/05-phase1-plan.md** (999 days old)
 - [ ] **docs/plans/2025-12-28-backend-testing-improvements.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase2-planning-REVIEW.md** (999 days old)
 - [ ] **docs/plans/2025-12-29-phase2-planning.md** (999 days old)
@@ -261,6 +266,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/plans/option2-session-logs/task_plan.md** (999 days old)
 - [ ] **docs/plans/phase3-validation-progress.md** (999 days old)
 - [ ] **docs/plans/phase3-validation-task-plan.md** (999 days old)
+- [ ] **docs/plans/reflection-consolidation-plan.md** (999 days old)
 - [ ] **docs/plans/xstate-persistence-implementation.md** (999 days old)
 - [ ] **docs/processes/CONTRIBUTING.md** (999 days old)
 - [ ] **docs/processes/code-review-checklist.md** (999 days old)
@@ -271,6 +277,9 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/replit.md** (999 days old)
 - [ ] **docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md** (999 days old)
 - [ ] **docs/skills-application-log.md** (999 days old)
+- [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
+- [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
+- [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/sprint-g2c-backlog.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-b-stage-validation-prep.md** (999 days old)
 - [ ] **docs/staging/phase2.1/cluster-c-APPLY-PATCHES.md** (999 days old)
@@ -292,7 +301,10 @@ Documents without proper YAML frontmatter:
 - [ ] `.claude/PHOENIX-TOOL-ROUTING.md`
 - [ ] `.claude/PROJECT-UNDERSTANDING.md`
 - [ ] `.claude/WORKFLOW.md`
+- [ ] `.claude/commands/advise.md`
 - [ ] `.claude/commands/evaluate-tools.md`
+- [ ] `.claude/commands/retrospective.md`
+- [ ] `.claude/commands/session-learnings.md`
 - [ ] `.claude/commands/wshobson/deps-audit.md`
 - [ ] `.claude/commands/wshobson/tech-debt.md`
 - [ ] `.claude/integration-test-execution-summary.md`
@@ -391,12 +403,10 @@ Documents without proper YAML frontmatter:
 - [ ] `ANTI_PATTERNS.md`
 - [ ] `BASELINE-SNAPSHOT-20251215.md`
 - [ ] `BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md`
-- [ ] `CHANGELOG.md`
 - [ ] `CLAUDE.md`
 - [ ] `CLAUDE_COOKBOOK_INTEGRATION.md`
 - [ ] `CLAUDE_PROJECT_INSTRUCTIONS.md`
 - [ ] `COMPREHENSIVE-WORKFLOW-GUIDE.md`
-- [ ] `DECISIONS.md`
 - [ ] `DEV_BOOTSTRAP_README.md`
 - [ ] `DOCKER-WSL2-SETUP-GUIDE.md`
 - [ ] `DOCUMENTATION-NAVIGATION-GUIDE.md`
@@ -481,7 +491,6 @@ Documents without proper YAML frontmatter:
 - [ ] `VERCEL_SOLUTION.md`
 - [ ] `WEEK_1_FINAL_VALIDATED.md`
 - [ ] `WORKTREE-INVENTORY.md`
-- [ ] `cheatsheets/INDEX.md`
 - [ ] `cheatsheets/agent-architecture.md`
 - [ ] `cheatsheets/agent-memory-integration.md`
 - [ ] `cheatsheets/agent-memory/database-expert-schema-tdd.md`
@@ -615,12 +624,12 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/adr/ADR-007-exit-recycling-policy.md`
 - [ ] `docs/adr/ADR-008-capital-allocation-policy.md`
 - [ ] `docs/adr/ADR-009-RESERVED.md`
-- [ ] `docs/adr/ADR-010-monte-carlo-validation-strategy.md`
-- [ ] `docs/adr/ADR-011-stage-normalization-v2.md`
-- [ ] `docs/adr/ADR-012-mem0-integration.md`
 - [ ] `docs/adr/ADR-013-scenario-comparison-activation.md`
 - [ ] `docs/adr/ADR-014-RESERVED.md`
 - [ ] `docs/adr/ADR-015-XIRR-BOUNDED-RATES.md`
+- [ ] `docs/adr/ADR-017-monte-carlo-validation-strategy.md`
+- [ ] `docs/adr/ADR-018-stage-normalization-v2.md`
+- [ ] `docs/adr/ADR-019-mem0-integration.md`
 - [ ] `docs/adr/README.md`
 - [ ] `docs/agent-2-mobile-executive-dashboard.md`
 - [ ] `docs/ai-enhanced-components-guide.md`
@@ -788,6 +797,20 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/phase2 docs/README.md`
 - [ ] `docs/phase2 docs/STRATEGY-Phase2-CapitalAllocation.md`
 - [ ] `docs/phoenix-v2.32-command-enhancements.md`
+- [ ] `docs/planning/build-stabilization/00-ITERATION-LOG.md`
+- [ ] `docs/planning/phase2-hardening/findings.md`
+- [ ] `docs/planning/phase2-hardening/progress.md`
+- [ ] `docs/planning/phase2-hardening/task_plan.md`
+- [ ] `docs/planning/reflection-remediation/00-ITERATION-LOG.md`
+- [ ] `docs/planning/reflection-remediation/01-codex-findings.md`
+- [ ] `docs/planning/reflection-remediation/02-strategy-validation.md`
+- [ ] `docs/planning/reflection-remediation/03-risk-register.md`
+- [ ] `docs/planning/reflection-remediation/04-decision-log.md`
+- [ ] `docs/planning/reflection-remediation/05-phase1-plan.md`
+- [ ] `docs/planning/reflection-remediation/06-phase2-plan.md`
+- [ ] `docs/planning/reflection-remediation/07-asset-inventory.md`
+- [ ] `docs/planning/reflection-remediation/08-execution-checklist.md`
+- [ ] `docs/planning/reflection-remediation/09-open-questions.md`
 - [ ] `docs/plans/2025-12-28-backend-testing-improvements.md`
 - [ ] `docs/plans/2025-12-29-phase2-planning-REVIEW.md`
 - [ ] `docs/plans/2025-12-29-phase2-planning.md`
@@ -860,6 +883,10 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/phase3-validation-progress.md`
 - [ ] `docs/plans/phase3-validation-task-plan.md`
 - [ ] `docs/plans/recharts-formatter-type-fix-plan.md`
+- [ ] `docs/plans/reflection-consolidation-plan.md`
+- [ ] `docs/plans/reflection-path-fix/README.md`
+- [ ] `docs/plans/reflection-path-fix/findings.md`
+- [ ] `docs/plans/reflection-path-fix/progress.md`
 - [ ] `docs/plans/xstate-persistence-implementation.md`
 - [ ] `docs/policies/feasibility-constraints.md`
 - [ ] `docs/portfolio-construction-modeling.md`
@@ -926,8 +953,20 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/schemas/schema-helpers-integration.md`
 - [ ] `docs/security/CODACY_REMEDIATION_2025.md`
 - [ ] `docs/security/cve-exceptions.md`
+- [ ] `docs/security/remediation-2026-01-18/00-ITERATION-LOG.md`
+- [ ] `docs/security/remediation-2026-01-18/01-dependency-audit.md`
+- [ ] `docs/security/remediation-2026-01-18/02-risk-assessment.md`
+- [ ] `docs/security/remediation-2026-01-18/03-remediation-plan.md`
+- [ ] `docs/security/remediation-2026-01-18/04-verification-log.md`
+- [ ] `docs/security/remediation-2026-01-18/05-lockfile-changes.md`
+- [ ] `docs/session-learning-reports/2026-01-01-to-01-07-extraction.md`
+- [ ] `docs/session-learning-reports/2026-01-08-to-01-18-extraction.md`
+- [ ] `docs/session-learning-reports/2026-01-18-extraction.md`
 - [ ] `docs/skills-application-log.md`
 - [ ] `docs/skills-application-synthesis.md`
+- [ ] `docs/skills/README.md`
+- [ ] `docs/skills/SKILLS_INDEX.md`
+- [ ] `docs/skills/WIZARD_INDEX.md`
 - [ ] `docs/sprint-g2c-automation-kickoff.md`
 - [ ] `docs/sprint-g2c-backlog.md`
 - [ ] `docs/sprint-g2c-ceremony-calendar.md`

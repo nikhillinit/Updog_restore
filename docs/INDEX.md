@@ -143,18 +143,15 @@ Hardening baseline)
 - ADR-011: Anti-Pattern Prevention Strategy (DECISIONS.md)
 - ADR-014: PR Merge Criteria (baseline comparison)
 
-**WARNING: ADR Number Conflicts**
+**Standalone ADRs (docs/adr/)**:
 
-ADR-010, ADR-011, ADR-012 exist in BOTH `DECISIONS.md` AND `docs/adr/` with
-different content. When referencing, specify the file path explicitly:
+| ADR | Title                                            |
+| --- | ------------------------------------------------ |
+| 017 | Monte Carlo Validation Strategy                  |
+| 018 | Typed Stage Normalization & Statistical Testing  |
+| 019 | mem0 Integration for AI Agent Memory Management  |
 
-| ADR | In DECISIONS.md                  | In docs/adr/                    |
-| --- | -------------------------------- | ------------------------------- |
-| 010 | PowerLawDistribution API Design  | Monte Carlo Validation Strategy |
-| 011 | Anti-Pattern Prevention Strategy | Typed Stage Normalization       |
-| 012 | Evidence-Based Document Reviews  | mem0 Integration                |
-
-**Resolution needed**: docs/adr/ ADRs should be renumbered to ADR-017+.
+*Note: ADR-017/018/019 were renumbered from 010/011/012 to avoid conflicts with DECISIONS.md (2026-01-19).*
 
 ---
 

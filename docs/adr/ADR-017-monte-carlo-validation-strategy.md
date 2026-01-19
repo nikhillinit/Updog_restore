@@ -1,4 +1,4 @@
-# ADR-010: Monte Carlo Validation Strategy
+# ADR-017: Monte Carlo Validation Strategy
 
 **Status**: Approved **Date**: 2025-10-30 **Owners**: Platform Engineering, Risk
 & Analytics

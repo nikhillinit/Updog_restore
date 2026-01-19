@@ -1,3 +1,10 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+owner: Core Team
+review_cadence: P7D
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
