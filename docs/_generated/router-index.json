@@ -158,7 +158,7 @@
     },
     "Q5": {
       "branches": {
-        "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"SIDECAR_GUIDE.md\""
+        "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"docs/INDEX.md\""
       },
       "id": "category_routing",
       "keywords": [
@@ -13504,7 +13504,7 @@
       "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-01-19T18:54:10.676Z",
+  "generatedAt": "2026-01-19T21:24:40.733Z",
   "patterns": [
     {
       "category": "Security",
@@ -13520,7 +13520,7 @@
         "env"
       ],
       "priority": 5,
-      "target": "SIDECAR_GUIDE.md"
+      "target": "SECURITY.md"
     },
     {
       "category": "Phoenix",
@@ -13729,7 +13729,7 @@
         "drizzle"
       ],
       "priority": 50,
-      "target": "SIDECAR_GUIDE.md"
+      "target": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     },
     {
       "category": "Memory",
@@ -13980,7 +13980,7 @@
         "not working"
       ],
       "priority": 100,
-      "target": "SIDECAR_GUIDE.md"
+      "target": "docs/INDEX.md"
     },
     {
       "category": "Development",

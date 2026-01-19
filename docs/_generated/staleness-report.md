@@ -1,6 +1,6 @@
 # Staleness Report
 
-*Generated: 2026-01-19T18:54:11.849Z*
+*Generated: 2026-01-19T21:24:41.776Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary

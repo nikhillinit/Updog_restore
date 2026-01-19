@@ -125,7 +125,7 @@ decision_tree:
         route: "docs/workflows/PRODUCTION_SCRIPTS.md"
       troubleshooting:
         keywords: ["error", "debug", "fix", "broken", "issue"]
-        route: "SIDECAR_GUIDE.md"
+        route: "docs/INDEX.md"
     default_route: "docs/INDEX.md"
     next: "Q6"
 
@@ -161,7 +161,7 @@ patterns:
       - "security"
       - "credential"
       - "env"
-    target: "SIDECAR_GUIDE.md"
+    target: "SECURITY.md"
     warning: "Security-sensitive operation - verify permissions"
 
   # --- Phoenix System (domain-specific, high priority) ---
@@ -359,7 +359,7 @@ patterns:
       - "schema"
       - "postgres"
       - "drizzle"
-    target: "SIDECAR_GUIDE.md"
+    target: "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
     agent: "database-expert"
 
   # --- Memory Systems ---
@@ -605,7 +605,7 @@ patterns:
       - "issue"
       - "problem"
       - "not working"
-    target: "SIDECAR_GUIDE.md"
+    target: "docs/INDEX.md"
     secondary: "cheatsheets/document-review-workflow.md"
 
   # =============================================================================
