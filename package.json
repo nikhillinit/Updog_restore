@@ -394,7 +394,7 @@
     "express-rate-limit": "^8.2.1",
     "fast-deep-equal": "^3.1.3",
     "fast-json-patch": "3.1.1",
-    "framer-motion": "^11.13.1",
+    "framer-motion": "^12.27.1",
     "helmet": "^8.1.0",
     "immer": "^10.2.0",
     "input-otp": "^1.4.2",
