@@ -1,6 +1,6 @@
 # Staleness Report
 
-*Generated: 2026-01-19T17:42:21.514Z*
+*Generated: 2026-01-19T18:54:11.849Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
@@ -8,16 +8,16 @@
 | Metric | Value |
 |--------|-------|
 | Total Documents | 829 |
-| Stale Documents | 101 |
-| Missing Frontmatter | 7 |
+| Stale Documents | 94 |
+| Missing Frontmatter | 0 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 604 |
-| HISTORICAL | 124 |
-| UNKNOWN | 77 |
+| ACTIVE | 605 |
+| HISTORICAL | 130 |
+| UNKNOWN | 70 |
 | VERIFIED | 8 |
 | DRAFT | 7 |
 | DRAFT # VERIFIED | DRAFT | DEPRECATED | 4 |
@@ -71,7 +71,6 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/db-validate.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/deploy-check.md` | Never | 999 | YES - verify! | Unassigned |
 | `.claude/commands/enable-agent-memory.md` | Never | 999 | No | Unassigned |
-| `.claude/commands/evaluate-tools.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/fix-auto.md` | Never | 999 | YES - verify! | Unassigned |
 | `.claude/commands/log-change.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/log-decision.md` | Never | 999 | No | Unassigned |
@@ -80,8 +79,9 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/phoenix-truth.md` | Never | 999 | No | Unassigned |
 | `.claude/commands/pr-ready.md` | Never | 999 | YES - verify! | Unassigned |
 | `.claude/commands/pre-commit-check.md` | Never | 999 | YES - verify! | Unassigned |
+| `.claude/commands/session-start.md` | Never | 999 | No | Unassigned |
 
-*...and 51 more stale documents.*
+*...and 44 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -96,9 +96,6 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **.claude/commands/workflows.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-phase3-continuation-v6.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-phase3-continuation-v9.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
@@ -107,13 +104,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 
 Documents without proper YAML frontmatter:
 
-- [ ] `.claude/commands/evaluate-tools.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-fundcalc-comment-v1.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-merge-review-final-v1.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-review-v1.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md`
-- [ ] `docs/observability/archive/2025-10-06/pr-113-summary-v1.md`
+*All documents have frontmatter.*
 
 ---
 

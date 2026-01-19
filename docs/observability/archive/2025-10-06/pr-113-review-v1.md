@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # PR #113 Review - RS256 JWT Authentication & Fund Calc Engine
 
 **Status:** 🟡 **Requires Changes** (blocking issues identified)

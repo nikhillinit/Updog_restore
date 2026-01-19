@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # PR #113 - Final Merge Review & Recommendation
 
 **PR:** [#113 - HOTFIX: Restore RS256 JWT authentication (P0)](https://github.com/nikhillinit/Updog_restore/pull/113)
