@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Stage Normalization Migration Runbook (ADR-011)
 
 ## Overview

@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Integration Test Re-enablement - Final Report
 
 **Project**: Integration Test Re-enablement

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # CI Routing & Bundle-Size Fix - Findings
 
 > **Session:** 2026-01-15

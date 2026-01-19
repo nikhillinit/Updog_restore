@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Database Query Patterns & Transactions
 
 **Purpose:** Comprehensive guide to query patterns, transactions, CQRS

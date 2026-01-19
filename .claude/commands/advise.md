@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # /advise
 
 Pre-flight check before coding in high-risk domains.

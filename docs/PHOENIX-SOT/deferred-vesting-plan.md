@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phoenix Phase 1B → Phase 1A: Deferred Feature Plan
 
 **Created**: 2025-12-11 **Branch**: phoenix/phase0-truth-cases **Context**:

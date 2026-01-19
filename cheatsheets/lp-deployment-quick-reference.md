@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # LP Reporting Dashboard: Deployment Quick Reference
 
 **Deployment Infrastructure Version**: 1.0

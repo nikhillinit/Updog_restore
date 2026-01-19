@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Findings: Phase 3 Migrations & Related Issues
 
 **Last Updated**: 2026-01-16 (Plan Review Session 3) **Local Path**:

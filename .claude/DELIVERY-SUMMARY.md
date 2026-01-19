@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # LP Reporting Dashboard - Database Optimization Implementation
 ## Delivery Summary
 

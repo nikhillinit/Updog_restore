@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Seed Script Remaining Fixes
 
 **Status**: Partial fixes applied, manual SQL workaround created

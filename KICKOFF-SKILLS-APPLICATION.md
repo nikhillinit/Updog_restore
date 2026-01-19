@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Kickoff Prompt: Skills Application to Real VC Fund Work
 
 **Purpose**: Initiate real-world validation of 8 new Claude skills (Week 1 +

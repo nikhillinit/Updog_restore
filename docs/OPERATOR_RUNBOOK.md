@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Unified Metrics Layer - Operator Runbook
 
 **Quick Reference for Production Operations**

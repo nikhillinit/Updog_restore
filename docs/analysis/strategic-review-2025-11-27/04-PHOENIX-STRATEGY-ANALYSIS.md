@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phoenix Strategy Analysis
 
 **Note:** Execution details in this document are superseded by

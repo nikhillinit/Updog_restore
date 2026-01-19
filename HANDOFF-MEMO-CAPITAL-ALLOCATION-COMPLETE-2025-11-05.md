@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Handoff Memo: Capital Allocation Phase 1D Complete
 
 **Date**: 2025-11-05 **Session Focus**: Capital Allocation 90% → 99% Quality

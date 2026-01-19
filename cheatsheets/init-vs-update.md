@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Init vs Update Context - When to Use Which
 
 ## `/init CLAUDE.md` - For Fresh Starts

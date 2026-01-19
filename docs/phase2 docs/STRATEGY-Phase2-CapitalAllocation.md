@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 2 — Capital Allocation (Docs + Validation) — End‑to‑End Strategy
 
 This package contains everything needed to complete **Phase 2** for the Capital

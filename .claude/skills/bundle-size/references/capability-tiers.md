@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Bundle Size Capability Tiers
 
 This document defines what analysis is possible based on available build artifacts.

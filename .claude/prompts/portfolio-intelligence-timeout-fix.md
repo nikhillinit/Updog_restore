@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Intelligence Test Timeout Investigation
 
 **Context**: Route handler implementation is complete with 34/76 tests passing. The remaining 42 test failures are all timeout errors, not functional issues.

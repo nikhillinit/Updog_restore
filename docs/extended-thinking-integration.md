@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Extended Thinking Integration
 
 **Status:** ✅ Active **Date Added:** 2025-10-28 **Models Supported:** Claude

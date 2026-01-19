@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Architectural Debt Registry
 
 **Purpose:** Track COMPLEX refactoring opportunities that require focused

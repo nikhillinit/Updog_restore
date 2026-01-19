@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Wizard Cards Migration Guide
 
 Guide for migrating from legacy wizard cards to the new enhanced versions with inline validation.

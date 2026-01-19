@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Agent Memory Integration Cheatsheet
 
 Complete guide for integrating native memory tools (HybridMemoryManager,

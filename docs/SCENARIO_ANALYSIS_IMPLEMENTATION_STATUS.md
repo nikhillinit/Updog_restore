@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Scenario Analysis Implementation Status
 
 **Last Updated:** 2025-10-07

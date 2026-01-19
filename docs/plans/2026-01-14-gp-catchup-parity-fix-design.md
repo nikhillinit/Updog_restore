@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # GP Catch-Up Parity Formula Fix - Issue #256
 
 **Date**: 2026-01-14 **Status**: Ready for Implementation **Priority**: HIGH -

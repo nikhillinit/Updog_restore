@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Test Pyramid Guide
 
 **Purpose**: Guidance on test level selection and E2E scope control

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR Review Workflow Cheatsheet
 
 **Official Plugin:** PR Review Toolkit **Installation:** `/plugins` → Search

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio API Schema Migration Analysis & Strategy
 
 **Date**: 2025-11-09 **Branch**: `feat/portfolio-lot-moic-schema` **Target

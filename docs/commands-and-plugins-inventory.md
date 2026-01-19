@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Commands and Plugins Inventory
 
 **Date**: 2025-12-09 **Status**: Complete - All commands and plugins copied to

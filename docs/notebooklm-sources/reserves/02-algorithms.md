@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Reserve Allocation Engine - Algorithms
 
 **Module:** `client/src/core/reserves/ConstrainedReserveEngine.ts`

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Quarantine Test Failure Analysis - Issue #95
 
 ## Executive Summary

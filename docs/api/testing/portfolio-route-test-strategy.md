@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Route API Test Strategy
 
 **Version:** 1.0.0

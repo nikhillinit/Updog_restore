@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Documentation Frontmatter Schema (YAML)
 
 Every Markdown doc should begin with YAML frontmatter for discoverability and

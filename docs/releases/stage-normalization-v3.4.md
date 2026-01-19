@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Final Handoff Memo: Monte Carlo Hardening & Statistical Testing (ADR-011)
 
 **Date**: 2025-10-30 (Completion Session) **Commit**: 3224380

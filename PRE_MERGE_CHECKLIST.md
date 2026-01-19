@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Pre-Merge Checklist: Track 1A Complete ✅
 
 **Date:** 2025-10-13

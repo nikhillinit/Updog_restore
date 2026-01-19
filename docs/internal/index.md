@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 3 Internal Documentation Hub
 
 > **Purpose:** Accelerate developer onboarding from 2 weeks → 3-5 days by

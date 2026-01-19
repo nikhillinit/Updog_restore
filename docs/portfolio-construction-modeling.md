@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Construction Modeling
 
 This document describes the comprehensive portfolio construction modeling system that extends our existing variance tracking and time-travel analytics foundation.

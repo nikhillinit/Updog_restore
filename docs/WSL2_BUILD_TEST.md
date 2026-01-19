@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # WSL2 Build Test Guide - Docker Alternative
 
 **Date**: October 16, 2025 **Purpose**: Validate Linux build compatibility using

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Updog Restore Baseline Snapshot
 
 **Date:** 2025-12-15 20:48 PST **Commit:**

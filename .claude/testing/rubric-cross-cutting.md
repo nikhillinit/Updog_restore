@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Cross-Cutting Concerns Testing Rubric
 
 **Domain:** Security, performance, accessibility, error handling, browser compatibility

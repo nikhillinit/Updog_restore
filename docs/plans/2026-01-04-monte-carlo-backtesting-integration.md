@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Monte Carlo Simulation & Backtesting Integration Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to

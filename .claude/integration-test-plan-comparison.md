@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Integration Test Re-enablement Plan Comparison
 
 **Analysis Date**: 2025-12-21

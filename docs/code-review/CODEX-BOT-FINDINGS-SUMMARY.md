@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Codex Bot Review Findings Summary
 
 **Generated**: 2025-10-04

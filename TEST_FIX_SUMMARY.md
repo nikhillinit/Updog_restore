@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Portfolio Intelligence Test Fix Summary
 
 ## Problem Statement

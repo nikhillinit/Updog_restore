@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Existing Express.js Route Patterns Analysis
 
 **Date:** 2025-11-08

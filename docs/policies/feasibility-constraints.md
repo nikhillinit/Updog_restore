@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Feasibility Constraints Policy
 
 **Purpose**: Prevent invalid fund model inputs that would produce nonsensical forecasts.

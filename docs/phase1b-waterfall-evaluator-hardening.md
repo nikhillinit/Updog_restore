@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1B: Engine Stabilization - Waterfall Evaluator Hardening
 
 **Generated**: 2025-12-11 (Phoenix v2.33) **Phoenix Phase**: 1B - Engine

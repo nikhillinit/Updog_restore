@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Validation Report: "Proposed Next Steps - Oct 30 v2"
 
 **Date:** 2025-10-30 **Validated Against:** Updog_restore codebase (main branch,

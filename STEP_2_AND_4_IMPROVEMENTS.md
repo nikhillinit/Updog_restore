@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Step 2 & 4 UX Improvements - Completed
 
 **Date**: October 2, 2025

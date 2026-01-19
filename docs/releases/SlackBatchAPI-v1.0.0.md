@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 SlackBatchAPI-v1.0.0.md
 
 🚀 **Broadcast to All Subagents: SlackBatchAPI v1.0.0 Released**

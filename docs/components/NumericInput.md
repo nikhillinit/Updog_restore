@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # NumericInput Component Documentation
 
 > **Status**: ✅ Complete and Production Ready

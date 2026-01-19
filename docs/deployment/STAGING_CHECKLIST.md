@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Staging Deployment Checklist - Phase 0 Foundation
 
 ## Pre-Deployment Validation

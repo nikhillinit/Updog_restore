@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Implementation Parity Integration Strategy
 
 **Status:** DRAFT **Date:** 2025-12-16 **Context:** Divergence assessment

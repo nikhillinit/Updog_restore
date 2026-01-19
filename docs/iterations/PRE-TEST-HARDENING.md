@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Pre-Test Hardening Checklist
 
 **Purpose**: Surgical hardening pass before comprehensive testing to eliminate noise and ambiguity.

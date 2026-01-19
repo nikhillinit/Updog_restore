@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Claude Desktop Project Instructions - POVC Fund-Modeling Platform
 
 ## Project Context

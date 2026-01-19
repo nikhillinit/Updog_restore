@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Rollback Triggers for Reserves v1.1
 
 ## Automatic Rollback Triggers

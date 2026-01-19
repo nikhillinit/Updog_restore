@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Capital Allocation Implementation: Final Strategic Assessment (v6)
 
 **Date**: 2025-12-14

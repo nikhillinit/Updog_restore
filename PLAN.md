@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Advanced Cohort Analysis - Implementation Plan
 
 **Goal:** Implement cohort analysis to visualize portfolio performance by vintage/sector with company-level and investment-level views.

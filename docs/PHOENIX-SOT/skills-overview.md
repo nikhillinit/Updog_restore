@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phoenix Skills Overview
 
 > Single reference for all skills used in the Phoenix workflow. Audience:

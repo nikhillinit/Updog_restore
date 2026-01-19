@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Capital Allocation - Follow-On Projection Table Design
 
 **Status**: Post-Demo Implementation **Priority**: High Value UX Improvement

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Migration Guide: Native Memory Tool Integration
 
 **Version**: 1.0.0

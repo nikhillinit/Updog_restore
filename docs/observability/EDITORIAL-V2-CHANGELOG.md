@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Editorial v2 Changelog - PR #113 Review
 
 **Date:** 2025-10-06

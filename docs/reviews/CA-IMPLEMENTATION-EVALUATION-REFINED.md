@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Capital Allocation Implementation: Refined Critical Evaluation (v2)
 
 > **SUPERSEDED**: This document has been superseded by:

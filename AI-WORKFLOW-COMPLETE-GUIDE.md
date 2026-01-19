@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Complete AI-Augmented Workflow Guide
 
 ## **28 Agents + Orchestration + Superpowers + Thinking Skills**

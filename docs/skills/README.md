@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Team Memory: The Reflection System
 
 This directory contains the Updog_restore repository's "Team Memory" - a collection of reflections that capture critical lessons learned, especially those related to financial logic, architectural patterns, and bug prevention.

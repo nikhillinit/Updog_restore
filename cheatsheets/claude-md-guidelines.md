@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # CLAUDE.md Guidelines - Preventing Noise
 
 ## What BELONGS in CLAUDE.md

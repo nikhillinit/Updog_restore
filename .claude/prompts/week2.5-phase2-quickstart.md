@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 2 Quick Start: Fix React Hook Errors
 
 ## TL;DR

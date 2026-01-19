@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Week 2: Foundation Hardening - Tool Routing Execution Plan
 
 **Created**: 2025-12-19

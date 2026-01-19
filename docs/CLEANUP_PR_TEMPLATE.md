@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # 🧹 Cleanup PR Template - Remove Legacy State System
 
 **Use this template when fund store rollout reaches 100% for 24+ hours**

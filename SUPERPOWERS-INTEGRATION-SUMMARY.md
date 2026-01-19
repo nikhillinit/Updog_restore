@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Superpowers Skills Integration Summary
 
 **Date**: 2025-11-07 **Source**:

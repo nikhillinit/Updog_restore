@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Consolidation Strategy - Learnings & Documentation
 
 **Date**: 2025-10-16 **Project**: Codebase Consolidation (Workflows, Scripts,

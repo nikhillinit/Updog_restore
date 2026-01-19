@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1D Checkpoint Analysis
 
 **Date**: 2025-10-29 **Branch**: docs/phase1d-capital-allocation **Validation

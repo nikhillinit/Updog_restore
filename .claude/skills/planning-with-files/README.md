@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Planning with Files
 
 > **Work like Manus** — the AI agent company Meta acquired for **$2 billion**.

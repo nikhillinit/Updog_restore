@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # MCP Tools Integration Guide (Phoenix)
 
 > How external tools and MCP servers plug into the Phoenix execution plan.

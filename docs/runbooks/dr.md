@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Runbook — Disaster Recovery
 - RTO: ____ | RPO: ____
 1) Restore latest snapshot to staging; run checksums.

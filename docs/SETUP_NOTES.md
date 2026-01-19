@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Setup Notes
 Secrets required:
 - `READINESS_URL` (staging base URL)

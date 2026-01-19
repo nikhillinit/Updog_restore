@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Fund Allocation Management - Phase 1b: Reallocation Preview/Commit API
 
 **Status:** ✅ Complete

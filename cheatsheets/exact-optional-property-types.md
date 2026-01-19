@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Exact Optional Property Types Pattern
 
 **Last Updated**: 2025-11-30

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Behavioral Specifications: TimeTravelAnalyticsService
 
 **Generated:** 2025-10-27

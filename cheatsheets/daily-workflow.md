@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Daily Workflow - Solo Developer Guide
 
 Quick reference for common development workflows on the Updog VC fund modeling platform.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phoenix Tool Routing Guide
 
 > Decision tree for selecting agents, skills, MCP tools, and templates.

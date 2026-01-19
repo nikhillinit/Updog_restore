@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Handoff Memo: Capital Allocation (Phase 1D) Documentation Expansion
 
 **Date**: 2025-11-04 **Session Focus**: Phase 1 NotebookLM Documentation

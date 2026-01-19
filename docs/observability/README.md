@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Observability & Code Review Documentation
 
 This directory contains code reviews, metrics documentation, and observability guides for the Updog platform.

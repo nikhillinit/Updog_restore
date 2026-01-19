@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Multi-Agent Orchestration Patterns
 
 **Purpose**: Coordinate multiple AI agents for maximum efficiency and quality

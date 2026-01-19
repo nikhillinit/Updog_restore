@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # XIRR Golden Set Addition - Summary
 
 **Date**: 2025-12-09 **Action**: Added 25 Excel-validated golden set scenarios

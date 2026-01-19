@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # API-Engine Integration Design
 
 **Date:** 2026-01-04

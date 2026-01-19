@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Feature Flow Design Document Template
 **Version:** 1.0
 **Type:** UI/UX Feature Specification & User Flow Documentation

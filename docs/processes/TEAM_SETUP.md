@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Team Setup Guide
 
 This guide will help your team members get the POVC Fund Model application running locally and understand the codebase.

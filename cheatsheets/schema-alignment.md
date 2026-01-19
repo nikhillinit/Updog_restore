@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Schema Alignment Guide
 
 **Purpose**: How to keep schema layers synchronized

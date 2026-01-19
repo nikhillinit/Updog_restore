@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Phase 1.2 XIRR Investigation Summary
 
 **Date:** 2025-12-11 **Branch:** `phoenix/phase0-truth-cases` **Investigator:**

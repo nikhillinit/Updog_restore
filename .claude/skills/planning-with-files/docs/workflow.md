@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Workflow Diagram
 
 This diagram shows how the three files work together and how hooks interact with

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # LP Reporting Dashboard Deployment Checklist
 
 This guide provides step-by-step instructions for deploying the LP Reporting Dashboard feature to production environments.

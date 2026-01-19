@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Limited Partners - Construction Wizard
 
 **This is an optional section. If left unfilled, the forecasted model will summarize LP returns as a single LP entity. If you've defined LP's in this section, the model can forecast returns for each LP**

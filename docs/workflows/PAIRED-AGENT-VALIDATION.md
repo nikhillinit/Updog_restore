@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Paired-Agent Validation Workflow
 
 **Created:** 2025-11-09 **Status:** Active **Purpose:** Ensure quality through

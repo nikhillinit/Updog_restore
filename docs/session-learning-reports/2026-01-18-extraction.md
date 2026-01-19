@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Session Learnings Report
 
 **Generated:** 2026-01-18

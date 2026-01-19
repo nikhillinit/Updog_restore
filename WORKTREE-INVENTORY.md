@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Worktree Inventory - 2025-12-15
 
 ## All Worktrees

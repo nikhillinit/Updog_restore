@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Sprint G2C – Stabilization & UX Validation Backlog
 **Sprint Duration:** Day 15–21 (7 days)  
 **Sprint Goal:** Zero Sev-1 defects and validated user flows  

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Architectural Decision Records (ADRs)
 
 This document tracks architectural decisions for the Phoenix VC fund modeling

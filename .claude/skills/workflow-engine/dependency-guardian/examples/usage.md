@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Dependency Guardian Skill - Usage Examples
 
 ## Example 1: Scan Node.js Project for Vulnerabilities

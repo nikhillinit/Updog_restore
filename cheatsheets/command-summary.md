@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Command Summary - Quick Reference
 
 ## Memory Commands by Target File

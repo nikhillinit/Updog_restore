@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 2 — Acceptance Checklist
 
 - [ ] CA‑007…CA‑020 authored in `scripts/wip-cases/`, merged into canonical JSON

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Anti-Pattern Prevention Guide
 
 **Last Updated:** 2025-11-08 **Purpose:** Comprehensive reference for preventing

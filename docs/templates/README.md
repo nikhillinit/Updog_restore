@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # UI/UX Documentation Templates
 
 Comprehensive templates for creating design systems and feature specifications for UI/UX work.

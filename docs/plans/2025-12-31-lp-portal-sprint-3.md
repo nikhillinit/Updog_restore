@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # LP Portal Sprint 3 - Capital Calls, Distributions & Dashboard
 
 **Created:** 2025-12-31

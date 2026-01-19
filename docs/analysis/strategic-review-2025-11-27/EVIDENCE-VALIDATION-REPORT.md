@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Evidence Validation Report
 
 **Date**: 2025-11-27 **Agent**: Agent 3 (Evidence Validation) **Task**: Review

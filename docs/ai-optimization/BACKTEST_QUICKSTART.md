@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # AI Agent Backtest Framework - Quick Start Guide
 
 ## Overview

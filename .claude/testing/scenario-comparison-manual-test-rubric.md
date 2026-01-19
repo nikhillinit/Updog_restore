@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Manual Testing Rubric: Scenario Comparison MVP
 
 **Feature:** Scenario Comparison Tool (Phase 1 - Ephemeral Comparisons)

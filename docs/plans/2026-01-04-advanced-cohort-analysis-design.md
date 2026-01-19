@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Advanced Cohort Analysis — Design Document
 
 **Date:** 2026-01-04 **Status:** Draft (architecture + data model + engine

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Cross-Boundary Validation Integration
 
 **Purpose:** Complete validation flows across frontend → backend → database

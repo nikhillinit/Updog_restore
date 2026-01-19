@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Popular Style Guides by Language
 
 ## JavaScript/TypeScript

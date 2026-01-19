@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Portfolio API Phase 0 - Complete Handoff Memo
 
 **Date**: 2025-11-09 **From**: Design & Planning Session **To**: Implementation

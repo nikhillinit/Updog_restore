@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 0A Status Assessment
 
 **Date:** 2025-11-14 **Branch:** `feat/portfolio-lot-moic-schema` **Commit:**

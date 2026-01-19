@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Integration Test Re-enablement Plan v2 (Tool-Leveraged Approach)
 
 **Status**: Ready for Execution

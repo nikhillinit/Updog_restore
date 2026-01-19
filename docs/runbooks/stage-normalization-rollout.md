@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Runbook — Stage Normalization v3.4 Rollout
 
 ## Week‑0 Pre‑Flight (Required)

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # AI Code Review Cheatsheet
 
 Quick reference for the AI-powered code review system with memory & context

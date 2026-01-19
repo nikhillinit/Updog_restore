@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Bug Fix Summary: FeesExpensesStep Infinite Save Loop
 
 **Date**: 2025-11-30 **Branch**: `phoenix/phase-1-wizard-fees` **Severity**:

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Codacy (jcurve.ts) — Temporary Mitigation for Track 1A
 
 **Context:** Codacy flags two medium-severity findings in `shared/lib/jcurve.ts`:

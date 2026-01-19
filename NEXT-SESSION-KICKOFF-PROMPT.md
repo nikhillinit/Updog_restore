@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Next Session Kickoff Prompt
 
 **Copy and paste this into your next Claude Code session:**

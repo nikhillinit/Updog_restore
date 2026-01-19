@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR #113 — Split Plan (housekeeping)
 
 To reduce risk and speed review, let's split the current mixed PR into two focused PRs.

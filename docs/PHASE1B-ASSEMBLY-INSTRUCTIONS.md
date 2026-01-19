@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Phase 1B Assembly Instructions
 
 **Status:** Ready for Final Assembly **Date:** 2025-01-28 **Estimated Time:**

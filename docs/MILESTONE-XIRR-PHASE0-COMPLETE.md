@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Milestone: XIRR Phase 0 Completion
 
 **Date**: 2025-12-10 **Branch**: `docs/phoenix-v2.33-agents-only` **Status**: ✅

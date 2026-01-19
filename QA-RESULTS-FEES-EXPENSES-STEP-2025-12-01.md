@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # QA Execution Results: FeesExpensesStep Bug Fix
 
 **Date:** 2025-12-01 **Tester:** Manual QA + Automated Validation

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # RS256 JWT Authentication Setup Guide
 
 This guide explains how to configure RS256 (RSA) JWT authentication with JWKS (JSON Web Key Set) support.

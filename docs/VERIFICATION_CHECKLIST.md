@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Post-Merge Verification Checklist
 
 This checklist ensures circuit breaker implementation is properly deployed and functioning before proceeding with rollout phases.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # GitHub Setup Guide - Push to UpDawg Repository
 
 This guide will help you push the POVC Fund Model application to your GitHub repository at https://github.com/nikhillinit/UpDawg.git

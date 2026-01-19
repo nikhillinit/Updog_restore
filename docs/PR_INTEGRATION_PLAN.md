@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # PR Scaffolds Integration Plan (Weeks 1-4)
 
 This document outlines the integration strategy for the PR scaffolds bundle, mapping Fastify-based scaffolds to our Express-based application.

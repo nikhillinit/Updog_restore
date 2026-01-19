@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # XIRR Truth Case Failure Triage
 
 **Last Updated:** 2025-12-11 **Phase:** 1.2 Complete - 100% Excel Parity

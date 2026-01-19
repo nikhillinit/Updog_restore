@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Memory Commit Strategy
 
 ## When to Commit to Memory (Aligned with Git Commits)

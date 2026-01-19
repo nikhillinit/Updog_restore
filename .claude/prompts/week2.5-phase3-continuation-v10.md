@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Intelligence API - Continuation Prompt v10
 
 **Context**: Route handler implementation is complete with **124 of 169

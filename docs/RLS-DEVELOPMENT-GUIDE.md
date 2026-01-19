@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Row-Level Security (RLS) Development Guide
 
 Complete guide for developing and testing multi-tenant features with PostgreSQL Row-Level Security.

@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Portfolio Route v1 - Frozen API Contracts
 
 **Status:** ✅ Frozen (Immutable) **Version:** 1.0.0 **Created:** 2025-11-08

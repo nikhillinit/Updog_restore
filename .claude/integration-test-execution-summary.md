@@ -1,3 +1,8 @@
+---
+status: HISTORICAL
+last_updated: 2026-01-19
+---
+
 # Integration Test Re-enablement Execution Summary
 
 **Execution Date**: 2025-12-21

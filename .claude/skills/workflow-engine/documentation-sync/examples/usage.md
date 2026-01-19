@@ -1,3 +1,8 @@
+---
+status: ACTIVE
+last_updated: 2026-01-19
+---
+
 # Documentation Sync Skill - Usage Examples
 
 ## Example 1: Detect API Documentation Drift
