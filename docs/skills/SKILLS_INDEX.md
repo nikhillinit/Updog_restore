@@ -6,24 +6,24 @@
 
 | ID | Status | Title | Test | Path |
 |:---|:---|:---|:---|:---|
-| **[REFL-001](C:/dev/Updog_restore/docs/skills/REFL-001-dynamic-imports-prevent-test-side-effects.md)** | VERIFIED | Dynamic Imports Prevent Test Side Effects | [x] | `C:/dev/Updog_restore/docs/skills/REFL-001-dynamic-imports-prevent-test-side-effects.md` |
-| **[REFL-002](C:/dev/Updog_restore/docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md)** | VERIFIED | Post-Merge Jobs Not Validated by PR CI | [x] | `C:/dev/Updog_restore/docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` |
-| **[REFL-003](C:/dev/Updog_restore/docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md)** | VERIFIED | Cross-Platform File Enumeration Fragility | [x] | `C:/dev/Updog_restore/docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md` |
-| **[REFL-004](C:/dev/Updog_restore/docs/skills/REFL-004-schema-format-backward-compatibility.md)** | DRAFT | Schema Format Backward Compatibility | [x] | `C:/dev/Updog_restore/docs/skills/REFL-004-schema-format-backward-compatibility.md` |
-| **[REFL-005](C:/dev/Updog_restore/docs/skills/REFL-005-stale-test-files-with-api-mismatch.md)** | DRAFT | Stale Test Files with API Mismatch | [x] | `C:/dev/Updog_restore/docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` |
-| **[REFL-006](C:/dev/Updog_restore/docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md)** | VERIFIED | XIRR Newton-Raphson Divergence on Extreme Returns | [x] | `C:/dev/Updog_restore/docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` |
-| **[REFL-007](C:/dev/Updog_restore/docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md)** | VERIFIED | Global vi.mock Pollutes All Tests | [x] | `C:/dev/Updog_restore/docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` |
-| **[REFL-008](C:/dev/Updog_restore/docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md)** | DRAFT | TypeScript Type Inference from Database Schemas | [x] | `C:/dev/Updog_restore/docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` |
-| **[REFL-009](C:/dev/Updog_restore/docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md)** | VERIFIED | CRLF Line Endings Break Frontmatter Parsing | [x] | `C:/dev/Updog_restore/docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` |
-| **[REFL-010](C:/dev/Updog_restore/docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md)** | VERIFIED | Trust Proxy Configuration for Rate Limiters | [x] | `C:/dev/Updog_restore/docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` |
-| **[REFL-011](C:/dev/Updog_restore/docs/skills/REFL-011-recharts-formatter-type-signatures.md)** | DRAFT | Recharts Formatter Type Signatures | [x] | `C:/dev/Updog_restore/docs/skills/REFL-011-recharts-formatter-type-signatures.md` |
-| **[REFL-012](C:/dev/Updog_restore/docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md)** | DRAFT | Fire-and-Forget Async Creates Race Conditions | [x] | `C:/dev/Updog_restore/docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` |
-| **[REFL-013](C:/dev/Updog_restore/docs/skills/REFL-013-router-substring-matching-causes-false-positives.md)** | DRAFT | Router Substring Matching Causes False Positives | [x] | `C:/dev/Updog_restore/docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` |
-| **[REFL-014](C:/dev/Updog_restore/docs/skills/REFL-014-test-key-reuse-across-test-cases.md)** | DRAFT | Test Key Reuse Across Test Cases | [x] | `C:/dev/Updog_restore/docs/skills/REFL-014-test-key-reuse-across-test-cases.md` |
-| **[REFL-015](C:/dev/Updog_restore/docs/skills/REFL-015-postgresql-service-missing-test-database.md)** | DRAFT | PostgreSQL Service Missing Test Database | [x] | `C:/dev/Updog_restore/docs/skills/REFL-015-postgresql-service-missing-test-database.md` |
-| **[REFL-016](C:/dev/Updog_restore/docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md)** | DRAFT | Vitest Include Patterns Miss New Test Directories | [x] | `C:/dev/Updog_restore/docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md` |
-| **[REFL-017](C:/dev/Updog_restore/docs/skills/REFL-017-ci-workflow-permission-errors.md)** | DRAFT | CI Workflow Permission Errors | [x] | `C:/dev/Updog_restore/docs/skills/REFL-017-ci-workflow-permission-errors.md` |
-| **[REFL-018](C:/dev/Updog_restore/docs/skills/REFL-018-reserve-engine-null-safety.md)** | VERIFIED | Reserve Engine Null Safety | [x] | `C:/dev/Updog_restore/docs/skills/REFL-018-reserve-engine-null-safety.md` |
+| **[REFL-001](REFL-001-dynamic-imports-prevent-test-side-effects.md)** | VERIFIED | Dynamic Imports Prevent Test Side Effects | [x] | `docs/skills/REFL-001-dynamic-imports-prevent-test-side-effects.md` |
+| **[REFL-002](REFL-002-post-merge-jobs-not-validated-by-pr-ci.md)** | VERIFIED | Post-Merge Jobs Not Validated by PR CI | [x] | `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` |
+| **[REFL-003](REFL-003-cross-platform-file-enumeration-fragility.md)** | VERIFIED | Cross-Platform File Enumeration Fragility | [x] | `docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md` |
+| **[REFL-004](REFL-004-schema-format-backward-compatibility.md)** | DRAFT | Schema Format Backward Compatibility | [x] | `docs/skills/REFL-004-schema-format-backward-compatibility.md` |
+| **[REFL-005](REFL-005-stale-test-files-with-api-mismatch.md)** | DRAFT | Stale Test Files with API Mismatch | [x] | `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` |
+| **[REFL-006](REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md)** | VERIFIED | XIRR Newton-Raphson Divergence on Extreme Returns | [x] | `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` |
+| **[REFL-007](REFL-007-global-vi-mock-pollutes-all-tests.md)** | VERIFIED | Global vi.mock Pollutes All Tests | [x] | `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` |
+| **[REFL-008](REFL-008-typescript-type-inference-from-database-schemas.md)** | DRAFT | TypeScript Type Inference from Database Schemas | [x] | `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` |
+| **[REFL-009](REFL-009-crlf-line-endings-break-frontmatter-parsing.md)** | VERIFIED | CRLF Line Endings Break Frontmatter Parsing | [x] | `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` |
+| **[REFL-010](REFL-010-trust-proxy-configuration-for-rate-limiters.md)** | VERIFIED | Trust Proxy Configuration for Rate Limiters | [x] | `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` |
+| **[REFL-011](REFL-011-recharts-formatter-type-signatures.md)** | DRAFT | Recharts Formatter Type Signatures | [x] | `docs/skills/REFL-011-recharts-formatter-type-signatures.md` |
+| **[REFL-012](REFL-012-fire-and-forget-async-creates-race-conditions.md)** | DRAFT | Fire-and-Forget Async Creates Race Conditions | [x] | `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` |
+| **[REFL-013](REFL-013-router-substring-matching-causes-false-positives.md)** | DRAFT | Router Substring Matching Causes False Positives | [x] | `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` |
+| **[REFL-014](REFL-014-test-key-reuse-across-test-cases.md)** | DRAFT | Test Key Reuse Across Test Cases | [x] | `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` |
+| **[REFL-015](REFL-015-postgresql-service-missing-test-database.md)** | DRAFT | PostgreSQL Service Missing Test Database | [x] | `docs/skills/REFL-015-postgresql-service-missing-test-database.md` |
+| **[REFL-016](REFL-016-vitest-include-patterns-miss-new-test-directories.md)** | DRAFT | Vitest Include Patterns Miss New Test Directories | [x] | `docs/skills/REFL-016-vitest-include-patterns-miss-new-test-directories.md` |
+| **[REFL-017](REFL-017-ci-workflow-permission-errors.md)** | DRAFT | CI Workflow Permission Errors | [x] | `docs/skills/REFL-017-ci-workflow-permission-errors.md` |
+| **[REFL-018](REFL-018-reserve-engine-null-safety.md)** | VERIFIED | Reserve Engine Null Safety | [x] | `docs/skills/REFL-018-reserve-engine-null-safety.md` |
 
 ## How to Add a Reflection
 

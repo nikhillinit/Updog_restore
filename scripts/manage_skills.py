@@ -112,8 +112,8 @@ def get_reflections():
                 continue
 
             meta['filename'] = f.name
-            # Use forward slashes for consistent path representation
-            meta['path'] = str(f).replace('\\', '/')
+            # Use repo-relative path with forward slashes for portability
+            meta['path'] = f.relative_to(REPO_ROOT).as_posix()
             reflections.append(meta)
         except Exception as e:
             print(f"[WARN] Error parsing {f.name}: {e}", file=sys.stderr)
@@ -248,8 +248,9 @@ def rebuild_index(check_mode=False):
         if r.get('superseded_by'):
             status = f"DEPRECATED -> {r.get('superseded_by')}"
         test_file = r.get('test_file', f"tests/regressions/{r.get('id')}.test.ts")
-        test_exists = "[x]" if Path(test_file).exists() else "[ ]"
-        lines.append(f"| **[{r.get('id')}]({r.get('path')})** | {status} | {r.get('title')} | {test_exists} | `{r.get('path')}` |")
+        test_exists = "[x]" if (REPO_ROOT / test_file).exists() else "[ ]"
+        # Link uses filename (same directory), Path column shows repo-relative path
+        lines.append(f"| **[{r.get('id')}]({r.get('filename')})** | {status} | {r.get('title')} | {test_exists} | `{r.get('path')}` |")
 
     # Add footer with instructions
     lines.extend([
