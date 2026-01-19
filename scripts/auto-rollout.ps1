@@ -3,7 +3,7 @@ param(
   [int]$MaxPercent = 100,
   [int]$SoakMinutes = 60,
   [string]$BaseUrl = "",
-  [string]$RuntimeConfigPath = "public/runtime-config.json",
+  [string]$RuntimeConfigPath = "dist/public/runtime-config.json",
   [switch]$DryRun,
   [switch]$AutoRevert
 )
