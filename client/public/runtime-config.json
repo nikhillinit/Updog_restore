@@ -1,0 +1,19 @@
+{
+  "version": "ev1",
+  "flags": {
+    "useFundStore": {
+      "enabled": true,
+      "rollout": 100
+    }
+  },
+  "thresholds": {
+    "errorScore": 15,
+    "consecutiveHighScore": 3
+  },
+  "killSwitches": {
+    "emergencyRollback": false
+  },
+  "telemetry": {
+    "trackMigrations": true
+  }
+}
