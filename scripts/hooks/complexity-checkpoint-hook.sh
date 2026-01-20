@@ -5,20 +5,14 @@
 # Detects complex analysis tasks and reminds to use:
 # 1. planning-with-files for multi-step tasks
 # 2. Codex CLI for architectural/analysis decisions
-#
-# Trigger patterns:
-# - Multiple PRs (dependabot, review)
-# - Dependency analysis
-# - Architecture decisions
-# - Complex debugging
-# - Performance analysis
 # =============================================================================
 
-# Disable buffering for immediate output
-export PYTHONUNBUFFERED=1
-stty -icanon 2>/dev/null || true
+# Debug: log all invocations
+LOG_FILE="${TMPDIR:-/tmp}/complexity-hook.log"
+echo "$(date): Hook started" >> "$LOG_FILE"
 
-set -e
+# Don't exit on errors - we want to see what fails
+set +e
 
 # Debug mode (uncomment to enable)
 # DEBUG=1
@@ -27,8 +21,14 @@ set -e
 JQ="${HOME}/bin/jq.exe"
 [ -x "$JQ" ] || JQ="jq"
 
-# Read JSON input from stdin
-INPUT=$(cat)
+# Read JSON input from stdin or HOOK_INPUT env var (for wrapper compatibility)
+if [ -n "$HOOK_INPUT" ]; then
+  INPUT="$HOOK_INPUT"
+else
+  INPUT=$(cat)
+fi
+echo "$(date): INPUT length=${#INPUT}" >> "$LOG_FILE"
+echo "$(date): INPUT=${INPUT:0:200}" >> "$LOG_FILE"
 
 [ -n "$DEBUG" ] && echo "DEBUG: INPUT=$INPUT" >&2
 
@@ -67,8 +67,8 @@ if echo "$PROMPT_LOWER" | grep -qiE "(all|multiple|batch|9|several|many).*(pr|pu
   CODEX_REASON="External dependency evaluation"
 fi
 
-# Pattern: Dependabot specific
-if echo "$PROMPT_LOWER" | grep -qiE "dependabot.*(analyz|review|check|assess|evaluat)"; then
+# Pattern: Dependabot specific (bidirectional - "analyze dependabot" OR "dependabot analyze")
+if echo "$PROMPT_LOWER" | grep -qiE "(dependabot.*(analyz|review|check|assess|evaluat)|(analyz|review|check|assess|evaluat).*dependabot)"; then
   NEEDS_PLANNING=true
   NEEDS_CODEX=true
   PLANNING_REASON="Dependency upgrade analysis"
@@ -171,48 +171,52 @@ fi
 # =============================================================================
 
 if [ "$NEEDS_PLANNING" = true ] || [ "$NEEDS_CODEX" = true ]; then
-  echo ""
-  echo "=============================================="
-  echo "COMPLEXITY CHECKPOINT (auto-generated)"
-  echo "=============================================="
-  echo ""
+  # Write checkpoint file (workaround for UserPromptSubmit stdout bug #13912)
+  CHECKPOINT_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/complexity-checkpoint.md"
+  mkdir -p "$(dirname "$CHECKPOINT_FILE")"
 
-  if [ "$NEEDS_PLANNING" = true ]; then
-    echo "[PLANNING-WITH-FILES] $PLANNING_REASON"
+  {
+    echo "# COMPLEXITY CHECKPOINT"
     echo ""
-    echo "  Create before starting:"
-    echo "    docs/plans/$(date +%Y-%m-%d)-<task-name>/"
-    echo "      task_plan.md   - Phases and progress"
-    echo "      findings.md    - Research and discoveries"
-    echo "      progress.md    - Session log"
+    echo "**Triggered at:** $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "**Prompt excerpt:** ${PROMPT:0:100}..."
     echo ""
-    echo "  Benefits:"
-    echo "    - Persistent working memory"
-    echo "    - Enables /session-learnings extraction"
-    echo "    - Prevents context loss in long sessions"
-    echo ""
-  fi
 
-  if [ "$NEEDS_CODEX" = true ]; then
-    echo "[CODEX CHECKPOINT] $CODEX_REASON"
-    echo ""
-    echo "  Per CLAUDE.md codex_checkpoint rule:"
-    echo "    Codex is REQUIRED for:"
-    echo "    - Architectural decisions or design review"
-    echo "    - Implementation review or code quality"
-    echo "    - Debugging complex/unclear issues"
-    echo "    - External code/tooling evaluation"
-    echo "    - Performance analysis or optimization"
-    echo ""
-    echo "  Usage:"
-    echo "    codex-wrapper - \$(pwd) <<'EOF'"
-    echo "    [analysis prompt]"
-    echo "    EOF"
-    echo ""
-  fi
+    if [ "$NEEDS_PLANNING" = true ]; then
+      echo "## [PLANNING-WITH-FILES] ${PLANNING_REASON}"
+      echo ""
+      echo "Create before starting:"
+      echo "\`\`\`"
+      echo "docs/plans/$(date +%Y-%m-%d)-<task-name>/"
+      echo "  task_plan.md   - Phases and progress"
+      echo "  findings.md    - Research and discoveries"
+      echo "  progress.md    - Session log"
+      echo "\`\`\`"
+      echo ""
+    fi
 
-  echo "=============================================="
-  echo ""
+    if [ "$NEEDS_CODEX" = true ]; then
+      echo "## [CODEX CHECKPOINT] ${CODEX_REASON}"
+      echo ""
+      echo "Per CLAUDE.md codex_checkpoint rule, Codex is REQUIRED for:"
+      echo "- Architectural decisions or design review"
+      echo "- Implementation review or code quality"
+      echo "- Debugging complex/unclear issues"
+      echo "- External code/tooling evaluation"
+      echo "- Performance analysis or optimization"
+      echo ""
+      echo "Usage:"
+      echo "\`\`\`bash"
+      echo "codex-wrapper - \$(pwd) <<'EOF'"
+      echo "[analysis prompt]"
+      echo "EOF"
+      echo "\`\`\`"
+    fi
+  } > "$CHECKPOINT_FILE"
+
+  # Log for debugging
+  echo "$(date): Checkpoint written to $CHECKPOINT_FILE" >> "$LOG_FILE"
 fi
 
+# No stdout - workaround for bug #13912
 exit 0
