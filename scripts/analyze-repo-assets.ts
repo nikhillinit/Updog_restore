@@ -1,7 +1,15 @@
-#!/usr/bin/env node
-import { askAllAIs } from '../server/services/ai-orchestrator.ts';
+#!/usr/bin/env npx tsx
+/**
+ * Analyze Repository Assets using AI Orchestrator
+ *
+ * Usage:
+ *   npx tsx scripts/analyze-repo-assets.ts
+ */
 
-console.log('🤖 Querying DeepSeek and Gemini for repo asset analysis...\n');
+import { askAllAIs } from '../server/services/ai-orchestrator';
+import fs from 'fs';
+
+console.log('[AI] Querying DeepSeek and Gemini for repo asset analysis...\n');
 
 const prompt = `
 Analyze this VC fund modeling platform repository for EXISTING ASSETS:
@@ -43,33 +51,34 @@ Focus on WHAT EXISTS and HOW TO CONNECT efficiently. Provide specific file paths
 Response format: Structured inventory with actionable recommendations.
 `;
 
-try {
-  const results = await askAllAIs({
-    prompt,
-    models: ['gemini', 'deepseek'],
-    tags: ['repo-analysis', 'asset-inventory', 'progressive-calculation'],
-  });
+async function main() {
+  try {
+    const results = await askAllAIs({
+      prompt,
+      models: ['gemini', 'deepseek'],
+      tags: ['repo-analysis', 'asset-inventory', 'progressive-calculation'],
+    });
 
-  console.log('\n📊 ANALYSIS RESULTS:\n');
-  console.log('='.repeat(80));
+    console.log('\n[RESULTS] ANALYSIS RESULTS:\n');
+    console.log('='.repeat(80));
 
-  results.forEach((result, idx) => {
-    console.log(`\n🤖 ${result.model.toUpperCase()} Analysis:\n`);
-    console.log(result.text);
-    console.log('\n' + '-'.repeat(80));
-  });
+    results.forEach((result) => {
+      console.log(`\n[AI] ${result.model.toUpperCase()} Analysis:\n`);
+      console.log(result.text);
+      console.log('\n' + '-'.repeat(80));
+    });
 
-  console.log('\n✅ Analysis complete!');
+    console.log('\n[DONE] Analysis complete!');
 
-  // Save results to file
-  const fs = await import('fs');
-  fs.writeFileSync(
-    './temp/ai-repo-analysis.json',
-    JSON.stringify(results, null, 2)
-  );
-  console.log('\n💾 Results saved to: ./temp/ai-repo-analysis.json');
-
-} catch (error) {
-  console.error('❌ Error:', error.message);
-  process.exit(1);
+    // Save results to file
+    fs.mkdirSync('./temp', { recursive: true });
+    fs.writeFileSync('./temp/ai-repo-analysis.json', JSON.stringify(results, null, 2));
+    console.log('\n[SAVED] Results saved to: ./temp/ai-repo-analysis.json');
+  } catch (error) {
+    const err = error as Error;
+    console.error('[ERROR]', err.message);
+    process.exit(1);
+  }
 }
+
+main();
