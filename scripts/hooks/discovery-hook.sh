@@ -13,14 +13,19 @@ JQ="${HOME}/bin/jq.exe"
 # Output: Discovery results injected as context (max 5 recommendations)
 # =============================================================================
 
-set -e
+# Don't exit on errors - hook should be non-fatal
+set +e
 
 # Configuration
 MAX_RESULTS=7
 MIN_KEYWORD_LENGTH=4
 
-# Read JSON input from stdin
-INPUT=$(cat)
+# Read JSON input from stdin or HOOK_INPUT env var (for Windows PowerShell wrapper)
+if [ -n "$HOOK_INPUT" ]; then
+  INPUT="$HOOK_INPUT"
+else
+  INPUT=$(cat)
+fi
 
 # Extract prompt (handle both 'prompt' and 'user_prompt' fields)
 PROMPT=$(echo "$INPUT" | $JQ -r '.prompt // .user_prompt // ""' 2>/dev/null)
@@ -59,7 +64,8 @@ fi
 # DISCOVERY FUNCTIONS
 # =============================================================================
 
-PROJECT_ROOT=$(pwd)
+# Use CLAUDE_PROJECT_DIR if set (avoids cwd drift from rc files)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 # Temporary file for collecting matches with scores
 MATCHES_FILE=$(mktemp)
@@ -251,44 +257,48 @@ if [ "$MATCH_COUNT" -ge 1 ]; then
     CONFIDENCE="LOW"
   fi
 
-  echo ""
-  echo "=============================================="
-  echo "DISCOVERY (auto-generated)"
-  echo "=============================================="
-  echo "Confidence: $CONFIDENCE"
-  echo ""
-  echo "Recommended for this task:"
-  echo ""
+  # Write to file instead of stdout (workaround for bug #13912)
+  DISCOVERY_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/discovery.md"
+  mkdir -p "$(dirname "$DISCOVERY_FILE")"
 
-  echo "$SORTED_MATCHES" | while IFS='|' read -r score type name; do
-    if [ -n "$type" ] && [ -n "$name" ]; then
-      case "$type" in
-        router-agent|agent)
-          echo "  [AGENT] Task tool: subagent_type='$name'"
-          ;;
-        router-command|command)
-          echo "  [COMMAND] $name"
-          ;;
-        skill)
-          echo "  [SKILL] $name"
-          ;;
-        cheatsheet)
-          echo "  [CHEATSHEET] cheatsheets/${name}.md"
-          ;;
-        mcp)
-          echo "  [MCP] mcp__${name}__* tools available"
-          ;;
-        router-doc)
-          echo "  [DOC] $name"
-          ;;
-      esac
-    fi
-  done
+  {
+    echo "# DISCOVERY (auto-generated)"
+    echo ""
+    echo "**Confidence:** $CONFIDENCE"
+    echo "**Triggered at:** $(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
+    echo "## Recommended for this task:"
+    echo ""
 
-  echo ""
-  echo "Use these before implementing from scratch."
-  echo "=============================================="
-  echo ""
+    echo "$SORTED_MATCHES" | while IFS='|' read -r score type name; do
+      if [ -n "$type" ] && [ -n "$name" ]; then
+        case "$type" in
+          router-agent|agent)
+            echo "- [AGENT] Task tool: subagent_type='$name'"
+            ;;
+          router-command|command)
+            echo "- [COMMAND] $name"
+            ;;
+          skill)
+            echo "- [SKILL] $name"
+            ;;
+          cheatsheet)
+            echo "- [CHEATSHEET] cheatsheets/${name}.md"
+            ;;
+          mcp)
+            echo "- [MCP] mcp__${name}__* tools available"
+            ;;
+          router-doc)
+            echo "- [DOC] $name"
+            ;;
+        esac
+      fi
+    done
+
+    echo ""
+    echo "Use these before implementing from scratch."
+  } > "$DISCOVERY_FILE"
 fi
 
+# No stdout - workaround for UserPromptSubmit bug #13912
 exit 0

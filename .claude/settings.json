@@ -29,8 +29,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/hooks/session-start-hook.sh",
-            "timeout": 5
+            "command": "C:\\dev\\Updog_restore\\scripts\\hooks\\session-start-hook.cmd",
+            "timeout": 10
           }
         ]
       }
@@ -41,12 +41,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/hooks/discovery-hook.sh",
+            "command": "C:\\dev\\Updog_restore\\scripts\\hooks\\discovery-hook.cmd",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash scripts/hooks/complexity-checkpoint-hook.sh",
+            "command": "C:\\dev\\Updog_restore\\scripts\\hooks\\complexity-checkpoint-hook.cmd",
             "timeout": 5
           }
         ]
