@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 /**
  * Initialize Memory Manager for AI Agent Sessions
  *
@@ -6,14 +6,14 @@
  * enabling context storage and retrieval to eliminate temporal displacement.
  *
  * Usage:
- *   node scripts/init-memory-manager.mjs [--session-id <id>] [--use-database]
+ *   npx tsx scripts/init-memory-manager.ts [--session-id <id>] [--use-database]
  *
  * Modes:
  *   - In-memory (default): Fast, session-scoped
  *   - Database (--use-database): Persistent, cross-session
  */
 
-import { MemoryManager } from '../packages/memory-manager/src/index.ts';
+import { MemoryManager } from '../packages/memory-manager/src/index';
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -117,9 +117,10 @@ async function initializeMemoryManager() {
       memoriesLoaded: recentMemories.length,
     };
   } catch (error) {
-    console.error('\n[ERROR] Failed to initialize Memory Manager:', error.message);
-    if (error.stack) {
-      console.error('[STACK]', error.stack);
+    const err = error as Error;
+    console.error('\n[ERROR] Failed to initialize Memory Manager:', err.message);
+    if (err.stack) {
+      console.error('[STACK]', err.stack);
     }
     process.exit(1);
   }

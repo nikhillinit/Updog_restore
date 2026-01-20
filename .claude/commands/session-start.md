@@ -17,7 +17,7 @@ continuity across Claude Code sessions.
 Execute the memory manager initialization script:
 
 ```bash
-node scripts/init-memory-manager.mjs
+npx tsx scripts/init-memory-manager.ts
 ```
 
 This will:

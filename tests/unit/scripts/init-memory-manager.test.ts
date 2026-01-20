@@ -9,7 +9,7 @@ import { MemoryManager } from '../../../packages/memory-manager/src/MemoryManage
 import fs from 'fs/promises';
 import path from 'path';
 
-describe('init-memory-manager.mjs', () => {
+describe('init-memory-manager.ts', () => {
   const testSessionId = 'test-session-123';
   const testUserId = 'claude-code-session';
   const testAgentId = 'strategic-optimizer';
