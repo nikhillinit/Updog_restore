@@ -43,6 +43,11 @@
             "type": "command",
             "command": "bash scripts/hooks/discovery-hook.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash scripts/hooks/complexity-checkpoint-hook.sh",
+            "timeout": 5
           }
         ]
       }
