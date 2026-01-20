@@ -1,0 +1,53 @@
+name: Skip Counter
+
+on:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - 'vitest.config.ts'
+      - 'vitest.*.ts'
+
+jobs:
+  count-skips:
+    name: Count Test Skips
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Count static skips
+        id: count
+        run: |
+          # Count static describe.skip occurrences (excluding skipIf which are conditional)
+          SKIP_COUNT=$(grep -rE 'describe\.skip\(' tests/ --include='*.ts' --include='*.tsx' 2>/dev/null | grep -v 'skipIf' | wc -l || echo 0)
+          echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
+          echo "Static describe.skip count: $SKIP_COUNT"
+
+      - name: Check threshold
+        run: |
+          THRESHOLD=20
+          SKIP_COUNT=${{ steps.count.outputs.skip_count }}
+          echo "Current skip count: $SKIP_COUNT"
+          echo "Threshold: $THRESHOLD"
+
+          if [ "$SKIP_COUNT" -gt "$THRESHOLD" ]; then
+            echo "::error::Skip count ($SKIP_COUNT) exceeds threshold ($THRESHOLD)"
+            echo ""
+            echo "Files with describe.skip:"
+            grep -rE 'describe\.skip\(' tests/ --include='*.ts' --include='*.tsx' 2>/dev/null | grep -v 'skipIf' | cut -d: -f1 | sort -u
+            echo ""
+            echo "Please review and document skipped tests per tests/quarantine/PROTOCOL.md"
+            exit 1
+          else
+            echo "::notice::Skip count ($SKIP_COUNT) is within threshold ($THRESHOLD)"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Skip Counter Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Static Skips | ${{ steps.count.outputs.skip_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Threshold | 20 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $([[ ${{ steps.count.outputs.skip_count }} -le 20 ]] && echo 'PASS' || echo 'FAIL') |" >> $GITHUB_STEP_SUMMARY
