@@ -1,7 +1,15 @@
-#!/usr/bin/env node
-import { askAllAIs } from '../server/services/ai-orchestrator.ts';
+#!/usr/bin/env npx tsx
+/**
+ * Scrutinize Tabular Financial Modeling Specification using AI
+ *
+ * Usage:
+ *   npx tsx scripts/scrutinize-tabular-spec.ts
+ */
 
-console.log('🤖 Engaging AI agents to scrutinize tabular financial modeling specification...\n');
+import { askAllAIs } from '../server/services/ai-orchestrator';
+import fs from 'fs';
+
+console.log('[AI] Engaging AI agents to scrutinize tabular financial modeling specification...\n');
 
 const specSummary = `
 TABULAR FINANCIAL MODELING SPECIFICATION - SCRUTINY REQUEST
@@ -66,39 +74,48 @@ PROVIDE:
 Be CRITICAL and HONEST. If this is over-engineered, say so. If there's a simpler path, recommend it.
 `;
 
-try {
-  const results = await askAllAIs({
-    prompt: specSummary,
-    models: ['claude', 'gpt', 'gemini', 'deepseek'],
-    tags: ['scrutiny', 'tabular-modeling', 'critical-analysis'],
-  });
-
-  console.log('\n📊 CRITICAL ANALYSIS RESULTS:\n');
-  console.log('='.repeat(80));
-
-  results.forEach((result) => {
-    console.log(`\n🤖 ${result.model.toUpperCase()} Analysis:\n`);
-    console.log(result.text);
-    console.log('\n' + '-'.repeat(80));
-
-    if (result.usage) {
-      console.log(`Token usage: ${result.usage.total_tokens} | Cost: $${result.cost_usd?.toFixed(4) || '0'}`);
-    }
-  });
-
-  console.log('\n✅ Scrutiny complete!');
-
-  // Save results
-  const fs = await import('fs');
-  fs.mkdirSync('./temp', { recursive: true });
-  fs.writeFileSync(
-    './temp/tabular-spec-scrutiny.json',
-    JSON.stringify(results, null, 2)
-  );
-  console.log('\n💾 Results saved to: ./temp/tabular-spec-scrutiny.json');
-
-} catch (error) {
-  console.error('❌ Error:', error.message);
-  console.error(error.stack);
-  process.exit(1);
+interface AIResult {
+  model: string;
+  text: string;
+  usage?: { total_tokens: number };
+  cost_usd?: number;
 }
+
+async function main() {
+  try {
+    const results: AIResult[] = await askAllAIs({
+      prompt: specSummary,
+      models: ['claude', 'gpt', 'gemini', 'deepseek'],
+      tags: ['scrutiny', 'tabular-modeling', 'critical-analysis'],
+    });
+
+    console.log('\n[RESULTS] CRITICAL ANALYSIS RESULTS:\n');
+    console.log('='.repeat(80));
+
+    results.forEach((result) => {
+      console.log(`\n[AI] ${result.model.toUpperCase()} Analysis:\n`);
+      console.log(result.text);
+      console.log('\n' + '-'.repeat(80));
+
+      if (result.usage) {
+        console.log(
+          `Token usage: ${result.usage.total_tokens} | Cost: $${result.cost_usd?.toFixed(4) || '0'}`
+        );
+      }
+    });
+
+    console.log('\n[DONE] Scrutiny complete!');
+
+    // Save results
+    fs.mkdirSync('./temp', { recursive: true });
+    fs.writeFileSync('./temp/tabular-spec-scrutiny.json', JSON.stringify(results, null, 2));
+    console.log('\n[SAVED] Results saved to: ./temp/tabular-spec-scrutiny.json');
+  } catch (error) {
+    const err = error as Error;
+    console.error('[ERROR]', err.message);
+    console.error(err.stack);
+    process.exit(1);
+  }
+}
+
+main();
