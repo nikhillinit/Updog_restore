@@ -18,10 +18,10 @@ jobs:
       - name: Count static skips
         id: count
         run: |
-          # Count static describe.skip occurrences (excluding skipIf which are conditional)
-          SKIP_COUNT=$(grep -rE 'describe\.skip\(' tests/ --include='*.ts' --include='*.tsx' 2>/dev/null | grep -v 'skipIf' | wc -l || echo 0)
+          # Count unique files with describe.skip (excluding skipIf which are conditional)
+          SKIP_COUNT=$(grep -rlE 'describe\.skip\(' tests/ --include='*.ts' --include='*.tsx' 2>/dev/null | grep -v 'skipIf' | wc -l || echo 0)
           echo "skip_count=$SKIP_COUNT" >> $GITHUB_OUTPUT
-          echo "Static describe.skip count: $SKIP_COUNT"
+          echo "Files with static describe.skip: $SKIP_COUNT"
 
       - name: Check threshold
         run: |
