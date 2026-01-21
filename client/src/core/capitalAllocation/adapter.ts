@@ -418,45 +418,42 @@ function deriveEndDate(input: TruthCaseInput): string {
 // =============================================================================
 
 /**
- * Pacing model cases that require period-loop architecture not yet implemented.
- * The engine currently implements "cash model" (allocation = ending_cash - reserve)
- * which differs from the "pacing model" expected by these truth cases.
+ * Pacing model cases with inconsistent truth case semantics.
  *
- * Deferred to Implementation Parity Sprint per FOUNDATION-HARDENING-EXECUTION-PLAN.md
+ * Per Codex analysis (2026-01-21): Truth cases mix gross and net pacing semantics.
+ * - CA-008 uses gross pacing (commitment / window) - passes with current engine
+ * - CA-009/010/012 have mixed semantics that don't match either gross or net pacing
+ *
+ * Engine uses gross pacing for pacing_engine category (matches CA-008).
+ * These cases need truth case corrections before enabling.
+ *
+ * @see docs/CA-SEMANTIC-LOCK.md Section 7 (pending)
  */
 const PACING_MODEL_DEFERRED_CASES = new Set([
-  'CA-009', // Quarterly pacing with carryover - engine: 600K vs expected: 1.2M
-  'CA-010', // Front-loaded pipeline capped - engine: off by 350K
-  'CA-012', // 24-month vs 18-month pacing - engine: 2.67M vs expected: 1.2M
+  'CA-009', // Quarterly pacing - truth case allocation doesn't match gross or net pacing
+  'CA-010', // Front-loaded pipeline - 3M expected vs 2.5M (gross) or 2M (net)
+  'CA-012', // Window comparison - targets are gross but allocation is net-based
 ]);
 
 /**
  * Check if a truth case should be skipped.
- * Per CA-SEMANTIC-LOCK.md Section 6: CA-005 (dynamic_ratio) is deferred.
- * Per FOUNDATION-HARDENING-EXECUTION-PLAN.md: Pacing model cases deferred to Parity Sprint.
+ * Per FOUNDATION-HARDENING-EXECUTION-PLAN.md: Pacing model cases deferred.
+ *
+ * CA-005 (dynamic_ratio) is now implemented - NAV-based reserve calculation.
  */
 export function shouldSkipTruthCase(
   caseId: string,
-  reservePolicy?: string
+  _reservePolicy?: string
 ): { skip: boolean; reason?: string } {
-  // CA-005 uses dynamic_ratio which requires NAV calculation
-  if (caseId === 'CA-005' || reservePolicy === 'dynamic_ratio') {
-    return {
-      skip: true,
-      reason:
-        'CA-005 (dynamic_ratio) deferred to Phase 2 per CA-SEMANTIC-LOCK.md Section 6. ' +
-        'Requires NAV calculation formula which is not yet specified.',
-    };
-  }
+  // CA-005 (dynamic_ratio) is now implemented - no longer skipped
 
-  // Pacing model cases - engine implements cash model, not pacing model
+  // Pacing model cases - truth cases have inconsistent semantics
   if (PACING_MODEL_DEFERRED_CASES.has(caseId)) {
     return {
       skip: true,
       reason:
-        `${caseId} deferred to Implementation Parity Sprint. ` +
-        'Engine implements cash model (allocation = ending_cash - reserve), ' +
-        'but truth case expects pacing model semantics. See ARCHITECTURAL-DEBT.md.',
+        `${caseId} deferred: truth case semantics inconsistent (gross vs net pacing). ` +
+        'See adapter.ts PACING_MODEL_DEFERRED_CASES for details.',
     };
   }
 

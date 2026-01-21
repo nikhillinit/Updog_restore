@@ -265,7 +265,31 @@ export function executeCapitalAllocation(input: NormalizedInput): CAEngineOutput
   const cashLedger = calculateCashLedger(input);
 
   // Step 2: Calculate effective buffer
-  const effectiveBufferCents = input.effectiveBufferCents;
+  // For dynamic_ratio policy (CA-005): reserve = NAV × target_pct
+  // NAV = contributions - distributions (simplified: portfolio value after exits)
+  let effectiveBufferCents = input.effectiveBufferCents;
+
+  if (input.reservePolicy === 'dynamic_ratio') {
+    // Calculate NAV: contributions minus distributions
+    // Note: recyclable distributions reduce NAV but add to cash (handled separately)
+    const contributionsCents = input.contributionsCents.reduce(
+      (sum, f) => sum + (f.amountCents ?? 0),
+      0
+    );
+    const distributionsCents = input.distributionsCents.reduce(
+      (sum, f) => sum + Math.abs(f.amountCents ?? 0),
+      0
+    );
+    const navCents = contributionsCents - distributionsCents;
+
+    // Dynamic reserve target = NAV × target_reserve_pct
+    const dynamicReserveCents = roundPercentDerivedToCents(
+      Math.max(0, navCents) * input.targetReservePct
+    );
+
+    // Effective buffer is max of dynamic reserve and min_cash_buffer
+    effectiveBufferCents = Math.max(input.minCashBufferCents, dynamicReserveCents);
+  }
 
   // Step 3: Calculate reserve balance
   // Per CA-SEMANTIC-LOCK.md: reserve_balance = min(ending_cash, effective_buffer)
