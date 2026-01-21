@@ -259,6 +259,46 @@ module.exports = {
     },
 
     // ========================================
+    // RULE: no-parsefloat-in-calculations
+    // Ref: Phase 1A.6 (parseFloat eradication)
+    // Warn on parseFloat in P0 calculation paths (to be replaced with Decimal.js)
+    // ========================================
+    "no-parsefloat-in-calculations": {
+      meta: {
+        type: "suggestion",
+        docs: {
+          description: "Warn on parseFloat usage in calculation paths (prefer Decimal.js for precision)",
+          category: "Best Practices",
+          recommended: true
+        },
+        messages: {
+          useDecimal: "Phase 1A.6: parseFloat in calculation path '{{path}}'. Consider Decimal.js for precision-critical code."
+        }
+      },
+      create(context) {
+        const filename = context.getFilename().replace(/\\/g, '/'); // Normalize to forward slashes
+        // P0 calculation paths: lib, core, analytics, workers with calculations
+        const isCalcPath = /\/(lib|core|analytics)\//.test(filename) ||
+                          /\/workers\/(reserve|pacing|cohort)/.test(filename);
+
+        if (!isCalcPath) return {};
+
+        return {
+          CallExpression(node) {
+            if (node.callee.type === "Identifier" && node.callee.name === "parseFloat") {
+              const relativePath = filename.replace(/.*[\\\/](client|server|shared|workers)[\\\/]/, '$1/');
+              context.report({
+                node,
+                messageId: "useDecimal",
+                data: { path: relativePath }
+              });
+            }
+          }
+        };
+      }
+    },
+
+    // ========================================
     // RULE: require-optimistic-locking
     // Ref: AP-LOCK-03 (Missing version check)
     // Update operations should include version check

@@ -433,6 +433,19 @@ export default [
       'povc-security/no-floating-point-in-core': 'error',
     },
   },
+  // P0 Calculation paths - parseFloat warning (Phase 1A.6 triage)
+  {
+    files: [
+      'client/src/lib/**/*.ts',
+      'client/src/core/**/*.ts',
+      'server/analytics/**/*.ts',
+      'workers/reserve-worker.ts',
+      'workers/pacing-worker.ts',
+    ],
+    rules: {
+      'povc-security/no-parsefloat-in-calculations': 'warn',
+    },
+  },
   // Worker/Queue files - BullMQ anti-pattern prevention (AP-QUEUE-01, AP-QUEUE-02)
   {
     files: ['server/workers/**/*.ts', 'server/queues/**/*.ts'],

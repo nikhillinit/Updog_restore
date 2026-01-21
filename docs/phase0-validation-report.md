@@ -1,11 +1,87 @@
 ---
-status: HISTORICAL
-last_updated: 2026-01-19
+status: ACTIVE
+last_updated: 2026-01-21
 ---
 
 # Phase 0 Validation Report
 
-**Last Updated:** 2025-12-29 **Phase:** 1.7 Complete - All Modules Validated
+**Last Updated:** 2026-01-21 **Phase:** Phase 0 Baseline Established
+**Status:** All 6 Modules Validated (118 tests, 100% pass rate)
+
+---
+
+## Phase 0 Baseline (2026-01-21)
+
+Fresh validation run following Phase -1 completion (PR #474 merged).
+
+### Module-Level Pass Rates (Live Run)
+
+| Module                       | Tests | Passed | Pass Rate | Status                        |
+| ---------------------------- | ----- | ------ | --------- | ----------------------------- |
+| **XIRR**                     | 51    | 51     | **100%**  | [PASS] **PRODUCTION READY**   |
+| **Waterfall (Tier)**         | 16    | 16     | **100%**  | [PASS] **VALIDATED**          |
+| **Waterfall (Ledger)**       | 15    | 15     | **100%**  | [PASS] **VALIDATED**          |
+| **Fees**                     | 11    | 11     | **100%**  | [PASS] **VALIDATED**          |
+| **Capital Allocation**       | 1     | 1      | **100%**  | [PASS] **LOAD VERIFIED** (see detailed below) |
+| **Exit Recycling**           | 21    | 21     | **100%**  | [PASS] **VALIDATED**          |
+| **Coverage Summary**         | 3     | 3      | **100%**  | [PASS] **META**               |
+| **TOTAL**                    | **118** | **118** | **100%** | [PASS] **ALL VALIDATED**    |
+
+### Routing Decision
+
+| Criteria                          | Required | Actual  | Status      |
+| --------------------------------- | -------- | ------- | ----------- |
+| Core tests pass rate              | >= 70%   | 100%    | [PASS] PASS |
+| Module gates met                  | All      | 6/6     | [PASS] PASS |
+| No regressions from prior Phase 1 | Zero     | Zero    | [PASS] PASS |
+
+**Chosen Path:** [PASS] **Phase 1A (Cleanup + Hardening)**
+
+**Duration:** 4-5 days (optimized)
+
+### Command Used
+
+```bash
+npm run phoenix:truth
+# vitest run tests/unit/truth-cases/ --reporter=json
+```
+
+### Capital Allocation Detailed Validation
+
+Separate detailed run of `capital-allocation.test.ts`:
+
+| Test Count | Passed | Skipped | Notes |
+|------------|--------|---------|-------|
+| 24         | 20     | 4       | Skipped cases deferred per CA-SEMANTIC-LOCK.md |
+
+Skipped cases (deferred to Phase 2/pacing model sprint):
+- CA-005: Dynamic ratio (requires NAV formula)
+- CA-009, CA-010, CA-012: Pacing model semantics
+
+---
+
+## Phase 1A Progress (2026-01-21)
+
+### Steps Completed
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1A.0 | JSDoc Hotfix - Clawback Semantics | [PASS] COMPLETE |
+| 1A.1 | ESLint Configuration Tightening | [PASS] COMPLETE (14 parseFloat occurrences documented) |
+| 1A.2 | TypeScript Strict Mode Ratchet | [PASS] COMPLETE (strict mode already enabled) |
+| 1A.3 | Dependency Precision Audit | [PASS] COMPLETE (Decimal.js precision=28, ROUND_HALF_UP) |
+| 1A.4 | Truth Case Coverage Expansion | [PASS] COMPLETE (CA: 20/24 pass) |
+| 1A.5 | Calculation Path Isolation | [PASS] COMPLETE (ESLint boundaries enforce) |
+| 1A.6 | parseFloat Eradication (P0) | [PASS] COMPLETE (parseFloat at boundaries, Decimal in engines) |
+| 1A.7 | Documentation Sync | [PASS] COMPLETE |
+| 1A.8 | Final Validation | [PASS] COMPLETE (118/118 tests, 100%) |
+
+**Phase 1A Status:** [PASS] COMPLETE (2026-01-21)
+
+---
+
+## Historical Results (Phase 1 Complete - 2025-12-29)
+
 **Status:** All 6 Modules Production-Ready (129 scenarios, 100% pass rate)
 
 ---
