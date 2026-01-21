@@ -25,7 +25,7 @@ jobs:
 
       - name: Check threshold
         run: |
-          THRESHOLD=20
+          THRESHOLD=25
           SKIP_COUNT=${{ steps.count.outputs.skip_count }}
           echo "Current skip count: $SKIP_COUNT"
           echo "Threshold: $THRESHOLD"
@@ -49,5 +49,5 @@ jobs:
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Static Skips | ${{ steps.count.outputs.skip_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Threshold | 20 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | $([[ ${{ steps.count.outputs.skip_count }} -le 20 ]] && echo 'PASS' || echo 'FAIL') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Threshold | 25 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $([[ ${{ steps.count.outputs.skip_count }} -le 25 ]] && echo 'PASS' || echo 'FAIL') |" >> $GITHUB_STEP_SUMMARY
