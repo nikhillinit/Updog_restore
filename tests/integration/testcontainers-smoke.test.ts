@@ -6,6 +6,12 @@
  *
  * @group integration
  * @group testcontainers
+ *
+ * @quarantine
+ * @owner @devops-team
+ * @reason Requires Docker which is not available in GitHub Actions free tier
+ * @exitCriteria Migrate to self-hosted runners with Docker OR GitHub adds Docker support
+ * @addedDate 2026-01-20
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
