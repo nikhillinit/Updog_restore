@@ -52,11 +52,13 @@ Separate detailed run of `capital-allocation.test.ts`:
 
 | Test Count | Passed | Skipped | Notes |
 |------------|--------|---------|-------|
-| 24         | 20     | 4       | Skipped cases deferred per CA-SEMANTIC-LOCK.md |
+| 24         | 21     | 3       | CA-005 implemented; 3 pacing cases deferred |
 
-Skipped cases (deferred to Phase 2/pacing model sprint):
-- CA-005: Dynamic ratio (requires NAV formula)
-- CA-009, CA-010, CA-012: Pacing model semantics
+Skipped cases (pacing model semantic inconsistencies):
+- CA-009, CA-010, CA-012: Truth cases mix gross/net pacing semantics (per Codex analysis 2026-01-21)
+
+Implemented (2026-01-21):
+- CA-005: Dynamic ratio reserve policy with NAV-based calculation
 
 ---
 
@@ -70,7 +72,7 @@ Skipped cases (deferred to Phase 2/pacing model sprint):
 | 1A.1 | ESLint Configuration Tightening | [PASS] COMPLETE (14 parseFloat occurrences documented) |
 | 1A.2 | TypeScript Strict Mode Ratchet | [PASS] COMPLETE (strict mode already enabled) |
 | 1A.3 | Dependency Precision Audit | [PASS] COMPLETE (Decimal.js precision=28, ROUND_HALF_UP) |
-| 1A.4 | Truth Case Coverage Expansion | [PASS] COMPLETE (CA: 20/24 pass) |
+| 1A.4 | Truth Case Coverage Expansion | [PASS] COMPLETE (CA: 21/24 pass, CA-005 implemented) |
 | 1A.5 | Calculation Path Isolation | [PASS] COMPLETE (ESLint boundaries enforce) |
 | 1A.6 | parseFloat Eradication (P0) | [PASS] COMPLETE (parseFloat at boundaries, Decimal in engines) |
 | 1A.7 | Documentation Sync | [PASS] COMPLETE |
@@ -474,6 +476,7 @@ safety not available in Excel.
 
 | Date       | Phase | Change                                               | Author                  |
 | ---------- | ----- | ---------------------------------------------------- | ----------------------- |
+| 2026-01-21 | 2+    | CA-005 dynamic_ratio implemented (21/24 CA pass)     | Claude Code             |
 | 2026-01-21 | 2     | Phase 2 complete - all components production-ready   | Claude Code             |
 | 2026-01-21 | 1A    | Phase 1A complete - cleanup and hardening            | Claude Code             |
 | 2025-12-13 | 1B    | Waterfall-Ledger validation complete (14/14 passing) | Claude Code             |
