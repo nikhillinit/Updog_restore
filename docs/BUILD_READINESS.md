@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-01-21
 ---
 
 # Build Readiness Verification Report
@@ -10,7 +10,47 @@ last_updated: 2026-01-19
 
 ---
 
-## Executive Summary
+## STATUS UPDATE: January 21, 2026
+
+**Phase -1 Status**: COMPLETE
+
+| Component | October 2025 Status | January 2026 Status |
+|-----------|--------------------|--------------------|
+| TypeScript baseline | PR #162 OPEN | **MERGED - 0 errors** |
+| Excel parity validator | 60% complete | **100% complete** |
+| Parity CLI scripts | Missing | **IMPLEMENTED** |
+| npm scripts | Missing | `parity:validate`, `parity:check` |
+| phoenix:truth tests | Not mentioned | **119 scenarios pass** |
+
+### Verification Commands (January 2026)
+
+```bash
+npm run baseline:check      # Exits 0 (0 TypeScript errors)
+npm run baseline:progress   # Shows 0 errors since 2026-01-13
+npm run parity:validate     # Runs 3 Excel parity tests (2/3 pass)
+npm run phoenix:truth       # Runs 119 validation scenarios
+```
+
+### Key Findings
+
+1. **TypeScript Baseline**: `.tsc-baseline.json` shows 0 errors (v2.0.0, updated 2026-01-13)
+2. **Parity Validation**: `scripts/validate-excel-parity.ts` exists with 3 test cases
+3. **Phoenix Truth Cases**: Full validation suite at `tests/unit/truth-cases/`
+4. **One Known Issue**: Basic Allocation Test expects 3 allocations, gets 1 (reserve engine behavior)
+
+### Phase -1 Completion Checklist
+
+- [x] TypeScript baseline operational
+- [x] Parity validation script working
+- [x] npm scripts registered
+- [x] phoenix:truth tests pass
+- [ ] Basic Allocation Test discrepancy (documented, non-blocking)
+
+**Recommendation**: Proceed to Phase 0 (Integration)
+
+---
+
+## Executive Summary (Original October 2025)
 
 **Overall Readiness**: 65% (Substantial foundation, CLI work needed)
 

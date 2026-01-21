@@ -72,6 +72,8 @@
     "baseline:test:init": "npm run baseline:test:run && npm run baseline:test:analyze && node scripts/test-ratchet-check.cjs --init",
     "baseline:test:update": "npm run baseline:test:run && npm run baseline:test:analyze && node scripts/test-ratchet-check.cjs --update",
     "baseline:test:check": "npm run baseline:test:run && npm run baseline:test:analyze && node scripts/test-ratchet-check.cjs",
+    "parity:validate": "TZ=UTC node --import tsx scripts/validate-excel-parity.ts",
+    "parity:check": "npm run parity:validate",
     "check": "npm run baseline:check",
     "agents:track": "node scripts/track-agent-session.mjs",
     "agents:review": "node scripts/agents-daily-review.mjs",
