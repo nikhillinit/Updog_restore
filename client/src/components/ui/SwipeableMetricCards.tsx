@@ -28,8 +28,8 @@ export interface MetricCardData {
   change: string;
   trend: 'up' | 'down' | 'stable';
   severity: 'success' | 'warning' | 'critical' | 'neutral';
-  icon: React.ComponentType<{ className?: string }>;
-  metadata?: Record<string, any>;
+  icon: React.ElementType;
+  metadata?: Record<string, unknown>;
 }
 
 interface SwipeableMetricCardsProps {
