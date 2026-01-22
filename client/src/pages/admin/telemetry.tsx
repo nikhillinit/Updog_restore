@@ -47,17 +47,17 @@ export default function TelemetryDashboard() {
 
   // Calculate stats
   const now = Date.now();
-  const last24h = events.filter(e => now - e['t'] < 24 * 60 * 60 * 1000);
-  const lastHour = events.filter(e => now - e['t'] < 60 * 60 * 1000);
-  
+  const last24h = events.filter(e => now - (e['t'] as number) < 24 * 60 * 60 * 1000);
+  const lastHour = events.filter(e => now - (e['t'] as number) < 60 * 60 * 1000);
+
   const migrations = events.filter(e => e['category'] === 'migration');
   const errors = events.filter(e => e['category'] === 'error');
   const features = events.filter(e => e['category'] === 'feature');
-  
+
   const migrationSuccess = migrations.filter(e => e['ok'] !== false).length;
   const migrationErrors = migrations.filter(e => e['ok'] === false).length;
-  
-  const recentErrors = errors.filter(e => now - e['t'] < 60 * 60 * 1000);
+
+  const recentErrors = errors.filter(e => now - (e['t'] as number) < 60 * 60 * 1000);
   const errorRate = lastHour.length > 0 ? (recentErrors.length / lastHour.length) * 100 : 0;
 
   return (

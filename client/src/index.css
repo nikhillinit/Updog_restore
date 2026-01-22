@@ -89,6 +89,19 @@
   .font-numeric {
     @apply font-mono;
   }
+
+  /* Financial data typography - ensures aligned figures */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Apply tabular-nums to all financial data containers */
+  .financial-data,
+  [data-financial],
+  .kpi-value,
+  .metric-value {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* Press On Ventures Brand Utility Classes */

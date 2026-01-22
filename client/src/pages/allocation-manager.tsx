@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import AllocationUI from "@/components/allocation/allocation-ui";
 import SectorProfileBuilder from "@/components/allocation/sector-profile-builder";
 import { computeReservesFromGraduation, type FundDataForReserves } from "@/core/reserves/computeReservesFromGraduation";
@@ -291,29 +292,30 @@ export default function AllocationManager() {
           </Card>
         </div>
 
-        {/* Reserve Sizing Methodology Info */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-start">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3" />
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Reserve Sizing Methodology</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  The system calculates your fund's expected reserve ratios instead of having you enter them directly. 
-                  This ensures there is no "left-over" capital and enables you to "build up" to the ideal reserve ratio from more granular assumptions.
-                </p>
-                <div className="text-sm text-gray-600">
-                  <strong>Follow-on reserves are calculated based on:</strong>
-                  <ul className="list-disc ml-6 mt-1 space-y-1">
-                    <li>Number of graduations (from Sector Profile graduation rates)</li>
-                    <li>Follow-on strategy defined in each allocation (check sizes, participation %)</li>
-                    <li>How many rounds your fund will follow-on for each allocation</li>
-                  </ul>
-                </div>
-              </div>
+        {/* Reserve Sizing Methodology Info - Progressive Disclosure */}
+        <CollapsibleSection
+          section="allocation_advanced"
+          title="Reserve Sizing Methodology"
+          description="Learn how reserves are automatically calculated"
+          icon={<Info className="w-5 h-5" />}
+          className="mb-8"
+          defaultOpen={false}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              The system calculates your fund's expected reserve ratios instead of having you enter them directly.
+              This ensures there is no "left-over" capital and enables you to "build up" to the ideal reserve ratio from more granular assumptions.
+            </p>
+            <div className="text-sm text-gray-600">
+              <strong>Follow-on reserves are calculated based on:</strong>
+              <ul className="list-disc ml-6 mt-1 space-y-1">
+                <li>Number of graduations (from Sector Profile graduation rates)</li>
+                <li>Follow-on strategy defined in each allocation (check sizes, participation %)</li>
+                <li>How many rounds your fund will follow-on for each allocation</li>
+              </ul>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CollapsibleSection>
 
         {/* Allocations Table */}
         <Card>
