@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { presson } from "./client/src/theme/presson.tokens";
 
 export default {
   darkMode: ["class"],
@@ -21,6 +22,14 @@ export default {
         '2xl': '1rem',
         '3xl': '1.5rem',
         '4xl': '2rem',
+        // Press On Ventures canonical border radius tokens
+        presson: {
+          xs: presson.radius.xs,
+          sm: presson.radius.sm,
+          md: presson.radius.md,
+          lg: presson.radius.lg,
+          xl: presson.radius.xl,
+        },
       },
       colors: {
         // POV Brand Colors (Enhanced)
@@ -114,6 +123,22 @@ export default {
             active: '#1d4ed8',
             disabled: '#9ca3af',
           },
+        },
+        // Press On Ventures canonical color tokens (source: presson.tokens.ts)
+        presson: {
+          bg: presson.color.bg,
+          surface: presson.color.surface,
+          surfaceSubtle: presson.color.surfaceSubtle,
+          borderSubtle: presson.color.borderSubtle,
+          text: presson.color.text,
+          textMuted: presson.color.textMuted,
+          accent: presson.color.accent,
+          accentOn: presson.color.accentOn,
+          highlight: presson.color.highlight,
+          positive: presson.color.positive,
+          negative: presson.color.negative,
+          warning: presson.color.warning,
+          info: presson.color.info,
         },
         // Target UI theme colors
         charcoal: {
@@ -237,6 +262,12 @@ export default {
       boxShadow: {
         card: "0 2px 8px rgba(0, 0, 0, 0.05)",
         elevated: "0 4px 12px rgba(0, 0, 0, 0.08)",
+        // Press On Ventures canonical shadow tokens
+        'presson-sm': presson.shadow.sm,
+        'presson-md': presson.shadow.md,
+        'presson-lg': presson.shadow.lg,
+        'presson-card': presson.shadow.card,
+        'presson-cardHover': presson.shadow.cardHover,
         // Enhanced shadow system
         'card-hover': '0 8px 24px rgba(0, 0, 0, 0.12)',
         'card-active': '0 2px 4px rgba(0, 0, 0, 0.08)',

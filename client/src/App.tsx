@@ -10,6 +10,7 @@ import { FeatureFlagProvider } from "@/providers/FeatureFlagProvider";
 import { StagingRibbon } from "@/components/StagingRibbon";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { BrandChartThemeProvider } from "@/lib/chart-theme/chart-theme-provider";
+import { GuidedTour } from "@/components/onboarding/GuidedTour";
 import './styles/demo-animations.css';
 
 // Layout components
@@ -67,6 +68,10 @@ const LPCapitalAccount = React.lazy(() => import("@/pages/lp/capital-account"));
 const LPPerformance = React.lazy(() => import("@/pages/lp/performance"));
 const LPReports = React.lazy(() => import("@/pages/lp/reports"));
 const LPSettings = React.lazy(() => import("@/pages/lp/settings"));
+// Admin pages
+const UICatalog = React.lazy(() => import("@/pages/admin/ui-catalog"));
+// Portal pages (LP Portal scaffolding)
+const PortalAccessDenied = React.lazy(() => import("@/pages/portal/access-denied"));
 
 const _moduleConfig = {
   dashboard: {
@@ -262,6 +267,10 @@ function Router() {
         <Route path="/lp/performance">{() => <LPProvider><LPPerformance /></LPProvider>}</Route>
         <Route path="/lp/reports">{() => <LPProvider><LPReports /></LPProvider>}</Route>
         <Route path="/lp/settings">{() => <LPProvider><LPSettings /></LPProvider>}</Route>
+        {/* Admin Routes */}
+        <Route path="/admin/ui-catalog" component={UICatalog} />
+        {/* Portal Routes - GP Access Blocked */}
+        <Route path="/portal/:rest*" component={PortalAccessDenied} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -279,6 +288,7 @@ function App() {
               <TooltipProvider>
                 <DemoBanner />
                 <Toaster />
+                <GuidedTour />
                 <AppLayout>
                   <Router />
                 </AppLayout>
