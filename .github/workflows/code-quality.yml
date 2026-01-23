@@ -14,7 +14,7 @@ permissions:
 env:
   # Critical thresholds (fail build)
   MAX_TS_ERRORS: 0
-  MAX_ESLINT_ERRORS: 3803 # Baseline: 3803 total issues (729 errors + 3074 warnings) as of 2026-01-13
+  MAX_ESLINT_ERRORS: 4700 # Baseline: 4700 total issues after Gate 0 no-console:warn rule (729 errors + ~4000 warnings) as of 2026-01-22
 
   # Warning thresholds (alert only)
   WARNING_ANY_TYPES: 5000

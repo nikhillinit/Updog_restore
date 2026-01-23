@@ -211,7 +211,7 @@ export default [
 
       // Existing rules
       'no-undef': 'off',
-      'no-console': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }], // Gate 0: Baselined - 475+ violations to fix incrementally
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'no-restricted-imports': [

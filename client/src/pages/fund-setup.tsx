@@ -7,6 +7,7 @@ import InvestmentStrategyStep from './InvestmentStrategyStep';
 import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
 import DistributionsStep from './DistributionsStep';
 import CashflowManagementStep from './CashflowManagementStep';
+import ReviewStep from './ReviewStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
@@ -24,6 +25,7 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType> = {
   'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
   distributions: DistributionsStep,
   'cashflow-management': CashflowManagementStep,
+  review: ReviewStep,
   'not-found': StepNotFound,
 };
 
@@ -70,12 +72,6 @@ const WIZARD_STEPS = [
   {
     id: 'review',
     number: 7,
-    title: 'ADVANCED SETTINGS',
-    description: 'Fund structure and expenses',
-  },
-  {
-    id: 'complete',
-    number: 8,
     title: 'REVIEW & CREATE',
     description: 'Final review and fund creation',
   },

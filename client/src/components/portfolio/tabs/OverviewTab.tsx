@@ -8,7 +8,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { KpiCard } from "@/components/ui/KpiCard";
-import { SwipeableMetricCards, MetricCardData } from "@/components/ui/SwipeableMetricCards";
+import { SwipeableMetricCards } from "@/components/ui/SwipeableMetricCards";
+import type { MetricCardData } from "@/components/ui/SwipeableMetricCards";
 import { DataTable } from "@/components/ui/DataTable";
 import { PremiumCard } from "@/components/ui/PremiumCard";
 import { Button } from "@/components/ui/button";
@@ -27,8 +28,6 @@ import {
   Target,
   BarChart3,
   Eye,
-  ExternalLink,
-  MoreHorizontal,
   Rocket
 } from "lucide-react";
 

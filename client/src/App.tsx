@@ -11,6 +11,7 @@ import { StagingRibbon } from "@/components/StagingRibbon";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { BrandChartThemeProvider } from "@/lib/chart-theme/chart-theme-provider";
 import { GuidedTour } from "@/components/onboarding/GuidedTour";
+import { AdminRoute } from "@/components/AdminRoute";
 import './styles/demo-animations.css';
 
 // Layout components
@@ -267,8 +268,14 @@ function Router() {
         <Route path="/lp/performance">{() => <LPProvider><LPPerformance /></LPProvider>}</Route>
         <Route path="/lp/reports">{() => <LPProvider><LPReports /></LPProvider>}</Route>
         <Route path="/lp/settings">{() => <LPProvider><LPSettings /></LPProvider>}</Route>
-        {/* Admin Routes */}
-        <Route path="/admin/ui-catalog" component={UICatalog} />
+        {/* Admin Routes - Protected by AdminRoute (no localStorage override) */}
+        <Route path="/admin/ui-catalog">
+          {() => (
+            <AdminRoute flag="UI_CATALOG">
+              <UICatalog />
+            </AdminRoute>
+          )}
+        </Route>
         {/* Portal Routes - GP Access Blocked */}
         <Route path="/portal/:rest*" component={PortalAccessDenied} />
         <Route component={NotFound} />

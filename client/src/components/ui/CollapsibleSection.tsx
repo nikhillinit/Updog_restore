@@ -14,7 +14,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { track } from '@/lib/telemetry';
 import { cn } from '@/lib/utils';

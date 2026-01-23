@@ -712,7 +712,7 @@ export default function DistributionsStep() {
           <Button
             data-testid="previous-step"
             variant="outline"
-            onClick={() => navigate('/fund-setup?step=3')}
+            onClick={() => navigate('/fund-setup?step=4')}
             className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -720,7 +720,7 @@ export default function DistributionsStep() {
           </Button>
           <Button
             data-testid="next-step"
-            onClick={() => navigate('/fund-setup?step=5')}
+            onClick={() => navigate('/fund-setup?step=6')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
           >
             Next: Waterfall & Carry

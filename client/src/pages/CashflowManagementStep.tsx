@@ -141,13 +141,11 @@ export default function CashflowManagementStep() {
   };
 
   const handleNext = () => {
-    // Fund setup is complete, navigate to dashboard
-    alert('Fund setup complete! Redirecting to dashboard...');
-    navigate('/dashboard');
+    navigate('/fund-setup?step=7');
   };
 
   const handlePrevious = () => {
-    navigate('/fund-setup?step=4');
+    navigate('/fund-setup?step=5');
   };
 
   return (

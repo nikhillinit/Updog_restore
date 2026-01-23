@@ -6,9 +6,9 @@
  * Step 5 (distributions/recycling) parameters are set after user validates base allocations
  */
 
-export type StepKey = 'fund-basics' | 'investment-rounds' | 'capital-structure' | 'investment-strategy' | 'distributions' | 'cashflow-management' | 'not-found';
+export type StepKey = 'fund-basics' | 'investment-rounds' | 'capital-structure' | 'investment-strategy' | 'distributions' | 'cashflow-management' | 'review' | 'not-found';
 
-export const VALID_STEPS = ['1', '2', '3', '4', '5', '6'] as const;
+export const VALID_STEPS = ['1', '2', '3', '4', '5', '6', '7'] as const;
 export type ValidStep = typeof VALID_STEPS[number];
 
 export const NUM_TO_KEY = {
@@ -18,6 +18,7 @@ export const NUM_TO_KEY = {
   '4': 'investment-strategy',
   '5': 'distributions',
   '6': 'cashflow-management',
+  '7': 'review',
 } as const satisfies Record<ValidStep, Exclude<StepKey, 'not-found'>>;
 
 export function isValidStep(v: unknown): v is ValidStep {

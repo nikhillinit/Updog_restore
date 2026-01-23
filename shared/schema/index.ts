@@ -16,3 +16,4 @@
 export * from './fund';
 export * from './portfolio';
 export * from './scenario';
+export * from './shares';
