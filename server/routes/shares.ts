@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';
 import { db } from '../db';
 import { shares, shareAnalytics, SHARE_ACCESS_LEVELS } from '@shared/schema/shares';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 
 // Password hashing utilities using PBKDF2
@@ -336,6 +336,10 @@ router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction
       .where(eq(shares.id, shareId))
       .returning();
 
+    if (!updatedShare) {
+      return res.status(404).json({ success: false, error: 'Share not found' });
+    }
+
     res.json({
       success: true,
       share: {
@@ -430,9 +434,9 @@ async function recordShareView(shareId: string, req: Request) {
   await db
     .update(shares)
     .set({
-      viewCount: db.raw('view_count + 1'),
+      viewCount: sql`${shares.viewCount} + 1`,
       lastViewedAt: new Date(),
-    } as any)
+    })
     .where(eq(shares.id, shareId));
 
   // Record analytics
