@@ -15,6 +15,8 @@ export interface PdfHeaderProps {
   showLogo?: boolean;
   showDate?: boolean;
   logoSrc?: string;
+  /** Pass a specific date for deterministic output */
+  asOfDate?: Date;
 }
 
 const styles = StyleSheet.create({
@@ -71,11 +73,14 @@ export const PdfHeader: React.FC<PdfHeaderProps> = ({
   showLogo = true,
   showDate = true,
   logoSrc,
+  asOfDate,
 }) => {
-  const currentDate = new Date().toLocaleDateString('en-US', {
+  const dateToUse = asOfDate ?? new Date();
+  const currentDate = dateToUse.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 
   return (

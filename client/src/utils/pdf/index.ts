@@ -344,7 +344,7 @@ export function formatMultiple(value: number, decimals = 2): string {
 }
 
 /**
- * Format date for PDF display
+ * Format date for PDF display (uses UTC for deterministic output)
  */
 export function formatDate(
   date: Date | string,
@@ -354,27 +354,29 @@ export function formatDate(
 
   switch (format) {
     case 'short':
-      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
+      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', timeZone: 'UTC' });
     case 'long':
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
     case 'medium':
     default:
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   }
 }
 
 /**
- * Get current timestamp for PDF footer
+ * Get timestamp for PDF footer. Pass asOfDate for deterministic output.
  */
-export function getGeneratedTimestamp(): string {
-  return `Generated ${formatDate(new Date(), 'medium')} at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+export function getGeneratedTimestamp(asOfDate?: Date): string {
+  const d = asOfDate ?? new Date();
+  return `Generated ${formatDate(d, 'medium')} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
 }
 
 /**
- * Copyright notice text
+ * Copyright notice text. Pass year for deterministic output.
  */
-export function getCopyrightText(year = new Date().getFullYear()): string {
-  return `${year} Press On Ventures. Confidential.`;
+export function getCopyrightText(year?: number): string {
+  const y = year ?? new Date().getUTCFullYear();
+  return `${y} Press On Ventures. Confidential.`;
 }
 
 // =============================================================================

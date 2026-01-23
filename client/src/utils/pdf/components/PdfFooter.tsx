@@ -14,6 +14,8 @@ export interface PdfFooterProps {
   showCopyright?: boolean;
   customText?: string;
   confidential?: boolean;
+  /** Pass a specific year for deterministic output */
+  copyrightYear?: number;
 }
 
 const styles = StyleSheet.create({
@@ -65,6 +67,7 @@ export const PdfFooter: React.FC<PdfFooterProps> = ({
   showCopyright = true,
   customText,
   confidential = true,
+  copyrightYear,
 }) => {
   return (
     <View style={styles.footer} fixed>
@@ -73,7 +76,7 @@ export const PdfFooter: React.FC<PdfFooterProps> = ({
           <Text style={styles.confidential}>Confidential</Text>
         )}
         {showCopyright && (
-          <Text style={styles.text}>{getCopyrightText()}</Text>
+          <Text style={styles.text}>{getCopyrightText(copyrightYear)}</Text>
         )}
       </View>
       <View style={styles.centerSection}>
