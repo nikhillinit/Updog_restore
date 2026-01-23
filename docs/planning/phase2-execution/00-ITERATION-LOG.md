@@ -1,0 +1,167 @@
+# Phase 2 Execution: Iteration Log
+
+## Session Metadata
+- **Focus:** Gate 0 Execution + Epics G-K Planning
+- **Status:** IN PROGRESS
+- **Blocker:** Gate 0 (Production Hygiene)
+- **Started:** 2026-01-22
+- **Prerequisite:** Phase 1 Complete (PR #478 merged)
+
+---
+
+## Iterations
+
+### Iteration 0: Gate 0 Audit (2026-01-22)
+
+**Objective:** Audit codebase for Gate 0 risks
+
+**Findings:**
+
+| Category | Severity | Count/Status |
+|----------|----------|--------------|
+| Console statements | CRITICAL | 986 total (247 client, 739 server) |
+| Logger abstractions | FRAGMENTED | 4 implementations (Winston x2, Pino, browser) |
+| ESLint no-console | DISABLED | Line 214: `'no-console': 'off'` |
+| Admin routes | UNPROTECTED | Feature flag only (localStorage exploitable) |
+| Flag system | MISMATCH | 14 client vs 2 server YAML |
+| API flag exposure | CRITICAL | All flags exposed without filtering |
+| Archive bloat | LOW | 2.5MB duplicate in `/_archive/.migration-backup/` |
+
+**Key Files Identified:**
+- `eslint.config.js:214` - no-console rule
+- `client/src/App.tsx:271` - Unprotected admin routes
+- `client/src/core/flags/featureFlags.ts` - localStorage override
+- `server/routes/public/flags.ts` - Unfiltered flag exposure
+
+**Next:** Execute Gate 0 fixes (1 → 2 → 3 → 4)
+
+---
+
+### Iteration 1: Gate 0 Execution (2026-01-22)
+
+**Objective:** Execute Gate 0 production hygiene fixes
+
+**Status:** COMPLETE
+
+**Tasks Completed:**
+
+#### Gate 0.1: Console Discipline
+- [x] Enabled `no-console: warn` rule in eslint.config.js (line 214)
+- [x] Allows warn/error, flags log/info/debug as warnings
+- [x] Baselined 475+ violations for incremental cleanup
+- [x] Verified lint passes
+
+#### Gate 0.2: Admin Route Enforcement
+- [x] Created `getAdminFlag()` function (no localStorage override)
+- [x] Updated `UI_CATALOG` flag to use secure `getAdminFlag()`
+- [x] Created `AdminRoute` component with role-based access control
+- [x] Wrapped `/admin/ui-catalog` route with AdminRoute in App.tsx
+- [x] Removed internal flag check from UICatalog component
+
+#### Gate 0.3: Public API Flag Exposure Fix
+- [x] Identified duplicate `/api/flags` routes (simple vs secure)
+- [x] Removed legacy `flagsRoute` from server.ts
+- [x] Now using secure `flagsRouter` with `getClientFlags()` filtering
+- [x] Added deprecation notice to legacy route file
+
+#### Gate 0.4: Script Hygiene
+- [x] Identified `_archive/.migration-backup/` as 4.9GB bloat
+- [x] Contains `tools_local/` backup from 2025-12-20 sidecar elimination
+- [ ] PENDING USER DECISION: Delete `_archive/.migration-backup/`
+
+**Files Created:**
+- `client/src/components/AdminRoute.tsx` - Role-based route guard
+- `docs/planning/phase2-execution/00-ITERATION-LOG.md`
+- `docs/planning/phase2-execution/01-gate0-validation.md`
+
+**Files Modified:**
+- `eslint.config.js:214` - Added no-console warn rule
+- `client/src/core/flags/featureFlags.ts` - Added getAdminFlag(), updated UI_CATALOG
+- `client/src/App.tsx` - Wrapped admin routes with AdminRoute
+- `client/src/pages/admin/ui-catalog.tsx` - Removed redundant flag check
+- `server/server.ts` - Removed legacy flagsRoute
+- `server/routes/public/flags.ts` - Added deprecation notice
+
+**Quality Gates:**
+- [x] TypeScript check passes
+- [x] ESLint passes
+- [x] Build passes
+
+---
+
+### Iteration 2: Epic G - Unified Feature Flags (2026-01-22)
+
+**Objective:** Consolidate 10+ fragmented flag systems into single authoritative system
+
+**Status:** COMPLETE
+
+#### G.1 Flag Inventory Audit
+- [x] Identified 30+ flags across 10 distinct systems
+- [x] Found naming conflicts (NEW_IA vs enable_new_ia vs new_ia)
+- [x] Found two `useFlag()` hooks with same name, different implementations
+- [x] Documented in `02-epic-g-architecture.md`
+
+#### G.2 YAML Schema + Codegen
+- [x] Created `flags/registry.yaml` - canonical flag definitions (27 flags)
+- [x] Created `scripts/generate-flag-types.ts` - TypeScript codegen
+- [x] Generated `shared/generated/flag-types.ts` - type definitions
+- [x] Generated `shared/generated/flag-defaults.ts` - defaults + utilities
+- [x] Added npm scripts: `flags:generate`, `flags:check`
+
+#### G.3 Unified API
+- [x] Created `client/src/hooks/useUnifiedFlag.ts` - single client hook
+- [x] Created `shared/flags/getFlag.ts` - server-side utility
+- [x] Created `shared/flags/index.ts` - unified exports
+- [x] Supports: useFlag(), useFlags(), getFlag(), resolveLegacyFlag()
+
+#### G.4 Runtime Overrides
+- [x] URL params: `?ff_enable_new_ia=true` (dev only)
+- [x] localStorage: `ff_enable_new_ia` (non-admin flags only)
+- [x] Admin flags blocked from localStorage override
+- [x] Priority: URL > localStorage > env > default
+
+#### G.5 Schema Validation
+- [x] Created `scripts/validate-flag-usage.ts` - validates codebase flag usage
+- [x] Added npm scripts: `flags:validate`, `flags:validate:strict`
+- [x] Strict mode for CI enforcement
+
+#### G.6 Deprecate Legacy
+- [x] Deleted `client/src/config/features.json` (dead code)
+- [x] Deleted `client/src/hooks/useFeatureFlag.ts` (imported deleted config)
+- [x] Marked 8 flags as deprecated in registry
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `flags/registry.yaml` | Canonical flag definitions (27 flags) |
+| `scripts/generate-flag-types.ts` | TypeScript codegen from YAML |
+| `shared/generated/flag-types.ts` | Generated type definitions |
+| `shared/generated/flag-defaults.ts` | Generated defaults + utilities |
+| `client/src/hooks/useUnifiedFlag.ts` | Unified client hook |
+| `shared/flags/getFlag.ts` | Server-side flag utility |
+| `shared/flags/index.ts` | Unified exports |
+| `scripts/validate-flag-usage.ts` | Flag usage validator |
+| `docs/planning/phase2-execution/02-epic-g-architecture.md` | Architecture doc |
+
+**Files Deleted:**
+| File | Reason |
+|------|--------|
+| `client/src/config/features.json` | Dead config (never imported) |
+| `client/src/hooks/useFeatureFlag.ts` | Dead hook (imported deleted config) |
+
+**npm Scripts Added:**
+- `flags:generate` - Generate types from registry.yaml
+- `flags:check` - Verify codegen is up-to-date
+- `flags:validate` - Validate flag usage (warn mode)
+- `flags:validate:strict` - Validate flag usage (strict mode for CI)
+
+**Quality Gates:**
+- [x] TypeScript check passes
+- [x] ESLint passes
+
+**Migration Path:**
+- `FLAGS.NEW_IA` -> `useFlag('enable_new_ia')` or `getFlag('enable_new_ia')`
+- `isEnabled('new_ia')` -> `useFlag('enable_new_ia')`
+- Legacy aliases mapped in registry for gradual migration
+
+---

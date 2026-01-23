@@ -309,7 +309,11 @@
     "reflection:validate": "python scripts/manage_skills.py validate",
     "reflection:wizard-index": "python scripts/manage_skills.py wizard-index",
     "reflection:wizard-index:check": "python scripts/manage_skills.py wizard-index --check",
-    "reflection:metrics": "python scripts/manage_skills.py metrics"
+    "reflection:metrics": "python scripts/manage_skills.py metrics",
+    "flags:generate": "npx tsx scripts/generate-flag-types.ts",
+    "flags:check": "npx tsx scripts/generate-flag-types.ts --check",
+    "flags:validate": "npx tsx scripts/validate-flag-usage.ts",
+    "flags:validate:strict": "npx tsx scripts/validate-flag-usage.ts --strict"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

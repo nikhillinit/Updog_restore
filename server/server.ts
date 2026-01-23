@@ -15,7 +15,8 @@ import compression from 'compression';
 import bodyParser from 'body-parser';
 import { withNonce, csp } from './security/csp';
 import { cspReportRoute } from './routes/public/csp-report';
-import { flagsRoute } from './routes/public/flags';
+// REMOVED: Legacy simple flags route - use secure flagsRouter from routes/flags.ts instead
+// import { flagsRoute } from './routes/public/flags';
 import cors from 'cors';
 import { requestId } from './middleware/requestId.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
@@ -158,7 +159,8 @@ export async function createServer(
   
   // Public routes (before rate limiting)
   app.use("/api", cspReportRoute);
-  app.use("/api", flagsRoute);
+  // REMOVED: Legacy flagsRoute - secure flagsRouter in routes/flags.ts handles /api/flags
+  // app.use("/api", flagsRoute);
   
   // Request logging middleware with version
   app.use((req: Request, res: Response, next: NextFunction) => {

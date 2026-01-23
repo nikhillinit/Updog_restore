@@ -13,6 +13,13 @@ function getFlag(envKey: string, localStorageKey: string): boolean {
   return String(envValue).toLowerCase() === 'true';
 }
 
+// Admin flags - NO localStorage override (security: prevents client-side bypass)
+// These can only be enabled via environment variables set at build time
+function getAdminFlag(envKey: string): boolean {
+  const envValue = import.meta.env[envKey];
+  return String(envValue).toLowerCase() === 'true';
+}
+
 export const FLAGS = {
   NEW_IA: getFlag('VITE_NEW_IA', 'FF_NEW_IA'),
   ENABLE_SELECTOR_KPIS: getFlag('VITE_ENABLE_SELECTOR_KPIS', 'FF_ENABLE_SELECTOR_KPIS'),
@@ -21,7 +28,7 @@ export const FLAGS = {
   ENABLE_LP_REPORTING: getFlag('VITE_ENABLE_LP_REPORTING', 'FF_ENABLE_LP_REPORTING'),
   // GP Modernization flags
   ONBOARDING_TOUR: getFlag('VITE_ONBOARDING_TOUR', 'FF_ONBOARDING_TOUR'),
-  UI_CATALOG: getFlag('VITE_UI_CATALOG', 'FF_UI_CATALOG'),
+  UI_CATALOG: getAdminFlag('VITE_UI_CATALOG'), // Admin flag - no localStorage override
 } as const;
 
 export type Flags = typeof FLAGS;

@@ -2,11 +2,10 @@
  * UI Catalog - Admin-only component showcase
  *
  * Displays all canonical UI primitives with variants for visual verification.
- * Gated by FLAGS.UI_CATALOG feature flag.
+ * Access controlled by AdminRoute wrapper (FLAGS.UI_CATALOG - no localStorage override)
  */
 
 import React, { useState } from 'react';
-import { FLAGS } from '@/core/flags/featureFlags';
 import { presson } from '@/theme/presson.tokens';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { SwipeableMetricCards, MetricCardData } from '@/components/ui/SwipeableMetricCards';
@@ -254,20 +253,8 @@ function ButtonsSection() {
 }
 
 export default function UICatalog() {
-  // Gate by feature flag
-  if (!FLAGS.UI_CATALOG) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-presson-text mb-2">Access Denied</h1>
-          <p className="text-presson-textMuted">
-            UI Catalog is not enabled. Set FF_UI_CATALOG=true to access.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // Note: Access control is handled by AdminRoute wrapper in App.tsx
+  // The UI_CATALOG flag is a secure admin flag (no localStorage override)
   return (
     <div className="min-h-screen bg-presson-bg p-6 md:p-8">
       <div className="max-w-6xl mx-auto space-y-12">
