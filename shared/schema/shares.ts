@@ -80,15 +80,23 @@ export const shareAnalytics = pgTable(
 );
 
 // Zod schemas for validation
-export const insertShareSchema = createInsertSchema(shares, {
-  accessLevel: z.enum(SHARE_ACCESS_LEVELS),
-  hiddenMetrics: z.array(z.string()).default([]),
-});
-
+export const insertShareSchema = createInsertSchema(shares);
 export const selectShareSchema = createSelectSchema(shares);
 
 export const insertShareAnalyticsSchema = createInsertSchema(shareAnalytics);
 export const selectShareAnalyticsSchema = createSelectSchema(shareAnalytics);
+
+// Extended validation schema with proper types
+export const createShareSchema = z.object({
+  fundId: z.string().min(1),
+  accessLevel: z.enum(SHARE_ACCESS_LEVELS).default('view_only'),
+  requirePasskey: z.boolean().default(false),
+  passkey: z.string().min(4).max(50).optional(),
+  expiresInDays: z.number().min(1).max(365).optional(),
+  hiddenMetrics: z.array(z.string()).default([]),
+  customTitle: z.string().max(100).optional(),
+  customMessage: z.string().max(500).optional(),
+});
 
 // Types
 export type Share = typeof shares.$inferSelect;

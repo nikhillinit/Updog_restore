@@ -15,11 +15,29 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { db } from '../db';
 import { shares, shareAnalytics, SHARE_ACCESS_LEVELS } from '@shared/schema/shares';
-import { eq, and, desc } from 'drizzle-orm';
-import { CreateShareLinkSchema, LP_HIDDEN_METRICS } from '@shared/sharing-schema';
+import { eq, desc } from 'drizzle-orm';
+import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
+
+// Password hashing utilities using PBKDF2
+const HASH_ITERATIONS = 100000;
+const HASH_KEY_LENGTH = 64;
+const HASH_ALGORITHM = 'sha512';
+
+function hashPasskey(passkey: string): string {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(passkey, salt, HASH_ITERATIONS, HASH_KEY_LENGTH, HASH_ALGORITHM).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPasskey(passkey: string, storedHash: string): boolean {
+  const [salt, hash] = storedHash.split(':');
+  if (!salt || !hash) return false;
+  const verifyHash = crypto.pbkdf2Sync(passkey, salt, HASH_ITERATIONS, HASH_KEY_LENGTH, HASH_ALGORITHM).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(verifyHash));
+}
 
 const router = Router();
 
@@ -61,7 +79,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     // Hash passkey if provided
     let passkeyHash: string | null = null;
     if (body.requirePasskey && body.passkey) {
-      passkeyHash = await bcrypt.hash(body.passkey, 10);
+      passkeyHash = hashPasskey(body.passkey);
     }
 
     // Calculate expiration date
@@ -91,6 +109,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         updatedAt: now,
       })
       .returning();
+
+    if (!share) {
+      return res.status(500).json({ success: false, error: 'Failed to create share' });
+    }
 
     res.status(201).json({
       success: true,
@@ -239,7 +261,7 @@ router.post('/:shareId/verify', async (req: Request, res: Response, next: NextFu
       return res.status(400).json({ success: false, error: 'Share does not require passkey' });
     }
 
-    const isValid = await bcrypt.compare(passkey, share.passkeyHash);
+    const isValid = verifyPasskey(passkey, share.passkeyHash);
     if (!isValid) {
       return res.status(401).json({ success: false, error: 'Invalid passkey' });
     }
@@ -292,7 +314,7 @@ router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction
     if (body.accessLevel !== undefined) updates.accessLevel = body.accessLevel;
     if (body.requirePasskey !== undefined) updates.requirePasskey = body.requirePasskey;
     if (body.passkey !== undefined) {
-      updates.passkeyHash = await bcrypt.hash(body.passkey, 10);
+      updates.passkeyHash = hashPasskey(body.passkey);
     }
     if (body.expiresInDays !== undefined) {
       if (body.expiresInDays === null) {

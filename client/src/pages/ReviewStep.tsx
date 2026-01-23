@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, Rocket } from 'lucide-react';
 import { useFundContext } from '@/contexts/FundContext';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatUSD } from '@/lib/formatting';
 
 interface SummarySection {
   title: string;
@@ -34,24 +35,24 @@ export default function ReviewStep() {
         title: 'Fund Basics',
         items: [
           { label: 'Fund Name', value: currentFund.name || 'Unnamed Fund', status: currentFund.name ? 'ok' : 'missing' },
-          { label: 'Fund Size', value: formatCurrency(currentFund.totalCommitment ?? 0), status: currentFund.totalCommitment ? 'ok' : 'warning' },
+          { label: 'Fund Size', value: formatUSD(currentFund.size ?? 0), status: currentFund.size ? 'ok' : 'warning' },
           { label: 'Vintage Year', value: currentFund.vintageYear ?? 'Not set', status: currentFund.vintageYear ? 'ok' : 'warning' },
-          { label: 'Fund Life', value: currentFund.fundLife ? `${currentFund.fundLife} years` : 'Not set', status: currentFund.fundLife ? 'ok' : 'warning' },
+          { label: 'Fund Life', value: currentFund.termYears ? `${currentFund.termYears} years` : 'Not set', status: currentFund.termYears ? 'ok' : 'warning' },
         ],
       },
       {
         title: 'Economics',
         items: [
           { label: 'Management Fee', value: currentFund.managementFee ? `${(currentFund.managementFee * 100).toFixed(2)}%` : 'Not set', status: currentFund.managementFee !== undefined ? 'ok' : 'warning' },
-          { label: 'Carry', value: currentFund.carry ? `${(currentFund.carry * 100).toFixed(0)}%` : 'Not set', status: currentFund.carry !== undefined ? 'ok' : 'warning' },
-          { label: 'Preferred Return', value: currentFund.preferredReturn ? `${(currentFund.preferredReturn * 100).toFixed(0)}%` : 'Not set', status: currentFund.preferredReturn !== undefined ? 'ok' : 'warning' },
+          { label: 'Carry', value: currentFund.carryPercentage ? `${(currentFund.carryPercentage * 100).toFixed(0)}%` : 'Not set', status: currentFund.carryPercentage !== undefined ? 'ok' : 'warning' },
+          { label: 'Deployed Capital', value: currentFund.deployedCapital ? formatUSD(currentFund.deployedCapital) : 'Not set', status: currentFund.deployedCapital ? 'ok' : 'warning' },
         ],
       },
       {
-        title: 'Investment Strategy',
+        title: 'Fund Status',
         items: [
-          { label: 'Target Companies', value: currentFund.targetCompanies ?? 'Not configured', status: currentFund.targetCompanies ? 'ok' : 'warning' },
-          { label: 'Reserve Ratio', value: currentFund.reserveRatio ? `${(currentFund.reserveRatio * 100).toFixed(0)}%` : 'Not set', status: currentFund.reserveRatio !== undefined ? 'ok' : 'warning' },
+          { label: 'Status', value: currentFund.status ?? 'Unknown', status: currentFund.status === 'active' ? 'ok' : 'warning' },
+          { label: 'Establishment Date', value: currentFund.establishmentDate ?? 'Not set', status: currentFund.establishmentDate ? 'ok' : 'warning' },
         ],
       },
     ];
