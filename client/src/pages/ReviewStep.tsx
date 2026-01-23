@@ -7,12 +7,12 @@
 
 import { useMemo } from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, Rocket } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowLeft, Rocket } from 'lucide-react';
 import { useFundContext } from '@/contexts/FundContext';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';

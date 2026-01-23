@@ -12,7 +12,8 @@
  * GET    /api/shares/:shareId/analytics - Get share analytics
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';

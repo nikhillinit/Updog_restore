@@ -5,15 +5,16 @@
  * Access controlled by AdminRoute wrapper (FLAGS.UI_CATALOG - no localStorage override)
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { presson } from '@/theme/presson.tokens';
 import { KpiCard } from '@/components/ui/KpiCard';
-import { SwipeableMetricCards, MetricCardData } from '@/components/ui/SwipeableMetricCards';
+import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
+import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
 import { DataTable } from '@/components/ui/DataTable';
 import { ContextualTooltip, IRRTooltip, MOICTooltip, DPITooltip } from '@/components/ui/contextual-tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, DollarSign, Target, BarChart3, TrendingUp, Percent, Wallet } from 'lucide-react';
+import { Building2, DollarSign, Target, BarChart3 } from 'lucide-react';
 
 // Sample data for DataTable
 const sampleTableData = [
