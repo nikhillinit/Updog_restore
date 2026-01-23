@@ -235,3 +235,55 @@
 - Selector strategy: Standardized on role/name + data-testid
 
 ---
+
+### Iteration 4: Epic I - Wizard Steps 4-7 (2026-01-22)
+
+**Objective:** Complete wizard flow with Step 7 (Review & Create)
+
+**Status:** PARTIAL COMPLETE (Step 7 implemented, XState deferred)
+
+#### I.0.5 Audit Complete
+- [x] Documented wizard architecture mismatch (XState 7 steps vs Router 6)
+- [x] Identified Step 6 purpose misalignment
+- [x] Found orphaned WaterfallStep.tsx
+- [x] Created `04-epic-i-wizard-audit.md`
+
+#### I.1 Step 7 Implementation
+- [x] Created `ReviewStep.tsx` with fund summary
+- [x] Shows validation status (ok/warning/missing)
+- [x] Create Fund button with disabled state
+- [x] Back navigation to Step 6
+
+#### I.2 Route Wiring
+- [x] Updated `fund-setup-utils.ts` - Added '7' to VALID_STEPS
+- [x] Updated `fund-setup.tsx` - Added ReviewStep to STEP_COMPONENTS
+- [x] Route `/fund-setup?step=7` now functional
+
+#### I.5 E2E Test
+- [x] Created `tests/e2e/wizard-review-step.spec.ts`
+- [x] Tests: load, summary sections, validation, navigation, create button
+
+#### Deferred Items (Future Epic)
+- [ ] XState machine alignment
+- [ ] Cross-step validation
+- [ ] Data persistence consolidation
+- [ ] UI standardization across steps
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `client/src/pages/ReviewStep.tsx` | Step 7 Review & Create |
+| `tests/e2e/wizard-review-step.spec.ts` | Step 7 E2E tests |
+| `docs/planning/phase2-execution/04-epic-i-wizard-audit.md` | Audit findings |
+
+**Files Modified:**
+| File | Change |
+|------|--------|
+| `client/src/pages/fund-setup-utils.ts` | Added '7' to VALID_STEPS, 'review' to NUM_TO_KEY |
+| `client/src/pages/fund-setup.tsx` | Added ReviewStep import and to STEP_COMPONENTS |
+
+**Quality Gates:**
+- [x] TypeScript check passes
+- [x] ESLint passes
+
+---
