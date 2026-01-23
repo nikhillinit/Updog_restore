@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { pdf, Document, Page, View, Text, StyleSheet, Font } from '@react-pdf/renderer';
+import { pdf, Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
 import { db } from '../db';
 import { limitedPartners, lpFundCommitments, capitalActivities } from '@shared/schema-lp-reporting';
 import { funds } from '@shared/schema';
@@ -50,6 +50,8 @@ export interface K1ReportData {
     endingBalance: number;
   };
   footnotes?: string[];
+  /** ISO timestamp for deterministic PDF output */
+  generatedAt?: string;
 }
 
 export interface QuarterlyReportData {
@@ -79,6 +81,8 @@ export interface QuarterlyReportData {
     amount: number;
   }>;
   commentary?: string;
+  /** ISO timestamp for deterministic PDF output */
+  generatedAt?: string;
 }
 
 export interface CapitalAccountReportData {
@@ -100,6 +104,8 @@ export interface CapitalAccountReportData {
     netIncome: number;
     endingBalance: number;
   };
+  /** ISO timestamp for deterministic PDF output */
+  generatedAt?: string;
 }
 
 // ============================================================================
@@ -118,19 +124,8 @@ const colors = {
   error: '#ef4444',
 };
 
-// Register Inter font if available, fall back to Helvetica
-try {
-  Font.register({
-    family: 'Inter',
-    fonts: [
-      { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2', fontWeight: 400 },
-      { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2', fontWeight: 600 },
-      { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff2', fontWeight: 700 },
-    ],
-  });
-} catch {
-  // Font registration may fail in test environment, fall back to Helvetica
-}
+// Fonts are deferred to system defaults for deterministic output.
+// TODO: Bundle and register local font files to avoid remote fetches.
 
 const fontFamily = 'Helvetica'; // Default to safe font
 
@@ -341,12 +336,19 @@ function formatDate(date: string | Date, format: 'short' | 'medium' | 'long' = '
   const d = typeof date === 'string' ? new Date(date) : date;
   switch (format) {
     case 'short':
-      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
+      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', timeZone: 'UTC' });
     case 'long':
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
     default:
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   }
+}
+
+/**
+ * Get timestamp for PDF generation, using provided date for determinism.
+ */
+function getGeneratedTimestamp(asOfDate?: Date): Date {
+  return asOfDate ?? new Date();
 }
 
 // ============================================================================
@@ -364,6 +366,7 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
     data.allocations.royalties +
     data.allocations.netRentalIncome +
     data.allocations.otherIncome;
+  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
 
   return React.createElement(
     Document,
@@ -544,8 +547,8 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
       React.createElement(
         View,
         { style: baseStyles.footer, fixed: true },
-        React.createElement(Text, null, `Generated ${formatDate(new Date(), 'medium')}`),
-        React.createElement(Text, null, `${new Date().getFullYear()} Press On Ventures | Confidential`)
+        React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
+        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
       )
     )
   );
@@ -558,6 +561,7 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
 function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.ReactElement {
   const totalInvested = data.portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
   const totalValue = data.portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
+  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
 
   return React.createElement(
     Document,
@@ -694,8 +698,8 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
       React.createElement(
         View,
         { style: baseStyles.footer, fixed: true },
-        React.createElement(Text, null, `Generated ${formatDate(new Date(), 'medium')}`),
-        React.createElement(Text, null, `${new Date().getFullYear()} Press On Ventures | Confidential`)
+        React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
+        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
       )
     )
   );
@@ -706,6 +710,7 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
 // ============================================================================
 
 function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }): React.ReactElement {
+  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
   return React.createElement(
     Document,
     { title: `Capital Account Statement - ${data.lpName}` },
@@ -801,8 +806,8 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
       React.createElement(
         View,
         { style: baseStyles.footer, fixed: true },
-        React.createElement(Text, null, `Generated ${formatDate(new Date(), 'medium')}`),
-        React.createElement(Text, null, `${new Date().getFullYear()} Press On Ventures | Confidential`)
+        React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
+        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
       )
     )
   );
