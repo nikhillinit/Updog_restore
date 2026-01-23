@@ -316,6 +316,13 @@
 - [x] Wired routes in `server/routes.ts`
 - [x] Exported schema from `shared/schema/index.ts`
 
+#### J.2 Report View (Newspaper Mode)
+- [x] Updated `client/src/pages/shared-dashboard.tsx` to use real shares API
+- [x] Integrated passkey verification flow with API
+- [x] Added print button for newspaper-style printing
+- [x] Uses print.css for clean print output
+- [x] Displays fund metrics, performance, and top portfolio companies
+
 #### J.6 E2E Tests
 - [x] Created `tests/e2e/report-sharing.spec.ts`
 - [x] Tests: create share, list, get, verify passkey, update, revoke, analytics
@@ -333,6 +340,7 @@
 |------|--------|
 | `server/routes.ts` | Added shares routes at /api/shares |
 | `shared/schema/index.ts` | Export shares schema |
+| `client/src/pages/shared-dashboard.tsx` | Connected to real shares API, added print |
 
 **Quality Gates:**
 - [x] TypeScript check passes
@@ -340,7 +348,7 @@
 
 **Remaining J Tasks:**
 - [ ] J.1: Font bundling (deferred - not blocking)
-- [ ] J.2: Report view page ("Newspaper Mode")
+- [x] J.2: Report view page ("Newspaper Mode")
 - [ ] J.3: Export strategy
 - [ ] J.5: Financial accuracy
 - [x] J.6: E2E tests for sharing
