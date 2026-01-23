@@ -1,21 +1,30 @@
 # Epic I: Wizard Steps 4-7 Audit
 
-**Status:** AUDIT COMPLETE
-**Date:** 2026-01-22
+**Status:** CORE COMPLETE (Step 7 + XState Decision)
+**Date:** 2026-01-23 (updated)
 
 ---
 
 ## Current Architecture
 
-### Step Mapping Mismatch
+### Wizard Systems (Clarified)
 
-| Source | Steps Defined | Notes |
-|--------|---------------|-------|
-| fund-setup-utils.ts | 6 | VALID_STEPS = ['1'..'6'] |
-| fund-setup.tsx routes | 6 | Routes only 1-6 |
-| modeling-wizard.machine.ts | 7 | XState defines 7 steps |
+**IMPORTANT:** There are TWO SEPARATE wizard systems that serve DIFFERENT purposes:
 
-**Critical Issue:** XState machine and React router are out of sync.
+| Wizard | File | Steps | Purpose |
+|--------|------|-------|---------|
+| Fund Setup | `fund-setup.tsx` | 7 (router-based) | Fund onboarding/configuration |
+| Modeling | `modeling-wizard.machine.ts` | 7 (XState) | Financial modeling/scenarios |
+
+**Resolution:** These are NOT meant to be connected. The apparent "mismatch" was a misunderstanding - they are parallel features with different taxonomies.
+
+### Fund Setup Steps (Current - ALIGNED)
+
+| Source | Steps | Status |
+|--------|-------|--------|
+| fund-setup-utils.ts | 7 | VALID_STEPS = ['1'..'7'] |
+| fund-setup.tsx routes | 7 | Routes 1-7 complete |
+| STEP_COMPONENTS | 7 | All components wired |
 
 ### Step Purpose vs Implementation
 
@@ -108,14 +117,18 @@ Should include:
 ## Recommendations
 
 ### P0: Critical (Blocking)
-1. **Implement Step 7 (Review & Create)**
-   - Create ReviewStep.tsx
-   - Wire to route `/fund-setup?step=7`
-   - Update fund-setup-utils.ts
+1. **Implement Step 7 (Review & Create)** - COMPLETE
+   - Created ReviewStep.tsx
+   - Wired to route `/fund-setup?step=7`
+   - Updated fund-setup-utils.ts
 
-2. **Reconcile XState ↔ Router**
-   - Decision: XState or router as source of truth?
-   - Align step count (6 or 7)
+2. **Reconcile XState ↔ Router** - RESOLVED (No Action Needed)
+   - **Decision:** Keep separate - these are DIFFERENT wizards
+   - `modeling-wizard.machine.ts` = Financial modeling/scenarios flow
+   - `fund-setup.tsx` = Fund onboarding/configuration flow
+   - They have different step taxonomies because they serve different purposes
+   - Router is source of truth for fund-setup (7 steps complete)
+   - XState remains source of truth for modeling wizard (separate feature)
 
 ### P1: Important
 3. **Fix Step 6 purpose**
@@ -133,27 +146,29 @@ Should include:
 
 ---
 
-## Files to Create/Modify
+## Files Created/Modified
 
-| File | Action |
-|------|--------|
-| `client/src/pages/ReviewStep.tsx` | CREATE - Step 7 |
-| `client/src/pages/fund-setup.tsx` | MODIFY - Add step 7 route |
-| `client/src/pages/fund-setup-utils.ts` | MODIFY - Add '7' to VALID_STEPS |
-| `client/src/machines/modeling-wizard.machine.ts` | MODIFY - Align with routes |
+| File | Action | Status |
+|------|--------|--------|
+| `client/src/pages/ReviewStep.tsx` | CREATED - Step 7 | DONE (PR #479) |
+| `client/src/pages/fund-setup.tsx` | MODIFIED - Add step 7 route | DONE (PR #479) |
+| `client/src/pages/fund-setup-utils.ts` | MODIFIED - Add '7' to VALID_STEPS | DONE (PR #479) |
+| `client/src/machines/modeling-wizard.machine.ts` | NO CHANGE - Separate wizard | N/A |
 
 ---
 
 ## Implementation Scope for This Epic
 
-Given time constraints, focus on:
+**COMPLETE:**
 1. [x] Audit complete (this document)
-2. [ ] Create minimal Step 7 (ReviewStep.tsx)
-3. [ ] Wire route for step 7
-4. [ ] Basic summary display
-5. [ ] E2E test for wizard completion
+2. [x] Create minimal Step 7 (ReviewStep.tsx) - PR #479
+3. [x] Wire route for step 7 - PR #479
+4. [x] Basic summary display - PR #479
+5. [x] E2E test for wizard completion - PR #479
+6. [x] XState reconciliation decision: Keep wizards separate (modeling vs setup)
 
-Defer to future epic:
-- Cross-step validation
-- Data persistence consolidation
-- UI standardization
+**Deferred to future epic:**
+- Cross-step validation (fund-setup specific)
+- Data persistence consolidation (migrate localStorage to store)
+- UI standardization across steps
+- Optional: Create fund-setup-specific XState machine for guarantees
