@@ -19,6 +19,8 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-013: Multi-Tenant Isolation via PostgreSQL Row Level Security](#adr-013-multi-tenant-isolation-via-postgresql-row-level-security)
 - [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria)
 - [ADR-015: Document Restructuring Approach - Sequential Split, Parallel Refinement](#adr-015-document-restructuring-approach---sequential-split-parallel-refinement)
+- [ADR-016: XState Wizard Persistence with Invoke Pattern and Automatic Retry](#adr-016-xstate-wizard-persistence-with-invoke-pattern-and-automatic-retry)
+- [ADR-017: Export Strategy - BullMQ Async Pipeline with Unified Data Model](#adr-017-export-strategy---bullmq-async-pipeline-with-unified-data-model)
 
 ---
 
@@ -4552,3 +4554,101 @@ const calculateDelay = ({ context }) => Math.pow(2, context.retryCount) * 1000;
 **Document Status:** ACCEPTED
 **Last Updated:** 2025-12-01
 **Next Steps:** Implement test-driven development cycle (RED → GREEN → REFACTOR)
+
+---
+
+## ADR-017: Export Strategy - BullMQ Async Pipeline with Unified Data Model
+
+**Date:** 2026-01-23 **Status:** [ACCEPTED]
+
+### Context
+
+The platform requires export functionality for LP reports in multiple formats (PDF, XLSX, CSV). An audit of the current export infrastructure revealed:
+
+**Current State:**
+- PDF generation uses `@react-pdf/renderer` with 3 templates (K-1, Quarterly, Capital Account)
+- XLSX generation uses ExcelJS with 2 templates (capital account, quarterly/annual)
+- BullMQ worker orchestrates generation with concurrency=2 and rate limiting
+- Client-side PDF utilities provide in-browser rendering (separate from server)
+- API endpoint: `POST /api/lp/reports/generate` supporting pdf/xlsx/csv formats
+
+**Gaps Identified:**
+1. **No progress visibility:** SSE progress events exist but aren't exposed to clients
+2. **No JSON format:** Structured data export not available
+3. **CSV is primitive:** Only transaction dump, no structured sections
+4. **No retry/cancel flow:** Failed jobs remain pending
+5. **Memory concerns:** All formats built fully in-memory, no pagination for large LPs
+
+### Decision
+
+**Retain BullMQ async pipeline** with targeted enhancements:
+
+1. **Unified Data Model (Phase 1):**
+   - Extract `buildReportData()` that produces canonical data structure
+   - Format renderers (PDF/XLSX/CSV/JSON) consume same data model
+   - `sections` and `templateId` params meaningfully shape output
+
+2. **Progress Exposure (Phase 2):**
+   - Wire existing BullMQ progress events to SSE endpoint
+   - Client polling for status already works, SSE adds real-time updates
+   - Add webhook option for external integrations
+
+3. **JSON/CSV Enhancement (Phase 3):**
+   - JSON export: Full structured data with metadata
+   - CSV export: Section-based with headers (not just transactions)
+   - Both use same canonical data model
+
+4. **Large Export Handling (Phase 4 - Deferred):**
+   - Paginated data fetching for transactions >1000
+   - ZIP packaging for multi-fund exports
+   - Streaming response for downloads
+
+### Rationale
+
+**Why BullMQ over synchronous:**
+- Already implemented and working
+- Natural queuing for concurrency control
+- Progress tracking infrastructure exists
+- Graceful degradation if queue unavailable
+
+**Why unified data model:**
+- Single source of truth for all formats
+- Easier to add new formats (Markdown, HTML)
+- Consistent validation across outputs
+- Reduced duplication between templates
+
+**Why NOT rewrite:**
+- Current infrastructure works for MVP scale
+- Large export handling can be added incrementally
+- Team familiarity with existing patterns
+
+### Consequences
+
+**Positive:**
+- Minimal disruption to working code
+- Progress visibility improves UX
+- JSON export unlocks API-first workflows
+- Clear migration path for scale
+
+**Negative:**
+- Memory limits remain for very large exports (Phase 4)
+- Two PDF paths (server + client) may diverge
+
+**Implementation Order:**
+1. Epic J.5: Wire SSE progress for existing queue
+2. Later: Add JSON format via unified data model
+3. Later: Enhance CSV to structured format
+4. Deferred: Streaming/pagination for large exports
+
+### Related Files
+
+- `server/services/pdf-generation-service.ts` - PDF templates
+- `server/services/xlsx-generation-service.ts` - Excel templates
+- `server/queues/report-generation-queue.ts` - BullMQ orchestration
+- `server/routes/lp-api.ts` - API endpoints
+
+---
+
+**Document Status:** ACCEPTED
+**Last Updated:** 2026-01-23
+**Review Date:** 2026-04-23 (after Phase 2 implementation)
