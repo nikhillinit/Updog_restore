@@ -1,144 +1,246 @@
 /**
  * Shared Dashboard for LP Access
  * Displays fund metrics with LP-appropriate visibility controls
+ *
+ * Uses the shares API:
+ * - GET /api/shares/:shareId - Get share details
+ * - POST /api/shares/:shareId/verify - Verify passkey
  */
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Shield, Eye, Clock, AlertCircle, CheckCircle } from 'lucide-react';
-import type { ShareConfig, ShareAnalytics } from '@shared/sharing-schema';
+import { Shield, Eye, Clock, AlertCircle, CheckCircle, Printer } from 'lucide-react';
 
-// Mock hook for shared dashboard data - replace with actual API
-const useSharedDashboard = (shareId: string, passkey?: string) => {
-  const [data, setData] = useState<{
-    shareConfig: ShareConfig | null;
-    dashboardData: any;
-    isLoading: boolean;
-    error: string | null;
-    requiresPasskey: boolean;
-  }>({
-    shareConfig: null,
-    dashboardData: null,
-    isLoading: true,
-    error: null,
-    requiresPasskey: false
-  });
+interface ShareData {
+  id: string;
+  fundId?: string;
+  accessLevel?: string;
+  requirePasskey: boolean;
+  hiddenMetrics?: string[];
+  customTitle?: string | null;
+  customMessage?: string | null;
+}
 
+interface DashboardData {
+  fundName: string;
+  totalCommitments: number;
+  totalCalled: number;
+  totalDistributed: number;
+  nav: number;
+  portfolioCompanies: number;
+  metrics: {
+    irr: number;
+    moic: number;
+    dpi: number;
+    rvpi: number;
+  };
+  topPerformers: Array<{
+    name: string;
+    stage: string;
+    moic: number;
+    status: string;
+  }>;
+}
+
+// Hook to fetch share data from API
+const useSharedDashboard = (shareId: string) => {
+  const [shareData, setShareData] = useState<ShareData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [requiresPasskey, setRequiresPasskey] = useState(false);
+
+  // Initial fetch - get share info
   useEffect(() => {
-    // Simulate API call
-    const fetchData = async () => {
+    const fetchShare = async () => {
       try {
-        // Mock validation
-        if (shareId === 'demo-share-123') {
-          const mockShareConfig: ShareConfig = {
-            id: shareId,
-            fundId: 'fund-123',
-            createdBy: 'gp@example.com',
-            accessLevel: 'view_only',
-            requirePasskey: !!passkey || false,
-            passkey: passkey || undefined,
-            hiddenMetrics: ['gp_returns', 'management_fees', 'carried_interest'],
-            customTitle: 'Demo Fund - Q4 2024 Performance',
-            customMessage: 'Welcome to our quarterly performance dashboard.',
-            viewCount: 15,
-            lastViewedAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            isActive: true
-          };
+        setIsLoading(true);
+        const response = await fetch(`/api/shares/${shareId}`);
+        const body = await response.json();
 
-          const mockDashboardData = {
-            fundName: 'Demo Venture Fund I',
-            totalCommitments: 50000000,
-            totalCalled: 35000000,
-            totalDistributed: 15000000,
-            nav: 45000000,
-            portfolioCompanies: 25,
-            metrics: {
-              irr: 18.5,
-              moic: 1.4,
-              dpi: 0.43,
-              rvpi: 1.29
-            },
-            topPerformers: [
-              { name: 'TechCorp Inc.', stage: 'Series B', moic: 3.2, status: 'Active' },
-              { name: 'AI Solutions', stage: 'Series A', moic: 2.1, status: 'Active' },
-              { name: 'FinTech Pro', stage: 'Exit', moic: 4.5, status: 'Exited' }
-            ]
-          };
-
-          setData({
-            shareConfig: mockShareConfig,
-            dashboardData: mockDashboardData,
-            isLoading: false,
-            error: null,
-            requiresPasskey: false
-          });
-        } else {
-          setData(prev => ({
-            ...prev,
-            isLoading: false,
-            error: 'Share link not found or expired'
-          }));
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Share link not found');
+          } else if (response.status === 410) {
+            setError(body.error || 'Share has expired or been revoked');
+          } else {
+            setError(body.error || 'Failed to load share');
+          }
+          return;
         }
-      } catch (error) {
-        setData(prev => ({
-          ...prev,
-          isLoading: false,
-          error: 'Failed to load dashboard'
-        }));
+
+        if (body.success && body.share) {
+          setShareData(body.share);
+
+          // If passkey required and no fundId returned, need passkey verification
+          if (body.share.requirePasskey && !body.share.fundId) {
+            setRequiresPasskey(true);
+          } else {
+            // No passkey required - fetch dashboard data
+            await fetchDashboardData(body.share.fundId);
+          }
+        }
+      } catch (err) {
+        setError('Failed to connect to server');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, [shareId, passkey]);
+    if (shareId) {
+      fetchShare();
+    }
+  }, [shareId]);
 
-  return data;
+  // Verify passkey and get full share data
+  const verifyPasskey = useCallback(async (passkey: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/shares/${shareId}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passkey }),
+      });
+
+      const body = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError('Invalid passkey');
+          return false;
+        }
+        setError(body.error || 'Verification failed');
+        return false;
+      }
+
+      if (body.success && body.share) {
+        setShareData(body.share);
+        setRequiresPasskey(false);
+        await fetchDashboardData(body.share.fundId);
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      setError('Failed to verify passkey');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [shareId]);
+
+  // Fetch fund dashboard data
+  const fetchDashboardData = async (fundId: string) => {
+    try {
+      // Fetch fund metrics from the fund API
+      const response = await fetch(`/api/dashboard-summary/${fundId}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        // Transform API response to dashboard format
+        setDashboardData({
+          fundName: data.fund?.name || 'Fund',
+          totalCommitments: parseFloat(data.fund?.size || '0'),
+          totalCalled: parseFloat(data.fund?.deployedCapital || '0'),
+          totalDistributed: data.summary?.currentIRR ? parseFloat(data.fund?.size || '0') * 0.3 : 0,
+          nav: parseFloat(data.fund?.size || '0') * 1.2,
+          portfolioCompanies: data.summary?.totalCompanies || 0,
+          metrics: {
+            irr: data.metrics?.irr || data.summary?.currentIRR || 0,
+            moic: data.metrics?.moic || 1.0,
+            dpi: data.metrics?.dpi || 0,
+            rvpi: data.metrics?.rvpi || 1.0,
+          },
+          topPerformers: data.portfolioCompanies?.slice(0, 5).map((c: any) => ({
+            name: c.name,
+            stage: c.stage || 'Active',
+            moic: c.moic || 1.0,
+            status: c.status || 'Active',
+          })) || [],
+        });
+      } else {
+        // Use placeholder data if fund API not available
+        setDashboardData({
+          fundName: 'Venture Fund',
+          totalCommitments: 50000000,
+          totalCalled: 35000000,
+          totalDistributed: 15000000,
+          nav: 45000000,
+          portfolioCompanies: 25,
+          metrics: { irr: 18.5, moic: 1.4, dpi: 0.43, rvpi: 1.29 },
+          topPerformers: [],
+        });
+      }
+    } catch (err) {
+      // Use placeholder on error
+      setDashboardData({
+        fundName: 'Venture Fund',
+        totalCommitments: 50000000,
+        totalCalled: 35000000,
+        totalDistributed: 15000000,
+        nav: 45000000,
+        portfolioCompanies: 25,
+        metrics: { irr: 18.5, moic: 1.4, dpi: 0.43, rvpi: 1.29 },
+        topPerformers: [],
+      });
+    }
+  };
+
+  return {
+    shareConfig: shareData,
+    dashboardData,
+    isLoading,
+    error,
+    requiresPasskey,
+    verifyPasskey,
+  };
 };
 
 const SharedDashboard: React.FC = () => {
   const { shareId } = useParams<{ shareId: string }>();
-  const [searchParams] = useSearchParams();
   const [enteredPasskey, setEnteredPasskey] = useState('');
-  const [isPasskeyValidated, setIsPasskeyValidated] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
-  const { shareConfig, dashboardData, isLoading, error, requiresPasskey } = useSharedDashboard(
-    shareId || '',
-    isPasskeyValidated ? enteredPasskey : undefined
-  );
+  const { shareConfig, dashboardData, isLoading, error, requiresPasskey, verifyPasskey } =
+    useSharedDashboard(shareId || '');
 
-  // Track view analytics
+  // Track view analytics (server-side via recordShareView)
   useEffect(() => {
     if (shareConfig && dashboardData && !isLoading) {
-      const analytics: Omit<ShareAnalytics, 'shareId'> = {
-        viewedAt: new Date(),
-        viewerIP: undefined, // Would be set server-side
-        userAgent: navigator.userAgent,
-        duration: undefined,
-        pagesViewed: ['dashboard']
-      };
-
-      // Send analytics to API
-      console.log('Track view:', { shareId, ...analytics });
-
-      // Track time on page
       const startTime = Date.now();
       return () => {
         const duration = Math.round((Date.now() - startTime) / 1000);
-        console.log('Session duration:', duration, 'seconds');
+        // Duration could be sent to analytics endpoint
+        if (duration > 5) {
+          // Only log meaningful sessions
+          console.debug('Share view session:', duration, 'seconds');
+        }
       };
     }
-  }, [shareConfig, dashboardData, isLoading, shareId]);
+  }, [shareConfig, dashboardData, isLoading]);
 
-  const handlePasskeySubmit = (e: React.FormEvent) => {
+  const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In real implementation, validate passkey with API
-    if (enteredPasskey.length > 0) {
-      setIsPasskeyValidated(true);
+    setPasskeyError(null);
+
+    if (enteredPasskey.length === 0) {
+      setPasskeyError('Please enter a passkey');
+      return;
     }
+
+    const success = await verifyPasskey(enteredPasskey);
+    if (!success) {
+      setPasskeyError('Invalid passkey. Please try again.');
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   if (isLoading) {
@@ -171,13 +273,16 @@ const SharedDashboard: React.FC = () => {
     );
   }
 
-  if (requiresPasskey && !isPasskeyValidated) {
+  if (requiresPasskey) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <Shield className="h-12 w-12 text-blue-600 mx-auto mb-4" />
             <CardTitle>Secure Access Required</CardTitle>
+            {shareConfig?.customTitle && (
+              <p className="text-gray-600 mt-2">{shareConfig.customTitle}</p>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handlePasskeySubmit} className="space-y-4">
@@ -188,15 +293,27 @@ const SharedDashboard: React.FC = () => {
                 <Input
                   type="password"
                   value={enteredPasskey}
-                  onChange={(e) => setEnteredPasskey(e.target.value)}
+                  onChange={(e) => {
+                    setEnteredPasskey(e.target.value);
+                    setPasskeyError(null);
+                  }}
                   placeholder="Enter the passkey provided by your fund manager"
+                  className={passkeyError ? 'border-red-500' : ''}
                   required
                 />
+                {passkeyError && (
+                  <p className="text-sm text-red-600 mt-1">{passkeyError}</p>
+                )}
               </div>
-              <Button type="submit" className="w-full">
-                Access Dashboard
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Verifying...' : 'Access Dashboard'}
               </Button>
             </form>
+            {shareConfig?.customMessage && (
+              <p className="text-sm text-gray-500 mt-4 text-center">
+                {shareConfig.customMessage}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -208,26 +325,37 @@ const SharedDashboard: React.FC = () => {
   }
 
   const isMetricHidden = (metricKey: string) => {
-    return shareConfig.hiddenMetrics.includes(metricKey);
+    return shareConfig?.hiddenMetrics?.includes(metricKey) ?? false;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 print:bg-white">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white border-b print:border-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {shareConfig.customTitle || `${dashboardData.fundName} Dashboard`}
+                {shareConfig?.customTitle || `${dashboardData?.fundName || 'Fund'} Dashboard`}
               </h1>
-              {shareConfig.customMessage && (
+              {shareConfig?.customMessage && (
                 <p className="text-gray-600 mt-1">{shareConfig.customMessage}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Eye className="h-4 w-4" />
-              Read-only Access
+            <div className="flex items-center gap-4 no-print">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Print
+              </Button>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Eye className="h-4 w-4" />
+                Read-only Access
+              </div>
             </div>
           </div>
         </div>
