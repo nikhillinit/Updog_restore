@@ -165,3 +165,73 @@
 - Legacy aliases mapped in registry for gradual migration
 
 ---
+
+### Iteration 3: Epic H - E2E Test Coverage (2026-01-22)
+
+**Objective:** Comprehensive E2E tests for Phase 1 features with selector strategy
+
+**Status:** COMPLETE
+
+#### H.1 Selector Strategy
+- [x] Defined priority: Role+Name > data-testid > Label > Text
+- [x] Naming convention: `data-testid="<component>-<element>[-<modifier>]"`
+- [x] Added missing test IDs to GuidedTour component
+- [x] Documented in `03-epic-h-test-strategy.md`
+
+#### H.2 Tiered Data Strategy
+- [x] Documented MSW (Tier 1), Seeded Backend (Tier 2), Contract (Tier 3)
+- [x] Existing fixture system (tests/e2e/fixtures/fund.ts) leveraged
+- [x] MSW setup documented for future error simulation
+
+#### H.3 Onboarding Tour Tests
+- [x] Created `tests/e2e/onboarding-tour.spec.ts`
+- [x] Tests: complete 5-step flow, skip tour, persistence, telemetry tracking
+
+#### H.4 Split-Screen Workflow Tests
+- [x] Created `tests/e2e/investment-editor.spec.ts`
+- [x] Tests: desktop KPI preview, mobile collapsible, timeline integration
+
+#### H.5 Responsive Overview Tests
+- [x] Created `tests/e2e/responsive-overview.spec.ts`
+- [x] Tests: mobile swipeable cards, tablet 2-col, desktop 4-col, DataTable scroll
+
+#### H.6 Telemetry Tests
+- [x] Created `tests/e2e/telemetry.spec.ts`
+- [x] Tests: event tracking, ring buffer limit, event structure, allowlist
+
+#### H.7 Visual Regression
+- [x] Created `tests/e2e/visual-regression.spec.ts`
+- [x] Scoped to UI Catalog (reduces maintenance)
+- [x] Tests: KpiCard, CollapsibleSection, SplitPane, Button, Card
+
+#### H.8 Flake Policy
+- [x] Created `scripts/check-flake-rate.js`
+- [x] Threshold: 15% flake rate triggers CI failure
+- [x] Quarantine recommendation for tests with >2 retries
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `tests/e2e/onboarding-tour.spec.ts` | Tour flow tests (6 tests) |
+| `tests/e2e/investment-editor.spec.ts` | Split-screen tests (8 tests) |
+| `tests/e2e/responsive-overview.spec.ts` | Viewport tests (10 tests) |
+| `tests/e2e/telemetry.spec.ts` | Telemetry validation (8 tests) |
+| `tests/e2e/visual-regression.spec.ts` | UI Catalog snapshots (7 tests) |
+| `scripts/check-flake-rate.js` | Flake detection script |
+| `docs/planning/phase2-execution/03-epic-h-test-strategy.md` | Test strategy doc |
+
+**Files Modified:**
+| File | Change |
+|------|--------|
+| `client/src/components/onboarding/GuidedTour.tsx` | Added data-testid attributes |
+
+**Quality Gates:**
+- [x] TypeScript check passes
+- [x] ESLint passes
+
+**Test Summary:**
+- New E2E tests: ~39 test cases across 5 new spec files
+- Coverage: Tour, Split-screen, Responsive, Telemetry, Visual
+- Selector strategy: Standardized on role/name + data-testid
+
+---

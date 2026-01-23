@@ -114,33 +114,34 @@ export function GuidedTour() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md border-presson-borderSubtle">
+      <DialogContent className="sm:max-w-md border-presson-borderSubtle" data-testid="guided-tour">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-presson-highlight">
               <StepIcon className="h-6 w-6 text-presson-text" />
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1" data-testid="tour-progress">
               {TOUR_STEPS.map((_, idx) => (
                 <div
                   key={idx}
                   className={`h-1.5 w-6 rounded-full transition-colors ${
                     idx <= currentStep ? 'bg-presson-accent' : 'bg-presson-surfaceSubtle'
                   }`}
+                  data-testid={`tour-step-indicator-${idx}`}
                 />
               ))}
             </div>
           </div>
-          <DialogTitle className="text-xl font-bold text-presson-text">
+          <DialogTitle className="text-xl font-bold text-presson-text" data-testid="tour-step-title">
             {step.title}
           </DialogTitle>
-          <DialogDescription className="text-presson-textMuted">
+          <DialogDescription className="text-presson-textMuted" data-testid="tour-step-description">
             {step.description}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
-          <p className="text-sm text-presson-textMuted">
+          <p className="text-sm text-presson-textMuted" data-testid="tour-step-counter">
             Step {currentStep + 1} of {TOUR_STEPS.length}
           </p>
         </div>
@@ -150,6 +151,7 @@ export function GuidedTour() {
             variant="ghost"
             onClick={handleSkip}
             className="text-presson-textMuted hover:text-presson-text"
+            data-testid="tour-skip"
           >
             <X className="h-4 w-4 mr-1" />
             Skip Tour
@@ -157,6 +159,7 @@ export function GuidedTour() {
           <Button
             onClick={handleNext}
             className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
+            data-testid="tour-next"
           >
             {isLastStep ? 'Get Started' : 'Next'}
             {!isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
