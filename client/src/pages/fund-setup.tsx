@@ -72,12 +72,6 @@ const WIZARD_STEPS = [
   {
     id: 'review',
     number: 7,
-    title: 'ADVANCED SETTINGS',
-    description: 'Fund structure and expenses',
-  },
-  {
-    id: 'complete',
-    number: 8,
     title: 'REVIEW & CREATE',
     description: 'Final review and fund creation',
   },
