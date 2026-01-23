@@ -287,3 +287,62 @@
 - [x] ESLint passes
 
 ---
+
+### Iteration 5: Epic J - Advanced Reporting + Sharing (2026-01-22)
+
+**Objective:** GP-grade reporting with secured sharing backend
+
+**Status:** IN PROGRESS
+
+#### J.0 Reporting Audit
+- [x] Audited PDF generation service (1,181 lines)
+- [x] Identified placeholder values (tax allocations, IRR)
+- [x] Documented font CDN dependency
+- [x] Created `05-epic-j-reporting-audit.md`
+
+#### J.4 Sharing Backend (v1)
+- [x] Created `shared/schema/shares.ts` - Drizzle schema
+  - `shares` table with access levels, passkey hashing, expiry
+  - `shareAnalytics` table for view tracking
+  - Indexes on fundId, createdBy, isActive
+- [x] Created `server/routes/shares.ts` - Full API
+  - POST /api/shares - Create share link
+  - GET /api/shares - List shares for fund
+  - GET /api/shares/:shareId - Get share (public)
+  - PATCH /api/shares/:shareId - Update share
+  - DELETE /api/shares/:shareId - Revoke share
+  - POST /api/shares/:shareId/verify - Verify passkey
+  - GET /api/shares/:shareId/analytics - View stats
+- [x] Wired routes in `server/routes.ts`
+- [x] Exported schema from `shared/schema/index.ts`
+
+#### J.6 E2E Tests
+- [x] Created `tests/e2e/report-sharing.spec.ts`
+- [x] Tests: create share, list, get, verify passkey, update, revoke, analytics
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `shared/schema/shares.ts` | Drizzle schema for shares + analytics |
+| `server/routes/shares.ts` | Full CRUD API for sharing |
+| `tests/e2e/report-sharing.spec.ts` | Share API E2E tests |
+| `docs/planning/phase2-execution/05-epic-j-reporting-audit.md` | Audit doc |
+
+**Files Modified:**
+| File | Change |
+|------|--------|
+| `server/routes.ts` | Added shares routes at /api/shares |
+| `shared/schema/index.ts` | Export shares schema |
+
+**Quality Gates:**
+- [x] TypeScript check passes
+- [x] ESLint passes
+
+**Remaining J Tasks:**
+- [ ] J.1: Font bundling (deferred - not blocking)
+- [ ] J.2: Report view page ("Newspaper Mode")
+- [ ] J.3: Export strategy
+- [ ] J.5: Financial accuracy
+- [x] J.6: E2E tests for sharing
+
+---
