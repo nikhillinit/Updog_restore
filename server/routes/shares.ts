@@ -180,6 +180,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
+    if (!shareId) {
+      return res.status(400).json({ success: false, error: 'Share ID is required' });
+    }
 
     const [share] = await db
       .select()
@@ -237,6 +240,9 @@ router.get('/:shareId', async (req: Request, res: Response, next: NextFunction) 
 router.post('/:shareId/verify', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
+    if (!shareId) {
+      return res.status(400).json({ success: false, error: 'Share ID is required' });
+    }
     const { passkey } = VerifyPasskeySchema.parse(req.body);
 
     const [share] = await db
@@ -294,6 +300,9 @@ router.post('/:shareId/verify', async (req: Request, res: Response, next: NextFu
 router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
+    if (!shareId) {
+      return res.status(400).json({ success: false, error: 'Share ID is required' });
+    }
     const body = UpdateShareRequestSchema.parse(req.body);
 
     const [existingShare] = await db
@@ -369,6 +378,9 @@ router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction
 router.delete('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
+    if (!shareId) {
+      return res.status(400).json({ success: false, error: 'Share ID is required' });
+    }
 
     const [share] = await db
       .update(shares)
@@ -392,6 +404,9 @@ router.delete('/:shareId', async (req: Request, res: Response, next: NextFunctio
 router.get('/:shareId/analytics', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
+    if (!shareId) {
+      return res.status(400).json({ success: false, error: 'Share ID is required' });
+    }
 
     const [share] = await db
       .select()
