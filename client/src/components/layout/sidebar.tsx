@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { POVIcon } from "@/components/ui/POVLogo";
-import { getNavigationItems } from './navigation-config';
+import { getNavigationItems, getFooterNavigationItems } from './navigation-config';
 import {
   ChevronDown,
   ChevronRight,
@@ -22,6 +22,7 @@ interface SidebarProps {
 
 // Use feature-flag aware navigation
 const navigationItems = getNavigationItems();
+const footerItems = getFooterNavigationItems();
 
 const chartCategories = [
   { id: 'basic', label: 'Basic Charts' },
@@ -154,6 +155,50 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
           </div>
         )}
       </nav>
+
+      {/* Footer Navigation (Settings + Help) */}
+      {footerItems.length > 0 && (
+        <div className="border-t border-lightGray p-2 bg-gray-50">
+          <ul className="space-y-1">
+            {footerItems.map((item: any) => {
+              const Icon = item.icon;
+              const isActive = activeModule === item.id;
+
+              return (
+                <li key={item.id}>
+                  <Link href={item.path || `/${item.id}`}>
+                    <button
+                      onClick={() => onModuleChange(item.id)}
+                      title={!isHovered ? item.label : undefined}
+                      className={cn(
+                        "w-full flex items-center rounded-md transition-colors font-poppins relative group",
+                        isHovered ? "space-x-3 px-3 py-2" : "justify-center p-2",
+                        isActive
+                          ? "bg-beige/30 text-charcoal font-medium"
+                          : "text-charcoal/60 hover:bg-lightGray hover:text-charcoal"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      {isHovered && (
+                        <span className={cn("text-sm whitespace-nowrap", isActive && "font-medium")}>
+                          {item.label}
+                        </span>
+                      )}
+
+                      {/* Tooltip for collapsed state */}
+                      {!isHovered && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </button>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </aside>
   );
 }

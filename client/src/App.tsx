@@ -62,6 +62,12 @@ const SharedDashboard = React.lazy(() => import("@/pages/shared-dashboard"));
 const SecondaryMarketPage = React.lazy(() => import("@/pages/secondary-market"));
 // Notion Integration
 const NotionIntegrationPage = React.lazy(() => import("@/pages/notion-integration"));
+// New IA pages (Codex-validated restructure)
+const PipelinePage = React.lazy(() => import("@/pages/pipeline"));
+const SettingsPage = React.lazy(() => import("@/pages/settings"));
+const HelpPage = React.lazy(() => import("@/pages/help"));
+// Modern Dashboard (replaces legacy dashboard)
+const ModernDashboard = React.lazy(() => import("@/pages/dashboard-modern"));
 // LP Reporting Dashboard
 const LPDashboard = React.lazy(() => import("@/pages/lp/dashboard"));
 const LPFundDetail = React.lazy(() => import("@/pages/lp/fund-detail"));
@@ -259,6 +265,26 @@ function Router() {
         <Route path="/dev-dashboard" component={DevDashboardPage} />
         <Route path="/mobile-executive-dashboard">{() => <ProtectedRoute component={MobileExecutiveDashboardPage} />}</Route>
         <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
+
+        {/* New IA Routes (Codex-validated restructure) */}
+        <Route path="/pipeline">{() => <ProtectedRoute component={PipelinePage} />}</Route>
+        <Route path="/settings">{() => <ProtectedRoute component={SettingsPage} />}</Route>
+        <Route path="/help" component={HelpPage} />
+
+        {/* Modern Dashboard - primary dashboard route */}
+        <Route path="/dashboard-modern">{() => <ProtectedRoute component={ModernDashboard} />}</Route>
+
+        {/* Route Redirects (Codex-validated restructure) */}
+        {/* Old analytics routes → Dashboard Performance tab */}
+        <Route path="/analytics-legacy">
+          {() => <Redirect to="/dashboard?tab=performance" />}
+        </Route>
+
+        {/* Old planning routes → Portfolio Reserve Planning */}
+        <Route path="/planning-legacy">
+          {() => <Redirect to="/portfolio?tab=reserve-planning" />}
+        </Route>
+
         {/* LP Sharing - No authentication required */}
         <Route path="/shared/:shareId" component={SharedDashboard} />
         {/* LP Reporting Dashboard - Wrapped with LPProvider */}

@@ -65,33 +65,62 @@ export const LEGACY_NAV_ITEMS: NavItem[] = [
 ];
 
 /**
- * NEW IA NAVIGATION (5 routes)
- * Consolidated information architecture per Phase 1 design
+ * NEW IA NAVIGATION (4 primary routes)
+ * Consolidated information architecture per Codex-validated restructure
+ *
+ * Changes from previous 5-item structure:
+ * - Dashboard (was Overview) - includes Performance tab (merged Analytics)
+ * - Portfolio - Companies + Reserve Planning (merged Reallocation)
+ * - Pipeline - New placeholder for deal tracking
+ * - Reports - LP reports, cashflow exports
+ *
+ * Model/Operate functionality distributed to:
+ * - Dashboard tabs (Performance, Cashflow)
+ * - Company detail (Scenarios)
+ * - Settings (Advanced features like Secondary Market)
  */
 export const NEW_IA_NAV_ITEMS: NavItem[] = [
   {
-    id: 'overview',
-    label: 'Overview',
+    id: 'dashboard',
+    label: 'Dashboard',
     icon: LayoutDashboard,
+    path: '/dashboard',
   },
   {
     id: 'portfolio',
     label: 'Portfolio',
     icon: Briefcase,
+    path: '/portfolio',
   },
   {
-    id: 'model',
-    label: 'Model',
+    id: 'pipeline',
+    label: 'Pipeline',
     icon: LineChart,
+    path: '/pipeline',
   },
   {
-    id: 'operate',
-    label: 'Operate',
-    icon: Settings,
-  },
-  {
-    id: 'report',
-    label: 'Report',
+    id: 'reports',
+    label: 'Reports',
     icon: FileText,
+    path: '/reports',
+  },
+];
+
+/**
+ * FOOTER NAVIGATION (2 items)
+ * Settings and Help displayed below main nav in sidebar footer
+ */
+export const FOOTER_NAV_ITEMS: NavItem[] = [
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    path: '/settings',
+  },
+  {
+    id: 'help',
+    label: 'Help',
+    icon: Activity,
+    path: '/help',
   },
 ];

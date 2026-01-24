@@ -13,16 +13,30 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
-  Monitor
+  Monitor,
+  LayoutDashboard,
+  LineChart,
+  HelpCircle,
 } from 'lucide-react';
 
-// 5-item simplified IA (NEW_IA enabled)
+/**
+ * 4-item simplified IA (NEW_IA enabled)
+ * Codex-validated restructure - see DECISIONS.md
+ */
 const SIMPLE_NAV = [
-  { id: 'dashboard', label: 'Overview', icon: BarChart3 },
-  { id: 'portfolio', label: 'Portfolio', icon: Building2 },
-  { id: 'financial-modeling', label: 'Model', icon: TrendingUp },
-  { id: 'cash-management', label: 'Operate', icon: Settings },
-  { id: 'reports', label: 'Report', icon: FileText }
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'portfolio', label: 'Portfolio', icon: Briefcase, path: '/portfolio' },
+  { id: 'pipeline', label: 'Pipeline', icon: LineChart, path: '/pipeline' },
+  { id: 'reports', label: 'Reports', icon: FileText, path: '/reports' },
+];
+
+/**
+ * Footer navigation items (Settings + Help)
+ * Displayed below main nav in sidebar footer
+ */
+const FOOTER_NAV = [
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  { id: 'help', label: 'Help', icon: HelpCircle, path: '/help' },
 ];
 
 // Full navigation (streamlined)
@@ -59,4 +73,8 @@ const FULL_NAV = [
 
 export function getNavigationItems() {
   return FLAGS.NEW_IA ? SIMPLE_NAV : FULL_NAV;
+}
+
+export function getFooterNavigationItems() {
+  return FLAGS.NEW_IA ? FOOTER_NAV : [];
 }

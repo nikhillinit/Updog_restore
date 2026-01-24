@@ -27,8 +27,6 @@ import {
   Filter,
   Download,
   Eye,
-  Settings,
-  Plus,
   Activity,
   Share2
 } from "lucide-react";
@@ -90,21 +88,6 @@ export default function ModernDashboard() {
     deploymentRate: 68
   };
 
-  const portfolioData = [
-    { month: 'Jan', deployed: 5.2, committed: 8.1 },
-    { month: 'Feb', deployed: 8.7, committed: 12.3 },
-    { month: 'Mar', deployed: 12.1, committed: 18.7 },
-    { month: 'Apr', deployed: 15.8, committed: 25.2 },
-    { month: 'May', deployed: 22.3, committed: 32.1 },
-    { month: 'Jun', deployed: 28.9, committed: 38.7 },
-    { month: 'Jul', deployed: 35.2, committed: 45.8 },
-    { month: 'Aug', deployed: 42.1, committed: 52.3 },
-    { month: 'Sep', deployed: 48.7, committed: 58.9 },
-    { month: 'Oct', deployed: 55.2, committed: 65.1 },
-    { month: 'Nov', deployed: 62.8, committed: 72.4 },
-    { month: 'Dec', deployed: 68.0, committed: 78.2 }
-  ];
-
   const sectorData = [
     { name: 'FinTech', value: 35, color: '#292929' },
     { name: 'HealthTech', value: 28, color: '#E0D8D1' },
@@ -138,9 +121,6 @@ export default function ModernDashboard() {
               <TabsList className="bg-pov-white border border-pov-gray">
                 <TabsTrigger value="overview" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
                   Overview
-                </TabsTrigger>
-                <TabsTrigger value="portfolio" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
-                  Portfolio
                 </TabsTrigger>
                 <TabsTrigger value="performance" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
                   Performance
@@ -348,59 +328,6 @@ export default function ModernDashboard() {
                 </div>
               </PremiumCard>
             </div>
-          </TabsContent>
-
-          {/* Portfolio Tab */}
-          <TabsContent value="portfolio" className="space-y-8">
-            <PremiumCard 
-              title="Capital Deployment"
-              subtitle="Monthly deployment vs. commitment schedule"
-              headerActions={
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Investment
-                  </Button>
-                </div>
-              }
-            >
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={portfolioData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E0D8D1" opacity={0.3} />
-                    <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value}M`} />
-                    <Tooltip
-                      formatter={(value, name) => [value !== undefined ? `$${value}M` : '', name === 'deployed' ? 'Deployed' : 'Committed']}
-                      contentStyle={{
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid #E0D8D1',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="committed" 
-                      stackId="1"
-                      stroke="#E0D8D1" 
-                      fill="#E0D8D1"
-                      fillOpacity={0.6}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="deployed" 
-                      stackId="1"
-                      stroke="#292929" 
-                      fill="#292929"
-                      fillOpacity={0.8}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </PremiumCard>
           </TabsContent>
 
           {/* Performance Tab */}
