@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useSearch } from 'wouter';
 import FundBasicsStep from './FundBasicsStep';
-import InvestmentRoundsStep from './InvestmentRoundsStep';
+import InvestmentRoundsStep from './InvestmentRoundsStepV2';
 import CapitalStructureStep from './CapitalStructureStep';
 import InvestmentStrategyStep from './InvestmentStrategyStep';
 import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
@@ -14,6 +14,7 @@ import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 import { ProgressStepper } from '@/components/wizard/ProgressStepper';
+import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
 
 // Feature flag for new selector pattern migration
 const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
@@ -111,7 +112,38 @@ function useStepKey(): StepKey {
 
 export default function FundSetup() {
   const key = useStepKey();
+  const [, setLocation] = useLocation();
+  const { canAccessStep, markStepVisited, getRedirectUrl } = useWizardStepGuard();
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
+
+  // Get current step number from key
+  const currentStepNumber = WIZARD_STEPS.find((s) => s.id === key)?.number || 1;
+
+  // Step guard: redirect if trying to skip ahead via URL manipulation
+  React.useEffect(() => {
+    if (key === 'not-found') return; // Let not-found render normally
+
+    const redirectUrl = getRedirectUrl(currentStepNumber);
+    if (redirectUrl) {
+      // Log the bypass attempt in development
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[WizardStepGuard] Blocked access to step ${currentStepNumber}, redirecting to ${redirectUrl}`
+        );
+      }
+      emitWizard({
+        type: 'step_guard_redirect',
+        step: key,
+        attemptedStep: currentStepNumber,
+        redirectUrl,
+      });
+      setLocation(redirectUrl);
+      return;
+    }
+
+    // Mark step as visited if legitimately accessed
+    markStepVisited(currentStepNumber);
+  }, [key, currentStepNumber, canAccessStep, getRedirectUrl, markStepVisited, setLocation]);
 
   // Emit telemetry on step load
   React.useEffect(() => {
@@ -133,12 +165,11 @@ export default function FundSetup() {
   }));
 
   // Prepare steps for ProgressStepper
-  const progressSteps = WIZARD_STEPS.map(step => ({
+  const progressSteps = WIZARD_STEPS.map((step) => ({
     id: step.id,
     label: step.title,
-    href: `/fund-setup?step=${step.number}`
+    href: `/fund-setup?step=${step.number}`,
   }));
-  const currentStepNumber = WIZARD_STEPS.find(s => s.id === key)?.number || 1;
 
   return (
     <ErrorBoundary
