@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useSearch, useLocation } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -44,8 +44,12 @@ export function PortfolioTabs({
   onTabChange,
   syncWithUrl = true
 }: PortfolioTabsProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const search = useSearch();
+  const [, setLocation] = useLocation();
   const [isReallocationExpanded, setIsReallocationExpanded] = useState(false);
+
+  // Parse search params from wouter's search string
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
 
   // Get active tab from URL or use default, with migration support
   const activeTab = useMemo(() => {
@@ -68,17 +72,17 @@ export function PortfolioTabs({
   }, [syncWithUrl, searchParams, defaultTab]);
 
   // Handle tab change
-  const handleTabChange = (value: string) => {
+  const handleTabChange = useCallback((value: string) => {
     const tabValue = value as PortfolioTabValue;
 
     // Update URL if syncing is enabled
     if (syncWithUrl) {
-      setSearchParams({ tab: tabValue }, { replace: true });
+      setLocation(`/portfolio?tab=${tabValue}`, { replace: true });
     }
 
     // Fire callback
     onTabChange?.(tabValue);
-  };
+  }, [syncWithUrl, setLocation, onTabChange]);
 
   return (
     <Tabs
