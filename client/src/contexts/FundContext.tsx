@@ -99,7 +99,7 @@ export function FundProvider({ children }: FundProviderProps) {
 
   // Consider "loading" until we have a fund OR demo mode is fully initialized
   // This prevents race condition where ProtectedRoute redirects before demo fund is set
-  const isInitializing = isLoading || (!currentFund && !demoModeInitialized && (error || !funds));
+  const isInitializing = isLoading || (!currentFund && !demoModeInitialized && (!!error || !funds));
   const needsSetup = !isInitializing && !currentFund;
 
   const value: FundContextType = {
