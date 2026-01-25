@@ -235,7 +235,7 @@ export default function InvestmentRoundsStepV2() {
             {/* Profile Header */}
             <ProfileHeader
               profileName={activeProfile.name}
-              isDefault={activeProfile.isDefault}
+              {...(activeProfile.isDefault !== undefined && { isDefault: activeProfile.isDefault })}
               stageCount={stages.length}
               onAddStage={handleAddStage}
               onDuplicate={() => console.log('Duplicate profile - future feature')}

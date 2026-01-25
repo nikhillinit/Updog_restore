@@ -10,10 +10,9 @@ import { PortfolioTabs } from "@/components/portfolio/PortfolioTabs";
 /**
  * ModernPortfolio - Main Portfolio Page with Tab Navigation
  *
- * Features three tabs:
- * - Overview: Portfolio companies table and metrics
- * - Allocations: Fund allocation breakdown and visualization
- * - Reallocation: Portfolio reallocation modeling tools
+ * Features two tabs:
+ * - Companies: Portfolio companies table and metrics
+ * - Reserve Planning: Fund allocation and reallocation tools (merged)
  *
  * Phase 1c implementation with URL state management
  */
@@ -28,7 +27,7 @@ export default function ModernPortfolio() {
       />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <PortfolioTabs defaultTab="overview" syncWithUrl={true} />
+        <PortfolioTabs defaultTab="companies" syncWithUrl={true} />
       </div>
     </div>
   );

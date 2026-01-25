@@ -262,12 +262,6 @@ export default function DynamicFundHeader() {
               <span>Real-time data</span>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            <span>Portfolio Growth: +12.3% (30d)</span>
-            <span>New Investments: 2 this month</span>
-            <span>Next Close: Q2 2025</span>
-          </div>
         </div>
       </div>
     </div>

@@ -13,7 +13,6 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
-import { ProgressStepper } from '@/components/wizard/ProgressStepper';
 import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
 
 // Feature flag for new selector pattern migration
@@ -188,14 +187,7 @@ export default function FundSetup() {
       }}
     >
       <div data-testid="fund-setup-wizard" className="min-h-screen bg-gray-50">
-        {/* Breadcrumb Progress - Press On Branded */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <ProgressStepper current={currentStepNumber} steps={progressSteps} />
-          </div>
-        </div>
-
-        {/* Modern Progress Header */}
+        {/* Modern Progress Header - Single unified progress indicator */}
         <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
 
         {/* Step Content */}
