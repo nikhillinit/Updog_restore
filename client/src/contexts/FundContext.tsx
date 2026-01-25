@@ -32,9 +32,25 @@ interface FundProviderProps {
   children: ReactNode;
 }
 
+// Demo fund used when API is unavailable
+const DEMO_FUND: Fund = {
+  id: 1,
+  name: 'Demo Fund I (VC Platform)',
+  size: 20000000, // $20M default
+  managementFee: 0.025, // 2.5%
+  carryPercentage: 0.20, // 20%
+  vintageYear: 2024,
+  deployedCapital: 0, // No deployed capital yet
+  status: 'active',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  termYears: 10
+};
+
 export function FundProvider({ children }: FundProviderProps) {
   const [currentFund, setCurrentFund] = useState<Fund | null>(null);
   const [fundId, setFundId] = useState<number | null>(null);
+  const [demoModeInitialized, setDemoModeInitialized] = useState(false);
 
   // Fetch fund data
   const { data: funds, isLoading, error } = useQuery({
@@ -63,24 +79,14 @@ export function FundProvider({ children }: FundProviderProps) {
       }
     } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
       // Demo mode: Create a fallback fund when API is unavailable
-      logger.info('API unavailable, entering demo mode', { context: 'FundContext' });
-      const demoFund: Fund = {
-        id: 1,
-        name: 'Demo Fund I (VC Platform)',
-        size: 20000000, // $20M default
-        managementFee: 0.025, // 2.5%
-        carryPercentage: 0.20, // 20%
-        vintageYear: 2024,
-        deployedCapital: 0, // No deployed capital yet
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        termYears: 10
-      };
-      setCurrentFund(demoFund);
-      setFundId(demoFund.id);
+      if (!demoModeInitialized) {
+        logger.info('API unavailable, entering demo mode', { context: 'FundContext' });
+        setCurrentFund(DEMO_FUND);
+        setFundId(DEMO_FUND.id);
+        setDemoModeInitialized(true);
+      }
     }
-  }, [funds, fundId, isLoading, error]);
+  }, [funds, fundId, isLoading, error, demoModeInitialized]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
     setCurrentFund(fund);
@@ -91,12 +97,15 @@ export function FundProvider({ children }: FundProviderProps) {
     }
   };
 
-  const needsSetup = !isLoading && !currentFund;
+  // Consider "loading" until we have a fund OR demo mode is fully initialized
+  // This prevents race condition where ProtectedRoute redirects before demo fund is set
+  const isInitializing = isLoading || (!currentFund && !demoModeInitialized && (!!error || !funds));
+  const needsSetup = !isInitializing && !currentFund;
 
   const value: FundContextType = {
     currentFund,
     setCurrentFund: handleSetCurrentFund,
-    isLoading,
+    isLoading: isInitializing,
     needsSetup,
     fundId,
   };
