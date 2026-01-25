@@ -175,7 +175,7 @@ function solveBrent(flows: CashFlow[], t0: Date, tolerance: number): XIRRResult 
   const f = (r: number) => npvAt(r, flows, t0);
 
   // Adaptive bracket expansion for extreme IRRs
-  let lo = -0.95;
+  const lo = -0.95;
   let hi = 15;
   const fLo = f(lo);
   let fHi = f(hi);
