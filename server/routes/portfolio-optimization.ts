@@ -15,14 +15,7 @@ import express from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import {
-  jobOutbox,
-  scenarioMatrices,
-  optimizationSessions,
-  type JobOutbox,
-  type ScenarioMatrix,
-  type OptimizationSession,
-} from '@shared/schema';
+import { jobOutbox } from '@shared/schema';
 import {
   PortfolioOptimizationService,
   JobNotFoundError,
@@ -32,7 +25,6 @@ import {
   InvalidJobTransitionError,
   type CreateOptimizationJobRequest,
   type OptimizationConstraints,
-  type ScenarioGenConfig,
 } from '../services/portfolio-optimization-service';
 
 const router = express.Router();
@@ -55,12 +47,12 @@ const OptimizationConstraintsSchema = z.object({
   cvarConfidenceLevel: z.number().min(0).max(1).optional(),
   cvarLimit: z.number().min(0).max(1).optional(),
   minExpectedWinners: z.number().int().nonnegative().optional(),
-  sectorBounds: z.record(
-    z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) })
-  ).optional(),
-  stageBounds: z.record(
-    z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) })
-  ).optional(),
+  sectorBounds: z
+    .record(z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
+    .optional(),
+  stageBounds: z
+    .record(z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
+    .optional(),
   bucketMaxWeight: z.number().min(0).max(1).optional(),
   totalFundSize: z.number().positive(),
 });
@@ -125,10 +117,7 @@ const JobIdParamSchema = z.object({
  */
 function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'ZodError'
+    typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
 }
 
@@ -291,7 +280,7 @@ router.post('/run', async (req: Request, res: Response) => {
     if (validated.optimizationConfig.convergenceTolerance !== undefined) {
       optimizationConfig.convergenceTolerance = validated.optimizationConfig.convergenceTolerance;
     }
-    
+
     const scheduleData: CreateOptimizationJobRequest = {
       fundId: validated.fundId,
       taxonomyVersion: validated.taxonomyVersion,
@@ -417,11 +406,7 @@ router.get('/:jobId/results', async (req: Request, res: Response) => {
     const includePowerLaw = query['includePowerLaw'] === 'true';
 
     // First get the job to find associated session
-    const [job] = await db
-      .select()
-      .from(jobOutbox)
-      .where(eq(jobOutbox.id, jobId))
-      .limit(1);
+    const [job] = await db.select().from(jobOutbox).where(eq(jobOutbox.id, jobId)).limit(1);
 
     if (!job) {
       throw new JobNotFoundError(jobId);
@@ -474,9 +459,12 @@ router.get('/:jobId/results', async (req: Request, res: Response) => {
           if (results.weights) response.weights = results.weights;
           if (results.metrics) response.metrics = results.metrics;
           if (results.pass1EStar !== undefined) response.pass1EStar = results.pass1EStar;
-          if (results.primaryLockEpsilon !== undefined) response.primaryLockEpsilon = results.primaryLockEpsilon;
-          if (results.currentIteration !== undefined) response.currentIteration = results.currentIteration;
-          if (results.totalIterations !== undefined) response.totalIterations = results.totalIterations;
+          if (results.primaryLockEpsilon !== undefined)
+            response.primaryLockEpsilon = results.primaryLockEpsilon;
+          if (results.currentIteration !== undefined)
+            response.currentIteration = results.currentIteration;
+          if (results.totalIterations !== undefined)
+            response.totalIterations = results.totalIterations;
           if (results.startedAt) response.startedAt = results.startedAt.toISOString();
           if (results.completedAt) response.completedAt = results.completedAt.toISOString();
 
@@ -537,7 +525,7 @@ router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
     // Validate session ID
     const sessionParams = JobIdParamSchema.parse({ jobId: req.params['sessionId'] });
     const sessionId = sessionParams['jobId'];
-    
+
     // Get optimization session
     const session = await optimizationService.getOptimizationProgress(sessionId);
 

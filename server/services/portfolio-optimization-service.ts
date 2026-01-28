@@ -22,17 +22,12 @@ import {
   scenarioMatrices,
   optimizationSessions,
   insertJobOutboxSchema,
-  insertScenarioMatrixSchema,
-  insertOptimizationSessionSchema,
   type JobOutbox,
   type ScenarioMatrix,
   type OptimizationSession,
   type InsertJobOutbox,
-  type InsertScenarioMatrix,
-  type InsertOptimizationSession,
 } from '@shared/schema';
-import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
-import { typedFindFirst, typedFindMany, typedInsert, typedUpdate } from '../db/typed-query';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { logger } from '../lib/logger';
 
 // =====================
@@ -358,10 +353,7 @@ export class PortfolioOptimizationService {
     // Validate insert data
     insertJobOutboxSchema.parse(insertData);
 
-    const result = await db
-      .insert(jobOutbox)
-      .values(insertData)
-      .returning();
+    const result = await db.insert(jobOutbox).values(insertData).returning();
 
     if (!result[0]) {
       throw new Error('Failed to create job outbox entry');
@@ -404,11 +396,8 @@ export class PortfolioOptimizationService {
 
     insertJobOutboxSchema.parse(insertData);
 
-    const result = await db
-      .insert(jobOutbox)
-      .values(insertData)
-      .returning();
-    
+    const result = await db.insert(jobOutbox).values(insertData).returning();
+
     if (!result[0]) {
       throw new Error('Failed to create job outbox entry');
     }
@@ -430,11 +419,7 @@ export class PortfolioOptimizationService {
    * @throws JobNotFoundError if job doesn't exist
    */
   async getJobProgress(jobId: string): Promise<JobProgress> {
-    const [job] = await db
-      .select()
-      .from(jobOutbox)
-      .where(eq(jobOutbox.id, jobId))
-      .limit(1);
+    const [job] = await db.select().from(jobOutbox).where(eq(jobOutbox.id, jobId)).limit(1);
 
     if (!job) {
       throw new JobNotFoundError(jobId);
@@ -487,11 +472,7 @@ export class PortfolioOptimizationService {
     status: JobStatus,
     errorMessage?: string
   ): Promise<JobOutbox> {
-    const [existing] = await db
-      .select()
-      .from(jobOutbox)
-      .where(eq(jobOutbox.id, jobId))
-      .limit(1);
+    const [existing] = await db.select().from(jobOutbox).where(eq(jobOutbox.id, jobId)).limit(1);
 
     if (!existing) {
       throw new JobNotFoundError(jobId);
@@ -524,7 +505,7 @@ export class PortfolioOptimizationService {
       .set(updateData)
       .where(eq(jobOutbox.id, jobId))
       .returning();
-    
+
     if (!result[0]) {
       throw new JobNotFoundError(jobId);
     }
@@ -541,11 +522,7 @@ export class PortfolioOptimizationService {
    * @returns Updated job record
    */
   async incrementJobAttempt(jobId: string): Promise<JobOutbox> {
-    const [existing] = await db
-      .select()
-      .from(jobOutbox)
-      .where(eq(jobOutbox.id, jobId))
-      .limit(1);
+    const [existing] = await db.select().from(jobOutbox).where(eq(jobOutbox.id, jobId)).limit(1);
 
     if (!existing) {
       throw new JobNotFoundError(jobId);
@@ -674,10 +651,15 @@ export class PortfolioOptimizationService {
     }
 
     const weights = session.resultWeights as Record<string, number>;
+    const optimizationConfig = session.optimizationConfig as Record<string, unknown> | undefined;
     const constraints = (
-      session.optimizationConfig as unknown as { constraints?: OptimizationConstraints }
+      optimizationConfig as { constraints?: OptimizationConstraints } | undefined
     )?.constraints;
-    const totalFundSize = constraints?.totalFundSize ?? 0;
+    const legacyTotalFundSize =
+      typeof optimizationConfig?.['totalFundSize'] === 'number'
+        ? (optimizationConfig['totalFundSize'] as number)
+        : undefined;
+    const totalFundSize = constraints?.totalFundSize ?? legacyTotalFundSize ?? 0;
 
     // Get matrix for bucket parameters
     const [matrix] = await db
@@ -748,10 +730,7 @@ export class PortfolioOptimizationService {
     const rows = await db
       .select({ session: optimizationSessions })
       .from(optimizationSessions)
-      .innerJoin(
-        scenarioMatrices,
-        eq(optimizationSessions.matrixId, scenarioMatrices.id)
-      )
+      .innerJoin(scenarioMatrices, eq(optimizationSessions.matrixId, scenarioMatrices.id))
       .where(eq(scenarioMatrices.fundId, fundId))
       .orderBy(desc(optimizationSessions.createdAt))
       .limit(limit);
@@ -823,7 +802,9 @@ export class PortfolioOptimizationService {
     }
 
     if (job.jobType === 'matrix_generation') {
-      return job.status === 'processing' ? 'Generating scenario matrix' : 'Waiting for matrix generation';
+      return job.status === 'processing'
+        ? 'Generating scenario matrix'
+        : 'Waiting for matrix generation';
     }
 
     if (job.jobType === 'optimization') {
@@ -883,12 +864,14 @@ export class PortfolioOptimizationService {
       result.moicMatrix = matrix.moicMatrix;
     }
     if (matrix.scenarioStates !== null && matrix.scenarioStates !== undefined) {
-      result.scenarioStates =
-        matrix.scenarioStates as NonNullable<MatrixGenerationResult['scenarioStates']>;
+      result.scenarioStates = matrix.scenarioStates as NonNullable<
+        MatrixGenerationResult['scenarioStates']
+      >;
     }
     if (matrix.bucketParams !== null && matrix.bucketParams !== undefined) {
-      result.bucketParams =
-        matrix.bucketParams as NonNullable<MatrixGenerationResult['bucketParams']>;
+      result.bucketParams = matrix.bucketParams as NonNullable<
+        MatrixGenerationResult['bucketParams']
+      >;
     }
     if (matrix.bucketCount !== null && matrix.bucketCount !== undefined) {
       result.bucketCount = matrix.bucketCount;
