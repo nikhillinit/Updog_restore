@@ -1,8 +1,30 @@
 {
   "version": "2.0.0",
-  "projects": {},
-  "totalErrors": 0,
-  "timestamp": "2026-01-13T11:37:49.708Z",
+  "projects": {
+    "server": {
+      "errors": [
+        "server/routes/portfolio-optimization.ts:TS2304:91f4ab3f",
+        "server/routes/portfolio-optimization.ts:TS2304:ddf1ed1b",
+        "server/routes/portfolio-optimization.ts:TS2375:05ee0f05",
+        "server/routes/portfolio-optimization.ts:TS2375:612b312e",
+        "server/routes/portfolio-optimization.ts:TS2552:15f469b8",
+        "server/routes/portfolio-optimization.ts:TS4111:10bb323e",
+        "server/routes/portfolio-optimization.ts:TS4111:3639e6e6",
+        "server/routes/portfolio-optimization.ts:TS4111:b8258a97",
+        "server/routes/portfolio-optimization.ts:TS4111:f68aa457",
+        "server/services/portfolio-optimization-service.ts:TS2322:478d3db4",
+        "server/services/portfolio-optimization-service.ts:TS2339:621cb1d9",
+        "server/services/portfolio-optimization-service.ts:TS2339:697cc041",
+        "server/services/portfolio-optimization-service.ts:TS2339:9bfcd24a",
+        "server/services/portfolio-optimization-service.ts:TS2375:9ec9ba88",
+        "server/services/portfolio-optimization-service.ts:TS2769:1058c66a"
+      ],
+      "total": 15,
+      "lastUpdated": "2026-01-28T06:33:28.430Z"
+    }
+  },
+  "totalErrors": 15,
+  "timestamp": "2026-01-28T06:33:28.430Z",
   "buildMode": "per-project",
-  "elapsedMs": 22480
+  "elapsedMs": 22911
 }
