@@ -183,7 +183,7 @@ function KanbanView({
             {/* Column Header */}
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${color.replace('bg-', 'bg-')}`} />
+                <div className={`w-2 h-2 rounded-full ${color}`} />
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal">{label}</h3>
               </div>
               <Badge variant="outline" className="font-poppins text-xs">
