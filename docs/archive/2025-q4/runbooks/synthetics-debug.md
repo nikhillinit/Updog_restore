@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # Synthetic Test Debugging Runbook
 
 ## Overview

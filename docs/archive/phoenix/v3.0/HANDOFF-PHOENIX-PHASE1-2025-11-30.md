@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 > **DEPRECATED - 2025-12-13** Phoenix v3.0 (infrastructure modernization) was
 > superseded by Phoenix v2.34 (validation-first execution). Infrastructure goals
 > (pnpm, sidecar, TS baseline cleanup) were NOT executed. For current Phoenix
