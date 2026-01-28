@@ -2761,6 +2761,11 @@ export const scenarioMatrices = pgTable(
       max: number;
       count: number;
       distribution: string;
+      buckets?: Array<{
+        name: string;
+        median: number;
+        p90: number;
+      }>;
     }>(),
     compressionCodec: varchar('compression_codec', { length: 50 }).$type<'zstd' | 'lz4' | 'none'>(),
     matrixLayout: varchar('matrix_layout', { length: 50 }).$type<'row-major' | 'column-major'>(),
