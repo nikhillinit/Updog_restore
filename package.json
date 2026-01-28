@@ -117,7 +117,7 @@
     "flags:demo": "node scripts/demo-flag-ui.mjs",
     "flags:demo:auto": "node scripts/demo-flag-ui.mjs --auto",
     "flags:test:hardening": "node scripts/test-hardened-flags.mjs",
-    "flags:validate": "node scripts/validate-hardening.mjs",
+    "flags:validate:hardening": "node scripts/validate-hardening.mjs",
     "fix:types": "npm run check && npm run lint:fix",
     "fix:all": "npm run fix:types && npm run test:quick",
     "measure:errors": "node scripts/measure-errors.mjs",

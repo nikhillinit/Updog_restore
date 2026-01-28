@@ -6,7 +6,7 @@
 import { beforeAll, afterAll } from 'vitest';
 import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
-import { setTimeout } from 'timers/promises';
+import { setTimeout as delay } from 'timers/promises';
 
 // Force UTC timezone for consistent date handling
 process.env.TZ = 'UTC';
@@ -17,6 +17,8 @@ process.env.PORT = '3333'; // Different from dev to avoid conflicts
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
 process.env.ENABLE_QUEUES = '0';
+process.env.BASE_URL =
+  process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
 
 let serverProcess: ChildProcess | null = null;
 
@@ -32,7 +34,7 @@ async function waitForServer(url: string, timeout: number = 30000): Promise<bool
     } catch (error) {
       // Server not ready yet
     }
-    await setTimeout(1000);
+    await delay(1000);
   }
   
   return false;
@@ -55,8 +57,14 @@ beforeAll(async () => {
   
   console.log('Starting test server...');
   
+  const serverEnv = {
+    ...process.env,
+    NODE_ENV: 'development',
+  };
+  delete serverEnv.VITEST;
+
   serverProcess = spawn('npm', ['run', 'dev:quick'], {
-    env: { ...process.env },
+    env: serverEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true
   });
@@ -93,7 +101,7 @@ afterAll(async () => {
     await new Promise((resolve) => {
       if (serverProcess) {
         serverProcess.on('exit', resolve);
-        setTimeout(() => {
+        globalThis.setTimeout(() => {
           if (serverProcess && !serverProcess.killed) {
             serverProcess.kill('SIGKILL');
           }
