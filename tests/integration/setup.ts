@@ -13,12 +13,12 @@ process.env.TZ = 'UTC';
 
 // Integration test environment
 process.env.NODE_ENV = 'test';
-process.env.PORT = '3333'; // Different from dev to avoid conflicts
+process.env.PORT = process.env.PORT || '3333'; // Different from dev to avoid conflicts
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
 process.env.ENABLE_QUEUES = '0';
-process.env.BASE_URL =
-  process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
+const providedBaseUrl = process.env.BASE_URL;
+process.env.BASE_URL = providedBaseUrl || `http://localhost:${process.env.PORT}`;
 
 let serverProcess: ChildProcess | null = null;
 
@@ -44,6 +44,15 @@ beforeAll(async () => {
   // Check if we need to start the server
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
   const healthUrl = `${baseUrl}/healthz`;
+
+  if (providedBaseUrl) {
+    const isReady = await waitForServer(healthUrl, 30000);
+    if (!isReady) {
+      throw new Error(`Server failed to start within 30 seconds. Check ${healthUrl}`);
+    }
+    console.log('Using externally managed test server');
+    return;
+  }
   
   try {
     const response = await fetch(healthUrl);
@@ -59,11 +68,11 @@ beforeAll(async () => {
   
   const serverEnv = {
     ...process.env,
-    NODE_ENV: 'development',
+    NODE_ENV: process.env.NODE_ENV || 'test',
   };
   delete serverEnv.VITEST;
 
-  serverProcess = spawn('npm', ['run', 'dev:quick'], {
+  serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true
