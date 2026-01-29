@@ -14,17 +14,25 @@ process.env.TZ = 'UTC';
 // Integration test environment
 process.env.NODE_ENV = 'test';
 process.env.PORT = process.env.PORT || '3333'; // Different from dev to avoid conflicts
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
 process.env.ENABLE_QUEUES = '0';
-const providedBaseUrl = process.env.BASE_URL;
-process.env.BASE_URL = providedBaseUrl || `http://localhost:${process.env.PORT}`;
+const rawBaseUrl = (process.env.BASE_URL ?? '').trim();
+const normalizedBaseUrl =
+  rawBaseUrl && rawBaseUrl !== '/'
+    ? rawBaseUrl.startsWith('http://') || rawBaseUrl.startsWith('https://')
+      ? rawBaseUrl
+      : `http://${rawBaseUrl}`
+    : '';
+const effectiveBaseUrl = normalizedBaseUrl || `http://localhost:${process.env.PORT}`;
+process.env.BASE_URL = effectiveBaseUrl;
 
 let serverProcess: ChildProcess | null = null;
 
 async function waitForServer(url: string, timeout: number = 30000): Promise<boolean> {
   const start = Date.now();
-  
+
   while (Date.now() - start < timeout) {
     try {
       const response = await fetch(url);
@@ -36,16 +44,16 @@ async function waitForServer(url: string, timeout: number = 30000): Promise<bool
     }
     await delay(1000);
   }
-  
+
   return false;
 }
 
 beforeAll(async () => {
   // Check if we need to start the server
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
-  const healthUrl = `${baseUrl}/healthz`;
+  const healthUrl = new URL('/healthz', baseUrl).toString();
 
-  if (providedBaseUrl) {
+  if (normalizedBaseUrl) {
     const isReady = await waitForServer(healthUrl, 30000);
     if (!isReady) {
       throw new Error(`Server failed to start within 30 seconds. Check ${healthUrl}`);
@@ -53,7 +61,7 @@ beforeAll(async () => {
     console.log('Using externally managed test server');
     return;
   }
-  
+
   try {
     const response = await fetch(healthUrl);
     if (response.ok) {
@@ -63,9 +71,9 @@ beforeAll(async () => {
   } catch {
     // Server not running, need to start it
   }
-  
+
   console.log('Starting test server...');
-  
+
   const serverEnv = {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'test',
@@ -75,29 +83,29 @@ beforeAll(async () => {
   serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true
+    shell: true,
   });
-  
+
   serverProcess.stdout?.on('data', (data) => {
     const output = data.toString();
     if (output.includes('api on http://')) {
       console.log('Server startup detected');
     }
   });
-  
+
   serverProcess.stderr?.on('data', (data) => {
     const error = data.toString();
     if (!error.includes('ECONNREFUSED') && !error.includes('DATABASE_URL not set')) {
       console.error('Server error:', error);
     }
   });
-  
+
   // Wait for server to be ready
   const isReady = await waitForServer(healthUrl, 30000);
   if (!isReady) {
     throw new Error(`Server failed to start within 30 seconds. Check ${healthUrl}`);
   }
-  
+
   console.log('Test server ready');
 }, 60000); // Increase timeout for server startup
 
@@ -105,7 +113,7 @@ afterAll(async () => {
   if (serverProcess) {
     console.log('Shutting down test server...');
     serverProcess.kill('SIGTERM');
-    
+
     // Wait for graceful shutdown
     await new Promise((resolve) => {
       if (serverProcess) {

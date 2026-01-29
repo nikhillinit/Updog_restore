@@ -1192,7 +1192,25 @@
     },
     {
       "name": "flags:validate",
+      "command": "npx tsx scripts/validate-flag-usage.ts",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:validate:hardening",
       "command": "node scripts/validate-hardening.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:validate:strict",
+      "command": "npx tsx scripts/validate-flag-usage.ts --strict",
       "category": "flags",
       "isDead": false,
       "isDuplicate": false,
