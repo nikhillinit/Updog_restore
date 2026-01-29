@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # Multi-AI Review: Feature Flag Patch Analysis
 
 **Date**: 2025-10-03 **Reviewers**: GEMINI, OPENAI, DEEPSEEK **Consensus**:

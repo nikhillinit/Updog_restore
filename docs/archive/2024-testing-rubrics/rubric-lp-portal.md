@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # LP Portal Testing Rubric
 
 **Domain:** Limited Partner (LP) access, capital accounts, distributions

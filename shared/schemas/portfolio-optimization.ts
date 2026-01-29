@@ -97,6 +97,15 @@ export const bucketParamsSchema = z.object({
   max: z.number(),
   count: z.number().int().positive(),
   distribution: z.string(),
+  buckets: z
+    .array(
+      z.object({
+        name: z.string(),
+        median: z.number(),
+        p90: z.number(),
+      })
+    )
+    .optional(),
 });
 
 export type BucketParams = z.infer<typeof bucketParamsSchema>;
