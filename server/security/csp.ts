@@ -18,7 +18,7 @@ export function withNonce(_req: Request, res: Response, next: NextFunction) {
 
 export function csp() {
   const cfg = getConfig();
-  const isDev = cfg.isDev;
+  const isDev = cfg.NODE_ENV === 'development';
 
   return helmet({
     contentSecurityPolicy: {
