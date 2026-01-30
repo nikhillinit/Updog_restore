@@ -1,49 +1,53 @@
-import helmet from "helmet";
-import crypto from "crypto";
-import type { Request, Response, NextFunction } from "express";
-import { getConfig } from "../config";
+import helmet from 'helmet';
+import crypto from 'crypto';
+import type { Request, Response, NextFunction } from 'express';
+import { getConfig } from '../config';
 
-declare global { 
-  namespace Express { 
-    interface Locals { 
-      cspNonce?: string 
-    } 
-  } 
+declare global {
+  namespace Express {
+    interface Locals {
+      cspNonce?: string;
+    }
+  }
 }
 
 export function withNonce(_req: Request, res: Response, next: NextFunction) {
-  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
   next();
 }
 
 export function csp() {
   const cfg = getConfig();
   const isDev = cfg.isDev;
-  
+
   return helmet({
     contentSecurityPolicy: {
-      useDefaults: true,
+      useDefaults: false,
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
-          isDev ? "'unsafe-eval'" : null
-        ].filter(Boolean) as string[],
-        styleSrc:  [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
-          isDev ? "'unsafe-inline'" : null
-        ].filter(Boolean) as string[],
-        imgSrc:    ["'self'", "data:", "blob:"],
-        fontSrc:   ["'self'", "data:"],
-        connectSrc:["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'", 'data:', 'https:'],
+        formAction: ["'self'"],
         frameAncestors: ["'none'"],
-        upgradeInsecureRequests: isDev ? null : [],
-        reportUri: "/api/csp-violations",
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        objectSrc: ["'none'"],
+        scriptSrc: [
+          "'self'",
+          (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
+          isDev ? "'unsafe-eval'" : null,
+        ].filter(Boolean) as string[],
+        scriptSrcAttr: ["'none'"],
+        styleSrc: [
+          "'self'",
+          (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
+          isDev ? "'unsafe-inline'" : null,
+        ].filter(Boolean) as string[],
+        connectSrc: ["'self'"],
+        upgradeInsecureRequests: isDev ? [] : [],
+        reportUri: '/api/csp-violations',
       },
       reportOnly: cfg.CSP_REPORT_ONLY,
     },
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
   });
 }
