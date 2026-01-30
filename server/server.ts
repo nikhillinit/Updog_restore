@@ -95,24 +95,11 @@ export async function createServer(
   // Security and performance middleware - use our enhanced CSP instead
   app.use(csp());
 
-  // Additional helmet security headers (CSP handled separately)
+  // Additional helmet security headers (CSP handled separately by our custom csp() middleware)
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false, // Allow Vite dev and dynamic imports
-      contentSecurityPolicy:
-        config.NODE_ENV === 'production'
-          ? {
-              useDefaults: true,
-              directives: {
-                'script-src': ["'self'"], // TODO: Add nonces and remove unsafe-inline
-                'style-src': ["'self'", "'unsafe-inline'"], // TODO: Use nonces for inline styles
-                'connect-src': ["'self'", process.env['API_ORIGIN'] ?? "'self'"],
-                'img-src': ["'self'", 'data:', 'blob:'],
-                'font-src': ["'self'", 'data:'],
-                'frame-ancestors': ["'none'"],
-              },
-            }
-          : false, // CSP handled by our custom implementation
+      // contentSecurityPolicy is intentionally omitted - handled by custom csp() middleware above
     })
   );
 
