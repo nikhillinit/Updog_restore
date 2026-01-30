@@ -13,7 +13,8 @@ process.env.TZ = 'UTC';
 
 // Integration test environment
 process.env.NODE_ENV = 'test';
-process.env.PORT = process.env.PORT || '3333'; // Different from dev to avoid conflicts
+// Use ephemeral port (0) to avoid conflicts with zombie processes from previous runs
+process.env.PORT = process.env.PORT || '0'; // 0 = OS assigns random available port
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
@@ -72,13 +73,15 @@ beforeAll(async () => {
     // Server not running, need to start it
   }
 
-  console.log('Starting test server...');
+  console.log('Starting test server with ephemeral port...');
 
   const serverEnv = {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'test',
   };
   delete serverEnv.VITEST;
+
+  let actualPort: string | null = null;
 
   serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
@@ -88,8 +91,11 @@ beforeAll(async () => {
 
   serverProcess.stdout?.on('data', (data) => {
     const output = data.toString();
-    if (output.includes('api on http://')) {
-      console.log('Server startup detected');
+    // Capture the actual port from server output (e.g., "api on http://localhost:54321")
+    const portMatch = output.match(/api on http:\/\/[^:]+:(\d+)/);
+    if (portMatch && !actualPort) {
+      actualPort = portMatch[1];
+      console.log(`Server started on port ${actualPort}`);
     }
   });
 
@@ -100,10 +106,28 @@ beforeAll(async () => {
     }
   });
 
+  // Wait for port detection (up to 10 seconds)
+  let portWaitTime = 0;
+  while (!actualPort && portWaitTime < 10000) {
+    await delay(100);
+    portWaitTime += 100;
+  }
+
+  if (!actualPort) {
+    throw new Error('Server did not report port within 10 seconds');
+  }
+
+  // Update BASE_URL with actual port
+  const actualBaseUrl = `http://localhost:${actualPort}`;
+  process.env.BASE_URL = actualBaseUrl;
+  process.env.PORT = actualPort;
+  console.log(`Test server using port ${actualPort}, BASE_URL=${actualBaseUrl}`);
+
   // Wait for server to be ready
-  const isReady = await waitForServer(healthUrl, 30000);
+  const actualHealthUrl = new URL('/healthz', actualBaseUrl).toString();
+  const isReady = await waitForServer(actualHealthUrl, 30000);
   if (!isReady) {
-    throw new Error(`Server failed to start within 30 seconds. Check ${healthUrl}`);
+    throw new Error(`Server failed to start within 30 seconds. Check ${actualHealthUrl}`);
   }
 
   console.log('Test server ready');
