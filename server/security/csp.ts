@@ -18,7 +18,7 @@ export function withNonce(_req: Request, res: Response, next: NextFunction) {
 
 export function csp() {
   const cfg = getConfig();
-  const isDev = cfg.NODE_ENV === 'development';
+  const isDev = cfg.NODE_ENV === 'development' || cfg.NODE_ENV === 'test';
 
   return helmet({
     contentSecurityPolicy: {
@@ -33,7 +33,15 @@ export function csp() {
         objectSrc: ["'none'"],
         scriptSrc: [
           "'self'",
-          (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
+          (_req: Request, res: Response) => {
+            const nonce = res.locals.cspNonce;
+            if (!nonce) {
+              console.warn(
+                'CSP nonce not generated - ensure withNonce middleware runs before csp()'
+              );
+            }
+            return `'nonce-${nonce || 'missing'}'`;
+          },
           isDev ? "'unsafe-eval'" : null,
         ].filter(Boolean) as string[],
         scriptSrcAttr: ["'none'"],
@@ -43,8 +51,7 @@ export function csp() {
           isDev ? "'unsafe-inline'" : null,
         ].filter(Boolean) as string[],
         connectSrc: ["'self'"],
-        upgradeInsecureRequests: isDev ? [] : [],
-        reportUri: '/api/csp-violations',
+        upgradeInsecureRequests: !isDev ? [] : null,
       },
       reportOnly: cfg.CSP_REPORT_ONLY,
     },
