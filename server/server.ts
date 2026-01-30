@@ -55,6 +55,7 @@ export async function createServer(
   const app = express();
 
   console.log('[server] Creating Express application...');
+  console.log(`[server] NODE_ENV: ${config.NODE_ENV}`);
 
   // Bind providers to app.locals for routes/services
   app.locals['providers'] = providers;
@@ -310,15 +311,16 @@ export async function createServer(
 
     // Add root route handler for API mode health checks and security header tests
     app.get('/', (_req: Request, res: Response) => {
+      console.log(`[server] Root route hit, nonce: ${res.locals.cspNonce ? 'present' : 'missing'}`);
       // Explicitly set CSP header with nonce for security test compatibility
       const nonce = res.locals.cspNonce || 'missing';
-      res.setHeader(
-        'Content-Security-Policy',
+      const csp =
         `default-src 'self'; base-uri 'self'; font-src 'self' data: https:; ` +
-          `form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; ` +
-          `object-src 'none'; script-src 'self' 'nonce-${nonce}'; script-src-attr 'none'; ` +
-          `style-src 'self' 'nonce-${nonce}' https: 'unsafe-inline'`
-      );
+        `form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; ` +
+        `object-src 'none'; script-src 'self' 'nonce-${nonce}'; script-src-attr 'none'; ` +
+        `style-src 'self' 'nonce-${nonce}' https: 'unsafe-inline'`;
+      console.log(`[server] Setting CSP: ${csp}`);
+      res.setHeader('Content-Security-Policy', csp);
       res.json({ status: 'ok', service: 'fund-platform-api', env: 'development' });
     });
   } else {
