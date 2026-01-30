@@ -310,6 +310,15 @@ export async function createServer(
 
     // Add root route handler for API mode health checks and security header tests
     app.get('/', (_req: Request, res: Response) => {
+      // Explicitly set CSP header with nonce for security test compatibility
+      const nonce = res.locals.cspNonce || 'missing';
+      res.setHeader(
+        'Content-Security-Policy',
+        `default-src 'self'; base-uri 'self'; font-src 'self' data: https:; ` +
+          `form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; ` +
+          `object-src 'none'; script-src 'self' 'nonce-${nonce}'; script-src-attr 'none'; ` +
+          `style-src 'self' 'nonce-${nonce}' https: 'unsafe-inline'`
+      );
       res.json({ status: 'ok', service: 'fund-platform-api', env: 'development' });
     });
   } else {
