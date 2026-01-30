@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 /**
  * Environment Configuration with Zod Validation
  * Fail-fast on invalid configuration
@@ -20,7 +15,8 @@ loadDotenv({ override: shouldOverrideEnv });
 const envSchema = z.object({
   // Core environment
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(5000),
+  // Allow port 0 (ephemeral) in test mode for CI isolation
+  PORT: z.preprocess((val) => Number(val), z.number().int().min(0).default(5000)),
 
   // Database (optional in memory mode)
   DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock').optional(),
@@ -110,7 +106,7 @@ export function loadEnv() {
   const config = parsed.data;
 
   console.log(
-    `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env["NODE_ENV"]})`
+    `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env['NODE_ENV']})`
   );
 
   // Additional validation for production
@@ -173,10 +169,11 @@ export function loadEnv() {
     }
 
     // Validate database URL doesn't use default credentials
-    if (config.DATABASE_URL && (
-      config.DATABASE_URL.includes('postgres:postgres') ||
-      config.DATABASE_URL.includes('user:password')
-    )) {
+    if (
+      config.DATABASE_URL &&
+      (config.DATABASE_URL.includes('postgres:postgres') ||
+        config.DATABASE_URL.includes('user:password'))
+    ) {
       console.error('❌ Database URL contains default credentials');
       throw new Error('Database URL contains default credentials - use secure credentials');
     }
