@@ -100,7 +100,7 @@ export async function createServer(
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false, // Allow Vite dev and dynamic imports
-      // contentSecurityPolicy is intentionally omitted - handled by custom csp() middleware above
+      contentSecurityPolicy: false, // Handled by custom csp() middleware above
     })
   );
 

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-const BASE = process.env.BASE_URL || 'http://localhost:3000';
+const getBaseUrl = () => process.env.BASE_URL || 'http://localhost:3000';
 test('security headers present', async () => {
-  const r = await fetch(`${BASE}/`);
+  const r = await fetch(`${getBaseUrl()}/`);
   expect(r.headers.get('content-security-policy')).toMatch(/script-src.*'nonce-/);
   expect(r.headers.get('strict-transport-security')).toContain('max-age');
   expect(r.headers.get('x-content-type-options')).toBe('nosniff');

@@ -6,7 +6,8 @@ const bool = z.string().transform(v => v === "1" || v?.toLowerCase() === "true")
 
 const Env = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(5000),
+  // Allow PORT=0 for ephemeral ports in integration tests
+  PORT: z.coerce.number().int().min(0).default(5000),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   REDIS_URL: z.string().url().optional(),
   APP_VERSION: z.string().default(process.env["npm_package_version"] || '0.0.1'),

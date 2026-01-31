@@ -1,11 +1,12 @@
 import { expect, test } from 'vitest';
 
-const BASE = process.env.BASE_URL || 'http://localhost:3000';
+const getBaseUrl = () => process.env.BASE_URL || 'http://localhost:3000';
 
 test('basic SQLi probe does not expose raw errors', async () => {
   // Integration test - server availability is handled by tests/integration/setup.ts
-  const baseUrl = BASE.startsWith('http') ? BASE : `http://${BASE}`;
-  const url = `${baseUrl}/api/search?q=%27%20OR%201%3D1--`;
+  const baseUrl = getBaseUrl();
+  const normalizedBaseUrl = baseUrl.startsWith('http') ? baseUrl : `http://${baseUrl}`;
+  const url = `${normalizedBaseUrl}/api/search?q=%27%20OR%201%3D1--`;
 
   const r = await fetch(url);
 

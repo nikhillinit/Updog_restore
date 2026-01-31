@@ -21,7 +21,8 @@ type CombinedSchema = typeof schema &
 const require = createRequire(import.meta.url);
 
 // Detect test environment
-const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
+const isVitest = process.env['VITEST'] === 'true';
+const isTest = process.env['NODE_ENV'] === 'test' || isVitest;
 
 // Detect if running on Vercel
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
@@ -33,7 +34,10 @@ let pool: unknown;
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
-  const { databaseMock } = require('../tests/helpers/database-mock') as {
+  const mockModule = isVitest
+    ? require('../tests/helpers/database-mock')
+    : require('../tests/helpers/database-mock.cjs');
+  const { databaseMock } = mockModule as {
     databaseMock: NodePgDatabase<CombinedSchema>;
   };
   db = databaseMock;

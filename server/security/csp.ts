@@ -1,7 +1,7 @@
 import helmet from 'helmet';
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { getConfig } from '../config';
+import { getConfig } from '../config/index.js';
 
 declare global {
   namespace Express {

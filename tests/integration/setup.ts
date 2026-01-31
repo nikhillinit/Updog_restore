@@ -13,6 +13,7 @@ process.env.TZ = 'UTC';
 
 // Integration test environment
 process.env.NODE_ENV = 'test';
+process.env._EXPLICIT_NODE_ENV = process.env.NODE_ENV;
 // Use ephemeral port (0) to avoid conflicts with zombie processes from previous runs
 process.env.PORT = process.env.PORT || '0'; // 0 = OS assigns random available port
 process.env.DATABASE_URL =
@@ -75,9 +76,15 @@ beforeAll(async () => {
 
   console.log('Starting test server with ephemeral port...');
 
+  // CRITICAL: Explicitly preserve PORT to prevent .env override
+  // The server config runs loadDotenv({ override: true }) which would
+  // overwrite PORT=0 (ephemeral) with PORT=5000 from .env file
   const serverEnv = {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'test',
+    _EXPLICIT_NODE_ENV: process.env.NODE_ENV || 'test',
+    PORT: process.env.PORT || '0',  // Force ephemeral port
+    _EXPLICIT_PORT: process.env.PORT || '0', // Marker to detect override
   };
   delete serverEnv.VITEST;
 
