@@ -44,8 +44,12 @@ async function bootstrap() {
     console.log('[bootstrap] ===== PHASE 4: LISTEN =====');
     // Start server
     const server = app.listen(cfg.PORT, () => {
+      const address = server.address();
+      const actualPort =
+        typeof address === 'object' && address && 'port' in address ? address.port : cfg.PORT;
       console.log('[bootstrap] ===== SERVER READY =====');
       console.log(`[startup] ${cfg.NODE_ENV} on :${cfg.PORT} | cache=${providers.mode} rl=${providers.rateLimitStore ? 'redis' : 'memory'}`);
+      console.log(`api on http://localhost:${actualPort}`);
 
       // Mark server as ready for requests
       setReady(true);
