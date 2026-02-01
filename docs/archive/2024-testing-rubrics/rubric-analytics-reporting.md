@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # Analytics & Reporting Testing Rubric
 
 **Domain:** Performance dashboards, variance analysis, time-travel, exports

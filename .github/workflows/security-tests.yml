@@ -52,20 +52,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
 
-      - name: Start API server
-        run: |
-          npm run dev:api &
-          sleep 10
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: development
-          PORT: 3333
-          JWT_SECRET: 'ci-security-test-jwt-secret-minimum-32-characters'
-
       - name: Run security tests
         run: npm run test:security
         env:
-          BASE_URL: http://localhost:3333
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+          REDIS_URL: redis://localhost:6379
           JWT_SECRET: 'ci-security-test-jwt-secret-minimum-32-characters'
+          # Note: setup.ts will automatically start the server with current code

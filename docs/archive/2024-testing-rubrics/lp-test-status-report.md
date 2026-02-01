@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # LP Security Test Status Report
 
 **Date**: 2024-12-24 **Status**: CANNOT RUN - Missing Implementation

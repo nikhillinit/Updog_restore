@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # AGENTS.md
 
 This file provides context and instructions for AI coding agents working on this

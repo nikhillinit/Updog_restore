@@ -298,8 +298,13 @@ export class ScenarioMatrixCache {
           bucketParams: {
             min: 0,
             max: 1,
-            count: matrix.numBuckets,
+            count: config.buckets.length,
             distribution: 'power-law',
+            buckets: config.buckets.map((bucket) => ({
+              name: bucket.name,
+              median: bucket.moicCalibration.median,
+              p90: bucket.moicCalibration.p90,
+            })),
           },
           sOpt: {
             algorithm: 'correlation-structure-v1',

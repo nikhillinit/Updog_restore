@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # RESERVE ADAPTER INTEGRATION ANALYSIS
 
 **Date**: 2025-01-07 **Status**: Phase 0 Complete - Integration Strategy Defined

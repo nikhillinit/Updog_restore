@@ -25,10 +25,10 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server: Server) {
+export async function setupVite(app: Express, server?: Server) {
   const serverOptions = {
     middlewareMode: true,
-    hmr: { server },
+    hmr: server ? { server } : false,
     allowedHosts: true as const,
   };
 
@@ -75,21 +75,20 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-export function serveStatic(app: Express) {
-  // Resolve to dist/public from project root (server/ is one level down)
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+export function serveStatic(app: Express, distPath?: string) {
+  const resolvedDistPath =
+    distPath ?? path.resolve(process.cwd(), "dist", "public");
 
-  if (!fs.existsSync(distPath)) {
+  if (!fs.existsSync(resolvedDistPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory: ${resolvedDistPath}, make sure to build the client first`,
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(resolvedDistPath));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req: Request, res: Response) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path.resolve(resolvedDistPath, "index.html"));
   });
 }
-

@@ -21,33 +21,27 @@ export const cspDirectives: CSPDirectives = {
   defaultSrc: ["'self'"],
   scriptSrc: [
     "'self'",
-    // Add 'unsafe-inline' only for development - remove in production
-    ...(process.env['NODE_ENV'] === 'development' ? ["'unsafe-inline'"] : [])
+    // Note: Nonce-based CSP is used in server/security/csp.ts for dynamic requests
+    // This static config is fallback for routes without nonce generation
   ],
   styleSrc: [
-    "'self'", 
-    "'unsafe-inline'" // Required for many CSS-in-JS libraries
+    "'self'",
+    "'unsafe-inline'", // Required for many CSS-in-JS libraries
   ],
-  imgSrc: [
-    "'self'", 
-    "data:", 
-    "https:"
-  ],
+  imgSrc: ["'self'", 'data:', 'https:'],
   connectSrc: [
     "'self'",
     // Add development ports if needed
-    ...(process.env['NODE_ENV'] === 'development' ? [
-      "ws://localhost:*",
-      "http://localhost:*",
-      "https://localhost:*"
-    ] : [])
+    ...(process.env['NODE_ENV'] === 'development'
+      ? ['ws://localhost:*', 'http://localhost:*', 'https://localhost:*']
+      : []),
   ],
   frameAncestors: ["'none'"],
   objectSrc: ["'none'"],
   mediaSrc: ["'self'"],
-  fontSrc: ["'self'", "https:", "data:"],
+  fontSrc: ["'self'", 'https:', 'data:'],
   formAction: ["'self'"],
-  baseUri: ["'self'"]
+  baseUri: ["'self'"],
 };
 
 /**
@@ -57,7 +51,7 @@ export function buildCSPHeader(directives: CSPDirectives = cspDirectives): strin
   return Object.entries(directives)
     .map(([key, values]) => {
       // Convert camelCase to kebab-case
-      const directive = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+      const directive = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
       return `${directive} ${values.join(' ')}`;
     })
     .join('; ');
@@ -70,10 +64,10 @@ export const securityHeaders = {
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
-    preload: process.env['NODE_ENV'] === 'production'
+    preload: process.env['NODE_ENV'] === 'production',
   },
   referrerPolicy: 'strict-origin-when-cross-origin',
   xContentTypeOptions: 'nosniff',
   xFrameOptions: 'DENY',
-  xXSSProtection: '1; mode=block'
+  xXSSProtection: '1; mode=block',
 };

@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # SCHEMA MAPPING & ANALYSIS
 
 **Date**: 2025-01-07 **Status**: Phase 0 Complete - Ready for Integration **Risk

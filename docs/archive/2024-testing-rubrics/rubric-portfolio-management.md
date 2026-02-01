@@ -1,3 +1,8 @@
+---
+archived: true
+lastUpdated: 2026-01-28
+---
+
 # Portfolio Management Testing Rubric
 
 **Domain:** Portfolio companies, investments, cap tables **Estimated Time:** 60

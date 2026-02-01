@@ -100,6 +100,11 @@ export interface BucketParams {
   max: number;
   count: number;
   distribution: string;
+  buckets?: Array<{
+    name: string;
+    median: number;
+    p90: number;
+  }>;
 }
 
 /**
