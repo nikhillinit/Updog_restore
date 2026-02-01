@@ -27,7 +27,7 @@ import allocationsRouter from './routes/allocations.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import { swaggerSpec } from './config/swagger.js';
-import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
+import { cspDirectives, securityHeaders } from './config/csp.js';
 
 export function makeApp() {
   const app = express();
@@ -39,12 +39,15 @@ export function makeApp() {
   // Security headers with custom CSP
   // Use bracket notation for env vars to avoid TypeScript warnings
   const isReportOnly = process.env['CSP_REPORT_ONLY'] === '1';
-  const cspHeader = buildCSPHeader(cspDirectives);
 
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
-      contentSecurityPolicy: false, // Disable helmet's CSP to use our custom one
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: cspDirectives as unknown as Record<string, Iterable<string> | null>,
+        reportOnly: isReportOnly,
+      },
       hsts: {
         maxAge: securityHeaders.hsts.maxAge,
         includeSubDomains: securityHeaders.hsts.includeSubDomains,
@@ -53,14 +56,8 @@ export function makeApp() {
     })
   );
 
-  // Apply custom CSP header
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const headerName = isReportOnly
-      ? 'Content-Security-Policy-Report-Only'
-      : 'Content-Security-Policy';
-    res['setHeader'](headerName, cspHeader);
-
-    // Additional security headers
+  // Additional security headers
+  app.use((_req: Request, res: Response, next: NextFunction) => {
     res['setHeader']('Referrer-Policy', securityHeaders.referrerPolicy);
     res['setHeader']('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
     res['setHeader']('X-Frame-Options', securityHeaders.xFrameOptions);

@@ -7,7 +7,8 @@
 
 import type { Response, NextFunction } from 'express';
 import express, { type Express, type Request } from 'express';
-import helmet from 'helmet';
+import fs from 'node:fs';
+import path from 'node:path';
 import compression from 'compression';
 import bodyParser from 'body-parser';
 import { withNonce, csp } from './security/csp';
@@ -26,7 +27,7 @@ import { handlePreconditionError } from './lib/http-preconditions.js';
 import { withIdempotency } from './lib/idempotency.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
-import { serveStatic } from './vite.js';
+import { serveStatic, setupVite } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
@@ -95,14 +96,6 @@ export async function createServer(
 
   // Security and performance middleware - use our enhanced CSP instead
   app.use(csp());
-
-  // Additional helmet security headers (CSP handled separately by our custom csp() middleware)
-  app.use(
-    helmet({
-      crossOriginEmbedderPolicy: false, // Allow Vite dev and dynamic imports
-      contentSecurityPolicy: false, // Handled by custom csp() middleware above
-    })
-  );
 
   // CORS configuration with origin validation
   const corsOrigins = parseOrigins(config.CORS_ORIGIN);
@@ -302,31 +295,38 @@ export async function createServer(
   // Global error handler - uses structured error handler
   app.use(errorHandler());
 
-  // Setup Vite in development and static serving in production
-  if (config.NODE_ENV === 'development') {
-    // We'll setup Vite but need to be careful about the server parameter
-    console.log('[server] Setting up Vite development mode...');
-    // Note: setupVite expects a server, but we're returning Express app
-    // This might need adjustment based on your Vite setup
+  // Client asset strategy:
+  // CI contract: `.github/workflows/security-tests.yml` and `.github/workflows/performance-gates.yml`
+  // run `npm run dev:api` without a client build, so dist/public may be missing. Keep API-only boot safe.
+  const distPublicPath = path.resolve(process.cwd(), 'dist', 'public');
+  const distExists = fs.existsSync(distPublicPath);
+  const isProductionMode = config.NODE_ENV === 'production';
+  const useViteMiddleware = process.env['USE_VITE_MIDDLEWARE'] === 'true';
+  let serverMode: 'static' | 'vite' | 'api-only';
 
-    // Add root route handler for API mode health checks and security header tests
-    app.get('/', (_req: Request, res: Response) => {
-      console.log(`[server] Root route hit, nonce: ${res.locals.cspNonce ? 'present' : 'missing'}`);
-      // Explicitly set CSP header with nonce for security test compatibility
-      const nonce = res.locals.cspNonce || 'missing';
-      const csp =
-        `default-src 'self'; base-uri 'self'; font-src 'self' data: https:; ` +
-        `form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; ` +
-        `object-src 'none'; script-src 'self' 'nonce-${nonce}'; script-src-attr 'none'; ` +
-        `style-src 'self' 'nonce-${nonce}' https: 'unsafe-inline'`;
-      console.log(`[server] Setting CSP: ${csp}`);
-      res.setHeader('Content-Security-Policy', csp);
-      res.json({ status: 'ok', service: 'fund-platform-api', env: 'development' });
-    });
-  } else {
-    console.log('[server] Setting up static file serving...');
-    serveStatic(app);
+  if (isProductionMode && !distExists) {
+    throw new Error(
+      `Production mode requires ${distPublicPath}. Run 'npm run build' or set NODE_ENV=development`
+    );
   }
+
+  if (distExists) {
+    console.log('[server] Serving static client from dist/public');
+    serverMode = 'static';
+    serveStatic(app, distPublicPath);
+  } else if (!isProductionMode && useViteMiddleware) {
+    console.log('[server] USE_VITE_MIDDLEWARE enabled; attaching Vite middleware...');
+    serverMode = 'vite';
+    await setupVite(app);
+  } else {
+    console.log('[server] No dist/public found; running in API-only mode');
+    serverMode = 'api-only';
+    app.get('/', (_req: Request, res: Response) => {
+      res.json({ status: 'ok', service: 'fund-platform-api', env: config.NODE_ENV });
+    });
+  }
+
+  console.log(`[server] Mode selected: ${serverMode}`);
 
   console.log('[server] Express application created successfully');
   return app;

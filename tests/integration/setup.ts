@@ -89,6 +89,7 @@ beforeAll(async () => {
   delete serverEnv.VITEST;
 
   let actualPort: string | null = null;
+  let stdoutBuffer = '';
 
   serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
@@ -98,8 +99,12 @@ beforeAll(async () => {
 
   serverProcess.stdout?.on('data', (data) => {
     const output = data.toString();
+    stdoutBuffer += output;
+    if (stdoutBuffer.length > 8192) {
+      stdoutBuffer = stdoutBuffer.slice(-4096);
+    }
     // Capture the actual port from server output (e.g., "api on http://localhost:54321")
-    const portMatch = output.match(/api on http:\/\/[^:]+:(\d+)/);
+    const portMatch = stdoutBuffer.match(/api on http:\/\/[^:]+:(\d+)/);
     if (portMatch && !actualPort) {
       actualPort = portMatch[1];
       console.log(`Server started on port ${actualPort}`);
@@ -113,15 +118,16 @@ beforeAll(async () => {
     }
   });
 
-  // Wait for port detection (up to 10 seconds)
+  // Wait for port detection (up to 30 seconds)
+  const portWaitLimitMs = 30000;
   let portWaitTime = 0;
-  while (!actualPort && portWaitTime < 10000) {
+  while (!actualPort && portWaitTime < portWaitLimitMs) {
     await delay(100);
     portWaitTime += 100;
   }
 
   if (!actualPort) {
-    throw new Error('Server did not report port within 10 seconds');
+    throw new Error(`Server did not report port within ${portWaitLimitMs / 1000} seconds`);
   }
 
   // Update BASE_URL with actual port

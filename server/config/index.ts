@@ -14,9 +14,9 @@ const bool = z
 
 // Preserve explicitly-set PORT before loading .env (integration tests use ephemeral ports)
 const explicitPort = process.env.PORT;
-const explicitPortMarker = process.env._EXPLICIT_PORT;
+const explicitPortMarker = process.env['_EXPLICIT_PORT'];
 const explicitNodeEnv = process.env.NODE_ENV;
-const explicitNodeEnvMarker = process.env._EXPLICIT_NODE_ENV;
+const explicitNodeEnvMarker = process.env['_EXPLICIT_NODE_ENV'];
 
 // TEMP FIX: Windows system has NODE_ENV=production set globally, override it
 const shouldOverrideEnv = true;
@@ -25,12 +25,12 @@ loadDotenv({ override: shouldOverrideEnv });
 
 // Restore explicitly-set PORT if .env tried to override it
 // This prevents integration tests from being forced to use .env's PORT
-if (explicitPortMarker && explicitPort !== process.env.PORT) {
+if (explicitPortMarker && explicitPort !== undefined && explicitPort !== process.env.PORT) {
   process.env.PORT = explicitPort;
 }
 // Restore explicitly-set NODE_ENV if .env tried to override it
 // This prevents integration tests from being forced into dev mode
-if (explicitNodeEnvMarker && explicitNodeEnv !== process.env.NODE_ENV) {
+if (explicitNodeEnvMarker && explicitNodeEnv !== undefined && explicitNodeEnv !== process.env.NODE_ENV) {
   process.env.NODE_ENV = explicitNodeEnv;
 }
 
@@ -38,7 +38,11 @@ const envSchema = z.object({
   // Core environment
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   // Allow port 0 (ephemeral) in test mode for CI isolation
-  PORT: z.preprocess((val) => Number(val), z.number().int().min(0).default(5000)),
+  PORT: z.preprocess((val) => {
+    if (val == null || val === '') return undefined;
+    const num = Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().int().min(0).default(5000)),
 
   // Database (optional in memory mode)
   DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock').optional(),
