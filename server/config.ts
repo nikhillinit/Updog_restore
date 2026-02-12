@@ -2,7 +2,10 @@ import { z } from 'zod';
 import 'dotenv/config';
 import { assertSecureURL } from './lib/url-security.js';
 
-const bool = z.string().transform(v => v === "1" || v?.toLowerCase() === "true").or(z.boolean());
+const bool = z
+  .string()
+  .transform((v) => v === '1' || v?.toLowerCase() === 'true')
+  .or(z.boolean());
 
 const Env = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -14,13 +17,13 @@ const Env = z.object({
   }, z.number().int().min(0).default(5000)),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   REDIS_URL: z.string().url().optional(),
-  APP_VERSION: z.string().default(process.env["npm_package_version"] || '0.0.1'),
-  
+  APP_VERSION: z.string().default(process.env['npm_package_version'] || '0.0.1'),
+
   // Auth
-  JWT_ALG: z.enum(["HS256","RS256"]).default("HS256"),
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must be ≥32 chars").optional(),
-  JWT_ISSUER: z.string().default("updog"),
-  JWT_AUDIENCE: z.string().default("updog-app"),
+  JWT_ALG: z.enum(['HS256', 'RS256']).default('HS256'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be ≥32 chars').optional(),
+  JWT_ISSUER: z.string().default('updog'),
+  JWT_AUDIENCE: z.string().default('updog-app'),
   JWT_JWKS_URL: z.string().url().optional(),
 
   // Feature flags
@@ -38,19 +41,19 @@ let cache: AppConfig | null = null;
 export function getConfig(force = false): AppConfig {
   if (cache && !force) return cache;
   const e = Env.parse(process.env);
-  const cfg = { 
-    ...e, 
-    isDev: e.NODE_ENV === "development", 
-    isProd: e.NODE_ENV === "production", 
-    isTest: e.NODE_ENV === "test" 
+  const cfg = {
+    ...e,
+    isDev: e.NODE_ENV === 'development',
+    isProd: e.NODE_ENV === 'production',
+    isTest: e.NODE_ENV === 'test',
   };
-  
+
   // Validate JWT configuration
-  if (cfg.JWT_ALG === "HS256" && !cfg.JWT_SECRET && !cfg.isTest) {
-    throw new Error("JWT_ALG=HS256 requires JWT_SECRET (≥32 chars)");
+  if (cfg.JWT_ALG === 'HS256' && !cfg.JWT_SECRET && !cfg.isTest) {
+    throw new Error('JWT_ALG=HS256 requires JWT_SECRET (≥32 chars)');
   }
-  if (cfg.JWT_ALG === "RS256" && !cfg.JWT_JWKS_URL) {
-    throw new Error("JWT_ALG=RS256 requires JWT_JWKS_URL");
+  if (cfg.JWT_ALG === 'RS256' && !cfg.JWT_JWKS_URL) {
+    throw new Error('JWT_ALG=RS256 requires JWT_JWKS_URL');
   }
 
   // Validate URL security in production
@@ -67,8 +70,14 @@ export function getConfig(force = false): AppConfig {
     if (cfg.REDIS_URL) {
       const redisUrl = new URL(cfg.REDIS_URL);
       // Redis can use redis://, rediss:// (TLS), or unix socket
-      if (redisUrl.protocol === 'redis:' && redisUrl.hostname !== 'localhost' && redisUrl.hostname !== '127.0.0.1') {
-        console.warn(`⚠️  WARNING: Redis using unencrypted connection in production: ${redisUrl.host}`);
+      if (
+        redisUrl.protocol === 'redis:' &&
+        redisUrl.hostname !== 'localhost' &&
+        redisUrl.hostname !== '127.0.0.1'
+      ) {
+        console.warn(
+          `⚠️  WARNING: Redis using unencrypted connection in production: ${redisUrl.host}`
+        );
         console.warn('   Consider using rediss:// for TLS encryption');
       }
     }
