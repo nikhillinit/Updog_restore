@@ -1,6 +1,7 @@
 # Codex CLI Integration - Updog_restore
 
-Multi-LLM orchestration using official OpenAI Codex CLI with ChatGPT Pro subscription (no API costs).
+Multi-LLM orchestration using official OpenAI Codex CLI with ChatGPT Pro
+subscription (no API costs).
 
 ## Quick Start
 
@@ -17,26 +18,29 @@ codex exec "Your prompt here" --sandbox read-only
 
 ## Configuration
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| Model | `gpt-5.2-codex` | Automatic (CLI default) |
-| Reasoning | `xhigh` | Highest reasoning capability |
-| Sandbox | `read-only` | Validates claims with evidence |
-| Auth | ChatGPT Pro | No per-token API costs |
+| Setting   | Value           | Purpose                        |
+| --------- | --------------- | ------------------------------ |
+| Model     | `gpt-5.3-codex` | Automatic (CLI default)        |
+| Reasoning | `xhigh`         | Highest reasoning capability   |
+| Sandbox   | `read-only`     | Validates claims with evidence |
+| Auth      | ChatGPT Pro     | No per-token API costs         |
 
 ## Commands
 
 ### Quick consult
+
 ```powershell
 codex exec "How should I optimize the Express middleware chain?" --sandbox read-only
 ```
 
 ### Interactive session
+
 ```powershell
 codex "Help me debug the auth flow"
 ```
 
 ### Code review
+
 ```powershell
 codex review server/routes/api.ts
 ```
@@ -46,7 +50,7 @@ codex review server/routes/api.ts
 ```
 Claude Code (Orchestrator)
     │
-    ├── codex exec "prompt" → GPT-5.2-codex suggestions
+    ├── codex exec "prompt" → GPT-5.3-codex suggestions
     │
     └── Implements solution (file edits, tests, etc.)
 ```
@@ -62,6 +66,7 @@ Codex provides **suggestions in sandbox**. Claude Code executes all actions.
 ## Auth
 
 Codex CLI uses your ChatGPT Pro subscription via OAuth. Check status:
+
 ```powershell
 codex login status
 ```

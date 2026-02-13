@@ -1,24 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Vite dev server integration
- 
- 
- 
- 
-import express, { type Express } from "express";
-import fs from "fs";
-import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-import { type Server } from "http";
-import type { Request, Response, NextFunction } from "express";
-import viteConfig from "../vite.config";
-import { nanoid } from "nanoid";
+
+import express, { type Express } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { createServer as createViteServer, createLogger } from 'vite';
+import { type Server } from 'http';
+import type { Request, Response, NextFunction } from 'express';
+import viteConfig from '../vite.config';
+import { nanoid } from 'nanoid';
 
 const viteLogger = createLogger();
 
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
+export function log(message: string, source = 'express') {
+  const formattedTime = new Date().toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: true,
   });
 
@@ -43,31 +40,23 @@ export async function setupVite(app: Express, server?: Server) {
       },
     },
     server: serverOptions,
-    appType: "custom",
+    appType: 'custom',
   });
 
   app.use(vite.middlewares);
-  app.use("*", async (req: Request, res: Response, next: NextFunction) => {
+  app.use('*', async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+      const clientTemplate = path.resolve(import.meta.dirname, '..', 'client', 'index.html');
 
       // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
+      let template = await fs.promises.readFile(clientTemplate, 'utf-8');
+      template = template.replace(`src="/src/main.tsx"`, `src="/src/main.tsx?v=${nanoid()}"`);
       const page = await vite.transformIndexHtml(url, template);
       res.statusCode = 200;
-      res['set']({ "Content-Type": "text/html" });
-      res["end"](page);
+      res['set']({ 'Content-Type': 'text/html' });
+      res['end'](page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -76,19 +65,18 @@ export async function setupVite(app: Express, server?: Server) {
 }
 
 export function serveStatic(app: Express, distPath?: string) {
-  const resolvedDistPath =
-    distPath ?? path.resolve(process.cwd(), "dist", "public");
+  const resolvedDistPath = distPath ?? path.resolve(process.cwd(), 'dist', 'public');
 
   if (!fs.existsSync(resolvedDistPath)) {
     throw new Error(
-      `Could not find the build directory: ${resolvedDistPath}, make sure to build the client first`,
+      `Could not find the build directory: ${resolvedDistPath}, make sure to build the client first`
     );
   }
 
   app.use(express.static(resolvedDistPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req: Request, res: Response) => {
-    res.sendFile(path.resolve(resolvedDistPath, "index.html"));
+  app.use('*', (_req: Request, res: Response) => {
+    res.sendFile(path.resolve(resolvedDistPath, 'index.html'));
   });
 }

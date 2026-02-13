@@ -30,7 +30,11 @@ if (explicitPortMarker && explicitPort !== undefined && explicitPort !== process
 }
 // Restore explicitly-set NODE_ENV if .env tried to override it
 // This prevents integration tests from being forced into dev mode
-if (explicitNodeEnvMarker && explicitNodeEnv !== undefined && explicitNodeEnv !== process.env.NODE_ENV) {
+if (
+  explicitNodeEnvMarker &&
+  explicitNodeEnv !== undefined &&
+  explicitNodeEnv !== process.env.NODE_ENV
+) {
   process.env.NODE_ENV = explicitNodeEnv;
 }
 

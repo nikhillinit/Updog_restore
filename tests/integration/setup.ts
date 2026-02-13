@@ -83,13 +83,12 @@ beforeAll(async () => {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'test',
     _EXPLICIT_NODE_ENV: process.env.NODE_ENV || 'test',
-    PORT: process.env.PORT || '0',  // Force ephemeral port
+    PORT: process.env.PORT || '0', // Force ephemeral port
     _EXPLICIT_PORT: process.env.PORT || '0', // Marker to detect override
   };
   delete serverEnv.VITEST;
 
   let actualPort: string | null = null;
-  let stdoutBuffer = '';
 
   serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
@@ -99,12 +98,8 @@ beforeAll(async () => {
 
   serverProcess.stdout?.on('data', (data) => {
     const output = data.toString();
-    stdoutBuffer += output;
-    if (stdoutBuffer.length > 8192) {
-      stdoutBuffer = stdoutBuffer.slice(-4096);
-    }
     // Capture the actual port from server output (e.g., "api on http://localhost:54321")
-    const portMatch = stdoutBuffer.match(/api on http:\/\/[^:]+:(\d+)/);
+    const portMatch = output.match(/api on http:\/\/[^:]+:(\d+)/);
     if (portMatch && !actualPort) {
       actualPort = portMatch[1];
       console.log(`Server started on port ${actualPort}`);
@@ -118,16 +113,15 @@ beforeAll(async () => {
     }
   });
 
-  // Wait for port detection (up to 30 seconds)
-  const portWaitLimitMs = 30000;
+  // Wait for port detection (up to 10 seconds)
   let portWaitTime = 0;
-  while (!actualPort && portWaitTime < portWaitLimitMs) {
+  while (!actualPort && portWaitTime < 10000) {
     await delay(100);
     portWaitTime += 100;
   }
 
   if (!actualPort) {
-    throw new Error(`Server did not report port within ${portWaitLimitMs / 1000} seconds`);
+    throw new Error('Server did not report port within 10 seconds');
   }
 
   // Update BASE_URL with actual port

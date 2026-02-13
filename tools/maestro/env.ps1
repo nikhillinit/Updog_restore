@@ -14,7 +14,7 @@ if ($codexPath) {
     Write-Host "Codex CLI ready for Updog_restore:" -ForegroundColor Cyan
     Write-Host "  Path: $($codexPath.Source)"
     Write-Host "  Sandbox: $env:CODEX_SANDBOX"
-    Write-Host "  Model: gpt-5.2-codex (xhigh reasoning)"
+    Write-Host "  Model: gpt-5.3-codex (xhigh reasoning)"
     Write-Host "  Auth: ChatGPT Pro subscription"
 } else {
     Write-Host "[WARN] Codex CLI not found in PATH" -ForegroundColor Yellow

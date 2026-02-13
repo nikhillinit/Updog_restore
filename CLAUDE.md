@@ -178,26 +178,31 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 
 ### Codex CLI Integration
 
-Consult OpenAI Codex (GPT-5.2, xhigh reasoning) for complex tasks. Uses ChatGPT Pro subscription - no API costs.
+Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks. Uses ChatGPT
+Pro subscription - no API costs.
 
 **Setup:** `tools/maestro/` contains:
+
 - `env.ps1` - Environment setup
 - `scripts/setup-maestro.ps1` - Diagnostic script
 - `snippets/common-workflows.md` - Example commands
 - `README.md` - Full documentation
 
 **Quick usage:**
+
 ```bash
 codex exec "Your question" --sandbox read-only
 ```
 
 **When to consult Codex:**
+
 - Complex architectural decisions
 - Performance optimization strategies
 - Debugging difficult issues
 - Second opinion on implementation
 
 **Orchestrator workflow:**
+
 1. Call `codex exec "question" --sandbox read-only`
 2. Evaluate Codex suggestions critically
 3. Implement best approach
