@@ -222,7 +222,16 @@ function ListView({
       {deals.map((deal) => (
         <div
           key={deal.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onDealClick(deal)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onDealClick(deal);
+            }
+          }}
+          aria-label={`${deal.companyName}, ${deal.sector}, ${deal.priority} priority`}
           className="flex items-center justify-between p-4 bg-white border border-pov-beige/50 rounded-lg hover:shadow-sm cursor-pointer transition-shadow"
         >
           <div className="flex items-center gap-4">
@@ -252,9 +261,9 @@ function ListView({
             >
               {deal.priority.charAt(0).toUpperCase() + deal.priority.slice(1)}
             </Badge>
-            {deal.dealSize && (
+            {deal.dealSize && Number.isFinite(parseFloat(String(deal.dealSize))) && (
               <span className="font-poppins text-sm text-gray-600 hidden sm:block">
-                ${(parseFloat(deal.dealSize.toString()) / 1000000).toFixed(1)}M
+                ${(parseFloat(String(deal.dealSize)) / 1000000).toFixed(1)}M
               </span>
             )}
           </div>
@@ -270,7 +279,7 @@ export default function PipelinePage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [_selectedDeal, setSelectedDeal] = useState<DealOpportunity | null>(null);
+  // Deal detail page placeholder - currently shows toast
 
   // Fetch deals from API
   const {
@@ -290,10 +299,7 @@ export default function PipelinePage() {
   const deals = dealsResponse?.data || [];
   const hasDeals = deals.length > 0;
 
-  // Handle deal click
   const handleDealClick = (deal: DealOpportunity) => {
-    setSelectedDeal(deal);
-    // TODO: Navigate to deal detail page when implemented
     toast({
       title: deal.companyName,
       description: 'Deal detail page coming soon...',
