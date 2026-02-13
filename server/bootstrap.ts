@@ -1,27 +1,41 @@
-const express = require('express');
-const app = express();
+// Import required modules
+import { loadEnv } from './env';
+import { buildProviders } from './providers';
+import { createServer } from './server';
+import { gracefulShutdown } from './shutdown';
 
-// Some other configurations
+type StartupEnv = { port: number; }
 
-const PORT = process.env.PORT || 3000;
+async function bootstrap() {
+    // Load environment variables
+    const env: StartupEnv = loadEnv();
 
-// Other middlewares
+    // Build the providers
+    const providers = buildProviders();
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT} ✅`);
-});
+    // Create the server with the providers
+    const server = createServer(providers);
 
-// Shutdown messages
-app.on('shutdown', () => {
-  console.log('Shutting down server... 🔻');
-});
+    // Start the server and listen on the specified port
+    server.listen(env.port, () => {
+        console.log(`Server is running on http://localhost:${env.port}`);
+    });
 
-app.on('error', (err) => {
-  console.error(`Server error: ${err.message} ⚠️`);
-});
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+        console.log('SIGTERM received: closing HTTP server');
+        await gracefulShutdown(server);
+        process.exit(0);
+    });
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('Server is shutting down... ❌');
-  process.exit(0);
+    process.on('SIGINT', async () => {
+        console.log('SIGINT received: closing HTTP server');
+        await gracefulShutdown(server);
+        process.exit(0);
+    });
+}
+
+bootstrap().catch(err => {
+    console.error('Bootstrap failed:', err);
+    process.exit(1);
 });
