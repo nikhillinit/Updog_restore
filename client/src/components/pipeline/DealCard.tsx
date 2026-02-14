@@ -5,10 +5,10 @@
  * status, priority, and key metrics.
  */
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Building2, DollarSign, Users, TrendingUp } from "lucide-react";
-import type { DealOpportunity } from "@shared/schema";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Building2, DollarSign, Users, TrendingUp } from 'lucide-react';
+import type { DealOpportunity } from '@shared/schema';
 
 interface DealCardProps {
   deal: DealOpportunity;
@@ -17,42 +17,57 @@ interface DealCardProps {
 
 // Status color mapping
 const statusColors: Record<string, string> = {
-  lead: "bg-gray-100 text-gray-700 border-gray-200",
-  qualified: "bg-blue-50 text-blue-700 border-blue-200",
-  pitch: "bg-purple-50 text-purple-700 border-purple-200",
-  dd: "bg-amber-50 text-amber-700 border-amber-200",
-  committee: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  term_sheet: "bg-pink-50 text-pink-700 border-pink-200",
-  closed: "bg-green-50 text-green-700 border-green-200",
-  passed: "bg-red-50 text-red-700 border-red-200",
+  lead: 'bg-gray-100 text-gray-700 border-gray-200',
+  qualified: 'bg-blue-50 text-blue-700 border-blue-200',
+  pitch: 'bg-purple-50 text-purple-700 border-purple-200',
+  dd: 'bg-amber-50 text-amber-700 border-amber-200',
+  committee: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  term_sheet: 'bg-pink-50 text-pink-700 border-pink-200',
+  closed: 'bg-green-50 text-green-700 border-green-200',
+  passed: 'bg-red-50 text-red-700 border-red-200',
 };
 
 // Priority color mapping
 const priorityColors: Record<string, string> = {
-  high: "bg-red-100 text-red-700",
-  medium: "bg-yellow-100 text-yellow-700",
-  low: "bg-green-100 text-green-700",
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-yellow-100 text-yellow-700',
+  low: 'bg-green-100 text-green-700',
 };
 
 // Status display labels
 const statusLabels: Record<string, string> = {
-  lead: "Lead",
-  qualified: "Qualified",
-  pitch: "Pitch",
-  dd: "Due Diligence",
-  committee: "Committee",
-  term_sheet: "Term Sheet",
-  closed: "Closed",
-  passed: "Passed",
+  lead: 'Lead',
+  qualified: 'Qualified',
+  pitch: 'Pitch',
+  dd: 'Due Diligence',
+  committee: 'Committee',
+  term_sheet: 'Term Sheet',
+  closed: 'Closed',
+  passed: 'Passed',
 };
 
+function safeParseMoney(value: unknown): number | null {
+  if (value == null) return null;
+  const num = parseFloat(String(value));
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
 export function DealCard({ deal, onClick }: DealCardProps) {
-  const dealSize = deal.dealSize ? parseFloat(deal.dealSize.toString()) : null;
+  const dealSize = safeParseMoney(deal.dealSize);
 
   return (
     <Card
       className="cursor-pointer hover:shadow-md transition-shadow border-pov-beige/50"
+      role="button"
+      tabIndex={0}
+      aria-label={`Deal: ${deal.companyName}, ${deal.sector}, ${deal.priority} priority`}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && onClick) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -60,9 +75,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <h4 className="font-inter font-semibold text-pov-charcoal truncate">
               {deal.companyName}
             </h4>
-            <p className="font-poppins text-xs text-gray-500 truncate">
-              {deal.sector}
-            </p>
+            <p className="font-poppins text-xs text-gray-500 truncate">{deal.sector}</p>
           </div>
           <Badge
             variant="outline"
@@ -75,15 +88,10 @@ export function DealCard({ deal, onClick }: DealCardProps) {
       <CardContent className="pt-0 space-y-3">
         {/* Stage and Status */}
         <div className="flex items-center gap-2">
-          <Badge
-            variant="outline"
-            className={statusColors[deal.status] || statusColors['lead']}
-          >
+          <Badge variant="outline" className={statusColors[deal.status] || statusColors['lead']}>
             {statusLabels[deal.status] || deal.status}
           </Badge>
-          <span className="font-poppins text-xs text-gray-400">
-            {deal.stage}
-          </span>
+          <span className="font-poppins text-xs text-gray-400">{deal.stage}</span>
         </div>
 
         {/* Key Metrics */}
@@ -107,17 +115,13 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           {deal.foundedYear && (
             <div className="flex items-center gap-1.5">
               <Building2 className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600">
-                Founded {deal.foundedYear}
-              </span>
+              <span className="font-poppins text-xs text-gray-600">Founded {deal.foundedYear}</span>
             </div>
           )}
           {deal.sourceType && (
             <div className="flex items-center gap-1.5">
               <TrendingUp className="h-3.5 w-3.5 text-gray-400" />
-              <span className="font-poppins text-xs text-gray-600 truncate">
-                {deal.sourceType}
-              </span>
+              <span className="font-poppins text-xs text-gray-600 truncate">{deal.sourceType}</span>
             </div>
           )}
         </div>

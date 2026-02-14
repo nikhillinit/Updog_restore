@@ -5,9 +5,8 @@
  * required and optional fields validated via Zod schema.
  */
 
-
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -23,22 +22,38 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+
+const MAX_MONEY_VALUE = 1e12;
+
+function parseMoney(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const num = parseFloat(value);
+  if (!Number.isFinite(num) || num <= 0 || num > MAX_MONEY_VALUE) return undefined;
+  return num;
+}
+
+function parseIntSafe(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const num = parseInt(value, 10);
+  if (!Number.isFinite(num) || num < 0) return undefined;
+  return num;
+}
 
 interface AddDealModalProps {
   open: boolean;
@@ -48,21 +63,23 @@ interface AddDealModalProps {
 
 // Form validation schema matching API expectations
 const formSchema = z.object({
-  companyName: z.string().min(1, "Company name is required").max(255),
-  sector: z.string().min(1, "Sector is required").max(100),
-  stage: z.enum(["Pre-seed", "Seed", "Series A", "Series B", "Series C", "Growth", "Late Stage"]),
-  sourceType: z.enum(["Referral", "Cold outreach", "Inbound", "Event", "Network", "Other"]),
+  companyName: z.string().min(1, 'Company name is required').max(255),
+  sector: z.string().min(1, 'Sector is required').max(100),
+  stage: z.enum(['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Growth', 'Late Stage']),
+  sourceType: z.enum(['Referral', 'Cold outreach', 'Inbound', 'Event', 'Network', 'Other']),
   dealSize: z.string().optional(),
   valuation: z.string().optional(),
-  status: z.enum(["lead", "qualified", "pitch", "dd", "committee", "term_sheet", "closed", "passed"]).default("lead"),
-  priority: z.enum(["high", "medium", "low"]).default("medium"),
+  status: z
+    .enum(['lead', 'qualified', 'pitch', 'dd', 'committee', 'term_sheet', 'closed', 'passed'])
+    .default('lead'),
+  priority: z.enum(['high', 'medium', 'low']).default('medium'),
   foundedYear: z.string().optional(),
   employeeCount: z.string().optional(),
   revenue: z.string().optional(),
   description: z.string().max(5000).optional(),
-  website: z.string().url().optional().or(z.literal("")),
+  website: z.string().url().optional().or(z.literal('')),
   contactName: z.string().max(255).optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
+  contactEmail: z.string().email().optional().or(z.literal('')),
   contactPhone: z.string().max(50).optional(),
   sourceNotes: z.string().max(2000).optional(),
   nextAction: z.string().max(500).optional(),
@@ -77,24 +94,24 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      companyName: "",
-      sector: "",
-      stage: "Seed",
-      sourceType: "Referral",
-      dealSize: "",
-      valuation: "",
-      status: "lead",
-      priority: "medium",
-      foundedYear: "",
-      employeeCount: "",
-      revenue: "",
-      description: "",
-      website: "",
-      contactName: "",
-      contactEmail: "",
-      contactPhone: "",
-      sourceNotes: "",
-      nextAction: "",
+      companyName: '',
+      sector: '',
+      stage: 'Seed',
+      sourceType: 'Referral',
+      dealSize: '',
+      valuation: '',
+      status: 'lead',
+      priority: 'medium',
+      foundedYear: '',
+      employeeCount: '',
+      revenue: '',
+      description: '',
+      website: '',
+      contactName: '',
+      contactEmail: '',
+      contactPhone: '',
+      sourceNotes: '',
+      nextAction: '',
     },
   });
 
@@ -103,33 +120,33 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       const payload = {
         ...data,
         fundId,
-        dealSize: data.dealSize ? parseFloat(data.dealSize) : undefined,
-        valuation: data.valuation ? parseFloat(data.valuation) : undefined,
-        foundedYear: data.foundedYear ? parseInt(data.foundedYear, 10) : undefined,
-        employeeCount: data.employeeCount ? parseInt(data.employeeCount, 10) : undefined,
-        revenue: data.revenue ? parseFloat(data.revenue) : undefined,
+        dealSize: parseMoney(data.dealSize),
+        valuation: parseMoney(data.valuation),
+        foundedYear: parseIntSafe(data.foundedYear),
+        employeeCount: parseIntSafe(data.employeeCount),
+        revenue: parseMoney(data.revenue),
       };
       return apiRequest<{ success: boolean; data: unknown }>(
-        "POST",
-        "/api/deals/opportunities",
+        'POST',
+        '/api/deals/opportunities',
         payload
       );
     },
     onSuccess: () => {
       toast({
-        title: "Deal created",
-        description: "The deal has been added to your pipeline.",
+        title: 'Deal created',
+        description: 'The deal has been added to your pipeline.',
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/deals/opportunities"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/deals/pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
       form.reset();
       onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to create deal",
+        title: 'Failed to create deal',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     },
   });
@@ -505,7 +522,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     Creating...
                   </>
                 ) : (
-                  "Add Deal"
+                  'Add Deal'
                 )}
               </Button>
             </DialogFooter>

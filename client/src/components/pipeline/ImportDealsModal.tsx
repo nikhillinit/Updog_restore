@@ -5,8 +5,9 @@
  * containing deal data for bulk import.
  */
 
-import { useState, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Papa from 'papaparse';
 import {
   Dialog,
   DialogContent,
@@ -14,11 +15,37 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Upload, FileSpreadsheet, X, Loader2, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Upload, FileSpreadsheet, X, Loader2, Download } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_ROWS = 1000;
+const MAX_COLUMNS = 30;
+const MAX_MONEY_VALUE = 1e12;
+
+const KNOWN_HEADERS: Record<string, string> = {
+  companyname: 'companyName',
+  sector: 'sector',
+  stage: 'stage',
+  sourcetype: 'sourceType',
+  dealsize: 'dealSize',
+  valuation: 'valuation',
+  status: 'status',
+  priority: 'priority',
+  foundedyear: 'foundedYear',
+  employeecount: 'employeeCount',
+  revenue: 'revenue',
+  description: 'description',
+  website: 'website',
+  contactname: 'contactName',
+  contactemail: 'contactEmail',
+  contactphone: 'contactPhone',
+  sourcenotes: 'sourceNotes',
+  nextaction: 'nextAction',
+};
 
 interface ImportDealsModalProps {
   open: boolean;
@@ -35,7 +62,16 @@ interface CsvRow {
   valuation?: string;
   status?: string;
   priority?: string;
-  [key: string]: string | undefined;
+  foundedYear?: string;
+  employeeCount?: string;
+  revenue?: string;
+  description?: string;
+  website?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  sourceNotes?: string;
+  nextAction?: string;
 }
 
 interface ImportResult {
@@ -51,61 +87,112 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<CsvRow[] | null>(null);
 
+  const parseCSV = useCallback((text: string): CsvRow[] => {
+    const result = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+      transformHeader: (header: string) => {
+        const normalized = header
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_-]+/g, '');
+        return KNOWN_HEADERS[normalized] ?? '';
+      },
+    });
+
+    if (result.meta.fields && result.meta.fields.length > MAX_COLUMNS) {
+      throw new Error(`CSV has ${result.meta.fields.length} columns (max ${MAX_COLUMNS})`);
+    }
+
+    const rows: CsvRow[] = [];
+    const data = result.data.slice(0, MAX_ROWS);
+    for (const raw of data) {
+      const mapped: Record<string, string> = {};
+      for (const [key, value] of Object.entries(raw)) {
+        if (key && KNOWN_HEADERS[key.toLowerCase().replace(/[\s_-]+/g, '')] !== undefined) {
+          mapped[key] = typeof value === 'string' ? value : '';
+        }
+      }
+      rows.push(mapped as unknown as CsvRow);
+    }
+
+    if (result.data.length > MAX_ROWS) {
+      throw new Error(`CSV has ${result.data.length} rows (max ${MAX_ROWS})`);
+    }
+
+    return rows;
+  }, []);
+
+  const parseMoney = (value: string | undefined): number | undefined => {
+    if (!value) return undefined;
+    const num = parseFloat(value);
+    if (!Number.isFinite(num) || num <= 0 || num > MAX_MONEY_VALUE) return undefined;
+    return num;
+  };
+
+  const parseIntSafe = (value: string | undefined): number | undefined => {
+    if (!value) return undefined;
+    const num = parseInt(value, 10);
+    if (!Number.isFinite(num) || num < 0) return undefined;
+    return num;
+  };
+
   const importMutation = useMutation({
-    mutationFn: async (file: File): Promise<ImportResult> => {
-      const text = await file.text();
+    mutationFn: async (importFile: File): Promise<ImportResult> => {
+      if (importFile.size > MAX_FILE_SIZE) {
+        throw new Error(`File is ${(importFile.size / 1024 / 1024).toFixed(1)} MB (max 2 MB)`);
+      }
+
+      const text = await importFile.text();
       const rows = parseCSV(text);
-      
-      // Validate and transform rows
-      const validRows: CsvRow[] = [];
+
+      const validRows: Array<{ row: CsvRow; csvLine: number }> = [];
       const errors: Array<{ row: number; message: string }> = [];
 
       rows.forEach((row, index) => {
-        if (index === 0 && Object.keys(row).some(key => key.toLowerCase().includes("company"))) {
-          // Skip header row if detected
+        const csvLine = index + 2; // +1 for 0-index, +1 for header row
+
+        if (!row.companyName?.trim()) {
+          errors.push({ row: csvLine, message: 'Company name is required' });
+          return;
+        }
+        if (!row.sector?.trim()) {
+          errors.push({ row: csvLine, message: 'Sector is required' });
+          return;
+        }
+        if (!row.stage?.trim()) {
+          errors.push({ row: csvLine, message: 'Stage is required' });
+          return;
+        }
+        if (!row.sourceType?.trim()) {
+          errors.push({ row: csvLine, message: 'Source type is required' });
           return;
         }
 
-        const rowNumber = index + 1;
-        
-        if (!row.companyName || !row.companyName.trim()) {
-          errors.push({ row: rowNumber, message: "Company name is required" });
-          return;
-        }
-        if (!row.sector || !row.sector.trim()) {
-          errors.push({ row: rowNumber, message: "Sector is required" });
-          return;
-        }
-        if (!row.stage || !row.stage.trim()) {
-          errors.push({ row: rowNumber, message: "Stage is required" });
-          return;
-        }
-        if (!row.sourceType || !row.sourceType.trim()) {
-          errors.push({ row: rowNumber, message: "Source type is required" });
-          return;
-        }
-
-        validRows.push({
-          ...row,
-          fundId: fundId?.toString(),
-        } as CsvRow);
+        validRows.push({ row, csvLine });
       });
 
-      // Import deals one by one
       let imported = 0;
-      for (const row of validRows) {
+      for (const { row, csvLine } of validRows) {
         try {
-          const response = await fetch("/api/deals/opportunities", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
+          const response = await fetch('/api/deals/opportunities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
-              ...row,
-              dealSize: row.dealSize ? parseFloat(row.dealSize) : undefined,
-              valuation: row.valuation ? parseFloat(row.valuation) : undefined,
-              foundedYear: row['foundedYear'] ? parseInt(row['foundedYear'], 10) : undefined,
-              employeeCount: row['employeeCount'] ? parseInt(row['employeeCount'], 10) : undefined,
-              revenue: row['revenue'] ? parseFloat(row['revenue']) : undefined,
+              companyName: row.companyName,
+              sector: row.sector,
+              stage: row.stage,
+              sourceType: row.sourceType,
+              status: row.status || undefined,
+              priority: row.priority || undefined,
+              fundId,
+              dealSize: parseMoney(row.dealSize),
+              valuation: parseMoney(row.valuation),
+              foundedYear: parseIntSafe(row.foundedYear),
+              employeeCount: parseIntSafe(row.employeeCount),
+              revenue: parseMoney(row.revenue),
             }),
           });
 
@@ -113,10 +200,13 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
             imported++;
           } else {
             const error = await response.json();
-            errors.push({ row: imported + 1, message: error.message || "Failed to import" });
+            errors.push({ row: csvLine, message: error.message || 'Failed to import' });
           }
-        } catch (_error) {
-          errors.push({ row: imported + 1, message: "Network error" });
+        } catch (err) {
+          errors.push({
+            row: csvLine,
+            message: err instanceof Error ? err.message : 'Network error',
+          });
         }
       }
 
@@ -129,60 +219,50 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
     onSuccess: (result) => {
       if (result.errors.length === 0) {
         toast({
-          title: "Import successful",
+          title: 'Import successful',
           description: `${result.imported} deals imported successfully.`,
         });
       } else if (result.imported > 0) {
         toast({
-          title: "Import partially successful",
+          title: 'Import partially successful',
           description: `${result.imported} deals imported, ${result.errors.length} errors.`,
-          variant: "destructive",
+          variant: 'destructive',
         });
       } else {
         toast({
-          title: "Import failed",
+          title: 'Import failed',
           description: `No deals imported. ${result.errors.length} errors found.`,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/deals/opportunities"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/deals/pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
       handleClose();
     },
     onError: (error: Error) => {
       toast({
-        title: "Import failed",
+        title: 'Import failed',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     },
   });
 
-  const parseCSV = (text: string): CsvRow[] => {
-    const lines = text.split("\n").filter(line => line.trim());
-    if (lines.length === 0) return [];
-
-    const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
-    const rows: CsvRow[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
-      const row: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        row[header] = values[index] || "";
+  const handleFileChange = (selectedFile: File) => {
+    if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload a CSV file.',
+        variant: 'destructive',
       });
-      rows.push(row as CsvRow);
+      return;
     }
 
-    return rows;
-  };
-
-  const handleFileChange = (selectedFile: File) => {
-    if (selectedFile.type !== "text/csv" && !selectedFile.name.endsWith(".csv")) {
+    if (selectedFile.size > MAX_FILE_SIZE) {
       toast({
-        title: "Invalid file type",
-        description: "Please upload a CSV file.",
-        variant: "destructive",
+        title: 'File too large',
+        description: `Maximum file size is 2 MB. Your file is ${(selectedFile.size / 1024 / 1024).toFixed(1)} MB.`,
+        variant: 'destructive',
       });
       return;
     }
@@ -202,7 +282,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       handleFileChange(droppedFile);
@@ -228,53 +308,53 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
 
   const downloadTemplate = () => {
     const headers = [
-      "companyName",
-      "sector",
-      "stage",
-      "sourceType",
-      "dealSize",
-      "valuation",
-      "status",
-      "priority",
-      "foundedYear",
-      "employeeCount",
-      "revenue",
-      "description",
-      "website",
-      "contactName",
-      "contactEmail",
-      "contactPhone",
-      "sourceNotes",
-      "nextAction",
-    ].join(",");
+      'companyName',
+      'sector',
+      'stage',
+      'sourceType',
+      'dealSize',
+      'valuation',
+      'status',
+      'priority',
+      'foundedYear',
+      'employeeCount',
+      'revenue',
+      'description',
+      'website',
+      'contactName',
+      'contactEmail',
+      'contactPhone',
+      'sourceNotes',
+      'nextAction',
+    ].join(',');
 
     const example = [
-      "Acme Inc",
-      "FinTech",
-      "Seed",
-      "Referral",
-      "1000000",
-      "5000000",
-      "lead",
-      "high",
-      "2021",
-      "25",
-      "500000",
-      "AI-powered payment processing",
-      "https://acme.com",
-      "John Doe",
-      "john@acme.com",
-      "+1234567890",
-      "Warm intro from portfolio founder",
-      "Schedule initial pitch",
-    ].join(",");
+      'Acme Inc',
+      'FinTech',
+      'Seed',
+      'Referral',
+      '1000000',
+      '5000000',
+      'lead',
+      'high',
+      '2021',
+      '25',
+      '500000',
+      'AI-powered payment processing',
+      'https://acme.com',
+      'John Doe',
+      'john@acme.com',
+      '+1234567890',
+      'Warm intro from portfolio founder',
+      'Schedule initial pitch',
+    ].join(',');
 
     const csv = `${headers}\n${example}`;
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "deals_import_template.csv";
+    a.download = 'deals_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -294,9 +374,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5 text-green-600" />
-              <span className="font-poppins text-sm text-gray-600">
-                Download template CSV
-              </span>
+              <span className="font-poppins text-sm text-gray-600">Download template CSV</span>
             </div>
             <Button
               type="button"
@@ -313,23 +391,30 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
           {/* Drop Zone */}
           {!file ? (
             <div
+              role="button"
+              tabIndex={0}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  document.getElementById('csv-upload')?.click();
+                }
+              }}
+              aria-label="Drop CSV file here or press Enter to select file"
               className={cn(
-                "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
                 isDragging
-                  ? "border-pov-charcoal bg-pov-charcoal/5"
-                  : "border-pov-beige hover:border-pov-charcoal/50"
+                  ? 'border-pov-charcoal bg-pov-charcoal/5'
+                  : 'border-pov-beige hover:border-pov-charcoal/50'
               )}
             >
               <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
               <p className="font-inter font-medium text-pov-charcoal mb-1">
                 Drop your CSV file here
               </p>
-              <p className="font-poppins text-sm text-gray-500 mb-3">
-                or click to browse
-              </p>
+              <p className="font-poppins text-sm text-gray-500 mb-3">or click to browse</p>
               <input
                 type="file"
                 accept=".csv"
@@ -340,7 +425,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => document.getElementById("csv-upload")?.click()}
+                onClick={() => document.getElementById('csv-upload')?.click()}
                 className="border-pov-beige"
               >
                 Select File
@@ -362,6 +447,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                     setPreview(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
+                  aria-label="Remove selected file"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -377,15 +463,9 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-1 px-2 font-medium text-gray-600">
-                            Company
-                          </th>
-                          <th className="text-left py-1 px-2 font-medium text-gray-600">
-                            Sector
-                          </th>
-                          <th className="text-left py-1 px-2 font-medium text-gray-600">
-                            Stage
-                          </th>
+                          <th className="text-left py-1 px-2 font-medium text-gray-600">Company</th>
+                          <th className="text-left py-1 px-2 font-medium text-gray-600">Sector</th>
+                          <th className="text-left py-1 px-2 font-medium text-gray-600">Stage</th>
                           <th className="text-left py-1 px-2 font-medium text-gray-600">
                             Deal Size
                           </th>
@@ -394,14 +474,10 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                       <tbody>
                         {preview.map((row: CsvRow, index: number) => (
                           <tr key={index} className="border-b border-gray-100">
-                            <td className="py-1 px-2 truncate max-w-[120px]">
-                              {row.companyName}
-                            </td>
+                            <td className="py-1 px-2 truncate max-w-[120px]">{row.companyName}</td>
                             <td className="py-1 px-2">{row.sector}</td>
                             <td className="py-1 px-2">{row.stage}</td>
-                            <td className="py-1 px-2">
-                              {row.dealSize ? `$${row.dealSize}` : "-"}
-                            </td>
+                            <td className="py-1 px-2">{row.dealSize ? `$${row.dealSize}` : '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -442,7 +518,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                 Importing...
               </>
             ) : (
-              "Import Deals"
+              'Import Deals'
             )}
           </Button>
         </DialogFooter>
