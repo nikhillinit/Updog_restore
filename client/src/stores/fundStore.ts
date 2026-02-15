@@ -78,6 +78,27 @@ export type FundExpense = {
   endMonth?: number;
 };
 
+// Pipeline profile types (Step 4 investment pipeline per sector)
+export type PipelineStage = {
+  id: string;
+  name: string;
+  roundSize: number; // $M
+  valuation: number; // $M
+  valuationType: 'pre' | 'post';
+  esopPct: number; // %
+  graduationRate: number; // %
+  exitRate: number; // %
+  exitValuation: number; // $M
+  monthsToGraduate: number;
+  monthsToExit: number;
+};
+
+export type PipelineProfile = {
+  id: string;
+  name: string;
+  stages: PipelineStage[];
+};
+
 export type FundState = {
   // Hydration flag
   hydrated: boolean;
@@ -104,6 +125,9 @@ export type FundState = {
   sectorProfiles: SectorProfile[];
   allocations: Allocation[];
   followOnChecks: { A: number; B: number; C: number };
+
+  // Investment Pipeline (Step 4 sector pipeline profiles)
+  pipelineProfiles: PipelineProfile[];
 
   // Distributions & Carry
   waterfallType?: 'american' | 'european' | 'hybrid';
@@ -188,6 +212,9 @@ export type FundState = {
   addFundExpense: (expense: FundExpense) => void;
   updateFundExpense: (id: string, patch: Partial<FundExpense>) => void;
   removeFundExpense: (id: string) => void;
+
+  // Pipeline Profile actions (Step 4)
+  setPipelineProfiles: (profiles: PipelineProfile[]) => void;
 
   // Selector-like helper
   stageValidation: () => { allValid: boolean; errorsByRow: (string | null)[] };
@@ -434,6 +461,9 @@ function createFundStore() {
           ],
           followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
+          // Pipeline Profiles default (empty -- populated by Step 4 or legacy migration)
+          pipelineProfiles: [],
+
           // Distributions & Carry defaults
           waterfallType: 'american',
           waterfallTiers: [
@@ -612,6 +642,8 @@ function createFundStore() {
                 (existingExpense: FundExpense) => existingExpense.id !== id
               ),
             })),
+
+          setPipelineProfiles: (profiles: PipelineProfile[]) => set({ pipelineProfiles: profiles }),
 
           addStage: () =>
             set((state) => {
@@ -835,6 +867,7 @@ if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1') {
     if (state.hydrated !== prev.hydrated) changed.push('hydrated');
     if (state.stages !== prev.stages) changed.push('stages');
     if (state.sectorProfiles !== prev.sectorProfiles) changed.push('sectorProfiles');
+    if (state.pipelineProfiles !== prev.pipelineProfiles) changed.push('pipelineProfiles');
     if (state.allocations !== prev.allocations) changed.push('allocations');
     if (state.followOnChecks !== prev.followOnChecks) changed.push('followOnChecks');
     if (changed.length) {
