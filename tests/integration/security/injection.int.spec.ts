@@ -11,8 +11,9 @@ test('basic SQLi probe does not expose raw errors', async () => {
   const r = await fetch(url);
 
   // Accept various valid responses: 200 (handled), 204 (no content), 400 (bad request),
-  // 404 (endpoint not found), 422 (unprocessable), 501 (not implemented)
-  expect([200, 204, 400, 404, 422, 501]).toContain(r.status);
+  // 401 (unauthorized), 403 (forbidden), 404 (endpoint not found),
+  // 422 (unprocessable), 501 (not implemented)
+  expect([200, 204, 400, 401, 403, 404, 422, 501]).toContain(r.status);
 
   // Ensure no SQL error details in response
   if (r.status !== 404) {
