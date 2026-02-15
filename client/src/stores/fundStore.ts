@@ -99,6 +99,28 @@ export type PipelineProfile = {
   stages: PipelineStage[];
 };
 
+// Capital Plan types (Step 3 capital allocation config)
+export type CapitalStageAllocation = {
+  id: string;
+  label: string;
+  pct: number;
+};
+
+export type CapitalPlanAllocation = {
+  id: string;
+  name: string;
+  sectorProfileId?: string;
+  entryRound: string;
+  capitalAllocationPct: number;
+  initialCheckStrategy: 'amount' | 'ownership';
+  initialCheckAmount?: number;
+  initialOwnershipPct?: number;
+  followOnStrategy: 'amount' | 'maintain_ownership';
+  followOnAmount?: number;
+  followOnParticipationPct: number;
+  investmentHorizonMonths: number;
+};
+
 export type FundState = {
   // Hydration flag
   hydrated: boolean;
@@ -125,6 +147,10 @@ export type FundState = {
   sectorProfiles: SectorProfile[];
   allocations: Allocation[];
   followOnChecks: { A: number; B: number; C: number };
+
+  // Capital Plan (Step 3 capital allocation config)
+  capitalStageAllocations: CapitalStageAllocation[];
+  capitalPlanAllocations: CapitalPlanAllocation[];
 
   // Investment Pipeline (Step 4 sector pipeline profiles)
   pipelineProfiles: PipelineProfile[];
@@ -212,6 +238,13 @@ export type FundState = {
   addFundExpense: (expense: FundExpense) => void;
   updateFundExpense: (id: string, patch: Partial<FundExpense>) => void;
   removeFundExpense: (id: string) => void;
+
+  // Capital Plan actions (Step 3)
+  setCapitalStageAllocations: (rows: CapitalStageAllocation[]) => void;
+  setCapitalPlanAllocations: (rows: CapitalPlanAllocation[]) => void;
+  addCapitalPlanAllocation: (allocation: CapitalPlanAllocation) => void;
+  updateCapitalPlanAllocation: (id: string, patch: Partial<CapitalPlanAllocation>) => void;
+  removeCapitalPlanAllocation: (id: string) => void;
 
   // Pipeline Profile actions (Step 4)
   setPipelineProfiles: (profiles: PipelineProfile[]) => void;
@@ -461,6 +494,48 @@ function createFundStore() {
           ],
           followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
+          // Capital Plan defaults (Step 3)
+          capitalStageAllocations: [
+            { id: 'preseed_seed', label: 'Pre-Seed + Seed', pct: 43 },
+            { id: 'series_a', label: 'Series A', pct: 14 },
+            { id: 'reserved', label: 'Reserved', pct: 43 },
+          ],
+          capitalPlanAllocations: [
+            {
+              id: 'pre-seed-allocation',
+              name: 'Pre-Seed Investments',
+              entryRound: 'Pre-Seed',
+              capitalAllocationPct: 43,
+              initialCheckStrategy: 'amount' as const,
+              initialCheckAmount: 250000,
+              followOnStrategy: 'maintain_ownership' as const,
+              followOnParticipationPct: 100,
+              investmentHorizonMonths: 18,
+            },
+            {
+              id: 'seed-allocation',
+              name: 'Seed Investments',
+              entryRound: 'Seed',
+              capitalAllocationPct: 43,
+              initialCheckStrategy: 'amount' as const,
+              initialCheckAmount: 500000,
+              followOnStrategy: 'maintain_ownership' as const,
+              followOnParticipationPct: 100,
+              investmentHorizonMonths: 24,
+            },
+            {
+              id: 'series-a-allocation',
+              name: 'Series A Investments',
+              entryRound: 'Series A',
+              capitalAllocationPct: 14,
+              initialCheckStrategy: 'amount' as const,
+              initialCheckAmount: 750000,
+              followOnStrategy: 'maintain_ownership' as const,
+              followOnParticipationPct: 100,
+              investmentHorizonMonths: 18,
+            },
+          ],
+
           // Pipeline Profiles default (empty -- populated by Step 4 or legacy migration)
           pipelineProfiles: [],
 
@@ -643,6 +718,32 @@ function createFundStore() {
               ),
             })),
 
+          // Capital Plan actions (Step 3)
+          setCapitalStageAllocations: (rows: CapitalStageAllocation[]) =>
+            set({ capitalStageAllocations: rows }),
+
+          setCapitalPlanAllocations: (rows: CapitalPlanAllocation[]) =>
+            set({ capitalPlanAllocations: rows }),
+
+          addCapitalPlanAllocation: (allocation: CapitalPlanAllocation) =>
+            set((state) => ({
+              capitalPlanAllocations: [...state.capitalPlanAllocations, allocation],
+            })),
+
+          updateCapitalPlanAllocation: (id: string, patch: Partial<CapitalPlanAllocation>) =>
+            set((state) => ({
+              capitalPlanAllocations: state.capitalPlanAllocations.map(
+                (a: CapitalPlanAllocation) => (a.id === id ? { ...a, ...patch } : a)
+              ),
+            })),
+
+          removeCapitalPlanAllocation: (id: string) =>
+            set((state) => ({
+              capitalPlanAllocations: state.capitalPlanAllocations.filter(
+                (a: CapitalPlanAllocation) => a.id !== id
+              ),
+            })),
+
           setPipelineProfiles: (profiles: PipelineProfile[]) => set({ pipelineProfiles: profiles }),
 
           addStage: () =>
@@ -816,6 +917,8 @@ function createFundStore() {
             sectorProfiles: s.sectorProfiles,
             allocations: s.allocations,
             followOnChecks: s.followOnChecks,
+            capitalStageAllocations: s.capitalStageAllocations,
+            capitalPlanAllocations: s.capitalPlanAllocations,
             modelVersion: 'reserves-ev1',
           }),
           migrate: (persistedState: unknown, from: number) => {
