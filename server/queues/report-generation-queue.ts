@@ -15,6 +15,7 @@ import { eq } from 'drizzle-orm';
 import { getStorageService } from '../services/storage-service.js';
 import {
   fetchLPReportData,
+  prefetchReportMetrics,
   buildK1ReportData,
   buildQuarterlyReportData,
   buildCapitalAccountReportData,
@@ -91,6 +92,169 @@ class ReportEventEmitter extends EventEmitter {
 
 export const reportEvents = new ReportEventEmitter();
 
+// ============================================================================
+// REPORT GENERATION DISPATCH (reduces worker cyclomatic complexity)
+// ============================================================================
+
+/** Shared context passed to all format handlers */
+interface ReportGenerationContext {
+  lpData: Awaited<ReturnType<typeof fetchLPReportData>>;
+  fundId: number;
+  reportType: ReportGenerationJobData['reportType'];
+  dateRange: ReportGenerationJobData['dateRange'];
+  reportMetrics: Awaited<ReturnType<typeof prefetchReportMetrics>>;
+}
+
+/** Resolve fundId once from job data or first commitment */
+function resolveFundId(
+  jobFundIds: number[] | undefined,
+  lpData: Awaited<ReturnType<typeof fetchLPReportData>>
+): number {
+  const fundId = jobFundIds?.[0] || lpData.commitments[0]?.fundId;
+  if (!fundId) {
+    throw new Error('No fund ID available for report generation');
+  }
+  return fundId;
+}
+
+/** Extract quarter label from end date */
+function resolveQuarter(endDate: Date, reportType: string): string {
+  if (reportType === 'annual') return 'Annual';
+  return `Q${Math.floor(endDate.getMonth() / 3) + 1}`;
+}
+
+async function generateXLSXReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const { lpData, fundId, reportType, dateRange, reportMetrics } = ctx;
+  if (reportType === 'capital_account') {
+    const data = buildCapitalAccountReportData(lpData, fundId, new Date(dateRange.endDate));
+    return generateCapitalAccountXLSX(data);
+  }
+  const endDate = new Date(dateRange.endDate);
+  const data = buildQuarterlyReportData(
+    lpData,
+    fundId,
+    resolveQuarter(endDate, reportType),
+    endDate.getFullYear(),
+    reportMetrics ?? undefined
+  );
+  return generateQuarterlyXLSX(data);
+}
+
+async function generateCSVReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const header = 'date,type,amount,description\n';
+  const rows = ctx.lpData.transactions
+    .map(
+      (t) => `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`
+    )
+    .join('\n');
+  return Buffer.from(header + rows);
+}
+
+async function buildTaxPackagePdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const taxYear = new Date(ctx.dateRange.endDate).getFullYear();
+  const k1Data = buildK1ReportData(ctx.lpData, ctx.fundId, taxYear);
+  return generateK1PDF(k1Data);
+}
+
+async function buildCapitalAccountPdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const data = buildCapitalAccountReportData(
+    ctx.lpData,
+    ctx.fundId,
+    new Date(ctx.dateRange.endDate)
+  );
+  return generateCapitalAccountPDF(data);
+}
+
+async function buildQuarterlyPdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const endDate = new Date(ctx.dateRange.endDate);
+  const data = buildQuarterlyReportData(
+    ctx.lpData,
+    ctx.fundId,
+    resolveQuarter(endDate, ctx.reportType),
+    endDate.getFullYear(),
+    ctx.reportMetrics ?? undefined
+  );
+  return generateQuarterlyPDF(data);
+}
+
+/** Dispatch table: reportType -> PDF handler */
+const PDF_REPORT_HANDLERS: Record<
+  ReportGenerationJobData['reportType'],
+  (ctx: ReportGenerationContext) => Promise<Buffer>
+> = {
+  tax_package: buildTaxPackagePdf,
+  capital_account: buildCapitalAccountPdf,
+  quarterly: buildQuarterlyPdf,
+  annual: buildQuarterlyPdf,
+};
+
+async function generatePDFReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const handler = PDF_REPORT_HANDLERS[ctx.reportType];
+  return handler(ctx);
+}
+
+/** Dispatch table: format -> handler */
+const FORMAT_HANDLERS: Record<
+  ReportGenerationJobData['format'],
+  (ctx: ReportGenerationContext) => Promise<Buffer>
+> = {
+  xlsx: generateXLSXReport,
+  csv: generateCSVReport,
+  pdf: generatePDFReport,
+};
+
+// ============================================================================
+// PIPELINE HELPERS (reduce worker callback CC)
+// ============================================================================
+
+async function setReportStatus(
+  reportId: string,
+  status: string,
+  extra: Record<string, unknown> = {}
+): Promise<void> {
+  await db
+    .update(lpReports)
+    .set({ status, ...extra, updatedAt: new Date() })
+    .where(eq(lpReports.id, reportId));
+}
+
+async function reportProgress(
+  job: Job<ReportGenerationJobData, ReportGenerationResult>,
+  reportId: string,
+  pct: number,
+  msg: string
+): Promise<void> {
+  await job.updateProgress(pct);
+  reportEvents.emitProgress(job.id!, reportId, pct, msg);
+}
+
+async function uploadReportFile(
+  reportId: string,
+  lpId: number,
+  format: string,
+  buffer: Buffer
+): Promise<{ url: string; size: number }> {
+  const storage = getStorageService();
+  const fileKey = `reports/lp-${lpId}/${reportId}.${format}`;
+  const contentTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    csv: 'text/csv',
+  };
+
+  try {
+    const uploadResult = await storage.upload(
+      fileKey,
+      buffer,
+      contentTypes[format] || 'application/octet-stream'
+    );
+    return { url: uploadResult.url, size: uploadResult.size };
+  } catch (uploadError) {
+    console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
+    return { url: `/reports/${reportId}.${format}`, size: buffer.length };
+  }
+}
+
 // Queue name
 const QUEUE_NAME = 'lp-report-generation';
 
@@ -136,185 +300,46 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       const { reportId, lpId, reportType, format } = job.data;
 
       try {
-        // Update report status to 'generating'
-        await db
-          .update(lpReports)
-          .set({ status: 'generating', updatedAt: new Date() })
-          .where(eq(lpReports.id, reportId));
+        await setReportStatus(reportId, 'generating');
+        await reportProgress(job, reportId, 0, 'Starting report generation...');
+        await reportProgress(job, reportId, 10, 'Fetching LP data...');
 
-        // Report initial progress
-        await job.updateProgress(0);
-        reportEvents.emitProgress(job.id!, reportId, 0, 'Starting report generation...');
-
-        // Phase 1: Fetch data (20%)
-        await job.updateProgress(10);
-        reportEvents.emitProgress(job.id!, reportId, 10, 'Fetching LP data...');
-
-        // Placeholder: Fetch LP data, fund commitments, transactions
-        // const lpData = await fetchLPData(lpId, job.data.fundIds);
         await simulateWork(500); // Simulate data fetch
 
-        await job.updateProgress(20);
-        reportEvents.emitProgress(job.id!, reportId, 20, 'Processing transactions...');
+        await reportProgress(job, reportId, 20, 'Processing transactions...');
 
-        // Phase 2: Calculate metrics (40%)
-        // Placeholder: Calculate capital account, performance, holdings
-        // const metrics = await calculateReportMetrics(lpData, job.data.dateRange);
         await simulateWork(1000); // Simulate calculation
 
-        await job.updateProgress(40);
-        reportEvents.emitProgress(job.id!, reportId, 40, 'Generating report content...');
+        await reportProgress(job, reportId, 40, 'Generating report content...');
 
-        // Phase 3: Generate report file (70%)
-        let fileUrl: string;
-        let fileSize: number;
-        let reportBuffer: Buffer;
-
-        // Fetch LP data for the report
+        // Fetch LP data and resolve fundId once (single source of truth)
         const lpData = await fetchLPReportData(lpId, job.data.fundIds);
+        const resolvedFundId = resolveFundId(job.data.fundIds, lpData);
+        const reportMetrics = await prefetchReportMetrics(lpId, resolvedFundId);
 
-        switch (format) {
-          case 'xlsx': {
-            // Generate actual Excel report using xlsx library
-            const xlsxFundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
-            if (!xlsxFundId) {
-              throw new Error('No fund ID available for Excel report generation');
-            }
+        // Dispatch to format-specific handler
+        const handler = FORMAT_HANDLERS[format];
+        const reportBuffer = await handler({
+          lpData,
+          fundId: resolvedFundId,
+          reportType,
+          dateRange: job.data.dateRange,
+          reportMetrics,
+        });
 
-            switch (reportType) {
-              case 'capital_account': {
-                const asOfDate = new Date(job.data.dateRange.endDate);
-                const capitalData = buildCapitalAccountReportData(lpData, xlsxFundId, asOfDate);
-                reportBuffer = await generateCapitalAccountXLSX(capitalData);
-                break;
-              }
-              case 'quarterly':
-              case 'annual':
-              default: {
-                const endDate = new Date(job.data.dateRange.endDate);
-                const month = endDate.getMonth();
-                const quarter =
-                  reportType === 'annual' ? 'Annual' : `Q${Math.floor(month / 3) + 1}`;
-                const quarterlyData = buildQuarterlyReportData(
-                  lpData,
-                  xlsxFundId,
-                  quarter,
-                  endDate.getFullYear()
-                );
-                reportBuffer = await generateQuarterlyXLSX(quarterlyData);
-                break;
-              }
-            }
-            break;
-          }
+        await reportProgress(job, reportId, 70, `Saving ${format.toUpperCase()} file...`);
+        const { url: fileUrl, size: fileSize } = await uploadReportFile(
+          reportId,
+          lpId,
+          format,
+          reportBuffer
+        );
 
-          case 'csv': {
-            // Generate CSV from LP transactions
-            const csvHeader = 'date,type,amount,description\n';
-            const csvRows = lpData.transactions
-              .map(
-                (t) =>
-                  `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`
-              )
-              .join('\n');
-            reportBuffer = Buffer.from(csvHeader + csvRows);
-            break;
-          }
+        await reportProgress(job, reportId, 90, 'Finalizing report...');
 
-          case 'pdf':
-          default: {
-            // Generate actual PDF using @react-pdf/renderer
-            const fundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
-            if (!fundId) {
-              throw new Error('No fund ID available for report generation');
-            }
-
-            switch (reportType) {
-              case 'tax_package': {
-                // Extract tax year from date range
-                const taxYear = new Date(job.data.dateRange.endDate).getFullYear();
-                const k1Data = buildK1ReportData(lpData, fundId, taxYear);
-                reportBuffer = await generateK1PDF(k1Data);
-                break;
-              }
-              case 'quarterly': {
-                // Extract quarter from date range
-                const endDate = new Date(job.data.dateRange.endDate);
-                const month = endDate.getMonth();
-                const quarter = `Q${Math.floor(month / 3) + 1}`;
-                const year = endDate.getFullYear();
-                const quarterlyData = buildQuarterlyReportData(lpData, fundId, quarter, year);
-                reportBuffer = await generateQuarterlyPDF(quarterlyData);
-                break;
-              }
-              case 'capital_account': {
-                const asOfDate = new Date(job.data.dateRange.endDate);
-                const capitalData = buildCapitalAccountReportData(lpData, fundId, asOfDate);
-                reportBuffer = await generateCapitalAccountPDF(capitalData);
-                break;
-              }
-              case 'annual':
-              default: {
-                // Annual report uses quarterly template with full year
-                const yearEnd = new Date(job.data.dateRange.endDate);
-                const annualData = buildQuarterlyReportData(
-                  lpData,
-                  fundId,
-                  'Annual',
-                  yearEnd.getFullYear()
-                );
-                reportBuffer = await generateQuarterlyPDF(annualData);
-                break;
-              }
-            }
-            break;
-          }
-        }
-
-        await job.updateProgress(70);
-        reportEvents.emitProgress(job.id!, reportId, 70, `Saving ${format.toUpperCase()} file...`);
-
-        // Phase 4: Upload to storage service (90%)
-        const storage = getStorageService();
-        const fileKey = `reports/lp-${lpId}/${reportId}.${format}`;
-        const contentTypes: Record<string, string> = {
-          pdf: 'application/pdf',
-          xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          csv: 'text/csv',
-        };
-
-        try {
-          const uploadResult = await storage.upload(
-            fileKey,
-            reportBuffer,
-            contentTypes[format] || 'application/octet-stream'
-          );
-          fileUrl = uploadResult.url;
-          fileSize = uploadResult.size;
-        } catch (uploadError) {
-          console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
-          // Fallback to placeholder URL if storage fails
-          fileUrl = `/reports/${reportId}.${format}`;
-          fileSize = reportBuffer.length;
-        }
-
-        await job.updateProgress(90);
-        reportEvents.emitProgress(job.id!, reportId, 90, 'Finalizing report...');
-
-        // Phase 5: Update database (100%)
         const generatedAt = new Date();
-        await db
-          .update(lpReports)
-          .set({
-            status: 'ready',
-            fileUrl,
-            fileSize,
-            generatedAt,
-            updatedAt: new Date(),
-          })
-          .where(eq(lpReports.id, reportId));
-
-        await job.updateProgress(100);
+        await setReportStatus(reportId, 'ready', { fileUrl, fileSize, generatedAt });
+        await reportProgress(job, reportId, 100, 'Report generation complete.');
 
         const result: ReportGenerationResult = {
           success: true,
@@ -332,15 +357,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-        // Update report status to 'error'
-        await db
-          .update(lpReports)
-          .set({
-            status: 'error',
-            errorMessage,
-            updatedAt: new Date(),
-          })
-          .where(eq(lpReports.id, reportId));
+        await setReportStatus(reportId, 'error', { errorMessage });
 
         reportEvents.emitFailed(job.id!, reportId, errorMessage);
         console.error(`[ReportQueue] Failed to generate report ${reportId}:`, error);

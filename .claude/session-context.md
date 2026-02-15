@@ -1,17 +1,19 @@
 # SESSION CONTEXT
 
-**Generated:** 2026-01-22 21:52:45
+**Generated:** 2026-02-14 22:14:41
 
 ## Git Status
 
-- **Branch:** feat/phase2-gate0-epic-g-h-i
-- **Changes:** 0 staged, 2 unstaged, 0 untracked
+- **Branch:** feat/p1-financial-accuracy
+- **Changes:** 0 staged, 2 unstaged, 1 untracked
 
 ### Recent commits
 
-- 8b395d6b fix(ci): resolve TypeScript errors in ReviewStep and shares
-- 34024f67 feat(sharing): connect report view to real shares API
-- ffc89473 feat(sharing): implement share link backend API and schema
+- 982d8580 fix(reports): replace 7 hardcoded placeholders in LP reports with
+  real data
+- d4ae922d docs: add priority planning roadmap (#506)
+- 97485d97 fix(pipeline): harden CSV import, numeric validation, and
+  accessibility (#505)
 
 ## Available Assets
 

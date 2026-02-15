@@ -81,7 +81,7 @@ class LocalStorageService implements StorageService {
     // Write file
     await fs.writeFile(filePath, buffer);
 
-    const etag = crypto.createHash('md5').update(buffer).digest('hex');
+    const etag = crypto.createHash('sha256').update(buffer).digest('hex');
 
     return {
       key,
@@ -152,9 +152,7 @@ class LocalStorageService implements StorageService {
     const dirPath = path.join(this.basePath, prefix);
     try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      return entries
-        .filter((e) => e.isFile())
-        .map((e) => path.join(prefix, e.name));
+      return entries.filter((e) => e.isFile()).map((e) => path.join(prefix, e.name));
     } catch {
       return [];
     }
@@ -167,7 +165,7 @@ class LocalStorageService implements StorageService {
 class MemoryStorageService implements StorageService {
   async upload(key: string, buffer: Buffer, contentType: string): Promise<UploadResult> {
     memoryStore.set(key, { buffer, contentType });
-    const etag = crypto.createHash('md5').update(buffer).digest('hex');
+    const etag = crypto.createHash('sha256').update(buffer).digest('hex');
 
     return {
       key,
