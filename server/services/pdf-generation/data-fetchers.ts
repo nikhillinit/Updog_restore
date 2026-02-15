@@ -19,6 +19,30 @@ function centsToDollars(cents: bigint | null): number {
   return Number(cents) / 100;
 }
 
+function isActiveCompany(status: string | null | undefined): boolean {
+  const normalized = (status ?? '').toLowerCase();
+  return normalized !== 'exited' && normalized !== 'liquidated' && normalized !== 'written-off';
+}
+
+function mapCompanyToPortfolioEntry(
+  c: Awaited<ReturnType<typeof storage.getPortfolioCompanies>>[number]
+): ReportMetrics['portfolioCompanies'][number] {
+  const invested = toDecimal(c.investmentAmount).toNumber();
+  const value = toDecimal(c.currentValuation ?? 0).toNumber();
+  return { name: c.name, invested, value, moic: invested > 0 ? value / invested : 0 };
+}
+
+async function resolveMetricTriplet(
+  perf: Awaited<ReturnType<typeof getFundPerformance>>,
+  fundId: number
+): Promise<Pick<ReportMetrics, 'irr' | 'tvpi' | 'dpi'>> {
+  if (perf) {
+    return { irr: perf.irr, tvpi: perf.tvpi, dpi: perf.dpi };
+  }
+  const fallback = await calculateFundMetrics(fundId);
+  return { irr: fallback.irr, tvpi: fallback.tvpi, dpi: fallback.dpi };
+}
+
 /** Fetch LP data for report generation */
 export async function fetchLPReportData(
   lpId: number,
@@ -109,23 +133,11 @@ export async function prefetchReportMetrics(
 
   if (!perf && companies.length === 0) return null;
 
-  const fallback = !perf ? await calculateFundMetrics(fundId) : null;
-
   const portfolioCompanies = companies
-    .filter((c) => {
-      const status = (c.status ?? '').toLowerCase();
-      return status !== 'exited' && status !== 'liquidated' && status !== 'written-off';
-    })
-    .map((c) => {
-      const invested = toDecimal(c.investmentAmount).toNumber();
-      const value = toDecimal(c.currentValuation ?? 0).toNumber();
-      return { name: c.name, invested, value, moic: invested > 0 ? value / invested : 0 };
-    });
+    .filter((c) => isActiveCompany(c.status))
+    .map(mapCompanyToPortfolioEntry);
 
-  return {
-    irr: perf ? perf.irr : fallback!.irr,
-    tvpi: perf ? perf.tvpi : fallback!.tvpi,
-    dpi: perf ? perf.dpi : fallback!.dpi,
-    portfolioCompanies,
-  };
+  const triplet = await resolveMetricTriplet(perf, fundId);
+
+  return { ...triplet, portfolioCompanies };
 }

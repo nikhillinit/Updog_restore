@@ -150,32 +150,47 @@ async function generateCSVReport(ctx: ReportGenerationContext): Promise<Buffer> 
   return Buffer.from(header + rows);
 }
 
+async function buildTaxPackagePdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const taxYear = new Date(ctx.dateRange.endDate).getFullYear();
+  const k1Data = buildK1ReportData(ctx.lpData, ctx.fundId, taxYear);
+  return generateK1PDF(k1Data);
+}
+
+async function buildCapitalAccountPdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const data = buildCapitalAccountReportData(
+    ctx.lpData,
+    ctx.fundId,
+    new Date(ctx.dateRange.endDate)
+  );
+  return generateCapitalAccountPDF(data);
+}
+
+async function buildQuarterlyPdf(ctx: ReportGenerationContext): Promise<Buffer> {
+  const endDate = new Date(ctx.dateRange.endDate);
+  const data = buildQuarterlyReportData(
+    ctx.lpData,
+    ctx.fundId,
+    resolveQuarter(endDate, ctx.reportType),
+    endDate.getFullYear(),
+    ctx.reportMetrics ?? undefined
+  );
+  return generateQuarterlyPDF(data);
+}
+
+/** Dispatch table: reportType -> PDF handler */
+const PDF_REPORT_HANDLERS: Record<
+  ReportGenerationJobData['reportType'],
+  (ctx: ReportGenerationContext) => Promise<Buffer>
+> = {
+  tax_package: buildTaxPackagePdf,
+  capital_account: buildCapitalAccountPdf,
+  quarterly: buildQuarterlyPdf,
+  annual: buildQuarterlyPdf,
+};
+
 async function generatePDFReport(ctx: ReportGenerationContext): Promise<Buffer> {
-  const { lpData, fundId, reportType, dateRange, reportMetrics } = ctx;
-  switch (reportType) {
-    case 'tax_package': {
-      const taxYear = new Date(dateRange.endDate).getFullYear();
-      const k1Data = buildK1ReportData(lpData, fundId, taxYear);
-      return generateK1PDF(k1Data);
-    }
-    case 'capital_account': {
-      const data = buildCapitalAccountReportData(lpData, fundId, new Date(dateRange.endDate));
-      return generateCapitalAccountPDF(data);
-    }
-    case 'quarterly':
-    case 'annual':
-    default: {
-      const endDate = new Date(dateRange.endDate);
-      const data = buildQuarterlyReportData(
-        lpData,
-        fundId,
-        resolveQuarter(endDate, reportType),
-        endDate.getFullYear(),
-        reportMetrics ?? undefined
-      );
-      return generateQuarterlyPDF(data);
-    }
-  }
+  const handler = PDF_REPORT_HANDLERS[ctx.reportType];
+  return handler(ctx);
 }
 
 /** Dispatch table: format -> handler */
