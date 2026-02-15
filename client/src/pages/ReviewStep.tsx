@@ -5,15 +5,19 @@
  * and allowing the user to create the fund.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, AlertTriangle, ArrowLeft, Rocket } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
 import { useFundContext } from '@/contexts/FundContext';
+import { useFundSelector } from '@/stores/useFundSelector';
+import { mapFundStoreToCreatePayload } from '@/lib/map-fund-store-to-payload';
+import { createFund, normalizeCreateFundResponse } from '@/services/funds';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
 
@@ -22,60 +26,203 @@ interface SummarySection {
   items: Array<{ label: string; value: string | number; status?: 'ok' | 'warning' | 'missing' }>;
 }
 
+type SubmitState = 'idle' | 'submitting' | 'saving-draft' | 'error';
+
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
-  const { currentFund } = useFundContext();
+  const queryClient = useQueryClient();
+  const { setCurrentFund } = useFundContext();
 
-  // Build summary from fund data
+  // Read wizard state from fundStore
+  const fundName = useFundSelector((s) => s.fundName);
+  const fundSize = useFundSelector((s) => s.fundSize);
+  const managementFeeRate = useFundSelector((s) => s.managementFeeRate);
+  const carriedInterest = useFundSelector((s) => s.carriedInterest);
+  const vintageYear = useFundSelector((s) => s.vintageYear);
+  const fundLife = useFundSelector((s) => s.fundLife);
+  const establishmentDate = useFundSelector((s) => s.establishmentDate);
+  const stages = useFundSelector((s) => s.stages);
+  const waterfallType = useFundSelector((s) => s.waterfallType);
+  const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
+
+  const [submitState, setSubmitState] = useState<SubmitState>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Build summary from fundStore state
   const sections = useMemo<SummarySection[]>(() => {
-    if (!currentFund) return [];
-
     return [
       {
         title: 'Fund Basics',
         items: [
-          { label: 'Fund Name', value: currentFund.name || 'Unnamed Fund', status: currentFund.name ? 'ok' : 'missing' },
-          { label: 'Fund Size', value: formatUSD(currentFund.size ?? 0), status: currentFund.size ? 'ok' : 'warning' },
-          { label: 'Vintage Year', value: currentFund.vintageYear ?? 'Not set', status: currentFund.vintageYear ? 'ok' : 'warning' },
-          { label: 'Fund Life', value: currentFund.termYears ? `${currentFund.termYears} years` : 'Not set', status: currentFund.termYears ? 'ok' : 'warning' },
+          {
+            label: 'Fund Name',
+            value: fundName || 'Unnamed Fund',
+            status: fundName ? 'ok' : 'missing',
+          },
+          {
+            label: 'Fund Size',
+            value: formatUSD(fundSize ?? 0),
+            status: fundSize ? 'ok' : 'warning',
+          },
+          {
+            label: 'Vintage Year',
+            value: vintageYear ?? 'Not set',
+            status: vintageYear ? 'ok' : 'warning',
+          },
+          {
+            label: 'Fund Life',
+            value: fundLife ? `${fundLife} years` : 'Not set',
+            status: fundLife ? 'ok' : 'warning',
+          },
         ],
       },
       {
         title: 'Economics',
         items: [
-          { label: 'Management Fee', value: currentFund.managementFee ? `${(currentFund.managementFee * 100).toFixed(2)}%` : 'Not set', status: currentFund.managementFee !== undefined ? 'ok' : 'warning' },
-          { label: 'Carry', value: currentFund.carryPercentage ? `${(currentFund.carryPercentage * 100).toFixed(0)}%` : 'Not set', status: currentFund.carryPercentage !== undefined ? 'ok' : 'warning' },
-          { label: 'Deployed Capital', value: currentFund.deployedCapital ? formatUSD(currentFund.deployedCapital) : 'Not set', status: currentFund.deployedCapital ? 'ok' : 'warning' },
+          {
+            label: 'Management Fee',
+            value: managementFeeRate != null ? `${managementFeeRate.toFixed(2)}%` : 'Not set',
+            status: managementFeeRate != null ? 'ok' : 'warning',
+          },
+          {
+            label: 'Carry',
+            value: carriedInterest != null ? `${carriedInterest.toFixed(0)}%` : 'Not set',
+            status: carriedInterest != null ? 'ok' : 'warning',
+          },
         ],
       },
       {
-        title: 'Fund Status',
+        title: 'Strategy',
         items: [
-          { label: 'Status', value: currentFund.status ?? 'Unknown', status: currentFund.status === 'active' ? 'ok' : 'warning' },
-          { label: 'Establishment Date', value: currentFund.establishmentDate ?? 'Not set', status: currentFund.establishmentDate ? 'ok' : 'warning' },
+          {
+            label: 'Investment Stages',
+            value: stages.length > 0 ? `${stages.length} stages` : 'Not configured',
+            status: stages.length > 0 ? 'ok' : 'warning',
+          },
+          {
+            label: 'Waterfall',
+            value: waterfallType ?? 'Not set',
+            status: waterfallType ? 'ok' : 'warning',
+          },
+          { label: 'Recycling', value: recyclingEnabled ? 'Enabled' : 'Disabled', status: 'ok' },
+          {
+            label: 'Establishment',
+            value: establishmentDate ?? 'Not set',
+            status: establishmentDate ? 'ok' : 'warning',
+          },
         ],
       },
     ];
-  }, [currentFund]);
+  }, [
+    fundName,
+    fundSize,
+    vintageYear,
+    fundLife,
+    managementFeeRate,
+    carriedInterest,
+    stages,
+    waterfallType,
+    recyclingEnabled,
+    establishmentDate,
+  ]);
 
   // Validation summary
   const validationSummary = useMemo(() => {
-    const allItems = sections.flatMap(s => s.items);
-    const ok = allItems.filter(i => i.status === 'ok').length;
-    const warnings = allItems.filter(i => i.status === 'warning').length;
-    const missing = allItems.filter(i => i.status === 'missing').length;
+    const allItems = sections.flatMap((s) => s.items);
+    const ok = allItems.filter((i) => i.status === 'ok').length;
+    const warnings = allItems.filter((i) => i.status === 'warning').length;
+    const missing = allItems.filter((i) => i.status === 'missing').length;
     return { ok, warnings, missing, total: allItems.length };
   }, [sections]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setLocation('/fund-setup?step=6');
-  };
+  }, [setLocation]);
 
-  const handleCreate = () => {
-    // In a real implementation, this would trigger fund creation API
-    // For now, redirect to dashboard
-    setLocation('/');
-  };
+  const handleCreate = useCallback(async () => {
+    if (submitState === 'submitting' || submitState === 'saving-draft') return;
+
+    setSubmitState('submitting');
+    setSubmitError(null);
+
+    try {
+      // Build payload from fundStore
+      const payload = mapFundStoreToCreatePayload({
+        fundName,
+        fundSize,
+        managementFeeRate,
+        carriedInterest,
+        vintageYear,
+        establishmentDate,
+      });
+
+      // Create fund via API (idempotent + deduped)
+      const raw = await createFund({ ...payload });
+      const fund = normalizeCreateFundResponse(raw);
+
+      // Save full wizard config as draft (sequential, before navigate)
+      setSubmitState('saving-draft');
+      try {
+        await fetch(`/api/funds/${fund.id}/draft`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fundName,
+            fundSize,
+            managementFeeRate,
+            carriedInterest,
+            vintageYear,
+            fundLife,
+            establishmentDate,
+            stages,
+            waterfallType,
+            recyclingEnabled,
+          }),
+        });
+      } catch (draftErr) {
+        console.warn('Draft save failed (fund was created successfully):', draftErr);
+      }
+
+      // Invalidate funds cache so dashboard sees the new fund
+      await queryClient.invalidateQueries({ queryKey: ['funds'] });
+
+      // Update FundContext with the new fund
+      setCurrentFund({
+        id: fund.id,
+        name: String(fund['name'] ?? fundName ?? ''),
+        size: Number(fund['size'] ?? fundSize ?? 0),
+        managementFee: (managementFeeRate ?? 0) / 100,
+        carryPercentage: (carriedInterest ?? 0) / 100,
+        vintageYear: vintageYear ?? new Date().getFullYear(),
+        deployedCapital: 0,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Navigate to dashboard
+      setLocation('/');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create fund';
+      setSubmitError(message);
+      setSubmitState('error');
+    }
+  }, [
+    submitState,
+    fundName,
+    fundSize,
+    managementFeeRate,
+    carriedInterest,
+    vintageYear,
+    establishmentDate,
+    fundLife,
+    stages,
+    waterfallType,
+    recyclingEnabled,
+    queryClient,
+    setCurrentFund,
+    setLocation,
+  ]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
@@ -90,13 +237,16 @@ export default function ReviewStep() {
     }
   };
 
+  const isSubmitting = submitState === 'submitting' || submitState === 'saving-draft';
+
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-presson-text">Review & Create Fund</h1>
         <p className="text-presson-textMuted">
-          Review your fund configuration before creating. You can go back to any step to make changes.
+          Review your fund configuration before creating. You can go back to any step to make
+          changes.
         </p>
       </div>
 
@@ -160,9 +310,18 @@ export default function ReviewStep() {
 
       <Separator />
 
+      {/* Error display */}
+      {submitState === 'error' && submitError && (
+        <Alert className="border-l-4 border-l-red-500 bg-red-50">
+          <AlertTriangle className="h-5 w-5 text-red-500" />
+          <AlertTitle>Fund Creation Failed</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={handleBack} className="gap-2">
+        <Button variant="outline" onClick={handleBack} disabled={isSubmitting} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back to Step 6
         </Button>
@@ -174,12 +333,21 @@ export default function ReviewStep() {
 
           <Button
             onClick={handleCreate}
-            disabled={validationSummary.missing > 0}
+            disabled={validationSummary.missing > 0 || isSubmitting}
             className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
             data-testid="create-fund-button"
           >
-            <Rocket className="h-4 w-4" />
-            Create Fund
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {submitState === 'saving-draft' ? 'Saving Config...' : 'Creating Fund...'}
+              </>
+            ) : (
+              <>
+                <Rocket className="h-4 w-4" />
+                {submitState === 'error' ? 'Retry' : 'Create Fund'}
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -24,13 +24,13 @@ interface FundPayload {
 }
 
 export interface CreateFundOptions {
-  endpoint?: string;            // default: '/api/funds'
-  method?: 'POST' | 'PUT';      // default: 'POST'
-  timeoutMs?: number;           // default: 10_000
-  signal?: AbortSignal;         // optional external signal
-  dedupe?: boolean;             // default: true
-  telemetry?: boolean;          // default: true
-  reuseExisting?: boolean;      // default: false - reuse existing fund if found
+  endpoint?: string; // default: '/api/funds'
+  method?: 'POST' | 'PUT'; // default: 'POST'
+  timeoutMs?: number; // default: 10_000
+  signal?: AbortSignal; // optional external signal
+  dedupe?: boolean; // default: true
+  telemetry?: boolean; // default: true
+  reuseExisting?: boolean; // default: false - reuse existing fund if found
 }
 
 export interface CreateFundResult {
@@ -73,7 +73,7 @@ function fnv1a(input: string): string {
 
 export function computeCreateFundHash(payload: Json): string {
   // Add environment namespace to avoid cross-env collisions
-  const namespace = `${import.meta.env.MODE || 'unknown-env'  }|fund-create|`;
+  const namespace = `${import.meta.env.MODE || 'unknown-env'}|fund-create|`;
   return fnv1a(namespace + stableStringify(payload));
 }
 
@@ -111,7 +111,9 @@ const inflight = new Map<string, InflightEntry>();
 // Ensure we don't exceed capacity (throw if at limit)
 function _assertInflightCapacity() {
   if (inflight.size >= IDEMPOTENCY_MAX) {
-    const err = new Error('Too many concurrent requests; please retry shortly.') as Error & { code?: string };
+    const err = new Error('Too many concurrent requests; please retry shortly.') as Error & {
+      code?: string;
+    };
     err.code = 'CAPACITY_EXCEEDED';
     throw err;
   }
@@ -132,7 +134,7 @@ function finalizePayload(payload: Json): FundPayload {
 
     // If stages exist, ensure values are sane
     if (Array.isArray(p.stages)) {
-      p.stages = p.stages.map(s => {
+      p.stages = p.stages.map((s) => {
         const stage: StageData = {
           graduate: clampPct(Number(s.graduate)),
           exit: clampPct(Number(s.exit)),
@@ -174,14 +176,38 @@ export async function startCreateFund(
   if (!dedupe) {
     // Skip deduplication - create unique key with timestamp
     const uniqueHash = `${hash}-${Date.now()}-${Math.random()}`;
-    return startInFlight(uniqueHash, async ({ signal }) => {
-      return await executeCreateFund(finalized, endpoint, method, timeoutMs, signal, useTelemetry, hash);
-    }, { holdForMs });
+    return startInFlight(
+      uniqueHash,
+      async ({ signal }) => {
+        return await executeCreateFund(
+          finalized,
+          endpoint,
+          method,
+          timeoutMs,
+          signal,
+          useTelemetry,
+          hash
+        );
+      },
+      { holdForMs }
+    );
   }
 
-  return startInFlight(hash, async ({ signal }) => {
-    return await executeCreateFund(finalized, endpoint, method, timeoutMs, signal, useTelemetry, hash);
-  }, { holdForMs });
+  return startInFlight(
+    hash,
+    async ({ signal }) => {
+      return await executeCreateFund(
+        finalized,
+        endpoint,
+        method,
+        timeoutMs,
+        signal,
+        useTelemetry,
+        hash
+      );
+    },
+    { holdForMs }
+  );
 }
 
 // Helper function to execute the actual fund creation
@@ -199,7 +225,9 @@ async function executeCreateFund(
   // Track attempt
   if (useTelemetry) {
     try {
-      const track = (Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }).track;
+      const track = (
+        Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
+      ).track;
       track?.('fund_create_attempt', {
         hash,
         model_version: finalized.basics?.modelVersion,
@@ -209,14 +237,14 @@ async function executeCreateFund(
       // Ignore telemetry errors
     }
   }
-  
+
   try {
     const res = await fetch(endpoint, {
       method,
       signal,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Idempotency-Key': hash  // Server-side deduplication
+        'Idempotency-Key': hash, // Server-side deduplication
       },
       body: JSON.stringify(finalized),
     });
@@ -226,7 +254,9 @@ async function executeCreateFund(
       try {
         const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
         const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
-        const track = (Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }).track;
+        const track = (
+          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
+        ).track;
         track?.(eventName, {
           status: res.status,
           durationMs,
@@ -246,7 +276,9 @@ async function executeCreateFund(
     const durationMs = Math.round(performance.now() - startedAt);
     if (useTelemetry) {
       try {
-        const track = (Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }).track;
+        const track = (
+          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
+        ).track;
         track?.('fund_create_failure', {
           aborted,
           message: String(error?.message ?? err),
@@ -279,6 +311,29 @@ function maybeToastCapacity() {
   return false;
 }
 
+export interface NormalizedFundResponse {
+  id: number;
+  [key: string]: unknown;
+}
+
+export function normalizeCreateFundResponse(raw: unknown): NormalizedFundResponse {
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    // Direct shape: { id: number, ... }
+    if (typeof obj['id'] === 'number') {
+      return obj as NormalizedFundResponse;
+    }
+    // Wrapped shape: { success: true, data: { id: number, ... } }
+    if (obj['success'] && obj['data'] && typeof obj['data'] === 'object') {
+      const data = obj['data'] as Record<string, unknown>;
+      if (typeof data['id'] === 'number') {
+        return data as NormalizedFundResponse;
+      }
+    }
+  }
+  throw new Error('Invalid fund response: missing id');
+}
+
 // ---------- Convenience wrappers for backward compatibility ----------
 export async function createFund(payload: Json, options?: CreateFundOptions): Promise<unknown> {
   const result = await startCreateFund(payload, options);
@@ -290,7 +345,7 @@ export async function createFund(payload: Json, options?: CreateFundOptions): Pr
 
 export async function createFundWithToast(payload: Json, options?: CreateFundOptions) {
   const { toast } = await import('../lib/toast');
-  
+
   try {
     const result = await startCreateFund(payload, options);
     if (!result.res.ok) {
@@ -309,17 +364,22 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       // Throttled user-friendly capacity hit message
       const showToast = maybeToastCapacity();
       if (showToast) {
-        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'info');
+        toast(
+          '⚠️ You have too many concurrent operations. Please wait a moment and try again.',
+          'info'
+        );
       }
       // Always track capacity hit for observability
       try {
         const { inFlightSize } = await import('../lib/inflight');
-        const track = (Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }).track;
+        const track = (
+          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
+        ).track;
         track?.('client_capacity_hit', {
           route: '/api/funds',
           concurrent: inFlightSize(),
           env: import.meta.env.MODE,
-          throttled: !showToast
+          throttled: !showToast,
         });
       } catch {
         // Ignore telemetry errors
@@ -330,4 +390,3 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
     throw err;
   }
 }
-

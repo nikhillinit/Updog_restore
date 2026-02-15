@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { OverviewTab } from './tabs/OverviewTab';
 import { AllocationsTab } from './tabs/AllocationsTab';
@@ -15,9 +15,9 @@ export type PortfolioTabValue = 'companies' | 'reserve-planning';
 
 // Backward compatibility mapping for existing URLs
 const TAB_MIGRATION: Record<string, PortfolioTabValue> = {
-  'overview': 'companies',
-  'allocations': 'reserve-planning',
-  'reallocation': 'reserve-planning',
+  overview: 'companies',
+  allocations: 'reserve-planning',
+  reallocation: 'reserve-planning',
 };
 
 export interface PortfolioTabsProps {
@@ -42,7 +42,7 @@ export interface PortfolioTabsProps {
 export function PortfolioTabs({
   defaultTab = 'companies',
   onTabChange,
-  syncWithUrl = true
+  syncWithUrl = true,
 }: PortfolioTabsProps) {
   const search = useSearch();
   const [, setLocation] = useLocation();
@@ -59,9 +59,8 @@ export function PortfolioTabs({
     if (!urlTab) return defaultTab;
 
     // Migrate old tab values to new ones
-    if (urlTab in TAB_MIGRATION) {
-      return TAB_MIGRATION[urlTab];
-    }
+    const migrated = TAB_MIGRATION[urlTab];
+    if (migrated) return migrated;
 
     // Return as-is if it's a valid new tab value
     if (urlTab === 'companies' || urlTab === 'reserve-planning') {
@@ -72,24 +71,23 @@ export function PortfolioTabs({
   }, [syncWithUrl, searchParams, defaultTab]);
 
   // Handle tab change
-  const handleTabChange = useCallback((value: string) => {
-    const tabValue = value as PortfolioTabValue;
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const tabValue = value as PortfolioTabValue;
 
-    // Update URL if syncing is enabled
-    if (syncWithUrl) {
-      setLocation(`/portfolio?tab=${tabValue}`, { replace: true });
-    }
+      // Update URL if syncing is enabled
+      if (syncWithUrl) {
+        setLocation(`/portfolio?tab=${tabValue}`, { replace: true });
+      }
 
-    // Fire callback
-    onTabChange?.(tabValue);
-  }, [syncWithUrl, setLocation, onTabChange]);
+      // Fire callback
+      onTabChange?.(tabValue);
+    },
+    [syncWithUrl, setLocation, onTabChange]
+  );
 
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={handleTabChange}
-      className="w-full portfolio-tabs"
-    >
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full portfolio-tabs">
       <TabsList className="grid w-full grid-cols-2 bg-white border border-pov-beige h-12 rounded-lg p-1">
         <TabsTrigger
           value="companies"
