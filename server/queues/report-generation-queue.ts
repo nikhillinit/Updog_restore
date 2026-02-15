@@ -188,6 +188,58 @@ const FORMAT_HANDLERS: Record<
   pdf: generatePDFReport,
 };
 
+// ============================================================================
+// PIPELINE HELPERS (reduce worker callback CC)
+// ============================================================================
+
+async function setReportStatus(
+  reportId: string,
+  status: string,
+  extra: Record<string, unknown> = {}
+): Promise<void> {
+  await db
+    .update(lpReports)
+    .set({ status, ...extra, updatedAt: new Date() })
+    .where(eq(lpReports.id, reportId));
+}
+
+async function reportProgress(
+  job: Job<ReportGenerationJobData, ReportGenerationResult>,
+  reportId: string,
+  pct: number,
+  msg: string
+): Promise<void> {
+  await job.updateProgress(pct);
+  reportEvents.emitProgress(job.id!, reportId, pct, msg);
+}
+
+async function uploadReportFile(
+  reportId: string,
+  lpId: number,
+  format: string,
+  buffer: Buffer
+): Promise<{ url: string; size: number }> {
+  const storage = getStorageService();
+  const fileKey = `reports/lp-${lpId}/${reportId}.${format}`;
+  const contentTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    csv: 'text/csv',
+  };
+
+  try {
+    const uploadResult = await storage.upload(
+      fileKey,
+      buffer,
+      contentTypes[format] || 'application/octet-stream'
+    );
+    return { url: uploadResult.url, size: uploadResult.size };
+  } catch (uploadError) {
+    console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
+    return { url: `/reports/${reportId}.${format}`, size: buffer.length };
+  }
+}
+
 // Queue name
 const QUEUE_NAME = 'lp-report-generation';
 
@@ -233,38 +285,17 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       const { reportId, lpId, reportType, format } = job.data;
 
       try {
-        // Update report status to 'generating'
-        await db
-          .update(lpReports)
-          .set({ status: 'generating', updatedAt: new Date() })
-          .where(eq(lpReports.id, reportId));
+        await setReportStatus(reportId, 'generating');
+        await reportProgress(job, reportId, 0, 'Starting report generation...');
+        await reportProgress(job, reportId, 10, 'Fetching LP data...');
 
-        // Report initial progress
-        await job.updateProgress(0);
-        reportEvents.emitProgress(job.id!, reportId, 0, 'Starting report generation...');
-
-        // Phase 1: Fetch data (20%)
-        await job.updateProgress(10);
-        reportEvents.emitProgress(job.id!, reportId, 10, 'Fetching LP data...');
-
-        // Placeholder: Fetch LP data, fund commitments, transactions
-        // const lpData = await fetchLPData(lpId, job.data.fundIds);
         await simulateWork(500); // Simulate data fetch
 
-        await job.updateProgress(20);
-        reportEvents.emitProgress(job.id!, reportId, 20, 'Processing transactions...');
+        await reportProgress(job, reportId, 20, 'Processing transactions...');
 
-        // Phase 2: Calculate metrics (40%)
-        // Placeholder: Calculate capital account, performance, holdings
-        // const metrics = await calculateReportMetrics(lpData, job.data.dateRange);
         await simulateWork(1000); // Simulate calculation
 
-        await job.updateProgress(40);
-        reportEvents.emitProgress(job.id!, reportId, 40, 'Generating report content...');
-
-        // Phase 3: Generate report file (70%)
-        let fileUrl: string;
-        let fileSize: number;
+        await reportProgress(job, reportId, 40, 'Generating report content...');
 
         // Fetch LP data and resolve fundId once (single source of truth)
         const lpData = await fetchLPReportData(lpId, job.data.fundIds);
@@ -281,50 +312,19 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
           reportMetrics,
         });
 
-        await job.updateProgress(70);
-        reportEvents.emitProgress(job.id!, reportId, 70, `Saving ${format.toUpperCase()} file...`);
+        await reportProgress(job, reportId, 70, `Saving ${format.toUpperCase()} file...`);
+        const { url: fileUrl, size: fileSize } = await uploadReportFile(
+          reportId,
+          lpId,
+          format,
+          reportBuffer
+        );
 
-        // Phase 4: Upload to storage service (90%)
-        const storage = getStorageService();
-        const fileKey = `reports/lp-${lpId}/${reportId}.${format}`;
-        const contentTypes: Record<string, string> = {
-          pdf: 'application/pdf',
-          xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          csv: 'text/csv',
-        };
+        await reportProgress(job, reportId, 90, 'Finalizing report...');
 
-        try {
-          const uploadResult = await storage.upload(
-            fileKey,
-            reportBuffer,
-            contentTypes[format] || 'application/octet-stream'
-          );
-          fileUrl = uploadResult.url;
-          fileSize = uploadResult.size;
-        } catch (uploadError) {
-          console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
-          // Fallback to placeholder URL if storage fails
-          fileUrl = `/reports/${reportId}.${format}`;
-          fileSize = reportBuffer.length;
-        }
-
-        await job.updateProgress(90);
-        reportEvents.emitProgress(job.id!, reportId, 90, 'Finalizing report...');
-
-        // Phase 5: Update database (100%)
         const generatedAt = new Date();
-        await db
-          .update(lpReports)
-          .set({
-            status: 'ready',
-            fileUrl,
-            fileSize,
-            generatedAt,
-            updatedAt: new Date(),
-          })
-          .where(eq(lpReports.id, reportId));
-
-        await job.updateProgress(100);
+        await setReportStatus(reportId, 'ready', { fileUrl, fileSize, generatedAt });
+        await reportProgress(job, reportId, 100, 'Report generation complete.');
 
         const result: ReportGenerationResult = {
           success: true,
@@ -342,15 +342,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-        // Update report status to 'error'
-        await db
-          .update(lpReports)
-          .set({
-            status: 'error',
-            errorMessage,
-            updatedAt: new Date(),
-          })
-          .where(eq(lpReports.id, reportId));
+        await setReportStatus(reportId, 'error', { errorMessage });
 
         reportEvents.emitFailed(job.id!, reportId, errorMessage);
         console.error(`[ReportQueue] Failed to generate report ${reportId}:`, error);
