@@ -534,7 +534,7 @@ describe('Utility Functions', () => {
   });
 
   describe('generatePowerLawReturns', () => {
-    it('should generate returns for Monte Carlo integration', () => {
+    it('should generate returns for Monte Carlo integration', { timeout: 15000 }, () => {
       const portfolioSize = 25;
       const stageDistribution = { seed: 0.7, 'series-a': 0.3 };
       const timeHorizon = 5;

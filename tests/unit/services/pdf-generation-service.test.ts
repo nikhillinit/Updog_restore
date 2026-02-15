@@ -159,7 +159,7 @@ describe('buildK1ReportData', () => {
 
       expect(result.footnotes).toBeDefined();
       expect(result.footnotes?.length).toBeGreaterThan(0);
-      expect(result.footnotes?.some((f) => f.includes('preliminary'))).toBe(true);
+      expect(result.footnotes?.some((f) => f.toLowerCase().includes('preliminary'))).toBe(true);
     });
   });
 });
@@ -500,5 +500,131 @@ describe('Data Builder Cross-Cutting Concerns', () => {
 
     // Total distributions should match
     expect(quarterly.summary.totalDistributed).toBe(capitalAccount.summary.totalDistributions);
+  });
+});
+
+// ============================================================================
+// REPORT METRICS DI TESTS
+// ============================================================================
+
+describe('buildQuarterlyReportData with ReportMetrics', () => {
+  const realMetrics = {
+    irr: 0.22,
+    tvpi: 1.45,
+    dpi: 0.38,
+    portfolioCompanies: [
+      { name: 'AlphaAI', invested: 500_000, value: 750_000, moic: 1.5 },
+      { name: 'BetaCloud', invested: 300_000, value: 420_000, moic: 1.4 },
+    ],
+  };
+
+  it('should use real IRR/TVPI/DPI when metrics provided', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, realMetrics);
+
+    expect(result.summary.irr).toBe(0.22);
+    expect(result.summary.tvpi).toBe(1.45);
+    expect(result.summary.dpi).toBe(0.38);
+  });
+
+  it('should derive NAV from real TVPI', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, realMetrics);
+
+    // NAV = totalCalled * tvpi - totalDistributed
+    const expected = result.summary.totalCalled * 1.45 - result.summary.totalDistributed;
+    expect(result.summary.nav).toBeCloseTo(expected, 2);
+  });
+
+  it('should use real portfolio companies when metrics provided', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, realMetrics);
+
+    expect(result.portfolioCompanies).toHaveLength(2);
+    expect(result.portfolioCompanies[0].name).toBe('AlphaAI');
+    expect(result.portfolioCompanies[1].name).toBe('BetaCloud');
+  });
+
+  it('should use empty portfolio companies array when metrics has empty array', () => {
+    const emptyMetrics = { ...realMetrics, portfolioCompanies: [] };
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, emptyMetrics);
+
+    expect(result.portfolioCompanies).toHaveLength(0);
+  });
+
+  it('should fall back to placeholder IRR when metrics undefined', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, undefined);
+
+    // Placeholder IRR is 0.15
+    expect(result.summary.irr).toBe(0.15);
+  });
+
+  it('should fall back to placeholder portfolio companies when metrics undefined', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, undefined);
+
+    // Placeholder has 5 fictional companies
+    expect(result.portfolioCompanies).toHaveLength(5);
+    expect(result.portfolioCompanies[0].name).toBe('TechCo Series B');
+  });
+
+  it('should include all cash flows without artificial cap', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+    const txCount = standardLPData.transactions.filter((t) => t.commitmentId === 101).length;
+
+    expect(result.cashFlows?.length).toBe(txCount);
+  });
+});
+
+// ============================================================================
+// K-1 PRELIMINARY FLAG TESTS
+// ============================================================================
+
+describe('buildK1ReportData preliminary marking', () => {
+  it('should set preliminary flag to true', () => {
+    const result = buildK1ReportData(standardLPData, 1, 2024);
+
+    expect(result.preliminary).toBe(true);
+  });
+
+  it('should include PRELIMINARY footnote', () => {
+    const result = buildK1ReportData(standardLPData, 1, 2024);
+
+    expect(result.footnotes).toBeDefined();
+    expect(result.footnotes!.some((f) => f.startsWith('PRELIMINARY:'))).toBe(true);
+  });
+
+  it('should include fund administrator reference in footnote', () => {
+    const result = buildK1ReportData(standardLPData, 1, 2024);
+
+    expect(result.footnotes!.some((f) => f.includes('fund administrator'))).toBe(true);
+  });
+});
+
+// ============================================================================
+// CAPITAL ACCOUNT BEGINNING BALANCE TESTS
+// ============================================================================
+
+describe('buildCapitalAccountReportData beginning balance', () => {
+  it('should be 0 when transactions start from the beginning', () => {
+    // For LP with transactions starting from scratch, beginning balance is 0
+    // since first tx balance - first tx amount = 0
+    const result = buildCapitalAccountReportData(earlyStageLP, 3, new Date('2024-12-31'));
+
+    // First transaction is a capital call, balance = amount, so beginning = balance - amount = 0
+    expect(result.summary.beginningBalance).toBe(0);
+  });
+
+  it('should be 0 for LP with no transactions', () => {
+    const result = buildCapitalAccountReportData(newLPData, 1, new Date('2024-12-31'));
+
+    expect(result.summary.beginningBalance).toBe(0);
+  });
+
+  it('should derive from first transaction when mid-history asOfDate', () => {
+    // Use a date that excludes early transactions
+    const lateDate = new Date('2024-12-31');
+    const result = buildCapitalAccountReportData(standardLPData, 1, lateDate);
+
+    if (result.transactions.length > 0) {
+      const firstTx = result.transactions[0];
+      expect(result.summary.beginningBalance).toBe(firstTx.balance - firstTx.amount);
+    }
   });
 });
