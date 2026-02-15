@@ -92,6 +92,102 @@ class ReportEventEmitter extends EventEmitter {
 
 export const reportEvents = new ReportEventEmitter();
 
+// ============================================================================
+// REPORT GENERATION DISPATCH (reduces worker cyclomatic complexity)
+// ============================================================================
+
+/** Shared context passed to all format handlers */
+interface ReportGenerationContext {
+  lpData: Awaited<ReturnType<typeof fetchLPReportData>>;
+  fundId: number;
+  reportType: ReportGenerationJobData['reportType'];
+  dateRange: ReportGenerationJobData['dateRange'];
+  reportMetrics: Awaited<ReturnType<typeof prefetchReportMetrics>>;
+}
+
+/** Resolve fundId once from job data or first commitment */
+function resolveFundId(
+  jobFundIds: number[] | undefined,
+  lpData: Awaited<ReturnType<typeof fetchLPReportData>>
+): number {
+  const fundId = jobFundIds?.[0] || lpData.commitments[0]?.fundId;
+  if (!fundId) {
+    throw new Error('No fund ID available for report generation');
+  }
+  return fundId;
+}
+
+/** Extract quarter label from end date */
+function resolveQuarter(endDate: Date, reportType: string): string {
+  if (reportType === 'annual') return 'Annual';
+  return `Q${Math.floor(endDate.getMonth() / 3) + 1}`;
+}
+
+async function generateXLSXReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const { lpData, fundId, reportType, dateRange, reportMetrics } = ctx;
+  if (reportType === 'capital_account') {
+    const data = buildCapitalAccountReportData(lpData, fundId, new Date(dateRange.endDate));
+    return generateCapitalAccountXLSX(data);
+  }
+  const endDate = new Date(dateRange.endDate);
+  const data = buildQuarterlyReportData(
+    lpData,
+    fundId,
+    resolveQuarter(endDate, reportType),
+    endDate.getFullYear(),
+    reportMetrics ?? undefined
+  );
+  return generateQuarterlyXLSX(data);
+}
+
+async function generateCSVReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const header = 'date,type,amount,description\n';
+  const rows = ctx.lpData.transactions
+    .map(
+      (t) => `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`
+    )
+    .join('\n');
+  return Buffer.from(header + rows);
+}
+
+async function generatePDFReport(ctx: ReportGenerationContext): Promise<Buffer> {
+  const { lpData, fundId, reportType, dateRange, reportMetrics } = ctx;
+  switch (reportType) {
+    case 'tax_package': {
+      const taxYear = new Date(dateRange.endDate).getFullYear();
+      const k1Data = buildK1ReportData(lpData, fundId, taxYear);
+      return generateK1PDF(k1Data);
+    }
+    case 'capital_account': {
+      const data = buildCapitalAccountReportData(lpData, fundId, new Date(dateRange.endDate));
+      return generateCapitalAccountPDF(data);
+    }
+    case 'quarterly':
+    case 'annual':
+    default: {
+      const endDate = new Date(dateRange.endDate);
+      const data = buildQuarterlyReportData(
+        lpData,
+        fundId,
+        resolveQuarter(endDate, reportType),
+        endDate.getFullYear(),
+        reportMetrics ?? undefined
+      );
+      return generateQuarterlyPDF(data);
+    }
+  }
+}
+
+/** Dispatch table: format -> handler */
+const FORMAT_HANDLERS: Record<
+  ReportGenerationJobData['format'],
+  (ctx: ReportGenerationContext) => Promise<Buffer>
+> = {
+  xlsx: generateXLSXReport,
+  csv: generateCSVReport,
+  pdf: generatePDFReport,
+};
+
 // Queue name
 const QUEUE_NAME = 'lp-report-generation';
 
@@ -169,122 +265,21 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         // Phase 3: Generate report file (70%)
         let fileUrl: string;
         let fileSize: number;
-        let reportBuffer: Buffer;
 
-        // Fetch LP data for the report
+        // Fetch LP data and resolve fundId once (single source of truth)
         const lpData = await fetchLPReportData(lpId, job.data.fundIds);
+        const resolvedFundId = resolveFundId(job.data.fundIds, lpData);
+        const reportMetrics = await prefetchReportMetrics(lpId, resolvedFundId);
 
-        // Pre-fetch real fund metrics for report builders
-        const primaryFundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
-        const reportMetrics = primaryFundId
-          ? await prefetchReportMetrics(lpId, primaryFundId)
-          : null;
-
-        switch (format) {
-          case 'xlsx': {
-            // Generate actual Excel report using xlsx library
-            const xlsxFundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
-            if (!xlsxFundId) {
-              throw new Error('No fund ID available for Excel report generation');
-            }
-
-            switch (reportType) {
-              case 'capital_account': {
-                const asOfDate = new Date(job.data.dateRange.endDate);
-                const capitalData = buildCapitalAccountReportData(lpData, xlsxFundId, asOfDate);
-                reportBuffer = await generateCapitalAccountXLSX(capitalData);
-                break;
-              }
-              case 'quarterly':
-              case 'annual':
-              default: {
-                const endDate = new Date(job.data.dateRange.endDate);
-                const month = endDate.getMonth();
-                const quarter =
-                  reportType === 'annual' ? 'Annual' : `Q${Math.floor(month / 3) + 1}`;
-                const quarterlyData = buildQuarterlyReportData(
-                  lpData,
-                  xlsxFundId,
-                  quarter,
-                  endDate.getFullYear(),
-                  reportMetrics ?? undefined
-                );
-                reportBuffer = await generateQuarterlyXLSX(quarterlyData);
-                break;
-              }
-            }
-            break;
-          }
-
-          case 'csv': {
-            // Generate CSV from LP transactions
-            const csvHeader = 'date,type,amount,description\n';
-            const csvRows = lpData.transactions
-              .map(
-                (t) =>
-                  `${t.date.toISOString().split('T')[0]},${t.type},${t.amount},${t.description || ''}`
-              )
-              .join('\n');
-            reportBuffer = Buffer.from(csvHeader + csvRows);
-            break;
-          }
-
-          case 'pdf':
-          default: {
-            // Generate actual PDF using @react-pdf/renderer
-            const fundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
-            if (!fundId) {
-              throw new Error('No fund ID available for report generation');
-            }
-
-            switch (reportType) {
-              case 'tax_package': {
-                // Extract tax year from date range
-                const taxYear = new Date(job.data.dateRange.endDate).getFullYear();
-                const k1Data = buildK1ReportData(lpData, fundId, taxYear);
-                reportBuffer = await generateK1PDF(k1Data);
-                break;
-              }
-              case 'quarterly': {
-                // Extract quarter from date range
-                const endDate = new Date(job.data.dateRange.endDate);
-                const month = endDate.getMonth();
-                const quarter = `Q${Math.floor(month / 3) + 1}`;
-                const year = endDate.getFullYear();
-                const quarterlyData = buildQuarterlyReportData(
-                  lpData,
-                  fundId,
-                  quarter,
-                  year,
-                  reportMetrics ?? undefined
-                );
-                reportBuffer = await generateQuarterlyPDF(quarterlyData);
-                break;
-              }
-              case 'capital_account': {
-                const asOfDate = new Date(job.data.dateRange.endDate);
-                const capitalData = buildCapitalAccountReportData(lpData, fundId, asOfDate);
-                reportBuffer = await generateCapitalAccountPDF(capitalData);
-                break;
-              }
-              case 'annual':
-              default: {
-                // Annual report uses quarterly template with full year
-                const yearEnd = new Date(job.data.dateRange.endDate);
-                const annualData = buildQuarterlyReportData(
-                  lpData,
-                  fundId,
-                  'Annual',
-                  yearEnd.getFullYear(),
-                  reportMetrics ?? undefined
-                );
-                reportBuffer = await generateQuarterlyPDF(annualData);
-                break;
-              }
-            }
-            break;
-          }
-        }
+        // Dispatch to format-specific handler
+        const handler = FORMAT_HANDLERS[format];
+        const reportBuffer = await handler({
+          lpData,
+          fundId: resolvedFundId,
+          reportType,
+          dateRange: job.data.dateRange,
+          reportMetrics,
+        });
 
         await job.updateProgress(70);
         reportEvents.emitProgress(job.id!, reportId, 70, `Saving ${format.toUpperCase()} file...`);
