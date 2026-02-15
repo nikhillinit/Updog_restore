@@ -138,8 +138,6 @@ def get_reflections():
         return []
 
     for f in SKILLS_DIR.glob("REFL-*.md"):
-        if "template" in f.name.lower():
-            continue
         try:
             content = f.read_text(encoding='utf-8')
             meta = parse_frontmatter(content, f)
