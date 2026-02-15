@@ -9,9 +9,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FLAGS } from '@/core/flags/featureFlags';
 import { track } from '@/lib/telemetry';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Briefcase, LineChart, Settings, FileText, ChevronRight, X } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Briefcase,
+  LineChart,
+  Settings,
+  FileText,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 
 const STORAGE_KEY = 'onboarding_seen_gp_v1';
 const TOUR_VERSION = 'gp_v1';
@@ -28,35 +43,40 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'overview',
     title: 'Welcome to Your Dashboard',
-    description: 'Get a quick snapshot of your fund performance with key metrics and recent activity at a glance.',
+    description:
+      'Get a quick snapshot of your fund performance with key metrics and recent activity at a glance.',
     icon: LayoutDashboard,
     navItem: 'overview',
   },
   {
     id: 'portfolio',
     title: 'Portfolio Management',
-    description: 'View and manage all your investments in one place. Track company progress, allocations, and performance.',
+    description:
+      'View and manage all your investments in one place. Track company progress, allocations, and performance.',
     icon: Briefcase,
     navItem: 'portfolio',
   },
   {
     id: 'model',
     title: 'Financial Modeling',
-    description: 'Build scenarios, run projections, and analyze potential outcomes for your fund strategy.',
+    description:
+      'Build scenarios, run projections, and analyze potential outcomes for your fund strategy.',
     icon: LineChart,
     navItem: 'model',
   },
   {
     id: 'operate',
     title: 'Operations Hub',
-    description: 'Manage day-to-day fund operations, cash flows, and administrative tasks efficiently.',
+    description:
+      'Manage day-to-day fund operations, cash flows, and administrative tasks efficiently.',
     icon: Settings,
     navItem: 'operate',
   },
   {
     id: 'report',
     title: 'Reporting & Analytics',
-    description: 'Generate LP reports, analyze fund metrics, and export data for stakeholder communications.',
+    description:
+      'Generate LP reports, analyze fund metrics, and export data for stakeholder communications.',
     icon: FileText,
     navItem: 'report',
   },
@@ -86,7 +106,7 @@ export function GuidedTour() {
 
   const handleNext = useCallback(() => {
     if (currentStep < TOUR_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     } else {
       handleComplete();
     }
@@ -109,6 +129,7 @@ export function GuidedTour() {
   }
 
   const step = TOUR_STEPS[currentStep];
+  if (!step) return null;
   const StepIcon = step.icon;
   const isLastStep = currentStep === TOUR_STEPS.length - 1;
 
@@ -132,7 +153,10 @@ export function GuidedTour() {
               ))}
             </div>
           </div>
-          <DialogTitle className="text-xl font-bold text-presson-text" data-testid="tour-step-title">
+          <DialogTitle
+            className="text-xl font-bold text-presson-text"
+            data-testid="tour-step-title"
+          >
             {step.title}
           </DialogTitle>
           <DialogDescription className="text-presson-textMuted" data-testid="tour-step-description">
