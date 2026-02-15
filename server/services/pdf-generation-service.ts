@@ -14,6 +14,9 @@ import { limitedPartners, lpFundCommitments, capitalActivities } from '@shared/s
 import { funds } from '@shared/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
 import { toDecimal } from '@shared/lib/decimal-utils';
+import { getFundPerformance } from './lp-queries';
+import { calculateFundMetrics } from './fund-metrics-calculator';
+import { storage } from '../storage';
 
 // ============================================================================
 // TYPES
@@ -50,6 +53,7 @@ export interface K1ReportData {
     endingBalance: number;
   };
   footnotes?: string[];
+  preliminary?: boolean;
   /** ISO timestamp for deterministic PDF output */
   generatedAt?: string;
 }
@@ -83,6 +87,14 @@ export interface QuarterlyReportData {
   commentary?: string;
   /** ISO timestamp for deterministic PDF output */
   generatedAt?: string;
+}
+
+/** Pre-fetched fund metrics for report builders (DI pattern) */
+export interface ReportMetrics {
+  irr: number;
+  tvpi: number;
+  dpi: number;
+  portfolioCompanies: Array<{ name: string; invested: number; value: number; moic: number }>;
 }
 
 export interface CapitalAccountReportData {
@@ -336,11 +348,26 @@ function formatDate(date: string | Date, format: 'short' | 'medium' | 'long' = '
   const d = typeof date === 'string' ? new Date(date) : date;
   switch (format) {
     case 'short':
-      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', timeZone: 'UTC' });
+      return d.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: '2-digit',
+        timeZone: 'UTC',
+      });
     case 'long':
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      return d.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
     default:
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
   }
 }
 
@@ -366,7 +393,9 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
     data.allocations.royalties +
     data.allocations.netRentalIncome +
     data.allocations.otherIncome;
-  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
+  const generatedAt = getGeneratedTimestamp(
+    data.generatedAt ? new Date(data.generatedAt) : undefined
+  );
 
   return React.createElement(
     Document,
@@ -379,7 +408,11 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
         View,
         { style: baseStyles.header },
         React.createElement(Text, { style: baseStyles.title }, 'Schedule K-1 Summary'),
-        React.createElement(Text, { style: baseStyles.subtitle }, `Tax Year ${data.taxYear} | ${data.fundName}`)
+        React.createElement(
+          Text,
+          { style: baseStyles.subtitle },
+          `Tax Year ${data.taxYear} | ${data.fundName}`
+        )
       ),
       // Partner and Partnership Info
       React.createElement(
@@ -393,8 +426,14 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
             { style: baseStyles.infoBox },
             React.createElement(Text, { style: baseStyles.infoLabel }, 'Partner Information'),
             React.createElement(Text, { style: baseStyles.infoValue }, data.partnerName),
-            data.partnerAddress && React.createElement(Text, { style: baseStyles.infoValue }, data.partnerAddress),
-            data.partnerTaxId && React.createElement(Text, { style: baseStyles.infoValue }, `TIN: ${data.partnerTaxId}`)
+            data.partnerAddress &&
+              React.createElement(Text, { style: baseStyles.infoValue }, data.partnerAddress),
+            data.partnerTaxId &&
+              React.createElement(
+                Text,
+                { style: baseStyles.infoValue },
+                `TIN: ${data.partnerTaxId}`
+              )
           )
         ),
         React.createElement(
@@ -405,7 +444,12 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
             { style: baseStyles.infoBox },
             React.createElement(Text, { style: baseStyles.infoLabel }, 'Partnership Information'),
             React.createElement(Text, { style: baseStyles.infoValue }, data.fundName),
-            data.partnershipTaxId && React.createElement(Text, { style: baseStyles.infoValue }, `EIN: ${data.partnershipTaxId}`)
+            data.partnershipTaxId &&
+              React.createElement(
+                Text,
+                { style: baseStyles.infoValue },
+                `EIN: ${data.partnershipTaxId}`
+              )
           )
         )
       ),
@@ -413,66 +457,122 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
       React.createElement(
         View,
         { style: baseStyles.section },
-        React.createElement(Text, { style: baseStyles.sectionTitle }, "Partner's Distributive Share Items"),
+        React.createElement(
+          Text,
+          { style: baseStyles.sectionTitle },
+          "Partner's Distributive Share Items"
+        ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Ordinary business income (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.ordinaryIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.ordinaryIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
-          React.createElement(Text, { style: baseStyles.label }, 'Net short-term capital gain (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.capitalGainsShortTerm))
+          React.createElement(
+            Text,
+            { style: baseStyles.label },
+            'Net short-term capital gain (loss)'
+          ),
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.capitalGainsShortTerm)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
-          React.createElement(Text, { style: baseStyles.label }, 'Net long-term capital gain (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.capitalGainsLongTerm))
+          React.createElement(
+            Text,
+            { style: baseStyles.label },
+            'Net long-term capital gain (loss)'
+          ),
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.capitalGainsLongTerm)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Net section 1231 gain (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.section1231Gains))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.section1231Gains)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Interest income'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.interestIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.interestIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Ordinary dividends'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.dividendIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.dividendIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Royalties'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.royalties))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.royalties)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
-          React.createElement(Text, { style: baseStyles.label }, 'Net rental real estate income (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.netRentalIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.label },
+            'Net rental real estate income (loss)'
+          ),
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.netRentalIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Other income (loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.allocations.otherIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.allocations.otherIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.totalRow },
           React.createElement(Text, { style: baseStyles.totalLabel }, 'Total Allocations'),
-          React.createElement(Text, { style: baseStyles.totalValue }, formatCurrency(totalAllocations))
+          React.createElement(
+            Text,
+            { style: baseStyles.totalValue },
+            formatCurrency(totalAllocations)
+          )
         )
       ),
       // Capital Account Section
@@ -484,55 +584,124 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Beginning capital account'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.capitalAccount.beginningBalance))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.capitalAccount.beginningBalance)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
-          React.createElement(Text, { style: baseStyles.label }, 'Capital contributions during year'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.capitalAccount.contributions))
+          React.createElement(
+            Text,
+            { style: baseStyles.label },
+            'Capital contributions during year'
+          ),
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.capitalAccount.contributions)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Distributions during year'),
-          React.createElement(Text, { style: { ...baseStyles.value, color: colors.error } }, `(${formatCurrency(data.capitalAccount.distributions)})`)
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.value, color: colors.error } },
+            `(${formatCurrency(data.capitalAccount.distributions)})`
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
-          React.createElement(Text, { style: baseStyles.label }, 'Current year increase (decrease)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.capitalAccount.allocatedIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.label },
+            'Current year increase (decrease)'
+          ),
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.capitalAccount.allocatedIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.totalRow },
           React.createElement(Text, { style: baseStyles.totalLabel }, 'Ending capital account'),
-          React.createElement(Text, { style: baseStyles.totalValue }, formatCurrency(data.capitalAccount.endingBalance))
-        )
-      ),
-      // Distributions Table (if any)
-      data.distributions.length > 0 && React.createElement(
-        View,
-        { style: baseStyles.section },
-        React.createElement(Text, { style: baseStyles.sectionTitle }, 'Distributions'),
-        React.createElement(
-          View,
-          { style: baseStyles.tableHeader },
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '30%' } }, 'Date'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '40%' } }, 'Type'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '30%', textAlign: 'right' } }, 'Amount')
-        ),
-        ...data.distributions.map((dist, i) =>
           React.createElement(
-            View,
-            { key: i, style: baseStyles.tableRow },
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '30%' } }, formatDate(dist.date, 'short')),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '40%' } }, dist.type),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '30%', textAlign: 'right' } }, formatCurrency(dist.amount))
+            Text,
+            { style: baseStyles.totalValue },
+            formatCurrency(data.capitalAccount.endingBalance)
           )
         )
       ),
+      // Distributions Table (if any)
+      data.distributions.length > 0 &&
+        React.createElement(
+          View,
+          { style: baseStyles.section },
+          React.createElement(Text, { style: baseStyles.sectionTitle }, 'Distributions'),
+          React.createElement(
+            View,
+            { style: baseStyles.tableHeader },
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableHeaderCell, width: '30%' } },
+              'Date'
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableHeaderCell, width: '40%' } },
+              'Type'
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableHeaderCell, width: '30%', textAlign: 'right' } },
+              'Amount'
+            )
+          ),
+          ...data.distributions.map((dist, i) =>
+            React.createElement(
+              View,
+              { key: i, style: baseStyles.tableRow },
+              React.createElement(
+                Text,
+                { style: { ...baseStyles.tableCell, width: '30%' } },
+                formatDate(dist.date, 'short')
+              ),
+              React.createElement(
+                Text,
+                { style: { ...baseStyles.tableCell, width: '40%' } },
+                dist.type
+              ),
+              React.createElement(
+                Text,
+                { style: { ...baseStyles.tableCell, width: '30%', textAlign: 'right' } },
+                formatCurrency(dist.amount)
+              )
+            )
+          )
+        ),
+      // Footnotes
+      ...(data.footnotes && data.footnotes.length > 0
+        ? [
+            React.createElement(
+              View,
+              { style: { ...baseStyles.section, marginTop: 8 } },
+              ...data.footnotes.map((note, i) =>
+                React.createElement(
+                  Text,
+                  { key: `fn-${i}`, style: baseStyles.disclaimerText },
+                  `${i + 1}. ${note}`
+                )
+              )
+            ),
+          ]
+        : []),
       // Disclaimer
       React.createElement(
         View,
@@ -548,7 +717,11 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
         View,
         { style: baseStyles.footer, fixed: true },
         React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
-        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
+        React.createElement(
+          Text,
+          null,
+          `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`
+        )
       )
     )
   );
@@ -561,7 +734,9 @@ function K1TaxSummaryPDF({ data }: { data: K1ReportData }): React.ReactElement {
 function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.ReactElement {
   const totalInvested = data.portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
   const totalValue = data.portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
-  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
+  const generatedAt = getGeneratedTimestamp(
+    data.generatedAt ? new Date(data.generatedAt) : undefined
+  );
 
   return React.createElement(
     Document,
@@ -574,7 +749,11 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
         View,
         { style: baseStyles.header },
         React.createElement(Text, { style: baseStyles.title }, data.fundName),
-        React.createElement(Text, { style: baseStyles.subtitle }, `Quarterly Report | ${data.quarter} ${data.year} | ${data.lpName}`)
+        React.createElement(
+          Text,
+          { style: baseStyles.subtitle },
+          `Quarterly Report | ${data.quarter} ${data.year} | ${data.lpName}`
+        )
       ),
       // Key Metrics
       React.createElement(
@@ -588,28 +767,44 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
             View,
             { style: baseStyles.metricCard },
             React.createElement(Text, { style: baseStyles.metricLabel }, 'Net Asset Value'),
-            React.createElement(Text, { style: baseStyles.metricValue }, formatCurrency(data.summary.nav, true)),
+            React.createElement(
+              Text,
+              { style: baseStyles.metricValue },
+              formatCurrency(data.summary.nav, true)
+            ),
             React.createElement(Text, { style: baseStyles.metricSubtitle }, 'Total portfolio value')
           ),
           React.createElement(
             View,
             { style: baseStyles.metricCard },
             React.createElement(Text, { style: baseStyles.metricLabel }, 'TVPI'),
-            React.createElement(Text, { style: baseStyles.metricValue }, formatMultiple(data.summary.tvpi)),
+            React.createElement(
+              Text,
+              { style: baseStyles.metricValue },
+              formatMultiple(data.summary.tvpi)
+            ),
             React.createElement(Text, { style: baseStyles.metricSubtitle }, 'Total value / paid-in')
           ),
           React.createElement(
             View,
             { style: baseStyles.metricCard },
             React.createElement(Text, { style: baseStyles.metricLabel }, 'DPI'),
-            React.createElement(Text, { style: baseStyles.metricValue }, formatMultiple(data.summary.dpi)),
+            React.createElement(
+              Text,
+              { style: baseStyles.metricValue },
+              formatMultiple(data.summary.dpi)
+            ),
             React.createElement(Text, { style: baseStyles.metricSubtitle }, 'Distributed / paid-in')
           ),
           React.createElement(
             View,
             { style: baseStyles.metricCard },
             React.createElement(Text, { style: baseStyles.metricLabel }, 'Net IRR'),
-            React.createElement(Text, { style: baseStyles.metricValue }, formatPercent(data.summary.irr)),
+            React.createElement(
+              Text,
+              { style: baseStyles.metricValue },
+              formatPercent(data.summary.irr)
+            ),
             React.createElement(Text, { style: baseStyles.metricSubtitle }, 'Since inception')
           )
         )
@@ -621,7 +816,11 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
         React.createElement(
           View,
           { style: { ...baseStyles.disclaimer, marginTop: 0 } },
-          React.createElement(Text, { style: { ...baseStyles.sectionTitle, backgroundColor: 'transparent', padding: 0 } }, 'Executive Summary'),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.sectionTitle, backgroundColor: 'transparent', padding: 0 } },
+            'Executive Summary'
+          ),
           React.createElement(
             Text,
             { style: { ...baseStyles.disclaimerText, fontSize: 9 } },
@@ -638,25 +837,41 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Total Commitment'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.totalCommitted))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.totalCommitted)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Capital Called'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.totalCalled))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.totalCalled)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Distributions Received'),
-          React.createElement(Text, { style: { ...baseStyles.value, color: colors.success } }, formatCurrency(data.summary.totalDistributed))
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.value, color: colors.success } },
+            formatCurrency(data.summary.totalDistributed)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Unfunded Commitment'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.unfunded))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.unfunded)
+          )
         )
       ),
       // Portfolio Companies
@@ -667,39 +882,76 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
         React.createElement(
           View,
           { style: baseStyles.tableHeader },
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '35%' } }, 'Company'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } }, 'Invested'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '25%', textAlign: 'right' } }, 'Current Value'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } }, 'MOIC')
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '35%' } },
+            'Company'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } },
+            'Invested'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '25%', textAlign: 'right' } },
+            'Current Value'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } },
+            'MOIC'
+          )
         ),
         ...data.portfolioCompanies.map((co, i) =>
           React.createElement(
             View,
             { key: i, style: baseStyles.tableRow },
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '35%' } }, co.name),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } }, formatCurrency(co.invested, true)),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '25%', textAlign: 'right' } }, formatCurrency(co.value, true)),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } }, formatMultiple(co.moic))
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '35%' } },
+              co.name
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } },
+              formatCurrency(co.invested, true)
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '25%', textAlign: 'right' } },
+              formatCurrency(co.value, true)
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } },
+              formatMultiple(co.moic)
+            )
           )
         )
       ),
       // Commentary (if provided)
-      data.commentary && React.createElement(
-        View,
-        { style: baseStyles.section },
-        React.createElement(Text, { style: baseStyles.sectionTitle }, 'Manager Commentary'),
+      data.commentary &&
         React.createElement(
           View,
-          { style: baseStyles.infoBox },
-          React.createElement(Text, { style: { fontSize: 9, lineHeight: 1.6 } }, data.commentary)
-        )
-      ),
+          { style: baseStyles.section },
+          React.createElement(Text, { style: baseStyles.sectionTitle }, 'Manager Commentary'),
+          React.createElement(
+            View,
+            { style: baseStyles.infoBox },
+            React.createElement(Text, { style: { fontSize: 9, lineHeight: 1.6 } }, data.commentary)
+          )
+        ),
       // Footer
       React.createElement(
         View,
         { style: baseStyles.footer, fixed: true },
         React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
-        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
+        React.createElement(
+          Text,
+          null,
+          `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`
+        )
       )
     )
   );
@@ -709,8 +961,14 @@ function QuarterlyReportPDF({ data }: { data: QuarterlyReportData }): React.Reac
 // CAPITAL ACCOUNT STATEMENT PDF COMPONENT
 // ============================================================================
 
-function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }): React.ReactElement {
-  const generatedAt = getGeneratedTimestamp(data.generatedAt ? new Date(data.generatedAt) : undefined);
+function CapitalAccountStatementPDF({
+  data,
+}: {
+  data: CapitalAccountReportData;
+}): React.ReactElement {
+  const generatedAt = getGeneratedTimestamp(
+    data.generatedAt ? new Date(data.generatedAt) : undefined
+  );
   return React.createElement(
     Document,
     { title: `Capital Account Statement - ${data.lpName}` },
@@ -722,7 +980,11 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
         View,
         { style: baseStyles.header },
         React.createElement(Text, { style: baseStyles.title }, 'Capital Account Statement'),
-        React.createElement(Text, { style: baseStyles.subtitle }, `${data.fundName} | As of ${formatDate(data.asOfDate, 'long')}`)
+        React.createElement(
+          Text,
+          { style: baseStyles.subtitle },
+          `${data.fundName} | As of ${formatDate(data.asOfDate, 'long')}`
+        )
       ),
       // LP Info
       React.createElement(
@@ -733,7 +995,11 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
           { style: baseStyles.infoBox },
           React.createElement(Text, { style: baseStyles.infoLabel }, 'Limited Partner'),
           React.createElement(Text, { style: baseStyles.infoValue }, data.lpName),
-          React.createElement(Text, { style: { ...baseStyles.infoValue, marginTop: 4 } }, `Commitment: ${formatCurrency(data.commitment)}`)
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.infoValue, marginTop: 4 } },
+            `Commitment: ${formatCurrency(data.commitment)}`
+          )
         )
       ),
       // Account Summary
@@ -745,31 +1011,51 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Beginning Balance'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.beginningBalance))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.beginningBalance)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Total Contributions'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.totalContributions))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.totalContributions)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Total Distributions'),
-          React.createElement(Text, { style: { ...baseStyles.value, color: colors.error } }, `(${formatCurrency(data.summary.totalDistributions)})`)
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.value, color: colors.error } },
+            `(${formatCurrency(data.summary.totalDistributions)})`
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.row },
           React.createElement(Text, { style: baseStyles.label }, 'Net Income / (Loss)'),
-          React.createElement(Text, { style: baseStyles.value }, formatCurrency(data.summary.netIncome))
+          React.createElement(
+            Text,
+            { style: baseStyles.value },
+            formatCurrency(data.summary.netIncome)
+          )
         ),
         React.createElement(
           View,
           { style: baseStyles.totalRow },
           React.createElement(Text, { style: baseStyles.totalLabel }, 'Ending Balance'),
-          React.createElement(Text, { style: baseStyles.totalValue }, formatCurrency(data.summary.endingBalance))
+          React.createElement(
+            Text,
+            { style: baseStyles.totalValue },
+            formatCurrency(data.summary.endingBalance)
+          )
         )
       ),
       // Transaction History
@@ -780,25 +1066,68 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
         React.createElement(
           View,
           { style: baseStyles.tableHeader },
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '15%' } }, 'Date'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '15%' } }, 'Type'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '30%' } }, 'Description'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } }, 'Amount'),
-          React.createElement(Text, { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } }, 'Balance')
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '15%' } },
+            'Date'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '15%' } },
+            'Type'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '30%' } },
+            'Description'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } },
+            'Amount'
+          ),
+          React.createElement(
+            Text,
+            { style: { ...baseStyles.tableHeaderCell, width: '20%', textAlign: 'right' } },
+            'Balance'
+          )
         ),
         ...data.transactions.map((tx, i) =>
           React.createElement(
             View,
             { key: i, style: baseStyles.tableRow },
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '15%' } }, formatDate(tx.date, 'short')),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '15%' } }, tx.type),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '30%' } }, tx.description),
             React.createElement(
               Text,
-              { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right', color: tx.amount < 0 ? colors.error : colors.textPrimary } },
+              { style: { ...baseStyles.tableCell, width: '15%' } },
+              formatDate(tx.date, 'short')
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '15%' } },
+              tx.type
+            ),
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '30%' } },
+              tx.description
+            ),
+            React.createElement(
+              Text,
+              {
+                style: {
+                  ...baseStyles.tableCell,
+                  width: '20%',
+                  textAlign: 'right',
+                  color: tx.amount < 0 ? colors.error : colors.textPrimary,
+                },
+              },
               formatCurrency(tx.amount)
             ),
-            React.createElement(Text, { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } }, formatCurrency(tx.balance))
+            React.createElement(
+              Text,
+              { style: { ...baseStyles.tableCell, width: '20%', textAlign: 'right' } },
+              formatCurrency(tx.balance)
+            )
           )
         )
       ),
@@ -807,7 +1136,11 @@ function CapitalAccountStatementPDF({ data }: { data: CapitalAccountReportData }
         View,
         { style: baseStyles.footer, fixed: true },
         React.createElement(Text, null, `Generated ${formatDate(generatedAt, 'medium')}`),
-        React.createElement(Text, null, `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`)
+        React.createElement(
+          Text,
+          null,
+          `${generatedAt.getUTCFullYear()} Press On Ventures | Confidential`
+        )
       )
     )
   );
@@ -893,7 +1226,10 @@ function centsToDollars(cents: bigint | null): number {
 /**
  * Fetch LP data for report generation
  */
-export async function fetchLPReportData(lpId: number, fundIdFilter?: number[]): Promise<{
+export async function fetchLPReportData(
+  lpId: number,
+  fundIdFilter?: number[]
+): Promise<{
   lp: { id: number; name: string; email: string };
   commitments: Array<{
     commitmentId: number;
@@ -954,20 +1290,21 @@ export async function fetchLPReportData(lpId: number, fundIdFilter?: number[]): 
   const commitmentIds = commitments.map((c) => c.commitmentId);
 
   // Fetch transactions for these commitments
-  const rawTransactions = commitmentIds.length > 0
-    ? await db
-        .select({
-          commitmentId: capitalActivities.commitmentId,
-          fundId: capitalActivities.fundId,
-          date: capitalActivities.activityDate,
-          type: capitalActivities.activityType,
-          amountCents: capitalActivities.amountCents,
-          description: capitalActivities.description,
-        })
-        .from(capitalActivities)
-        .where(inArray(capitalActivities.commitmentId, commitmentIds))
-        .orderBy(desc(capitalActivities.activityDate))
-    : [];
+  const rawTransactions =
+    commitmentIds.length > 0
+      ? await db
+          .select({
+            commitmentId: capitalActivities.commitmentId,
+            fundId: capitalActivities.fundId,
+            date: capitalActivities.activityDate,
+            type: capitalActivities.activityType,
+            amountCents: capitalActivities.amountCents,
+            description: capitalActivities.description,
+          })
+          .from(capitalActivities)
+          .where(inArray(capitalActivities.commitmentId, commitmentIds))
+          .orderBy(desc(capitalActivities.activityDate))
+      : [];
 
   // Convert cents to dollars
   const transactions = rawTransactions.map((t) => ({
@@ -980,6 +1317,40 @@ export async function fetchLPReportData(lpId: number, fundIdFilter?: number[]): 
   }));
 
   return { lp, commitments, transactions };
+}
+
+/**
+ * Prefetch real fund metrics for report generation.
+ * Returns null if no data available (callers fall back to placeholders).
+ */
+export async function prefetchReportMetrics(
+  lpId: number,
+  fundId: number
+): Promise<ReportMetrics | null> {
+  const perf = await getFundPerformance(lpId, fundId);
+  const companies = await storage.getPortfolioCompanies(fundId);
+
+  if (!perf && companies.length === 0) return null;
+
+  const fallback = !perf ? await calculateFundMetrics(fundId) : null;
+
+  const portfolioCompanies = companies
+    .filter((c) => {
+      const status = (c.status ?? '').toLowerCase();
+      return status !== 'exited' && status !== 'liquidated' && status !== 'written-off';
+    })
+    .map((c) => {
+      const invested = toDecimal(c.investmentAmount).toNumber();
+      const value = toDecimal(c.currentValuation ?? 0).toNumber();
+      return { name: c.name, invested, value, moic: invested > 0 ? value / invested : 0 };
+    });
+
+  return {
+    irr: perf ? perf.irr : fallback!.irr,
+    tvpi: perf ? perf.tvpi : fallback!.tvpi,
+    dpi: perf ? perf.dpi : fallback!.dpi,
+    portfolioCompanies,
+  };
 }
 
 /**
@@ -1048,8 +1419,9 @@ export function buildK1ReportData(
       allocatedIncome: totalIncome,
       endingBalance: contributions - distributions + totalIncome,
     },
+    preliminary: true,
     footnotes: [
-      'Tax allocations are preliminary and subject to final K-1 preparation.',
+      'PRELIMINARY: Tax allocations are estimated from distribution data. Final K-1 will be prepared by the fund administrator.',
       'Consult your tax advisor for reporting requirements.',
     ],
   };
@@ -1062,7 +1434,8 @@ export function buildQuarterlyReportData(
   lpData: Awaited<ReturnType<typeof fetchLPReportData>>,
   fundId: number,
   quarter: string,
-  year: number
+  year: number,
+  metrics?: ReportMetrics
 ): QuarterlyReportData {
   const commitment = lpData.commitments.find((c) => c.fundId === fundId);
   if (!commitment) {
@@ -1070,7 +1443,9 @@ export function buildQuarterlyReportData(
   }
 
   // Calculate totals from transactions
-  const fundTransactions = lpData.transactions.filter((t) => t.commitmentId === commitment.commitmentId);
+  const fundTransactions = lpData.transactions.filter(
+    (t) => t.commitmentId === commitment.commitmentId
+  );
 
   const totalCalled = fundTransactions
     .filter((t) => t.type === 'capital_call')
@@ -1082,27 +1457,35 @@ export function buildQuarterlyReportData(
 
   const unfunded = commitment.commitmentAmount - totalCalled;
 
-  // Placeholder NAV and performance (would come from fund data in production)
-  // These are simplified calculations for demo purposes - actual values would come from fund metrics service
-  const nav = totalCalled * 1.15 - totalDistributed; // Simplified
-  const tvpi = totalCalled > 0 ? (nav + totalDistributed) / totalCalled : 1;
-  const dpi = totalCalled > 0 ? totalDistributed / totalCalled : 0;
-  // eslint-disable-next-line custom/no-hardcoded-fund-metrics -- Placeholder until fund metrics service integration
-  const irr = 0.15;
+  // Use real metrics if provided, otherwise placeholder fallback
+  const irr = metrics?.irr ?? 0.15;
+  const tvpi = metrics?.tvpi ?? (totalCalled > 0 ? (totalCalled * 1.15) / totalCalled : 1);
+  const dpi = metrics?.dpi ?? (totalCalled > 0 ? totalDistributed / totalCalled : 0);
+  const nav = totalCalled * tvpi - totalDistributed;
 
-  // Build cash flows from recent transactions
-  const cashFlows = fundTransactions.slice(0, 10).map((t) => ({
+  // Build cash flows from all transactions (no artificial cap)
+  const cashFlows = fundTransactions.map((t) => ({
     date: t.date.toISOString().split('T')[0] || '',
-    type: t.type === 'capital_call' ? 'contribution' as const : 'distribution' as const,
+    type: t.type === 'capital_call' ? ('contribution' as const) : ('distribution' as const),
     amount: Math.abs(t.amount),
   }));
 
-  // Placeholder portfolio companies (would come from fund holdings in production)
-  const portfolioCompanies = [
+  // Use real portfolio companies if provided, otherwise placeholder fallback
+  const portfolioCompanies = metrics?.portfolioCompanies ?? [
     { name: 'TechCo Series B', invested: totalCalled * 0.3, value: totalCalled * 0.4, moic: 1.33 },
-    { name: 'HealthAI Series A', invested: totalCalled * 0.25, value: totalCalled * 0.35, moic: 1.4 },
+    {
+      name: 'HealthAI Series A',
+      invested: totalCalled * 0.25,
+      value: totalCalled * 0.35,
+      moic: 1.4,
+    },
     { name: 'FinanceBot Seed', invested: totalCalled * 0.15, value: totalCalled * 0.12, moic: 0.8 },
-    { name: 'CloudScale Series C', invested: totalCalled * 0.2, value: totalCalled * 0.25, moic: 1.25 },
+    {
+      name: 'CloudScale Series C',
+      invested: totalCalled * 0.2,
+      value: totalCalled * 0.25,
+      moic: 1.25,
+    },
     { name: 'Other Holdings', invested: totalCalled * 0.1, value: totalCalled * 0.13, moic: 1.3 },
   ];
 
@@ -1153,7 +1536,9 @@ export function buildCapitalAccountReportData(
     return {
       date: t.date.toISOString().split('T')[0] || '',
       type: t.type === 'capital_call' ? 'Capital Call' : 'Distribution',
-      description: t.description || `${t.type === 'capital_call' ? 'Capital contribution' : 'Cash distribution'}`,
+      description:
+        t.description ||
+        `${t.type === 'capital_call' ? 'Capital contribution' : 'Cash distribution'}`,
       amount,
       balance,
     };
@@ -1175,10 +1560,10 @@ export function buildCapitalAccountReportData(
     commitment: commitment.commitmentAmount,
     transactions,
     summary: {
-      beginningBalance: 0,
+      beginningBalance: (transactions[0]?.balance ?? 0) - (transactions[0]?.amount ?? 0),
       totalContributions,
       totalDistributions,
-      netIncome: 0, // Would come from performance allocation
+      netIncome: 0, // No performance allocation source yet
       endingBalance: balance,
     },
   };

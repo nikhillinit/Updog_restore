@@ -15,6 +15,7 @@ import { eq } from 'drizzle-orm';
 import { getStorageService } from '../services/storage-service.js';
 import {
   fetchLPReportData,
+  prefetchReportMetrics,
   buildK1ReportData,
   buildQuarterlyReportData,
   buildCapitalAccountReportData,
@@ -173,6 +174,12 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         // Fetch LP data for the report
         const lpData = await fetchLPReportData(lpId, job.data.fundIds);
 
+        // Pre-fetch real fund metrics for report builders
+        const primaryFundId = job.data.fundIds?.[0] || lpData.commitments[0]?.fundId;
+        const reportMetrics = primaryFundId
+          ? await prefetchReportMetrics(lpId, primaryFundId)
+          : null;
+
         switch (format) {
           case 'xlsx': {
             // Generate actual Excel report using xlsx library
@@ -199,7 +206,8 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
                   lpData,
                   xlsxFundId,
                   quarter,
-                  endDate.getFullYear()
+                  endDate.getFullYear(),
+                  reportMetrics ?? undefined
                 );
                 reportBuffer = await generateQuarterlyXLSX(quarterlyData);
                 break;
@@ -243,7 +251,13 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
                 const month = endDate.getMonth();
                 const quarter = `Q${Math.floor(month / 3) + 1}`;
                 const year = endDate.getFullYear();
-                const quarterlyData = buildQuarterlyReportData(lpData, fundId, quarter, year);
+                const quarterlyData = buildQuarterlyReportData(
+                  lpData,
+                  fundId,
+                  quarter,
+                  year,
+                  reportMetrics ?? undefined
+                );
                 reportBuffer = await generateQuarterlyPDF(quarterlyData);
                 break;
               }
@@ -261,7 +275,8 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
                   lpData,
                   fundId,
                   'Annual',
-                  yearEnd.getFullYear()
+                  yearEnd.getFullYear(),
+                  reportMetrics ?? undefined
                 );
                 reportBuffer = await generateQuarterlyPDF(annualData);
                 break;
