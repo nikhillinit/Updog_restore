@@ -18,11 +18,23 @@ import { backtestingService } from '../services/backtesting-service';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 import { recordHttpMetrics } from '../metrics';
 import {
+  enqueueBacktestJob,
+  getBacktestJobStatus,
+  subscribeToBacktestJob,
+  isBacktestingTerminalStatus,
+  isBacktestingQueueInitialized,
+} from '../queues/backtesting-queue';
+import {
   BacktestConfigSchema,
   ScenarioCompareRequestSchema,
   BacktestHistoryQuerySchema,
 } from '@shared/validation/backtesting-schemas';
-import type { BacktestConfig, HistoricalScenarioName } from '@shared/types/backtesting';
+import type {
+  BacktestConfig,
+  HistoricalScenarioName,
+  BacktestAsyncRunResponse,
+  BacktestJobStatusResponse,
+} from '@shared/types/backtesting';
 
 const router = Router();
 
@@ -105,6 +117,36 @@ const asyncHandler = (
   };
 };
 
+const hasFundAccess = (req: Request, fundId: number): boolean => {
+  const userFundIds = req.user?.fundIds || [];
+
+  // Empty fundIds means unrestricted access (admin/superuser pattern).
+  if (userFundIds.length === 0) {
+    return true;
+  }
+
+  return userFundIds.includes(fundId);
+};
+
+const canAccessJob = (req: Request, job: { fundId: number; requesterUserId?: string }): boolean => {
+  if (!hasFundAccess(req, job.fundId)) {
+    return false;
+  }
+
+  const userFundIds = req.user?.fundIds || [];
+  // Unrestricted users can inspect all jobs within accessible funds.
+  if (userFundIds.length === 0) {
+    return true;
+  }
+
+  // For scoped users, bind job visibility to requesting user identity.
+  if (!job.requesterUserId) {
+    return true;
+  }
+
+  return req.user?.id === job.requesterUserId || req.user?.sub === job.requesterUserId;
+};
+
 // ============================================================================
 // ROUTES
 // ============================================================================
@@ -147,8 +189,19 @@ router.post(
     const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
     const correlationId = req.headers['x-correlation-id'] as string | undefined;
 
+    if (!hasFundAccess(req, config.fundId)) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: `You do not have access to fund ${config.fundId}`,
+        correlationId,
+      });
+    }
+
     try {
-      const result = await backtestingService.runBacktest(config);
+      const result = await backtestingService.runBacktest(config, {
+        ...(correlationId ? { correlationId } : {}),
+        ...(req.user?.id ? { requesterUserId: req.user.id } : {}),
+      });
 
       res.status(200).json({
         correlationId,
@@ -163,6 +216,215 @@ router.post(
         correlationId,
       });
     }
+  })
+);
+
+/**
+ * POST /api/backtesting/run/async
+ *
+ * Queue an async backtest run and return a job handle for polling/SSE.
+ * Supports request deduplication via Idempotency-Key.
+ */
+router.post(
+  '/run/async',
+  requireAuth(),
+  monitorPerformance,
+  validateRequest(BacktestConfigSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!isBacktestingQueueInitialized()) {
+      return res.status(503).json({
+        error: 'QUEUE_UNAVAILABLE',
+        message: 'Backtesting queue is unavailable',
+      });
+    }
+
+    const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
+    const correlationId =
+      (req.headers['x-correlation-id'] as string | undefined) ?? `bt_async_${Date.now()}`;
+
+    if (!hasFundAccess(req, config.fundId)) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: `You do not have access to fund ${config.fundId}`,
+        correlationId,
+      });
+    }
+
+    const idempotencyKey =
+      (req.headers['idempotency-key'] as string | undefined) ??
+      (req.headers['x-idempotency-key'] as string | undefined);
+
+    const { jobId, estimatedWaitMs, deduplicated } = await enqueueBacktestJob({
+      config,
+      correlationId,
+      ...(req.user?.id ? { requesterUserId: req.user.id } : {}),
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+    });
+
+    const links = {
+      self: `/api/backtesting/jobs/${jobId}`,
+      poll: `/api/backtesting/jobs/${jobId}`,
+      stream: `/api/backtesting/jobs/${jobId}/stream`,
+    };
+
+    const payload: BacktestAsyncRunResponse = {
+      jobId,
+      status: 'queued',
+      stage: 'queued',
+      progressPercent: 0,
+      correlationId,
+      deduplicated,
+      estimatedWaitMs,
+      message: deduplicated
+        ? 'Request deduplicated, returning existing async job'
+        : 'Backtest job queued',
+      links,
+    };
+
+    res.setHeader('Location', links.self);
+    res.setHeader('Retry-After', '2');
+    return res.status(202).json(payload);
+  })
+);
+
+/**
+ * GET /api/backtesting/jobs/:jobId
+ *
+ * Poll async backtesting job status.
+ */
+router.get(
+  '/jobs/:jobId',
+  requireAuth(),
+  monitorPerformance,
+  asyncHandler(async (req: Request, res: Response) => {
+    const jobId = req.params['jobId'];
+    if (!jobId) {
+      return res.status(400).json({
+        error: 'INVALID_JOB_ID',
+        message: 'Job ID is required',
+      });
+    }
+
+    if (!isBacktestingQueueInitialized()) {
+      return res.status(503).json({
+        error: 'QUEUE_UNAVAILABLE',
+        message: 'Backtesting queue is unavailable',
+      });
+    }
+
+    const status = await getBacktestJobStatus(jobId);
+    if (status.status === 'unknown') {
+      return res.status(404).json({
+        error: 'JOB_NOT_FOUND',
+        message: `Backtesting job ${jobId} was not found`,
+      });
+    }
+
+    if (!canAccessJob(req, status)) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: `You do not have access to job ${jobId}`,
+      });
+    }
+
+    const terminal = isBacktestingTerminalStatus(status.status);
+    const payload: BacktestJobStatusResponse = {
+      jobId: status.jobId,
+      status: status.status,
+      stage: status.stage,
+      progressPercent: status.progressPercent,
+      updatedAt: status.updatedAt,
+      links: {
+        self: `/api/backtesting/jobs/${jobId}`,
+        poll: `/api/backtesting/jobs/${jobId}`,
+        ...(terminal ? {} : { stream: `/api/backtesting/jobs/${jobId}/stream` }),
+      },
+      ...(status.message ? { message: status.message } : {}),
+      ...(status.correlationId ? { correlationId: status.correlationId } : {}),
+      ...(status.resultRef ? { resultRef: status.resultRef } : {}),
+      ...(status.error ? { error: status.error } : {}),
+    };
+
+    if (!terminal) {
+      res.setHeader('Retry-After', '2');
+    }
+
+    return res.status(200).json(payload);
+  })
+);
+
+/**
+ * GET /api/backtesting/jobs/:jobId/stream
+ *
+ * Stream async backtesting job status updates over SSE.
+ */
+router.get(
+  '/jobs/:jobId/stream',
+  requireAuth(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const jobId = req.params['jobId'];
+    if (!jobId) {
+      return res.status(400).json({
+        error: 'INVALID_JOB_ID',
+        message: 'Job ID is required',
+      });
+    }
+
+    if (!isBacktestingQueueInitialized()) {
+      return res.status(503).json({
+        error: 'QUEUE_UNAVAILABLE',
+        message: 'Backtesting queue is unavailable',
+      });
+    }
+
+    const snapshot = await getBacktestJobStatus(jobId);
+    if (snapshot.status === 'unknown') {
+      return res.status(404).json({
+        error: 'JOB_NOT_FOUND',
+        message: `Backtesting job ${jobId} was not found`,
+      });
+    }
+
+    if (!canAccessJob(req, snapshot)) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: `You do not have access to job ${jobId}`,
+      });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    res.write(`event: connected\ndata: ${JSON.stringify({ jobId })}\n\n`);
+    res.write(`event: status\ndata: ${JSON.stringify(snapshot)}\n\n`);
+
+    const unsubscribe = subscribeToBacktestJob(jobId, {
+      onStatus: (eventSnapshot) => {
+        res.write(`event: status\ndata: ${JSON.stringify(eventSnapshot)}\n\n`);
+      },
+      onComplete: (eventSnapshot) => {
+        res.write(`event: complete\ndata: ${JSON.stringify(eventSnapshot)}\n\n`);
+        res.end();
+      },
+      onFailed: (eventSnapshot) => {
+        res.write(`event: error\ndata: ${JSON.stringify(eventSnapshot)}\n\n`);
+        res.end();
+      },
+      onTimedOut: (eventSnapshot) => {
+        res.write(`event: timeout\ndata: ${JSON.stringify(eventSnapshot)}\n\n`);
+        res.end();
+      },
+      onCancelled: (eventSnapshot) => {
+        res.write(`event: cancelled\ndata: ${JSON.stringify(eventSnapshot)}\n\n`);
+        res.end();
+      },
+    });
+
+    req.on('close', () => {
+      unsubscribe();
+    });
   })
 );
 
@@ -275,6 +537,13 @@ router.get(
         });
       }
 
+      if (!hasFundAccess(req, result.config.fundId)) {
+        return res.status(403).json({
+          error: 'FORBIDDEN',
+          message: `You do not have access to fund ${result.config.fundId}`,
+        });
+      }
+
       res.status(200).json({ result });
     } catch (error) {
       console.error('[backtesting] Get backtest result failed:', error);
@@ -319,6 +588,14 @@ router.post(
       req as Request & { validatedBody: ScenarioCompareBody }
     ).validatedBody;
     const correlationId = req.headers['x-correlation-id'] as string | undefined;
+
+    if (!hasFundAccess(req, fundId)) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: `You do not have access to fund ${fundId}`,
+        correlationId,
+      });
+    }
 
     try {
       const comparisons = await backtestingService.compareScenarios(

@@ -254,3 +254,77 @@ export interface BacktestHistoryResponse {
     hasMore: boolean;
   };
 }
+
+// =============================================================================
+// ASYNC JOB TYPES
+// =============================================================================
+
+/**
+ * Backtesting async job stages for stage-based progress reporting.
+ */
+export type BacktestingJobStage =
+  | 'queued'
+  | 'validating_input'
+  | 'simulating'
+  | 'calibrating'
+  | 'persisting';
+
+/**
+ * Terminal statuses for async backtesting jobs.
+ */
+export type BacktestingJobTerminalStatus = 'completed' | 'failed' | 'timed_out' | 'cancelled';
+
+/**
+ * Full async job status space (non-terminal + terminal).
+ */
+export type BacktestingJobStatus = BacktestingJobStage | BacktestingJobTerminalStatus;
+
+/**
+ * Canonical error classes surfaced by async backtesting jobs.
+ */
+export type BacktestingJobErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'DATA_QUALITY_LIMITATION'
+  | 'SYSTEM_EXECUTION_FAILURE';
+
+export interface BacktestingJobError {
+  code: BacktestingJobErrorCode;
+  message: string;
+  retryable: boolean;
+  details?: Record<string, unknown>;
+}
+
+export interface BacktestingJobResultRef {
+  backtestId: string;
+}
+
+export interface BacktestingJobLinks {
+  self: string;
+  poll: string;
+  stream?: string;
+}
+
+export interface BacktestAsyncRunResponse {
+  jobId: string;
+  status: BacktestingJobStatus;
+  stage: BacktestingJobStage;
+  progressPercent: number;
+  correlationId?: string;
+  deduplicated?: boolean;
+  estimatedWaitMs?: number;
+  message?: string;
+  links: BacktestingJobLinks;
+}
+
+export interface BacktestJobStatusResponse {
+  jobId: string;
+  status: BacktestingJobStatus;
+  stage: BacktestingJobStage;
+  progressPercent: number;
+  message?: string;
+  correlationId?: string;
+  resultRef?: BacktestingJobResultRef;
+  error?: BacktestingJobError;
+  updatedAt: string;
+  links: BacktestingJobLinks;
+}
