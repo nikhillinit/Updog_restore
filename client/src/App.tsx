@@ -228,146 +228,128 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
   return <Component {...(props as Record<string, unknown>)} />;
 }
 
+// ---------------------------------------------------------------------------
+// Route config arrays (order-preserving, first-match routing)
+// ---------------------------------------------------------------------------
+
+interface AppRouteEntry {
+  path: string;
+  component: React.ComponentType<Record<string, unknown>>;
+  isProtected?: boolean;
+}
+
+const APP_ROUTES: AppRouteEntry[] = [
+  { path: '/fund-setup', component: FundSetup },
+  { path: '/dashboard', component: Dashboard, isProtected: true },
+  { path: '/portfolio', component: Portfolio, isProtected: true },
+  { path: '/investments', component: Investments, isProtected: true },
+  { path: '/investments/:id', component: InvestmentDetail, isProtected: true },
+  { path: '/custom-fields', component: CustomFields, isProtected: true },
+  { path: '/investments-table', component: InvestmentsTable, isProtected: true },
+  { path: '/investments/company/:id', component: Investments, isProtected: true },
+  { path: '/cap-tables', component: CapTables, isProtected: true },
+  { path: '/kpi-manager', component: KPIManager, isProtected: true },
+  { path: '/kpi-submission', component: KPISubmission },
+  {
+    path: '/allocation-manager',
+    component: AllocationManagerPage as React.ComponentType<Record<string, unknown>>,
+  },
+  { path: '/planning', component: Planning, isProtected: true },
+  { path: '/forecasting', component: ForecastingPage, isProtected: true },
+  { path: '/scenario-builder', component: ScenarioBuilderPage, isProtected: true },
+  { path: '/reserves-demo', component: ReservesDemo, isProtected: true },
+  { path: '/moic-analysis', component: MOICAnalysisPage, isProtected: true },
+  { path: '/return-the-fund', component: ReturnTheFundPage, isProtected: true },
+  { path: '/partial-sales', component: PartialSalesPage, isProtected: true },
+  { path: '/financial-modeling', component: FinancialModeling, isProtected: true },
+  { path: '/performance', component: Performance, isProtected: true },
+  { path: '/analytics', component: Analytics, isProtected: true },
+  { path: '/portfolio-analytics', component: EnhancedPortfolioAnalytics, isProtected: true },
+  { path: '/cash-management', component: CashManagement, isProtected: true },
+  { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
+  { path: '/time-travel', component: TimeTravelPage, isProtected: true },
+  { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
+  { path: '/portfolio-constructor', component: PortfolioConstructor, isProtected: true },
+  { path: '/monte-carlo', component: MonteCarloPage, isProtected: true },
+  { path: '/secondary-market', component: SecondaryMarketPage, isProtected: true },
+  { path: '/notion-integration', component: NotionIntegrationPage, isProtected: true },
+  { path: '/dev-dashboard', component: DevDashboardPage },
+  {
+    path: '/mobile-executive-dashboard',
+    component: MobileExecutiveDashboardPage,
+    isProtected: true,
+  },
+  { path: '/reports', component: Reports, isProtected: true },
+  { path: '/pipeline', component: PipelinePage, isProtected: true },
+  { path: '/settings', component: SettingsPage, isProtected: true },
+  { path: '/help', component: HelpPage },
+  { path: '/dashboard-modern', component: ModernDashboard, isProtected: true },
+];
+
+interface LPRouteEntry {
+  path: string;
+  component: React.ComponentType;
+}
+
+const LP_ROUTES: LPRouteEntry[] = [
+  { path: '/lp/dashboard', component: LPDashboard },
+  { path: '/lp/fund-detail/:fundId', component: LPFundDetail },
+  { path: '/lp/capital-account', component: LPCapitalAccount },
+  { path: '/lp/performance', component: LPPerformance },
+  { path: '/lp/reports', component: LPReports },
+  { path: '/lp/settings', component: LPSettings },
+];
+
+function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
+  if (isProtected) {
+    return (
+      <Route key={path} path={path}>
+        {() => <ProtectedRoute component={C} />}
+      </Route>
+    );
+  }
+  return (
+    <Route key={path} path={path}>
+      {() => <C />}
+    </Route>
+  );
+}
+
+function renderLPRoute({ path, component: C }: LPRouteEntry) {
+  return (
+    <Route key={path} path={path}>
+      {() => (
+        <LPProvider>
+          <C />
+        </LPProvider>
+      )}
+    </Route>
+  );
+}
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading page...</p>
+      </div>
+    </div>
+  );
+}
+
 function Router() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex-1 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading page...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoadingFallback />}>
       <Switch>
         <Route path="/" component={HomeRoute} />
-        <Route path="/fund-setup" component={FundSetup} />
-        <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
-        <Route path="/portfolio">{() => <ProtectedRoute component={Portfolio} />}</Route>
-        <Route path="/investments">{() => <ProtectedRoute component={Investments} />}</Route>
-        <Route path="/investments/:id">
-          {() => <ProtectedRoute component={InvestmentDetail} />}
-        </Route>
-        <Route path="/custom-fields">{() => <ProtectedRoute component={CustomFields} />}</Route>
-        <Route path="/investments-table">
-          {() => <ProtectedRoute component={InvestmentsTable} />}
-        </Route>
-        <Route path="/investments/company/:id">
-          {() => <ProtectedRoute component={Investments} />}
-        </Route>
-        <Route path="/cap-tables">{() => <ProtectedRoute component={CapTables} />}</Route>
-        <Route path="/kpi-manager">{() => <ProtectedRoute component={KPIManager} />}</Route>
-        <Route path="/kpi-submission" component={KPISubmission} />
-        <Route path="/allocation-manager">{() => <AllocationManagerPage />}</Route>
-        <Route path="/planning">{() => <ProtectedRoute component={Planning} />}</Route>
-        <Route path="/forecasting">{() => <ProtectedRoute component={ForecastingPage} />}</Route>
-        <Route path="/scenario-builder">
-          {() => <ProtectedRoute component={ScenarioBuilderPage} />}
-        </Route>
-        <Route path="/reserves-demo">{() => <ProtectedRoute component={ReservesDemo} />}</Route>
-        <Route path="/moic-analysis">{() => <ProtectedRoute component={MOICAnalysisPage} />}</Route>
-        <Route path="/return-the-fund">
-          {() => <ProtectedRoute component={ReturnTheFundPage} />}
-        </Route>
-        <Route path="/partial-sales">{() => <ProtectedRoute component={PartialSalesPage} />}</Route>
-        <Route path="/financial-modeling">
-          {() => <ProtectedRoute component={FinancialModeling} />}
-        </Route>
-        <Route path="/performance">{() => <ProtectedRoute component={Performance} />}</Route>
-        <Route path="/analytics">{() => <ProtectedRoute component={Analytics} />}</Route>
-        <Route path="/portfolio-analytics">
-          {() => <ProtectedRoute component={EnhancedPortfolioAnalytics} />}
-        </Route>
-        <Route path="/cash-management">{() => <ProtectedRoute component={CashManagement} />}</Route>
-        <Route path="/sensitivity-analysis">
-          {() => <ProtectedRoute component={SensitivityAnalysisPage} />}
-        </Route>
-        <Route path="/time-travel">{() => <ProtectedRoute component={TimeTravelPage} />}</Route>
-        <Route path="/variance-tracking">
-          {() => <ProtectedRoute component={VarianceTrackingPage} />}
-        </Route>
-        <Route path="/portfolio-constructor">
-          {() => <ProtectedRoute component={PortfolioConstructor} />}
-        </Route>
-        <Route path="/monte-carlo">{() => <ProtectedRoute component={MonteCarloPage} />}</Route>
-        <Route path="/secondary-market">
-          {() => <ProtectedRoute component={SecondaryMarketPage} />}
-        </Route>
-        <Route path="/notion-integration">
-          {() => <ProtectedRoute component={NotionIntegrationPage} />}
-        </Route>
-        <Route path="/dev-dashboard" component={DevDashboardPage} />
-        <Route path="/mobile-executive-dashboard">
-          {() => <ProtectedRoute component={MobileExecutiveDashboardPage} />}
-        </Route>
-        <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
-
-        {/* New IA Routes (Codex-validated restructure) */}
-        <Route path="/pipeline">{() => <ProtectedRoute component={PipelinePage} />}</Route>
-        <Route path="/settings">{() => <ProtectedRoute component={SettingsPage} />}</Route>
-        <Route path="/help" component={HelpPage} />
-
-        {/* Modern Dashboard - primary dashboard route */}
-        <Route path="/dashboard-modern">
-          {() => <ProtectedRoute component={ModernDashboard} />}
-        </Route>
-
-        {/* Route Redirects (Codex-validated restructure) */}
-        {/* Old analytics routes → Dashboard Performance tab */}
+        {APP_ROUTES.map(renderAppRoute)}
         <Route path="/analytics-legacy">{() => <Redirect to="/dashboard?tab=performance" />}</Route>
-
-        {/* Old planning routes → Portfolio Reserve Planning */}
         <Route path="/planning-legacy">
           {() => <Redirect to="/portfolio?tab=reserve-planning" />}
         </Route>
-
-        {/* LP Sharing - No authentication required */}
         <Route path="/shared/:shareId" component={SharedDashboard} />
-        {/* LP Reporting Dashboard - Wrapped with LPProvider */}
-        <Route path="/lp/dashboard">
-          {() => (
-            <LPProvider>
-              <LPDashboard />
-            </LPProvider>
-          )}
-        </Route>
-        <Route path="/lp/fund-detail/:fundId">
-          {() => (
-            <LPProvider>
-              <LPFundDetail />
-            </LPProvider>
-          )}
-        </Route>
-        <Route path="/lp/capital-account">
-          {() => (
-            <LPProvider>
-              <LPCapitalAccount />
-            </LPProvider>
-          )}
-        </Route>
-        <Route path="/lp/performance">
-          {() => (
-            <LPProvider>
-              <LPPerformance />
-            </LPProvider>
-          )}
-        </Route>
-        <Route path="/lp/reports">
-          {() => (
-            <LPProvider>
-              <LPReports />
-            </LPProvider>
-          )}
-        </Route>
-        <Route path="/lp/settings">
-          {() => (
-            <LPProvider>
-              <LPSettings />
-            </LPProvider>
-          )}
-        </Route>
-        {/* Admin Routes - Protected by AdminRoute (no localStorage override) */}
+        {LP_ROUTES.map(renderLPRoute)}
         <Route path="/admin/ui-catalog">
           {() => (
             <AdminRoute flag="UI_CATALOG">
@@ -375,7 +357,6 @@ function Router() {
             </AdminRoute>
           )}
         </Route>
-        {/* Portal Routes - GP Access Blocked */}
         <Route path="/portal/:rest*" component={PortalAccessDenied} />
         <Route component={NotFound} />
       </Switch>

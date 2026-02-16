@@ -1,21 +1,11 @@
 # COMPLEXITY CHECKPOINT
 
-**Triggered at:** 2026-02-14 22:31:27 **Prompt excerpt:**
-pdf-generation-service.ts has a complexity score of 104. The score seems to stem
-from the use of Rea...
+**Triggered at:** 2026-02-15 23:54:18 **Prompt excerpt:** &nbsp; I'm continuing
+work on Updog_restore (VC fund modeling platform) from a previous session.
 
-## [PLANNING-WITH-FILES] Complex implementation task
+...
 
-Create before starting:
-
-```
-docs/plans/2026-02-14-<task-name>/
-  task_plan.md   - Phases and progress
-  findings.md    - Research and discoveries
-  progress.md    - Session log
-```
-
-## [CODEX CHECKPOINT] Implementation requiring architectural judgment
+## [CODEX CHECKPOINT] Multi-file change requiring coordination
 
 Per CLAUDE.md codex_checkpoint rule, Codex is REQUIRED for:
 

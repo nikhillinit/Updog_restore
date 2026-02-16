@@ -90,48 +90,64 @@ const STAGE_LABELS: Record<BacktestingJobStage, string> = {
   persisting: 'Saving results',
 };
 
+function createEmptyJobViewModel(): BacktestJobViewModel {
+  return {
+    jobId: null,
+    phase: 'idle',
+    status: null,
+    stage: null,
+    progressPercent: 0,
+    message: '',
+    isTerminal: false,
+    correlationId: null,
+    errorCode: null,
+    errorMessage: null,
+    isRetryable: false,
+    backtestId: null,
+  };
+}
+
+function getJobPhase(status: BacktestingJobStatus, isTerminal: boolean): JobPhase {
+  if (isTerminal) {
+    return status === 'completed' ? 'completed' : 'failed';
+  }
+  return status === 'queued' ? 'queued' : 'running';
+}
+
+function getJobMessage(response: BacktestJobStatusResponse): string {
+  return response.message ?? STAGE_LABELS[response.stage] ?? '';
+}
+
+function getJobErrorInfo(
+  response: BacktestJobStatusResponse
+): Pick<BacktestJobViewModel, 'errorCode' | 'errorMessage' | 'isRetryable'> {
+  return {
+    errorCode: response.error?.code ?? null,
+    errorMessage: response.error?.message ?? null,
+    isRetryable: response.error?.retryable ?? false,
+  };
+}
+
 export function toJobViewModel(
   response: BacktestJobStatusResponse | null,
   jobId: string | null
 ): BacktestJobViewModel {
   if (!response || !jobId) {
-    return {
-      jobId: null,
-      phase: 'idle',
-      status: null,
-      stage: null,
-      progressPercent: 0,
-      message: '',
-      isTerminal: false,
-      correlationId: null,
-      errorCode: null,
-      errorMessage: null,
-      isRetryable: false,
-      backtestId: null,
-    };
+    return createEmptyJobViewModel();
   }
 
   const isTerminal = TERMINAL_STATUSES.has(response.status);
-  const phase: JobPhase = isTerminal
-    ? response.status === 'completed'
-      ? 'completed'
-      : 'failed'
-    : response.status === 'queued'
-      ? 'queued'
-      : 'running';
 
   return {
     jobId: response.jobId,
-    phase,
+    phase: getJobPhase(response.status, isTerminal),
     status: response.status,
     stage: response.stage,
     progressPercent: response.progressPercent,
-    message: response.message ?? STAGE_LABELS[response.stage] ?? '',
+    message: getJobMessage(response),
     isTerminal,
     correlationId: response.correlationId ?? null,
-    errorCode: response.error?.code ?? null,
-    errorMessage: response.error?.message ?? null,
-    isRetryable: response.error?.retryable ?? false,
+    ...getJobErrorInfo(response),
     backtestId: response.resultRef?.backtestId ?? null,
   };
 }

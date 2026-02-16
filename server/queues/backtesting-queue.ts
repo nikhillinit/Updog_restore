@@ -125,6 +125,135 @@ let queue: Queue<BacktestJobData, any, string> | null = null;
 let worker: Worker<BacktestJobData, any, string> | null = null;
 let staleSweepTimer: ReturnType<typeof setInterval> | null = null;
 
+// ---------------------------------------------------------------------------
+// Worker processor helpers
+// ---------------------------------------------------------------------------
+
+function initializeJobState(
+  jobId: string,
+  config: BacktestConfig,
+  correlationId: string,
+  requesterUserId: string | undefined,
+  abortController: AbortController
+): void {
+  jobStates.set(jobId, {
+    stage: 'queued',
+    progressPercent: 0,
+    message: undefined,
+    resultRef: undefined,
+    error: undefined,
+    correlationId,
+    fundId: config.fundId,
+    requesterUserId,
+    updatedAt: new Date().toISOString(),
+    abortController,
+  });
+}
+
+function createStageUpdater(jobId: string, job: Job<BacktestJobData>) {
+  return (stage: BacktestingJobStage, progressPercent: number, message: string) => {
+    const state = jobStates.get(jobId);
+    if (!state) return;
+    state.stage = stage;
+    state.progressPercent = progressPercent;
+    state.message = message;
+    state.updatedAt = new Date().toISOString();
+    events.emitSnapshot(jobId, buildSnapshot(jobId, stage));
+    job.updateProgress(progressPercent).catch(() => {});
+  };
+}
+
+function startJobTimeout(
+  jobId: string,
+  abortController: AbortController
+): ReturnType<typeof setTimeout> {
+  return setTimeout(() => {
+    abortController.abort();
+    const state = jobStates.get(jobId);
+    if (state) {
+      state.error = {
+        code: 'SYSTEM_EXECUTION_FAILURE',
+        message: 'Job timed out',
+        retryable: false,
+      };
+      state.updatedAt = new Date().toISOString();
+    }
+    events.emitSnapshot(jobId, buildSnapshot(jobId, 'timed_out'));
+  }, JOB_TIMEOUT_MS);
+}
+
+function markJobCompleted(jobId: string, backtestId: string): void {
+  const state = jobStates.get(jobId);
+  if (state) {
+    state.stage = 'persisting';
+    state.progressPercent = 100;
+    state.resultRef = { backtestId };
+    state.updatedAt = new Date().toISOString();
+  }
+  events.emitSnapshot(jobId, buildSnapshot(jobId, 'completed'));
+}
+
+function handleJobFailure(jobId: string, err: unknown, abortController: AbortController): void {
+  const message = err instanceof Error ? err.message : 'Unknown error';
+  const isCancelled = message === 'BACKTEST_CANCELLED' || abortController.signal.aborted;
+  const errorCode: BacktestingJobErrorCode = isCancelled
+    ? 'SYSTEM_EXECUTION_FAILURE'
+    : classifyError(message);
+  const retryable = errorCode === 'SYSTEM_EXECUTION_FAILURE' && !isCancelled;
+
+  const state = jobStates.get(jobId);
+  if (state) {
+    state.error = { code: errorCode, message, retryable };
+    state.updatedAt = new Date().toISOString();
+  }
+
+  const terminalStatus: BacktestingJobTerminalStatus = isCancelled ? 'cancelled' : 'failed';
+  events.emitSnapshot(jobId, buildSnapshot(jobId, terminalStatus));
+
+  // Only throw for retryable errors (BullMQ will retry)
+  if (retryable) throw err;
+}
+
+function buildRunOptions(
+  updateState: (stage: BacktestingJobStage, pct: number, msg: string) => void,
+  abortController: AbortController,
+  correlationId: string,
+  requesterUserId: string | undefined
+) {
+  const options: Record<string, unknown> = {
+    onStageProgress: updateState,
+    signal: abortController.signal,
+  };
+  if (correlationId) options['correlationId'] = correlationId;
+  if (requesterUserId) options['requesterUserId'] = requesterUserId;
+  return options;
+}
+
+async function processBacktestJob(job: Job<BacktestJobData>): Promise<void> {
+  const { config, correlationId, requesterUserId } = job.data;
+  const jobId = job.id!;
+  const abortController = new AbortController();
+
+  initializeJobState(jobId, config, correlationId, requesterUserId, abortController);
+  const updateState = createStageUpdater(jobId, job);
+  const timeout = startJobTimeout(jobId, abortController);
+
+  try {
+    const { backtestingService } = await import('../services/backtesting-service');
+    const options = buildRunOptions(updateState, abortController, correlationId, requesterUserId);
+    const result = await backtestingService.runBacktest(config, options);
+    clearTimeout(timeout);
+    markJobCompleted(jobId, result.backtestId);
+  } catch (err) {
+    clearTimeout(timeout);
+    handleJobFailure(jobId, err, abortController);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Queue initialization
+// ---------------------------------------------------------------------------
+
 export async function initializeBacktestingQueue(redisConnection: IORedis): Promise<{
   queue: Queue<BacktestJobData>;
   close: () => Promise<void>;
@@ -140,136 +269,21 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
     defaultJobOptions: {
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 50 },
-      attempts: 2, // 1 initial + 1 retry
+      attempts: 2,
       backoff: { type: 'fixed', delay: 5000 },
     },
   });
 
-  worker = new Worker<BacktestJobData>(
-    QUEUE_NAME,
-    async (job: Job<BacktestJobData>) => {
-      const { config, correlationId, requesterUserId } = job.data;
-      const jobId = job.id!;
-      const abortController = new AbortController();
-
-      // Initialize in-memory state
-      jobStates.set(jobId, {
-        stage: 'queued',
-        progressPercent: 0,
-        message: undefined,
-        resultRef: undefined,
-        error: undefined,
-        correlationId,
-        fundId: config.fundId,
-        requesterUserId,
-        updatedAt: new Date().toISOString(),
-        abortController,
-      });
-
-      const updateState = (
-        stage: BacktestingJobStage,
-        progressPercent: number,
-        message: string
-      ) => {
-        const state = jobStates.get(jobId);
-        if (!state) return;
-        state.stage = stage;
-        state.progressPercent = progressPercent;
-        state.message = message;
-        state.updatedAt = new Date().toISOString();
-
-        const snapshot = buildSnapshot(jobId, stage);
-        events.emitSnapshot(jobId, snapshot);
-        job.updateProgress(progressPercent).catch(() => {});
-      };
-
-      // Set job-level timeout
-      const timeout = setTimeout(() => {
-        abortController.abort();
-        const state = jobStates.get(jobId);
-        if (state) {
-          state.error = {
-            code: 'SYSTEM_EXECUTION_FAILURE',
-            message: 'Job timed out',
-            retryable: false,
-          };
-          state.updatedAt = new Date().toISOString();
-        }
-        const snapshot = buildSnapshot(jobId, 'timed_out');
-        events.emitSnapshot(jobId, snapshot);
-      }, JOB_TIMEOUT_MS);
-
-      try {
-        // Lazy import to avoid circular deps
-        const { backtestingService } = await import('../services/backtesting-service');
-
-        const result = await backtestingService.runBacktest(config, {
-          onStageProgress: updateState,
-          signal: abortController.signal,
-          ...(correlationId ? { correlationId } : {}),
-          ...(requesterUserId ? { requesterUserId } : {}),
-        });
-
-        clearTimeout(timeout);
-
-        // Mark completed
-        const state = jobStates.get(jobId);
-        if (state) {
-          state.stage = 'persisting';
-          state.progressPercent = 100;
-          state.resultRef = { backtestId: result.backtestId };
-          state.updatedAt = new Date().toISOString();
-        }
-
-        const snapshot = buildSnapshot(jobId, 'completed');
-        events.emitSnapshot(jobId, snapshot);
-        return;
-      } catch (err) {
-        clearTimeout(timeout);
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const isCancelled = message === 'BACKTEST_CANCELLED' || abortController.signal.aborted;
-
-        const errorCode: BacktestingJobErrorCode = isCancelled
-          ? 'SYSTEM_EXECUTION_FAILURE'
-          : classifyError(message);
-
-        const retryable = errorCode === 'SYSTEM_EXECUTION_FAILURE' && !isCancelled;
-
-        const state = jobStates.get(jobId);
-        if (state) {
-          state.error = { code: errorCode, message, retryable };
-          state.updatedAt = new Date().toISOString();
-        }
-
-        const terminalStatus: BacktestingJobTerminalStatus = isCancelled ? 'cancelled' : 'failed';
-        const snapshot = buildSnapshot(jobId, terminalStatus);
-        events.emitSnapshot(jobId, snapshot);
-
-        // Only throw for retryable errors (BullMQ will retry)
-        if (retryable) {
-          throw err;
-        }
-        // Non-retryable: don't throw so BullMQ doesn't retry
-      }
-    },
-    {
-      connection,
-      concurrency: 2,
-      limiter: { max: 10, duration: 60000 },
-    }
-  );
-
-  worker.on('error', (err) => {
-    console.error('[backtesting-queue] Worker error:', err);
+  worker = new Worker<BacktestJobData>(QUEUE_NAME, processBacktestJob, {
+    connection,
+    concurrency: 2,
+    limiter: { max: 10, duration: 60000 },
+    autorun: true,
   });
 
-  queue.on('error', (err) => {
-    console.error('[backtesting-queue] Queue error:', err);
-  });
-
-  // Start stale-job sweeper
+  worker.on('error', (err) => console.error('[backtesting-queue] Worker error:', err));
+  queue.on('error', (err) => console.error('[backtesting-queue] Queue error:', err));
   staleSweepTimer = setInterval(() => sweepStaleJobs(), STALE_SWEEP_INTERVAL_MS);
-
   console.warn('[backtesting-queue] Initialized');
 
   const queueRef = queue;
@@ -324,47 +338,62 @@ export async function enqueueBacktestJob(opts: {
 }
 
 export async function getBacktestJobStatus(jobId: string): Promise<BacktestJobSnapshot> {
-  // Check in-memory state first
   const state = jobStates.get(jobId);
   if (state) {
-    // Determine if the BullMQ job is completed/failed
-    if (queue) {
-      const job = await queue.getJob(jobId);
-      if (job) {
-        const bullState = await job.getState();
-        if (bullState === 'completed' && state.resultRef) {
-          return buildSnapshot(jobId, 'completed');
-        }
-        if (bullState === 'failed' && state.error) {
-          return buildSnapshot(jobId, 'failed');
-        }
-      }
-    }
+    const reconciled = await reconcileWithBullState(jobId, state);
+    if (reconciled) return reconciled;
     return buildSnapshot(jobId, state.stage);
   }
 
-  // Check BullMQ directly for jobs that existed before this process
-  if (queue) {
-    const job = await queue.getJob(jobId);
-    if (job) {
-      const bullState = await job.getState();
-      const stage: BacktestingJobStage = 'queued';
-      const status: BacktestingJobStatus =
-        bullState === 'completed' ? 'completed' : bullState === 'failed' ? 'failed' : stage;
-      const snapshot: BacktestJobSnapshot = {
-        jobId,
-        status,
-        stage,
-        progressPercent: typeof job.progress === 'number' ? job.progress : 0,
-        fundId: job.data.config.fundId,
-        updatedAt: new Date().toISOString(),
-      };
-      if (job.data.requesterUserId) snapshot.requesterUserId = job.data.requesterUserId;
-      if (job.data.correlationId) snapshot.correlationId = job.data.correlationId;
-      return snapshot;
-    }
-  }
+  const bullSnapshot = await getSnapshotFromBull(jobId);
+  if (bullSnapshot) return bullSnapshot;
+  return buildUnknownSnapshot(jobId);
+}
 
+async function reconcileWithBullState(
+  jobId: string,
+  state: { resultRef: BacktestingJobResultRef | undefined; error: BacktestingJobError | undefined }
+): Promise<BacktestJobSnapshot | null> {
+  if (!queue) return null;
+  const job = await queue.getJob(jobId);
+  if (!job) return null;
+
+  const bullState = await job.getState();
+  if (bullState === 'completed' && state.resultRef) {
+    return buildSnapshot(jobId, 'completed');
+  }
+  if (bullState === 'failed' && state.error) {
+    return buildSnapshot(jobId, 'failed');
+  }
+  return null;
+}
+
+function mapBullStateToStatus(bullState: string): BacktestingJobStatus {
+  if (bullState === 'completed') return 'completed';
+  if (bullState === 'failed') return 'failed';
+  return 'queued';
+}
+
+async function getSnapshotFromBull(jobId: string): Promise<BacktestJobSnapshot | null> {
+  if (!queue) return null;
+  const job = await queue.getJob(jobId);
+  if (!job) return null;
+
+  const bullState = await job.getState();
+  const snapshot: BacktestJobSnapshot = {
+    jobId,
+    status: mapBullStateToStatus(bullState),
+    stage: 'queued',
+    progressPercent: typeof job.progress === 'number' ? job.progress : 0,
+    fundId: job.data.config.fundId,
+    updatedAt: new Date().toISOString(),
+  };
+  if (job.data.requesterUserId) snapshot.requesterUserId = job.data.requesterUserId;
+  if (job.data.correlationId) snapshot.correlationId = job.data.correlationId;
+  return snapshot;
+}
+
+function buildUnknownSnapshot(jobId: string): BacktestJobSnapshot {
   return {
     jobId,
     status: 'unknown',
