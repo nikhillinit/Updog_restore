@@ -287,6 +287,95 @@ export const BacktestHistoryQuerySchema = z
   .strict();
 
 // =============================================================================
+// ASYNC BACKTESTING JOB SCHEMAS
+// =============================================================================
+
+export const BacktestingJobStageSchema = z.enum([
+  'queued',
+  'validating_input',
+  'simulating',
+  'calibrating',
+  'persisting',
+]);
+
+export const BacktestingJobTerminalStatusSchema = z.enum([
+  'completed',
+  'failed',
+  'timed_out',
+  'cancelled',
+]);
+
+export const BacktestingJobStatusSchema = z.enum([
+  'queued',
+  'validating_input',
+  'simulating',
+  'calibrating',
+  'persisting',
+  'completed',
+  'failed',
+  'timed_out',
+  'cancelled',
+]);
+
+export const BacktestingJobErrorCodeSchema = z.enum([
+  'VALIDATION_ERROR',
+  'DATA_QUALITY_LIMITATION',
+  'SYSTEM_EXECUTION_FAILURE',
+]);
+
+export const BacktestingJobErrorSchema = z
+  .object({
+    code: BacktestingJobErrorCodeSchema,
+    message: z.string().min(1).max(500),
+    retryable: z.boolean(),
+    details: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export const BacktestingJobLinksSchema = z
+  .object({
+    self: z.string().min(1),
+    poll: z.string().min(1),
+    stream: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const BacktestingJobResultRefSchema = z
+  .object({
+    backtestId: UUID,
+  })
+  .strict();
+
+export const BacktestAsyncRunResponseSchema = z
+  .object({
+    jobId: z.string().min(1),
+    status: BacktestingJobStatusSchema,
+    stage: BacktestingJobStageSchema,
+    progressPercent: z.number().int().min(0).max(100),
+    correlationId: z.string().max(100).optional(),
+    deduplicated: z.boolean().optional(),
+    estimatedWaitMs: z.number().int().min(0).optional(),
+    message: z.string().max(500).optional(),
+    links: BacktestingJobLinksSchema,
+  })
+  .strict();
+
+export const BacktestJobStatusResponseSchema = z
+  .object({
+    jobId: z.string().min(1),
+    status: BacktestingJobStatusSchema,
+    stage: BacktestingJobStageSchema,
+    progressPercent: z.number().int().min(0).max(100),
+    message: z.string().max(500).optional(),
+    correlationId: z.string().max(100).optional(),
+    resultRef: BacktestingJobResultRefSchema.optional(),
+    error: BacktestingJobErrorSchema.optional(),
+    updatedAt: z.string().datetime(),
+    links: BacktestingJobLinksSchema,
+  })
+  .strict();
+
+// =============================================================================
 // TYPE EXPORTS
 // =============================================================================
 
@@ -303,6 +392,12 @@ export type MarketParameters = z.infer<typeof MarketParametersSchema>;
 export type BacktestMetric = z.infer<typeof BacktestMetricSchema>;
 export type HistoricalScenarioName = z.infer<typeof HistoricalScenarioNameSchema>;
 export type CalibrationStatus = z.infer<typeof CalibrationStatusSchema>;
+export type BacktestingJobStage = z.infer<typeof BacktestingJobStageSchema>;
+export type BacktestingJobTerminalStatus = z.infer<typeof BacktestingJobTerminalStatusSchema>;
+export type BacktestingJobStatus = z.infer<typeof BacktestingJobStatusSchema>;
+export type BacktestingJobErrorCode = z.infer<typeof BacktestingJobErrorCodeSchema>;
+export type BacktestAsyncRunResponse = z.infer<typeof BacktestAsyncRunResponseSchema>;
+export type BacktestJobStatusResponse = z.infer<typeof BacktestJobStatusResponseSchema>;
 
 // =============================================================================
 // VALIDATION UTILITIES

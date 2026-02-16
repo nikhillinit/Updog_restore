@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   LineChart,
   HelpCircle,
+  FlaskConical,
 } from 'lucide-react';
 
 /**
@@ -27,6 +28,7 @@ const SIMPLE_NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, path: '/portfolio' },
   { id: 'pipeline', label: 'Pipeline', icon: LineChart, path: '/pipeline' },
+  { id: 'monte-carlo', label: 'Monte Carlo', icon: FlaskConical, path: '/monte-carlo' },
   { id: 'reports', label: 'Reports', icon: FileText, path: '/reports' },
 ];
 
@@ -61,6 +63,7 @@ const FULL_NAV = [
   { id: 'time-travel', label: 'Time-Travel Analytics', icon: Clock },
   { id: 'variance-tracking', label: 'Variance Tracking', icon: AlertTriangle },
   { id: 'portfolio-constructor', label: 'Portfolio Constructor', icon: Settings },
+  { id: 'monte-carlo', label: 'Monte Carlo', icon: FlaskConical },
   { id: 'dev-dashboard', label: 'Dev Dashboard', icon: Monitor },
   { id: 'reports', label: 'Reports', icon: FileText },
   { id: 'settings', label: 'Settings', icon: Settings }, // KPI Manager, preferences, etc.
