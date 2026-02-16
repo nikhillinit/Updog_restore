@@ -27,7 +27,7 @@ import {
   scoringModels,
   pipelineActivities,
 } from '@shared/schema';
-import { eq, and, desc, lt, or, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, lt, or, sql, inArray } from 'drizzle-orm';
 import { idempotency } from '../middleware/idempotency';
 
 const router = Router();
@@ -96,6 +96,11 @@ const CreateDealSchema = z.object({
 const UpdateDealSchema = CreateDealSchema.partial();
 
 // Cursor Pagination Schema - Ref: AP-CURSOR-04 - Limit clamping required
+const SortByEnum = z
+  .enum(['updatedAt', 'companyName', 'dealSize', 'createdAt'])
+  .default('createdAt');
+const SortDirEnum = z.enum(['asc', 'desc']).default('desc');
+
 const PaginationSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -103,6 +108,8 @@ const PaginationSchema = z.object({
   priority: DealPriorityEnum.optional(),
   fundId: z.coerce.number().int().positive().optional(),
   search: z.string().max(100).optional(),
+  sortBy: SortByEnum,
+  sortDir: SortDirEnum,
 });
 
 // Stage Change Schema
@@ -239,7 +246,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
   }
 
   try {
-    const { cursor, limit, status, priority, fundId, search } = validation.data;
+    const { cursor, limit, status, priority, fundId, search, sortBy, sortDir } = validation.data;
 
     // Build filter conditions
     const conditions = [];
@@ -263,8 +270,9 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
       );
     }
 
-    // Apply cursor if provided (compound cursor: createdAt DESC, id DESC)
-    if (cursor) {
+    // Cursor pagination only works with default sort (createdAt DESC)
+    const isDefaultSort = sortBy === 'createdAt' && sortDir === 'desc';
+    if (cursor && isDefaultSort) {
       const cursorData = decodeCursor(cursor);
       if (!cursorData) {
         return res['status'](400)['json']({
@@ -283,20 +291,29 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
       );
     }
 
-    // Execute query with compound ordering
+    // Build dynamic orderBy
+    const sortFn = sortDir === 'asc' ? asc : desc;
+    const sortColumn = {
+      updatedAt: dealOpportunities.updatedAt,
+      companyName: dealOpportunities.companyName,
+      dealSize: dealOpportunities.dealSize,
+      createdAt: dealOpportunities.createdAt,
+    }[sortBy];
+
     const deals = await db
       .select()
       .from(dealOpportunities)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(dealOpportunities.createdAt), desc(dealOpportunities.id))
-      .limit(limit + 1); // Fetch one extra to determine hasMore
+      .orderBy(sortFn(sortColumn), desc(dealOpportunities.id))
+      .limit(limit + 1);
 
     // Determine pagination info
     const hasMore = deals.length > limit;
     const items = hasMore ? deals.slice(0, limit) : deals;
     const lastItem = items[items.length - 1];
+    // Only provide cursor for default sort
     const nextCursor =
-      hasMore && lastItem && lastItem.createdAt
+      hasMore && isDefaultSort && lastItem?.createdAt
         ? encodeCursor(lastItem.createdAt, lastItem.id)
         : null;
 
@@ -798,6 +815,404 @@ router['get']('/:id/diligence', async (req: Request, res: Response) => {
     return res['status'](500)['json']({
       error: 'internal_error',
       message: 'Failed to fetch due diligence items',
+    });
+  }
+});
+
+// ============================================================
+// IMPORT SCHEMAS
+// ============================================================
+
+const ImportRowSchema = z.object({
+  companyName: z.string().min(1).max(255),
+  sector: z.string().min(1).max(100),
+  stage: DealStageEnum,
+  sourceType: SourceTypeEnum,
+  dealSize: z.number().positive().optional(),
+  valuation: z.number().positive().optional(),
+  status: DealStatusEnum.optional(),
+  priority: DealPriorityEnum.optional(),
+  foundedYear: z.number().int().min(1900).max(2100).optional(),
+  employeeCount: z.number().int().positive().optional(),
+  revenue: z.number().optional(),
+  description: z.string().max(5000).optional(),
+  website: z.string().url().optional().or(z.literal('')),
+  contactName: z.string().max(255).optional(),
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  contactPhone: z.string().max(50).optional(),
+  sourceNotes: z.string().max(2000).optional(),
+  nextAction: z.string().max(500).optional(),
+});
+
+const ImportPreviewSchema = z.object({
+  rows: z.array(z.record(z.unknown())).max(1000),
+  fundId: z.number().int().positive().optional(),
+});
+
+const ImportConfirmSchema = z.object({
+  rows: z.array(ImportRowSchema).min(1).max(1000),
+  fundId: z.number().int().positive().optional(),
+  mode: z.enum(['skip_duplicates', 'import_all']).default('skip_duplicates'),
+});
+
+// ============================================================
+// IMPORT ENDPOINTS
+// ============================================================
+
+/**
+ * POST /api/deals/opportunities/import/preview
+ * Validate rows and check for duplicates. Returns summary without inserting.
+ */
+router['post']('/opportunities/import/preview', async (req: Request, res: Response) => {
+  const validation = ImportPreviewSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res['status'](400)['json']({
+      error: 'validation_error',
+      issues: validation.error.issues,
+    });
+  }
+
+  try {
+    const { rows: rawRows, fundId } = validation.data;
+    const valid: Array<{ index: number; data: z.infer<typeof ImportRowSchema> }> = [];
+    const invalid: Array<{ index: number; errors: string[] }> = [];
+
+    for (let i = 0; i < rawRows.length; i++) {
+      const result = ImportRowSchema.safeParse(rawRows[i]);
+      if (result.success) {
+        valid.push({ index: i, data: result.data });
+      } else {
+        invalid.push({
+          index: i,
+          errors: result.error.issues.map((iss) => `${iss.path.join('.')}: ${iss.message}`),
+        });
+      }
+    }
+
+    // Check for duplicates among valid rows
+    const duplicates: Array<{ index: number; existingId: number; companyName: string }> = [];
+    if (valid.length > 0) {
+      const companyNames = valid.map((v) => v.data.companyName.trim().toLowerCase());
+      const conditions = [
+        sql`LOWER(TRIM(${dealOpportunities.companyName})) IN (${sql.join(
+          companyNames.map((n) => sql`${n}`),
+          sql`, `
+        )})`,
+      ];
+      if (fundId) {
+        conditions.push(eq(dealOpportunities.fundId, fundId));
+      }
+
+      const existing = await db
+        .select({
+          id: dealOpportunities.id,
+          companyName: dealOpportunities.companyName,
+          stage: dealOpportunities.stage,
+          fundId: dealOpportunities.fundId,
+        })
+        .from(dealOpportunities)
+        .where(and(...conditions));
+
+      const existingMap = new Map(existing.map((e) => [e.companyName.trim().toLowerCase(), e]));
+
+      for (const v of valid) {
+        const key = v.data.companyName.trim().toLowerCase();
+        const match = existingMap.get(key);
+        if (match) {
+          duplicates.push({
+            index: v.index,
+            existingId: match.id,
+            companyName: v.data.companyName,
+          });
+        }
+      }
+    }
+
+    const duplicateIndices = new Set(duplicates.map((d) => d.index));
+    const toImport = valid.filter((v) => !duplicateIndices.has(v.index));
+
+    return res['json']({
+      success: true,
+      data: {
+        total: rawRows.length,
+        valid: valid.length,
+        invalid: invalid.length,
+        duplicates: duplicates.length,
+        toImport: toImport.length,
+        invalidRows: invalid,
+        duplicateRows: duplicates,
+      },
+    });
+  } catch (error) {
+    console.error('Import preview error:', error);
+    return res['status'](500)['json']({
+      error: 'internal_error',
+      message: 'Failed to preview import',
+    });
+  }
+});
+
+/**
+ * POST /api/deals/opportunities/import
+ * Bulk import validated rows. Supports skip_duplicates mode.
+ */
+router['post']('/opportunities/import', idempotency, async (req: Request, res: Response) => {
+  const validation = ImportConfirmSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res['status'](400)['json']({
+      error: 'validation_error',
+      issues: validation.error.issues,
+    });
+  }
+
+  try {
+    const { rows, fundId, mode } = validation.data;
+
+    // Build skip set for duplicates if needed
+    const skipSet = new Set<number>();
+    if (mode === 'skip_duplicates' && rows.length > 0) {
+      const companyNames = rows.map((r) => r.companyName.trim().toLowerCase());
+      const conditions = [
+        sql`LOWER(TRIM(${dealOpportunities.companyName})) IN (${sql.join(
+          companyNames.map((n) => sql`${n}`),
+          sql`, `
+        )})`,
+      ];
+      if (fundId) {
+        conditions.push(eq(dealOpportunities.fundId, fundId));
+      }
+
+      const existing = await db
+        .select({ companyName: dealOpportunities.companyName })
+        .from(dealOpportunities)
+        .where(and(...conditions));
+
+      const existingNames = new Set(existing.map((e) => e.companyName.trim().toLowerCase()));
+      rows.forEach((r, i) => {
+        if (existingNames.has(r.companyName.trim().toLowerCase())) {
+          skipSet.add(i);
+        }
+      });
+    }
+
+    let imported = 0;
+    const skipped = skipSet.size;
+    const failed: Array<{ index: number; message: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      if (skipSet.has(i)) continue;
+      const row = rows[i]!;
+      try {
+        await db.insert(dealOpportunities).values({
+          fundId: fundId ?? null,
+          companyName: row.companyName,
+          sector: row.sector,
+          stage: row.stage,
+          sourceType: row.sourceType,
+          dealSize: row.dealSize ? String(row.dealSize) : null,
+          valuation: row.valuation ? String(row.valuation) : null,
+          status: row.status ?? 'lead',
+          priority: row.priority ?? 'medium',
+          foundedYear: row.foundedYear ?? null,
+          employeeCount: row.employeeCount ?? null,
+          revenue: row.revenue ? String(row.revenue) : null,
+          description: row.description ?? null,
+          website: row.website || null,
+          contactName: row.contactName ?? null,
+          contactEmail: row.contactEmail || null,
+          contactPhone: row.contactPhone ?? null,
+          sourceNotes: row.sourceNotes ?? null,
+          nextAction: row.nextAction ?? null,
+        });
+        imported++;
+      } catch (err) {
+        failed.push({
+          index: i,
+          message: err instanceof Error ? err.message : 'Insert failed',
+        });
+      }
+    }
+
+    return res['json']({
+      success: failed.length === 0,
+      data: {
+        imported,
+        skipped,
+        failed: failed.length,
+        failedRows: failed,
+        total: rows.length,
+      },
+    });
+  } catch (error) {
+    console.error('Import error:', error);
+    return res['status'](500)['json']({
+      error: 'internal_error',
+      message: 'Failed to import deals',
+    });
+  }
+});
+
+// ============================================================
+// BULK ACTION SCHEMAS
+// ============================================================
+
+const BulkStatusSchema = z.object({
+  dealIds: z.array(z.number().int().positive()).min(1).max(100),
+  status: DealStatusEnum,
+  notes: z.string().max(1000).optional(),
+});
+
+const BulkArchiveSchema = z.object({
+  dealIds: z.array(z.number().int().positive()).min(1).max(100),
+});
+
+// ============================================================
+// BULK ACTION ENDPOINTS
+// ============================================================
+
+/**
+ * POST /api/deals/opportunities/bulk/status
+ * Bulk update deal statuses. Idempotent per dealId+status pair.
+ */
+router['post']('/opportunities/bulk/status', idempotency, async (req: Request, res: Response) => {
+  const validation = BulkStatusSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res['status'](400)['json']({
+      error: 'validation_error',
+      issues: validation.error.issues,
+    });
+  }
+
+  try {
+    const { dealIds, status, notes } = validation.data;
+    const updatedIds: number[] = [];
+    const failed: Array<{ id: number; reason: string }> = [];
+
+    // Verify all deals exist first
+    const existing = await db
+      .select({ id: dealOpportunities.id, status: dealOpportunities.status })
+      .from(dealOpportunities)
+      .where(inArray(dealOpportunities.id, dealIds));
+
+    const existingMap = new Map(existing.map((e) => [e.id, e]));
+
+    for (const dealId of dealIds) {
+      const deal = existingMap.get(dealId);
+      if (!deal) {
+        failed.push({ id: dealId, reason: 'Deal not found' });
+        continue;
+      }
+      if (deal.status === status) {
+        updatedIds.push(dealId); // Already in target status = idempotent success
+        continue;
+      }
+      try {
+        await db
+          .update(dealOpportunities)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(dealOpportunities.id, dealId));
+
+        await db.insert(pipelineActivities).values({
+          opportunityId: dealId,
+          type: 'stage_change',
+          title: `Bulk Status Change: ${deal.status} -> ${status}`,
+          description: notes ?? `Bulk status change to ${status}`,
+          completedDate: new Date(),
+        });
+
+        updatedIds.push(dealId);
+      } catch (err) {
+        failed.push({
+          id: dealId,
+          reason: err instanceof Error ? err.message : 'Update failed',
+        });
+      }
+    }
+
+    return res['json']({
+      success: failed.length === 0,
+      data: { updatedIds, failed },
+    });
+  } catch (error) {
+    console.error('Bulk status error:', error);
+    return res['status'](500)['json']({
+      error: 'internal_error',
+      message: 'Failed to bulk update statuses',
+    });
+  }
+});
+
+/**
+ * POST /api/deals/opportunities/bulk/archive
+ * Bulk archive deals (soft delete to 'passed' status). Idempotent.
+ */
+router['post']('/opportunities/bulk/archive', idempotency, async (req: Request, res: Response) => {
+  const validation = BulkArchiveSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res['status'](400)['json']({
+      error: 'validation_error',
+      issues: validation.error.issues,
+    });
+  }
+
+  try {
+    const { dealIds } = validation.data;
+    const updatedIds: number[] = [];
+    const failed: Array<{ id: number; reason: string }> = [];
+
+    const existing = await db
+      .select({
+        id: dealOpportunities.id,
+        companyName: dealOpportunities.companyName,
+        status: dealOpportunities.status,
+      })
+      .from(dealOpportunities)
+      .where(inArray(dealOpportunities.id, dealIds));
+
+    const existingMap = new Map(existing.map((e) => [e.id, e]));
+
+    for (const dealId of dealIds) {
+      const deal = existingMap.get(dealId);
+      if (!deal) {
+        failed.push({ id: dealId, reason: 'Deal not found' });
+        continue;
+      }
+      if (deal.status === 'passed') {
+        updatedIds.push(dealId); // Already archived = idempotent success
+        continue;
+      }
+      try {
+        await db
+          .update(dealOpportunities)
+          .set({ status: 'passed', updatedAt: new Date() })
+          .where(eq(dealOpportunities.id, dealId));
+
+        await db.insert(pipelineActivities).values({
+          opportunityId: dealId,
+          type: 'stage_change',
+          title: 'Bulk Archive',
+          description: `Deal "${deal.companyName}" archived via bulk action`,
+          completedDate: new Date(),
+        });
+
+        updatedIds.push(dealId);
+      } catch (err) {
+        failed.push({
+          id: dealId,
+          reason: err instanceof Error ? err.message : 'Archive failed',
+        });
+      }
+    }
+
+    return res['json']({
+      success: failed.length === 0,
+      data: { updatedIds, failed },
+    });
+  } catch (error) {
+    console.error('Bulk archive error:', error);
+    return res['status'](500)['json']({
+      error: 'internal_error',
+      message: 'Failed to bulk archive deals',
     });
   }
 });

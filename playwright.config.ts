@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */ 
+  /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
@@ -24,7 +24,7 @@ export default defineConfig({
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
     ['github'],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/junit.xml' }]
+    ['junit', { outputFile: 'test-results/junit.xml' }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
@@ -33,19 +33,19 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retry-with-trace',
-    
+
     /* Headless mode in CI */
     headless: !!process.env.CI,
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
-    
+
     /* Global timeout for each test */
     actionTimeout: 30 * 1000,
-    
+
     /* Timeout for navigation actions */
     navigationTimeout: 30 * 1000,
   },
@@ -62,7 +62,20 @@ export default defineConfig({
     // Core functionality tests
     {
       name: 'core',
-      testMatch: ['**/dashboard-functionality.spec.ts', '**/navigation-and-routing.spec.ts', '**/fund-setup-workflow.spec.ts', '**/fund-setup.spec.ts'],
+      testMatch: [
+        '**/dashboard-functionality.spec.ts',
+        '**/navigation-and-routing.spec.ts',
+        '**/fund-setup-workflow.spec.ts',
+        '**/fund-setup.spec.ts',
+      ],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke'],
+    },
+
+    // Pipeline management tests
+    {
+      name: 'pipeline',
+      testMatch: '**/pipeline-management.spec.ts',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['smoke'],
     },
@@ -95,7 +108,7 @@ export default defineConfig({
     {
       name: 'production',
       testMatch: '**/production-smoke.spec.ts',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         baseURL: process.env.PROD_URL || process.env.BASE_URL,
       },
@@ -127,13 +140,15 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: process.env.BASE_URL?.startsWith('http') ? undefined : {
-    command: `npm run build && npm run preview -- --port=${PREVIEW_PORT} --host=${HOST} --strictPort`,
-    url: PREVIEW_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: { PORT: PREVIEW_PORT },
-  },
+  webServer: process.env.BASE_URL?.startsWith('http')
+    ? undefined
+    : {
+        command: `npm run build && npm run preview -- --port=${PREVIEW_PORT} --host=${HOST} --strictPort`,
+        url: PREVIEW_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        env: { PORT: PREVIEW_PORT },
+      },
 
   /* Global timeout for the whole test suite */
   timeout: 5 * 60 * 1000, // 5 minutes

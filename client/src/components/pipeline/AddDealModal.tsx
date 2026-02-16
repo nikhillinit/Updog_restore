@@ -5,6 +5,7 @@
  * required and optional fields validated via Zod schema.
  */
 
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
@@ -33,27 +34,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, ApiError } from '@/lib/queryClient';
+import { parseMoney, parseIntSafe } from '@/utils/parse-helpers';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
-
-const MAX_MONEY_VALUE = 1e12;
-
-function parseMoney(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const num = parseFloat(value);
-  if (!Number.isFinite(num) || num <= 0 || num > MAX_MONEY_VALUE) return undefined;
-  return num;
-}
-
-function parseIntSafe(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const num = parseInt(value, 10);
-  if (!Number.isFinite(num) || num < 0) return undefined;
-  return num;
-}
+import { Loader2, AlertCircle } from 'lucide-react';
 
 interface AddDealModalProps {
   open: boolean;
@@ -90,6 +77,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -117,6 +105,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
 
   const createDealMutation = useMutation({
     mutationFn: async (data: FormValues) => {
+      setServerError(null);
       const payload = {
         ...data,
         fundId,
@@ -132,22 +121,33 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         payload
       );
     },
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       toast({
         title: 'Deal created',
-        description: 'The deal has been added to your pipeline.',
+        description: `"${variables.companyName}" has been added to your pipeline.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
       form.reset();
+      setServerError(null);
       onOpenChange(false);
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Failed to create deal',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof ApiError && error.issues) {
+        const fieldErrors = error.fieldErrors;
+        let mappedAny = false;
+        for (const [field, msg] of Object.entries(fieldErrors)) {
+          if (field in formSchema.shape) {
+            form.setError(field as keyof FormValues, { message: msg });
+            mappedAny = true;
+          }
+        }
+        if (!mappedAny) {
+          setServerError(error.message);
+        }
+      } else {
+        setServerError(error.message);
+      }
     },
   });
 
@@ -155,8 +155,17 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
     createDealMutation.mutate(data);
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && createDealMutation.isPending) return;
+    if (!nextOpen) {
+      setServerError(null);
+      form.reset();
+    }
+    onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-inter text-pov-charcoal">Add New Deal</DialogTitle>
@@ -167,6 +176,12 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {serverError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
+            )}
             {/* Company Information */}
             <div className="space-y-4">
               <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
@@ -506,7 +521,8 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
+                disabled={createDealMutation.isPending}
                 className="border-pov-beige"
               >
                 Cancel

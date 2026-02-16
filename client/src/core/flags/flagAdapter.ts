@@ -25,8 +25,10 @@ export function getInitialFlagStates(): Record<string, boolean> {
     // Foundation flags (map from ENV) - using bracket notation for type safety
     // @ts-expect-error TS4111 - bracket notation intentional for env access
     enable_new_ia: toBool(import.meta.env['VITE_NEW_IA']) ?? ALL_FLAGS.enable_new_ia.enabled,
-    // @ts-expect-error TS4111 - bracket notation intentional for env access
-    enable_kpi_selectors: toBool(import.meta.env['VITE_ENABLE_SELECTOR_KPIS']) ?? ALL_FLAGS.enable_kpi_selectors.enabled,
+    enable_kpi_selectors:
+      toBool(import.meta.env['VITE_ENABLE_SELECTOR_KPIS']) ??
+      ALL_FLAGS['enable_kpi_selectors']?.enabled ??
+      false,
     enable_cap_table_tabs: false, // Default off, enable via flag system
     enable_brand_tokens: true, // Always on (non-breaking CSS)
 
@@ -44,6 +46,7 @@ export function getInitialFlagStates(): Record<string, boolean> {
     enable_operations_hub: toBool(import.meta.env['VITE_ENABLE_OPERATIONS_HUB']) ?? false,
 
     // Polish flags
+    enable_pipeline_bulk_actions: false,
     enable_lp_reporting: toBool(import.meta.env['VITE_ENABLE_LP_REPORTING']) ?? false,
     enable_route_redirects: false, // Keep soft redirects until Phase 3
     enable_observability: false,
