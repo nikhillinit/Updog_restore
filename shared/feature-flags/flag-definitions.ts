@@ -187,6 +187,15 @@ export const POLISH_FLAGS: Record<string, FeatureFlag> = {
     dependencies: [],
   },
 
+  enable_pipeline_dnd: {
+    key: 'enable_pipeline_dnd',
+    name: 'Pipeline Drag and Drop',
+    description: 'Drag deal cards between status columns in kanban view',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_lp_reporting: {
     key: 'enable_lp_reporting',
     name: 'LP Reporting',

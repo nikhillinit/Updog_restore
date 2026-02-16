@@ -32,10 +32,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { DealCard } from '@/components/pipeline/DealCard';
+import { DraggableDealCard } from '@/components/pipeline/DraggableDealCard';
+import { DroppableColumn } from '@/components/pipeline/DroppableColumn';
 import { AddDealModal } from '@/components/pipeline/AddDealModal';
 import { ImportDealsModal } from '@/components/pipeline/ImportDealsModal';
 import { useToast } from '@/hooks/use-toast';
+import { useDealDragDrop } from '@/hooks/useDealDragDrop';
 import { apiRequest } from '@/lib/queryClient';
 import { useFeatureFlag, type FlagKey } from '@/core/flags/flagAdapter';
 import {
@@ -183,10 +187,14 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 function KanbanView({
   deals,
   onDealClick,
+  dndEnabled,
 }: {
   deals: DealOpportunity[];
   onDealClick: (deal: DealOpportunity) => void;
+  dndEnabled: boolean;
 }) {
+  const { sensors, activeDeal, handleDragStart, handleDragEnd } = useDealDragDrop();
+
   // Group deals by status
   const dealsByStatus = PIPELINE_STATUSES.reduce(
     (acc, { key }) => {
@@ -196,38 +204,36 @@ function KanbanView({
     {} as Record<string, DealOpportunity[]>
   );
 
-  return (
-    <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
-      {PIPELINE_STATUSES.map(({ key, label, color }) => {
-        const statusDeals = dealsByStatus[key] || [];
-        return (
-          <div key={key} className="min-w-[280px] w-[280px] flex-shrink-0">
-            {/* Column Header */}
-            <div className="flex items-center justify-between mb-3 px-1">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${color}`} />
-                <h3 className="font-inter font-semibold text-sm text-pov-charcoal">{label}</h3>
-              </div>
-              <Badge variant="outline" className="font-poppins text-xs">
-                {statusDeals.length}
-              </Badge>
-            </div>
+  const columns = PIPELINE_STATUSES.map(({ key, label, color }) => {
+    const statusDeals = dealsByStatus[key] || [];
+    return (
+      <DroppableColumn
+        key={key}
+        id={key}
+        label={label}
+        color={color}
+        dealCount={statusDeals.length}
+      >
+        {statusDeals.map((deal) =>
+          dndEnabled ? (
+            <DraggableDealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
+          ) : (
+            <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
+          )
+        )}
+      </DroppableColumn>
+    );
+  });
 
-            {/* Deals Column */}
-            <div className="space-y-3">
-              {statusDeals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
-              ))}
-              {statusDeals.length === 0 && (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
-                  <p className="font-poppins text-xs text-gray-400">No deals</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+  if (!dndEnabled) {
+    return <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">{columns}</div>;
+  }
+
+  return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">{columns}</div>
+      <DragOverlay>{activeDeal ? <DealCard deal={activeDeal} /> : null}</DragOverlay>
+    </DndContext>
   );
 }
 
@@ -449,6 +455,9 @@ export default function PipelinePage() {
     setFilter('status', '');
     setFilter('priority', '');
   };
+
+  // DnD (behind feature flag)
+  const dndEnabled = useFeatureFlag('enable_pipeline_dnd' as FlagKey);
 
   // Bulk selection (behind feature flag)
   const bulkEnabled = useFeatureFlag('enable_pipeline_bulk_actions' as FlagKey);
@@ -735,7 +744,7 @@ export default function PipelinePage() {
         ) : (
           <>
             {viewMode === 'kanban' ? (
-              <KanbanView deals={deals} onDealClick={handleDealClick} />
+              <KanbanView deals={deals} onDealClick={handleDealClick} dndEnabled={dndEnabled} />
             ) : (
               <ListView
                 deals={deals}
