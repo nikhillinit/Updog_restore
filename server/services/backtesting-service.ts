@@ -45,6 +45,7 @@ import type {
   DataQualityResult,
   CalibrationStatus,
   MarketParameters,
+  BacktestingJobStage,
 } from '@shared/types/backtesting';
 
 // ============================================================================
@@ -55,20 +56,64 @@ export class BacktestingService {
   private readonly MAX_HISTORY_PER_FUND = 100;
   private readonly STALE_BASELINE_DAYS = 90;
 
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      throw new Error('BACKTEST_CANCELLED');
+    }
+  }
+
+  private emitStageProgress(
+    callback:
+      | ((stage: BacktestingJobStage, progressPercent: number, message: string) => void)
+      | undefined,
+    stage: BacktestingJobStage,
+    progressPercent: number,
+    message: string
+  ): void {
+    if (callback) {
+      callback(stage, progressPercent, message);
+    }
+  }
+
   /**
    * Run a Monte Carlo backtest against historical fund performance
    */
-  async runBacktest(config: BacktestConfig): Promise<BacktestResult> {
+  async runBacktest(
+    config: BacktestConfig,
+    options: {
+      onStageProgress?: (
+        stage: BacktestingJobStage,
+        progressPercent: number,
+        message: string
+      ) => void;
+      signal?: AbortSignal;
+      correlationId?: string;
+      requesterUserId?: string;
+    } = {}
+  ): Promise<BacktestResult> {
     const startTime = Date.now();
     const backtestId = uuidv4();
+    const { onStageProgress, signal, correlationId, requesterUserId } = options;
+
+    this.throwIfAborted(signal);
+    this.emitStageProgress(onStageProgress, 'validating_input', 10, 'Validating input and sources');
 
     // Run Monte Carlo simulation
+    this.emitStageProgress(onStageProgress, 'simulating', 45, 'Running Monte Carlo simulation');
+    this.throwIfAborted(signal);
     const simulationResult = await this.runSimulation(config);
 
     // Extract simulation summary
     const simulationSummary = this.extractSimulationSummary(simulationResult, config);
 
     // Get actual fund performance from database
+    this.emitStageProgress(
+      onStageProgress,
+      'calibrating',
+      70,
+      'Calibrating against historical performance'
+    );
+    this.throwIfAborted(signal);
     const actualPerformance = await this.getActualPerformance(
       config.fundId,
       config.endDate,
@@ -89,6 +134,7 @@ export class BacktestingService {
     // Run scenario comparisons if requested
     let scenarioComparisons: ScenarioComparison[] | undefined;
     if (config.includeHistoricalScenarios && config.historicalScenarios?.length) {
+      this.throwIfAborted(signal);
       scenarioComparisons = await this.runScenarioComparisons(
         config.fundId,
         config.historicalScenarios,
@@ -120,7 +166,12 @@ export class BacktestingService {
     };
 
     // Persist to database
-    await this.persistBacktestResult(result);
+    this.emitStageProgress(onStageProgress, 'persisting', 90, 'Persisting result');
+    this.throwIfAborted(signal);
+    await this.persistBacktestResult(result, {
+      ...(correlationId ? { correlationId } : {}),
+      ...(requesterUserId ? { requesterUserId } : {}),
+    });
 
     return result;
   }
@@ -752,7 +803,16 @@ export class BacktestingService {
     return recommendations;
   }
 
-  private async persistBacktestResult(result: BacktestResult): Promise<void> {
+  private async persistBacktestResult(
+    result: BacktestResult,
+    options: { correlationId?: string; requesterUserId?: string } = {}
+  ): Promise<void> {
+    const numericCreatedBy = options.requesterUserId
+      ? Number.parseInt(options.requesterUserId, 10)
+      : Number.NaN;
+    const hasValidCreatedBy = Number.isFinite(numericCreatedBy) && numericCreatedBy > 0;
+    const tags = options.correlationId ? [`correlation:${options.correlationId}`] : [];
+
     const insertData: InsertBacktestResultRecord = {
       fundId: result.config.fundId,
       config: result.config,
@@ -794,6 +854,8 @@ export class BacktestingService {
       status: 'completed',
       baselineId: result.config.baselineId,
       snapshotId: result.config.snapshotId,
+      ...(hasValidCreatedBy ? { createdBy: numericCreatedBy } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
     };
 
     await db.insert(backtestResults).values(insertData);
