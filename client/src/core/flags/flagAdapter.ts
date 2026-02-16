@@ -47,6 +47,7 @@ export function getInitialFlagStates(): Record<string, boolean> {
 
     // Polish flags
     enable_pipeline_bulk_actions: false,
+    enable_pipeline_dnd: false,
     enable_lp_reporting: toBool(import.meta.env['VITE_ENABLE_LP_REPORTING']) ?? false,
     enable_route_redirects: false, // Keep soft redirects until Phase 3
     enable_observability: false,
