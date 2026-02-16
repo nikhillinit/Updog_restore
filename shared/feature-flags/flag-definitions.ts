@@ -178,6 +178,15 @@ export const BUILD_FLAGS: Record<string, FeatureFlag> = {
 // ============================================================================
 
 export const POLISH_FLAGS: Record<string, FeatureFlag> = {
+  enable_pipeline_bulk_actions: {
+    key: 'enable_pipeline_bulk_actions',
+    name: 'Pipeline Bulk Actions',
+    description: 'Selection + bulk status change and archive on pipeline page',
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: [],
+  },
+
   enable_lp_reporting: {
     key: 'enable_lp_reporting',
     name: 'LP Reporting',
@@ -234,7 +243,7 @@ export function isFlagEnabled(flagKey: FlagKey, flagStates: Record<string, boole
 
   // Check dependencies first
   if (flag.dependencies) {
-    const allDepsEnabled = flag.dependencies.every(dep => flagStates[dep] === true);
+    const allDepsEnabled = flag.dependencies.every((dep) => flagStates[dep] === true);
     if (!allDepsEnabled) {
       return false;
     }
@@ -271,7 +280,7 @@ export function shouldEnableForUser(
 
   // Simple hash-based distribution
   const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return (hash % 100) < flag.rolloutPercentage;
+  return hash % 100 < flag.rolloutPercentage;
 }
 
 /**
@@ -287,7 +296,7 @@ export function validateFlagConfiguration(): { valid: boolean; errors: string[] 
     }
 
     // Check that dependencies exist
-    flag.dependencies?.forEach(dep => {
+    flag.dependencies?.forEach((dep) => {
       if (!ALL_FLAGS[dep as FlagKey]) {
         errors.push(`Flag ${key} depends on non-existent flag ${dep}`);
       }

@@ -1,6 +1,42 @@
 import type { QueryFunction } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/react-query';
 
+/**
+ * Structured API error that preserves server response details.
+ * Carries status code, error key, and Zod validation issues when present.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly errorCode: string | undefined;
+  readonly issues: Array<{ path: (string | number)[]; message: string }> | undefined;
+
+  constructor(
+    status: number,
+    message: string,
+    errorCode?: string,
+    issues?: Array<{ path: (string | number)[]; message: string }>
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.errorCode = errorCode;
+    this.issues = issues;
+  }
+
+  /** Map Zod issues to { fieldName: errorMessage } for form integration */
+  get fieldErrors(): Record<string, string> {
+    if (!this.issues) return {};
+    const errors: Record<string, string> = {};
+    for (const issue of this.issues) {
+      const field = issue.path.join('.');
+      if (field && !errors[field]) {
+        errors[field] = issue.message;
+      }
+    }
+    return errors;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -36,12 +72,15 @@ export async function apiRequest<TResponse = unknown>(
   const response = await fetch(url, options);
 
   if (!response.ok) {
-    // Type-safe error extraction
-    type ApiError = { message?: string; error?: string };
-    const errorData = (await response.json().catch(() => ({}) as ApiError)) as ApiError;
+    type ErrorBody = {
+      message?: string;
+      error?: string;
+      issues?: Array<{ path: (string | number)[]; message: string }>;
+    };
+    const errorData = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
     const errorMessage =
       errorData.message || errorData.error || `API request failed: ${response.statusText}`;
-    throw new Error(errorMessage);
+    throw new ApiError(response.status, errorMessage, errorData.error, errorData.issues);
   }
 
   return response.json() as Promise<TResponse>;
