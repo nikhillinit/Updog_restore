@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   toJobViewModel,
   toResultViewModel,
+  toRenderableMetric,
+  classifyErrorTier,
+  ERROR_TIER_MESSAGES,
   type RenderableDistribution,
   type RenderableMetricState,
 } from '../../client/src/types/backtesting-ui';
@@ -259,5 +262,74 @@ describe('toResultViewModel: metric-state semantics', () => {
 
     const vm = toResultViewModel(result);
     expect(vm.scenarioComparisons).toEqual([]);
+  });
+});
+
+describe('toRenderableMetric', () => {
+  it('returns ready state for finite value', () => {
+    const state = toRenderableMetric(0.15, 'irr', []);
+    expect(state).toEqual({ status: 'ready', value: 0.15 });
+  });
+
+  it('returns insufficient_data when metric is in incalculable list', () => {
+    const state = toRenderableMetric(0.15, 'irr', ['irr']);
+    expect(state.status).toBe('insufficient_data');
+    if (state.status === 'insufficient_data') {
+      expect(state.reason).toContain('irr');
+    }
+  });
+
+  it('returns unavailable for null value', () => {
+    const state = toRenderableMetric(null, 'tvpi', []);
+    expect(state.status).toBe('unavailable');
+  });
+
+  it('returns unavailable for undefined value', () => {
+    const state = toRenderableMetric(undefined, 'dpi', []);
+    expect(state.status).toBe('unavailable');
+  });
+
+  it('returns unavailable for NaN', () => {
+    const state = toRenderableMetric(Number.NaN, 'irr', []);
+    expect(state.status).toBe('unavailable');
+  });
+
+  it('returns unavailable for Infinity', () => {
+    const state = toRenderableMetric(Number.POSITIVE_INFINITY, 'tvpi', []);
+    expect(state.status).toBe('unavailable');
+  });
+
+  it('prioritizes incalculable over invalid value', () => {
+    const state = toRenderableMetric(null, 'irr', ['irr']);
+    expect(state.status).toBe('insufficient_data');
+  });
+});
+
+describe('classifyErrorTier', () => {
+  it('maps VALIDATION_ERROR to user_fixable', () => {
+    expect(classifyErrorTier('VALIDATION_ERROR')).toBe('user_fixable');
+  });
+
+  it('maps DATA_QUALITY_LIMITATION to data_quality', () => {
+    expect(classifyErrorTier('DATA_QUALITY_LIMITATION')).toBe('data_quality');
+  });
+
+  it('maps SYSTEM_EXECUTION_FAILURE to system_error', () => {
+    expect(classifyErrorTier('SYSTEM_EXECUTION_FAILURE')).toBe('system_error');
+  });
+
+  it('defaults null to system_error', () => {
+    expect(classifyErrorTier(null)).toBe('system_error');
+  });
+});
+
+describe('ERROR_TIER_MESSAGES', () => {
+  it('provides title and guidance for each tier', () => {
+    const tiers = ['user_fixable', 'data_quality', 'system_error'] as const;
+    for (const tier of tiers) {
+      const msg = ERROR_TIER_MESSAGES[tier];
+      expect(msg.title).toBeTruthy();
+      expect(msg.guidance).toBeTruthy();
+    }
   });
 });
