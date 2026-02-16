@@ -75,7 +75,7 @@ export interface BacktestJobViewModel {
   backtestId: string | null;
 }
 
-const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+const TERMINAL_STATUSES: ReadonlySet<BacktestingJobStatus> = new Set([
   'completed',
   'failed',
   'timed_out',
@@ -90,24 +90,29 @@ const STAGE_LABELS: Record<BacktestingJobStage, string> = {
   persisting: 'Saving results',
 };
 
+const EMPTY_JOB_STATE: Omit<BacktestJobViewModel, 'jobId'> = {
+  phase: 'idle',
+  status: null,
+  stage: null,
+  progressPercent: 0,
+  message: '',
+  isTerminal: false,
+  correlationId: null,
+  errorCode: null,
+  errorMessage: null,
+  isRetryable: false,
+  backtestId: null,
+};
+
 function createEmptyJobViewModel(): BacktestJobViewModel {
   return {
     jobId: null,
-    phase: 'idle',
-    status: null,
-    stage: null,
-    progressPercent: 0,
-    message: '',
-    isTerminal: false,
-    correlationId: null,
-    errorCode: null,
-    errorMessage: null,
-    isRetryable: false,
-    backtestId: null,
+    ...EMPTY_JOB_STATE,
   };
 }
 
-function getJobPhase(status: BacktestingJobStatus, isTerminal: boolean): JobPhase {
+function getJobPhase(status: BacktestingJobStatus): JobPhase {
+  const isTerminal = TERMINAL_STATUSES.has(status);
   if (isTerminal) {
     return status === 'completed' ? 'completed' : 'failed';
   }
@@ -136,16 +141,14 @@ export function toJobViewModel(
     return createEmptyJobViewModel();
   }
 
-  const isTerminal = TERMINAL_STATUSES.has(response.status);
-
   return {
     jobId: response.jobId,
-    phase: getJobPhase(response.status, isTerminal),
+    phase: getJobPhase(response.status),
     status: response.status,
     stage: response.stage,
     progressPercent: response.progressPercent,
     message: getJobMessage(response),
-    isTerminal,
+    isTerminal: TERMINAL_STATUSES.has(response.status),
     correlationId: response.correlationId ?? null,
     ...getJobErrorInfo(response),
     backtestId: response.resultRef?.backtestId ?? null,
@@ -188,41 +191,47 @@ const METRIC_LABELS: Record<BacktestMetric, string> = {
   totalValue: 'Total Value',
 };
 
+function createRenderableDistribution(
+  metric: BacktestMetric,
+  result: BacktestResult,
+  incalculableMetrics: BacktestMetric[]
+): RenderableDistribution | null {
+  const dist = result.simulationSummary.metrics[metric];
+  if (!dist) return null;
+
+  // Validate all distribution values are finite
+  const values = [
+    dist.mean,
+    dist.median,
+    dist.p5,
+    dist.p25,
+    dist.p75,
+    dist.p95,
+    dist.min,
+    dist.max,
+    dist.standardDeviation,
+  ];
+  if (values.some((v) => !Number.isFinite(v))) return null;
+
+  const actualValue = result.actualPerformance[
+    metric as keyof typeof result.actualPerformance
+  ] as number | null;
+
+  return {
+    metric,
+    label: METRIC_LABELS[metric] ?? metric,
+    distribution: dist,
+    actual: toRenderableMetric(actualValue, metric, incalculableMetrics),
+    hitP50: result.validationMetrics.percentileHitRates.p50[metric] ?? null,
+    hitP90: result.validationMetrics.percentileHitRates.p90[metric] ?? null,
+  };
+}
+
 export function toResultViewModel(result: BacktestResult): BacktestResultViewModel {
   const incalculable = result.validationMetrics.incalculableMetrics;
 
   const distributions: RenderableDistribution[] = result.config.comparisonMetrics
-    .map((metric): RenderableDistribution | null => {
-      const dist = result.simulationSummary.metrics[metric];
-      if (!dist) return null;
-
-      // Validate all distribution values are finite
-      const values = [
-        dist.mean,
-        dist.median,
-        dist.p5,
-        dist.p25,
-        dist.p75,
-        dist.p95,
-        dist.min,
-        dist.max,
-        dist.standardDeviation,
-      ];
-      if (values.some((v) => !Number.isFinite(v))) return null;
-
-      const actualValue = result.actualPerformance[
-        metric as keyof typeof result.actualPerformance
-      ] as number | null;
-
-      return {
-        metric,
-        label: METRIC_LABELS[metric] ?? metric,
-        distribution: dist,
-        actual: toRenderableMetric(actualValue, metric, incalculable),
-        hitP50: result.validationMetrics.percentileHitRates.p50[metric] ?? null,
-        hitP90: result.validationMetrics.percentileHitRates.p90[metric] ?? null,
-      };
-    })
+    .map((metric) => createRenderableDistribution(metric, result, incalculable))
     .filter((d): d is RenderableDistribution => d !== null);
 
   return {
