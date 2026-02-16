@@ -1,19 +1,18 @@
 # SESSION CONTEXT
 
-**Generated:** 2026-02-14 22:14:41
+**Generated:** 2026-02-15 23:49:24
 
 ## Git Status
 
-- **Branch:** feat/p1-financial-accuracy
-- **Changes:** 0 staged, 2 unstaged, 1 untracked
+- **Branch:** feat/p3-monte-carlo-frontend
+- **Changes:** 0 staged, 7 unstaged, 2 untracked
 
 ### Recent commits
 
-- 982d8580 fix(reports): replace 7 hardcoded placeholders in LP reports with
-  real data
-- d4ae922d docs: add priority planning roadmap (#506)
-- 97485d97 fix(pipeline): harden CSV import, numeric validation, and
-  accessibility (#505)
+- 64bd8151 feat(monte-carlo): add backtesting queue, hooks, page, and
+  visualization components (#P3)
+- 55ad1d74 Merge branch 'main' of https://github.com/nikhillinit/Updog_restore
+- a1c66c5f feat(wizard): migrate Step 3 CapitalStructureStep to fundStore (#511)
 
 ## Available Assets
 
