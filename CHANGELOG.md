@@ -17,6 +17,37 @@ and this project adheres to
 
 ### Added
 
+- **P5: CI Guardrail Ratchets for Console and eslint-disable Debt** (2026-02-17)
+  - Added `scripts/guardrails/console-ratchet.mjs` (baseline: 374 disallowed
+    calls)
+  - Added `scripts/guardrails/eslint-disable-ratchet.mjs` (baseline: 132
+    file-level disables)
+  - Wired into `npm run lint` via `guardrails:check` -- new code cannot increase
+    debt
+  - Added `@quarantine` JSDoc headers to 19/20 test files with skip directives
+
+### Changed
+
+- **P5: Legacy Feature Flag System Removal** (2026-02-17)
+  - Deleted `client/src/lib/feature-flags.ts` (284 lines, zero production
+    consumers)
+  - Modern `unifiedClientFlags.ts` provides full parity including userId rollout
+    and kill-switch polling
+  - ESLint `no-restricted-imports` blocks new imports from deprecated path
+  - Removed 9 `console.log` calls from `modeling-wizard.machine.ts`
+  - Dev-gated vitals initialization log, fixed emoji in rollout-runtime.ts
+    emergency warning
+  - Added `server/examples/**` to ESLint ignores (94 calls outside production
+    path)
+
+### Removed
+
+- **Dead Code Cleanup** (2026-02-17)
+  - Deleted `WalkingSkeleton.tsx` and `WalkingSkeleton.test.tsx` (dead feature
+    flag target)
+  - Removed `console.debug` from `safeCalculateSimpleIRR` catch path (silent
+    failure preferred)
+
 - **Dependabot Major Version Analysis Framework** (2026-01-19)
   - Analyzed 9 dependabot PRs using Codex CLI collaboration
   - Applied inversion thinking ("what could go wrong?") methodology
@@ -34,7 +65,8 @@ and this project adheres to
 ### Removed
 
 - **Unused UI Component Cleanup** (2026-01-19)
-  - Removed `client/src/components/ui/resizable.tsx` (shadcn scaffold, never used)
+  - Removed `client/src/components/ui/resizable.tsx` (shadcn scaffold, never
+    used)
   - Removed `react-resizable-panels` dependency
   - Discovery via Codex analysis: component had zero imports in codebase
 
@@ -69,19 +101,23 @@ and this project adheres to
 ### Changed
 
 - **Reflection System Consolidation** (2026-01-18)
-  - Consolidated duplicate reflection systems into single `docs/skills/` location
+  - Consolidated duplicate reflection systems into single `docs/skills/`
+    location
   - Removed legacy `tools/reflection/` directory (was portable scaffold)
-  - Resolved ID collision: REFL-001/002 existed in both locations with different content
+  - Resolved ID collision: REFL-001/002 existed in both locations with different
+    content
   - SKILLS_INDEX.md now shows 18 reflections (single source of truth)
   - Updated vitest.config.ts to remove legacy test include pattern
   - See `docs/plans/reflection-consolidation-plan.md` for Codex-Claude analysis
 
 - **Reflection System Phase 1 Stabilization** (2026-01-18)
-  - Fixed CWD dependency in `scripts/manage_skills.py` using `git rev-parse --show-toplevel`
+  - Fixed CWD dependency in `scripts/manage_skills.py` using
+    `git rev-parse --show-toplevel`
   - Script now works from any directory in the repository
   - Added Related Documentation section to `docs/skills/README.md`
   - Added cross-link footer to auto-generated `SKILLS_INDEX.md`
-  - Fixed path regression: links now use relative filenames, paths are repo-relative
+  - Fixed path regression: links now use relative filenames, paths are
+    repo-relative
   - Forensic documentation added in `docs/planning/reflection-remediation/`
 
 - **Advanced Cohort Analysis** (2026-01-04)

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Environment variable parsing
- 
- 
- 
- 
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -11,21 +6,34 @@ const envSchema = z.object({
   REDIS_URL: z.string().url().optional().describe('Redis connection string for BullMQ'),
   PORT: z.coerce.number().int().positive().default(5000).describe('Server port'),
   SESSION_SECRET: z.string().min(32).optional().describe('Session secret for authentication'),
-  
+
   // Observability
   ENABLE_METRICS: z.coerce.boolean().default(true).describe('Enable Prometheus metrics'),
   METRICS_PORT: z.coerce.number().int().positive().default(9090).describe('Metrics server port'),
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info').describe('Winston log level'),
-  
+  LOG_LEVEL: z
+    .enum(['error', 'warn', 'info', 'debug'])
+    .default('info')
+    .describe('Winston log level'),
+
   // Feature flags for managed services (Terraform integration)
   USE_MANAGED_PG: z.coerce.boolean().default(false).describe('Use managed PostgreSQL service'),
   USE_CONFLUENT: z.coerce.boolean().default(false).describe('Use Confluent Kafka'),
   USE_PINECONE: z.coerce.boolean().default(false).describe('Use Pinecone vector database'),
-  
+
   // Security
   CORS_ORIGIN: z.string().optional().describe('CORS allowed origins'),
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000).describe('Rate limit window in ms'),
-  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100).describe('Max requests per window'),
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(900000)
+    .describe('Rate limit window in ms'),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(100)
+    .describe('Max requests per window'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -39,7 +47,7 @@ export function validateEnv(): Env {
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('❌ Environment validation failed:');
-      error.errors.forEach((err: any) => {
+      error.errors.forEach((err: z.ZodIssue) => {
         console.error(`  ${err.path.join('.')}: ${err.message}`);
         if (err.code === 'invalid_type' && err.received === 'undefined') {
           const field = envSchema.shape[err.path[0]! as keyof typeof envSchema.shape];

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Distributed tracing types
- 
- 
- 
- 
 /**
  * Distributed tracing utilities for deployment and operational monitoring
  */
@@ -19,7 +14,7 @@ export interface TraceSpan {
     timestamp: number;
     message: string;
     level: 'info' | 'warn' | 'error' | 'debug';
-    fields?: Record<string, any>;
+    fields?: Record<string, unknown>;
   }>;
   status: 'active' | 'completed' | 'failed';
 }
@@ -32,7 +27,11 @@ class TracingService {
     return crypto.randomUUID();
   }
 
-  startSpan(operationName: string, parentId?: string, tags: Record<string, any> = {}): TraceSpan {
+  startSpan(
+    operationName: string,
+    parentId?: string,
+    tags: Record<string, unknown> = {}
+  ): TraceSpan {
     const span: TraceSpan = {
       id: this.generateSpanId(),
       ...(parentId && { parentId }),
@@ -40,18 +39,22 @@ class TracingService {
       startTime: Date.now(),
       tags: this.sanitizeTags(tags),
       logs: [],
-      status: 'active'
+      status: 'active',
     };
 
     this.spans['set'](span.id, span);
     this.activeSpans.add(span.id);
 
     this.log(span.id, 'info', `Started ${operationName}`, { spanId: span.id, parentId });
-    
+
     return span;
   }
 
-  finishSpan(spanId: string, status: 'completed' | 'failed' = 'completed', finalTags: Record<string, any> = {}) {
+  finishSpan(
+    spanId: string,
+    status: 'completed' | 'failed' = 'completed',
+    finalTags: Record<string, unknown> = {}
+  ) {
     const span = this.spans['get'](spanId);
     if (!span) {
       console.warn(`Attempted to finish unknown span: ${spanId}`);
@@ -61,20 +64,25 @@ class TracingService {
     span.endTime = Date.now();
     span.duration = span.endTime - span.startTime;
     span.status = status;
-    
+
     // Add final tags
     Object.assign(span.tags, this.sanitizeTags(finalTags));
 
     this.activeSpans.delete(spanId);
-    this.log(spanId, 'info', `Finished ${span.operationName}`, { 
+    this.log(spanId, 'info', `Finished ${span.operationName}`, {
       duration: span.duration,
-      status 
+      status,
     });
 
     return span;
   }
 
-  log(spanId: string, level: TraceSpan['logs'][0]['level'], message: string, fields?: Record<string, any>) {
+  log(
+    spanId: string,
+    level: TraceSpan['logs'][0]['level'],
+    message: string,
+    fields?: Record<string, unknown>
+  ) {
     const span = this.spans['get'](spanId);
     if (!span) return;
 
@@ -82,15 +90,16 @@ class TracingService {
       timestamp: Date.now(),
       message,
       level,
-      ...(fields && { fields })
+      ...(fields && { fields }),
     });
 
     // Also log to console for immediate visibility
-    const logMethod = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+    const logMethod =
+      level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
     logMethod(`[${span.operationName}:${spanId.slice(0, 8)}] ${message}`, fields || '');
   }
 
-  addTags(spanId: string, tags: Record<string, any>) {
+  addTags(spanId: string, tags: Record<string, unknown>) {
     const span = this.spans['get'](spanId);
     if (!span) return;
 
@@ -102,7 +111,9 @@ class TracingService {
   }
 
   getActiveSpans(): TraceSpan[] {
-    return Array.from(this.activeSpans).map(id => this.spans['get'](id)!).filter(Boolean);
+    return Array.from(this.activeSpans)
+      .map((id) => this.spans['get'](id)!)
+      .filter(Boolean);
   }
 
   getAllSpans(): TraceSpan[] {
@@ -132,17 +143,17 @@ class TracingService {
     };
 
     collectSpans(rootSpanId);
-    return trace.sort((a: any, b: any) => a.startTime - b.startTime);
+    return trace.sort((a: TraceSpan, b: TraceSpan) => a.startTime - b.startTime);
   }
 
   // Export trace data in OpenTelemetry format
   exportTrace(rootSpanId: string) {
     const trace = this.getTrace(rootSpanId);
-    const rootSpan = trace.find(s => s.id === rootSpanId);
-    
+    const rootSpan = trace.find((s) => s.id === rootSpanId);
+
     return {
       traceId: rootSpanId,
-      spans: trace.map(span => ({
+      spans: trace.map((span) => ({
         spanId: span.id,
         parentSpanId: span.parentId,
         operationName: span.operationName,
@@ -151,15 +162,16 @@ class TracingService {
         duration: span.duration,
         tags: span.tags,
         logs: span.logs,
-        status: span.status
+        status: span.status,
       })),
       duration: rootSpan ? (rootSpan.endTime || Date.now()) - rootSpan.startTime : 0,
-      startTime: rootSpan?.startTime || Date.now()
+      startTime: rootSpan?.startTime || Date.now(),
     };
   }
 
   // Clean up completed spans older than retention period
-  cleanup(retentionMs: number = 24 * 60 * 60 * 1000) { // 24 hours default
+  cleanup(retentionMs: number = 24 * 60 * 60 * 1000) {
+    // 24 hours default
     const cutoff = Date.now() - retentionMs;
     let cleaned = 0;
 
@@ -175,9 +187,9 @@ class TracingService {
     }
   }
 
-  private sanitizeTags(tags: Record<string, any>): Record<string, string | number | boolean> {
+  private sanitizeTags(tags: Record<string, unknown>): Record<string, string | number | boolean> {
     const sanitized: Record<string, string | number | boolean> = {};
-    
+
     for (const [key, value] of Object.entries(tags)) {
       if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         sanitized[key] = value;
@@ -185,7 +197,7 @@ class TracingService {
         sanitized[key] = String(value);
       }
     }
-    
+
     return sanitized;
   }
 }
@@ -201,7 +213,7 @@ export class DeploymentTracer {
     this.rootSpanId = tracer.startSpan('deployment', undefined, {
       deploymentId,
       version,
-      component: 'deployment-orchestrator'
+      component: 'deployment-orchestrator',
     }).id;
   }
 
@@ -210,13 +222,13 @@ export class DeploymentTracer {
       stage: stageName,
       percentage,
       plannedDuration: duration,
-      phase: 'deployment'
+      phase: 'deployment',
     });
   }
 
   startPreflight() {
     return tracer.startSpan('deployment.preflight', this.rootSpanId, {
-      phase: 'preflight'
+      phase: 'preflight',
     });
   }
 
@@ -224,21 +236,21 @@ export class DeploymentTracer {
     return tracer.startSpan('deployment.health_check', this.rootSpanId, {
       target,
       checkType,
-      phase: 'monitoring'
+      phase: 'monitoring',
     });
   }
 
   startRollback(reason: string) {
     return tracer.startSpan('deployment.rollback', this.rootSpanId, {
       reason,
-      phase: 'rollback'
+      phase: 'rollback',
     });
   }
 
-  finishDeployment(status: 'success' | 'failed', metadata: Record<string, any> = {}) {
+  finishDeployment(status: 'success' | 'failed', metadata: Record<string, unknown> = {}) {
     tracer.finishSpan(this.rootSpanId, status === 'success' ? 'completed' : 'failed', {
       deploymentStatus: status,
-      ...metadata
+      ...metadata,
     });
   }
 
@@ -252,6 +264,9 @@ export class DeploymentTracer {
 }
 
 // Auto-cleanup every hour
-setInterval(() => {
-  tracer.cleanup();
-}, 60 * 60 * 1000);
+setInterval(
+  () => {
+    tracer.cleanup();
+  },
+  60 * 60 * 1000
+);

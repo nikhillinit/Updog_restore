@@ -7,11 +7,11 @@
  * 3. Conservation of capital validation
  * 4. Improved calculation formulas
  *
- * @quarantine env-gated — 4 tests skipped
+ * @quarantine partial -- 1 of 21 tests skipped
  * @owner bug-fixes
- * @reason All 4 require live Redis + PostgreSQL or live calculation engine (integration environment)
- * @exitCriteria Set up integration test environment with Redis/PostgreSQL; or convert to mock-based unit tests
- * @skipCount 4
+ * @reason 3 of 4 integration tests converted to mock-based; backward compat test returns 0 allocations with empty stageStrategies
+ * @exitCriteria Fix engine to produce allocations when stageStrategies is empty, or adjust test input
+ * @skipCount 1
  * @addedDate 2026-02-17
  */
 
@@ -27,6 +27,7 @@ import {
   ConservationError,
 } from '@shared/validation/conservation';
 import type { ReserveAllocationInput, PortfolioCompany } from '@shared/schemas/reserves-schemas';
+import { LiquidityEngine } from '@/core/LiquidityEngine';
 
 describe('Phase 3: Critical Bug Fixes', () => {
   describe('1. Division by Zero Fixes', () => {
@@ -225,17 +226,33 @@ describe('Phase 3: Critical Bug Fixes', () => {
       expect(sequence1).toEqual(sequence2);
     });
 
-    // @group integration
-    // FIXME: Requires live Redis and PostgreSQL for Monte Carlo simulations
-    // Skip until integration test environment is available
-    it.skip('should integrate correctly with MonteCarloEngine', () => {
+    it('should integrate correctly with MonteCarloEngine', () => {
       const engine1 = new MonteCarloEngine(12345);
       const engine2 = new MonteCarloEngine(12345);
 
-      // Both engines should produce identical results with same seed
-      // (This would require running actual simulations, which is tested in integration tests)
-      expect(engine1).toBeDefined();
-      expect(engine2).toBeDefined();
+      // Access internal PRNG to verify determinism without requiring DB-backed simulation
+      const prng1 = engine1['prng'] as PRNG;
+      const prng2 = engine2['prng'] as PRNG;
+
+      // Both engines with the same seed must produce identical PRNG sequences
+      const sequence1 = Array.from({ length: 50 }, () => prng1.next());
+      const sequence2 = Array.from({ length: 50 }, () => prng2.next());
+      expect(sequence1).toEqual(sequence2);
+
+      // Normal distribution draws must also be deterministic
+      prng1.reset(12345);
+      prng2.reset(12345);
+      const normals1 = Array.from({ length: 50 }, () => prng1.nextNormal(100, 15));
+      const normals2 = Array.from({ length: 50 }, () => prng2.nextNormal(100, 15));
+      expect(normals1).toEqual(normals2);
+
+      // Different seeds must diverge
+      const engine3 = new MonteCarloEngine(99999);
+      const prng3 = engine3['prng'] as PRNG;
+      prng1.reset(12345);
+      const seq1 = Array.from({ length: 50 }, () => prng1.next());
+      const seq3 = Array.from({ length: 50 }, () => prng3.next());
+      expect(seq1).not.toEqual(seq3);
     });
   });
 
@@ -293,10 +310,7 @@ describe('Phase 3: Critical Bug Fixes', () => {
       expect(result.totalOutput).toBe(10000000);
     });
 
-    // @group integration
-    // FIXME: Requires live Redis and PostgreSQL for reserve engine integrations
-    // Skip until integration test environment is available
-    it.skip('should integrate conservation check into DeterministicReserveEngine', async () => {
+    it('should integrate conservation check into DeterministicReserveEngine', async () => {
       const engine = new DeterministicReserveEngine();
 
       const input: ReserveAllocationInput = {
@@ -415,29 +429,26 @@ describe('Phase 3: Critical Bug Fixes', () => {
       expect(result.conservationOk).toBe(true);
     });
 
-    // @group integration - Requires live calculation engine
-    it.skip('should use risk-based cash buffer calculation', () => {
-      const { LiquidityEngine } = require('../../../client/src/core/LiquidityEngine');
-
-      // Small fund
+    it('should use risk-based cash buffer calculation', () => {
+      // Small fund: buffer rate 2.5% + 1% operational/deployment = 3.5% > 2%
       const smallEngine = new LiquidityEngine('fund-1', 40_000_000);
       const smallBuffer = smallEngine['calculateMinimumCashBuffer']();
-      expect(smallBuffer / 40_000_000).toBeGreaterThan(0.02); // >2% for small funds
+      expect(smallBuffer / 40_000_000).toBeGreaterThan(0.02);
 
-      // Large fund
+      // Large fund: buffer rate 0.8% + 1% operational/deployment = 1.8% < 2%
       const largeEngine = new LiquidityEngine('fund-2', 600_000_000);
       const largeBuffer = largeEngine['calculateMinimumCashBuffer']();
-      expect(largeBuffer / 600_000_000).toBeLessThan(0.02); // <2% for large funds
+      expect(largeBuffer / 600_000_000).toBeLessThan(0.02);
 
-      // Minimum absolute floor
+      // Minimum absolute floor: Math.max(35K, 100K) = $100K
       const tinyEngine = new LiquidityEngine('fund-3', 1_000_000);
       const tinyBuffer = tinyEngine['calculateMinimumCashBuffer']();
-      expect(tinyBuffer).toBeGreaterThanOrEqual(100_000); // $100k minimum
+      expect(tinyBuffer).toBeGreaterThanOrEqual(100_000);
     });
   });
 
   describe('5. Regression Tests', () => {
-    // @group integration - Requires live engine verification
+    // Engine returns 0 allocations for this input — stageStrategies[] empty triggers no-op path
     it.skip('should maintain backward compatibility with existing calculations', async () => {
       const engine = new DeterministicReserveEngine();
 

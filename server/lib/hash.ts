@@ -1,15 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Generic hashing utilities
- 
- 
- 
- 
 import crypto from 'node:crypto';
 
 export function stableStringify(obj: unknown): string {
   if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-    const keys = Object.keys(obj as any).sort();
-    const o: any = {};
-    for (const k of keys) o[k] = (obj as any)[k];
+    const rec = obj as Record<string, unknown>;
+    const keys = Object.keys(rec).sort();
+    const o: Record<string, unknown> = {};
+    for (const k of keys) o[k] = rec[k];
     return JSON.stringify(o);
   }
   return JSON.stringify(obj);
