@@ -35,7 +35,7 @@ let pool: unknown;
 if (isTest) {
   // Import the database mock for testing
   const mockModule = isVitest
-    ? require('../tests/helpers/database-mock')
+    ? await import('../tests/helpers/database-mock')
     : require('../tests/helpers/database-mock.cjs');
   const { databaseMock } = mockModule as {
     databaseMock: NodePgDatabase<CombinedSchema>;
