@@ -449,8 +449,82 @@ class DatabaseMock {
   /**
    * Mock the execute method (raw SQL)
    */
-  execute = vi.fn(async (query: string, params?: unknown[]): Promise<MockExecuteResult> => {
-    const normalizedQuery = query.toLowerCase().trim();
+  execute = vi.fn(async (query: unknown, params?: unknown[]): Promise<MockExecuteResult> => {
+    let queryStr: string | undefined;
+    let queryParams = params || [];
+
+    if (typeof query === 'string') {
+      queryStr = query;
+    } else if (query && typeof query === 'object') {
+      const maybeSql = query as {
+        sql?: unknown;
+        text?: unknown;
+        values?: unknown;
+        queryChunks?: unknown;
+        toQuery?: (cfg: {
+          casing?: unknown;
+          escapeName: (name: string) => string;
+          escapeParam: (num: number, value: unknown) => string;
+          escapeString: (str: string) => string;
+          prepareTyping: () => 'none';
+          inlineParams: boolean;
+          paramStartIndex: { value: number };
+        }) => { sql?: unknown; params?: unknown };
+        toString?: () => string;
+      };
+
+      if (typeof maybeSql.sql === 'string') {
+        queryStr = maybeSql.sql;
+      } else if (typeof maybeSql.text === 'string') {
+        queryStr = maybeSql.text;
+        if (queryParams.length === 0 && Array.isArray(maybeSql.values)) {
+          queryParams = maybeSql.values;
+        }
+      } else if (typeof maybeSql.toQuery === 'function') {
+        try {
+          const compiled = maybeSql.toQuery({
+            casing: undefined,
+            escapeName: (name: string) => `"${name.replace(/"/g, '""')}"`,
+            escapeParam: (num: number) => `$${num + 1}`,
+            escapeString: (str: string) => `'${str.replace(/'/g, "''")}'`,
+            prepareTyping: () => 'none',
+            inlineParams: false,
+            paramStartIndex: { value: 0 },
+          });
+          if (compiled && typeof compiled.sql === 'string') {
+            queryStr = compiled.sql;
+            if (queryParams.length === 0 && Array.isArray(compiled.params)) {
+              queryParams = compiled.params;
+            }
+          }
+        } catch {
+          // Fall through to additional extraction strategies below.
+        }
+      }
+
+      if ((!queryStr || queryStr === '[object Object]') && Array.isArray(maybeSql.queryChunks)) {
+        queryStr = maybeSql.queryChunks
+          .map((chunk: unknown) => {
+            if (typeof chunk === 'string') return chunk;
+            if (chunk && typeof chunk === 'object') {
+              const value = (chunk as { value?: unknown }).value;
+              if (Array.isArray(value)) return value.join('');
+            }
+            return '';
+          })
+          .join('');
+      }
+
+      if ((!queryStr || queryStr === '[object Object]') && typeof maybeSql.toString === 'function') {
+        queryStr = maybeSql.toString();
+      }
+    }
+
+    if (!queryStr || queryStr === '[object Object]') {
+      throw new Error('DatabaseMock received unsupported query format');
+    }
+
+    const normalizedQuery = queryStr.toLowerCase().trim();
 
     let result: MockExecuteResult = [];
 
@@ -461,12 +535,12 @@ class DatabaseMock {
 
       const insertedRow = {
         id,
-        ...this.parseInsertValues(query, params || []),
+        ...this.parseInsertValues(queryStr, queryParams),
       };
 
       // Validate constraints before inserting
       const existingData = this.mockData.get(tableName) || [];
-      this.validateConstraints(tableName, insertedRow, params || [], existingData);
+      this.validateConstraints(tableName, insertedRow, queryParams, existingData);
 
       // Add to mock data
       if (!this.mockData.has(tableName)) {
@@ -532,8 +606,8 @@ class DatabaseMock {
     // Record the call
     this.callHistory.push({
       method: 'execute',
-      query,
-      params,
+      query: queryStr,
+      params: queryParams,
       result: JSON.parse(JSON.stringify(result)),
     });
 
