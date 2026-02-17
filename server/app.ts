@@ -87,6 +87,9 @@ export function makeApp() {
     next();
   });
 
+  const rateLimitWindowMs = Number(process.env['RATE_LIMIT_WINDOW_MS'] || '60000');
+  const rateLimitMax = Number(process.env['RATE_LIMIT_MAX'] || '60');
+
   // Content-Type validation for mutations
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
@@ -109,7 +112,7 @@ export function makeApp() {
     res['setHeader']('x-request-id', reqWithId.rid);
     next();
   });
-  app.use(rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true }));
+  app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
 
   // API Documentation
   app.use(

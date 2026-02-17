@@ -122,6 +122,7 @@ jobs:
           export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test"
           export REDIS_URL="redis://localhost:6379"
           export NODE_ENV="development"
+          export RATE_LIMIT_MAX="100000"
           export JWT_SECRET="ci-perf-test-jwt-secret-minimum-32-characters-required"
           npm run dev:api > api.log 2>&1 &
           npx -y wait-on http://localhost:5000/healthz --httpTimeout 90000 --timeout 180000 || { echo "API failed to start"; tail -n 200 api.log; exit 1; }

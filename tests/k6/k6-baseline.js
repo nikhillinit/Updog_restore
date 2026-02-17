@@ -157,21 +157,64 @@ function pollOperation(location, maxPolls = 30) {
 export function calc() {
   const start = Date.now();
 
-  const payload = JSON.stringify({ fundSize: FUND_SIZE });
-  const res = http.post(`${BASE_URL}/api/funds/calculate`, payload, { headers: headers() });
+  const payload = JSON.stringify({
+    availableReserves: FUND_SIZE,
+    companies: [
+      {
+        id: 'k6-seed-1',
+        name: 'SeedCo',
+        stage: 'seed',
+        invested: Math.floor(FUND_SIZE * 0.15),
+        ownership: 0.12,
+      },
+      {
+        id: 'k6-series-a-1',
+        name: 'SeriesACo',
+        stage: 'series_a',
+        invested: Math.floor(FUND_SIZE * 0.25),
+        ownership: 0.1,
+      },
+      {
+        id: 'k6-preseed-1',
+        name: 'PreseedCo',
+        stage: 'preseed',
+        invested: Math.floor(FUND_SIZE * 0.1),
+        ownership: 0.18,
+      },
+    ],
+    stagePolicies: [
+      { stage: 'preseed', reserveMultiple: 3, weight: 1 },
+      { stage: 'seed', reserveMultiple: 2.5, weight: 1.2 },
+      { stage: 'series_a', reserveMultiple: 2, weight: 1.4 },
+    ],
+    constraints: {
+      minCheck: Math.max(Math.floor(FUND_SIZE * 0.001), 1),
+      maxPerCompany: Math.floor(FUND_SIZE * 0.5),
+      discountRateAnnual: 0.12,
+    },
+  });
+  const res = http.post(`${BASE_URL}/api/v1/reserves/calculate`, payload, { headers: headers() });
 
   const accepted = res.status === 202 && !!res.headers.Location;
-  const ok202 = check(res, {
-    'calculate 202': () => accepted,
+  const immediateOk = res.status === 200;
+  check(res, {
+    'calculate 200/202': () => immediateOk || accepted,
   });
 
   let success = false;
   if (accepted) {
     const loc = res.headers.Location;
     success = pollOperation(loc);
-  } else if (res.status === 200) {
-    // Some environments may return immediate 200
-    success = true;
+  } else if (immediateOk) {
+    try {
+      const data = res.json();
+      const hasAllocations = Array.isArray(data.allocations);
+      const hasNumbers = Number.isFinite(data.totalAllocated) && Number.isFinite(data.remaining);
+      const conservationOk = hasNumbers && Math.abs(FUND_SIZE - (data.totalAllocated + data.remaining)) < 0.01;
+      success = hasAllocations && hasNumbers && conservationOk;
+    } catch (_) {
+      success = false;
+    }
   }
 
   calcE2E.add(Date.now() - start);
