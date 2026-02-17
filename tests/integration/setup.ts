@@ -27,7 +27,22 @@ const normalizedBaseUrl =
       ? rawBaseUrl
       : `http://${rawBaseUrl}`
     : '';
-const effectiveBaseUrl = normalizedBaseUrl || `http://localhost:${process.env.PORT}`;
+
+function isInvalidExternalBaseUrl(url: string): boolean {
+  if (!url) return true;
+  try {
+    const parsed = new URL(url);
+    // Port 0 is only valid as a bind hint, not as a client target.
+    return parsed.port === '0';
+  } catch {
+    return true;
+  }
+}
+
+const hasExternalBaseUrl = normalizedBaseUrl !== '' && !isInvalidExternalBaseUrl(normalizedBaseUrl);
+const effectiveBaseUrl = hasExternalBaseUrl
+  ? normalizedBaseUrl
+  : `http://localhost:${process.env.PORT}`;
 process.env.BASE_URL = effectiveBaseUrl;
 
 let serverProcess: ChildProcess | null = null;
@@ -55,7 +70,7 @@ beforeAll(async () => {
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
   const healthUrl = new URL('/healthz', baseUrl).toString();
 
-  if (normalizedBaseUrl) {
+  if (hasExternalBaseUrl) {
     const isReady = await waitForServer(healthUrl, 30000);
     if (!isReady) {
       throw new Error(`Server failed to start within 30 seconds. Check ${healthUrl}`);
