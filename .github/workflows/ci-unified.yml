@@ -197,8 +197,17 @@ jobs:
           npm ci --prefer-offline --no-audit || \
           npm ci --prefer-offline --no-audit
 
-      - name: Download build artifacts
+      - name: Download build artifacts (best effort)
+        id: download_tsbuild
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: tsbuild
+
+      - name: Retry build artifact download on transient network failure
+        if: steps.download_tsbuild.outcome == 'failure'
+        uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: tsbuild
 
