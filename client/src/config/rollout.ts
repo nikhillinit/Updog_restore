@@ -40,21 +40,39 @@ function stableUserId(): string {
       // Try crypto.randomUUID() first, fallback for older browsers
       if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         id = crypto.randomUUID();
+      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        // Fallback UUID v4 generation using crypto.getRandomValues for older browsers
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        // Per RFC 4122 section 4.4
+        bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+        const hex: string[] = [];
+        for (let i = 0; i < bytes.length; i++) {
+          hex.push(bytes[i].toString(16).padStart(2, '0'));
+        }
+        id = [
+          hex.slice(0, 4).join(''),
+          hex.slice(4, 6).join(''),
+          hex.slice(6, 8).join(''),
+          hex.slice(8, 10).join(''),
+          hex.slice(10, 16).join(''),
+        ].join('-');
       } else {
-        // Fallback UUID v4 generation for older browsers
-        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c: any) => {
-          const r = Math.random() * 16 | 0;
-          const v = c === 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
+        // Last-resort fallback without crypto: time-based identifier
+        const now = Date.now().toString(16);
+        const randLike = (typeof performance !== 'undefined' ? performance.now() : 0).toString(16);
+        id = `fallback-${now}-${randLike}`;
       }
       localStorage.setItem(KEY, id);
     }
     return id;
-  } catch (e) {
+  } catch {
     // Fallback for environments without localStorage/crypto
     console.warn('Unable to create stable user ID, using session fallback');
-    return `session-${  Math.random().toString(36).substring(2, 15)}`;
+    const now = Date.now().toString(36);
+    const extra = (typeof performance !== 'undefined' ? performance.now() : 0).toString(36);
+    return `session-${now}-${extra}`;
   }
 }
 
@@ -141,4 +159,3 @@ if ((import.meta as any).env?.NODE_ENV === 'development') {
     };
   }
 }
-
