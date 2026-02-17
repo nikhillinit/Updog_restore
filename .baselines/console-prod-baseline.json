@@ -1,0 +1,31 @@
+{
+  "total": 374,
+  "byMethod": {
+    "log": 332,
+    "debug": 28,
+    "info": 9,
+    "table": 3,
+    "group": 1,
+    "groupEnd": 1
+  },
+  "generatedAt": "2026-02-17T03:10:08.177Z",
+  "scope": [
+    "client/src/**/*.{ts,tsx,js}",
+    "server/**/*.{ts,tsx,js}",
+    "shared/**/*.{ts,tsx,js}"
+  ],
+  "ignore": [
+    "**/node_modules/**",
+    "client/src/debug/**",
+    "server/examples/**",
+    "**/*.d.ts"
+  ],
+  "disallowedMethods": [
+    "log",
+    "debug",
+    "info",
+    "table",
+    "group",
+    "groupEnd"
+  ]
+}

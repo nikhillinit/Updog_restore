@@ -64,8 +64,15 @@ const opsPolls = new Trend('ops_polls');
 const pollWait = new Trend('ops_poll_wait_ms');
 const calcFailed = new Rate('calc_failed');
 
-function headers(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra };
+function headers(extra) {
+  const h = { 'Content-Type': 'application/json' };
+
+  if (extra && typeof extra === 'object') {
+    for (const key of Object.keys(extra)) {
+      h[key] = extra[key];
+    }
+  }
+
   return h;
 }
 
