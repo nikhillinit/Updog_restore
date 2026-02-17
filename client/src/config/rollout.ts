@@ -29,6 +29,75 @@ function fnv1a(str: string): number {
 }
 
 /**
+ * Get cryptographically secure random bytes using Web Crypto API.
+ */
+function getSecureRandomBytes(length: number): Uint8Array {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return bytes;
+  }
+  throw new Error('Secure randomness not available');
+}
+
+/**
+ * Generate UUID v4 using cryptographically secure randomness.
+ */
+function secureUuidV4Fallback(): string {
+  const bytes = getSecureRandomBytes(16);
+  // Per RFC 4122 section 4.4
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10xx
+
+  const hex: string[] = [];
+  for (let i = 0; i < bytes.length; i++) {
+    hex.push(bytes[i].toString(16).padStart(2, '0'));
+  }
+
+  return (
+    hex[0] +
+    hex[1] +
+    hex[2] +
+    hex[3] +
+    '-' +
+    hex[4] +
+    hex[5] +
+    '-' +
+    hex[6] +
+    hex[7] +
+    '-' +
+    hex[8] +
+    hex[9] +
+    '-' +
+    hex[10] +
+    hex[11] +
+    hex[12] +
+    hex[13] +
+    hex[14] +
+    hex[15]
+  );
+}
+
+/**
+ * Generate a session identifier suffix without Math.random().
+ */
+function secureSessionIdSuffix(): string {
+  try {
+    const bytes = getSecureRandomBytes(9); // 72 bits of entropy
+    const hex: string[] = [];
+    for (let i = 0; i < bytes.length; i++) {
+      hex.push(bytes[i].toString(16).padStart(2, '0'));
+    }
+    return hex.join('');
+  } catch {
+    // Last-resort fallback for environments without crypto APIs
+    const now = Date.now().toString(36);
+    const extra = (typeof performance !== 'undefined' ? performance.now() : 0).toString(36);
+    return `${now}-${extra}`;
+  }
+}
+
+/**
  * Get or create a stable user ID for consistent bucketing
  * Stored in localStorage, persists across sessions
  */
@@ -40,29 +109,9 @@ function stableUserId(): string {
       // Try crypto.randomUUID() first, fallback for older browsers
       if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         id = crypto.randomUUID();
-      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-        // Fallback UUID v4 generation using crypto.getRandomValues for older browsers
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        // Per RFC 4122 section 4.4
-        bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
-        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
-        const hex: string[] = [];
-        for (let i = 0; i < bytes.length; i++) {
-          hex.push(bytes[i].toString(16).padStart(2, '0'));
-        }
-        id = [
-          hex.slice(0, 4).join(''),
-          hex.slice(4, 6).join(''),
-          hex.slice(6, 8).join(''),
-          hex.slice(8, 10).join(''),
-          hex.slice(10, 16).join(''),
-        ].join('-');
       } else {
-        // Last-resort fallback without crypto: time-based identifier
-        const now = Date.now().toString(16);
-        const randLike = (typeof performance !== 'undefined' ? performance.now() : 0).toString(16);
-        id = `fallback-${now}-${randLike}`;
+        // Fallback UUID v4 generation for older browsers using secure randomness
+        id = secureUuidV4Fallback();
       }
       localStorage.setItem(KEY, id);
     }
@@ -70,9 +119,7 @@ function stableUserId(): string {
   } catch {
     // Fallback for environments without localStorage/crypto
     console.warn('Unable to create stable user ID, using session fallback');
-    const now = Date.now().toString(36);
-    const extra = (typeof performance !== 'undefined' ? performance.now() : 0).toString(36);
-    return `session-${now}-${extra}`;
+    return `session-${secureSessionIdSuffix()}`;
   }
 }
 
