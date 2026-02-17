@@ -3,6 +3,13 @@
  *
  * Comprehensive unit tests for ML-powered predictive analytics functionality
  * Tests time-series analysis, regression models, and pattern recognition
+ *
+ * @quarantine keep-quarantined -- 4 tests skipped
+ * @owner ml-analytics
+ * @reason Multiple implementation gaps: (1) seasonality detection needs Fourier/autocorrelation, (2) Drizzle SQL mock mismatch, (3) schema table name misalignment, (4) model accuracy far below threshold
+ * @exitCriteria Implement Fourier-based seasonality, align Drizzle mocks with actual SQL objects, fix schema references, tune prediction models
+ * @skipCount 4
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

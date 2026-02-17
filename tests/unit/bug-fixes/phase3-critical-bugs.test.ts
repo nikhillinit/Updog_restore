@@ -6,6 +6,13 @@
  * 2. Local PRNG implementation
  * 3. Conservation of capital validation
  * 4. Improved calculation formulas
+ *
+ * @quarantine env-gated — 4 tests skipped
+ * @owner bug-fixes
+ * @reason All 4 require live Redis + PostgreSQL or live calculation engine (integration environment)
+ * @exitCriteria Set up integration test environment with Redis/PostgreSQL; or convert to mock-based unit tests
+ * @skipCount 4
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

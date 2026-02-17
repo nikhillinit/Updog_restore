@@ -3,7 +3,7 @@
  * Uses lazy loading to keep bundle size small
  */
 
-import { isEnabled } from '@/lib/feature-flags';
+import { isUnifiedFlagEnabled } from '@/core/flags/unifiedClientFlags';
 import { metrics } from '@/metrics/reserves-metrics';
 import type { ReservesOutput, Company } from '@shared/types/reserves-v11';
 
@@ -343,7 +343,7 @@ async function exportToJSON(data: ExportData, options: ExportOptions): Promise<v
  */
 export async function exportReserves(data: ExportData, options: ExportOptions): Promise<void> {
   // Check if async export is enabled
-  if (!isEnabled('export_async')) {
+  if (!isUnifiedFlagEnabled('export_async')) {
     throw new Error('Async export is not enabled');
   }
 

@@ -362,14 +362,7 @@ export function safeCalculateXIRR(
 export function safeCalculateSimpleIRR(cashFlows: number[], config?: XIRRConfig): number | null {
   try {
     return calculateSimpleIRR(cashFlows, config);
-  } catch (err) {
-    // Log for debugging but don't block UI
-    if (typeof console !== 'undefined') {
-      console.debug(
-        '[safeCalculateSimpleIRR] Calculation failed:',
-        err instanceof Error ? err.message : err
-      );
-    }
+  } catch {
     return null;
   }
 }

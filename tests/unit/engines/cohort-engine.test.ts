@@ -1,6 +1,13 @@
 /**
  * CohortEngine Test Suite
  * Comprehensive tests for vintage year cohort analysis
+ *
+ * @quarantine partial -- 2 of 37 tests skipped
+ * @owner fund-modeling
+ * @reason (1) Valuation generation produces unrealistic MOIC/stage distributions, (2) avgMultiple test passes in isolation but fails under full suite (shared state)
+ * @exitCriteria Fix generateCompanyValuations() for realistic values; fix test isolation for avgMultiple comparison
+ * @skipCount 2
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect } from 'vitest';
@@ -233,7 +240,7 @@ describe('compareCohorts', () => {
     expect(comparison.comparison.avgIRR).toBeCloseTo(manualAvgIRR, 4);
   });
 
-  // @group integration - Requires live cohort data
+  // Passes in isolation, fails under full suite (test ordering/shared state)
   it.skip('should calculate average Multiple across cohorts', () => {
     const cohorts = [
       createCohortInput({ vintageYear: 2020 }),

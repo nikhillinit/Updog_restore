@@ -1,3 +1,11 @@
+/**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -8,20 +16,19 @@ import { FundProvider } from '../client/src/contexts/FundContext';
 import type { Waterfall } from '@shared/types';
 
 // Test wrapper for components
-const createTestQueryClient = () => new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-    mutations: { retry: false },
-  },
-});
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   const queryClient = createTestQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <FundProvider>
-        {children}
-      </FundProvider>
+      <FundProvider>{children}</FundProvider>
     </QueryClientProvider>
   );
 };
@@ -38,7 +45,7 @@ describe.skip('Conditional Field Visibility', () => {
       // Look for evergreen toggle and fund life field
       const evergreenToggle = screen.queryByLabelText(/ever-green fund/i);
       const fundLifeField = screen.queryByLabelText(/fund life.*years/i);
-      
+
       // Fund life should be visible when evergreen is off (default)
       expect(fundLifeField).toBeInTheDocument();
       expect(evergreenToggle).toBeInTheDocument();
@@ -87,15 +94,13 @@ describe.skip('Conditional Field Visibility', () => {
         catchUp: 0.08,
         carryVesting: {
           cliffYears: 0,
-          vestingYears: 4
-        }
+          vestingYears: 4,
+        },
       };
 
       const mockOnChange = () => {};
 
-      render(
-        <WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />
-      );
+      render(<WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />);
 
       // European waterfall should show financial terms
       expect(screen.getAllByText(/hurdle rate/i).length).toBeGreaterThan(0);
@@ -109,15 +114,13 @@ describe.skip('Conditional Field Visibility', () => {
         catchUp: 0.08,
         carryVesting: {
           cliffYears: 0,
-          vestingYears: 4
-        }
+          vestingYears: 4,
+        },
       };
 
       const mockOnChange = () => {};
 
-      render(
-        <WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />
-      );
+      render(<WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />);
 
       // American waterfall should NOT show financial terms card
       expect(screen.queryByText(/hurdle rate/i)).not.toBeInTheDocument();
@@ -131,8 +134,8 @@ describe.skip('Conditional Field Visibility', () => {
         catchUp: 0.08,
         carryVesting: {
           cliffYears: 0,
-          vestingYears: 4
-        }
+          vestingYears: 4,
+        },
       };
 
       let currentData = mockWaterfallData;
@@ -140,9 +143,7 @@ describe.skip('Conditional Field Visibility', () => {
         currentData = newData;
       };
 
-      const { rerender } = render(
-        <WaterfallStep data={currentData} onChange={mockOnChange} />
-      );
+      const { rerender } = render(<WaterfallStep data={currentData} onChange={mockOnChange} />);
 
       // Initially American - no financial terms
       expect(screen.queryByText(/hurdle rate/i)).not.toBeInTheDocument();
@@ -153,9 +154,7 @@ describe.skip('Conditional Field Visibility', () => {
 
       // Update the data and rerender
       currentData = { ...currentData, type: 'european' };
-      rerender(
-        <WaterfallStep data={currentData} onChange={mockOnChange} />
-      );
+      rerender(<WaterfallStep data={currentData} onChange={mockOnChange} />);
 
       // Now should show financial terms
       expect(screen.getAllByText(/hurdle rate/i).length).toBeGreaterThan(0);
@@ -207,22 +206,22 @@ describe.skip('Form Validation Tests', () => {
     it('should show error when catch-up rate is less than hurdle rate', () => {
       const mockWaterfallData: Waterfall = {
         type: 'european',
-        hurdle: 0.10, // 10%
+        hurdle: 0.1, // 10%
         catchUp: 0.08, // 8% - less than hurdle
         carryVesting: {
           cliffYears: 0,
-          vestingYears: 4
-        }
+          vestingYears: 4,
+        },
       };
 
       const mockOnChange = () => {};
 
-      render(
-        <WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />
-      );
+      render(<WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />);
 
       // Should show validation error
-      expect(screen.getByText(/catch-up rate should be greater than or equal to hurdle rate/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/catch-up rate should be greater than or equal to hurdle rate/i)
+      ).toBeInTheDocument();
     });
 
     it('should not show error when catch-up rate equals hurdle rate', () => {
@@ -232,18 +231,18 @@ describe.skip('Form Validation Tests', () => {
         catchUp: 0.08, // 8% - equal to hurdle
         carryVesting: {
           cliffYears: 0,
-          vestingYears: 4
-        }
+          vestingYears: 4,
+        },
       };
 
       const mockOnChange = () => {};
 
-      render(
-        <WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />
-      );
+      render(<WaterfallStep data={mockWaterfallData} onChange={mockOnChange} />);
 
       // Should not show validation error
-      expect(screen.queryByText(/catch-up rate should be greater than or equal to hurdle rate/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/catch-up rate should be greater than or equal to hurdle rate/i)
+      ).not.toBeInTheDocument();
     });
   });
 });

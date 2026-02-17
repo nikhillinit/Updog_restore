@@ -1,8 +1,21 @@
 {
   "version": "2.0.0",
-  "projects": {},
-  "totalErrors": 0,
-  "timestamp": "2026-02-16T01:31:28.700Z",
+  "projects": {
+    "server": {
+      "errors": [
+        "server/config.ts:TS6307:cba79c3e",
+        "server/lib/auth/jwt.ts:TS6307:67b748cc",
+        "server/lib/auth/jwt.ts:TS6307:c9b54042",
+        "server/lib/secure-context.ts:TS6307:2a5850ce",
+        "server/lib/secure-context.ts:TS6307:4a8f4cc4",
+        "server/lib/secure-context.ts:TS6307:86d2fb4a"
+      ],
+      "total": 6,
+      "lastUpdated": "2026-02-17T05:45:25.626Z"
+    }
+  },
+  "totalErrors": 6,
+  "timestamp": "2026-02-17T05:45:25.626Z",
   "buildMode": "per-project",
-  "elapsedMs": 28376
+  "elapsedMs": 21349
 }

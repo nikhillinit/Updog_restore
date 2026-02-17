@@ -13,6 +13,13 @@
  * Created: 2025-11-10
  *
  * @module tests/services/lot-service.test
+ *
+ * @quarantine tdd-red — 1 test skipped
+ * @owner lot-service
+ * @reason Database UPSERT logic not yet implemented (deferred to Phase 4)
+ * @exitCriteria Implement idempotent lot creation with database UPSERT in LotService
+ * @skipCount 1
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

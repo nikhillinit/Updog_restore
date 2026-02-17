@@ -17,6 +17,13 @@
  * After refactoring to invoke pattern, all tests should pass (GREEN PHASE)
  *
  * See: ADR-016 in DECISIONS.md for architectural decision rationale
+ *
+ * @quarantine tdd-red -- 2 tests skipped (TDD RED phase)
+ * @owner modeling-wizard
+ * @reason persistDataService not yet implemented (PR#1 pending)
+ * @exitCriteria Merge PR#1 implementing persistDataService with QuotaExceededError and SecurityError handling
+ * @skipCount 2
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';

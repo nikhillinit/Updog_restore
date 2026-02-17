@@ -3,7 +3,7 @@
 # Generated types: shared/generated/flag-types.ts
 # Last updated: 2026-01-22 (Epic G consolidation)
 
-schema_version: "1.0"
+schema_version: '1.0'
 
 # Flag naming convention: snake_case
 # All flags should have: default, description, owner, risk, exposeToClient
@@ -15,8 +15,8 @@ flags:
 
   enable_new_ia:
     default: false
-    description: "5-route navigation (Overview, Portfolio, Model, Operate, Report)"
-    owner: "gp-team"
+    description: '5-route navigation (Overview, Portfolio, Model, Operate, Report)'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
@@ -25,26 +25,26 @@ flags:
       production: false
     dependencies: []
     expiresAt: null
-    aliases: ["NEW_IA", "new_ia"]  # Legacy names for migration
+    aliases: ['NEW_IA', 'new_ia'] # Legacy names for migration
 
   enable_kpi_selectors:
     default: false
-    description: "KPI selector system for metrics dashboard"
-    owner: "gp-team"
+    description: 'KPI selector system for metrics dashboard'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_new_ia"]
+    dependencies: ['enable_new_ia']
     expiresAt: null
-    aliases: ["ENABLE_SELECTOR_KPIS"]
+    aliases: ['ENABLE_SELECTOR_KPIS']
 
   enable_brand_tokens:
     default: false
-    description: "Press On Ventures brand token system"
-    owner: "design"
+    description: 'Press On Ventures brand token system'
+    owner: 'design'
     risk: low
     exposeToClient: true
     environments:
@@ -60,57 +60,57 @@ flags:
 
   enable_modeling_wizard:
     default: false
-    description: "7-step modeling wizard"
-    owner: "gp-team"
+    description: '7-step modeling wizard'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_new_ia", "enable_kpi_selectors"]
+    dependencies: ['enable_new_ia', 'enable_kpi_selectors']
     expiresAt: null
-    aliases: ["ENABLE_MODELING_WIZARD"]
+    aliases: ['ENABLE_MODELING_WIZARD']
 
   enable_operations_hub:
     default: false
-    description: "Capital calls and distributions hub"
-    owner: "gp-team"
+    description: 'Capital calls and distributions hub'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_new_ia", "enable_kpi_selectors"]
+    dependencies: ['enable_new_ia', 'enable_kpi_selectors']
     expiresAt: null
-    aliases: ["ENABLE_OPERATIONS_HUB"]
+    aliases: ['ENABLE_OPERATIONS_HUB']
 
   enable_lp_reporting:
     default: false
-    description: "LP reporting dashboard"
-    owner: "gp-team"
+    description: 'LP reporting dashboard'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_kpi_selectors", "enable_operations_hub"]
+    dependencies: ['enable_kpi_selectors', 'enable_operations_hub']
     expiresAt: null
-    aliases: ["ENABLE_LP_REPORTING"]
+    aliases: ['ENABLE_LP_REPORTING']
 
   enable_reserve_engine:
     default: false
-    description: "Deterministic reserve allocation engine"
-    owner: "analytics"
+    description: 'Deterministic reserve allocation engine'
+    owner: 'analytics'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_kpi_selectors"]
+    dependencies: ['enable_kpi_selectors']
     expiresAt: null
 
   # ============================================
@@ -119,8 +119,8 @@ flags:
 
   ts_reserves:
     default: true
-    description: "TypeScript reserves calculation engine"
-    owner: "analytics"
+    description: 'TypeScript reserves calculation engine'
+    owner: 'analytics'
     risk: low
     exposeToClient: true
     environments:
@@ -133,8 +133,8 @@ flags:
 
   wasm_reserves:
     default: false
-    description: "WebAssembly reserves calculation engine (experimental)"
-    owner: "analytics"
+    description: 'WebAssembly reserves calculation engine (experimental)'
+    owner: 'analytics'
     risk: high
     exposeToClient: true
     environments:
@@ -147,15 +147,15 @@ flags:
 
   shadow_compare:
     default: false
-    description: "Shadow comparison between TS and WASM engines"
-    owner: "analytics"
+    description: 'Shadow comparison between TS and WASM engines'
+    owner: 'analytics'
     risk: low
     exposeToClient: true
     environments:
       development: false
       staging: false
       production: false
-    dependencies: ["ts_reserves", "wasm_reserves"]
+    dependencies: ['ts_reserves', 'wasm_reserves']
     expiresAt: null
     rolloutPercentage: 0
 
@@ -165,8 +165,8 @@ flags:
 
   reserves_v11:
     default: true
-    description: "Reserves v1.1 calculation improvements"
-    owner: "analytics"
+    description: 'Reserves v1.1 calculation improvements'
+    owner: 'analytics'
     risk: medium
     exposeToClient: true
     environments:
@@ -178,8 +178,8 @@ flags:
 
   remain_pass:
     default: true
-    description: "Remaining pass calculation"
-    owner: "analytics"
+    description: 'Remaining pass calculation'
+    owner: 'analytics'
     risk: low
     exposeToClient: true
     environments:
@@ -191,8 +191,8 @@ flags:
 
   stage_based_caps:
     default: true
-    description: "Stage-based capital allocation caps"
-    owner: "analytics"
+    description: 'Stage-based capital allocation caps'
+    owner: 'analytics'
     risk: low
     exposeToClient: true
     environments:
@@ -204,8 +204,8 @@ flags:
 
   export_async:
     default: true
-    description: "Async export functionality"
-    owner: "gp-team"
+    description: 'Async export functionality'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
@@ -217,8 +217,8 @@ flags:
 
   metrics_collection:
     default: true
-    description: "Client-side metrics collection"
-    owner: "analytics"
+    description: 'Client-side metrics collection'
+    owner: 'analytics'
     risk: low
     exposeToClient: true
     environments:
@@ -234,10 +234,10 @@ flags:
 
   ui_catalog:
     default: false
-    description: "Admin UI component catalog"
-    owner: "design"
+    description: 'Admin UI component catalog'
+    owner: 'design'
     risk: low
-    exposeToClient: true  # But no localStorage override (admin flag)
+    exposeToClient: true # But no localStorage override (admin flag)
     adminOnly: true
     environments:
       development: true
@@ -245,12 +245,12 @@ flags:
       production: false
     dependencies: []
     expiresAt: null
-    aliases: ["UI_CATALOG"]
+    aliases: ['UI_CATALOG']
 
   onboarding_tour:
     default: false
-    description: "GP onboarding tour for new users"
-    owner: "gp-team"
+    description: 'GP onboarding tour for new users'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
@@ -259,7 +259,7 @@ flags:
       production: false
     dependencies: []
     expiresAt: null
-    aliases: ["ONBOARDING_TOUR"]
+    aliases: ['ONBOARDING_TOUR']
 
   # ============================================
   # SERVER-ONLY FLAGS
@@ -267,8 +267,8 @@ flags:
 
   demo_mode:
     default: false
-    description: "Demo mode with sample data"
-    owner: "platform"
+    description: 'Demo mode with sample data'
+    owner: 'platform'
     risk: low
     exposeToClient: false
     environments:
@@ -280,8 +280,8 @@ flags:
 
   require_auth:
     default: false
-    description: "Require authentication for API access"
-    owner: "platform"
+    description: 'Require authentication for API access'
+    owner: 'platform'
     risk: high
     exposeToClient: false
     environments:
@@ -293,8 +293,8 @@ flags:
 
   enable_faults:
     default: false
-    description: "Enable fault injection for testing"
-    owner: "platform"
+    description: 'Enable fault injection for testing'
+    owner: 'platform'
     risk: high
     exposeToClient: false
     environments:
@@ -310,120 +310,96 @@ flags:
 
   enable_wizard_step_general:
     default: false
-    description: "Wizard Step 1: General fund info"
-    owner: "gp-team"
+    description: 'Wizard Step 1: General fund info'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_modeling_wizard"]
+    dependencies: ['enable_modeling_wizard']
     expiresAt: null
 
   enable_wizard_step_sizing:
     default: false
-    description: "Wizard Step 2: Fund sizing"
-    owner: "gp-team"
+    description: 'Wizard Step 2: Fund sizing'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_general"]
+    dependencies: ['enable_wizard_step_general']
     expiresAt: null
 
   enable_wizard_step_pacing:
     default: false
-    description: "Wizard Step 3: Pacing and deployment"
-    owner: "gp-team"
+    description: 'Wizard Step 3: Pacing and deployment'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_sizing"]
+    dependencies: ['enable_wizard_step_sizing']
     expiresAt: null
 
   enable_wizard_step_reserves:
     default: false
-    description: "Wizard Step 4: Reserve allocation"
-    owner: "gp-team"
+    description: 'Wizard Step 4: Reserve allocation'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_pacing"]
+    dependencies: ['enable_wizard_step_pacing']
     expiresAt: null
 
   enable_wizard_step_fees:
     default: false
-    description: "Wizard Step 5: Fee structure"
-    owner: "gp-team"
+    description: 'Wizard Step 5: Fee structure'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_reserves"]
+    dependencies: ['enable_wizard_step_reserves']
     expiresAt: null
 
   enable_wizard_step_waterfall:
     default: false
-    description: "Wizard Step 6: Waterfall distribution"
-    owner: "gp-team"
+    description: 'Wizard Step 6: Waterfall distribution'
+    owner: 'gp-team'
     risk: medium
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_fees"]
+    dependencies: ['enable_wizard_step_fees']
     expiresAt: null
 
   enable_wizard_step_results:
     default: false
-    description: "Wizard Step 7: Results summary"
-    owner: "gp-team"
+    description: 'Wizard Step 7: Results summary'
+    owner: 'gp-team'
     risk: low
     exposeToClient: true
     environments:
       development: true
       staging: false
       production: false
-    dependencies: ["enable_wizard_step_waterfall"]
+    dependencies: ['enable_wizard_step_waterfall']
     expiresAt: null
 
 # ============================================
 # DEPRECATED FLAGS (to be removed)
 # ============================================
-deprecated:
-  - key: "horizon-quarters"
-    reason: "Never used, dead code"
-    removeBy: "2026-02-01"
-  - key: "excel-export"
-    reason: "Superseded by export_async"
-    removeBy: "2026-02-01"
-  - key: "advanced-dashboards"
-    reason: "Never implemented"
-    removeBy: "2026-02-01"
-  - key: "walking-skeleton"
-    reason: "Development artifact"
-    removeBy: "2026-02-01"
-  - key: "live_kpi_selectors"
-    reason: "0% rollout, never enabled"
-    removeBy: "2026-02-01"
-  - key: "modeling_hub"
-    reason: "0% rollout, never enabled"
-    removeBy: "2026-02-01"
-  - key: "operate_hub"
-    reason: "0% rollout, never enabled"
-    removeBy: "2026-02-01"
-  - key: "analytics_events"
-    reason: "0% rollout, replaced by metrics_collection"
-    removeBy: "2026-02-01"
+deprecated: []

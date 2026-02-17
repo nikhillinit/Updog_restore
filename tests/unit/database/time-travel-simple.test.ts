@@ -1,4 +1,12 @@
 /**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
+/**
  * Time-Travel Analytics Migration Test (Real Database)
  * Uses Testcontainers for actual PostgreSQL validation
  * Replaces mock-based test with real SQL execution

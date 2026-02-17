@@ -1,12 +1,12 @@
 /**
  * @group integration
- * FIXME: Requires Vite build process integration testing
+ * Verifies Vite config does not regress to problematic manual chunking
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 
-describe.skip('Vite Build Regression - Fix #3', () => {
+describe('Vite Build Regression - Fix #3', () => {
   describe('Manual chunking should not cause TDZ errors', () => {
     it('should not have manual chunking that splits providers (causes TDZ errors)', async () => {
       // Original bug: manualChunks splitting FeatureFlagProvider into separate chunk

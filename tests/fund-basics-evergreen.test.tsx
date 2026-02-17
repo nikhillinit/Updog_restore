@@ -1,3 +1,11 @@
+/**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -6,20 +14,19 @@ import FundSetup from '../client/src/pages/fund-setup';
 import { FundProvider } from '../client/src/contexts/FundContext';
 
 // Create a test wrapper
-const createTestQueryClient = () => new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-    mutations: { retry: false },
-  },
-});
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   const queryClient = createTestQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <FundProvider>
-        {children}
-      </FundProvider>
+      <FundProvider>{children}</FundProvider>
     </QueryClientProvider>
   );
 };
@@ -33,7 +40,9 @@ describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
     );
 
     expect(screen.getByText('Ever-green fund?')).toBeInTheDocument();
-    expect(screen.getByText('Evergreen funds have no fixed life and can invest indefinitely')).toBeInTheDocument();
+    expect(
+      screen.getByText('Evergreen funds have no fixed life and can invest indefinitely')
+    ).toBeInTheDocument();
   });
 
   it('should show fund life field when evergreen is disabled by default', () => {
@@ -56,7 +65,9 @@ describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
     );
 
     expect(screen.getByText('Investment Horizon (Years)')).toBeInTheDocument();
-    expect(screen.getByText('Period for making new investments (typically 3-5 years)')).toBeInTheDocument();
+    expect(
+      screen.getByText('Period for making new investments (typically 3-5 years)')
+    ).toBeInTheDocument();
   });
 
   it('should have correct default values', () => {
@@ -83,7 +94,7 @@ describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
     );
 
     const fundLifeInput = screen.getByRole('spinbutton', { name: /fund life/i });
-    
+
     // Check min and max attributes
     expect(fundLifeInput).toHaveAttribute('min', '3');
     expect(fundLifeInput).toHaveAttribute('max', '20');
@@ -97,7 +108,7 @@ describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
     );
 
     const investmentHorizonInput = screen.getByRole('spinbutton', { name: /investment horizon/i });
-    
+
     // Check min attribute and that max is set based on fund life
     expect(investmentHorizonInput).toHaveAttribute('min', '1');
     expect(investmentHorizonInput).toHaveAttribute('max', '10'); // Should match default fund life
@@ -112,10 +123,10 @@ describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
 
     const fundLifeInput = screen.getByRole('spinbutton', { name: /fund life/i });
     const investmentHorizonInput = screen.getByRole('spinbutton', { name: /investment horizon/i });
-    
+
     // Change fund life to 15 years
     fireEvent.change(fundLifeInput, { target: { value: '15' } });
-    
+
     // Investment horizon max should now be 15
     expect(investmentHorizonInput).toHaveAttribute('max', '15');
   });

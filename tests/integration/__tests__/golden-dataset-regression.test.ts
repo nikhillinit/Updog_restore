@@ -1,6 +1,5 @@
 /**
- * @group integration
- * FIXME: Requires golden dataset comparison utilities and test infrastructure
+ * Verifies golden-dataset AND-logic tolerance check fix
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -9,7 +8,7 @@ import {
   type GoldenDatasetExpected,
 } from '../../utils/golden-dataset';
 
-describe.skip('Golden Dataset Tolerance Regression - Fix #2', () => {
+describe('Golden Dataset Tolerance Regression - Fix #2', () => {
   describe('AND logic (not OR) for tolerance checks', () => {
     it('should enforce AND logic - fail when absolute exceeds even if relative passes', () => {
       // Original bug: Used OR logic (absoluteDiff <= tol.absolute || relativeDiff <= tol.relative)

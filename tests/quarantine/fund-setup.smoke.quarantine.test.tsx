@@ -1,3 +1,11 @@
+/**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderFundSetup } from '../utils/render-fund-setup';
@@ -5,10 +13,10 @@ import { useConsoleCapture } from '../helpers/console-capture';
 
 /**
  * QUARANTINED: These tests require a real browser environment and cannot run in JSDOM/happy-dom.
- * 
+ *
  * React's internal getActiveElementDeep function uses `instanceof HTMLIFrameElement`
  * which fails in DOM simulation environments because the constructor is not properly exposed.
- * 
+ *
  * These tests have been ported to Playwright E2E tests at tests/e2e/fund-setup.spec.ts
  * This file is kept for reference but excluded from test runs via vitest.config.ts
  */
@@ -53,9 +61,9 @@ describe.skip('FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts
 
   it('shows not-found for invalid step and warns at most once in DEV', () => {
     renderFundSetup('/fund-setup?step=99');
-    
+
     expect(screen.getByTestId('wizard-step-not-found-container')).toBeTruthy();
-    
+
     // In DEV mode, we expect at most one warning about invalid step
     if (import.meta.env.DEV) {
       const warns = logs.warn.flat().join(' ');
@@ -67,18 +75,15 @@ describe.skip('FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts
   it('no hydration or infinite loop errors across multiple renders', () => {
     // Test rendering multiple steps in sequence
     const steps = ['2', '3', '4'];
-    
+
     for (const step of steps) {
       renderFundSetup(`/fund-setup?step=${step}`);
       // RTL handles cleanup automatically between tests
     }
-    
+
     // Check consolidated logs for any critical errors
-    const allLogs = [...logs.error, ...logs.warn]
-      .flat()
-      .join('\n')
-      .toLowerCase();
-    
+    const allLogs = [...logs.error, ...logs.warn].flat().join('\n').toLowerCase();
+
     // These patterns indicate serious React issues
     expect(allLogs).not.toMatch(/maximum update depth/);
     expect(allLogs).not.toMatch(/getsnapshot.*cached/);
