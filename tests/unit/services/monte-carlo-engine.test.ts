@@ -3,6 +3,13 @@
  *
  * Comprehensive unit tests for Monte Carlo simulation engine functionality
  * Tests portfolio construction modeling, scenario planning, and performance forecasting
+ *
+ * @quarantine partial -- 2 tests skipped
+ * @owner monte-carlo
+ * @reason (1) Configuration validation not yet implemented, (2) reserve optimization requires integration environment
+ * @exitCriteria Implement config parameter validation; add integration test env for reserve optimization
+ * @skipCount 2
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

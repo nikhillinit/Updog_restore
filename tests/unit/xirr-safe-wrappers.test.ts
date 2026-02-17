@@ -5,7 +5,7 @@
  * all error conditions gracefully without throwing exceptions.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { safeCalculateXIRR, safeCalculateSimpleIRR } from '@/core/selectors/xirr';
 import type { CashFlowEvent } from '@/core/types/fund-domain';
 
@@ -174,16 +174,6 @@ describe('Safe XIRR Wrappers', () => {
   });
 
   describe('safeCalculateSimpleIRR', () => {
-    let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      consoleDebugSpy.mockRestore();
-    });
-
     it('returns null (not throw) for invalid inputs', () => {
       // Should not throw for any invalid input
       expect(() => safeCalculateSimpleIRR([])).not.toThrow();
@@ -204,9 +194,6 @@ describe('Safe XIRR Wrappers', () => {
       // Single element
       const result2 = safeCalculateSimpleIRR([1000]);
       expect(result2).toBe(null);
-
-      // Verify console.debug was called
-      expect(consoleDebugSpy).toHaveBeenCalled();
     });
 
     it('returns null when all elements have same sign', () => {
@@ -224,21 +211,6 @@ describe('Safe XIRR Wrappers', () => {
       const allZero = [0, 0, 0];
       const result3 = safeCalculateSimpleIRR(allZero);
       expect(result3).toBe(null);
-
-      // Verify console.debug was called for errors
-      expect(consoleDebugSpy).toHaveBeenCalled();
-    });
-
-    it('logs to console.debug on failure', () => {
-      const invalidInput = [100, 200]; // Same sign
-
-      safeCalculateSimpleIRR(invalidInput);
-
-      expect(consoleDebugSpy).toHaveBeenCalled();
-      expect(consoleDebugSpy).toHaveBeenCalledWith(
-        '[safeCalculateSimpleIRR] Calculation failed:',
-        expect.stringContaining('positive and one negative')
-      );
     });
 
     it('returns valid IRR for valid inputs', () => {

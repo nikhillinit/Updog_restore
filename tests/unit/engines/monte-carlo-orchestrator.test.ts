@@ -6,8 +6,8 @@
  *
  * @quarantine
  * @owner @phoenix-team
- * @reason Stochastic mode tests require Phase 2 Monte Carlo completion
- * @exitCriteria Phase 2 Monte Carlo merged (tracking: phoenix-phase2-planning.md)
+ * @reason Stochastic mode assertions depend on baseline DB fixtures unavailable in unit test runtime.
+ * @exitCriteria Add deterministic baseline fixture strategy (or seeded integration DB) for stochastic mode tests.
  * @addedDate 2026-01-14
  *
  * Note: Expectation mode tests are active. Only stochastic mode tests
@@ -159,7 +159,7 @@ describe('MonteCarloOrchestrator - Expectation Mode', () => {
 
 // Note: Stochastic mode tests require database access and are skipped in unit tests
 // Run these as integration tests with a test database
-describe('MonteCarloOrchestrator - Stochastic Mode', () => {
+describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
@@ -167,7 +167,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should return stochastic mode result', async () => {
+  it('should return stochastic mode result', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 500 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -178,7 +178,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should be reproducible with same seed', async () => {
+  it('should be reproducible with same seed', async () => {
     const seed = 12345;
     const config = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: seed });
 
@@ -196,7 +196,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should produce different results with different seeds', async () => {
+  it('should produce different results with different seeds', async () => {
     const config1 = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: 111 });
     const config2 = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: 222 });
 
@@ -213,7 +213,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should include scenarios array', async () => {
+  it('should include scenarios array', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 500 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -222,7 +222,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should calculate percentiles', async () => {
+  it('should calculate percentiles', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -239,7 +239,7 @@ describe('MonteCarloOrchestrator - Stochastic Mode', () => {
 // =============================================================================
 
 // Note: Reproducibility tests require database access and are skipped in unit tests
-describe('MonteCarloOrchestrator - Reproducibility Verification', () => {
+describe.skip('MonteCarloOrchestrator - Reproducibility Verification', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
@@ -247,7 +247,7 @@ describe('MonteCarloOrchestrator - Reproducibility Verification', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should verify reproducibility for same seed', async () => {
+  it('should verify reproducibility for same seed', async () => {
     const config = createBaseConfig({
       mode: 'stochastic',
       runs: 500,
@@ -262,7 +262,7 @@ describe('MonteCarloOrchestrator - Reproducibility Verification', () => {
   });
 
   // @group integration - Requires database baseline data
-  it.skip('should return hash comparison', async () => {
+  it('should return hash comparison', async () => {
     const config = createBaseConfig({
       mode: 'stochastic',
       runs: 500,
@@ -366,7 +366,7 @@ describe('MonteCarloOrchestrator - Edge Cases', () => {
 
 // Note: Distribution validity tests require database access and are skipped in unit tests
 // These will be properly tested in Task 2.7 with full integration tests
-describe('MonteCarloOrchestrator - Distribution Validity', () => {
+describe.skip('MonteCarloOrchestrator - Distribution Validity', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
@@ -374,7 +374,7 @@ describe('MonteCarloOrchestrator - Distribution Validity', () => {
   });
 
   // @group integration - Requires database baseline data (Task 2.7)
-  it.skip('should produce valid percentile monotonicity', async () => {
+  it('should produce valid percentile monotonicity', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -388,7 +388,7 @@ describe('MonteCarloOrchestrator - Distribution Validity', () => {
   });
 
   // @group integration - Requires database baseline data (Task 2.7)
-  it.skip('should produce positive multiples', async () => {
+  it('should produce positive multiples', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -397,7 +397,7 @@ describe('MonteCarloOrchestrator - Distribution Validity', () => {
   });
 
   // @group integration - Requires database baseline data (Task 2.7)
-  it.skip('should produce reasonable mean values', async () => {
+  it('should produce reasonable mean values', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 2000 });
     const result = await orchestrator.runStochasticMode(config);
 
@@ -410,7 +410,7 @@ describe('MonteCarloOrchestrator - Distribution Validity', () => {
   });
 
   // @group integration - Requires database baseline data (Task 2.7)
-  it.skip('should have consistent confidence intervals', async () => {
+  it('should have consistent confidence intervals', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
 

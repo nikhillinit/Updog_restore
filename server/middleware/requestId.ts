@@ -1,12 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Express request tracking
- 
- 
- 
- 
 import { randomUUID } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 
 // Request interface augmentation is now centralized in types/express.d.ts
+
+type RequestLogger = {
+  info: (_obj: unknown, _msg?: string) => void;
+  warn: (_obj: unknown, _msg?: string) => void;
+  error: (_obj: unknown, _msg?: string) => void;
+};
+
+type RootLogger = {
+  child: (_context: Record<string, unknown>) => RequestLogger;
+};
 
 /**
  * Request ID middleware for correlation across logs, telemetry, and responses
@@ -19,7 +24,7 @@ export function requestId() {
 
     // Optionally preserve client-provided ID for debugging (separate header)
     const clientRid = req['get']('X-Request-ID');
-    if (clientRid && process.env["NODE_ENV"] !== 'production') {
+    if (clientRid && process.env['NODE_ENV'] !== 'production') {
       res['setHeader']('X-Client-Request-ID', clientRid);
     }
 
@@ -29,11 +34,12 @@ export function requestId() {
     res.locals['requestId'] = serverRid;
 
     // If logger exists, create child logger with request context
-    if ((global as any).logger) {
-      req.log = (global as any).logger.child({
+    const runtimeGlobal = globalThis as typeof globalThis & { logger?: RootLogger };
+    if (runtimeGlobal.logger) {
+      req.log = runtimeGlobal.logger.child({
         requestId: serverRid,
         path: req.path,
-        method: req.method
+        method: req.method,
       });
     }
 
@@ -41,13 +47,16 @@ export function requestId() {
     res['on']('finish', () => {
       const duration = Date.now() - ((res.locals['startTime'] as number) || Date.now());
       if (req.log) {
-        req.log.info({
-          status: res.statusCode,
-          duration,
-          path: req.path,
-          method: req.method,
-          requestId: serverRid
-        }, 'Request completed');
+        req.log.info(
+          {
+            status: res.statusCode,
+            duration,
+            path: req.path,
+            method: req.method,
+            requestId: serverRid,
+          },
+          'Request completed'
+        );
       }
     });
 

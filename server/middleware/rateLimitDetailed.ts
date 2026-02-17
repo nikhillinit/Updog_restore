@@ -1,17 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Express rate limit types
- 
- 
- 
- 
 /**
  * DI-Friendly Rate Limiter for /health/detailed
  * Accepts injected store instead of creating Redis connections at import time
  */
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
-import type { RateLimitRequestHandler , Store } from 'express-rate-limit';
+import type { RateLimitRequestHandler, Store } from 'express-rate-limit';
 
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
+
+type RateLimitRequest = Request & {
+  rateLimit?: {
+    resetTime?: Date;
+  };
+};
 
 export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHandler {
   return rateLimit({
@@ -22,7 +23,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     ...(opts?.store !== undefined ? { store: opts.store } : {}),
     keyGenerator: (req: Request) => {
       // Use library's IPv6-safe key generator
-      return `${ipKeyGenerator(req as any)}:health-detailed`;
+      return `${ipKeyGenerator(req.ip ?? '')}:health-detailed`;
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
@@ -31,13 +32,13 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     },
     handler: (req: Request, res: Response) => {
       // Express-rate-limit v7+ adds rateLimit property to the request
-      const resetTime = (req as any).rateLimit?.resetTime;
+      const resetTime = (req as RateLimitRequest).rateLimit?.resetTime;
       const seconds = resetTime
         ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
       res['setHeader']('Retry-After', String(seconds));
-      sendApiError(res, 429, createErrorBody('Too Many Requests', (req as any).requestId, 'RATE_LIMITED'));
-    }
+      sendApiError(res, 429, createErrorBody('Too Many Requests', req.requestId, 'RATE_LIMITED'));
+    },
   });
 }
 

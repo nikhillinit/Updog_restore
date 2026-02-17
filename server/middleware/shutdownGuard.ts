@@ -1,18 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Express shutdown handling
- 
- 
- 
- 
 import type { Request, Response, NextFunction } from 'express';
 import { isReady } from '../health/state';
 import { sendApiError } from '../lib/apiError';
 
 // Allow these paths and prefixes during shutdown for liveness/metrics/triage
 const ALLOW = (path: string) =>
-  path === '/healthz' || 
-  path === '/readyz' || 
-  path === '/metrics' || 
-  path.startsWith('/health/');
+  path === '/healthz' || path === '/readyz' || path === '/metrics' || path.startsWith('/health/');
 
 // Configurable retry-after for shutdown
 const SHUTDOWN_RETRY_AFTER = Number(process.env['SHUTDOWN_RETRY_AFTER_SECONDS'] ?? 30);
@@ -29,10 +21,10 @@ export function shutdownGuard() {
       res['setHeader']('Connection', 'close');
       res['setHeader']('Retry-After', String(SHUTDOWN_RETRY_AFTER));
       res['setHeader']('Cache-Control', 'no-store');
-      return sendApiError(res, 503, { 
-        error: 'Service Unavailable', 
-        code: 'SERVICE_UNAVAILABLE', 
-        requestId: (req as any).requestId 
+      return sendApiError(res, 503, {
+        error: 'Service Unavailable',
+        code: 'SERVICE_UNAVAILABLE',
+        ...(req.requestId ? { requestId: req.requestId } : {}),
       });
     }
     next();

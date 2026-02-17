@@ -2,27 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema, waterfallSchema } from '../server/validators/fundSchema';
 import type { CompleteFundSetup, Waterfall } from '@shared/types';
 
-describe.skip('Fund Schema Updates', () => {
+describe('Fund Schema Updates', () => {
   const baseFundData: CompleteFundSetup = {
     name: 'Test Fund',
     size: 100000000,
     deployedCapital: 0,
     managementFee: 0.02,
-    carryPercentage: 0.20,
+    carryPercentage: 0.2,
     vintageYear: 2024,
     isEvergreen: false,
     lifeYears: 10,
     investmentHorizonYears: 5,
     investmentStrategy: {
-      stages: [
-        { id: 'stage-1', name: 'Seed', graduationRate: 0, exitRate: 100 }
-      ],
-      sectorProfiles: [
-        { id: 'sector-1', name: 'Tech', targetPercentage: 100 }
-      ],
-      allocations: [
-        { id: 'alloc-1', category: 'Investments', percentage: 100 }
-      ]
+      stages: [{ id: 'stage-1', name: 'Seed', graduationRate: 0, exitRate: 100 }],
+      sectorProfiles: [{ id: 'sector-1', name: 'Tech', targetPercentage: 100 }],
+      allocations: [{ id: 'alloc-1', category: 'Investments', percentage: 100 }],
     },
     exitRecycling: {
       enabled: false,
@@ -38,8 +32,8 @@ describe.skip('Fund Schema Updates', () => {
       carryVesting: {
         cliffYears: 0,
         vestingYears: 4,
-      }
-    }
+      },
+    },
   };
 
   describe('Number validation for fund fields', () => {
@@ -67,9 +61,9 @@ describe.skip('Fund Schema Updates', () => {
         type: 'EUROPEAN',
         hurdle: 0.08,
         catchUp: 0.08,
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const result = waterfallSchema.safeParse(europeanWaterfall);
       expect(result.success).toBe(true);
     });
@@ -79,9 +73,9 @@ describe.skip('Fund Schema Updates', () => {
         type: 'AMERICAN',
         hurdle: 0.08,
         catchUp: 0.08,
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const result = waterfallSchema.safeParse(americanWaterfall);
       expect(result.success).toBe(true);
     });
@@ -90,22 +84,22 @@ describe.skip('Fund Schema Updates', () => {
       // EUROPEAN with invalid hurdle/catch-up relationship should fail
       const europeanInvalid: Waterfall = {
         type: 'EUROPEAN',
-        hurdle: 0.10, // 10%
+        hurdle: 0.1, // 10%
         catchUp: 0.08, // 8% (less than hurdle)
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const europeanResult = waterfallSchema.safeParse(europeanInvalid);
       expect(europeanResult.success).toBe(false);
 
       // AMERICAN with same relationship should pass (validation doesn't apply)
       const americanSame: Waterfall = {
         type: 'AMERICAN',
-        hurdle: 0.10, // 10%
+        hurdle: 0.1, // 10%
         catchUp: 0.08, // 8% (less than hurdle, but OK for American)
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const americanResult = waterfallSchema.safeParse(americanSame);
       expect(americanResult.success).toBe(true);
     });
@@ -116,14 +110,14 @@ describe.skip('Fund Schema Updates', () => {
       const nonEvergreenWithoutLife = {
         ...baseFundData,
         isEvergreen: false,
-        lifeYears: undefined
+        lifeYears: undefined,
       };
-      
+
       const result = fundSchema.safeParse(nonEvergreenWithoutLife);
       expect(result.success).toBe(false);
-      
+
       if (!result.success) {
-        expect(result.error.errors.some(e => e.path.includes('lifeYears'))).toBe(true);
+        expect(result.error.errors.some((e) => e.path.includes('lifeYears'))).toBe(true);
       }
     });
 
@@ -131,9 +125,9 @@ describe.skip('Fund Schema Updates', () => {
       const evergreenFund = {
         ...baseFundData,
         isEvergreen: true,
-        lifeYears: undefined
+        lifeYears: undefined,
       };
-      
+
       const result = fundSchema.safeParse(evergreenFund);
       expect(result.success).toBe(true);
     });
@@ -143,14 +137,16 @@ describe.skip('Fund Schema Updates', () => {
         ...baseFundData,
         isEvergreen: false,
         lifeYears: 10,
-        investmentHorizonYears: 15 // Exceeds fund life
+        investmentHorizonYears: 15, // Exceeds fund life
       };
-      
+
       const result = fundSchema.safeParse(invalidFund);
       expect(result.success).toBe(false);
-      
+
       if (!result.success) {
-        expect(result.error.errors.some(e => e.path.includes('investmentHorizonYears'))).toBe(true);
+        expect(result.error.errors.some((e) => e.path.includes('investmentHorizonYears'))).toBe(
+          true
+        );
       }
     });
 
@@ -159,9 +155,9 @@ describe.skip('Fund Schema Updates', () => {
         ...baseFundData,
         isEvergreen: false,
         lifeYears: 10,
-        investmentHorizonYears: 10 // Equals fund life
+        investmentHorizonYears: 10, // Equals fund life
       };
-      
+
       const result = fundSchema.safeParse(validFund);
       expect(result.success).toBe(true);
     });
@@ -171,9 +167,9 @@ describe.skip('Fund Schema Updates', () => {
         ...baseFundData,
         isEvergreen: true,
         lifeYears: undefined,
-        investmentHorizonYears: 20 // Any value should be OK for evergreen
+        investmentHorizonYears: 20, // Any value should be OK for evergreen
       };
-      
+
       const result = fundSchema.safeParse(evergreenFund);
       expect(result.success).toBe(true);
     });
@@ -184,12 +180,12 @@ describe.skip('Fund Schema Updates', () => {
       const waterfallWithoutType = {
         hurdle: 0.08,
         catchUp: 0.08,
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const result = waterfallSchema.safeParse(waterfallWithoutType);
       expect(result.success).toBe(true);
-      
+
       if (result.success) {
         expect(result.data.type).toBe('EUROPEAN');
       }
@@ -198,12 +194,12 @@ describe.skip('Fund Schema Updates', () => {
     it('should use default hurdle and catch-up values', () => {
       const minimalWaterfall = {
         type: 'EUROPEAN',
-        carryVesting: { cliffYears: 0, vestingYears: 4 }
+        carryVesting: { cliffYears: 0, vestingYears: 4 },
       };
-      
+
       const result = waterfallSchema.safeParse(minimalWaterfall);
       expect(result.success).toBe(true);
-      
+
       if (result.success) {
         expect(result.data.hurdle).toBe(0.08);
         expect(result.data.catchUp).toBe(0.08);

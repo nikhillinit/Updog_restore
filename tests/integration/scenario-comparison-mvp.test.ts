@@ -1,4 +1,12 @@
 /**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
+/**
  * Scenario Comparison API Integration Tests (MVP Phase 1)
  *
  * Tests for ephemeral scenario comparisons:

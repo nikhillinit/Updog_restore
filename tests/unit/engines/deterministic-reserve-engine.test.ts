@@ -3,6 +3,13 @@
 /**
  * DeterministicReserveEngine Test Suite
  * Comprehensive tests for MOIC-based reserve allocation with deterministic seeding
+ *
+ * @quarantine partial — 2 tests skipped
+ * @owner reserves-engine
+ * @reason (1) Performance test timing out or exceeding threshold, (2) metadata output structure doesn't match test expectations
+ * @exitCriteria Optimize engine perf to meet time limit; align metadata output schema with test assertions
+ * @skipCount 2
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect } from 'vitest';

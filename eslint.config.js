@@ -60,6 +60,7 @@ export default [
       'ai-utils/**', // Experimental AI development tools
       'notebooks/**', // Jupyter notebooks and examples
       'examples/**', // Example code
+      'server/examples/**', // Server example code
       'docs/**', // Documentation files
       'msw/**', // Mock Service Worker test fixtures
       'server - memory shim/**', // Memory mode shim files
@@ -221,6 +222,11 @@ export default [
             {
               name: '../state/useFundStore',
               message: "Use '@/stores/useFundStore' only. The state/ version is deprecated.",
+            },
+            {
+              name: '@/lib/feature-flags',
+              message:
+                "Use '@/core/flags/unifiedClientFlags' or '@/core/flags/flagAdapter' instead. '@/lib/feature-flags' is deprecated.",
             },
           ],
         },

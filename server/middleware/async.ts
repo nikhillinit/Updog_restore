@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Express async middleware wrapper
- 
- 
- 
- 
 import type { Request, Response, NextFunction } from 'express';
 import type { ApiError } from '@shared/types';
 
@@ -10,12 +5,12 @@ import type { ApiError } from '@shared/types';
  * Wraps async route handlers to properly catch errors
  */
 export function asyncHandler(
-  fn: (_req: Request, _res: Response, _next: NextFunction) => Promise<any>
+  fn: (_req: Request, _res: Response, _next: NextFunction) => Promise<unknown>
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch((error: any) => {
+    Promise.resolve(fn(req, res, next)).catch((error: unknown) => {
       console.error('Async handler error:', error);
-      
+
       // Check if response was already sent
       if (res.headersSent) {
         return next(error);
@@ -26,8 +21,8 @@ export function asyncHandler(
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'An unexpected error occurred',
       };
-      
-      res["status"](500)["json"](apiError);
+
+      res['status'](500)['json'](apiError);
     });
   };
 }
