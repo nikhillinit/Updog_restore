@@ -6,24 +6,24 @@
 
 import React from 'react';
 import { polymorphicForwardRef, type PolymorphicProps } from './polymorphic';
-import { 
-  LineChart, 
-  Line, 
-  AreaChart, 
-  Area, 
-  BarChart, 
-  Bar, 
-  ScatterChart, 
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  ScatterChart,
   Scatter,
-  PieChart, 
-  Pie, 
+  PieChart,
+  Pie,
   Cell,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from 'recharts';
 
 // Type definitions for unified chart interface
@@ -97,8 +97,16 @@ export interface PieChartProps extends BaseChartProps {
 
 // Default theme configuration
 const DEFAULT_COLORS = [
-  '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
-  '#d084d0', '#ffb366', '#87ceeb', '#dda0dd', '#98fb98'
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7c7c',
+  '#8dd1e1',
+  '#d084d0',
+  '#ffb366',
+  '#87ceeb',
+  '#dda0dd',
+  '#98fb98',
 ];
 
 const DEFAULT_CONFIG: Required<ChartConfig> = {
@@ -111,7 +119,7 @@ const DEFAULT_CONFIG: Required<ChartConfig> = {
   animation: true,
   grid: true,
   legend: true,
-  tooltip: true
+  tooltip: true,
 };
 
 // Chart adapter components
@@ -123,10 +131,10 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
   curve = 'monotone',
   config = {},
   className,
-  style
+  style,
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
-  
+
   const renderLines = () => {
     if (series && series.length > 0) {
       return series.map((s: ChartSeries, index: number) => {
@@ -146,7 +154,7 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
         );
       });
     }
-    
+
     return (
       <Line
         type={curve}
@@ -167,25 +175,18 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
     <LineChart
       width={numericWidth}
       height={numericHeight}
-        data={data}
-        margin={mergedConfig.margin}
-        {...(className && { className })}
-        {...(!mergedConfig.responsive && style && { style })}
-      >
-        {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis 
-          dataKey={xKey}
-          tick={{ fontSize: 12 }}
-          tickLine={{ stroke: '#e0e0e0' }}
-        />
-        <YAxis 
-          tick={{ fontSize: 12 }}
-          tickLine={{ stroke: '#e0e0e0' }}
-        />
-        {mergedConfig.tooltip && <Tooltip />}
-        {mergedConfig.legend && series && series.length > 1 && <Legend />}
-        {renderLines()}
-      </LineChart>
+      data={data}
+      margin={mergedConfig.margin}
+      {...(className && { className })}
+      {...(!mergedConfig.responsive && style && { style })}
+    >
+      {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
+      <XAxis dataKey={xKey} tick={{ fontSize: 12 }} tickLine={{ stroke: '#e0e0e0' }} />
+      <YAxis tick={{ fontSize: 12 }} tickLine={{ stroke: '#e0e0e0' }} />
+      {mergedConfig.tooltip && <Tooltip />}
+      {mergedConfig.legend && series && series.length > 1 && <Legend />}
+      {renderLines()}
+    </LineChart>
   );
 
   if (mergedConfig.responsive) {
@@ -208,7 +209,7 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
   curve = 'monotone',
   config = {},
   className,
-  style
+  style,
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
@@ -230,7 +231,7 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
         );
       });
     }
-    
+
     return (
       <Area
         type={curve}
@@ -283,7 +284,7 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
   horizontal = false,
   config = {},
   className,
-  style
+  style,
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
@@ -299,13 +300,8 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
         />
       ));
     }
-    
-    return (
-      <Bar
-        dataKey={yKey}
-        fill={mergedConfig.colors[0]!}
-      />
-    );
+
+    return <Bar dataKey={yKey} fill={mergedConfig.colors[0]!} />;
   };
 
   const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
@@ -322,11 +318,11 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
       layout={horizontal ? 'horizontal' : 'vertical'}
     >
       {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
-      <XAxis 
+      <XAxis
         {...(!horizontal && xKey ? { dataKey: xKey } : {})}
         type={horizontal ? 'number' : 'category'}
       />
-      <YAxis 
+      <YAxis
         {...(horizontal && yKey ? { dataKey: yKey } : {})}
         type={horizontal ? 'category' : 'number'}
       />
@@ -355,7 +351,7 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
   series,
   config = {},
   className,
-  style
+  style,
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
@@ -370,13 +366,8 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
         />
       ));
     }
-    
-    return (
-      <Scatter
-        data={data}
-        fill={mergedConfig.colors[0]!}
-      />
-    );
+
+    return <Scatter data={data} fill={mergedConfig.colors[0]!} />;
   };
 
   const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
@@ -419,7 +410,7 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
   outerRadius = 80,
   config = {},
   className,
-  style
+  style,
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
@@ -443,12 +434,13 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
         dataKey={valueKey}
         nameKey={labelKey}
       >
-        {data.map((entry: ChartDataPoint, index: number) => (
-          <Cell
-            key={`cell-${index}`}
-            fill={mergedConfig.colors[index % mergedConfig.colors.length]}
-          />
-        ))}
+        {data.map((entry: ChartDataPoint, index: number) => {
+          const color =
+            mergedConfig.colors.length > 0
+              ? (mergedConfig.colors[index % mergedConfig.colors.length] ?? '#8884d8')
+              : '#8884d8';
+          return <Cell key={`cell-${index}`} fill={color} />;
+        })}
       </Pie>
       {mergedConfig.tooltip && <Tooltip />}
       {mergedConfig.legend && <Legend />}
@@ -473,34 +465,45 @@ export interface MigrationOptions {
   logMigrationEvents?: boolean;
 }
 
-export const createMigrationWrapper = polymorphicForwardRef<'div', {
-  LegacyComponent: React.ComponentType<Record<string, unknown>>;
-  AdaptedComponent: React.ComponentType<Record<string, unknown>>;
-  componentName: string;
-  options?: MigrationOptions;
-}>(function MigrationWrapper<T extends React.ElementType = 'div'>({
-  LegacyComponent,
-  AdaptedComponent,
-  componentName,
-  options = {},
-  as,
-  ...props
-}: PolymorphicProps<T, {
-  LegacyComponent: React.ComponentType<Record<string, unknown>>;
-  AdaptedComponent: React.ComponentType<Record<string, unknown>>;
-  componentName: string;
-  options?: MigrationOptions;
-}>, ref: React.ForwardedRef<Element>) {
+export const createMigrationWrapper = polymorphicForwardRef<
+  'div',
+  {
+    LegacyComponent: React.ComponentType<Record<string, unknown>>;
+    AdaptedComponent: React.ComponentType<Record<string, unknown>>;
+    componentName: string;
+    options?: MigrationOptions;
+  }
+>(function MigrationWrapper<T extends React.ElementType = 'div'>(
+  {
+    LegacyComponent,
+    AdaptedComponent,
+    componentName,
+    options = {},
+    as,
+    ...props
+  }: PolymorphicProps<
+    T,
+    {
+      LegacyComponent: React.ComponentType<Record<string, unknown>>;
+      AdaptedComponent: React.ComponentType<Record<string, unknown>>;
+      componentName: string;
+      options?: MigrationOptions;
+    }
+  >,
+  ref: React.ForwardedRef<Element>
+) {
   const useAdapted = options.enableFeatureFlag
-    ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
-        ? (window.localStorage.getItem('use-adapted-charts') === 'true')
-        : process.env['NODE_ENV'] === 'development')
+    ? typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+      ? window.localStorage.getItem('use-adapted-charts') === 'true'
+      : process.env['NODE_ENV'] === 'development'
     : true;
 
   // Always call the hook, but make the logging conditional inside
   React.useEffect(() => {
     if (options.logMigrationEvents) {
-      console.log(`Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`);
+      console.log(
+        `Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`
+      );
     }
   }, [useAdapted, componentName, options.logMigrationEvents]);
 
@@ -512,7 +515,10 @@ export const createMigrationWrapper = polymorphicForwardRef<'div', {
     }
   } catch (error) {
     if (options.fallbackToOriginal) {
-      console.warn(`Chart Migration: ${componentName} adapted version failed, falling back to legacy`, error);
+      console.warn(
+        `Chart Migration: ${componentName} adapted version failed, falling back to legacy`,
+        error
+      );
       return <LegacyComponent {...(props as Record<string, unknown>)} ref={ref} />;
     }
     throw error;

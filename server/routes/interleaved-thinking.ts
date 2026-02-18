@@ -1,8 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // AI thinking endpoint types
- 
- 
- 
- 
 
 /**
  * Interleaved Thinking API
@@ -50,13 +46,7 @@ const AnalyzeRequestSchema = z.object({
 // Types
 // ============================================================================
 
-interface ToolUse {
-  type: 'tool_use';
-  id: string;
-  name: string;
-  input: Record<string, any>;
-}
-
+type ToolUse = Anthropic.ToolUseBlock;
 
 interface ToolResult {
   type: 'tool_result';
@@ -142,29 +132,15 @@ async function executeCalculator(input: { expression: string }): Promise<string>
   }
 }
 
-async function executeDatabaseQuery(input: {
-  query: string;
-  params?: string[];
-}): Promise<string> {
+async function executeDatabaseQuery(input: { query: string; params?: string[] }): Promise<string> {
   // Validate read-only query
   const normalizedQuery = input.query.trim().toLowerCase();
-  if (
-    !normalizedQuery.startsWith('select') &&
-    !normalizedQuery.startsWith('with')
-  ) {
-    throw new Error('Only SELECT and WITH queries are allowed');
+  if (!normalizedQuery.startsWith('select') && !normalizedQuery.startsWith('with')) {
+    throw new Error('forbidden query: only SELECT and WITH queries are allowed');
   }
 
   // Check for dangerous keywords
-  const dangerousKeywords = [
-    'insert',
-    'update',
-    'delete',
-    'drop',
-    'truncate',
-    'alter',
-    'create',
-  ];
+  const dangerousKeywords = ['insert', 'update', 'delete', 'drop', 'truncate', 'alter', 'create'];
   if (dangerousKeywords.some((keyword) => normalizedQuery.includes(keyword))) {
     throw new Error('Query contains forbidden keywords');
   }
@@ -185,14 +161,12 @@ async function executeDatabaseQuery(input: {
   }
 }
 
-async function executeTool(name: string, input: Record<string, any>): Promise<string> {
+async function executeTool(name: string, input: unknown): Promise<string> {
   switch (name) {
     case 'calculator':
       return executeCalculator(input as { expression: string });
     case 'query_database':
-      return executeDatabaseQuery(
-        input as { query: string; params?: string[] }
-      );
+      return executeDatabaseQuery(input as { query: string; params?: string[] });
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -208,10 +182,7 @@ const PRICING = {
   output: 15.0, // $15 per 1M output tokens
 } as const;
 
-function calculateCost(usage: {
-  input_tokens: number;
-  output_tokens: number;
-}): {
+function calculateCost(usage: { input_tokens: number; output_tokens: number }): {
   input_cost_usd: number;
   output_cost_usd: number;
   total_cost_usd: number;
@@ -285,8 +256,7 @@ async function handleThinkingQuery(
     // Accumulate usage
     totalUsage.input_tokens += response.usage.input_tokens;
     totalUsage.output_tokens += response.usage.output_tokens;
-    totalUsage.total_tokens =
-      totalUsage.input_tokens + totalUsage.output_tokens;
+    totalUsage.total_tokens = totalUsage.input_tokens + totalUsage.output_tokens;
 
     // Extract thinking blocks
     for (const block of response.content) {
@@ -302,9 +272,7 @@ async function handleThinkingQuery(
 
     if (toolUses.length === 0) {
       // No more tools to execute, extract final response
-      const textBlocks = response.content.filter(
-        (block) => block.type === 'text'
-      );
+      const textBlocks = response.content.filter((block) => block.type === 'text');
       const finalResponse = textBlocks
         .map((b) => {
           if ('text' in b) {
@@ -496,20 +464,12 @@ router.get(
         {
           name: 'calculator',
           description: 'Mathematical calculations using mathjs',
-          examples: [
-            'sqrt(144)',
-            '15% * 1000000',
-            'mean([10, 20, 30])',
-            'IRR calculation',
-          ],
+          examples: ['sqrt(144)', '15% * 1000000', 'mean([10, 20, 30])', 'IRR calculation'],
         },
         {
           name: 'query_database',
           description: 'Read-only database queries',
-          examples: [
-            'SELECT * FROM funds LIMIT 5',
-            'SELECT COUNT(*) FROM portfolio_companies',
-          ],
+          examples: ['SELECT * FROM funds LIMIT 5', 'SELECT COUNT(*) FROM portfolio_companies'],
         },
       ],
       models: [
