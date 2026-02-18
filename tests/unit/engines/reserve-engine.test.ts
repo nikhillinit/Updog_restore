@@ -5,14 +5,14 @@
 
 import { describe, it, expect } from 'vitest';
 import { ReserveEngine, generateReserveSummary } from '@/core/reserves/ReserveEngine';
+import type { ReserveCompanyInput } from '@shared/types';
 import { ConfidenceLevel } from '@shared/types';
-import type { ReserveInput } from '@shared/types';
 
 // =============================================================================
 // TEST FIXTURES
 // =============================================================================
 
-const createCompany = (overrides: Partial<ReserveInput> = {}): ReserveInput => ({
+const createCompany = (overrides: Partial<ReserveCompanyInput> = {}): ReserveCompanyInput => ({
   id: 1,
   invested: 1000000,
   stage: 'Series A',
@@ -21,7 +21,7 @@ const createCompany = (overrides: Partial<ReserveInput> = {}): ReserveInput => (
   ...overrides,
 });
 
-const createPortfolio = (count: number): ReserveInput[] =>
+const createPortfolio = (count: number): ReserveCompanyInput[] =>
   Array.from({ length: count }, (_, i) => createCompany({ id: i + 1 }));
 
 // =============================================================================
@@ -133,7 +133,11 @@ describe('ReserveEngine - Sector Risk Adjustments', () => {
   });
 
   it('should apply 1.2x adjustment for Fintech sector', () => {
-    const fintechCompany = createCompany({ sector: 'Fintech', stage: 'Series A', invested: 1000000 });
+    const fintechCompany = createCompany({
+      sector: 'Fintech',
+      stage: 'Series A',
+      invested: 1000000,
+    });
     const result = ReserveEngine([fintechCompany]);
 
     expect(result[0].rationale).toContain('Fintech sector');
@@ -141,7 +145,11 @@ describe('ReserveEngine - Sector Risk Adjustments', () => {
   });
 
   it('should apply 1.3x adjustment for Healthcare sector', () => {
-    const healthcareCompany = createCompany({ sector: 'Healthcare', stage: 'Series A', invested: 1000000 });
+    const healthcareCompany = createCompany({
+      sector: 'Healthcare',
+      stage: 'Series A',
+      invested: 1000000,
+    });
     const result = ReserveEngine([healthcareCompany]);
 
     expect(result[0].rationale).toContain('Healthcare sector');
@@ -149,7 +157,11 @@ describe('ReserveEngine - Sector Risk Adjustments', () => {
   });
 
   it('should apply 0.9x adjustment for Infrastructure sector', () => {
-    const infraCompany = createCompany({ sector: 'Infrastructure', stage: 'Series A', invested: 1000000 });
+    const infraCompany = createCompany({
+      sector: 'Infrastructure',
+      stage: 'Series A',
+      invested: 1000000,
+    });
     const result = ReserveEngine([infraCompany]);
 
     // Base: 1M * 2.0 (Series A) * 0.9 (Infrastructure) * 1.2 (ownership >10%) = 2.16M
@@ -158,7 +170,11 @@ describe('ReserveEngine - Sector Risk Adjustments', () => {
   });
 
   it('should apply 0.8x adjustment for Enterprise sector', () => {
-    const enterpriseCompany = createCompany({ sector: 'Enterprise', stage: 'Series A', invested: 1000000 });
+    const enterpriseCompany = createCompany({
+      sector: 'Enterprise',
+      stage: 'Series A',
+      invested: 1000000,
+    });
     const result = ReserveEngine([enterpriseCompany]);
 
     // Base: 1M * 2.0 (Series A) * 0.8 (Enterprise) * 1.2 (ownership >10%) = 1.92M
@@ -167,7 +183,11 @@ describe('ReserveEngine - Sector Risk Adjustments', () => {
   });
 
   it('should default to 1.0x for unknown sectors', () => {
-    const unknownSectorCompany = createCompany({ sector: 'Unknown' as any, stage: 'Series A', invested: 1000000 });
+    const unknownSectorCompany = createCompany({
+      sector: 'Unknown' as any,
+      stage: 'Series A',
+      invested: 1000000,
+    });
     const result = ReserveEngine([unknownSectorCompany]);
 
     // Base: 1M * 2.0 (Series A) * 1.0 (default) * 1.2 (ownership >10%) = 2.4M
@@ -193,7 +213,7 @@ describe('ReserveEngine - Ownership Adjustments', () => {
 
   it('should apply 0.8x penalty for ownership < 5%', () => {
     const veryLowOwnershipCompany = createCompany({ ownership: 0.03, invested: 1000000 });
-    const normalOwnershipCompany = createCompany({ ownership: 0.10, invested: 1000000 });
+    const normalOwnershipCompany = createCompany({ ownership: 0.1, invested: 1000000 });
 
     const lowResult = ReserveEngine([veryLowOwnershipCompany]);
     const normalResult = ReserveEngine([normalOwnershipCompany]);
@@ -233,7 +253,7 @@ describe('ReserveEngine - Confidence Scoring', () => {
   });
 
   it('should increase confidence for higher ownership', () => {
-    const highOwnership = createCompany({ ownership: 0.20 });
+    const highOwnership = createCompany({ ownership: 0.2 });
     const lowOwnership = createCompany({ ownership: 0.02 });
 
     const highResult = ReserveEngine([highOwnership]);
@@ -258,7 +278,7 @@ describe('ReserveEngine - Confidence Scoring', () => {
       invested: 10000000,
       ownership: 0.25,
       stage: 'Series B',
-      sector: 'SaaS'
+      sector: 'SaaS',
     });
     const result = ReserveEngine([company]);
 
@@ -269,7 +289,7 @@ describe('ReserveEngine - Confidence Scoring', () => {
     const portfolio = createPortfolio(10);
     const results = ReserveEngine(portfolio);
 
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result.confidence).toBeGreaterThanOrEqual(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
     });
@@ -303,7 +323,7 @@ describe('ReserveEngine - Output Validation', () => {
     const portfolio = createPortfolio(10);
     const results = ReserveEngine(portfolio);
 
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result.allocation).toBeGreaterThan(0);
     });
   });
@@ -389,7 +409,8 @@ describe('generateReserveSummary', () => {
     const portfolio = createPortfolio(3);
     const summary = generateReserveSummary(1, portfolio);
 
-    const manualAvg = summary.allocations.reduce((sum, a) => sum + a.confidence, 0) / summary.allocations.length;
+    const manualAvg =
+      summary.allocations.reduce((sum, a) => sum + a.confidence, 0) / summary.allocations.length;
     expect(summary.avgConfidence).toBeCloseTo(manualAvg, 2);
   });
 
@@ -397,7 +418,9 @@ describe('generateReserveSummary', () => {
     const portfolio = createPortfolio(5);
     const summary = generateReserveSummary(1, portfolio);
 
-    const manualCount = summary.allocations.filter(a => a.confidence >= ConfidenceLevel.MEDIUM).length;
+    const manualCount = summary.allocations.filter(
+      (a) => a.confidence >= ConfidenceLevel.MEDIUM
+    ).length;
     expect(summary.highConfidenceCount).toBe(manualCount);
   });
 
@@ -446,17 +469,27 @@ describe('ReserveEngine - Edge Cases', () => {
   });
 
   it('should handle mixed portfolio with varying characteristics', () => {
-    const portfolio: ReserveInput[] = [
-      createCompany({ stage: 'Seed', sector: 'SaaS', invested: 500000, ownership: 0.20 }),
-      createCompany({ stage: 'Series C', sector: 'Healthcare', invested: 5000000, ownership: 0.05 }),
-      createCompany({ stage: 'Series B', sector: 'Enterprise', invested: 2000000, ownership: 0.12 }),
+    const portfolio: ReserveCompanyInput[] = [
+      createCompany({ stage: 'Seed', sector: 'SaaS', invested: 500000, ownership: 0.2 }),
+      createCompany({
+        stage: 'Series C',
+        sector: 'Healthcare',
+        invested: 5000000,
+        ownership: 0.05,
+      }),
+      createCompany({
+        stage: 'Series B',
+        sector: 'Enterprise',
+        invested: 2000000,
+        ownership: 0.12,
+      }),
       createCompany({ stage: 'Growth', sector: 'Fintech', invested: 10000000, ownership: 0.08 }),
     ];
 
     const results = ReserveEngine(portfolio);
 
     expect(results).toHaveLength(4);
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result.allocation).toBeGreaterThan(0);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.rationale).toBeTruthy();

@@ -6,7 +6,7 @@ import { ReserveEngine, generateReserveSummary } from '../client/src/core/reserv
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
-import type { ReserveInput } from '@shared/types';
+import type { ReserveCompanyInput } from '@shared/types';
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -81,7 +81,7 @@ export const reserveWorker = new Worker(
         );
 
         // If no investments, fallback to portfolio companies
-        let portfolio: ReserveInput[];
+        let portfolio: ReserveCompanyInput[];
 
         if (investments.length > 0) {
           portfolio = investments.map((inv) => ({
@@ -105,26 +105,29 @@ export const reserveWorker = new Worker(
             sector: company.sector,
           }));
         }
-        
+
         // Generate reserve calculations
         const reserves = generateReserveSummary(fundId, portfolio);
-        
+
         // Write snapshot to database
-        const [snapshot] = await db.insert(fundSnapshots).values({
-          fundId,
-          type: 'RESERVE',
-          payload: reserves as unknown as Record<string, unknown>,
-          calcVersion: process.env.ALG_RESERVE_VERSION || '1.0.0',
-          correlationId,
-          metadata: {
-            portfolioCount: portfolio.length,
-            engineRuntime: performance.now() - startTime,
-          },
-        }).returning();
-        
+        const [snapshot] = await db
+          .insert(fundSnapshots)
+          .values({
+            fundId,
+            type: 'RESERVE',
+            payload: reserves as unknown as Record<string, unknown>,
+            calcVersion: process.env.ALG_RESERVE_VERSION || '1.0.0',
+            correlationId,
+            metadata: {
+              portfolioCount: portfolio.length,
+              engineRuntime: performance.now() - startTime,
+            },
+          })
+          .returning();
+
         // Record metrics
         metrics.recordSnapshotWrite('RESERVE', true);
-        
+
         logger.info('Reserve calculation completed', {
           fundId,
           correlationId,
@@ -132,7 +135,7 @@ export const reserveWorker = new Worker(
           totalAllocation: reserves.totalAllocation,
           avgConfidence: reserves.avgConfidence,
         });
-        
+
         return {
           fundId,
           snapshotId: snapshot.id,
