@@ -209,9 +209,7 @@ class MemoryStorageService implements StorageService {
   }
 }
 
-/**
- * S3 Storage Implementation (stub - requires @aws-sdk/client-s3)
- */
+/** S3 provider stub -- activate only after installing @aws-sdk/client-s3. All methods throw until implemented. */
 class S3StorageService implements StorageService {
   private bucket: string;
   private region: string;

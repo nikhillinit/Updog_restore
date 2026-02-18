@@ -1,15 +1,15 @@
 # Quarantine Report
 
-Generated: 2026-02-17
+Generated: 2026-02-18
 
 ## Summary
 
 | Metric                  | Count |
 | ----------------------- | ----- |
-| Total skip sites        | 70    |
-| Total skipped tests     | 500   |
-| Files with @quarantine  | 39    |
-| Undocumented skip files | 4     |
+| Total skip sites        | 68    |
+| Total skipped tests     | 495   |
+| Files with @quarantine  | 42    |
+| Undocumented skip files | 0     |
 
 NOTE: "Total skipped tests" counts individual `it()` / `test()` calls inside
 skipped `describe.skip` blocks plus individual `it.skip` calls. Env-gated files
@@ -71,27 +71,36 @@ unset, which is the default in local and CI environments.
 | `tests/integration/scenarioGeneratorWorker.test.ts`         | @qa-team     | Temporarily skipped pending stabilization triage                                         | Remove skip and re-enable once deterministic behavior or required test infrastructure is available | 9       |
 | `tests/integration/testcontainers-smoke.test.ts`            | @devops-team | Requires Docker which is not available in GitHub Actions free tier                       | Migrate to self-hosted runners with Docker OR GitHub adds Docker support                           | 7       |
 | `tests/perf/validator.microbench.test.ts`                   | @qa-team     | Temporarily skipped pending stabilization triage                                         | Remove skip and re-enable once deterministic behavior or required test infrastructure is available | 3       |
-| `tests/quarantine/fund-setup.smoke.quarantine.test.tsx`     | @qa-team     | Temporarily skipped pending stabilization triage                                         | Remove skip and re-enable once deterministic behavior or required test infrastructure is available | 5       |
+| `tests/quarantine/fund-setup.smoke.quarantine.test.tsx`     | --           | DELETED 2026-02-18: Superseded by tests/e2e/fund-setup.spec.ts                           | N/A                                                                                                | 0       |
+| `tests/integration/ops-webhook.quarantine.test.ts`          | P5.1 audit   | ESM module reload via require.cache does not work for ES modules (INFRA)                 | Extract startup validation to init() function or migrate to ESM-reload-capable runner              | 2       |
+| `tests/integration/approval-guard.test.ts`                  | P5.1 audit   | /api/reserves/calculate endpoints not yet implemented (STUB)                             | Implement reserve calculation API endpoints per ADR-017                                            | 1       |
+| `tests/load/metrics-performance.test.ts`                    | P5.1 audit   | Manual-only stress test; 5-min sustained load unsuitable for CI (INFRA)                  | Move to tests/manual/ or dedicated perf CI job with extended timeout                               | 1       |
+| `tests/unit/truth-cases/capital-allocation.test.ts`         | P5.1 audit   | CA-005 locked per CA-SEMANTIC-LOCK.md Section 6; dynamic_ratio skipped by policy (STALE) | Unlock CA-005 when dynamic_ratio allocation policy is implemented                                  | dynamic |
 | `tests/smoke/wizard.spec.ts`                                | @qa-team     | Requires running application at BASE_URL for synthetic monitoring                        | Run manually with npm run test:smoke against deployed environment                                  | 10      |
 | `tests/ui-conditionals.test.tsx`                            | @qa-team     | Temporarily skipped pending stabilization triage                                         | Remove skip and re-enable once deterministic behavior or required test infrastructure is available | 10      |
 
 ## Undocumented
 
-Files with `it.skip` directives but no `@quarantine` tag:
+All previously undocumented skip files now have @quarantine tags (P5.1 audit,
+2026-02-18).
 
-| File                                                | Skip Sites | Notes                                                          |
-| --------------------------------------------------- | ---------- | -------------------------------------------------------------- |
-| `tests/integration/ops-webhook.quarantine.test.ts`  | 2          | ESM limitation -- module-load-time validation cannot be tested |
-| `tests/integration/approval-guard.test.ts`          | 1          | API endpoints not yet implemented                              |
-| `tests/load/metrics-performance.test.ts`            | 1          | Manual stress test -- skipped by default                       |
-| `tests/unit/truth-cases/capital-allocation.test.ts` | dynamic    | Data-driven conditional skip via `shouldSkipTruthCase()`       |
+No undocumented skip files remain.
+
+## Changes (2026-02-18, P5.1 Quarantine Hygiene)
+
+- ADDED @quarantine tags to 4 files: ops-webhook.quarantine.test.ts (INFRA),
+  approval-guard.test.ts (STUB), metrics-performance.test.ts (INFRA),
+  capital-allocation.test.ts (STALE)
+- DELETED tests/quarantine/fund-setup.smoke.quarantine.test.tsx -- superseded by
+  tests/e2e/fund-setup.spec.ts (describe block explicitly stated replacement)
+- Moved all 4 files from Undocumented to Documented tables above
 
 ## Review Checklist
 
+- [x] Add @quarantine tags to the 4 undocumented skip files (done 2026-02-18)
+- [x] Remove tests that meet exit criteria (fund-setup.smoke deleted 2026-02-18)
 - [ ] Review each quarantined test for exit criteria status
 - [ ] Update owners if team members have changed
-- [ ] Add @quarantine tags to the 4 undocumented skip files
-- [ ] Remove tests that meet exit criteria
 
 ## Protocol Reference
 
