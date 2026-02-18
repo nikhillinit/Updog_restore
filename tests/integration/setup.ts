@@ -14,11 +14,43 @@ process.env.TZ = 'UTC';
 // Integration test environment
 process.env.NODE_ENV = 'test';
 process.env._EXPLICIT_NODE_ENV = process.env.NODE_ENV;
+const VALID_TEST_JWT_SECRET = 'integration-test-jwt-secret-must-be-at-least-32-characters-long';
+const VALID_TEST_JWT_ISSUER = 'updog-api';
+const VALID_TEST_JWT_AUDIENCE = 'updog-client';
+
+function sanitizeSecrets(env: NodeJS.ProcessEnv): void {
+  if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {
+    env.JWT_SECRET = VALID_TEST_JWT_SECRET;
+  }
+
+  if (!env.JWT_ISSUER?.trim()) {
+    env.JWT_ISSUER = VALID_TEST_JWT_ISSUER;
+  }
+
+  if (!env.JWT_AUDIENCE?.trim()) {
+    env.JWT_AUDIENCE = VALID_TEST_JWT_AUDIENCE;
+  }
+
+  if (
+    env.HEALTH_KEY !== undefined &&
+    (env.HEALTH_KEY.trim().length < 16 ||
+      env.HEALTH_KEY === 'undefined' ||
+      env.HEALTH_KEY === 'null')
+  ) {
+    delete env.HEALTH_KEY;
+  }
+}
+
+sanitizeSecrets(process.env);
+process.env._EXPLICIT_JWT_SECRET = process.env.JWT_SECRET;
+process.env._EXPLICIT_JWT_ISSUER = process.env.JWT_ISSUER;
+process.env._EXPLICIT_JWT_AUDIENCE = process.env.JWT_AUDIENCE;
 // Use ephemeral port (0) to avoid conflicts with zombie processes from previous runs
 process.env.PORT = process.env.PORT || '0'; // 0 = OS assigns random available port
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
+process.env._EXPLICIT_REDIS_URL = process.env.REDIS_URL;
 process.env.ENABLE_QUEUES = '0';
 const rawBaseUrl = (process.env.BASE_URL ?? '').trim();
 const normalizedBaseUrl =
@@ -100,7 +132,10 @@ beforeAll(async () => {
     _EXPLICIT_NODE_ENV: process.env.NODE_ENV || 'test',
     PORT: process.env.PORT || '0', // Force ephemeral port
     _EXPLICIT_PORT: process.env.PORT || '0', // Marker to detect override
+    REDIS_URL: process.env.REDIS_URL || 'memory://',
+    _EXPLICIT_REDIS_URL: process.env.REDIS_URL || 'memory://',
   };
+  sanitizeSecrets(serverEnv);
   delete serverEnv.VITEST;
 
   let actualPort: string | null = null;
