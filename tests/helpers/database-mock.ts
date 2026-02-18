@@ -94,6 +94,7 @@ class DatabaseMock {
   private mockData = new Map<string, MockQueryResult[]>();
   private callHistory: CallHistoryEntry[] = [];
   private constraints = new Map<string, TableConstraints>();
+  private _nextParamIndex = 0;
 
   constructor() {
     this.setupDefaultData();
@@ -571,10 +572,12 @@ class DatabaseMock {
       const tableName = this.extractTableName(normalizedQuery, 'insert');
       const id = this.generateId();
 
+      this._nextParamIndex = 0;
       const insertedRow = {
         id,
         ...this.parseInsertValues(queryStr, queryParams),
       };
+      this._nextParamIndex = 0;
 
       // Validate constraints before inserting
       const existingData = this.mockData.get(tableName) || [];
@@ -1256,6 +1259,10 @@ class DatabaseMock {
         if (paramMatch) {
           const paramIndex = Number.parseInt(paramMatch[1], 10) - 1;
           value = params[paramIndex];
+        } else if (token === '?' && params.length > 0) {
+          // Handle positional ? placeholders (consume params in order)
+          value = params[this._nextParamIndex ?? 0];
+          this._nextParamIndex = (this._nextParamIndex ?? 0) + 1;
         } else {
           value = this.parseValue(token);
         }
