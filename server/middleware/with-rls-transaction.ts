@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { db } from '../db.js';
+import { db, pool as dbPool } from '../db.js';
 import type { UserContext } from '../lib/secure-context.js';
 import type { Pool } from 'pg';
 
@@ -22,9 +22,9 @@ export function withRLSTransaction() {
   return async (req: RLSRequest, res: Response, next: NextFunction) => {
     // Require authenticated context
     if (!req.context) {
-      return res["status"](401)["json"]({ 
+      return res['status'](401)['json']({
         error: 'unauthorized',
-        message: 'Authentication required'
+        message: 'Authentication required',
       });
     }
 
@@ -32,14 +32,20 @@ export function withRLSTransaction() {
 
     // Require org context for tenant isolation
     if (!orgId) {
-      return res["status"](403)["json"]({ 
+      return res['status'](403)['json']({
         error: 'missing_org_context',
-        message: 'Organization context is required'
+        message: 'Organization context is required',
       });
     }
 
+    // In memory/mock test mode there is no pg pool; skip transaction wrapping.
+    const pool = dbPool as Pool | null;
+    if (!pool || typeof pool.connect !== 'function') {
+      req.tx = db;
+      return next();
+    }
+
     // Get a dedicated connection from the pool
-    const pool = (db as any).pool as Pool;
     const client = await pool.connect();
 
     try {
@@ -47,7 +53,8 @@ export function withRLSTransaction() {
       await client.query('BEGIN');
 
       // Set RLS context using LOCAL (scoped to this transaction)
-      await client.query(`
+      await client.query(
+        `
         SELECT 
           setconfig('app.current_user', $1, true),
           setconfig('app.current_email', $2, true),
@@ -55,7 +62,9 @@ export function withRLSTransaction() {
           setconfig('app.current_fund', $4, true),
           setconfig('app.current_role', $5, true),
           setconfig('app.current_partner', $6, true)
-      `, [userId, email, orgId, fundId || '', role, partnerId || '']);
+      `,
+        [userId, email, orgId, fundId || '', role, partnerId || '']
+      );
 
       // Set safety timeouts to prevent long-running queries
       await client.query(`SET LOCAL statement_timeout = '10s'`);
@@ -71,15 +80,16 @@ export function withRLSTransaction() {
 
       // Auto-commit on successful response
       const originalEnd = res.end.bind(res);
-      res.end = function(this: Response, ...args: Parameters<Response['end']>) {
+      res.end = function (this: Response, ...args: Parameters<Response['end']>) {
         if (!transactionCompleted) {
           transactionCompleted = true;
 
           // Commit or rollback based on response status
           const shouldCommit = res.statusCode < 400;
 
-          client.query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
-            .catch(err => console.error('Transaction finalization error:', err))
+          client
+            .query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
+            .catch((err) => console.error('Transaction finalization error:', err))
             .finally(() => {
               client.release();
             });
@@ -92,8 +102,9 @@ export function withRLSTransaction() {
       res['on']('close', () => {
         if (!transactionCompleted) {
           transactionCompleted = true;
-          client.query('ROLLBACK')
-            .catch(err => console.error('Rollback error on close:', err))
+          client
+            .query('ROLLBACK')
+            .catch((err) => console.error('Rollback error on close:', err))
             .finally(() => {
               client.release();
             });
@@ -111,7 +122,7 @@ export function withRLSTransaction() {
       } finally {
         client.release();
       }
-      
+
       // Pass error to Express error handler
       next(error);
     }
@@ -160,10 +171,7 @@ export async function executeInRLSContext<T>(
 /**
  * Helper to check if user has access to a specific fund
  */
-export async function checkFundAccess(
-  req: RLSRequest,
-  fundId: string
-): Promise<boolean> {
+export async function checkFundAccess(req: RLSRequest, fundId: string): Promise<boolean> {
   if (!req.pgClient) {
     return false;
   }
@@ -185,10 +193,10 @@ export async function checkFundAccess(
 export function logRLSContext(req: RLSRequest, prefix: string = ''): void {
   if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG_RLS'] === 'true') {
     verifyRLSContext(req)
-      .then(context => {
+      .then((context) => {
         console.log(`${prefix} RLS Context:`, context);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(`${prefix} Failed to get RLS context:`, err);
       });
   }

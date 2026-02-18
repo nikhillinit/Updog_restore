@@ -164,7 +164,10 @@ export function recordCalculation(
   granularity: string,
   durationMs: number
 ): void {
-  performanceCalculationDuration.observe({ calculation_type: calculationType, granularity }, durationMs);
+  performanceCalculationDuration.observe(
+    { calculation_type: calculationType, granularity },
+    durationMs
+  );
 }
 
 /**
