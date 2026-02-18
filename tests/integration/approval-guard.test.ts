@@ -147,6 +147,14 @@ describe('Approval Guard - Policy Before Compute', () => {
     });
   });
 
+  /**
+   * @quarantine
+   * @reason /api/reserves/calculate endpoints not yet implemented; test body is empty
+   * @category STUB
+   * @owner P5.1 tech debt audit
+   * @date 2026-02-18
+   * @exitCriteria Implement reserve calculation API endpoints per ADR-017
+   */
   describe('API Integration', () => {
     it.skip('API integration tests - endpoints not yet implemented', () => {
       // These tests reference /api/reserves/calculate endpoints that don't exist yet

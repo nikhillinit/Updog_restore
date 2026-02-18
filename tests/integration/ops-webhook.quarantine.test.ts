@@ -323,6 +323,14 @@ describe('Ops Webhook: Auto-Downgrade', () => {
     });
   });
 
+  /**
+   * @quarantine
+   * @reason ESM module reload via require.cache does not work for ES modules; cannot test module-load-time startup validation in Vitest
+   * @category INFRA
+   * @owner P5.1 tech debt audit
+   * @date 2026-02-18
+   * @exitCriteria Extract startup validation to an init() function callable from tests, or migrate to a test runner supporting ESM module reload
+   */
   describe('Startup Validation', () => {
     // ESM modules cannot be uncached like CJS - require.cache doesn't work
     // These tests validate behavior that occurs at module load time

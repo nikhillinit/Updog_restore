@@ -58,7 +58,7 @@ describe('Metrics API Performance - Load Testing', () => {
 
     // Calculate p95
     const sorted = durations.sort((a, b) => a - b);
-    const p50Index = Math.floor(sorted.length * 0.50);
+    const p50Index = Math.floor(sorted.length * 0.5);
     const p95Index = Math.floor(sorted.length * 0.95);
     const p99Index = Math.floor(sorted.length * 0.99);
 
@@ -97,7 +97,7 @@ describe('Metrics API Performance - Load Testing', () => {
     });
 
     // Wait for cache to clear
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // First request (cache miss)
     const start1 = performance.now();
@@ -108,7 +108,7 @@ describe('Metrics API Performance - Load Testing', () => {
     expect(response1.ok).toBe(true);
 
     // Wait a bit
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Second request (cache hit)
     const start2 = performance.now();
@@ -147,7 +147,7 @@ describe('Metrics API Performance - Load Testing', () => {
     const start = performance.now();
 
     const promises = Array.from({ length: concurrency }, () =>
-      fetch(`${BASE_URL}/api/funds/${testFundId}/metrics`).then(r => r.json())
+      fetch(`${BASE_URL}/api/funds/${testFundId}/metrics`).then((r) => r.json())
     );
 
     const results = await Promise.all(promises);
@@ -158,7 +158,7 @@ describe('Metrics API Performance - Load Testing', () => {
 
     // All requests should succeed
     expect(results).toHaveLength(concurrency);
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result).toHaveProperty('actual');
     });
 
@@ -177,7 +177,7 @@ describe('Metrics API Performance - Load Testing', () => {
       method: 'POST',
     });
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Full metrics (with projections)
     const start1 = performance.now();
@@ -190,11 +190,13 @@ describe('Metrics API Performance - Load Testing', () => {
       method: 'POST',
     });
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Skip projections
     const start2 = performance.now();
-    const response2 = await fetch(`${BASE_URL}/api/funds/${testFundId}/metrics?skipProjections=true`);
+    const response2 = await fetch(
+      `${BASE_URL}/api/funds/${testFundId}/metrics?skipProjections=true`
+    );
     await response2.json();
     const skipDuration = performance.now() - start2;
 
@@ -202,7 +204,9 @@ describe('Metrics API Performance - Load Testing', () => {
     console.log('=============================');
     console.log(`With projections:    ${fullDuration.toFixed(0)}ms`);
     console.log(`Without projections: ${skipDuration.toFixed(0)}ms`);
-    console.log(`Savings:             ${(fullDuration - skipDuration).toFixed(0)}ms (${((1 - skipDuration/fullDuration) * 100).toFixed(0)}%)`);
+    console.log(
+      `Savings:             ${(fullDuration - skipDuration).toFixed(0)}ms (${((1 - skipDuration / fullDuration) * 100).toFixed(0)}%)`
+    );
     console.log('=============================');
 
     // Skip should be faster
@@ -215,57 +219,73 @@ describe('Metrics API Performance - Load Testing', () => {
  *
  * Simulates realistic production load patterns
  */
+/**
+ * @quarantine
+ * @reason Intentional manual-only stress test; 5-minute sustained load unsuitable for CI
+ * @category INFRA
+ * @owner P5.1 tech debt audit
+ * @date 2026-02-18
+ * @exitCriteria Move to tests/manual/ directory or run only in dedicated perf CI job with extended timeout
+ */
 describe('Metrics API - Stress Testing', () => {
   const BASE_URL = process.env.TEST_API_URL || 'http://localhost:5000';
 
-  it.skip('should handle sustained load (100 req/min for 5 minutes)', async () => {
-    // This test is skipped by default - run manually for stress testing
-    const durationMinutes = 5;
-    const requestsPerMinute = 100;
-    const intervalMs = (60 * 1000) / requestsPerMinute; // 600ms between requests
+  it.skip(
+    'should handle sustained load (100 req/min for 5 minutes)',
+    async () => {
+      // This test is skipped by default - run manually for stress testing
+      const durationMinutes = 5;
+      const requestsPerMinute = 100;
+      const intervalMs = (60 * 1000) / requestsPerMinute; // 600ms between requests
 
-    console.log(`Starting stress test: ${requestsPerMinute} req/min for ${durationMinutes} minutes...`);
+      console.log(
+        `Starting stress test: ${requestsPerMinute} req/min for ${durationMinutes} minutes...`
+      );
 
-    const results: { success: number; errors: number; durations: number[] } = {
-      success: 0,
-      errors: 0,
-      durations: []
-    };
+      const results: { success: number; errors: number; durations: number[] } = {
+        success: 0,
+        errors: 0,
+        durations: [],
+      };
 
-    const startTime = Date.now();
-    const endTime = startTime + (durationMinutes * 60 * 1000);
+      const startTime = Date.now();
+      const endTime = startTime + durationMinutes * 60 * 1000;
 
-    while (Date.now() < endTime) {
-      const reqStart = performance.now();
+      while (Date.now() < endTime) {
+        const reqStart = performance.now();
 
-      try {
-        const response = await fetch(`${BASE_URL}/api/funds/1/metrics`);
-        if (response.ok) {
-          results.success++;
-        } else {
+        try {
+          const response = await fetch(`${BASE_URL}/api/funds/1/metrics`);
+          if (response.ok) {
+            results.success++;
+          } else {
+            results.errors++;
+          }
+          const reqEnd = performance.now();
+          results.durations.push(reqEnd - reqStart);
+        } catch (error) {
           results.errors++;
         }
-        const reqEnd = performance.now();
-        results.durations.push(reqEnd - reqStart);
-      } catch (error) {
-        results.errors++;
+
+        // Wait for next interval
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
 
-      // Wait for next interval
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
-    }
+      console.log('\nStress Test Results:');
+      console.log('====================');
+      console.log(`Total requests: ${results.success + results.errors}`);
+      console.log(`Successful:     ${results.success}`);
+      console.log(`Errors:         ${results.errors}`);
+      console.log(
+        `Success rate:   ${((results.success / (results.success + results.errors)) * 100).toFixed(2)}%`
+      );
+      console.log('====================');
 
-    console.log('\nStress Test Results:');
-    console.log('====================');
-    console.log(`Total requests: ${results.success + results.errors}`);
-    console.log(`Successful:     ${results.success}`);
-    console.log(`Errors:         ${results.errors}`);
-    console.log(`Success rate:   ${((results.success / (results.success + results.errors)) * 100).toFixed(2)}%`);
-    console.log('====================');
-
-    // 99% success rate expected
-    expect(results.errors / (results.success + results.errors)).toBeLessThan(0.01);
-  }, 10 * 60 * 1000); // 10 minute timeout
+      // 99% success rate expected
+      expect(results.errors / (results.success + results.errors)).toBeLessThan(0.01);
+    },
+    10 * 60 * 1000
+  ); // 10 minute timeout
 });
 
 /**
