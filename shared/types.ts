@@ -100,9 +100,6 @@ export const ReserveCompanyInputSchema = z.object({
   sector: z.string().min(1),
 });
 
-/** @deprecated Use ReserveCompanyInputSchema - kept for backward compatibility */
-export const ReserveInputSchema = ReserveCompanyInputSchema;
-
 export const ReserveOutputSchema = z.object({
   allocation: z.number().min(0),
   confidence: z.number().min(0).max(1),
@@ -199,8 +196,6 @@ export const CohortSummarySchema = z.object({
 // =============================================================================
 
 export type ReserveCompanyInput = z.infer<typeof ReserveCompanyInputSchema>;
-/** @deprecated Use ReserveCompanyInput - kept for backward compatibility */
-export type ReserveInput = ReserveCompanyInput;
 export type ReserveOutput = z.infer<typeof ReserveOutputSchema>;
 export type ReserveSummary = z.infer<typeof ReserveSummarySchema>;
 
@@ -489,7 +484,10 @@ export const CohortRowSchema = z.object({
     .optional(),
   coverage: CoverageSummarySchema,
   provenance: z.object({
-    sectorSourceBreakdown: z.record(z.enum(['company_override', 'mapping', 'unmapped']), z.number()),
+    sectorSourceBreakdown: z.record(
+      z.enum(['company_override', 'mapping', 'unmapped']),
+      z.number()
+    ),
     vintageSourceBreakdown: z.record(z.string(), z.number()),
     shiftedCompanies: z.number().optional(),
   }),

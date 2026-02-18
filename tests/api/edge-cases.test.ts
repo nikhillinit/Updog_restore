@@ -4,7 +4,12 @@ import {
   generateReserveSummary,
 } from '../../client/src/core/reserves/ReserveEngine';
 import { PacingEngine, generatePacingSummary } from '../../client/src/core/pacing/PacingEngine';
-import type { ReserveInput, PacingInput, ReserveSummary, PacingSummary } from '../../shared/types';
+import type {
+  ReserveCompanyInput,
+  PacingInput,
+  ReserveSummary,
+  PacingSummary,
+} from '../../shared/types';
 
 describe('Edge Cases - ReserveEngine', () => {
   beforeEach(() => {
@@ -20,7 +25,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should handle portfolio with zero investments', () => {
-      const zeroPortfolio: ReserveInput[] = [
+      const zeroPortfolio: ReserveCompanyInput[] = [
         { id: 1, invested: 0, ownership: 0.1, stage: 'Seed', sector: 'SaaS' },
       ];
 
@@ -31,7 +36,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should handle zero ownership percentage', () => {
-      const zeroOwnership: ReserveInput[] = [
+      const zeroOwnership: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0, stage: 'Series A', sector: 'Analytics' },
       ];
 
@@ -63,7 +68,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should throw error for negative investment amounts', () => {
-      const negativeInvestment: ReserveInput[] = [
+      const negativeInvestment: ReserveCompanyInput[] = [
         { id: 1, invested: -500000, ownership: 0.1, stage: 'Seed', sector: 'SaaS' },
       ];
 
@@ -71,7 +76,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should throw error for ownership > 100%', () => {
-      const excessiveOwnership: ReserveInput[] = [
+      const excessiveOwnership: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 1.5, stage: 'Seed', sector: 'SaaS' },
       ];
 
@@ -79,7 +84,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should throw error for empty stage or sector', () => {
-      const emptyStage: ReserveInput[] = [
+      const emptyStage: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: '', sector: 'SaaS' },
       ];
 
@@ -89,7 +94,7 @@ describe('Edge Cases - ReserveEngine', () => {
 
   describe('Extreme Value Cases', () => {
     it('should handle very large investment amounts', () => {
-      const largeInvestment: ReserveInput[] = [
+      const largeInvestment: ReserveCompanyInput[] = [
         { id: 1, invested: 1000000000, ownership: 0.1, stage: 'Growth', sector: 'Enterprise' },
       ];
 
@@ -100,7 +105,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should handle very small investment amounts', () => {
-      const smallInvestment: ReserveInput[] = [
+      const smallInvestment: ReserveCompanyInput[] = [
         { id: 1, invested: 1, ownership: 0.001, stage: 'Seed', sector: 'Analytics' },
       ];
 
@@ -110,7 +115,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should handle maximum ownership percentage', () => {
-      const maxOwnership: ReserveInput[] = [
+      const maxOwnership: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 1.0, stage: 'Series A', sector: 'Fintech' },
       ];
 
@@ -122,7 +127,7 @@ describe('Edge Cases - ReserveEngine', () => {
 
   describe('Unknown Stage and Sector Handling', () => {
     it('should handle unknown investment stages', () => {
-      const unknownStage: ReserveInput[] = [
+      const unknownStage: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Unknown Stage', sector: 'SaaS' },
       ];
 
@@ -133,7 +138,7 @@ describe('Edge Cases - ReserveEngine', () => {
     });
 
     it('should handle unknown sectors', () => {
-      const unknownSector: ReserveInput[] = [
+      const unknownSector: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Series A', sector: 'Unknown Sector' },
       ];
 
@@ -148,7 +153,7 @@ describe('Edge Cases - ReserveEngine', () => {
     it('should handle cold-start mode with ALG_RESERVE=false', () => {
       process.env.ALG_RESERVE = 'false';
 
-      const portfolio: ReserveInput[] = [
+      const portfolio: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Series A', sector: 'SaaS' },
       ];
 
@@ -163,7 +168,7 @@ describe('Edge Cases - ReserveEngine', () => {
       // Mock Math.random to ensure predictable ML mode selection
       const mockRandom = vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.3, should use rules
 
-      const portfolio: ReserveInput[] = [
+      const portfolio: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Series A', sector: 'SaaS' },
       ];
 
@@ -176,7 +181,7 @@ describe('Edge Cases - ReserveEngine', () => {
 
   describe('Large Portfolio Stress Tests', () => {
     it('should handle portfolio with 1000+ companies', () => {
-      const largePortfolio: ReserveInput[] = Array.from({ length: 1000 }, (_, i) => ({
+      const largePortfolio: ReserveCompanyInput[] = Array.from({ length: 1000 }, (_, i) => ({
         id: i + 1,
         invested: 100000 + i * 1000,
         ownership: 0.05 + i * 0.0001,
@@ -427,7 +432,7 @@ describe('Edge Cases - PacingEngine', () => {
 describe('Integration Edge Cases', () => {
   describe('Type Safety Validation', () => {
     it('should maintain type safety in ReserveSummary generation', () => {
-      const portfolio: ReserveInput[] = [
+      const portfolio: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Series A', sector: 'SaaS' },
       ];
 
@@ -463,7 +468,7 @@ describe('Integration Edge Cases', () => {
 
   describe('Confidence Level Boundaries', () => {
     it('should respect confidence level constants', () => {
-      const portfolio: ReserveInput[] = [
+      const portfolio: ReserveCompanyInput[] = [
         { id: 1, invested: 500000, ownership: 0.1, stage: 'Series A', sector: 'SaaS' },
       ];
 
@@ -482,7 +487,7 @@ describe('Integration Edge Cases', () => {
 
       // Perform multiple large operations
       for (let i = 0; i < 100; i++) {
-        const largePortfolio: ReserveInput[] = Array.from({ length: 50 }, (_, j) => ({
+        const largePortfolio: ReserveCompanyInput[] = Array.from({ length: 50 }, (_, j) => ({
           id: j + 1,
           invested: 500000,
           ownership: 0.1,

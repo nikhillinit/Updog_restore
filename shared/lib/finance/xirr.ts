@@ -373,6 +373,17 @@ export function safeXIRR(cashFlows: CashFlowEvent[], guess = 0.1): SafeXIRRResul
       amount: cf.amount,
     }));
 
+    // Guard: Invalid Date produces NaN which poisons solver bracket checks
+    if (flows.some((cf) => isNaN(cf.date.getTime()))) {
+      return {
+        irr: null,
+        converged: false,
+        iterations: 0,
+        method: 'none',
+        error: 'Invalid date in cash flows',
+      };
+    }
+
     const result = xirrNewtonBisection(flows, guess);
     return {
       irr: result.irr,

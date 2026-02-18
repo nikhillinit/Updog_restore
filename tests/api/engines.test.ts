@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ReserveEngine } from '../../client/src/core/reserves/ReserveEngine';
 import { PacingEngine } from '../../client/src/core/pacing/PacingEngine';
-import type { ReserveInput, PacingInput } from '@shared/types';
+import type { ReserveCompanyInput, PacingInput } from '@shared/types';
 
 describe('ReserveEngine', () => {
-  const mockPortfolio: ReserveInput[] = [
+  const mockPortfolio: ReserveCompanyInput[] = [
     {
       id: 1,
       invested: 750000,
