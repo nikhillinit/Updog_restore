@@ -13,6 +13,32 @@
 
 import * as client from 'prom-client';
 
+function getOrCreateCounter(config: client.CounterConfiguration<string>): client.Counter<string> {
+  const existing = client.register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as client.Counter<string>;
+  }
+  return new client.Counter(config);
+}
+
+function getOrCreateHistogram(
+  config: client.HistogramConfiguration<string>
+): client.Histogram<string> {
+  const existing = client.register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as client.Histogram<string>;
+  }
+  return new client.Histogram(config);
+}
+
+function getOrCreateGauge(config: client.GaugeConfiguration<string>): client.Gauge<string> {
+  const existing = client.register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as client.Gauge<string>;
+  }
+  return new client.Gauge(config);
+}
+
 // ============================================================================
 // REQUEST METRICS
 // ============================================================================
@@ -21,7 +47,7 @@ import * as client from 'prom-client';
  * LP API request duration histogram
  * Tracks latency for each endpoint
  */
-export const lpRequestDuration = new client.Histogram({
+export const lpRequestDuration = getOrCreateHistogram({
   name: 'lp_api_request_duration_ms',
   help: 'LP API request duration in milliseconds',
   labelNames: ['endpoint', 'method', 'status', 'lp_id'],
@@ -32,7 +58,7 @@ export const lpRequestDuration = new client.Histogram({
  * LP API request counter
  * Counts total requests by endpoint
  */
-export const lpRequestCount = new client.Counter({
+export const lpRequestCount = getOrCreateCounter({
   name: 'lp_api_requests_total',
   help: 'Total LP API requests',
   labelNames: ['endpoint', 'method', 'status'],
@@ -45,7 +71,7 @@ export const lpRequestCount = new client.Counter({
 /**
  * LP API cache hit counter
  */
-export const lpCacheHits = new client.Counter({
+export const lpCacheHits = getOrCreateCounter({
   name: 'lp_cache_hits_total',
   help: 'Total LP API cache hits',
   labelNames: ['endpoint'],
@@ -54,7 +80,7 @@ export const lpCacheHits = new client.Counter({
 /**
  * LP API cache miss counter
  */
-export const lpCacheMisses = new client.Counter({
+export const lpCacheMisses = getOrCreateCounter({
   name: 'lp_cache_misses_total',
   help: 'Total LP API cache misses',
   labelNames: ['endpoint'],
@@ -68,7 +94,7 @@ export const lpCacheMisses = new client.Counter({
  * Report generation duration histogram
  * Tracks time spent generating reports
  */
-export const lpReportGenerationDuration = new client.Histogram({
+export const lpReportGenerationDuration = getOrCreateHistogram({
   name: 'lp_report_generation_duration_ms',
   help: 'LP report generation duration in milliseconds',
   labelNames: ['report_type', 'format'],
@@ -78,7 +104,7 @@ export const lpReportGenerationDuration = new client.Histogram({
 /**
  * Reports generated counter
  */
-export const lpReportsGenerated = new client.Counter({
+export const lpReportsGenerated = getOrCreateCounter({
   name: 'lp_reports_generated_total',
   help: 'Total LP reports successfully generated',
   labelNames: ['report_type', 'format'],
@@ -87,7 +113,7 @@ export const lpReportsGenerated = new client.Counter({
 /**
  * Reports failed counter
  */
-export const lpReportsFailed = new client.Counter({
+export const lpReportsFailed = getOrCreateCounter({
   name: 'lp_reports_failed_total',
   help: 'Total LP report generation failures',
   labelNames: ['report_type', 'error_type'],
@@ -101,7 +127,7 @@ export const lpReportsFailed = new client.Counter({
  * Active LPs gauge
  * Current number of active LPs in the system
  */
-export const lpActiveLPsGauge = new client.Gauge({
+export const lpActiveLPsGauge = getOrCreateGauge({
   name: 'lp_active_lps_gauge',
   help: 'Current number of active LPs',
 });
@@ -110,7 +136,7 @@ export const lpActiveLPsGauge = new client.Gauge({
  * Capital activity events counter
  * Tracks capital calls, distributions, and other capital events
  */
-export const lpCapitalActivityEvents = new client.Counter({
+export const lpCapitalActivityEvents = getOrCreateCounter({
   name: 'lp_capital_activity_events_total',
   help: 'Total capital activity events processed',
   labelNames: ['activity_type', 'fund_id'],
@@ -120,7 +146,7 @@ export const lpCapitalActivityEvents = new client.Counter({
  * Data points returned histogram
  * Tracks volume of data returned in API responses
  */
-export const lpDataPoints = new client.Histogram({
+export const lpDataPoints = getOrCreateHistogram({
   name: 'lp_data_points_returned',
   help: 'Number of data points returned in LP API responses',
   labelNames: ['endpoint'],
@@ -134,7 +160,7 @@ export const lpDataPoints = new client.Histogram({
 /**
  * LP API error counter
  */
-export const lpErrors = new client.Counter({
+export const lpErrors = getOrCreateCounter({
   name: 'lp_api_errors_total',
   help: 'Total LP API errors',
   labelNames: ['endpoint', 'error_type', 'status'],

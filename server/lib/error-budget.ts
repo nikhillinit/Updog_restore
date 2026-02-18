@@ -18,24 +18,52 @@ export interface ErrorBudget {
   status: 'healthy' | 'warning' | 'critical' | 'exhausted';
 }
 
+function getOrCreateGauge(
+  name: string,
+  help: string,
+  labelNames: string[] = []
+): client.Gauge<string> {
+  const existing = client.register.getSingleMetric(name) as
+    | client.Gauge<string>
+    | undefined;
+  if (existing) {
+    return existing;
+  }
+  return new client.Gauge({ name, help, labelNames });
+}
+
+function getOrCreateCounter(
+  name: string,
+  help: string,
+  labelNames: string[] = []
+): client.Counter<string> {
+  const existing = client.register.getSingleMetric(name) as
+    | client.Counter<string>
+    | undefined;
+  if (existing) {
+    return existing;
+  }
+  return new client.Counter({ name, help, labelNames });
+}
+
 // Metrics for error budget tracking
-const errorBudgetRemaining = new client.Gauge({
-  name: 'error_budget_remaining',
-  help: 'Remaining error budget (0-1)',
-  labelNames: ['slo', 'service', 'window']
-});
+const errorBudgetRemaining = getOrCreateGauge(
+  'error_budget_remaining',
+  'Remaining error budget (0-1)',
+  ['slo', 'service', 'window']
+);
 
-const errorBudgetBurnRate = new client.Gauge({
-  name: 'error_budget_burn_rate',
-  help: 'Current error budget burn rate',
-  labelNames: ['slo', 'service', 'window']
-});
+const errorBudgetBurnRate = getOrCreateGauge(
+  'error_budget_burn_rate',
+  'Current error budget burn rate',
+  ['slo', 'service', 'window']
+);
 
-const deploymentBlockedTotal = new client.Counter({
-  name: 'deployment_blocked_total',
-  help: 'Total deployments blocked by error budget',
-  labelNames: ['reason', 'slo', 'service']
-});
+const deploymentBlockedTotal = getOrCreateCounter(
+  'deployment_blocked_total',
+  'Total deployments blocked by error budget',
+  ['reason', 'slo', 'service']
+);
 
 export class ErrorBudgetManager {
   private slos: Map<string, SLOConfig> = new Map();
