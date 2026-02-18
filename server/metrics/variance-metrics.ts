@@ -7,12 +7,36 @@
 
 import { register, Counter, Histogram, Gauge } from 'prom-client';
 
+function getOrCreateCounter(config: ConstructorParameters<typeof Counter>[0]): Counter {
+  const existing = register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as Counter;
+  }
+  return new Counter(config);
+}
+
+function getOrCreateHistogram(config: ConstructorParameters<typeof Histogram>[0]): Histogram {
+  const existing = register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as Histogram;
+  }
+  return new Histogram(config);
+}
+
+function getOrCreateGauge(config: ConstructorParameters<typeof Gauge>[0]): Gauge {
+  const existing = register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as Gauge;
+  }
+  return new Gauge(config);
+}
+
 // === VARIANCE CALCULATION METRICS ===
 
 /**
  * Counter for variance report generation operations
  */
-export const varianceReportsGenerated = new Counter({
+export const varianceReportsGenerated = getOrCreateCounter({
   name: 'variance_reports_generated_total',
   help: 'Total number of variance reports generated',
   labelNames: ['fund_id', 'report_type', 'status'] as const,
@@ -22,7 +46,7 @@ export const varianceReportsGenerated = new Counter({
 /**
  * Histogram for variance calculation duration
  */
-export const varianceCalculationDuration = new Histogram({
+export const varianceCalculationDuration = getOrCreateHistogram({
   name: 'variance_calculation_duration_seconds',
   help: 'Time taken to calculate variance metrics',
   labelNames: ['fund_id', 'calculation_type'] as const,
@@ -33,7 +57,7 @@ export const varianceCalculationDuration = new Histogram({
 /**
  * Gauge for active variance tracking operations
  */
-export const activeVarianceCalculations = new Gauge({
+export const activeVarianceCalculations = getOrCreateGauge({
   name: 'variance_calculations_active',
   help: 'Number of variance calculations currently in progress',
   labelNames: ['calculation_type'] as const,
@@ -45,7 +69,7 @@ export const activeVarianceCalculations = new Gauge({
 /**
  * Counter for baseline operations
  */
-export const baselineOperations = new Counter({
+export const baselineOperations = getOrCreateCounter({
   name: 'baseline_operations_total',
   help: 'Total number of baseline operations performed',
   labelNames: ['fund_id', 'operation_type', 'baseline_type'] as const,
@@ -55,7 +79,7 @@ export const baselineOperations = new Counter({
 /**
  * Gauge for total active baselines
  */
-export const totalActiveBaselines = new Gauge({
+export const totalActiveBaselines = getOrCreateGauge({
   name: 'baselines_active_total',
   help: 'Total number of active baselines across all funds',
   labelNames: ['baseline_type'] as const,
@@ -65,7 +89,7 @@ export const totalActiveBaselines = new Gauge({
 /**
  * Histogram for baseline creation duration
  */
-export const baselineCreationDuration = new Histogram({
+export const baselineCreationDuration = getOrCreateHistogram({
   name: 'baseline_creation_duration_seconds',
   help: 'Time taken to create a new baseline',
   labelNames: ['fund_id', 'baseline_type'] as const,
@@ -78,7 +102,7 @@ export const baselineCreationDuration = new Histogram({
 /**
  * Counter for alerts generated
  */
-export const alertsGenerated = new Counter({
+export const alertsGenerated = getOrCreateCounter({
   name: 'performance_alerts_generated_total',
   help: 'Total number of performance alerts generated',
   labelNames: ['fund_id', 'alert_type', 'severity', 'category'] as const,
@@ -88,7 +112,7 @@ export const alertsGenerated = new Counter({
 /**
  * Counter for alert actions
  */
-export const alertActions = new Counter({
+export const alertActions = getOrCreateCounter({
   name: 'alert_actions_total',
   help: 'Total number of alert actions performed',
   labelNames: ['action_type', 'severity'] as const,
@@ -98,7 +122,7 @@ export const alertActions = new Counter({
 /**
  * Gauge for active alerts by severity
  */
-export const activeAlertsBySeverity = new Gauge({
+export const activeAlertsBySeverity = getOrCreateGauge({
   name: 'alerts_active_by_severity',
   help: 'Number of active alerts grouped by severity',
   labelNames: ['severity', 'category'] as const,
@@ -108,7 +132,7 @@ export const activeAlertsBySeverity = new Gauge({
 /**
  * Histogram for alert resolution time
  */
-export const alertResolutionTime = new Histogram({
+export const alertResolutionTime = getOrCreateHistogram({
   name: 'alert_resolution_time_seconds',
   help: 'Time taken to resolve alerts from trigger to resolution',
   labelNames: ['severity', 'alert_type'] as const,
@@ -121,7 +145,7 @@ export const alertResolutionTime = new Histogram({
 /**
  * Gauge for variance scores by fund
  */
-export const fundVarianceScores = new Gauge({
+export const fundVarianceScores = getOrCreateGauge({
   name: 'fund_variance_score',
   help: 'Current variance score for each fund',
   labelNames: ['fund_id', 'baseline_id'] as const,
@@ -131,7 +155,7 @@ export const fundVarianceScores = new Gauge({
 /**
  * Counter for threshold breaches
  */
-export const thresholdBreaches = new Counter({
+export const thresholdBreaches = getOrCreateCounter({
   name: 'variance_threshold_breaches_total',
   help: 'Total number of variance threshold breaches',
   labelNames: ['fund_id', 'metric_name', 'threshold_type'] as const,
@@ -141,7 +165,7 @@ export const thresholdBreaches = new Counter({
 /**
  * Histogram for variance analysis depth
  */
-export const varianceAnalysisComplexity = new Histogram({
+export const varianceAnalysisComplexity = getOrCreateHistogram({
   name: 'variance_analysis_complexity',
   help: 'Complexity score of variance analysis operations',
   labelNames: ['fund_id', 'analysis_type'] as const,
@@ -154,7 +178,7 @@ export const varianceAnalysisComplexity = new Histogram({
 /**
  * Counter for variance API requests
  */
-export const varianceApiRequests = new Counter({
+export const varianceApiRequests = getOrCreateCounter({
   name: 'variance_api_requests_total',
   help: 'Total number of variance tracking API requests',
   labelNames: ['endpoint', 'method', 'status_code'] as const,
@@ -164,7 +188,7 @@ export const varianceApiRequests = new Counter({
 /**
  * Histogram for variance API response times
  */
-export const varianceApiDuration = new Histogram({
+export const varianceApiDuration = getOrCreateHistogram({
   name: 'variance_api_duration_seconds',
   help: 'Duration of variance tracking API requests',
   labelNames: ['endpoint', 'method'] as const,
@@ -177,7 +201,7 @@ export const varianceApiDuration = new Histogram({
 /**
  * Gauge for data quality scores
  */
-export const dataQualityScores = new Gauge({
+export const dataQualityScores = getOrCreateGauge({
   name: 'variance_data_quality_score',
   help: 'Data quality score for variance calculations',
   labelNames: ['fund_id', 'data_source'] as const,
@@ -187,7 +211,7 @@ export const dataQualityScores = new Gauge({
 /**
  * Counter for data validation errors
  */
-export const dataValidationErrors = new Counter({
+export const dataValidationErrors = getOrCreateCounter({
   name: 'variance_data_validation_errors_total',
   help: 'Total number of data validation errors in variance calculations',
   labelNames: ['fund_id', 'error_type', 'data_source'] as const,
@@ -199,7 +223,7 @@ export const dataValidationErrors = new Counter({
 /**
  * Gauge for variance tracking system health
  */
-export const systemHealthScore = new Gauge({
+export const systemHealthScore = getOrCreateGauge({
   name: 'variance_system_health_score',
   help: 'Overall health score of the variance tracking system',
   registers: [register]
@@ -208,7 +232,7 @@ export const systemHealthScore = new Gauge({
 /**
  * Counter for system errors
  */
-export const systemErrors = new Counter({
+export const systemErrors = getOrCreateCounter({
   name: 'variance_system_errors_total',
   help: 'Total number of system errors in variance tracking',
   labelNames: ['component', 'error_type'] as const,
@@ -421,3 +445,4 @@ export function getVarianceMetricsSummary(): any {
     timestamp: new Date().toISOString()
   };
 }
+

@@ -12,6 +12,24 @@
 
 import * as client from 'prom-client';
 
+function getOrCreateCounter(config: client.CounterConfiguration<string>): client.Counter<string> {
+  const existing = client.register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as client.Counter<string>;
+  }
+  return new client.Counter(config);
+}
+
+function getOrCreateHistogram(
+  config: client.HistogramConfiguration<string>
+): client.Histogram<string> {
+  const existing = client.register.getSingleMetric(config.name);
+  if (existing) {
+    return existing as client.Histogram<string>;
+  }
+  return new client.Histogram(config);
+}
+
 // ============================================================================
 // REQUEST METRICS
 // ============================================================================
@@ -20,7 +38,7 @@ import * as client from 'prom-client';
  * Performance API request duration histogram
  * Tracks latency for each endpoint
  */
-export const performanceRequestDuration = new client.Histogram({
+export const performanceRequestDuration = getOrCreateHistogram({
   name: 'performance_api_request_duration_ms',
   help: 'Performance API request duration in milliseconds',
   labelNames: ['endpoint', 'method', 'status', 'fund_id'],
@@ -31,7 +49,7 @@ export const performanceRequestDuration = new client.Histogram({
  * Performance API request counter
  * Counts total requests by endpoint
  */
-export const performanceRequestCount = new client.Counter({
+export const performanceRequestCount = getOrCreateCounter({
   name: 'performance_api_requests_total',
   help: 'Total Performance API requests',
   labelNames: ['endpoint', 'method', 'status'],
@@ -44,7 +62,7 @@ export const performanceRequestCount = new client.Counter({
 /**
  * Performance cache hit counter
  */
-export const performanceCacheHits = new client.Counter({
+export const performanceCacheHits = getOrCreateCounter({
   name: 'performance_cache_hits_total',
   help: 'Total Performance API cache hits',
   labelNames: ['endpoint'],
@@ -53,7 +71,7 @@ export const performanceCacheHits = new client.Counter({
 /**
  * Performance cache miss counter
  */
-export const performanceCacheMisses = new client.Counter({
+export const performanceCacheMisses = getOrCreateCounter({
   name: 'performance_cache_misses_total',
   help: 'Total Performance API cache misses',
   labelNames: ['endpoint'],
@@ -67,7 +85,7 @@ export const performanceCacheMisses = new client.Counter({
  * Performance calculation duration histogram
  * Tracks time spent in calculation logic
  */
-export const performanceCalculationDuration = new client.Histogram({
+export const performanceCalculationDuration = getOrCreateHistogram({
   name: 'performance_calculation_duration_ms',
   help: 'Performance calculation duration in milliseconds',
   labelNames: ['calculation_type', 'granularity'],
@@ -78,7 +96,7 @@ export const performanceCalculationDuration = new client.Histogram({
  * Data points returned gauge
  * Tracks how much data is being returned
  */
-export const performanceDataPoints = new client.Histogram({
+export const performanceDataPoints = getOrCreateHistogram({
   name: 'performance_data_points_returned',
   help: 'Number of data points returned in performance responses',
   labelNames: ['endpoint'],
@@ -92,7 +110,7 @@ export const performanceDataPoints = new client.Histogram({
 /**
  * Performance API error counter
  */
-export const performanceErrors = new client.Counter({
+export const performanceErrors = getOrCreateCounter({
   name: 'performance_api_errors_total',
   help: 'Total Performance API errors',
   labelNames: ['endpoint', 'error_type'],

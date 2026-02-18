@@ -17,6 +17,8 @@ process.env._EXPLICIT_NODE_ENV = process.env.NODE_ENV;
 const VALID_TEST_JWT_SECRET = 'integration-test-jwt-secret-must-be-at-least-32-characters-long';
 const VALID_TEST_JWT_ISSUER = 'updog-api';
 const VALID_TEST_JWT_AUDIENCE = 'updog-client';
+const VALID_TEST_CORS_ORIGIN =
+  'http://localhost:5173,http://localhost:5174,http://localhost:5175';
 
 function sanitizeSecrets(env: NodeJS.ProcessEnv): void {
   if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {
@@ -46,19 +48,12 @@ process.env._EXPLICIT_JWT_SECRET = process.env.JWT_SECRET;
 process.env._EXPLICIT_JWT_ISSUER = process.env.JWT_ISSUER;
 process.env._EXPLICIT_JWT_AUDIENCE = process.env.JWT_AUDIENCE;
 // Use ephemeral port (0) to avoid conflicts with zombie processes from previous runs
-process.env.PORT = process.env.PORT || '0'; // 0 = OS assigns random available port
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';
 process.env._EXPLICIT_REDIS_URL = process.env.REDIS_URL;
 process.env.ENABLE_QUEUES = '0';
-const rawBaseUrl = (process.env.BASE_URL ?? '').trim();
-const normalizedBaseUrl =
-  rawBaseUrl && rawBaseUrl !== '/'
-    ? rawBaseUrl.startsWith('http://') || rawBaseUrl.startsWith('https://')
-      ? rawBaseUrl
-      : `http://${rawBaseUrl}`
-    : '';
+process.env.CORS_ORIGIN = VALID_TEST_CORS_ORIGIN;
 
 function isInvalidExternalBaseUrl(url: string): boolean {
   if (!url) return true;
@@ -71,13 +66,42 @@ function isInvalidExternalBaseUrl(url: string): boolean {
   }
 }
 
-const hasExternalBaseUrl = normalizedBaseUrl !== '' && !isInvalidExternalBaseUrl(normalizedBaseUrl);
+type SetupState = typeof globalThis & {
+  __integrationExternalBaseUrl?: string | null;
+};
+
+const setupState = globalThis as SetupState;
+if (setupState.__integrationExternalBaseUrl === undefined) {
+  const rawBaseUrl = (process.env.BASE_URL ?? '').trim();
+  const normalizedBaseUrl =
+    rawBaseUrl && rawBaseUrl !== '/'
+      ? rawBaseUrl.startsWith('http://') || rawBaseUrl.startsWith('https://')
+        ? rawBaseUrl
+        : `http://${rawBaseUrl}`
+      : '';
+  setupState.__integrationExternalBaseUrl =
+    normalizedBaseUrl !== '' && !isInvalidExternalBaseUrl(normalizedBaseUrl)
+      ? normalizedBaseUrl
+      : null;
+}
+
+const externalBaseUrl = setupState.__integrationExternalBaseUrl;
+const hasExternalBaseUrl = externalBaseUrl !== null;
+
+if (!hasExternalBaseUrl) {
+  // Reset to ephemeral bind hint on each setup-file run to avoid stale port leakage.
+  process.env.PORT = '0';
+}
+
+process.env.PORT = process.env.PORT || '0'; // 0 = OS assigns random available port
 const effectiveBaseUrl = hasExternalBaseUrl
-  ? normalizedBaseUrl
+  ? (externalBaseUrl as string)
   : `http://localhost:${process.env.PORT}`;
 process.env.BASE_URL = effectiveBaseUrl;
 
 let serverProcess: ChildProcess | null = null;
+const PORT_DETECTION_TIMEOUT_MS = 30000;
+const LOG_TAIL_SIZE = 12;
 
 async function waitForServer(url: string, timeout: number = 30000): Promise<boolean> {
   const start = Date.now();
@@ -99,7 +123,9 @@ async function waitForServer(url: string, timeout: number = 30000): Promise<bool
 
 beforeAll(async () => {
   // Check if we need to start the server
-  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT}`;
+  const baseUrl = hasExternalBaseUrl
+    ? process.env.BASE_URL || `http://localhost:${process.env.PORT}`
+    : 'http://localhost:0';
   const healthUrl = new URL('/healthz', baseUrl).toString();
 
   if (hasExternalBaseUrl) {
@@ -130,15 +156,26 @@ beforeAll(async () => {
     ...process.env,
     NODE_ENV: process.env.NODE_ENV || 'test',
     _EXPLICIT_NODE_ENV: process.env.NODE_ENV || 'test',
-    PORT: process.env.PORT || '0', // Force ephemeral port
-    _EXPLICIT_PORT: process.env.PORT || '0', // Marker to detect override
+    PORT: '0', // Always use ephemeral port in local test-managed mode
+    _EXPLICIT_PORT: '0', // Marker to prevent .env override to fixed ports
     REDIS_URL: process.env.REDIS_URL || 'memory://',
     _EXPLICIT_REDIS_URL: process.env.REDIS_URL || 'memory://',
+    CORS_ORIGIN: VALID_TEST_CORS_ORIGIN,
   };
   sanitizeSecrets(serverEnv);
   delete serverEnv.VITEST;
 
   let actualPort: string | null = null;
+  const stdoutTail: string[] = [];
+  const stderrTail: string[] = [];
+  const appendTail = (target: string[], chunk: string) => {
+    for (const line of chunk.split(/\r?\n/).filter(Boolean)) {
+      target.push(line);
+      if (target.length > LOG_TAIL_SIZE) {
+        target.shift();
+      }
+    }
+  };
 
   serverProcess = spawn('npm', ['run', 'dev:api'], {
     env: serverEnv,
@@ -148,6 +185,7 @@ beforeAll(async () => {
 
   serverProcess.stdout?.on('data', (data) => {
     const output = data.toString();
+    appendTail(stdoutTail, output);
     // Capture the actual port from server output (e.g., "api on http://localhost:54321")
     const portMatch = output.match(/api on http:\/\/[^:]+:(\d+)/);
     if (portMatch && !actualPort) {
@@ -158,20 +196,31 @@ beforeAll(async () => {
 
   serverProcess.stderr?.on('data', (data) => {
     const error = data.toString();
+    appendTail(stderrTail, error);
     if (!error.includes('ECONNREFUSED') && !error.includes('DATABASE_URL not set')) {
       console.error('Server error:', error);
     }
   });
 
-  // Wait for port detection (up to 10 seconds)
+  // Wait for port detection and fail fast if child process exits.
   let portWaitTime = 0;
-  while (!actualPort && portWaitTime < 10000) {
+  while (!actualPort && portWaitTime < PORT_DETECTION_TIMEOUT_MS) {
+    if (serverProcess.exitCode !== null) {
+      const stderrSummary = stderrTail.length ? stderrTail.join('\n') : '(no stderr captured)';
+      throw new Error(
+        `Server process exited before reporting port (exit=${serverProcess.exitCode}). Last stderr:\n${stderrSummary}`
+      );
+    }
     await delay(100);
     portWaitTime += 100;
   }
 
   if (!actualPort) {
-    throw new Error('Server did not report port within 10 seconds');
+    const stdoutSummary = stdoutTail.length ? stdoutTail.join('\n') : '(no stdout captured)';
+    const stderrSummary = stderrTail.length ? stderrTail.join('\n') : '(no stderr captured)';
+    throw new Error(
+      `Server did not report port within ${PORT_DETECTION_TIMEOUT_MS / 1000} seconds.\nLast stdout:\n${stdoutSummary}\nLast stderr:\n${stderrSummary}`
+    );
   }
 
   // Update BASE_URL with actual port
