@@ -109,6 +109,7 @@ router['post']('/api/funds/calculate', async (req: Request, res: Response, next:
   try {
     const dto = FundCalculationSchema.parse(req.body as FundCalculationDTO);
     const idemHeader = String(req.header('Idempotency-Key') || '');
+    const hasClientKey = idemHeader.trim().length > 0;
     const key = idemHeader || `calc:${hashPayload(dto)}`;
 
     const endTimer = calcDurationMs.startTimer();
@@ -130,7 +131,23 @@ router['post']('/api/funds/calculate', async (req: Request, res: Response, next:
       return res['status'](201)['json'](result);
     }
 
-    // === joined path (memory store cannot share promise across processes) ===
+    // joined path:
+    // - For derived keys (no explicit client key), return cached results immediately when available.
+    // - For explicit client keys, preserve async operation semantics with 202 + Location.
+    if (!hasClientKey) {
+      try {
+        const result = await promise;
+        res['setHeader']('Idempotency-Status', 'joined');
+        endTimer();
+        return res['status'](200)['json'](result);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'in-progress') {
+          throw error;
+        }
+      }
+    }
+
+    // In-memory store cannot share in-flight work across processes; surface operation endpoint.
     // Avoid unhandled rejection by detaching:
     promise.catch(() => void 0);
     res['setHeader']('Idempotency-Status', 'joined');

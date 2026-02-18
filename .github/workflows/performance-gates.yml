@@ -144,6 +144,15 @@ jobs:
             run tests/k6/k6-baseline.js --out json=k6-results.json
         env:
           BASE_URL: http://localhost:5000
+          RATE: '3'
+          DURATION: '90s'
+          VUS: '12'
+          CALC_TIMEOUT: '30s'
+          CALC_MAX_POLLS: '45'
+          CALC_HTTP_REQ_FAILED_MAX: '0.02'
+          CALC_FAILED_MAX: '0.02'
+          CALC_HTTP_REQ_P95_MS: '2000'
+          CALC_E2E_P95_MS: '10000'
 
       - name: Check performance thresholds
         run: |

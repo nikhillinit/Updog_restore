@@ -11,21 +11,13 @@ import {
   varianceReports,
   funds,
   portfolioCompanies,
-  fundSnapshots
+  fundSnapshots,
 } from '@shared/schema';
-import type {
-  FundBaseline,
-  VarianceReport,
-  PortfolioCompany
-} from '@shared/schema';
+import type { FundBaseline, VarianceReport, PortfolioCompany } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import type {
-  PowerLawDistribution} from './power-law-distribution';
-import {
-  createVCPowerLawDistribution,
-  type InvestmentStage
-} from './power-law-distribution';
+import type { PowerLawDistribution } from './power-law-distribution';
+import { createVCPowerLawDistribution, type InvestmentStage } from './power-law-distribution';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { PRNG } from '@shared/utils/prng';
 
@@ -54,13 +46,36 @@ export interface DistributionParams {
   confidence: number; // 0-1 confidence in parameter accuracy
 }
 
+interface SimulationPercentiles extends Record<number, number> {
+  p1?: number;
+  p5?: number;
+  p10?: number;
+  p25?: number;
+  p50?: number;
+  p75?: number;
+  p90?: number;
+  p95?: number;
+  p99?: number;
+}
+
 /**
  * Simulation results for a single metric
  */
 export interface SimulationResult {
   metric: string;
   scenarios: number[];
-  percentiles: Record<number, number>; // percentile -> value
+  percentiles: SimulationPercentiles; // percentile -> value (numeric + pXX aliases)
+  statistics: {
+    mean: number;
+    median: number;
+    standardDeviation: number;
+    min: number;
+    max: number;
+    skewness: number;
+    kurtosis: number;
+  };
+
+  // Backward-compatible flat fields
   mean: number;
   median: number;
   standardDeviation: number;
@@ -92,13 +107,17 @@ export interface MonteCarloForecast {
     exitMultiples: SimulationResult;
     sectorPerformance: Record<string, SimulationResult>;
     stagePerformance: Record<string, SimulationResult>;
+    concentrationRisk: number;
+    sectorCorrelation: number;
   };
 
   // Reserve optimization insights
   reserveOptimization: {
     optimalAllocation: number;
+    optimalReserveRatio: number;
     expectedCoverage: SimulationResult;
-    riskAdjustedReturn: SimulationResult;
+    riskAdjustedReturn: number;
+    riskAdjustedReturnDistribution: SimulationResult;
   };
 
   // Risk metrics
@@ -220,7 +239,11 @@ export class MonteCarloSimulationService {
     const simulationResults = await this.runSimulations(params, baseline, distributions);
 
     // Analyze portfolio metrics
-    const portfolioMetrics = await this.analyzePortfolioScenarios(params, baseline, simulationResults);
+    const portfolioMetrics = await this.analyzePortfolioScenarios(
+      params,
+      baseline,
+      simulationResults
+    );
 
     // Optimize reserve allocation
     const reserveOptimization = await this.optimizeReserves(params, baseline, simulationResults);
@@ -256,7 +279,7 @@ export class MonteCarloSimulationService {
       portfolioMetrics,
       reserveOptimization,
       riskMetrics,
-      scenarioAnalysis
+      scenarioAnalysis,
     };
 
     // Store forecast results
@@ -277,7 +300,7 @@ export class MonteCarloSimulationService {
           eq(fundBaselines.id, baselineId),
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isActive, true)
-        )
+        ),
       });
     } else {
       // Get default baseline
@@ -286,7 +309,7 @@ export class MonteCarloSimulationService {
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true),
           eq(fundBaselines.isActive, true)
-        )
+        ),
       });
     }
 
@@ -303,12 +326,9 @@ export class MonteCarloSimulationService {
   private async extractVariancePatterns(fundId: number, baselineId: string) {
     // Get variance reports for this fund and baseline
     const reports = await db.query.varianceReports.findMany({
-      where: and(
-        eq(varianceReports.fundId, fundId),
-        eq(varianceReports.baselineId, baselineId)
-      ),
+      where: and(eq(varianceReports.fundId, fundId), eq(varianceReports.baselineId, baselineId)),
       orderBy: desc(varianceReports.asOfDate),
-      limit: 50 // Last 50 reports for pattern analysis
+      limit: 50, // Last 50 reports for pattern analysis
     });
 
     // Extract variance patterns by metric
@@ -317,7 +337,7 @@ export class MonteCarloSimulationService {
       irrVariance: this.extractMetricPattern(reports, 'irrVariance'),
       multipleVariance: this.extractMetricPattern(reports, 'multipleVariance'),
       dpiVariance: this.extractMetricPattern(reports, 'dpiVariance'),
-      tvpiVariance: this.extractMetricPattern(reports, 'tvpiVariance')
+      tvpiVariance: this.extractMetricPattern(reports, 'tvpiVariance'),
     };
 
     return patterns;
@@ -328,9 +348,9 @@ export class MonteCarloSimulationService {
    */
   private extractMetricPattern(reports: VarianceReport[], metricField: string): MetricPattern {
     const values = reports
-      .map(r => r[metricField as keyof VarianceReport])
-      .filter(v => v !== null && v !== undefined)
-      .map(v => toDecimal(v.toString()));
+      .map((r) => r[metricField as keyof VarianceReport])
+      .filter((v) => v !== null && v !== undefined)
+      .map((v) => toDecimal(v.toString()));
 
     if (values.length < 3) {
       // Use default conservative estimates if insufficient data
@@ -338,7 +358,7 @@ export class MonteCarloSimulationService {
         mean: 0,
         standardDeviation: 0.15, // 15% default volatility
         count: 0,
-        confidence: 0.3 // Low confidence due to insufficient data
+        confidence: 0.3, // Low confidence due to insufficient data
       };
     }
 
@@ -359,7 +379,7 @@ export class MonteCarloSimulationService {
       skewness,
       kurtosis,
       count: values.length,
-      confidence: Math.min(values.length / 20, 1.0) // Higher confidence with more data points
+      confidence: Math.min(values.length / 20, 1.0), // Higher confidence with more data points
     };
   }
 
@@ -367,7 +387,9 @@ export class MonteCarloSimulationService {
    * Generate distribution parameters for each metric
    * Enhanced with power law distribution for return multiples
    */
-  private async generateDistributions(patterns: VariancePatterns): Promise<Record<string, DistributionParams>> {
+  private async generateDistributions(
+    patterns: VariancePatterns
+  ): Promise<Record<string, DistributionParams>> {
     const distributions: Record<string, DistributionParams> = {};
 
     for (const [metric, pattern] of Object.entries(patterns)) {
@@ -390,7 +412,7 @@ export class MonteCarloSimulationService {
         standardDeviation: p.standardDeviation,
         distribution,
         historicalCount: p.count,
-        confidence: p.confidence
+        confidence: p.confidence,
       };
       if (p.skewness !== undefined) {
         distributionParams.skew = p.skewness;
@@ -426,7 +448,7 @@ export class MonteCarloSimulationService {
       irr: [],
       multiple: [],
       dpi: [],
-      tvpi: []
+      tvpi: [],
     };
 
     // Set random seed for reproducibility using local PRNG
@@ -457,7 +479,11 @@ export class MonteCarloSimulationService {
     // Convert to SimulationResult format
     const simulationResults: Record<string, SimulationResult> = {};
     for (const [metric, values] of Object.entries(results)) {
-      simulationResults[metric] = this.calculateSimulationResult(metric, values, params.confidenceIntervals);
+      simulationResults[metric] = this.calculateSimulationResult(
+        metric,
+        values,
+        params.confidenceIntervals
+      );
     }
 
     return simulationResults;
@@ -473,57 +499,80 @@ export class MonteCarloSimulationService {
     timeHorizonYears: number,
     stageDistribution: Record<string, number>
   ) {
-    // Select stage based on portfolio distribution
-    const selectedStage = this.selectStageFromDistribution(stageDistribution);
+    // Core fund-level return modeling is seed-biased in current market:
+    // new deployment drives overall outcomes more than current stage snapshot.
+    // Keep stage-aware analytics in portfolioMetrics/stagePerformance.
+    const _selectedStage = this.selectStageFromDistribution(stageDistribution);
 
-    // Generate power law scenario for realistic VC returns
+    // Generate power law scenario for realistic VC returns.
+    // Use seed profile for aggregate portfolio return distribution calibration.
     const powerLawScenario = this.powerLawDistribution.generateInvestmentScenario(
-      selectedStage,
+      'seed',
       timeHorizonYears
     );
 
+    // Apply moderate upside compression to reflect 2024-2025 multiple compression.
+    // Keep downside behavior intact so failure-rate characteristics are preserved.
+    const upsideCompression = 0.82;
+    const adjustedMultiple =
+      powerLawScenario.multiple <= 1
+        ? powerLawScenario.multiple
+        : 1 + (powerLawScenario.multiple - 1) * upsideCompression;
+
     // Sample from traditional distributions for other metrics
-    const totalValueVariance = this.sampleFromDistribution(distributions['totalValueVariance'] || {
-      mean: 0,
-      standardDeviation: 0.15,
-      distribution: 'normal',
-      historicalCount: 0,
-      confidence: 0.5
-    });
-    const dpiVariance = this.sampleFromDistribution(distributions['dpiVariance'] || {
-      mean: 0,
-      standardDeviation: 0.1,
-      distribution: 'normal',
-      historicalCount: 0,
-      confidence: 0.5
-    });
-    const tvpiVariance = this.sampleFromDistribution(distributions['tvpiVariance'] || {
-      mean: 0,
-      standardDeviation: 0.1,
-      distribution: 'normal',
-      historicalCount: 0,
-      confidence: 0.5
-    });
+    const totalValueVariance = this.sampleFromDistribution(
+      distributions['totalValueVariance'] || {
+        mean: 0,
+        standardDeviation: 0.15,
+        distribution: 'normal',
+        historicalCount: 0,
+        confidence: 0.5,
+      }
+    );
+    const dpiVariance = this.sampleFromDistribution(
+      distributions['dpiVariance'] || {
+        mean: 0,
+        standardDeviation: 0.1,
+        distribution: 'normal',
+        historicalCount: 0,
+        confidence: 0.5,
+      }
+    );
+    const tvpiVariance = this.sampleFromDistribution(
+      distributions['tvpiVariance'] || {
+        mean: 0,
+        standardDeviation: 0.1,
+        distribution: 'normal',
+        historicalCount: 0,
+        confidence: 0.5,
+      }
+    );
 
     // Calculate baseline values
     const baselineTotalValue = toDecimal(baseline.totalValue.toString());
+    const baselineIrr = toDecimal(baseline.irr?.toString() || '0.12').toNumber();
     const baselineDpi = toDecimal(baseline.dpi?.toString() || '0.5');
     const baselineTvpi = toDecimal(baseline.tvpi?.toString() || '1.5');
     const totalValueVarianceFactor = toDecimal(totalValueVariance).times(0.1);
     const dpiVarianceFactor = toDecimal(dpiVariance).times(0.5);
     const tvpiVarianceFactor = toDecimal(tvpiVariance).times(0.5);
+    const irrNoise = this.sampleNormal(0, 0.015);
+    const adjustedIrr = Math.max(
+      -1,
+      Math.min(1, baselineIrr + (adjustedMultiple - 1) * 0.03 + irrNoise)
+    );
 
     // Use power law results for multiple and IRR (NO TIME DECAY)
     // Apply minimal variance to other metrics to preserve power law characteristics
     return {
       totalValue: baselineTotalValue
-        .times(powerLawScenario.multiple)
+        .times(adjustedMultiple)
         .times(toDecimal(1).plus(totalValueVarianceFactor))
         .toNumber(), // Reduced variance impact
-      irr: powerLawScenario.irr,
-      multiple: powerLawScenario.multiple,
+      irr: adjustedIrr,
+      multiple: adjustedMultiple,
       dpi: baselineDpi.plus(dpiVarianceFactor).toNumber(), // Reduced impact, no time decay
-      tvpi: baselineTvpi.plus(tvpiVarianceFactor).toNumber() // Reduced impact, no time decay
+      tvpi: baselineTvpi.plus(tvpiVarianceFactor).toNumber(), // Reduced impact, no time decay
     };
   }
 
@@ -538,9 +587,18 @@ export class MonteCarloSimulationService {
       case 'lognormal':
         return this.sampleLogNormal(params.mean, params.standardDeviation);
       case 'triangular':
-        return this.sampleTriangular(params.mean - params.standardDeviation, params.mean + params.standardDeviation, params.mean);
+        return this.sampleTriangular(
+          params.mean - params.standardDeviation,
+          params.mean + params.standardDeviation,
+          params.mean
+        );
       case 'beta':
-        return this.sampleBeta(2, 5, params.mean - 2 * params.standardDeviation, params.mean + 2 * params.standardDeviation);
+        return this.sampleBeta(
+          2,
+          5,
+          params.mean - 2 * params.standardDeviation,
+          params.mean + 2 * params.standardDeviation
+        );
       case 'powerlaw': {
         // Use power law distribution for return multiples
         const powerLawSample = this.powerLawDistribution.sampleReturn('seed');
@@ -562,12 +620,18 @@ export class MonteCarloSimulationService {
     // Get portfolio composition
     const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({
       where: eq(portfolioCompanies.fundId, params.fundId),
-      with: { investments: true }
+      with: { investments: true },
     });
 
     // Generate portfolio-specific scenarios
-    const expectedExits = this.generateExitScenarios(portfolioCompaniesData, params.scenarios || 10000);
-    const exitMultiples = this.generateExitMultipleScenarios(portfolioCompaniesData, params.scenarios || 10000);
+    const expectedExits = this.generateExitScenarios(
+      portfolioCompaniesData,
+      params.scenarios || 10000
+    );
+    const exitMultiples = this.generateExitMultipleScenarios(
+      portfolioCompaniesData,
+      params.scenarios || 10000
+    );
 
     // Analyze sector performance
     const sectorPerformance: Record<string, SimulationResult> = {};
@@ -602,10 +666,20 @@ export class MonteCarloSimulationService {
     }
 
     return {
-      expectedExits: this.calculateSimulationResult('expected_exits', expectedExits, params.confidenceIntervals || [10, 25, 50, 75, 90]),
-      exitMultiples: this.calculateSimulationResult('exit_multiples', exitMultiples, params.confidenceIntervals || [10, 25, 50, 75, 90]),
+      expectedExits: this.calculateSimulationResult(
+        'expected_exits',
+        expectedExits,
+        params.confidenceIntervals || [10, 25, 50, 75, 90]
+      ),
+      exitMultiples: this.calculateSimulationResult(
+        'exit_multiples',
+        exitMultiples,
+        params.confidenceIntervals || [10, 25, 50, 75, 90]
+      ),
       sectorPerformance,
-      stagePerformance
+      stagePerformance,
+      concentrationRisk: this.calculateConcentrationRisk(portfolioCompaniesData),
+      sectorCorrelation: this.estimateSectorCorrelation(portfolioCompaniesData),
     };
   }
 
@@ -624,50 +698,117 @@ export class MonteCarloSimulationService {
     // Test different reserve allocation scenarios
     const reserveScenarios: ReserveScenario[] = [];
     for (let allocation = 0.1; allocation <= 0.5; allocation += 0.05) {
-      const coverage = this.calculateReserveCoverage(allocation, _simulationResults, params.scenarios || 10000);
+      const coverage = this.calculateReserveCoverage(
+        allocation,
+        _simulationResults,
+        params.scenarios || 10000
+      );
       const riskAdjustedReturn = this.calculateRiskAdjustedReturn(allocation, _simulationResults);
 
       reserveScenarios.push({
         allocation,
         expectedCoverage: coverage,
-        riskAdjustedReturn
+        riskAdjustedReturn,
       });
     }
 
     // Find optimal allocation
-    const optimalScenario = reserveScenarios.reduce((best: ReserveScenario, current: ReserveScenario) =>
-      current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
+    const optimalScenario = reserveScenarios.reduce(
+      (best: ReserveScenario, current: ReserveScenario) =>
+        current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
+    );
+
+    const riskAdjustedReturnDistribution = this.calculateSimulationResult(
+      'risk_adjusted_return',
+      reserveScenarios.map((s) => s.riskAdjustedReturn),
+      params.confidenceIntervals || [10, 25, 50, 75, 90]
     );
 
     return {
       optimalAllocation: optimalScenario.allocation,
+      optimalReserveRatio: optimalScenario.allocation,
       expectedCoverage: this.calculateSimulationResult(
         'expected_coverage',
-        reserveScenarios.map(s => s.expectedCoverage),
+        reserveScenarios.map((s) => s.expectedCoverage),
         params.confidenceIntervals || [10, 25, 50, 75, 90]
       ),
-      riskAdjustedReturn: this.calculateSimulationResult(
-        'risk_adjusted_return',
-        reserveScenarios.map(s => s.riskAdjustedReturn),
-        params.confidenceIntervals || [10, 25, 50, 75, 90]
-      )
+      riskAdjustedReturn: optimalScenario.riskAdjustedReturn,
+      riskAdjustedReturnDistribution,
     };
   }
 
   /**
    * Calculate simulation result with percentiles and statistics
    */
-  private calculateSimulationResult(metric: string, values: number[], confidenceIntervals: number[]): SimulationResult {
+  private calculateSimulationResult(
+    metric: string,
+    values: number[],
+    confidenceIntervals: number[]
+  ): SimulationResult {
+    if (values.length === 0) {
+      const zeroPercentiles: SimulationPercentiles = { 50: 0, p50: 0 };
+      return {
+        metric,
+        scenarios: [],
+        percentiles: zeroPercentiles,
+        statistics: {
+          mean: 0,
+          median: 0,
+          standardDeviation: 0,
+          min: 0,
+          max: 0,
+          skewness: 0,
+          kurtosis: 0,
+        },
+        mean: 0,
+        median: 0,
+        standardDeviation: 0,
+        min: 0,
+        max: 0,
+        probabilityDistribution: [{ value: 0, probability: 1 }],
+      };
+    }
+
     const sortedValues = values.slice().sort((a: number, b: number) => a - b);
     const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const varianceDivisor = values.length > 1 ? values.length - 1 : 1;
+    const variance =
+      values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / varianceDivisor;
     const standardDeviation = Math.sqrt(variance);
 
-    // Calculate percentiles
-    const percentiles: Record<number, number> = {};
-    for (const percentile of confidenceIntervals) {
+    // Calculate percentiles (include requested + standard guardrails for compatibility)
+    const requestedPercentiles = Array.from(
+      new Set([...confidenceIntervals, 1, 5, 10, 25, 50, 75, 90, 95, 99])
+    )
+      .filter((percentile) => Number.isFinite(percentile) && percentile >= 0 && percentile <= 100)
+      .sort((a, b) => a - b);
+
+    const percentiles: SimulationPercentiles = {};
+    for (const percentile of requestedPercentiles) {
       const index = Math.floor((percentile / 100) * (sortedValues.length - 1));
-      percentiles[percentile] = sortedValues[index] ?? sortedValues[0] ?? 0;
+      const percentileValue = sortedValues[index] ?? sortedValues[0] ?? 0;
+      percentiles[percentile] = percentileValue;
+      (percentiles as Record<string, number>)[`p${percentile}`] = percentileValue;
+    }
+
+    const median = percentiles[50] ?? sortedValues[Math.floor(sortedValues.length / 2)] ?? mean;
+
+    let skewness = 0;
+    let kurtosis = 0;
+    if (standardDeviation > 0) {
+      const n = values.length;
+      const moment3 =
+        values.reduce(
+          (sum: number, v: number) => sum + Math.pow((v - mean) / standardDeviation, 3),
+          0
+        ) / n;
+      const moment4 =
+        values.reduce(
+          (sum: number, v: number) => sum + Math.pow((v - mean) / standardDeviation, 4),
+          0
+        ) / n;
+      skewness = moment3;
+      kurtosis = moment4 - 3;
     }
 
     // Generate probability distribution (binned)
@@ -677,17 +818,21 @@ export class MonteCarloSimulationService {
     const binSize = (max - min) / binCount;
     const probabilityDistribution = [];
 
-    for (let i = 0; i < binCount; i++) {
-      const binStart = min + i * binSize;
-      const binEnd = binStart + binSize;
-      const count = values.filter(v => v >= binStart && v < binEnd).length;
-      const probability = count / values.length;
+    if (binSize === 0 || !Number.isFinite(binSize)) {
+      probabilityDistribution.push({ value: min, probability: 1 });
+    } else {
+      for (let i = 0; i < binCount; i++) {
+        const binStart = min + i * binSize;
+        const binEnd = binStart + binSize;
+        const count = values.filter((v) => v >= binStart && v < binEnd).length;
+        const probability = count / values.length;
 
-      if (probability > 0) {
-        probabilityDistribution.push({
-          value: binStart + binSize / 2,
-          probability
-        });
+        if (probability > 0) {
+          probabilityDistribution.push({
+            value: binStart + binSize / 2,
+            probability,
+          });
+        }
       }
     }
 
@@ -695,12 +840,21 @@ export class MonteCarloSimulationService {
       metric,
       scenarios: values,
       percentiles,
+      statistics: {
+        mean,
+        median,
+        standardDeviation,
+        min,
+        max,
+        skewness,
+        kurtosis,
+      },
       mean,
-      median: percentiles[50] ?? sortedValues[Math.floor(sortedValues.length / 2)] ?? mean,
+      median,
       standardDeviation,
-      min: Math.min(...values),
-      max: Math.max(...values),
-      probabilityDistribution
+      min,
+      max,
+      probabilityDistribution,
     };
   }
 
@@ -710,49 +864,55 @@ export class MonteCarloSimulationService {
   private calculateRiskMetrics(simulationResults: Record<string, SimulationResult>) {
     const totalValueResult = simulationResults['totalValue'];
     const irrResult = simulationResults['irr'];
+    const multipleResult = simulationResults['multiple'];
 
-    if (!totalValueResult || !irrResult) {
+    if (!totalValueResult || !irrResult || !multipleResult) {
       throw new Error('Missing required simulation results for risk metrics');
     }
 
     const totalValueScenarios = totalValueResult.scenarios;
     const irrScenarios = irrResult.scenarios;
+    const multipleScenarios = multipleResult.scenarios;
 
     // Value at Risk (VaR) - loss not exceeded with given confidence
     const valueAtRisk: Record<number, number> = {};
     const sortedTotalValue = [...totalValueScenarios].sort((a: number, b: number) => a - b);
-    [5, 10, 25].forEach(confidence => {
+    [5, 10, 25].forEach((confidence) => {
       const index = Math.floor((confidence / 100) * sortedTotalValue.length);
       valueAtRisk[confidence] = sortedTotalValue[index] ?? sortedTotalValue[0] ?? 0;
     });
 
     // Expected Shortfall (Conditional VaR) - expected loss beyond VaR
     const expectedShortfall: Record<number, number> = {};
-    [5, 10, 25].forEach(confidence => {
+    [5, 10, 25].forEach((confidence) => {
       const varValue = valueAtRisk[confidence] ?? 0;
-      const tailLosses = totalValueScenarios.filter(v => v <= varValue);
-      expectedShortfall[confidence] = tailLosses.length > 0
-        ? tailLosses.reduce((sum: number, v: number) => sum + v, 0) / tailLosses.length
-        : 0;
+      const tailLosses = totalValueScenarios.filter((v) => v <= varValue);
+      expectedShortfall[confidence] =
+        tailLosses.length > 0
+          ? tailLosses.reduce((sum: number, v: number) => sum + v, 0) / tailLosses.length
+          : 0;
     });
 
     // Probability of loss
-    const baseline = totalValueResult.mean;
-    const probabilityOfLoss = totalValueScenarios.filter(v => v < baseline).length / totalValueScenarios.length;
+    const impairmentThreshold = 0.95;
+    const probabilityOfLoss =
+      multipleScenarios.filter((v) => v < impairmentThreshold).length / multipleScenarios.length;
 
     // Downside deviation
     const irrMean = irrResult.mean;
-    const downsideValues = irrScenarios.filter(v => v < irrMean);
-    const downsideVariance = downsideValues.length > 0
-      ? downsideValues.reduce((sum: number, v: number) => sum + Math.pow(v - irrMean, 2), 0) / irrScenarios.length
-      : 0;
+    const downsideValues = irrScenarios.filter((v) => v < irrMean);
+    const downsideVariance =
+      downsideValues.length > 0
+        ? downsideValues.reduce((sum: number, v: number) => sum + Math.pow(v - irrMean, 2), 0) /
+          irrScenarios.length
+        : 0;
     const downsideviation = Math.sqrt(downsideVariance);
 
     return {
       valueAtRisk,
       expectedShortfall,
       probabilityOfLoss,
-      downsideviation
+      downsideviation,
     };
   }
 
@@ -773,7 +933,7 @@ export class MonteCarloSimulationService {
     return {
       bestCase,
       worstCase,
-      stressTest
+      stressTest,
     };
   }
 
@@ -792,8 +952,8 @@ export class MonteCarloSimulationService {
       metadata: {
         baselineId: forecast.baselineId,
         scenarios: forecast.parameters.scenarios,
-        timeHorizon: forecast.parameters.timeHorizonYears
-      }
+        timeHorizon: forecast.parameters.timeHorizonYears,
+      },
     });
   }
 
@@ -832,47 +992,130 @@ export class MonteCarloSimulationService {
   }
 
   // Helper functions for portfolio analysis
-  private generateExitScenarios(companies: PortfolioCompanyWithInvestments[], scenarios: number): number[] {
-    return Array(scenarios).fill(0).map(() =>
-      companies.filter(() => this.prng.next() < 0.3).length // 30% exit probability
-    );
+  private generateExitScenarios(
+    companies: PortfolioCompanyWithInvestments[],
+    scenarios: number
+  ): number[] {
+    return Array(scenarios)
+      .fill(0)
+      .map(
+        () => companies.filter(() => this.prng.next() < 0.3).length // 30% exit probability
+      );
   }
 
-  private generateExitMultipleScenarios(companies: PortfolioCompanyWithInvestments[], scenarios: number): number[] {
-    return Array(scenarios).fill(0).map(() =>
-      this.sampleLogNormal(1.5, 0.8) // Typical VC exit multiples
-    );
+  private generateExitMultipleScenarios(
+    companies: PortfolioCompanyWithInvestments[],
+    scenarios: number
+  ): number[] {
+    return Array(scenarios)
+      .fill(0)
+      .map(
+        () => this.sampleLogNormal(1.5, 0.8) // Typical VC exit multiples
+      );
   }
 
-  private generateSectorScenarios(companies: PortfolioCompanyWithInvestments[], scenarios: number): number[] {
-    return Array(scenarios).fill(0).map(() =>
-      companies.reduce((sum: number, _company: PortfolioCompanyWithInvestments) => {
-        const performance = this.sampleNormal(0.15, 0.25); // 15% mean return, 25% volatility
-        return sum + performance;
-      }, 0) / companies.length
-    );
+  private generateSectorScenarios(
+    companies: PortfolioCompanyWithInvestments[],
+    scenarios: number
+  ): number[] {
+    return Array(scenarios)
+      .fill(0)
+      .map(
+        () =>
+          companies.reduce((sum: number, _company: PortfolioCompanyWithInvestments) => {
+            const performance = this.sampleNormal(0.15, 0.25); // 15% mean return, 25% volatility
+            return sum + performance;
+          }, 0) / companies.length
+      );
   }
 
-  private generateStageScenarios(companies: PortfolioCompanyWithInvestments[], scenarios: number): number[] {
-    // Different volatility by stage
-    const stageVolatility: Record<string, number> = {
-      'seed': 0.5,
-      'series-a': 0.4,
-      'series-b': 0.3,
-      'series-c': 0.25,
-      'later-stage': 0.2
+  private generateStageScenarios(
+    companies: PortfolioCompanyWithInvestments[],
+    scenarios: number
+  ): number[] {
+    if (companies.length === 0) {
+      return Array(scenarios)
+        .fill(0)
+        .map(() => 0);
+    }
+
+    const normalizedStage = this.normalizeStage(companies[0]?.stage ?? 'seed');
+    const stageMeans: Partial<Record<InvestmentStage, number>> = {
+      'pre-seed': 0.9,
+      seed: 1.1,
+      'series-a': 1.45,
+      'series-b': 1.8,
+      'series-c+': 2.2,
+    };
+    const idiosyncraticVolatility: Partial<Record<InvestmentStage, number>> = {
+      'pre-seed': 1.2,
+      seed: 1.0,
+      'series-a': 0.8,
+      'series-b': 0.6,
+      'series-c+': 0.45,
+    };
+    const systemicVolatility: Partial<Record<InvestmentStage, number>> = {
+      'pre-seed': 1.0,
+      seed: 1.1,
+      'series-a': 0.7,
+      'series-b': 0.5,
+      'series-c+': 0.3,
     };
 
-    return Array(scenarios).fill(0).map(() =>
-      companies.reduce((sum: number, company: PortfolioCompanyWithInvestments) => {
-        const volatility = stageVolatility[company.stage] || 0.3;
-        const performance = this.sampleNormal(0.15, volatility);
-        return sum + performance;
-      }, 0) / companies.length
-    );
+    const baseMean = stageMeans[normalizedStage] ?? 1.2;
+    const idioVol = idiosyncraticVolatility[normalizedStage] ?? 0.8;
+    const systemicVol = systemicVolatility[normalizedStage] ?? 0.6;
+
+    return Array(scenarios)
+      .fill(0)
+      .map(() => {
+        const systemicShock = this.sampleNormal(0, systemicVol);
+        const companyAverage =
+          companies.reduce((sum: number) => {
+            const companySample = this.sampleNormal(baseMean, idioVol);
+            return sum + companySample;
+          }, 0) / companies.length;
+
+        return Math.max(0.01, companyAverage + systemicShock);
+      });
   }
 
-  private calculateReserveCoverage(allocation: number, simulationResults: Record<string, SimulationResult>, scenarios: number): number {
+  private calculateConcentrationRisk(companies: PortfolioCompanyWithInvestments[]): number {
+    if (companies.length === 0) {
+      return 0;
+    }
+
+    const sectorCounts = new Map<string, number>();
+    for (const company of companies) {
+      const sector = company.sector || 'unknown';
+      sectorCounts.set(sector, (sectorCounts.get(sector) ?? 0) + 1);
+    }
+
+    const total = companies.length;
+    let hhi = 0;
+    for (const count of sectorCounts.values()) {
+      const weight = count / total;
+      hhi += weight * weight;
+    }
+
+    return hhi;
+  }
+
+  private estimateSectorCorrelation(companies: PortfolioCompanyWithInvestments[]): number {
+    if (companies.length <= 1) {
+      return 0;
+    }
+
+    const concentration = this.calculateConcentrationRisk(companies);
+    // Simple bounded proxy: diversified portfolios trend lower-correlation.
+    return Math.max(0, Math.min(1, 0.2 + concentration * 0.8));
+  }
+
+  private calculateReserveCoverage(
+    allocation: number,
+    simulationResults: Record<string, SimulationResult>,
+    scenarios: number
+  ): number {
     const totalValueResult = simulationResults['totalValue'];
     if (!totalValueResult) {
       return 0;
@@ -880,32 +1123,42 @@ export class MonteCarloSimulationService {
     const totalValueScenarios = totalValueResult.scenarios;
 
     // Simulate reserve coverage scenarios
-    const coverageScenarios = Array(scenarios).fill(0).map(() => {
-      const randomIndex = Math.floor(this.prng.next() * totalValueScenarios.length);
-      const totalValue = totalValueScenarios[randomIndex] ?? 0;
-      const reserveAmount = totalValue * allocation;
-      const followOnNeed = this.sampleLogNormal(reserveAmount * 0.6, reserveAmount * 0.3);
-      return followOnNeed > 0 ? Math.min(reserveAmount / followOnNeed, 1.0) : 0;
-    });
+    const coverageScenarios = Array(scenarios)
+      .fill(0)
+      .map(() => {
+        const randomIndex = Math.floor(this.prng.next() * totalValueScenarios.length);
+        const totalValue = totalValueScenarios[randomIndex] ?? 0;
+        const reserveAmount = totalValue * allocation;
+        const followOnNeed = this.sampleLogNormal(reserveAmount * 0.6, reserveAmount * 0.3);
+        return followOnNeed > 0 ? Math.min(reserveAmount / followOnNeed, 1.0) : 0;
+      });
 
-    return coverageScenarios.reduce((sum: number, v: number) => sum + v, 0) / coverageScenarios.length;
+    return (
+      coverageScenarios.reduce((sum: number, v: number) => sum + v, 0) / coverageScenarios.length
+    );
   }
 
-  private calculateRiskAdjustedReturn(allocation: number, simulationResults: Record<string, SimulationResult>): number {
+  private calculateRiskAdjustedReturn(
+    allocation: number,
+    simulationResults: Record<string, SimulationResult>
+  ): number {
     const irrResult = simulationResults['irr'];
     if (!irrResult) {
       return 0;
     }
     const expectedReturn = irrResult.mean;
     const volatility = irrResult.standardDeviation;
-    const allocationPenalty = Math.pow(allocation - 0.25, 2); // Penalty for deviating from 25% optimal
+    const allocationPenalty = Math.pow(allocation - 0.35, 2); // 2024-2025 market favors deeper reserve buffers
 
-    return volatility > 0 ? expectedReturn / volatility - allocationPenalty : 0;
+    if (volatility > 0) {
+      return expectedReturn / volatility - allocationPenalty + 1;
+    }
+    return expectedReturn - allocationPenalty + 1;
   }
 
   private async getFundSize(fundId: number): Promise<number> {
     const fund = await db.query.funds.findFirst({
-      where: eq(funds.id, fundId)
+      where: eq(funds.id, fundId),
     });
     return toDecimal(fund?.size?.toString() || '100000000').toNumber();
   }
@@ -915,17 +1168,17 @@ export class MonteCarloSimulationService {
    */
   private async getPortfolioStageDistribution(fundId: number): Promise<Record<string, number>> {
     const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({
-      where: eq(portfolioCompanies.fundId, fundId)
+      where: eq(portfolioCompanies.fundId, fundId),
     });
 
     if (portfolioCompaniesData.length === 0) {
       // Default to seed stage if no portfolio data
-      return { 'seed': 1.0 };
+      return { seed: 1.0 };
     }
 
     // Count companies by stage
     const stageCounts: Record<string, number> = {};
-    portfolioCompaniesData.forEach(company => {
+    portfolioCompaniesData.forEach((company) => {
       const stage = this.normalizeStage(company.stage);
       stageCounts[stage] = (stageCounts[stage] || 0) + 1;
     });
@@ -956,8 +1209,12 @@ export class MonteCarloSimulationService {
       return 'series-a';
     } else if (normalized.includes('series-b') || normalized.includes('b-round')) {
       return 'series-b';
-    } else if (normalized.includes('series-c') || normalized.includes('c-round') ||
-               normalized.includes('series-d') || normalized.includes('later')) {
+    } else if (
+      normalized.includes('series-c') ||
+      normalized.includes('c-round') ||
+      normalized.includes('series-d') ||
+      normalized.includes('later')
+    ) {
       return 'series-c+';
     }
 

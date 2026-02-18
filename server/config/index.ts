@@ -21,9 +21,9 @@ const explicitRedisUrl = process.env.REDIS_URL;
 const explicitRedisUrlMarker = process.env['_EXPLICIT_REDIS_URL'];
 const explicitJwtSecret = process.env.JWT_SECRET;
 const explicitJwtSecretMarker = process.env['_EXPLICIT_JWT_SECRET'];
-const explicitJwtIssuer = process.env.JWT_ISSUER;
+const explicitJwtIssuer = process.env['JWT_ISSUER'];
 const explicitJwtIssuerMarker = process.env['_EXPLICIT_JWT_ISSUER'];
-const explicitJwtAudience = process.env.JWT_AUDIENCE;
+const explicitJwtAudience = process.env['JWT_AUDIENCE'];
 const explicitJwtAudienceMarker = process.env['_EXPLICIT_JWT_AUDIENCE'];
 
 // TEMP FIX: Windows system has NODE_ENV=production set globally, override it
@@ -66,17 +66,17 @@ if (
 if (
   explicitJwtIssuerMarker &&
   explicitJwtIssuer !== undefined &&
-  explicitJwtIssuer !== process.env.JWT_ISSUER
+  explicitJwtIssuer !== process.env['JWT_ISSUER']
 ) {
-  process.env.JWT_ISSUER = explicitJwtIssuer;
+  process.env['JWT_ISSUER'] = explicitJwtIssuer;
 }
 // Restore explicitly-set JWT_AUDIENCE if .env tried to override it
 if (
   explicitJwtAudienceMarker &&
   explicitJwtAudience !== undefined &&
-  explicitJwtAudience !== process.env.JWT_AUDIENCE
+  explicitJwtAudience !== process.env['JWT_AUDIENCE']
 ) {
-  process.env.JWT_AUDIENCE = explicitJwtAudience;
+  process.env['JWT_AUDIENCE'] = explicitJwtAudience;
 }
 
 const envSchema = z.object({
