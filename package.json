@@ -565,7 +565,7 @@
     "tdd-guard-vitest": "0.1.6",
     "terser": "^5.46.0",
     "testcontainers": "11.11.0",
-    "tinybench": "^4.0.1",
+    "tinybench": "^6.0.0",
     "ts-morph": "27.0.2",
     "tsc-baseline": "1.9.0",
     "tsx": "4.21.0",
