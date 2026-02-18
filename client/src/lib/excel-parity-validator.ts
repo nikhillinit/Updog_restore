@@ -10,12 +10,9 @@ import type {
   EngineCompany,
   EngineStagePolicy,
   EngineInput,
-  EngineResult} from '@/core/reserves/types';
-import {
-  normalizeStage,
-  isRawCompany,
-  isRawStagePolicy
+  EngineResult,
 } from '@/core/reserves/types';
+import { normalizeStage, isRawCompany, isRawStagePolicy } from '@/core/reserves/types';
 
 // Extended Company type for parity validation
 interface ParityCompany extends Company {
@@ -61,7 +58,7 @@ function toEngineCompany(input: ParityCompany): EngineCompany {
     stage: normalizeStage(input.stage) as EngineCompany['stage'],
     invested: Number(input.invested ?? input.allocated ?? 0),
     ownership: Number(input.ownership ?? 0),
-    ...(input.reserveCap != null ? { reserveCap: Number(input.reserveCap) } : {})
+    ...(input.reserveCap != null ? { reserveCap: Number(input.reserveCap) } : {}),
   };
 }
 
@@ -76,36 +73,18 @@ function toEngineStagePolicy(input: ParityStagePolicy): EngineStagePolicy {
   return {
     stage: normalizeStage(input.stage) as EngineStagePolicy['stage'],
     reserveMultiple: Number(input.reserveMultiple ?? input.reserve_ratio ?? 1.0),
-    weight: Number(input.weight ?? 1.0)
-  };
-}
-
-// Keep old functions for backward compatibility but mark as deprecated
-/** @deprecated Use toEngineCompany instead */
-function toCompany(input: ParityCompany): Company {
-  return {
-    id: input.id,
-    name: input.name,
-    stage: input.stage,
-    ...(input.allocated !== undefined ? { allocated: input.allocated } : {})
-  };
-}
-
-/** @deprecated Use toEngineStagePolicy instead */
-function toStagePolicy(input: ParityStagePolicy): StagePolicy {
-  return {
-    stage: input.stage,
-    max_check_size_cents: input.max_check_size_cents ?? (input.maxInvestment ? input.maxInvestment * 100 : 0),
-    reserve_ratio: input.reserve_ratio ?? input.reserveMultiple ?? 1.0
+    weight: Number(input.weight ?? 1.0),
   };
 }
 
 function toConstraints(input: ParityConstraints): ReserveConstraints {
   return {
-    min_reserve_cents: input.min_reserve_cents ?? (input.minCheckSize ? input.minCheckSize * 100 : 0),
-    max_reserve_cents: input.max_reserve_cents ?? (input.maxPerCompany ? input.maxPerCompany * 100 : 0),
+    min_reserve_cents:
+      input.min_reserve_cents ?? (input.minCheckSize ? input.minCheckSize * 100 : 0),
+    max_reserve_cents:
+      input.max_reserve_cents ?? (input.maxPerCompany ? input.maxPerCompany * 100 : 0),
     target_reserve_months: input.target_reserve_months ?? 18,
-    max_concentration_percent: input.max_concentration_percent ?? 20
+    max_concentration_percent: input.max_concentration_percent ?? 20,
   };
 }
 
@@ -124,7 +103,8 @@ export interface ParityDataset {
       companyId: string;
       allocation: number;
     }>;
-    allocateds?: Array<{  // Legacy field name for backward compatibility
+    allocateds?: Array<{
+      // Legacy field name for backward compatibility
       id: string;
       allocated: number;
     }>;
@@ -188,7 +168,7 @@ export class ExcelParityValidator {
             name: 'BioStartup',
             stage: 'seed',
             invested: 500000, // Parity-specific field
-            ownership: 0.10,
+            ownership: 0.1,
             currentValuation: 2000000,
           },
           {
@@ -236,7 +216,7 @@ export class ExcelParityValidator {
             name: 'EarlyCo',
             stage: 'preseed',
             invested: 250000,
-            ownership: 0.20,
+            ownership: 0.2,
           },
           {
             id: 'd2',
@@ -310,8 +290,8 @@ export class ExcelParityValidator {
       results.push(result);
     }
 
-    const passed = results.filter(r => r.passed).length;
-    const failed = results.filter(r => !r.passed).length;
+    const passed = results.filter((r) => r.passed).length;
+    const failed = results.filter((r) => !r.passed).length;
 
     return {
       passed,
@@ -330,21 +310,23 @@ export class ExcelParityValidator {
     // Validate and transform input data
     const validCompanies = input.companies.filter(isRawCompany);
     const validPolicies = input.policies.filter(isRawStagePolicy);
-    
+
     if (validCompanies.length !== input.companies.length) {
-      console.warn(`Filtered out ${input.companies.length - validCompanies.length} invalid companies`);
+      console.warn(
+        `Filtered out ${input.companies.length - validCompanies.length} invalid companies`
+      );
     }
-    
+
     if (validPolicies.length !== input.policies.length) {
       console.warn(`Filtered out ${input.policies.length - validPolicies.length} invalid policies`);
     }
 
     // Create properly typed engine input
     const engineInput: EngineInput = {
-      companies: validCompanies.map(c => toEngineCompany(c)),
+      companies: validCompanies.map((c) => toEngineCompany(c)),
       availableReserves: Number(input.availableReserves),
-      stagePolicies: validPolicies.map(p => toEngineStagePolicy(p)),
-      constraints: input.constraints || {}
+      stagePolicies: validPolicies.map((p) => toEngineStagePolicy(p)),
+      constraints: input.constraints || {},
     };
 
     // Run calculation with typed result
@@ -366,18 +348,16 @@ export class ExcelParityValidator {
 
     // Handle both 'allocateds' (legacy) and 'allocations' field names
     const expectedAllocationsRaw = expectedOutput.allocateds || expectedOutput.allocations || [];
-    
+
     // Normalize to a common format for processing
     const expectedAllocations = expectedAllocationsRaw.map((alloc: any) => ({
       id: alloc.id || alloc.companyId,
-      allocated: alloc.allocated ?? alloc.allocation ?? 0
+      allocated: alloc.allocated ?? alloc.allocation ?? 0,
     }));
-    
+
     for (const expectedAlloc of expectedAllocations) {
-      const actualAlloc = result.allocations.find(
-        a => a.id === expectedAlloc.id
-      );
-      
+      const actualAlloc = result.allocations.find((a) => a.id === expectedAlloc.id);
+
       const actual = actualAlloc?.allocated || 0;
       const expected = expectedAlloc.allocated;
       const difference = Math.abs(actual - expected);
@@ -413,22 +393,22 @@ export class ExcelParityValidator {
    */
   generateReport(results: ParityValidationResult[]): string {
     const lines: string[] = [];
-    
+
     lines.push('Excel Parity Validation Report');
-    lines.push('=' .repeat(50));
+    lines.push('='.repeat(50));
     lines.push('');
 
     for (const result of results) {
       lines.push(`Dataset: ${result.name}`);
       lines.push(`Status: ${result.passed ? '✅ PASSED' : '❌ FAILED'}`);
       lines.push(`Drift: ${(result.drift * 100).toFixed(2)}%`);
-      
+
       if (!result.passed) {
         lines.push('Details:');
         lines.push(`  Expected Total: $${result.details.expectedTotal.toLocaleString()}`);
         lines.push(`  Actual Total: $${result.details.actualTotal.toLocaleString()}`);
         lines.push(`  Difference: $${result.details.difference.toLocaleString()}`);
-        
+
         if (result.details.companyMismatches.length > 0) {
           lines.push('  Company Mismatches:');
           for (const mismatch of result.details.companyMismatches) {
@@ -439,7 +419,7 @@ export class ExcelParityValidator {
           }
         }
       }
-      
+
       lines.push('');
     }
 

@@ -208,11 +208,6 @@ export function fromCentsWithCommitmentInference(
 }
 
 /**
- * @deprecated Alias for fromCentsWithCommitmentInference. Use fromCentsWithScale instead.
- */
-export const fromCentsWithInference = fromCentsWithCommitmentInference;
-
-/**
  * Check if two values appear to be in mismatched units.
  * Uses ratio-based detection (not absolute difference).
  *

@@ -25,7 +25,7 @@ import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine
 // eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
 import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
 import type {
-  ReserveInput,
+  ReserveCompanyInput,
   ReserveSummary,
   PacingInput,
   PacingSummary,
@@ -84,7 +84,16 @@ export class ProjectedMetricsCalculator {
    */
   async calculate(
     fund: Fund,
-    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct' | 'investmentDate'>[],
+    companies: Pick<
+      PortfolioCompany,
+      | 'id'
+      | 'investmentAmount'
+      | 'stage'
+      | 'currentStage'
+      | 'sector'
+      | 'ownershipCurrentPct'
+      | 'investmentDate'
+    >[],
     config: FundConfig,
     options: CalculationOptions = {}
   ): Promise<ProjectedMetrics> {
@@ -148,12 +157,15 @@ export class ProjectedMetricsCalculator {
    */
   private async calculateReserves(
     fund: Fund,
-    companies: Pick<PortfolioCompany, 'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct'>[],
+    companies: Pick<
+      PortfolioCompany,
+      'id' | 'investmentAmount' | 'stage' | 'currentStage' | 'sector' | 'ownershipCurrentPct'
+    >[],
     _config: FundConfig
   ): Promise<ReserveResults | null> {
     try {
-      // Build input for reserve engine - each company is a separate ReserveInput
-      const portfolio: ReserveInput[] = companies.map((c) => {
+      // Build input for reserve engine - each company is a separate ReserveCompanyInput
+      const portfolio: ReserveCompanyInput[] = companies.map((c) => {
         const invested = toDecimal(c.investmentAmount?.toString() || '0');
         const ownership = toDecimal(c.ownershipCurrentPct?.toString() || '0.1');
 
@@ -211,9 +223,7 @@ export class ProjectedMetricsCalculator {
 
       // Determine pace status based on actual vs expected deployment
       const expectedDeploymentRate = toDecimal(fundAgeMonths).div(investmentPeriodYears * 12);
-      const actualDeploymentRate = fundSize.lte(0)
-        ? new Decimal(0)
-        : deployed.div(fundSize);
+      const actualDeploymentRate = fundSize.lte(0) ? new Decimal(0) : deployed.div(fundSize);
       const deviation = actualDeploymentRate.minus(expectedDeploymentRate);
 
       let pace: 'ahead' | 'on-track' | 'behind';
@@ -339,9 +349,11 @@ export class ProjectedMetricsCalculator {
   /**
    * Build quarterly distribution projection
    */
-  private buildDistributionProjection(cohortResults: {
-    distributionSchedule: number[];
-  } | null): number[] {
+  private buildDistributionProjection(
+    cohortResults: {
+      distributionSchedule: number[];
+    } | null
+  ): number[] {
     if (cohortResults?.distributionSchedule) {
       return cohortResults.distributionSchedule;
     }
@@ -419,7 +431,7 @@ export class ProjectedMetricsCalculator {
       investmentPeriodYears,
       fundLifeYears,
       navCalculationMode: 'standard',
-      finalDistributionCoefficient: 0.7
+      finalDistributionCoefficient: 0.7,
     });
 
     // Convert J-curve path to quarterly arrays
@@ -435,7 +447,7 @@ export class ProjectedMetricsCalculator {
       const calls = forecast.jCurvePath.calls[i];
 
       // Deployment based on calls (capital called)
-      const inInvestmentPeriod = i < (investmentPeriodYears * 4);
+      const inInvestmentPeriod = i < investmentPeriodYears * 4;
       const callsValue = calls ? toDecimal(calls) : null;
       const deploymentAmount = inInvestmentPeriod
         ? (callsValue ?? fundSize.div(investmentPeriodYears * 4))
@@ -464,7 +476,7 @@ export class ProjectedMetricsCalculator {
       reserveAllocationRate: 0,
       deploymentPace: 'on-track', // Default for construction phase
       quartersRemaining: investmentPeriodYears * 4,
-      recommendedQuarterlyDeployment: fundSize.div(investmentPeriodYears * 4).toNumber()
+      recommendedQuarterlyDeployment: fundSize.div(investmentPeriodYears * 4).toNumber(),
     };
   }
 }

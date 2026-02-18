@@ -14,7 +14,6 @@ import {
   inferUnitScale,
   inferUnitScaleType,
   toCentsWithInference,
-  fromCentsWithInference,
   fromCentsWithCommitmentInference,
   fromCentsWithScale,
   detectUnitMismatch,
@@ -126,12 +125,10 @@ describe('Unit Inference and Mismatch Detection', () => {
     });
   });
 
-  describe('fromCentsWithCommitmentInference (deprecated)', () => {
+  describe('fromCentsWithCommitmentInference', () => {
     it('converts cents back to $M using commitment-based inference', () => {
       // Uses commitment=100 to infer MILLION scale
       expect(fromCentsWithCommitmentInference(500_000_000, 100)).toBe(5);
-      // Alias also works
-      expect(fromCentsWithInference(500_000_000, 100)).toBe(5);
     });
 
     it('converts cents back to raw dollars using commitment-based inference', () => {
@@ -312,8 +309,8 @@ describe('Unit Inference and Mismatch Detection', () => {
     });
 
     it('throws on unit mismatch', () => {
-      expect(() =>
-        validateAndNormalizeCAInput(100, 5_000_000, 0.2) // 100 ($M) vs 5M (raw $)
+      expect(
+        () => validateAndNormalizeCAInput(100, 5_000_000, 0.2) // 100 ($M) vs 5M (raw $)
       ).toThrow('Unit mismatch');
     });
 

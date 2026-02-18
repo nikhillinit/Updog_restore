@@ -22,7 +22,7 @@ import type {
   SectorProfile,
   InvestmentStageCohort,
   CapitalAllocationOutput,
-  StageAllocation
+  StageAllocation,
 } from '@/schemas/modeling-wizard.schemas';
 import type {
   ReserveAllocationInput,
@@ -30,7 +30,7 @@ import type {
   GraduationMatrix,
   GraduationRate,
   StageStrategy,
-  ReserveCalculationResult
+  ReserveCalculationResult,
 } from '@shared/schemas/reserves-schemas';
 import { DeterministicReserveEngine } from '@/core/reserves/DeterministicReserveEngine';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,15 +44,15 @@ import { logger } from '@/lib/logger';
  * Reserve allocation output format (wizard-friendly)
  */
 export interface ReserveAllocation {
-  totalPlanned: number;        // dollars
-  optimalMOIC: number;          // decimal multiple (e.g., 2.8)
+  totalPlanned: number; // dollars
+  optimalMOIC: number; // decimal multiple (e.g., 2.8)
   companiesSupported: number;
-  avgFollowOnSize: number;      // dollars
+  avgFollowOnSize: number; // dollars
   allocations: Array<{
     companyId: string;
     companyName: string;
-    plannedReserve: number;     // dollars
-    exitMOIC: number;            // decimal multiple
+    plannedReserve: number; // dollars
+    exitMOIC: number; // decimal multiple
   }>;
 }
 
@@ -62,10 +62,10 @@ export interface ReserveAllocation {
 export interface WizardPortfolioCompany {
   id: string;
   name: string;
-  investedAmount: number;       // dollars
-  currentValuation: number;     // dollars
+  investedAmount: number; // dollars
+  currentValuation: number; // dollars
   currentStage: string;
-  ownershipPercent: number;     // percentage (0-100)
+  ownershipPercent: number; // percentage (0-100)
   sector: string;
 }
 
@@ -76,22 +76,35 @@ export interface WizardPortfolioCompany {
 /**
  * Map wizard investment stage names to engine stage schema
  */
-const STAGE_MAP: Record<string, 'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_d' | 'growth' | 'late_stage'> = {
+const STAGE_MAP: Record<
+  string,
+  'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_d' | 'growth' | 'late_stage'
+> = {
   'pre-seed': 'pre_seed',
-  'seed': 'seed',
+  seed: 'seed',
   'series-a': 'series_a',
   'series-b': 'series_b',
   'series-c': 'series_c',
   'series-d': 'series_d',
   'series-e-plus': 'late_stage',
-  'growth': 'growth',
-  'late-stage': 'late_stage'
+  growth: 'growth',
+  'late-stage': 'late_stage',
 };
 
 /**
  * Convert wizard stage to engine stage enum
  */
-function mapWizardStageToEngine(wizardStage: string): 'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_d' | 'growth' | 'late_stage' {
+function mapWizardStageToEngine(
+  wizardStage: string
+):
+  | 'pre_seed'
+  | 'seed'
+  | 'series_a'
+  | 'series_b'
+  | 'series_c'
+  | 'series_d'
+  | 'growth'
+  | 'late_stage' {
   const normalized = wizardStage.toLowerCase().trim();
   return STAGE_MAP[normalized] || 'seed';
 }
@@ -144,7 +157,7 @@ export function generateSyntheticPortfolio(
     // Create companies for this sector
     for (let i = 0; i < sectorDeals; i++) {
       const companyId = uuidv4();
-      const impliedOwnership = (initialCheckSize / entryStage.roundSize);
+      const impliedOwnership = initialCheckSize / entryStage.roundSize;
 
       companies.push({
         id: companyId,
@@ -170,7 +183,7 @@ export function generateSyntheticPortfolio(
 
         // Metadata
         tags: [sector.name, entryStage.stage],
-        notes: `Synthetic company for ${sector.name} sector modeling`
+        notes: `Synthetic company for ${sector.name} sector modeling`,
       });
     }
   }
@@ -178,7 +191,7 @@ export function generateSyntheticPortfolio(
   logger.debug('Generated synthetic portfolio', {
     totalCompanies: companies.length,
     estimatedDeals,
-    sectorCount: sectorProfiles.length
+    sectorCount: sectorProfiles.length,
   });
 
   return companies;
@@ -203,9 +216,7 @@ export function generateSyntheticPortfolio(
  * // matrix.rates[0]: { fromStage: 'seed', toStage: 'series_a', probability: 0.6, ... }
  * ```
  */
-export function buildGraduationMatrix(
-  sectorProfiles: SectorProfile[]
-): GraduationMatrix {
+export function buildGraduationMatrix(sectorProfiles: SectorProfile[]): GraduationMatrix {
   const rates: GraduationRate[] = [];
 
   // Extract graduation rates from each sector's stage progression
@@ -220,9 +231,7 @@ export function buildGraduationMatrix(
       const toStage = mapWizardStageToEngine(nextStage.stage);
 
       // Check if rate already exists (use average if multiple sectors)
-      const existingRate = rates.find(
-        r => r.fromStage === fromStage && r.toStage === toStage
-      );
+      const existingRate = rates.find((r) => r.fromStage === fromStage && r.toStage === toStage);
 
       const graduationProbability = currentStage.graduationRate / 100; // Convert to decimal
       const valuationMultiple = nextStage.valuation / currentStage.valuation;
@@ -237,7 +246,7 @@ export function buildGraduationMatrix(
           toStage,
           probability: graduationProbability,
           timeToGraduation: currentStage.monthsToGraduate,
-          valuationMultiple
+          valuationMultiple,
         });
       }
     }
@@ -246,7 +255,7 @@ export function buildGraduationMatrix(
   return {
     name: 'Wizard Portfolio Graduation Matrix',
     description: 'Derived from sector profile stage progressions',
-    rates
+    rates,
   };
 }
 
@@ -303,7 +312,7 @@ export function buildStageStrategies(
     const minInvestment = impliedCheck * 0.1; // Min 10% of implied check
 
     // Extract failure rate (implied by graduation + exit rates)
-    const failureRate = Math.max(0, 1 - (stageMeta.graduationRate / 100) - (stageMeta.exitRate / 100));
+    const failureRate = Math.max(0, 1 - stageMeta.graduationRate / 100 - stageMeta.exitRate / 100);
 
     strategies.push({
       stage: engineStage,
@@ -324,7 +333,7 @@ export function buildStageStrategies(
 
       // Portfolio construction
       maxConcentration: 0.15, // Default 15% max concentration
-      diversificationWeight: 0.5 // Moderate diversification preference
+      diversificationWeight: 0.5, // Moderate diversification preference
     });
   }
 
@@ -369,21 +378,23 @@ export function transformWizardToReserveRequest(
   const capitalAllocation = ctx.steps.capitalAllocation;
 
   if (!generalInfo || !sectorProfiles || !capitalAllocation) {
-    throw new Error('Missing required wizard steps: generalInfo, sectorProfiles, or capitalAllocation');
+    throw new Error(
+      'Missing required wizard steps: generalInfo, sectorProfiles, or capitalAllocation'
+    );
   }
 
   // Check if we have full schema data
   if (!fullSectorProfiles || fullSectorProfiles.length === 0) {
     throw new Error(
       'Full sector profile data with stage cohorts is required for reserve engine integration. ' +
-      'The simplified machine state does not contain enough detail.'
+        'The simplified machine state does not contain enough detail.'
     );
   }
 
   if (!fullCapitalAllocation?.followOnStrategy?.stageAllocations) {
     throw new Error(
       'Full capital allocation data with stage allocations is required for reserve engine integration. ' +
-      'The simplified machine state does not contain enough detail.'
+        'The simplified machine state does not contain enough detail.'
     );
   }
 
@@ -436,14 +447,14 @@ export function transformWizardToReserveRequest(
     // Feature flags
     enableDiversification: true,
     enableRiskAdjustment: true,
-    enableLiquidationPreferences: true
+    enableLiquidationPreferences: true,
   };
 
   logger.info('Transformed wizard context to reserve engine input', {
     portfolioSize: portfolio.length,
     availableReserves,
     totalFundSize: fundSize,
-    stageStrategiesCount: stageStrategies.length
+    stageStrategiesCount: stageStrategies.length,
   });
 
   return input;
@@ -495,7 +506,7 @@ export async function calculateEngineComparison(
     enableAdvancedDiversification: true,
     enableLiquidationPreferences: true,
     enablePerformanceLogging: true,
-    maxCalculationTimeMs: 10000 // 10 second timeout
+    maxCalculationTimeMs: 10000, // 10 second timeout
   });
 
   // Run calculation
@@ -505,7 +516,7 @@ export async function calculateEngineComparison(
     allocationsGenerated: result.allocations.length,
     totalAllocated: result.inputSummary.totalAllocated,
     expectedMOIC: result.portfolioMetrics.expectedPortfolioMOIC,
-    concentrationRisk: result.portfolioMetrics.concentrationRisk
+    concentrationRisk: result.portfolioMetrics.concentrationRisk,
   });
 
   return result;
@@ -516,45 +527,34 @@ export async function calculateEngineComparison(
 // ============================================================================
 
 /**
- * Convert wizard portfolio to legacy adapter format
- * @deprecated Use transformWizardToReserveRequest + DeterministicReserveEngine instead
+ * Convert wizard portfolio to legacy adapter format.
+ * TODO: Migrate callers to transformWizardToReserveRequest + DeterministicReserveEngine
  */
 function wizardPortfolioToAdapterFormat(portfolio: WizardPortfolioCompany[]) {
-  return portfolio.map(company => {
-    // Calculate MOIC from invested and current valuation
-    const moic = company.investedAmount > 0
-      ? company.currentValuation / company.investedAmount
-      : 1.0;
+  return portfolio.map((company) => {
+    const moic =
+      company.investedAmount > 0 ? company.currentValuation / company.investedAmount : 1.0;
 
     return {
       id: company.id,
       name: company.name,
-      investedAmount: company.investedAmount,     // Adapter expects this in dollars
-      invested: company.investedAmount,            // Fallback field name
-      exitMultiple: moic,                          // Adapter expects decimal MOIC
-      targetMoic: moic,                            // Fallback field name
+      investedAmount: company.investedAmount,
+      invested: company.investedAmount,
+      exitMultiple: moic,
+      targetMoic: moic,
       stage: company.currentStage,
       sector: company.sector,
-      ownershipPercentage: company.ownershipPercent > 1
-        ? company.ownershipPercent
-        : company.ownershipPercent * 100,         // Normalize to 0-100 range
-      ownership: company.ownershipPercent > 1
-        ? company.ownershipPercent / 100
-        : company.ownershipPercent                // Fallback: 0-1 range
+      ownershipPercentage:
+        company.ownershipPercent > 1 ? company.ownershipPercent : company.ownershipPercent * 100,
+      ownership:
+        company.ownershipPercent > 1 ? company.ownershipPercent / 100 : company.ownershipPercent,
     };
   });
 }
 
 /**
- * Calculate reserves using legacy reserves-v11 adapter
- *
- * @deprecated This function uses the legacy reserves-v11 adapter.
- * For new implementations, use:
- * - transformWizardToReserveRequest() to prepare data
- * - DeterministicReserveEngine.calculateOptimalReserveAllocation() for calculations
- * - calculateEngineComparison() for complete integration
- *
- * Bridges wizard format (dollars/decimals) with legacy adapter format (cents/bps)
+ * Calculate reserves using legacy reserves-v11 adapter.
+ * TODO: Migrate callers to transformWizardToReserveRequest + DeterministicReserveEngine
  */
 export async function calculateReservesForWizard(
   ctx: ModelingWizardContext,
@@ -567,10 +567,8 @@ export async function calculateReservesForWizard(
     throw new Error('Required wizard data not available for reserve calculation');
   }
 
-  // Convert portfolio to adapter format
   const adapterCompanies = wizardPortfolioToAdapterFormat(portfolio);
 
-  // Build fund input for adapter
   const fundInput = {
     id: `fund-${Date.now()}`,
     fundSize: general.fundSize,
@@ -578,49 +576,47 @@ export async function calculateReservesForWizard(
     companies: adapterCompanies,
     portfolio: adapterCompanies,
     reservePercentage: capital.followOnStrategy.reserveRatio,
-    reserveRatio: capital.followOnStrategy.reserveRatio
+    reserveRatio: capital.followOnStrategy.reserveRatio,
   };
 
-  // Build config for adapter
   const configOptions = {
     reservePercentage: capital.followOnStrategy.reserveRatio,
     reserveRatio: capital.followOnStrategy.reserveRatio,
     enableRemainPass: false,
     capPercent: 0.5,
-    auditLevel: 'basic' as const
+    auditLevel: 'basic' as const,
   };
 
-  // Import the adapter dynamically to use it
-  const { adaptFundToReservesInput, adaptReservesConfig, adaptReservesResult } = await import('@/adapters/reserves-adapter');
+  const { adaptFundToReservesInput, adaptReservesConfig, adaptReservesResult } =
+    await import('@/adapters/reserves-adapter');
 
   const reservesInput = adaptFundToReservesInput(fundInput);
   const reservesConfig = adaptReservesConfig(configOptions);
 
-  // Call reserves engine (import dynamically)
   const { calculateReservesSafe } = await import('@shared/lib/reserves-v11');
   const result = await calculateReservesSafe(reservesInput, reservesConfig);
 
-  // Create company map for result conversion
   const companiesMap = new Map(
-    portfolio.map(c => [c.id, {
-      id: c.id,
-      name: c.name,
-      investedAmount: c.investedAmount
-    }])
+    portfolio.map((c) => [
+      c.id,
+      {
+        id: c.id,
+        name: c.name,
+        investedAmount: c.investedAmount,
+      },
+    ])
   );
 
-  // Adapter already converts output to dollars
   const adaptedResult = adaptReservesResult(result, companiesMap);
 
   if (!adaptedResult.success) {
     throw new Error(`Reserve calculation failed: ${adaptedResult.errors?.join(', ')}`);
   }
 
-  // Calculate optimal MOIC
   let totalInvested = 0;
   let totalValue = 0;
   for (const alloc of adaptedResult.allocations) {
-    const company = portfolio.find(p => p.id === alloc.companyId);
+    const company = portfolio.find((p) => p.id === alloc.companyId);
     if (company) {
       const invested = company.investedAmount + alloc.plannedReserve;
       totalInvested += invested;
@@ -629,27 +625,29 @@ export async function calculateReservesForWizard(
   }
   const optimalMOIC = totalInvested > 0 ? totalValue / totalInvested : 0;
 
-  // Transform to wizard format
   return {
     totalPlanned: adaptedResult.totalReserve,
     optimalMOIC,
     companiesSupported: adaptedResult.companiesFunded,
-    avgFollowOnSize: adaptedResult.companiesFunded > 0
-      ? adaptedResult.totalReserve / adaptedResult.companiesFunded
-      : 0,
-    allocations: adaptedResult.allocations.map(alloc => {
-      const company = portfolio.find(p => p.id === alloc.companyId);
-      const currentValuation = company?.currentValuation || 0;
-      const investedAmount = company?.investedAmount || 0;
-      const totalInvested = investedAmount + alloc.plannedReserve;
-      const exitMOIC = totalInvested > 0 ? currentValuation / totalInvested : 0;
+    avgFollowOnSize:
+      adaptedResult.companiesFunded > 0
+        ? adaptedResult.totalReserve / adaptedResult.companiesFunded
+        : 0,
+    allocations: adaptedResult.allocations
+      .map((alloc) => {
+        const company = portfolio.find((p) => p.id === alloc.companyId);
+        const currentValuation = company?.currentValuation || 0;
+        const investedAmount = company?.investedAmount || 0;
+        const totalInvested = investedAmount + alloc.plannedReserve;
+        const exitMOIC = totalInvested > 0 ? currentValuation / totalInvested : 0;
 
-      return {
-        companyId: alloc.companyId,
-        companyName: alloc.companyName || company?.name || 'Unknown',
-        plannedReserve: alloc.plannedReserve,
-        exitMOIC
-      };
-    }).sort((a, b) => b.exitMOIC - a.exitMOIC) // Sort by exit MOIC descending
+        return {
+          companyId: alloc.companyId,
+          companyName: alloc.companyName || company?.name || 'Unknown',
+          plannedReserve: alloc.plannedReserve,
+          exitMOIC,
+        };
+      })
+      .sort((a, b) => b.exitMOIC - a.exitMOIC),
   };
 }
