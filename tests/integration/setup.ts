@@ -17,8 +17,7 @@ process.env._EXPLICIT_NODE_ENV = process.env.NODE_ENV;
 const VALID_TEST_JWT_SECRET = 'integration-test-jwt-secret-must-be-at-least-32-characters-long';
 const VALID_TEST_JWT_ISSUER = 'updog-api';
 const VALID_TEST_JWT_AUDIENCE = 'updog-client';
-const VALID_TEST_CORS_ORIGIN =
-  'http://localhost:5173,http://localhost:5174,http://localhost:5175';
+const VALID_TEST_CORS_ORIGIN = 'http://localhost:5173,http://localhost:5174,http://localhost:5175';
 
 function sanitizeSecrets(env: NodeJS.ProcessEnv): void {
   if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {

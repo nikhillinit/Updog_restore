@@ -40,7 +40,7 @@ export const varianceReportsGenerated = getOrCreateCounter({
   name: 'variance_reports_generated_total',
   help: 'Total number of variance reports generated',
   labelNames: ['fund_id', 'report_type', 'status'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -51,7 +51,7 @@ export const varianceCalculationDuration = getOrCreateHistogram({
   help: 'Time taken to calculate variance metrics',
   labelNames: ['fund_id', 'calculation_type'] as const,
   buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -61,7 +61,7 @@ export const activeVarianceCalculations = getOrCreateGauge({
   name: 'variance_calculations_active',
   help: 'Number of variance calculations currently in progress',
   labelNames: ['calculation_type'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 // === BASELINE MANAGEMENT METRICS ===
@@ -73,7 +73,7 @@ export const baselineOperations = getOrCreateCounter({
   name: 'baseline_operations_total',
   help: 'Total number of baseline operations performed',
   labelNames: ['fund_id', 'operation_type', 'baseline_type'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -83,7 +83,7 @@ export const totalActiveBaselines = getOrCreateGauge({
   name: 'baselines_active_total',
   help: 'Total number of active baselines across all funds',
   labelNames: ['baseline_type'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -94,7 +94,7 @@ export const baselineCreationDuration = getOrCreateHistogram({
   help: 'Time taken to create a new baseline',
   labelNames: ['fund_id', 'baseline_type'] as const,
   buckets: [0.5, 1, 2, 5, 10, 30],
-  registers: [register]
+  registers: [register],
 });
 
 // === ALERT METRICS ===
@@ -106,7 +106,7 @@ export const alertsGenerated = getOrCreateCounter({
   name: 'performance_alerts_generated_total',
   help: 'Total number of performance alerts generated',
   labelNames: ['fund_id', 'alert_type', 'severity', 'category'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -116,7 +116,7 @@ export const alertActions = getOrCreateCounter({
   name: 'alert_actions_total',
   help: 'Total number of alert actions performed',
   labelNames: ['action_type', 'severity'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -126,7 +126,7 @@ export const activeAlertsBySeverity = getOrCreateGauge({
   name: 'alerts_active_by_severity',
   help: 'Number of active alerts grouped by severity',
   labelNames: ['severity', 'category'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -137,7 +137,7 @@ export const alertResolutionTime = getOrCreateHistogram({
   help: 'Time taken to resolve alerts from trigger to resolution',
   labelNames: ['severity', 'alert_type'] as const,
   buckets: [300, 1800, 3600, 21600, 86400, 259200], // 5min to 3 days
-  registers: [register]
+  registers: [register],
 });
 
 // === VARIANCE THRESHOLD METRICS ===
@@ -149,7 +149,7 @@ export const fundVarianceScores = getOrCreateGauge({
   name: 'fund_variance_score',
   help: 'Current variance score for each fund',
   labelNames: ['fund_id', 'baseline_id'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -159,7 +159,7 @@ export const thresholdBreaches = getOrCreateCounter({
   name: 'variance_threshold_breaches_total',
   help: 'Total number of variance threshold breaches',
   labelNames: ['fund_id', 'metric_name', 'threshold_type'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -170,7 +170,7 @@ export const varianceAnalysisComplexity = getOrCreateHistogram({
   help: 'Complexity score of variance analysis operations',
   labelNames: ['fund_id', 'analysis_type'] as const,
   buckets: [1, 5, 10, 25, 50, 100],
-  registers: [register]
+  registers: [register],
 });
 
 // === API PERFORMANCE METRICS ===
@@ -182,7 +182,7 @@ export const varianceApiRequests = getOrCreateCounter({
   name: 'variance_api_requests_total',
   help: 'Total number of variance tracking API requests',
   labelNames: ['endpoint', 'method', 'status_code'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -193,7 +193,7 @@ export const varianceApiDuration = getOrCreateHistogram({
   help: 'Duration of variance tracking API requests',
   labelNames: ['endpoint', 'method'] as const,
   buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
-  registers: [register]
+  registers: [register],
 });
 
 // === DATA QUALITY METRICS ===
@@ -205,7 +205,7 @@ export const dataQualityScores = getOrCreateGauge({
   name: 'variance_data_quality_score',
   help: 'Data quality score for variance calculations',
   labelNames: ['fund_id', 'data_source'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -215,7 +215,7 @@ export const dataValidationErrors = getOrCreateCounter({
   name: 'variance_data_validation_errors_total',
   help: 'Total number of data validation errors in variance calculations',
   labelNames: ['fund_id', 'error_type', 'data_source'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 // === SYSTEM HEALTH METRICS ===
@@ -226,7 +226,7 @@ export const dataValidationErrors = getOrCreateCounter({
 export const systemHealthScore = getOrCreateGauge({
   name: 'variance_system_health_score',
   help: 'Overall health score of the variance tracking system',
-  registers: [register]
+  registers: [register],
 });
 
 /**
@@ -236,7 +236,7 @@ export const systemErrors = getOrCreateCounter({
   name: 'variance_system_errors_total',
   help: 'Total number of system errors in variance tracking',
   labelNames: ['component', 'error_type'] as const,
-  registers: [register]
+  registers: [register],
 });
 
 // === UTILITY FUNCTIONS ===
@@ -286,11 +286,7 @@ export function recordAlertGenerated(
 /**
  * Record alert action metrics
  */
-export function recordAlertAction(
-  action: string,
-  severity: string,
-  resolutionTime?: number
-): void {
+export function recordAlertAction(action: string, severity: string, resolutionTime?: number): void {
   alertActions.labels(action, severity).inc();
 
   if (action === 'resolve' && resolutionTime) {
@@ -305,11 +301,7 @@ export function recordAlertAction(
 /**
  * Update fund variance score
  */
-export function updateFundVarianceScore(
-  fundId: string,
-  baselineId: string,
-  score: number
-): void {
+export function updateFundVarianceScore(fundId: string, baselineId: string, score: number): void {
   fundVarianceScores.labels(fundId, baselineId)['set'](score);
 }
 
@@ -340,11 +332,7 @@ export function recordVarianceApiRequest(
 /**
  * Update data quality score
  */
-export function updateDataQualityScore(
-  fundId: string,
-  dataSource: string,
-  score: number
-): void {
+export function updateDataQualityScore(fundId: string, dataSource: string, score: number): void {
   dataQualityScores.labels(fundId, dataSource)['set'](score);
 }
 
@@ -393,7 +381,11 @@ export function startVarianceCalculation(calculationType: string): () => void {
 export function createVarianceMetricsMiddleware() {
   return (req: any, res: any, next: any) => {
     // Only track variance-related endpoints
-    if (!req.path.includes('/variance') && !req.path.includes('/baseline') && !req.path.includes('/alert')) {
+    if (
+      !req.path.includes('/variance') &&
+      !req.path.includes('/baseline') &&
+      !req.path.includes('/alert')
+    ) {
       return next();
     }
 
@@ -423,8 +415,8 @@ export function initializeVarianceMetrics(): void {
   const severities = ['info', 'warning', 'critical', 'urgent'];
   const categories = ['performance', 'risk', 'operational', 'compliance'];
 
-  severities.forEach(severity => {
-    categories.forEach(category => {
+  severities.forEach((severity) => {
+    categories.forEach((category) => {
       activeAlertsBySeverity.labels(severity, category)['set'](0);
     });
   });
@@ -442,7 +434,6 @@ export function getVarianceMetricsSummary(): any {
     activeBaselines: totalActiveBaselines['get'](),
     alertsGenerated: alertsGenerated['get'](),
     systemHealth: systemHealthScore['get'](),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
-

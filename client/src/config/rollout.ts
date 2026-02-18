@@ -1,14 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+
 /**
  * Deterministic feature rollout with stable user bucketing
- * 
+ *
  * Uses FNV-1a hash for fast, collision-resistant bucketing
  * Each user gets a stable bucket (0-99) based on their persistent UUID
- * 
+ *
  * Usage:
  * - inRollout('USE_FUND_STORE', 100) // 100% rollout
  * - inRollout('USE_FUND_STORE', 25)  // 25% rollout
@@ -25,7 +22,7 @@ function fnv1a(str: string): number {
     h ^= str.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
-  return (h >>> 0); // Convert to unsigned 32-bit
+  return h >>> 0; // Convert to unsigned 32-bit
 }
 
 /**
@@ -54,28 +51,9 @@ function secureUuidV4Fallback(): string {
     hex.push(bytes[i].toString(16).padStart(2, '0'));
   }
 
-  return (
-    hex[0] +
-    hex[1] +
-    hex[2] +
-    hex[3] +
-    '-' +
-    hex[4] +
-    hex[5] +
-    '-' +
-    hex[6] +
-    hex[7] +
-    '-' +
-    hex[8] +
-    hex[9] +
-    '-' +
-    hex[10] +
-    hex[11] +
-    hex[12] +
-    hex[13] +
-    hex[14] +
-    hex[15]
-  );
+  return `${hex[0] + hex[1] + hex[2] + hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${
+    hex[9]
+  }-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
 }
 
 /**
@@ -125,7 +103,7 @@ function stableUserId(): string {
 
 /**
  * Check if user is in a feature rollout
- * 
+ *
  * @param featureEnvName - Environment variable name (without VITE_ prefix)
  * @param defaultPct - Default percentage if env var not set (0-100)
  * @returns true if user should see the feature
@@ -136,21 +114,23 @@ export function inRollout(featureEnvName: string, defaultPct = 100): boolean {
     const envKey = `VITE_${featureEnvName}_ROLLOUT`;
     const envValue = (import.meta as any).env?.[envKey];
     const pct = Number(envValue ?? defaultPct);
-    
+
     // Validate percentage
     if (isNaN(pct) || pct < 0 || pct > 100) {
-      console.warn(`Invalid rollout percentage for ${envKey}: ${envValue}, using default: ${defaultPct}%`);
+      console.warn(
+        `Invalid rollout percentage for ${envKey}: ${envValue}, using default: ${defaultPct}%`
+      );
       return defaultPct >= 100;
     }
-    
+
     // Everyone gets 100% rollout
     if (pct >= 100) return true;
     if (pct <= 0) return false;
-    
+
     // Deterministic bucketing based on stable user ID
     const userId = stableUserId();
     const bucket = fnv1a(userId + featureEnvName) % 100;
-    
+
     return bucket < pct;
   } catch (e) {
     console.warn(`Rollout check failed for ${featureEnvName}:`, e);
@@ -176,33 +156,36 @@ export function getUserBucket(featureEnvName: string): number {
 export function debugRollouts() {
   const userId = stableUserId();
   const features = ['USE_FUND_STORE', 'USE_FUND_STORE_VALIDATION', 'USE_FUND_STORE_TELEMETRY'];
-  
+
   console.table(
-    features.reduce((acc: any, feature: any) => {
-      const envKey = `VITE_${feature}_ROLLOUT`;
-      const envValue = (import.meta as any).env?.[envKey];
-      const bucket = getUserBucket(feature);
-      const inFeature = inRollout(feature);
-      
-      acc[feature] = {
-        userId: `${userId.substring(0, 8)  }...`,
-        bucket,
-        rolloutPct: envValue || 'default',
-        enabled: inFeature
-      };
-      return acc;
-    }, {} as Record<string, any>)
+    features.reduce(
+      (acc: any, feature: any) => {
+        const envKey = `VITE_${feature}_ROLLOUT`;
+        const envValue = (import.meta as any).env?.[envKey];
+        const bucket = getUserBucket(feature);
+        const inFeature = inRollout(feature);
+
+        acc[feature] = {
+          userId: `${userId.substring(0, 8)}...`,
+          bucket,
+          rolloutPct: envValue || 'default',
+          enabled: inFeature,
+        };
+        return acc;
+      },
+      {} as Record<string, any>
+    )
   );
 }
 
 // Development helper - expose to window
 if ((import.meta as any).env?.NODE_ENV === 'development') {
   if (typeof window !== 'undefined') {
-    (window as any).__rollouts = { 
-      inRollout, 
-      getUserBucket, 
+    (window as any).__rollouts = {
+      inRollout,
+      getUserBucket,
       debugRollouts,
-      stableUserId: () => `${stableUserId().substring(0, 8)  }...` // Masked for privacy
+      stableUserId: () => `${stableUserId().substring(0, 8)}...`, // Masked for privacy
     };
   }
 }

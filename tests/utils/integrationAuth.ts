@@ -33,10 +33,13 @@ interface JwtPayload {
   email?: string; // REQUIRED by verifyAccessToken
   role?: 'flag_read' | 'flag_admin' | 'user' | 'lp'; // CORRECT roles (NOT 'admin')
   orgId?: string;
+  org_id?: string;
   permissions?: string[];
   fundIds?: number[]; // Funds the user has access to
   lpId?: number; // LP-specific: Limited Partner ID for LP role users
 }
+
+const DEFAULT_TEST_ORG_ID = process.env.TEST_ORG_ID || '00000000-0000-0000-0000-000000000001';
 
 /**
  * Generate a test JWT token with correct claims structure
@@ -45,12 +48,15 @@ interface JwtPayload {
  * @returns Signed JWT token
  */
 export function makeJwt(payload: JwtPayload = {}) {
+  const orgId = payload.orgId || payload.org_id || DEFAULT_TEST_ORG_ID;
+
   return jwt.sign(
     {
       sub: payload.userId || 'test-user-123',
       email: payload.email || 'test@example.com', // REQUIRED
       role: payload.role || 'user',
-      orgId: payload.orgId,
+      orgId, // Backward-compatible claim
+      org_id: orgId, // Required by secure-context middleware
       permissions: payload.permissions,
       fundIds: payload.fundIds || [1, 2, 3], // Default access to common test funds
       lpId: payload.lpId, // LP-specific: include if provided
