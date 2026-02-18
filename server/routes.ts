@@ -25,7 +25,7 @@ import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
 import { toNumber, NumberParseError } from '@shared/number';
 import type {
-  ReserveInput,
+  ReserveCompanyInput,
   PacingInput,
   CohortInput,
   ApiError,
@@ -678,8 +678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res['status'](500)['json'](error);
       }
 
-      // Transform to ReserveInput format with validation
-      const portfolio: ReserveInput[] = portfolioData.companies.map(
+      // Transform to ReserveCompanyInput format with validation
+      const portfolio: ReserveCompanyInput[] = portfolioData.companies.map(
         (company: PortfolioFixtureCompany, index: number) => ({
           id: index + 1,
           invested: typeof company.invested === 'number' ? company.invested : 500000,

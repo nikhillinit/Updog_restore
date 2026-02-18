@@ -46,7 +46,6 @@ export {
   inferUnitScale,
   inferUnitScaleType,
   toCentsWithInference,
-  fromCentsWithInference,
   detectUnitMismatch,
   validateUnitConsistency,
   normalizeFieldsToCents,
