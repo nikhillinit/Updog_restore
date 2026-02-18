@@ -40,8 +40,7 @@ const mockClient = {
 };
 
 // Test JWT secret
-const JWT_SECRET = 'test-secret';
-process.env.JWT_SECRET = JWT_SECRET;
+const JWT_SECRET = 'test-jwt-secret-for-rls-tests-minimum-32-chars';
 
 describe.skip('RLS Middleware Integration', () => {
   let app: express.Application;

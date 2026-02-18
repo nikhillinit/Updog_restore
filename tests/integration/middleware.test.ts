@@ -59,8 +59,9 @@ describe('Critical Middleware Tests', () => {
 
     it('should bypass rate limit with valid health key', async () => {
       const originalHealthKey = process.env.HEALTH_KEY;
+      const TEST_HEALTH_KEY = 'test-health-key!';
       try {
-        process.env.HEALTH_KEY = 'test-health-key';
+        process.env.HEALTH_KEY = TEST_HEALTH_KEY;
 
         const testApp = express();
         testApp.use(rateLimitDetailed());
@@ -69,15 +70,18 @@ describe('Critical Middleware Tests', () => {
         // Make many requests with health key
         const requests = [];
         for (let i = 0; i < 50; i++) {
-          requests.push(request(testApp).get('/test').set('X-Health-Key', 'test-health-key'));
+          requests.push(request(testApp).get('/test').set('X-Health-Key', TEST_HEALTH_KEY));
         }
 
         const responses = await Promise.all(requests);
         const allOk = responses.every((r) => r.status === 200);
         expect(allOk).toBe(true);
       } finally {
-        // eslint-disable-next-line require-atomic-updates
-        process.env.HEALTH_KEY = originalHealthKey;
+        if (originalHealthKey !== undefined) {
+          process.env.HEALTH_KEY = originalHealthKey;
+        } else {
+          delete process.env.HEALTH_KEY;
+        }
       }
     });
   });
