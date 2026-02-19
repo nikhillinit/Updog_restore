@@ -513,7 +513,7 @@
     "@typescript-eslint/utils": "8.56.0",
     "@upstash/redis": "1.36.1",
     "@vitejs/plugin-react": "5.1.4",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/ui": "^4.0.18",
     "ajv": "8.17.1",
     "ajv-formats": "^3.0.1",
     "autoprefixer": "10.4.23",
