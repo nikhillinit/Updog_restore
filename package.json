@@ -575,7 +575,7 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "3.2.4",
     "vitest-canvas-mock": "^0.3.3",
-    "wait-on": "^8.0.4",
+    "wait-on": "^9.0.4",
     "whatwg-fetch": "^3.6.20",
     "xml2js": "0.6.2"
   },
