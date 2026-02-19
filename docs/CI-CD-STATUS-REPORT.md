@@ -29,27 +29,25 @@ for new development work, with only 3 documented pre-existing issues remaining.
 
 **Current State:**
 
-- 15 active CI workflows (7 quality gates + 5 security + 3 docs validators)
+- 13 active CI workflows (5 quality gates + 5 security + 3 docs validators)
 - 3 pre-existing failures (security, api-performance, Vercel)
 - 100% Phase 0 validation (all 6 calculation modules passing)
 - Baseline comparison approach: PRs evaluated on delta, not perfection
 
 ---
 
-## Active CI Workflows (15 Total)
+## Active CI Workflows (13 Total)
 
-The project maintains 15 active workflows after rationalization on 2025-11-09
+The project maintains 13 active workflows after rationalization on 2025-11-09
 and cleanup on 2026-02-19:
 
-### Core Quality Gates (7 workflows)
+### Core Quality Gates (5 workflows)
 
 1. **ci-unified.yml** - Main unified CI pipeline with smart test selection
 2. **code-quality.yml** - Code quality analysis
 3. **bundle-size-check.yml** - Bundle size validation
-4. **performance-gates.yml** - Bundle size, API performance, tiered performance
-5. **test.yml** - Test execution
-6. **dependency-validation.yml** - Dependency validation
-7. **testcontainers-ci.yml** - Docker-based integration tests (label-triggered)
+4. **dependency-validation.yml** - Dependency validation
+5. **testcontainers-ci.yml** - Docker-based integration tests (label-triggered)
 
 ### Security Workflows (5 workflows)
 
@@ -233,9 +231,8 @@ tests run in CI **PR checks:** Full suite of 9 quality workflows run
 **Push-to-main checks:** Additional performance and metrics jobs **Retry
 logic:** Tests retry 2x in CI to reduce flakiness
 
-**Important:** Some jobs only run on `push` to `main` (not on PRs), such as
-`report-metrics` in `performance-gates.yml`. These jobs are not validated by PR
-CI.
+**Important:** Some jobs only run on `push` to `main` (not on PRs). These jobs
+are not validated by PR CI.
 
 ---
 
@@ -424,7 +421,6 @@ rg -n -g "*.ts" -g "*.tsx" "describe\.skip|it\.skip|test\.skip|xdescribe|xit|xte
 
 4. Add post-merge job validation to PR CI matrix (from 2026-01-15 learnings)
    - Jobs that only run on `push` to `main` aren't validated by PR CI
-   - Example: `report-metrics` job in `performance-gates.yml`
    - Add matrix strategy to test both PR and push paths
    - **Effort:** 3-4 hours
 
@@ -501,8 +497,8 @@ rg -n -g "*.ts" -g "*.tsx" "describe\.skip|it\.skip|test\.skip|xdescribe|xit|xte
 
 **Performance Gates:**
 
-- `.github/workflows/performance-gates.yml` - Bundle, API, tiered performance
-- `tests/k6/k6-baseline.js` - K6 API performance tests
+- `tests/k6/k6-baseline.js` - K6 API performance tests (not currently wired to
+  CI)
 
 **Phase 0 Validation:**
 

@@ -296,8 +296,8 @@ export async function createServer(
   app.use(errorHandler());
 
   // Client asset strategy:
-  // CI contract: `.github/workflows/security-tests.yml` and `.github/workflows/performance-gates.yml`
-  // run `npm run dev:api` without a client build, so dist/public may be missing. Keep API-only boot safe.
+  // CI contract: `.github/workflows/security-tests.yml` runs `npm run dev:api`
+  // without a client build, so dist/public may be missing. Keep API-only boot safe.
   const distPublicPath = path.resolve(process.cwd(), 'dist', 'public');
   const distExists = fs.existsSync(distPublicPath);
   const isProductionMode = config.NODE_ENV === 'production';
