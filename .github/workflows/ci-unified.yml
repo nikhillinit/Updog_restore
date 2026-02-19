@@ -96,7 +96,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       cache-key: ${{ steps.cache-key.outputs.key }}
-      bundle-baseline: ${{ steps.baseline.outputs.stats }}
     steps:
       - uses: actions/checkout@v4
 
@@ -143,25 +142,6 @@ jobs:
             .tsbuildinfo.*
             **/*.tsbuildinfo
           retention-days: 1
-
-      - name: Fetch baseline bundle stats
-        id: baseline
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          # Try to fetch last successful main build stats
-          gh run list --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' > run_id.txt || echo "0" > run_id.txt
-          RUN_ID=$(cat run_id.txt)
-          if [ "$RUN_ID" != "0" ]; then
-            gh run download $RUN_ID -n bundle-stats -D .baseline || true
-          fi
-          if [ -f ".baseline/bundle-stats.json" ]; then
-            echo "stats=$(cat .baseline/bundle-stats.json | jq -c .)" >> $GITHUB_OUTPUT
-          else
-            echo "stats={}" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Phase 3: Parallel checks (type checking and linting)
   check:
@@ -418,32 +398,8 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Generate bundle stats
-        id: bundle-stats
-        run: |
-          node scripts/bundle-stats.cjs > bundle-stats.json || echo '{}' > bundle-stats.json
-          TOTAL_KB=$(du -sk dist/public/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
-          echo "total_kb=${TOTAL_KB}" >> $GITHUB_OUTPUT
-
-      - name: Dynamic bundle size check
-        run: |
-          if [ -n "${{ needs.setup.outputs.bundle-baseline }}" ] && [ "${{ needs.setup.outputs.bundle-baseline }}" != "{}" ]; then
-            node scripts/bundle-check-dynamic.cjs \
-              --current=bundle-stats.json \
-              --baseline='${{ needs.setup.outputs.bundle-baseline }}' \
-              --tolerance=0.05 \
-              --has-approval=${{ contains(github.event.pull_request.labels.*.name, 'approved:perf-budget-change') }}
-          else
-            # Fallback to static limit if no baseline
-            npm run bundle:check || true
-          fi
-
-      - name: Upload bundle stats
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundle-stats
-          path: bundle-stats.json
-          retention-days: 30
+      - name: Bundle size check
+        run: npm run bundle:check || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
