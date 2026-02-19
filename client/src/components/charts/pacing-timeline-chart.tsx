@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
@@ -12,8 +7,8 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { usePacingData } from '@/hooks/use-engine-data';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Calendar, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, Calendar, TrendingUp } from 'lucide-react';
 
 export default function PacingTimelineChart() {
   const { data: pacingData, loading, error } = usePacingData();
@@ -51,17 +46,17 @@ export default function PacingTimelineChart() {
 
   // Transform pacing data for chart display
   const deployments = pacingData?.deployments || [];
-  const chartData = deployments.map(item => {
-    const currentIndex = deployments.findIndex(d => d.quarter === item.quarter);
+  const chartData = deployments.map((item) => {
+    const currentIndex = deployments.findIndex((d) => d.quarter === item.quarter);
     const cumulative = deployments
       .slice(0, currentIndex + 1)
-      .reduce((sum: any, d: any) => sum + d.deployment, 0);
-    
+      .reduce((sum: number, d: (typeof deployments)[number]) => sum + d.deployment, 0);
+
     return {
       quarter: `Q${item.quarter}`,
       deployment: item.deployment / 1000000, // Convert to millions
       cumulative: cumulative / 1000000,
-      note: item.note
+      note: item.note,
     };
   });
 
@@ -83,16 +78,26 @@ export default function PacingTimelineChart() {
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} label={{ value: 'Deployment ($M)', angle: -90, position: 'insideLeft' }} />
+                <YAxis
+                  stroke="#666"
+                  fontSize={12}
+                  label={{ value: 'Deployment ($M)', angle: -90, position: 'insideLeft' }}
+                />
                 <Tooltip
                   formatter={(value, name) => [
                     value !== undefined ? `$${Number(value).toFixed(1)}M` : '',
-                    name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative'
+                    name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative',
                   ]}
-                  labelFormatter={(label: any) => `Quarter: ${label}`}
+                  labelFormatter={(label: string) => `Quarter: ${label}`}
                 />
                 <Bar dataKey="deployment" fill="#3b82f6" name="deployment" />
-                <Line type="monotone" dataKey="cumulative" stroke="#10b981" strokeWidth={3} name="cumulative" />
+                <Line
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  name="cumulative"
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -125,9 +130,7 @@ export default function PacingTimelineChart() {
                 <p className="text-2xl font-bold text-gray-800 mt-1">
                   ${(avgQuarterlyDeployment / 1000000).toFixed(1)}M
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {totalQuarters} quarters
-                </p>
+                <p className="text-sm text-gray-500 mt-1">{totalQuarters} quarters</p>
               </div>
               <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-green-500" />
@@ -144,9 +147,7 @@ export default function PacingTimelineChart() {
                 <p className="text-2xl font-bold text-gray-800 mt-1">
                   {marketCondition.charAt(0).toUpperCase() + marketCondition.slice(1)}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Baseline pacing
-                </p>
+                <p className="text-sm text-gray-500 mt-1">Baseline pacing</p>
               </div>
               <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-orange-500" />
@@ -163,16 +164,17 @@ export default function PacingTimelineChart() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {chartData.map((item: any, index: any) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            {chartData.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">{item.quarter} Deployment</p>
                   <p className="text-sm text-gray-600">{item.note}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-800">
-                    ${item.deployment.toFixed(1)}M
-                  </p>
+                  <p className="font-semibold text-gray-800">${item.deployment.toFixed(1)}M</p>
                   <p className="text-sm text-gray-500">
                     Cumulative: ${item.cumulative.toFixed(1)}M
                   </p>

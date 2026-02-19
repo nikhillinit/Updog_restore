@@ -1,15 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Calendar, Info } from "lucide-react";
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Calendar, Info } from 'lucide-react';
 
 interface FutureRoundsBuilderProps {
   open: boolean;
@@ -32,7 +39,7 @@ const sectorProfiles = [
   { id: 'marketplace', name: 'Marketplace' },
   { id: 'healthcare', name: 'Healthcare' },
   { id: 'ai-ml', name: 'AI/ML' },
-  { id: 'biotech', name: 'Biotech' }
+  { id: 'biotech', name: 'Biotech' },
 ];
 
 const fundingRounds = [
@@ -42,7 +49,7 @@ const fundingRounds = [
   'Series B',
   'Series C',
   'Series D',
-  'Series E+'
+  'Series E+',
 ];
 
 const graduationRateOptions = [
@@ -50,23 +57,27 @@ const graduationRateOptions = [
   { id: 'custom', name: 'Custom Rate' },
   { id: 'high', name: 'High (85%)' },
   { id: 'medium', name: 'Medium (65%)' },
-  { id: 'low', name: 'Low (45%)' }
+  { id: 'low', name: 'Low (45%)' },
 ];
 
 const startingDateOptions = [
   { id: 'sector-based', name: 'Based on Sector' },
   { id: 'custom', name: 'Custom Date' },
   { id: 'fund-start', name: 'Fund Start Date' },
-  { id: 'investment-date', name: 'Investment Date' }
+  { id: 'investment-date', name: 'Investment Date' },
 ];
 
-export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds }: FutureRoundsBuilderProps) {
+export default function FutureRoundsBuilder({
+  open,
+  onOpenChange,
+  onBuildRounds,
+}: FutureRoundsBuilderProps) {
   const [config, setConfig] = useState<FutureRoundsConfig>({
     sectorProfile: 'default',
     startingRound: 'pre-seed',
     graduationRate: 'sector-based',
     startingDate: 'custom',
-    nextRoundDate: '2024-06-15'
+    nextRoundDate: '2024-06-15',
   });
 
   const handleBuild = () => {
@@ -75,7 +86,7 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
   };
 
   const handleConfigChange = (field: keyof FutureRoundsConfig, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    setConfig((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -94,15 +105,15 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             <Label htmlFor="sector-profile" className="text-sm font-medium">
               Sector Profile
             </Label>
-            <Select 
-              value={config.sectorProfile} 
-              onValueChange={(value: any) => handleConfigChange('sectorProfile', value)}
+            <Select
+              value={config.sectorProfile}
+              onValueChange={(value: string) => handleConfigChange('sectorProfile', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select sector profile" />
               </SelectTrigger>
               <SelectContent>
-                {sectorProfiles.map((profile: any) => (
+                {sectorProfiles.map((profile) => (
                   <SelectItem key={profile.id} value={profile.id}>
                     {profile.name}
                   </SelectItem>
@@ -116,16 +127,19 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             <Label htmlFor="starting-round" className="text-sm font-medium">
               Starting Round
             </Label>
-            <Select 
-              value={config.startingRound} 
-              onValueChange={(value: any) => handleConfigChange('startingRound', value)}
+            <Select
+              value={config.startingRound}
+              onValueChange={(value: string) => handleConfigChange('startingRound', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select starting round" />
               </SelectTrigger>
               <SelectContent>
-                {fundingRounds.map((round: any) => (
-                  <SelectItem key={round.toLowerCase().replace(/\s+/g, '-')} value={round.toLowerCase().replace(/\s+/g, '-')}>
+                {fundingRounds.map((round) => (
+                  <SelectItem
+                    key={round.toLowerCase().replace(/\s+/g, '-')}
+                    value={round.toLowerCase().replace(/\s+/g, '-')}
+                  >
                     {round}
                   </SelectItem>
                 ))}
@@ -141,15 +155,15 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
               </Label>
               <Info className="h-4 w-4 text-gray-400" />
             </div>
-            <Select 
-              value={config.graduationRate} 
-              onValueChange={(value: any) => handleConfigChange('graduationRate', value)}
+            <Select
+              value={config.graduationRate}
+              onValueChange={(value: string) => handleConfigChange('graduationRate', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select graduation rate" />
               </SelectTrigger>
               <SelectContent>
-                {graduationRateOptions.map((option: any) => (
+                {graduationRateOptions.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.name}
                   </SelectItem>
@@ -166,15 +180,15 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
               </Label>
               <Info className="h-4 w-4 text-gray-400" />
             </div>
-            <Select 
-              value={config.startingDate} 
-              onValueChange={(value: any) => handleConfigChange('startingDate', value)}
+            <Select
+              value={config.startingDate}
+              onValueChange={(value: string) => handleConfigChange('startingDate', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select starting date option" />
               </SelectTrigger>
               <SelectContent>
-                {startingDateOptions.map((option: any) => (
+                {startingDateOptions.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.name}
                   </SelectItem>
@@ -193,7 +207,9 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
                 id="next-round-date"
                 type="date"
                 value={config.nextRoundDate}
-                onChange={(e: any) => handleConfigChange('nextRoundDate', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleConfigChange('nextRoundDate', e.target.value)
+                }
                 className="w-full"
               />
               <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -208,8 +224,12 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
                 <p className="font-medium mb-2">Future Rounds Configuration</p>
                 <ul className="space-y-1 text-xs">
                   <li>• Sector profiles determine default graduation rates and timing patterns</li>
-                  <li>• Starting round sets the initial investment stage for future round generation</li>
-                  <li>• Graduation rates control the probability of advancing to subsequent rounds</li>
+                  <li>
+                    • Starting round sets the initial investment stage for future round generation
+                  </li>
+                  <li>
+                    • Graduation rates control the probability of advancing to subsequent rounds
+                  </li>
                   <li>• Custom dates allow precise timing control for investment planning</li>
                 </ul>
               </div>
@@ -219,16 +239,10 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
 
         {/* Action Buttons */}
         <div className="flex justify-end space-x-3 pt-4 border-t">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleBuild}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
+          <Button onClick={handleBuild} className="bg-blue-600 hover:bg-blue-700 text-white">
             Build
           </Button>
         </div>

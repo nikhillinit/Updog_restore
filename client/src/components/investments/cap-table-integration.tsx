@@ -1,13 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Calculator, ExternalLink, Plus, TrendingUp, DollarSign, Percent } from 'lucide-react';
 import CapTableCalculator from '@/components/cap-table/cap-table-calculator';
 
@@ -35,7 +36,7 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
       preMoneyValuation: 15000000,
       roundSize: 5000000,
       dilution: 23.5,
-      lastModified: new Date().toISOString()
+      lastModified: new Date().toISOString(),
     },
     {
       id: '2',
@@ -44,8 +45,8 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
       preMoneyValuation: 12000000,
       roundSize: 2000000,
       dilution: 18.2,
-      lastModified: new Date().toISOString()
-    }
+      lastModified: new Date().toISOString(),
+    },
   ]);
 
   const formatCurrency = (amount: number) => {
@@ -59,10 +60,14 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'archived':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -76,7 +81,9 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
               <DollarSign className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-600">Current Valuation</p>
-                <p className="text-lg font-bold">{formatCurrency(investment.valuationAtInvestment)}</p>
+                <p className="text-lg font-bold">
+                  {formatCurrency(investment.valuationAtInvestment)}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -150,7 +157,7 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
 
         {scenarios.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {scenarios.map((scenario: any) => (
+            {scenarios.map((scenario) => (
               <Card key={scenario.id} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -158,9 +165,7 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
                       <CardTitle className="text-base">{scenario.name}</CardTitle>
                       <p className="text-sm text-gray-600">{investment.name}</p>
                     </div>
-                    <Badge className={getStatusColor(scenario.status)}>
-                      {scenario.status}
-                    </Badge>
+                    <Badge className={getStatusColor(scenario.status)}>{scenario.status}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -182,7 +187,9 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
                     </div>
                     <div>
                       <p className="text-gray-500">Last Modified</p>
-                      <p className="font-medium">{new Date(scenario.lastModified).toLocaleDateString()}</p>
+                      <p className="font-medium">
+                        {new Date(scenario.lastModified).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
 
@@ -204,7 +211,8 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
               <Calculator className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium mb-2">No Cap Table Scenarios</h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Create your first cap table scenario to model SAFE/Note conversions for {investment.name}.
+                Create your first cap table scenario to model SAFE/Note conversions for{' '}
+                {investment.name}.
               </p>
               <Button onClick={() => setShowFullCalculator(true)}>
                 <Plus className="h-4 w-4 mr-2" />
