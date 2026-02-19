@@ -88,7 +88,7 @@ export default function PacingTimelineChart() {
                     value !== undefined ? `$${Number(value).toFixed(1)}M` : '',
                     name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative',
                   ]}
-                  labelFormatter={(label: string) => `Quarter: ${label}`}
+                  labelFormatter={(label) => `Quarter: ${String(label)}`}
                 />
                 <Bar dataKey="deployment" fill="#3b82f6" name="deployment" />
                 <Line

@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -15,12 +12,12 @@ import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -28,14 +25,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  TrendingUp,
-  DollarSign,
-  Percent,
-  Trophy,
-  Info
-} from "lucide-react";
+} from '@/components/ui/table';
+import { TrendingUp, DollarSign, Percent, Trophy, Info } from 'lucide-react';
 
 interface ExitData {
   stage: string;
@@ -64,85 +55,94 @@ export default function ExitAnalysis() {
   // Exit analysis data using stage-based methodology
   const baseExitData: ExitData[] = [
     {
-      stage: "Seed",
+      stage: 'Seed',
       companiesAtStage: 40,
-      exitRate: 0.00, // 0% exit at seed stage
+      exitRate: 0.0, // 0% exit at seed stage
       avgExitValue: 0,
       avgOwnership: 10.0,
       totalExitValue: 0,
-      realizedValue: 0
+      realizedValue: 0,
     },
     {
-      stage: "Series A",
+      stage: 'Series A',
       companiesAtStage: 18, // 46% graduation rate from seed
       exitRate: 0.15, // 15% exit after Series A
       avgExitValue: 23000000, // Post-money from Series A
       avgOwnership: 6.5, // Diluted from 10% by 35%
       totalExitValue: 0,
-      realizedValue: 0
+      realizedValue: 0,
     },
     {
-      stage: "Series B", 
+      stage: 'Series B',
       companiesAtStage: 12, // 65% graduation from A to B
       exitRate: 0.25, // 25% exit after Series B
       avgExitValue: 50000000, // Post-money from Series B
       avgOwnership: 4.6, // Further diluted by 30%
       totalExitValue: 0,
-      realizedValue: 0
+      realizedValue: 0,
     },
     {
-      stage: "Series C",
+      stage: 'Series C',
       companiesAtStage: 8, // 70% graduation from B to C
-      exitRate: 0.40, // 40% exit after Series C
+      exitRate: 0.4, // 40% exit after Series C
       avgExitValue: 100000000, // Post-money from Series C
       avgOwnership: 3.4, // Further diluted by 25%
       totalExitValue: 0,
-      realizedValue: 0
+      realizedValue: 0,
     },
     {
-      stage: "Series D",
+      stage: 'Series D',
       companiesAtStage: 5, // 60% graduation from C to D
-      exitRate: 0.60, // 60% exit after Series D
+      exitRate: 0.6, // 60% exit after Series D
       avgExitValue: 190000000, // Post-money from Series D
       avgOwnership: 2.7, // Further diluted by 21%
       totalExitValue: 0,
-      realizedValue: 0
+      realizedValue: 0,
     },
     {
-      stage: "Series E+",
+      stage: 'Series E+',
       companiesAtStage: 3, // 55% graduation from D to E+
       exitRate: 0.85, // 85% exit after Series E+
       avgExitValue: 360000000, // Post-money from Series E+
       avgOwnership: 2.2, // Further diluted by 17%
       totalExitValue: 0,
-      realizedValue: 0
-    }
+      realizedValue: 0,
+    },
   ];
 
   // Calculate exit analysis
-  const calculateExitAnalysis = (): { exitData: ExitData[], fundReturns: FundReturns } => {
-    const calculatedExitData = baseExitData.map(stage => {
+  const calculateExitAnalysis = (): { exitData: ExitData[]; fundReturns: FundReturns } => {
+    const calculatedExitData = baseExitData.map((stage) => {
       const exitingCompanies = Math.round(stage.companiesAtStage * stage.exitRate);
       const totalExitValue = exitingCompanies * stage.avgExitValue;
       const realizedValue = totalExitValue * (stage.avgOwnership / 100);
-      
+
       return {
         ...stage,
         totalExitValue,
-        realizedValue
+        realizedValue,
       };
     });
 
-    const totalRealizedValue = calculatedExitData.reduce((sum: any, stage: any) => sum + stage.realizedValue, 0);
-    const totalExits = calculatedExitData.reduce((sum: any, stage: any) => sum + Math.round(stage.companiesAtStage * stage.exitRate), 0);
-    
+    const totalRealizedValue = calculatedExitData.reduce(
+      (sum: any, stage: any) => sum + stage.realizedValue,
+      0
+    );
+    const totalExits = calculatedExitData.reduce(
+      (sum: any, stage: any) => sum + Math.round(stage.companiesAtStage * stage.exitRate),
+      0
+    );
+
     // Calculate fund returns
-    const managementFees = (fundSize * managementFee / 100) * 10; // 10 year fund
+    const managementFees = ((fundSize * managementFee) / 100) * 10; // 10 year fund
     const totalInvestment = fundSize - managementFees;
     const grossMultiple = totalRealizedValue / totalInvestment;
-    
+
     // Calculate carry and net returns
-    const carriedInterest = Math.max(0, (totalRealizedValue - totalInvestment) * (carryPercentage / 100));
+    const carriedInterest = Math.max(
+      0,
+      (totalRealizedValue - totalInvestment) * (carryPercentage / 100)
+    );
     const netReturnsToLPs = totalRealizedValue - carriedInterest;
     const netMultiple = netReturnsToLPs / totalInvestment;
 
@@ -151,7 +151,7 @@ export default function ExitAnalysis() {
       totalRealizedValue,
       grossMultiple,
       netMultiple,
-      totalExits
+      totalExits,
     };
 
     return { exitData: calculatedExitData, fundReturns };
@@ -160,11 +160,11 @@ export default function ExitAnalysis() {
   const { exitData, fundReturns } = calculateExitAnalysis();
 
   // Chart data for exit value by stage
-  const exitChartData = exitData.map(stage => ({
+  const exitChartData = exitData.map((stage) => ({
     stage: stage.stage,
     exitingCompanies: Math.round(stage.companiesAtStage * stage.exitRate),
     realizedValue: stage.realizedValue / 1000000, // Convert to millions
-    avgOwnership: stage.avgOwnership
+    avgOwnership: stage.avgOwnership,
   }));
 
   // Colors for charts
@@ -248,9 +248,7 @@ export default function ExitAnalysis() {
               <Trophy className="h-8 w-8 text-orange-600" />
               <div>
                 <div className="text-sm text-orange-800">Total Exits</div>
-                <div className="font-bold text-orange-900">
-                  {fundReturns.totalExits} companies
-                </div>
+                <div className="font-bold text-orange-900">{fundReturns.totalExits} companies</div>
               </div>
             </div>
           </CardContent>
@@ -261,9 +259,7 @@ export default function ExitAnalysis() {
       <Card>
         <CardHeader>
           <CardTitle>Fund Parameters</CardTitle>
-          <CardDescription>
-            Adjust fund parameters to see impact on returns
-          </CardDescription>
+          <CardDescription>Adjust fund parameters to see impact on returns</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -278,7 +274,7 @@ export default function ExitAnalysis() {
               />
               <p className="text-xs text-gray-500">Total fund size</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="portfolio-size-exit">Portfolio Size</Label>
               <Input
@@ -290,7 +286,7 @@ export default function ExitAnalysis() {
               />
               <p className="text-xs text-gray-500">Number of companies</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="carry-percentage">Carry (%)</Label>
               <Input
@@ -302,7 +298,7 @@ export default function ExitAnalysis() {
               />
               <p className="text-xs text-gray-500">Carried interest</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="mgmt-fee">Management Fee (%)</Label>
               <Input
@@ -375,9 +371,7 @@ export default function ExitAnalysis() {
         <Card>
           <CardHeader>
             <CardTitle>Realized Value by Stage</CardTitle>
-            <CardDescription>
-              Fund returns generated from exits at each stage
-            </CardDescription>
+            <CardDescription>Fund returns generated from exits at each stage</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -387,7 +381,10 @@ export default function ExitAnalysis() {
                   <XAxis dataKey="stage" />
                   <YAxis tickFormatter={(value: any) => `$${value}M`} />
                   <Tooltip
-                    formatter={(value) => [value !== undefined ? `$${Number(value).toFixed(1)}M` : '', "Realized Value"]}
+                    formatter={(value) => [
+                      value !== undefined ? `$${Number(value).toFixed(1)}M` : '',
+                      'Realized Value',
+                    ]}
                     labelFormatter={(label: any) => `Stage: ${label}`}
                   />
                   <Bar dataKey="realizedValue" fill="#10b981" />
@@ -401,28 +398,34 @@ export default function ExitAnalysis() {
         <Card>
           <CardHeader>
             <CardTitle>Exit Distribution by Stage</CardTitle>
-            <CardDescription>
-              Number of companies exiting at each stage
-            </CardDescription>
+            <CardDescription>Number of companies exiting at each stage</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={exitChartData.filter(d => d.exitingCompanies > 0)}
+                    data={exitChartData.filter((d) => d.exitingCompanies > 0)}
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
                     dataKey="exitingCompanies"
                     nameKey="stage"
                   >
-                    {exitChartData.filter(d => d.exitingCompanies > 0).map((entry: any, index: any) => (
-                      <Cell key={`cell-${index}`} fill={stageColors[index % stageColors.length]} />
-                    ))}
+                    {exitChartData
+                      .filter((d) => d.exitingCompanies > 0)
+                      .map((_entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={stageColors[index % stageColors.length] ?? '#8884d8'}
+                        />
+                      ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value) => [value !== undefined ? Number(value) : 0, "Exiting Companies"]}
+                    formatter={(value) => [
+                      value !== undefined ? Number(value) : 0,
+                      'Exiting Companies',
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -447,14 +450,17 @@ export default function ExitAnalysis() {
                 <XAxis dataKey="stage" />
                 <YAxis tickFormatter={(value: any) => `${value}%`} />
                 <Tooltip
-                  formatter={(value) => [value !== undefined ? `${Number(value).toFixed(1)}%` : '', "Avg Ownership"]}
+                  formatter={(value) => [
+                    value !== undefined ? `${Number(value).toFixed(1)}%` : '',
+                    'Avg Ownership',
+                  ]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="avgOwnership" 
-                  stroke="#3b82f6" 
+                <Line
+                  type="monotone"
+                  dataKey="avgOwnership"
+                  stroke="#3b82f6"
                   strokeWidth={3}
-                  dot={{ fill: "#3b82f6", strokeWidth: 2, r: 6 }}
+                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -466,9 +472,7 @@ export default function ExitAnalysis() {
       <Card>
         <CardHeader>
           <CardTitle>Fund Performance Analysis</CardTitle>
-          <CardDescription>
-            Detailed breakdown of fund economics and returns
-          </CardDescription>
+          <CardDescription>Detailed breakdown of fund economics and returns</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -481,7 +485,9 @@ export default function ExitAnalysis() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Management Fees (10yr):</span>
-                  <span className="font-medium">{formatCurrency((fundSize * managementFee / 100) * 10)}</span>
+                  <span className="font-medium">
+                    {formatCurrency(((fundSize * managementFee) / 100) * 10)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Investable Capital:</span>
@@ -489,7 +495,9 @@ export default function ExitAnalysis() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Realized Value:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(fundReturns.totalRealizedValue)}</span>
+                  <span className="font-medium text-green-600">
+                    {formatCurrency(fundReturns.totalRealizedValue)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -504,16 +512,26 @@ export default function ExitAnalysis() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Carried Interest:</span>
                   <span className="font-medium">
-                    {formatCurrency(Math.max(0, (fundReturns.totalRealizedValue - fundReturns.totalInvestment) * (carryPercentage / 100)))}
+                    {formatCurrency(
+                      Math.max(
+                        0,
+                        (fundReturns.totalRealizedValue - fundReturns.totalInvestment) *
+                          (carryPercentage / 100)
+                      )
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Net Multiple (to LPs):</span>
-                  <span className="font-medium text-blue-600">{formatMultiple(fundReturns.netMultiple)}</span>
+                  <span className="font-medium text-blue-600">
+                    {formatMultiple(fundReturns.netMultiple)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Exit Success Rate:</span>
-                  <span className="font-medium">{((fundReturns.totalExits / portfolioSize) * 100).toFixed(1)}%</span>
+                  <span className="font-medium">
+                    {((fundReturns.totalExits / portfolioSize) * 100).toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
