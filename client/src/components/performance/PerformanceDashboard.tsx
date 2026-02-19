@@ -23,14 +23,17 @@ import { Cell } from 'recharts/es6/component/Cell';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, Calendar } from 'lucide-react';
-import {
-  usePerformanceTimeseries,
-  usePerformanceBreakdown,
-} from '@/hooks/usePerformanceDashboard';
+import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
 import type { Granularity, GroupByDimension, MetricTrend } from '@shared/types/performance-api';
 
 // ============================================================================
@@ -288,7 +291,10 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v) => `${v.toFixed(0)}%`} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}%` : '', 'IRR']}
+                      formatter={(value) => [
+                        value !== undefined ? `${Number(value).toFixed(2)}%` : '',
+                        'IRR',
+                      ]}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Line
@@ -422,13 +428,16 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                         <XAxis type="number" tickFormatter={(v) => `${v.toFixed(1)}x`} />
                         <YAxis dataKey="group" type="category" tick={{ fontSize: 12 }} width={90} />
                         <Tooltip
-                          formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}x` : '', 'MOIC']}
+                          formatter={(value) => [
+                            value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                            'MOIC',
+                          ]}
                         />
                         <Bar dataKey="moic" radius={[0, 4, 4, 0]}>
                           {breakdownData.breakdown.slice(0, 10).map((_, index) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]}
+                              fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length] ?? '#8884d8'}
                             />
                           ))}
                         </Bar>
@@ -497,7 +506,13 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                             </td>
                             <td className="p-3 text-right">
                               <Badge
-                                variant={row.moic >= 2 ? 'default' : row.moic >= 1 ? 'secondary' : 'outline'}
+                                variant={
+                                  row.moic >= 2
+                                    ? 'default'
+                                    : row.moic >= 1
+                                      ? 'secondary'
+                                      : 'outline'
+                                }
                               >
                                 {formatMultiple(row.moic)}
                               </Badge>

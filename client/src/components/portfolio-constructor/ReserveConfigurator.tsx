@@ -1,11 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
   PieChart,
   Pie,
@@ -16,19 +22,11 @@ import {
   YAxis,
   CartesianGrid,
   Area,
-  AreaChart
+  AreaChart,
 } from 'recharts';
-import {
-  Target,
-  TrendingUp,
-  Shield,
-  AlertCircle,
-  Clock,
-  BarChart3,
-  Lightbulb
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { PortfolioState } from "@/pages/portfolio-constructor";
+import { Target, TrendingUp, Shield, AlertCircle, Clock, BarChart3, Lightbulb } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { PortfolioState } from '@/pages/portfolio-constructor';
 
 interface ReservePool {
   id: string;
@@ -70,7 +68,7 @@ const defaultReservePools: ReservePool[] = [
     riskLevel: 'medium',
     timeframe: '18-36 months',
     companies: ['Company A', 'Company C', 'Company F'],
-    status: 'allocated'
+    status: 'allocated',
   },
   {
     id: 'bridge-rounds',
@@ -82,7 +80,7 @@ const defaultReservePools: ReservePool[] = [
     riskLevel: 'high',
     timeframe: '6-18 months',
     companies: ['Company D', 'Company G'],
-    status: 'available'
+    status: 'available',
   },
   {
     id: 'opportunistic',
@@ -94,7 +92,7 @@ const defaultReservePools: ReservePool[] = [
     riskLevel: 'medium',
     timeframe: '12-24 months',
     companies: [],
-    status: 'available'
+    status: 'available',
   },
   {
     id: 'contingency',
@@ -106,19 +104,20 @@ const defaultReservePools: ReservePool[] = [
     riskLevel: 'low',
     timeframe: 'Fund lifetime',
     companies: [],
-    status: 'reserved'
-  }
+    status: 'reserved',
+  },
 ];
 
 const optimizationSuggestions: OptimizationSuggestion[] = [
   {
     type: 'reallocation',
     title: 'Increase Primary Follow-On Pool',
-    description: 'Top 3 companies showing strong performance. Consider increasing follow-on allocation by 5%.',
+    description:
+      'Top 3 companies showing strong performance. Consider increasing follow-on allocation by 5%.',
     impact: 0.032,
     confidence: 0.78,
     effort: 'medium',
-    category: 'Portfolio Optimization'
+    category: 'Portfolio Optimization',
   },
   {
     type: 'timing',
@@ -127,16 +126,17 @@ const optimizationSuggestions: OptimizationSuggestion[] = [
     impact: 0.018,
     confidence: 0.65,
     effort: 'low',
-    category: 'Timing Optimization'
+    category: 'Timing Optimization',
   },
   {
     type: 'risk_reduction',
     title: 'Diversify Opportunistic Pool',
-    description: 'Current opportunistic reserves lack sector diversification. Consider constraints.',
+    description:
+      'Current opportunistic reserves lack sector diversification. Consider constraints.',
     impact: -0.008,
     confidence: 0.82,
     effort: 'low',
-    category: 'Risk Management'
+    category: 'Risk Management',
   },
   {
     type: 'opportunity',
@@ -145,8 +145,8 @@ const optimizationSuggestions: OptimizationSuggestion[] = [
     impact: 0.045,
     confidence: 0.54,
     effort: 'high',
-    category: 'Market Opportunity'
-  }
+    category: 'Market Opportunity',
+  },
 ];
 
 const POOL_COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
@@ -154,14 +154,14 @@ const POOL_COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
 export function ReserveConfigurator({
   portfolioState,
   onUpdate,
-  isCalculating
+  isCalculating,
 }: ReserveConfiguratorProps) {
   const [reservePools, setReservePools] = useState<ReservePool[]>(defaultReservePools);
   const [selectedPool, setSelectedPool] = useState<string>('follow-on-primary');
   const [optimizationMode, setOptimizationMode] = useState<'manual' | 'guided' | 'auto'>('guided');
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  const selectedPoolData = reservePools.find(pool => pool.id === selectedPool);
+  const selectedPoolData = reservePools.find((pool) => pool.id === selectedPool);
   const totalReserveAmount = portfolioState.totalFundSize * portfolioState.reserveRatio;
   const totalAllocated = reservePools.reduce((sum, pool) => sum + pool.percentage, 0);
   const isOverAllocated = totalAllocated > 100;
@@ -170,10 +170,10 @@ export function ReserveConfigurator({
   const deploymentTimeline = useMemo(() => {
     const months: number[] = Array.from({ length: 48 }, (_, i: number) => i + 1);
 
-    return months.map(month => {
+    return months.map((month) => {
       const dataPoint: Record<string, number | string> = { month: `M${month}` };
 
-      reservePools.forEach(pool => {
+      reservePools.forEach((pool) => {
         // Simulate deployment curves based on pool characteristics
         let deploymentRate = 0;
 
@@ -182,7 +182,7 @@ export function ReserveConfigurator({
           deploymentRate = month <= 36 ? (month / 36) * 0.8 : 0.8;
         } else if (pool.id === 'bridge-rounds') {
           // More volatile deployment
-          deploymentRate = Math.min(1, (month / 24) + Math.sin(month / 6) * 0.2);
+          deploymentRate = Math.min(1, month / 24 + Math.sin(month / 6) * 0.2);
         } else if (pool.id === 'opportunistic') {
           // Market-driven deployment
           deploymentRate = Math.min(1, (month / 30) * (1 + Math.sin(month / 8) * 0.3));
@@ -203,47 +203,59 @@ export function ReserveConfigurator({
     const baseScore = 75;
     const diversificationBonus = reservePools.length >= 4 ? 10 : 0;
     const allocationPenalty = isOverAllocated ? -15 : 0;
-    const riskBalance = reservePools.filter(p => p.riskLevel === 'medium').length >= 2 ? 5 : 0;
+    const riskBalance = reservePools.filter((p) => p.riskLevel === 'medium').length >= 2 ? 5 : 0;
 
-    return Math.max(0, Math.min(100, baseScore + diversificationBonus + allocationPenalty + riskBalance));
+    return Math.max(
+      0,
+      Math.min(100, baseScore + diversificationBonus + allocationPenalty + riskBalance)
+    );
   }, [reservePools, isOverAllocated]);
 
   const updatePoolPercentage = (poolId: string, percentage: number) => {
-    setReservePools(prev => prev.map(pool =>
-      pool.id === poolId
-        ? {
-            ...pool,
-            percentage,
-            amount: (totalReserveAmount * percentage) / 100
-          }
-        : pool
-    ));
+    setReservePools((prev) =>
+      prev.map((pool) =>
+        pool.id === poolId
+          ? {
+              ...pool,
+              percentage,
+              amount: (totalReserveAmount * percentage) / 100,
+            }
+          : pool
+      )
+    );
   };
 
   const updatePoolProperty = (poolId: string, property: string, value: unknown) => {
-    setReservePools(prev => prev.map(pool =>
-      pool.id === poolId
-        ? { ...pool, [property]: value }
-        : pool
-    ));
+    setReservePools((prev) =>
+      prev.map((pool) => (pool.id === poolId ? { ...pool, [property]: value } : pool))
+    );
   };
 
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
-      case 'low': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'high': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'low':
+        return 'text-green-600 bg-green-100';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'high':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'allocated': return 'text-blue-600 bg-blue-100';
-      case 'available': return 'text-green-600 bg-green-100';
-      case 'deployed': return 'text-purple-600 bg-purple-100';
-      case 'reserved': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'allocated':
+        return 'text-blue-600 bg-blue-100';
+      case 'available':
+        return 'text-green-600 bg-green-100';
+      case 'deployed':
+        return 'text-purple-600 bg-purple-100';
+      case 'reserved':
+        return 'text-gray-600 bg-gray-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -251,10 +263,16 @@ export function ReserveConfigurator({
     name: pool.name,
     value: pool.percentage,
     amount: pool.amount,
-    color: POOL_COLORS[index % POOL_COLORS.length]
+    color: POOL_COLORS[index % POOL_COLORS.length],
   }));
 
-  const CustomTooltip = ({ active, payload }: {active?: boolean; payload?: Array<{payload: {name: string; value: number; amount: number}}>}) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: { name: string; value: number; amount: number } }>;
+  }) => {
     if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
@@ -279,14 +297,20 @@ export function ReserveConfigurator({
         <div>
           <h3 className="text-lg font-semibold">Reserve Strategy Configuration</h3>
           <p className="text-sm text-gray-600">
-            Optimize reserve allocation across {reservePools.length} pools (${(totalReserveAmount / 1000000).toFixed(1)}M total)
+            Optimize reserve allocation across {reservePools.length} pools ($
+            {(totalReserveAmount / 1000000).toFixed(1)}M total)
           </p>
         </div>
 
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <Label htmlFor="optimization-mode" className="text-sm">Mode:</Label>
-            <Select value={optimizationMode} onValueChange={(value) => setOptimizationMode(value as 'manual' | 'guided' | 'auto')}>
+            <Label htmlFor="optimization-mode" className="text-sm">
+              Mode:
+            </Label>
+            <Select
+              value={optimizationMode}
+              onValueChange={(value) => setOptimizationMode(value as 'manual' | 'guided' | 'auto')}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -304,7 +328,9 @@ export function ReserveConfigurator({
               checked={showSuggestions}
               onCheckedChange={setShowSuggestions}
             />
-            <Label htmlFor="suggestions" className="text-sm">Suggestions</Label>
+            <Label htmlFor="suggestions" className="text-sm">
+              Suggestions
+            </Label>
           </div>
         </div>
       </div>
@@ -325,10 +351,20 @@ export function ReserveConfigurator({
             <div className="text-right">
               <p className="text-2xl font-bold text-blue-600">{optimizationScore}/100</p>
               <Badge
-                variant={optimizationScore >= 80 ? "default" : optimizationScore >= 60 ? "secondary" : "destructive"}
+                variant={
+                  optimizationScore >= 80
+                    ? 'default'
+                    : optimizationScore >= 60
+                      ? 'secondary'
+                      : 'destructive'
+                }
                 className="mt-1"
               >
-                {optimizationScore >= 80 ? "Excellent" : optimizationScore >= 60 ? "Good" : "Needs Work"}
+                {optimizationScore >= 80
+                  ? 'Excellent'
+                  : optimizationScore >= 60
+                    ? 'Good'
+                    : 'Needs Work'}
               </Badge>
             </div>
           </div>
@@ -358,8 +394,8 @@ export function ReserveConfigurator({
                 <div
                   key={pool.id}
                   className={cn(
-                    "p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md",
-                    selectedPool === pool.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                    'p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md',
+                    selectedPool === pool.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                   )}
                   onClick={() => setSelectedPool(pool.id)}
                 >
@@ -424,18 +460,28 @@ export function ReserveConfigurator({
             <div className="border-t pt-4">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span>Total Allocation</span>
-                <span className={cn(
-                  "font-medium",
-                  isOverAllocated ? "text-red-600" : totalAllocated === 100 ? "text-green-600" : "text-gray-600"
-                )}>
+                <span
+                  className={cn(
+                    'font-medium',
+                    isOverAllocated
+                      ? 'text-red-600'
+                      : totalAllocated === 100
+                        ? 'text-green-600'
+                        : 'text-gray-600'
+                  )}
+                >
                   {totalAllocated.toFixed(1)}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={cn(
-                    "h-2 rounded-full transition-all",
-                    isOverAllocated ? "bg-red-500" : totalAllocated === 100 ? "bg-green-500" : "bg-blue-500"
+                    'h-2 rounded-full transition-all',
+                    isOverAllocated
+                      ? 'bg-red-500'
+                      : totalAllocated === 100
+                        ? 'bg-green-500'
+                        : 'bg-blue-500'
                   )}
                   style={{ width: `${Math.min(100, totalAllocated)}%` }}
                 />
@@ -475,7 +521,7 @@ export function ReserveConfigurator({
                       dataKey="value"
                     >
                       {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color ?? '#8884d8'} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -523,16 +569,27 @@ export function ReserveConfigurator({
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <div className={cn(
-                        "p-1 rounded-full",
-                        suggestion.type === 'opportunity' ? "bg-green-100" :
-                        suggestion.type === 'risk_reduction' ? "bg-red-100" :
-                        suggestion.type === 'reallocation' ? "bg-blue-100" : "bg-yellow-100"
-                      )}>
-                        {suggestion.type === 'opportunity' ? <TrendingUp className="w-4 h-4 text-green-600" /> :
-                         suggestion.type === 'risk_reduction' ? <Shield className="w-4 h-4 text-red-600" /> :
-                         suggestion.type === 'reallocation' ? <Target className="w-4 h-4 text-blue-600" /> :
-                         <Clock className="w-4 h-4 text-yellow-600" />}
+                      <div
+                        className={cn(
+                          'p-1 rounded-full',
+                          suggestion.type === 'opportunity'
+                            ? 'bg-green-100'
+                            : suggestion.type === 'risk_reduction'
+                              ? 'bg-red-100'
+                              : suggestion.type === 'reallocation'
+                                ? 'bg-blue-100'
+                                : 'bg-yellow-100'
+                        )}
+                      >
+                        {suggestion.type === 'opportunity' ? (
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                        ) : suggestion.type === 'risk_reduction' ? (
+                          <Shield className="w-4 h-4 text-red-600" />
+                        ) : suggestion.type === 'reallocation' ? (
+                          <Target className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-yellow-600" />
+                        )}
                       </div>
                       <Badge variant="outline" className="text-xs">
                         {suggestion.category}
@@ -553,7 +610,13 @@ export function ReserveConfigurator({
 
                   <div className="flex items-center justify-between">
                     <Badge
-                      variant={suggestion.effort === 'low' ? "default" : suggestion.effort === 'medium' ? "secondary" : "destructive"}
+                      variant={
+                        suggestion.effort === 'low'
+                          ? 'default'
+                          : suggestion.effort === 'medium'
+                            ? 'secondary'
+                            : 'destructive'
+                      }
                       className="text-xs"
                     >
                       {suggestion.effort.toUpperCase()} EFFORT
@@ -581,13 +644,12 @@ export function ReserveConfigurator({
         <CardContent>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={deploymentTimeline.slice(0, 36)} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <AreaChart
+                data={deploymentTimeline.slice(0, 36)}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="month"
-                  interval={5}
-                  fontSize={12}
-                />
+                <XAxis dataKey="month" interval={5} fontSize={12} />
                 <YAxis
                   tickFormatter={(value) => `$${(Number(value) / 1000000).toFixed(0)}M`}
                   fontSize={12}

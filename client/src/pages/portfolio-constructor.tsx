@@ -1,13 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import {
   BarChart,
   Bar,
@@ -20,7 +26,7 @@ import {
   Pie,
   Cell,
   Area,
-  AreaChart
+  AreaChart,
 } from 'recharts';
 import {
   Calculator,
@@ -35,7 +41,7 @@ import {
   DollarSign,
   Percent,
   Globe,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 import { StatCard, StatCardGrid } from '@/components/analytics/StatCard';
 import { useFundData } from '@/hooks/use-fund-data';
@@ -87,16 +93,32 @@ export type PortfolioState = PortfolioStrategy;
 
 // Color schemes for charts
 const SECTOR_COLORS = [
-  '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-  '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+  '#3B82F6',
+  '#EF4444',
+  '#10B981',
+  '#F59E0B',
+  '#8B5CF6',
+  '#EC4899',
+  '#06B6D4',
+  '#84CC16',
+  '#F97316',
+  '#6366F1',
 ];
 
 const STAGE_COLORS = ['#1E40AF', '#059669', '#DC2626', '#7C2D12'];
 
 // Mock sector and stage options
 const SECTORS = [
-  'FinTech', 'HealthTech', 'EdTech', 'SaaS', 'E-commerce',
-  'Enterprise Software', 'Consumer Apps', 'AI/ML', 'Cybersecurity', 'CleanTech'
+  'FinTech',
+  'HealthTech',
+  'EdTech',
+  'SaaS',
+  'E-commerce',
+  'Enterprise Software',
+  'Consumer Apps',
+  'AI/ML',
+  'Cybersecurity',
+  'CleanTech',
 ];
 
 const STAGES = ['Pre-Seed', 'Seed', 'Series A', 'Series B'];
@@ -117,24 +139,24 @@ export default function PortfolioConstructor() {
     checkSizes: {
       min: 500000,
       target: 1000000,
-      max: 2000000
+      max: 2000000,
     },
     sectorAllocation: {
-      'FinTech': 0.3,
-      'SaaS': 0.25,
-      'HealthTech': 0.2,
+      FinTech: 0.3,
+      SaaS: 0.25,
+      HealthTech: 0.2,
       'AI/ML': 0.15,
-      'Other': 0.1
+      Other: 0.1,
     },
     stageAllocation: {
-      'Seed': 0.4,
+      Seed: 0.4,
       'Series A': 0.45,
-      'Series B': 0.15
+      'Series B': 0.15,
     },
     geographicAllocation: {
       'North America': 0.7,
-      'Europe': 0.2,
-      'Asia-Pacific': 0.1
+      Europe: 0.2,
+      'Asia-Pacific': 0.1,
     },
     reservePercentage: 50,
     reserveRatio: 0.5, // Convert percentage to ratio for backward compatibility
@@ -146,7 +168,7 @@ export default function PortfolioConstructor() {
         marketEnvironment: 'normal',
         dealFlowMultiplier: 1.0,
         valuationMultiplier: 1.0,
-        exitMultiplier: 1.0
+        exitMultiplier: 1.0,
       },
       {
         name: 'Optimistic',
@@ -154,7 +176,7 @@ export default function PortfolioConstructor() {
         marketEnvironment: 'bull',
         dealFlowMultiplier: 1.3,
         valuationMultiplier: 0.85,
-        exitMultiplier: 1.4
+        exitMultiplier: 1.4,
       },
       {
         name: 'Pessimistic',
@@ -162,9 +184,9 @@ export default function PortfolioConstructor() {
         marketEnvironment: 'bear',
         dealFlowMultiplier: 0.7,
         valuationMultiplier: 1.3,
-        exitMultiplier: 0.6
-      }
-    ]
+        exitMultiplier: 0.6,
+      },
+    ],
   });
 
   const [activeScenario, setActiveScenario] = useState(0);
@@ -196,7 +218,7 @@ export default function PortfolioConstructor() {
       projectedMultiple,
       projectedDPI,
       projectedTVPI,
-      deploymentPerQuarter: initialCapital / (strategy.deploymentPeriodMonths / 3)
+      deploymentPerQuarter: initialCapital / (strategy.deploymentPeriodMonths / 3),
     };
   }, [strategy, activeScenario]);
 
@@ -204,61 +226,64 @@ export default function PortfolioConstructor() {
   const saveStrategy = useMutation({
     mutationFn: async (strategyData: PortfolioStrategy) => {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return { id: Date.now().toString(), ...strategyData };
     },
     onSuccess: () => {
       toast({
-        title: "Strategy Saved",
-        description: "Portfolio strategy has been saved successfully.",
+        title: 'Strategy Saved',
+        description: 'Portfolio strategy has been saved successfully.',
       });
       queryClient.invalidateQueries({ queryKey: ['portfolio-strategies'] });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to save strategy. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to save strategy. Please try again.',
+        variant: 'destructive',
       });
-    }
+    },
   });
 
   const runSimulation = useMutation({
     mutationFn: async (strategyData: PortfolioStrategy) => {
       setIsSimulating(true);
       // Simulate Monte Carlo simulation
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       return {
-        scenarios: strategyData.scenarios.map(scenario => ({
+        scenarios: strategyData.scenarios.map((scenario) => ({
           ...scenario,
           results: {
             irr: calculatedMetrics.projectedIRR + (Math.random() - 0.5) * 0.1,
             multiple: calculatedMetrics.projectedMultiple + (Math.random() - 0.5) * 0.5,
-            dpi: calculatedMetrics.projectedDPI + (Math.random() - 0.5) * 0.3
-          }
-        }))
+            dpi: calculatedMetrics.projectedDPI + (Math.random() - 0.5) * 0.3,
+          },
+        })),
       };
     },
     onSuccess: () => {
       setIsSimulating(false);
       toast({
-        title: "Simulation Complete",
-        description: "Monte Carlo simulation has completed successfully.",
+        title: 'Simulation Complete',
+        description: 'Monte Carlo simulation has completed successfully.',
       });
     },
     onError: () => {
       setIsSimulating(false);
       toast({
-        title: "Simulation Failed",
-        description: "Failed to run simulation. Please try again.",
-        variant: "destructive",
+        title: 'Simulation Failed',
+        description: 'Failed to run simulation. Please try again.',
+        variant: 'destructive',
       });
-    }
+    },
   });
 
   // Helper functions
-  const updateStrategy = <K extends keyof PortfolioStrategy>(field: K, value: PortfolioStrategy[K]) => {
-    setStrategy(prev => {
+  const updateStrategy = <K extends keyof PortfolioStrategy>(
+    field: K,
+    value: PortfolioStrategy[K]
+  ) => {
+    setStrategy((prev) => {
       const updated = { ...prev, [field]: value };
 
       // Maintain consistency between original and alias properties
@@ -277,16 +302,20 @@ export default function PortfolioConstructor() {
   };
 
   const updateCheckSizes = (field: keyof CheckSizeConfig, value: number) => {
-    setStrategy(prev => ({
+    setStrategy((prev) => ({
       ...prev,
-      checkSizes: { ...prev.checkSizes, [field]: value }
+      checkSizes: { ...prev.checkSizes, [field]: value },
     }));
   };
 
-  const updateAllocation = (type: 'sectorAllocation' | 'stageAllocation' | 'geographicAllocation', key: string, value: number) => {
-    setStrategy(prev => ({
+  const updateAllocation = (
+    type: 'sectorAllocation' | 'stageAllocation' | 'geographicAllocation',
+    key: string,
+    value: number
+  ) => {
+    setStrategy((prev) => ({
       ...prev,
-      [type]: { ...prev[type], [key]: value }
+      [type]: { ...prev[type], [key]: value },
     }));
   };
 
@@ -302,20 +331,23 @@ export default function PortfolioConstructor() {
   const sectorChartData = Object.entries(strategy.sectorAllocation).map(([sector, percentage]) => ({
     name: sector,
     value: percentage,
-    amount: strategy.fundSize * percentage
+    amount: strategy.fundSize * percentage,
   }));
 
   const stageChartData = Object.entries(strategy.stageAllocation).map(([stage, percentage]) => ({
     name: stage,
     value: percentage,
-    amount: strategy.fundSize * percentage
+    amount: strategy.fundSize * percentage,
   }));
 
-  const deploymentScheduleData = Array.from({ length: strategy.deploymentPeriodMonths }, (_, i) => ({
-    month: i + 1,
-    cumulative: (calculatedMetrics.initialCapital * (i + 1)) / strategy.deploymentPeriodMonths,
-    quarterly: i % 3 === 2 ? calculatedMetrics.deploymentPerQuarter : 0
-  }));
+  const deploymentScheduleData = Array.from(
+    { length: strategy.deploymentPeriodMonths },
+    (_, i) => ({
+      month: i + 1,
+      cumulative: (calculatedMetrics.initialCapital * (i + 1)) / strategy.deploymentPeriodMonths,
+      quarterly: i % 3 === 2 ? calculatedMetrics.deploymentPerQuarter : 0,
+    })
+  );
 
   if (fundsLoading) {
     return (
@@ -342,10 +374,7 @@ export default function PortfolioConstructor() {
             <Save className="w-4 h-4 mr-2" />
             {saveStrategy.isPending ? 'Saving...' : 'Save Strategy'}
           </Button>
-          <Button
-            onClick={() => runSimulation.mutate(strategy)}
-            disabled={isSimulating}
-          >
+          <Button onClick={() => runSimulation.mutate(strategy)} disabled={isSimulating}>
             <Play className="w-4 h-4 mr-2" />
             {isSimulating ? 'Simulating...' : 'Run Simulation'}
           </Button>
@@ -380,7 +409,7 @@ export default function PortfolioConstructor() {
           trend={{
             value: (calculatedMetrics.projectedIRR - 0.25) * 100,
             label: 'vs 25% target',
-            direction: calculatedMetrics.projectedIRR > 0.25 ? 'up' : 'down'
+            direction: calculatedMetrics.projectedIRR > 0.25 ? 'up' : 'down',
           }}
         />
       </StatCardGrid>
@@ -422,7 +451,9 @@ export default function PortfolioConstructor() {
                       id="portfolioSize"
                       type="number"
                       value={strategy.targetPortfolioSize}
-                      onChange={(e) => updateStrategy('targetPortfolioSize', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateStrategy('targetPortfolioSize', Number(e.target.value))
+                      }
                       className="mt-1"
                     />
                   </div>
@@ -434,7 +465,9 @@ export default function PortfolioConstructor() {
                     id="deploymentPeriod"
                     type="number"
                     value={strategy.deploymentPeriodMonths}
-                    onChange={(e) => updateStrategy('deploymentPeriodMonths', Number(e.target.value))}
+                    onChange={(e) =>
+                      updateStrategy('deploymentPeriodMonths', Number(e.target.value))
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -502,10 +535,14 @@ export default function PortfolioConstructor() {
 
                 <div className="pt-2">
                   <div className="text-sm text-gray-600">
-                    Estimated Initial Deals: <span className="font-medium">{calculatedMetrics.estimatedDeals}</span>
+                    Estimated Initial Deals:{' '}
+                    <span className="font-medium">{calculatedMetrics.estimatedDeals}</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    Average Check: <span className="font-medium">{formatCurrency(calculatedMetrics.avgCheckSize)}</span>
+                    Average Check:{' '}
+                    <span className="font-medium">
+                      {formatCurrency(calculatedMetrics.avgCheckSize)}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -532,11 +569,16 @@ export default function PortfolioConstructor() {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={(props) => `${props.name || ''} ${formatPercentage(props.value || 0)}`}
+                        label={(props) =>
+                          `${props.name || ''} ${formatPercentage(props.value || 0)}`
+                        }
                         labelLine={false}
                       >
                         {sectorChartData.map((entry, index) => (
-                          <Cell key={`sector-${index}`} fill={SECTOR_COLORS[index % SECTOR_COLORS.length]} />
+                          <Cell
+                            key={`sector-${index}`}
+                            fill={SECTOR_COLORS[index % SECTOR_COLORS.length] ?? '#8884d8'}
+                          />
                         ))}
                       </Pie>
                       <Tooltip formatter={(value) => formatPercentage(Number(value) || 0)} />
@@ -624,7 +666,7 @@ export default function PortfolioConstructor() {
                     {strategy.scenarios.map((scenario, index) => (
                       <Button
                         key={index}
-                        variant={activeScenario === index ? "default" : "outline"}
+                        variant={activeScenario === index ? 'default' : 'outline'}
                         onClick={() => setActiveScenario(index)}
                         className="flex-1"
                       >
@@ -642,12 +684,14 @@ export default function PortfolioConstructor() {
                           const updatedScenarios = [...strategy.scenarios];
                           const current = updatedScenarios[activeScenario];
                           if (!current) {
-                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            console.warn(
+                              `[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`
+                            );
                             return;
                           }
                           updatedScenarios[activeScenario] = {
                             ...current,
-                            marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession'
+                            marketEnvironment: value as 'bull' | 'normal' | 'bear' | 'recession',
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -665,19 +709,24 @@ export default function PortfolioConstructor() {
                     </div>
 
                     <div>
-                      <Label>Deal Flow Multiplier: {strategy.scenarios[activeScenario]?.dealFlowMultiplier.toFixed(1)}x</Label>
+                      <Label>
+                        Deal Flow Multiplier:{' '}
+                        {strategy.scenarios[activeScenario]?.dealFlowMultiplier.toFixed(1)}x
+                      </Label>
                       <Slider
                         value={[strategy.scenarios[activeScenario]?.dealFlowMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
                           const current = updatedScenarios[activeScenario];
                           if (!current) {
-                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            console.warn(
+                              `[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`
+                            );
                             return;
                           }
                           updatedScenarios[activeScenario] = {
                             ...current,
-                            dealFlowMultiplier: value ?? 1
+                            dealFlowMultiplier: value ?? 1,
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -689,19 +738,24 @@ export default function PortfolioConstructor() {
                     </div>
 
                     <div>
-                      <Label>Valuation Multiplier: {strategy.scenarios[activeScenario]?.valuationMultiplier.toFixed(1)}x</Label>
+                      <Label>
+                        Valuation Multiplier:{' '}
+                        {strategy.scenarios[activeScenario]?.valuationMultiplier.toFixed(1)}x
+                      </Label>
                       <Slider
                         value={[strategy.scenarios[activeScenario]?.valuationMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
                           const current = updatedScenarios[activeScenario];
                           if (!current) {
-                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            console.warn(
+                              `[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`
+                            );
                             return;
                           }
                           updatedScenarios[activeScenario] = {
                             ...current,
-                            valuationMultiplier: value ?? 1
+                            valuationMultiplier: value ?? 1,
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -713,19 +767,24 @@ export default function PortfolioConstructor() {
                     </div>
 
                     <div>
-                      <Label>Exit Multiplier: {strategy.scenarios[activeScenario]?.exitMultiplier.toFixed(1)}x</Label>
+                      <Label>
+                        Exit Multiplier:{' '}
+                        {strategy.scenarios[activeScenario]?.exitMultiplier.toFixed(1)}x
+                      </Label>
                       <Slider
                         value={[strategy.scenarios[activeScenario]?.exitMultiplier || 1.0]}
                         onValueChange={([value]) => {
                           const updatedScenarios = [...strategy.scenarios];
                           const current = updatedScenarios[activeScenario];
                           if (!current) {
-                            console.warn(`[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`);
+                            console.warn(
+                              `[PortfolioConstructor] Invalid scenario index: ${activeScenario}, scenarios.length: ${updatedScenarios.length}`
+                            );
                             return;
                           }
                           updatedScenarios[activeScenario] = {
                             ...current,
-                            exitMultiplier: value ?? 1
+                            exitMultiplier: value ?? 1,
                           };
                           updateStrategy('scenarios', updatedScenarios);
                         }}
@@ -757,8 +816,13 @@ export default function PortfolioConstructor() {
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-medium">{scenario.name}</h4>
                         <Badge
-                          variant={scenario.marketEnvironment === 'bull' ? 'default' :
-                                  scenario.marketEnvironment === 'recession' ? 'destructive' : 'secondary'}
+                          variant={
+                            scenario.marketEnvironment === 'bull'
+                              ? 'default'
+                              : scenario.marketEnvironment === 'recession'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
                         >
                           {scenario.marketEnvironment}
                         </Badge>
@@ -767,19 +831,33 @@ export default function PortfolioConstructor() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-gray-600">Projected IRR:</span>
-                          <div className="font-medium">{formatPercentage(calculatedMetrics.projectedIRR * scenario.exitMultiplier)}</div>
+                          <div className="font-medium">
+                            {formatPercentage(
+                              calculatedMetrics.projectedIRR * scenario.exitMultiplier
+                            )}
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-600">Multiple:</span>
-                          <div className="font-medium">{(calculatedMetrics.projectedMultiple * scenario.exitMultiplier).toFixed(1)}x</div>
+                          <div className="font-medium">
+                            {(
+                              calculatedMetrics.projectedMultiple * scenario.exitMultiplier
+                            ).toFixed(1)}
+                            x
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-600">DPI:</span>
-                          <div className="font-medium">{(calculatedMetrics.projectedDPI * scenario.exitMultiplier).toFixed(1)}x</div>
+                          <div className="font-medium">
+                            {(calculatedMetrics.projectedDPI * scenario.exitMultiplier).toFixed(1)}x
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-600">TVPI:</span>
-                          <div className="font-medium">{(calculatedMetrics.projectedTVPI * scenario.exitMultiplier).toFixed(1)}x</div>
+                          <div className="font-medium">
+                            {(calculatedMetrics.projectedTVPI * scenario.exitMultiplier).toFixed(1)}
+                            x
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -883,7 +961,11 @@ export default function PortfolioConstructor() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis tickFormatter={(value) => formatCurrency(Number(value))} />
-                    <Tooltip formatter={(value) => value !== undefined ? formatCurrency(Number(value)) : ''} />
+                    <Tooltip
+                      formatter={(value) =>
+                        value !== undefined ? formatCurrency(Number(value)) : ''
+                      }
+                    />
                     <Area
                       type="monotone"
                       dataKey="cumulative"
@@ -903,11 +985,15 @@ export default function PortfolioConstructor() {
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="text-sm text-gray-600">Quarterly Deployment</div>
-                  <div className="text-lg font-bold">{formatCurrency(calculatedMetrics.deploymentPerQuarter)}</div>
+                  <div className="text-lg font-bold">
+                    {formatCurrency(calculatedMetrics.deploymentPerQuarter)}
+                  </div>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="text-sm text-gray-600">Final Portfolio</div>
-                  <div className="text-lg font-bold">{calculatedMetrics.estimatedDeals} companies</div>
+                  <div className="text-lg font-bold">
+                    {calculatedMetrics.estimatedDeals} companies
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -923,7 +1009,9 @@ export default function PortfolioConstructor() {
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <div>
                 <div className="font-medium">Running Monte Carlo Simulation</div>
-                <div className="text-sm text-gray-600">Analyzing 10,000 scenarios across market conditions...</div>
+                <div className="text-sm text-gray-600">
+                  Analyzing 10,000 scenarios across market conditions...
+                </div>
               </div>
             </div>
           </CardContent>
