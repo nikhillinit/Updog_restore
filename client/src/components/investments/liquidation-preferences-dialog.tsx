@@ -52,24 +52,12 @@ export default function LiquidationPreferencesDialog({
   const [totalLiqPrefsSenior, setTotalLiqPrefsSenior] = useState('0');
 
   const handleSave = () => {
-    console.log('Saving liquidation preferences:', {
-      enableLiqPrefs,
-      totalLiqPrefOwned: parseFloat(totalLiqPrefOwned),
-      liqPrefType,
-      hasLiqPrefCap,
-      liqPrefCapAmount: hasLiqPrefCap ? parseFloat(liqPrefCapAmount) : null,
-      totalLiqPrefsInFront: parseFloat(totalLiqPrefsInFront),
-      totalOtherLiqPrefsPariPassu: parseFloat(totalOtherLiqPrefsPariPassu),
-      totalLiqPrefsSenior: parseFloat(totalLiqPrefsSenior),
-      investmentId: investment?.id,
-      performanceCaseId: performanceCase?.id,
-    });
+    // TODO: persist liquidation preferences via API
     onOpenChange(false);
   };
 
   const handleImportFromCase = () => {
-    console.log('Import liquidation preferences from another case');
-    // This would open a case selection dialog
+    // TODO: open a case selection dialog for importing liq prefs
   };
 
   return (

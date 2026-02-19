@@ -32,8 +32,3 @@ export const FLAGS = {
 } as const;
 
 export type Flags = typeof FLAGS;
-
-// Debug helper (only in dev)
-if (import.meta.env.DEV) {
-  console.log('[Feature Flags]', FLAGS);
-}

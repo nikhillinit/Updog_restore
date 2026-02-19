@@ -7,16 +7,22 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { KpiCard } from "@/components/ui/KpiCard";
-import { SwipeableMetricCards } from "@/components/ui/SwipeableMetricCards";
-import type { MetricCardData } from "@/components/ui/SwipeableMetricCards";
-import { DataTable } from "@/components/ui/DataTable";
-import { PremiumCard } from "@/components/ui/PremiumCard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { track } from "@/lib/telemetry";
+import { KpiCard } from '@/components/ui/KpiCard';
+import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
+import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
+import { DataTable } from '@/components/ui/DataTable';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { track } from '@/lib/telemetry';
 import {
   Search,
   Plus,
@@ -28,8 +34,8 @@ import {
   Target,
   BarChart3,
   Eye,
-  Rocket
-} from "lucide-react";
+  Rocket,
+} from 'lucide-react';
 
 interface Portfolio {
   id: string;
@@ -72,11 +78,10 @@ function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
       <div className="p-4 bg-presson-highlight rounded-full mb-6">
         <Rocket className="h-8 w-8 text-presson-text" />
       </div>
-      <h3 className="text-xl font-bold text-presson-text mb-2">
-        No Portfolio Companies Yet
-      </h3>
+      <h3 className="text-xl font-bold text-presson-text mb-2">No Portfolio Companies Yet</h3>
       <p className="text-presson-textMuted mb-6 max-w-md">
-        Start building your portfolio by adding your first investment. Track performance, ownership, and returns in one place.
+        Start building your portfolio by adding your first investment. Track performance, ownership,
+        and returns in one place.
       </p>
       <Button
         onClick={handleClick}
@@ -93,10 +98,14 @@ function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
 function PortfolioCard({ company, onView }: { company: Portfolio; onView: () => void }) {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-success/10 text-success border-success/20';
-      case 'exited': return 'bg-info/10 text-info border-info/20';
-      case 'written-off': return 'bg-error/10 text-error border-error/20';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'active':
+        return 'bg-success/10 text-success border-success/20';
+      case 'exited':
+        return 'bg-info/10 text-info border-info/20';
+      case 'written-off':
+        return 'bg-error/10 text-error border-error/20';
+      default:
+        return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -105,11 +114,16 @@ function PortfolioCard({ company, onView }: { company: Portfolio; onView: () => 
       <div className="flex justify-between items-start">
         <div>
           <h4 className="font-bold text-presson-text">{company.company}</h4>
-          <p className="text-sm text-presson-textMuted">{company.stage} • {company.sector}</p>
+          <p className="text-sm text-presson-textMuted">
+            {company.stage} • {company.sector}
+          </p>
         </div>
         <Badge className={getStatusColor(company.status)}>
-          {company.status === 'active' ? 'Active' :
-           company.status === 'exited' ? 'Exited' : 'Written Off'}
+          {company.status === 'active'
+            ? 'Active'
+            : company.status === 'exited'
+              ? 'Exited'
+              : 'Written Off'}
         </Badge>
       </div>
 
@@ -122,9 +136,7 @@ function PortfolioCard({ company, onView }: { company: Portfolio; onView: () => 
         </div>
         <div>
           <p className="text-xs text-presson-textMuted">Ownership</p>
-          <p className="font-mono font-bold tabular-nums">
-            {company.ownershipPercent}%
-          </p>
+          <p className="font-mono font-bold tabular-nums">{company.ownershipPercent}%</p>
         </div>
         <div>
           <p className="text-xs text-presson-textMuted">Current Value</p>
@@ -137,17 +149,14 @@ function PortfolioCard({ company, onView }: { company: Portfolio; onView: () => 
           <p className="font-mono font-bold tabular-nums flex items-center gap-1">
             {company.moic > 0 ? `${company.moic.toFixed(1)}x` : '—'}
             {company.moic > 2 && <TrendingUp className="h-3 w-3 text-success" />}
-            {company.moic > 0 && company.moic <= 1 && <TrendingDown className="h-3 w-3 text-error" />}
+            {company.moic > 0 && company.moic <= 1 && (
+              <TrendingDown className="h-3 w-3 text-error" />
+            )}
           </p>
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full mt-2"
-        onClick={onView}
-      >
+      <Button variant="outline" size="sm" className="w-full mt-2" onClick={onView}>
         <Eye className="h-4 w-4 mr-2" />
         View Details
       </Button>
@@ -175,7 +184,7 @@ export function OverviewTab() {
       moic: 2.8,
       status: 'active',
       lastFunding: 'Series B',
-      lastFundingAmount: 15000000
+      lastFundingAmount: 15000000,
     },
     {
       id: '2',
@@ -189,7 +198,7 @@ export function OverviewTab() {
       moic: 2.8,
       status: 'active',
       lastFunding: 'Series A',
-      lastFundingAmount: 8000000
+      lastFundingAmount: 8000000,
     },
     {
       id: '3',
@@ -203,7 +212,7 @@ export function OverviewTab() {
       moic: 2.54,
       status: 'active',
       lastFunding: 'Series C',
-      lastFundingAmount: 25000000
+      lastFundingAmount: 25000000,
     },
     {
       id: '4',
@@ -217,7 +226,7 @@ export function OverviewTab() {
       moic: 0,
       status: 'written-off',
       lastFunding: 'Seed',
-      lastFundingAmount: 2500000
+      lastFundingAmount: 2500000,
     },
     {
       id: '5',
@@ -231,14 +240,15 @@ export function OverviewTab() {
       moic: 5.0,
       status: 'exited',
       lastFunding: 'Series B',
-      lastFundingAmount: 20000000
-    }
+      lastFundingAmount: 20000000,
+    },
   ];
 
   const filteredCompanies = useMemo(() => {
-    return portfolioCompanies.filter(company => {
-      const matchesSearch = company.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           company.sector.toLowerCase().includes(searchTerm.toLowerCase());
+    return portfolioCompanies.filter((company) => {
+      const matchesSearch =
+        company.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        company.sector.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = filterStatus === 'all' || company.status === filterStatus;
       const matchesSector = filterSector === 'all' || company.sector === filterSector;
       return matchesSearch && matchesStatus && matchesSector;
@@ -246,25 +256,24 @@ export function OverviewTab() {
   }, [searchTerm, filterStatus, filterSector]);
 
   const portfolioMetrics = useMemo(() => {
-    const activeCompanies = portfolioCompanies.filter(c => c.status === 'active');
+    const activeCompanies = portfolioCompanies.filter((c) => c.status === 'active');
     const totalInvested = portfolioCompanies.reduce((sum, c) => sum + c.initialInvestment, 0);
     const totalValue = portfolioCompanies.reduce((sum, c) => sum + c.currentValue, 0);
-    const nonWrittenOff = portfolioCompanies.filter(c => c.status !== 'written-off');
-    const averageMOIC = nonWrittenOff.length > 0
-      ? nonWrittenOff.reduce((sum, c) => sum + c.moic, 0) / nonWrittenOff.length
-      : 0;
-    const returnPct = totalInvested > 0
-      ? ((totalValue - totalInvested) / totalInvested * 100)
-      : 0;
+    const nonWrittenOff = portfolioCompanies.filter((c) => c.status !== 'written-off');
+    const averageMOIC =
+      nonWrittenOff.length > 0
+        ? nonWrittenOff.reduce((sum, c) => sum + c.moic, 0) / nonWrittenOff.length
+        : 0;
+    const returnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
 
     return {
       totalCompanies: portfolioCompanies.length,
       activeCompanies: activeCompanies.length,
-      exitedCompanies: portfolioCompanies.filter(c => c.status === 'exited').length,
+      exitedCompanies: portfolioCompanies.filter((c) => c.status === 'exited').length,
       totalInvested,
       totalValue,
       averageMOIC,
-      returnPct
+      returnPct,
     };
   }, []);
 
@@ -278,7 +287,7 @@ export function OverviewTab() {
       change: `${portfolioMetrics.exitedCompanies} Exited`,
       trend: 'stable',
       severity: 'neutral',
-      icon: Building2
+      icon: Building2,
     },
     {
       id: 'invested',
@@ -288,7 +297,7 @@ export function OverviewTab() {
       change: '',
       trend: 'stable',
       severity: 'neutral',
-      icon: DollarSign
+      icon: DollarSign,
     },
     {
       id: 'value',
@@ -298,7 +307,7 @@ export function OverviewTab() {
       change: `+${portfolioMetrics.returnPct.toFixed(1)}%`,
       trend: portfolioMetrics.returnPct > 0 ? 'up' : 'down',
       severity: portfolioMetrics.returnPct > 0 ? 'success' : 'warning',
-      icon: Target
+      icon: Target,
     },
     {
       id: 'moic',
@@ -308,8 +317,8 @@ export function OverviewTab() {
       change: '',
       trend: portfolioMetrics.averageMOIC > 2 ? 'up' : 'stable',
       severity: portfolioMetrics.averageMOIC > 2 ? 'success' : 'neutral',
-      icon: BarChart3
-    }
+      icon: BarChart3,
+    },
   ];
 
   // DataTable columns - core columns per strategy
@@ -317,25 +326,23 @@ export function OverviewTab() {
     { key: 'company' as const, label: 'Company' },
     { key: 'status' as const, label: 'Status' },
     { key: 'invested' as const, label: 'Invested', align: 'right' as const },
-    { key: 'ownership' as const, label: 'Ownership', align: 'right' as const }
+    { key: 'ownership' as const, label: 'Ownership', align: 'right' as const },
   ];
 
   // Transform data for DataTable
-  const tableRows = filteredCompanies.map(c => ({
+  const tableRows = filteredCompanies.map((c) => ({
     company: c.company,
     status: c.status === 'active' ? 'Active' : c.status === 'exited' ? 'Exited' : 'Written Off',
     invested: `$${(c.initialInvestment / 1000000).toFixed(2)}M`,
-    ownership: `${c.ownershipPercent}%`
+    ownership: `${c.ownershipPercent}%`,
   }));
 
   const handleAddCompany = () => {
-    // Navigate to add company flow
-    console.log('Add company clicked');
+    // TODO: navigate to add company flow
   };
 
-  const handleViewCompany = (id: string) => {
-    // Navigate to company detail
-    console.log('View company:', id);
+  const handleViewCompany = (_id: string) => {
+    // TODO: navigate to company detail
   };
 
   const isEmpty = portfolioCompanies.length === 0;
@@ -476,15 +483,13 @@ export function OverviewTab() {
           {/* Mobile: Card layout */}
           <div className="md:hidden space-y-3">
             <div className="flex justify-between items-center px-1">
-              <h3 className="font-bold text-presson-text">
-                Portfolio Companies
-              </h3>
+              <h3 className="font-bold text-presson-text">Portfolio Companies</h3>
               <span className="text-sm text-presson-textMuted">
                 {filteredCompanies.length} companies
               </span>
             </div>
             {filteredCompanies.length > 0 ? (
-              filteredCompanies.map(company => (
+              filteredCompanies.map((company) => (
                 <PortfolioCard
                   key={company.id}
                   company={company}

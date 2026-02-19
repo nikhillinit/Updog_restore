@@ -81,24 +81,11 @@ function useStepKey(): StepKey {
   const [loc] = useLocation();
   const search = useSearch(); // Use wouter's useSearch hook for proper query param tracking
 
-  // Debug: log every time this hook runs
-  if (import.meta.env.DEV) {
-    console.log(`[useStepKey] Hook called, loc='${loc}', search='${search}'`);
-  }
-
   return React.useMemo<StepKey>(() => {
     // Add ? prefix since useSearch returns without it
     const searchWithPrefix = search ? `?${search}` : '';
     const fullLocation = loc + searchWithPrefix;
     const key = resolveStepKeyFromLocation(fullLocation);
-
-    // Debug logging
-    if (import.meta.env.DEV) {
-      const stepParam = new URLSearchParams(search)['get']('step');
-      console.log(
-        `[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`
-      );
-    }
 
     if (key === 'not-found' && import.meta.env.DEV) {
       const val = new URLSearchParams(search)['get']('step');

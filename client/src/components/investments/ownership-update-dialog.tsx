@@ -37,11 +37,6 @@ export default function OwnershipUpdateDialog({
   const [isDilutionMode, setIsDilutionMode] = useState(false);
 
   const handleSave = () => {
-    console.log('Saving ownership update:', {
-      month,
-      updatedOwnership: parseFloat(updatedOwnership),
-      advancedMode,
-    });
     onOpenChange(false);
   };
 

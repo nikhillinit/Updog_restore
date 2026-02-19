@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsiveScatterPlot } from '@nivo/scatterplot';
-import type { ScatterPlotTooltipProps } from '@nivo/scatterplot';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type MOICDatum = {
@@ -9,6 +8,14 @@ type MOICDatum = {
   company?: string;
   investment?: number;
 };
+
+interface ScatterNode {
+  color: string;
+  serieId: string | number;
+  formattedX: string;
+  formattedY: string;
+  data: MOICDatum;
+}
 
 interface MOICData {
   id: string;
@@ -28,7 +35,7 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
 }: NivoMOICScatterProps) {
   // Memoize tooltip component
   const TooltipComponent = useCallback(
-    ({ node }: ScatterPlotTooltipProps<MOICDatum>) => (
+    ({ node }: { node: ScatterNode }) => (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
         <div className="font-semibold" style={{ color: node.color }}>
           {node.data.company || String(node.serieId)}

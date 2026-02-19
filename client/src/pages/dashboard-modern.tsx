@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -14,25 +11,24 @@ import { PieChart as RechartsPieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
 import React, { useState } from 'react';
-import { useFundContext } from "@/contexts/FundContext";
-import { PremiumCard } from "@/components/ui/PremiumCard";
-import { KpiCard } from "@/components/ui/KpiCard";
-import { POVBrandHeader } from "@/components/ui/POVLogo";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFundContext } from '@/contexts/FundContext';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { KpiCard } from '@/components/ui/KpiCard';
+import { POVBrandHeader } from '@/components/ui/POVLogo';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  PieChart,
-  Filter,
-  Download,
-  Eye,
-  Activity,
-  Share2
-} from "lucide-react";
-import CashflowDashboard from "@/components/dashboard/CashflowDashboard";
-import ShareConfigModal from "@/components/sharing/ShareConfigModal";
-import type { CreateShareLinkRequest } from "@shared/sharing-schema";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PieChart, Filter, Download, Eye, Activity, Share2 } from 'lucide-react';
+import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
+import ShareConfigModal from '@/components/sharing/ShareConfigModal';
+import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
@@ -40,15 +36,15 @@ export default function ModernDashboard() {
   const [activeView, setActiveView] = useState('overview');
 
   // Mock function to create share links - replace with actual API call
-  const handleCreateShare = async (config: CreateShareLinkRequest): Promise<{ shareUrl: string; shareId: string }> => {
+  const handleCreateShare = async (
+    config: CreateShareLinkRequest
+  ): Promise<{ shareUrl: string; shareId: string }> => {
     // Simulate API call
     const shareId = 'demo-share-123';
     const shareUrl = `${window.location.origin}/shared/${shareId}`;
 
-    console.log('Creating share link:', config);
-
     // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     return { shareUrl, shareId };
   };
@@ -56,7 +52,7 @@ export default function ModernDashboard() {
   if (isLoading || !currentFund) {
     return (
       <div className="min-h-screen bg-pov-gray">
-        <POVBrandHeader 
+        <POVBrandHeader
           title="Dashboard"
           subtitle="Real-time fund performance and portfolio analytics"
           variant="light"
@@ -85,14 +81,14 @@ export default function ModernDashboard() {
     dpi: 0.85,
     activeInvestments: 24,
     exitedInvestments: 8,
-    deploymentRate: 68
+    deploymentRate: 68,
   };
 
   const sectorData = [
     { name: 'FinTech', value: 35, color: '#292929' },
     { name: 'HealthTech', value: 28, color: '#E0D8D1' },
     { name: 'Enterprise SaaS', value: 22, color: '#10B981' },
-    { name: 'Consumer', value: 15, color: '#F59E0B' }
+    { name: 'Consumer', value: 15, color: '#F59E0B' },
   ];
 
   const performanceData = [
@@ -100,7 +96,7 @@ export default function ModernDashboard() {
     { quarter: 'Q2 23', value: 145000000, growth: 16 },
     { quarter: 'Q3 23', value: 178000000, growth: 23 },
     { quarter: 'Q4 23', value: 203000000, growth: 14 },
-    { quarter: 'Q1 24', value: 240000000, growth: 18 }
+    { quarter: 'Q1 24', value: 240000000, growth: 18 },
   ];
 
   return (
@@ -113,19 +109,27 @@ export default function ModernDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        
         {/* Top Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center space-x-4">
             <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
               <TabsList className="bg-pov-white border border-pov-gray">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
+                <TabsTrigger
+                  value="overview"
+                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+                >
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="performance" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
+                <TabsTrigger
+                  value="performance"
+                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+                >
                   Performance
                 </TabsTrigger>
-                <TabsTrigger value="cashflow" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
+                <TabsTrigger
+                  value="cashflow"
+                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+                >
                   <Activity className="h-4 w-4 mr-2" />
                   Cashflow
                 </TabsTrigger>
@@ -145,13 +149,21 @@ export default function ModernDashboard() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Button variant="outline" size="sm" className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white">
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white"
+            >
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
-            
-            <Button variant="outline" size="sm" className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white">
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -161,7 +173,11 @@ export default function ModernDashboard() {
               fundName={currentFund.name || 'Demo Fund'}
               onCreateShare={handleCreateShare}
             >
-              <Button variant="outline" size="sm" className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white"
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share with LPs
               </Button>
@@ -170,10 +186,8 @@ export default function ModernDashboard() {
         </div>
 
         <Tabs value={activeView} className="space-y-8">
-          
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
-            
             {/* Key Metrics Cards - Press On Branded */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <KpiCard
@@ -223,7 +237,7 @@ export default function ModernDashboard() {
 
               <KpiCard
                 label="TVPI"
-                value={`${((fundMetrics.totalValue / fundMetrics.totalInvested)).toFixed(2)}x`}
+                value={`${(fundMetrics.totalValue / fundMetrics.totalInvested).toFixed(2)}x`}
                 delta="Total value to paid-in"
                 intent="positive"
               />
@@ -231,9 +245,8 @@ export default function ModernDashboard() {
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
               {/* Portfolio Value Over Time */}
-              <PremiumCard 
+              <PremiumCard
                 title="Portfolio Value Trend"
                 subtitle="12-month performance trajectory"
                 className="lg:col-span-2"
@@ -248,28 +261,35 @@ export default function ModernDashboard() {
                     <AreaChart data={performanceData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E0D8D1" opacity={0.3} />
                       <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value/1000000}M`} />
-                      <Tooltip 
-                        formatter={(value: any) => [`$${(value/1000000).toFixed(1)}M`, 'Portfolio Value']}
-                        labelStyle={{color: '#292929'}}
+                      <YAxis
+                        stroke="#666"
+                        fontSize={12}
+                        tickFormatter={(value: any) => `$${value / 1000000}M`}
+                      />
+                      <Tooltip
+                        formatter={(value: any) => [
+                          `$${(value / 1000000).toFixed(1)}M`,
+                          'Portfolio Value',
+                        ]}
+                        labelStyle={{ color: '#292929' }}
                         contentStyle={{
-                          backgroundColor: '#FFFFFF', 
+                          backgroundColor: '#FFFFFF',
                           border: '1px solid #E0D8D1',
                           borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                         }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#292929" 
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#292929"
                         fill="url(#gradient)"
                         strokeWidth={3}
                       />
                       <defs>
                         <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#292929" stopOpacity={0.2}/>
-                          <stop offset="100%" stopColor="#E0D8D1" stopOpacity={0.1}/>
+                          <stop offset="0%" stopColor="#292929" stopOpacity={0.2} />
+                          <stop offset="100%" stopColor="#E0D8D1" stopOpacity={0.1} />
                         </linearGradient>
                       </defs>
                     </AreaChart>
@@ -278,7 +298,7 @@ export default function ModernDashboard() {
               </PremiumCard>
 
               {/* Sector Allocation */}
-              <PremiumCard 
+              <PremiumCard
                 title="Sector Allocation"
                 subtitle="Portfolio concentration by sector"
                 headerActions={
@@ -303,12 +323,12 @@ export default function ModernDashboard() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value: any) => [`${value}%`, 'Allocation']}
                         contentStyle={{
-                          backgroundColor: '#FFFFFF', 
+                          backgroundColor: '#FFFFFF',
                           border: '1px solid #E0D8D1',
-                          borderRadius: '8px'
+                          borderRadius: '8px',
                         }}
                       />
                     </RechartsPieChart>
@@ -333,52 +353,46 @@ export default function ModernDashboard() {
           {/* Performance Tab */}
           <TabsContent value="performance" className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <PremiumCard 
-                title="DPI"
-                className="text-center"
-              >
+              <PremiumCard title="DPI" className="text-center">
                 <div className="space-y-2">
                   <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.dpi.toFixed(2)}x
                   </div>
-                  <p className="font-poppins text-sm text-[#292929]/70">
-                    Distributions to Paid-In
-                  </p>
-                  <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
+                  <p className="font-poppins text-sm text-[#292929]/70">Distributions to Paid-In</p>
+                  <Badge
+                    variant="outline"
+                    className="text-pov-success border-pov-success/20 bg-pov-success/5"
+                  >
                     +12.5% QoQ
                   </Badge>
                 </div>
               </PremiumCard>
 
-              <PremiumCard
-                title="TVPI"
-                className="text-center"
-              >
+              <PremiumCard title="TVPI" className="text-center">
                 <div className="space-y-2">
                   <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.moic.toFixed(2)}x
                   </div>
-                  <p className="font-poppins text-sm text-[#292929]/70">
-                    Total Value to Paid-In
-                  </p>
-                  <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
+                  <p className="font-poppins text-sm text-[#292929]/70">Total Value to Paid-In</p>
+                  <Badge
+                    variant="outline"
+                    className="text-pov-success border-pov-success/20 bg-pov-success/5"
+                  >
                     +8.3% QoQ
                   </Badge>
                 </div>
               </PremiumCard>
 
-              <PremiumCard
-                title="Net IRR"
-                className="text-center"
-              >
+              <PremiumCard title="Net IRR" className="text-center">
                 <div className="space-y-2">
                   <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.irr}%
                   </div>
-                  <p className="font-poppins text-sm text-[#292929]/70">
-                    Internal Rate of Return
-                  </p>
-                  <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
+                  <p className="font-poppins text-sm text-[#292929]/70">Internal Rate of Return</p>
+                  <Badge
+                    variant="outline"
+                    className="text-pov-success border-pov-success/20 bg-pov-success/5"
+                  >
                     Top Quartile
                   </Badge>
                 </div>
@@ -398,4 +412,3 @@ export default function ModernDashboard() {
     </div>
   );
 }
-

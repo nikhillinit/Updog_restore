@@ -187,7 +187,6 @@ export const MobileLineChart = memo(function MobileLineChart({
                   if ('vibrate' in navigator) {
                     navigator.vibrate(50);
                   }
-                  console.log('Point clicked:', point);
                 }}
               />
             );

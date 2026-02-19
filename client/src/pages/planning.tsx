@@ -1,34 +1,34 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useFundContext } from "@/contexts/FundContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import OptimalReservesRanking from "@/components/reserves/optimal-reserves-ranking";
-import GraduationRateStrategy from "@/components/planning/graduation-rate-strategy";
-import ExitAnalysis from "@/components/planning/exit-analysis";
-import PortfolioConstruction from "@/components/planning/portfolio-construction";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Calendar, 
-  Edit3, 
-  Copy, 
-  RotateCcw,
-  Plus,
-  Info
-} from "lucide-react";
-import FundLiquidationWarnings from "@/components/investment/fund-liquidation-warnings";
-import ExitProceedsRecycling from "@/components/recycling/exit-proceeds-recycling";
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useFundContext } from '@/contexts/FundContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import OptimalReservesRanking from '@/components/reserves/optimal-reserves-ranking';
+import GraduationRateStrategy from '@/components/planning/graduation-rate-strategy';
+import ExitAnalysis from '@/components/planning/exit-analysis';
+import PortfolioConstruction from '@/components/planning/portfolio-construction';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Calendar, Edit3, Copy, RotateCcw, Plus, Info } from 'lucide-react';
+import FundLiquidationWarnings from '@/components/investment/fund-liquidation-warnings';
+import ExitProceedsRecycling from '@/components/recycling/exit-proceeds-recycling';
 
 interface InvestmentCase {
   id: string;
@@ -60,26 +60,26 @@ interface InvestmentRound {
 export default function Planning() {
   const { currentFund } = useFundContext();
   const queryClient = useQueryClient();
-  const [selectedCase, setSelectedCase] = useState("default");
+  const [selectedCase, setSelectedCase] = useState('default');
   const [showFMVDialog, setShowFMVDialog] = useState(false);
   const [selectedRound, setSelectedRound] = useState<InvestmentRound | null>(null);
-  const [filterRounds, setFilterRounds] = useState("next-4");
+  const [filterRounds, setFilterRounds] = useState('next-4');
   const [_showCaseDialog, setShowCaseDialog] = useState(false);
 
   // Mock data for demonstration
   const investmentCases: InvestmentCase[] = [
-    { id: "default", name: "Default", probability: 100, isDefault: true },
-    { id: "downside", name: "Downside", probability: 20 },
-    { id: "base", name: "Base", probability: 60 },
-    { id: "upside", name: "Upside", probability: 20 }
+    { id: 'default', name: 'Default', probability: 100, isDefault: true },
+    { id: 'downside', name: 'Downside', probability: 20 },
+    { id: 'base', name: 'Base', probability: 60 },
+    { id: 'upside', name: 'Upside', probability: 20 },
   ];
 
   const futureRounds: InvestmentRound[] = [
     {
-      id: "1",
-      company: "TechCorp Inc",
-      round: "Series A",
-      date: "2024-06-01",
+      id: '1',
+      company: 'TechCorp Inc',
+      round: 'Series A',
+      date: '2024-06-01',
       investment: 1000000,
       roundSize: 5000000,
       preMoney: 8000000,
@@ -91,13 +91,13 @@ export default function Planning() {
       returnFund: 9000000,
       graduationRate: 50,
       reserveAmount: 1500000,
-      isProjected: true
+      isProjected: true,
     },
     {
-      id: "2", 
-      company: "FinanceAI",
-      round: "Series B",
-      date: "2024-08-15",
+      id: '2',
+      company: 'FinanceAI',
+      round: 'Series B',
+      date: '2024-08-15',
       investment: 2000000,
       roundSize: 15000000,
       preMoney: 25000000,
@@ -109,23 +109,21 @@ export default function Planning() {
       returnFund: 12000000,
       graduationRate: 70,
       reserveAmount: 2000000,
-      isProjected: true
-    }
+      isProjected: true,
+    },
   ];
 
-  const handleFMVOverride = (round: InvestmentRound, newFMV: number) => {
-    console.log(`Setting FMV override for ${round.company} to $${newFMV}`);
+  const handleFMVOverride = (_round: InvestmentRound, _newFMV: number) => {
+    // TODO: persist FMV override via API
     setShowFMVDialog(false);
   };
 
   const handleSyncCases = () => {
-    console.log("Syncing cases from base case");
-    // Implementation would sync rounds across cases
+    // TODO: sync rounds across cases via API
   };
 
-  const handleCloneCase = (fromCase: string) => {
-    console.log(`Cloning case from ${fromCase}`);
-    // Implementation would create new case from existing
+  const handleCloneCase = (_fromCase: string) => {
+    // TODO: create new case from existing via API
   };
 
   return (
@@ -139,17 +137,11 @@ export default function Planning() {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button 
-            onClick={() => setShowCaseDialog(true)}
-            variant="outline"
-          >
+          <Button onClick={() => setShowCaseDialog(true)} variant="outline">
             <Plus className="mr-2 h-4 w-4" />
             New Case
           </Button>
-          <Button 
-            onClick={handleSyncCases}
-            className="povc-bg-primary hover:bg-blue-700"
-          >
+          <Button onClick={handleSyncCases} className="povc-bg-primary hover:bg-blue-700">
             <RotateCcw className="mr-2 h-4 w-4" />
             Sync Cases
           </Button>
@@ -174,7 +166,7 @@ export default function Planning() {
                     <SelectValue placeholder="Select case" />
                   </SelectTrigger>
                   <SelectContent>
-                    {investmentCases.map((investmentCase: any) => (
+                    {investmentCases.map((investmentCase: InvestmentCase) => (
                       <SelectItem key={investmentCase.id} value={investmentCase.id}>
                         {investmentCase.name} ({investmentCase.probability}%)
                       </SelectItem>
@@ -201,12 +193,12 @@ export default function Planning() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
-            {investmentCases.map((investmentCase: any) => (
-              <Card 
-                key={investmentCase.id} 
+            {investmentCases.map((investmentCase: InvestmentCase) => (
+              <Card
+                key={investmentCase.id}
                 className={`cursor-pointer transition-colors ${
-                  selectedCase === investmentCase.id 
-                    ? 'ring-2 ring-blue-600 bg-blue-50' 
+                  selectedCase === investmentCase.id
+                    ? 'ring-2 ring-blue-600 bg-blue-50'
                     : 'hover:bg-gray-50'
                 }`}
                 onClick={() => setSelectedCase(investmentCase.id)}
@@ -218,7 +210,9 @@ export default function Planning() {
                       {investmentCase.probability}% probability
                     </div>
                     {investmentCase.isDefault && (
-                      <Badge variant="secondary" className="text-xs">Default</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Default
+                      </Badge>
                     )}
                   </div>
                 </CardContent>
@@ -247,8 +241,8 @@ export default function Planning() {
               <div className="text-sm">
                 <p className="font-medium text-blue-800">Reserve Calculation</p>
                 <p className="text-blue-700">
-                  Reserved amounts are probability-weighted based on graduation rate. 
-                  E.g., 50% graduation rate on $1.5M reserve = $750K actual reserve.
+                  Reserved amounts are probability-weighted based on graduation rate. E.g., 50%
+                  graduation rate on $1.5M reserve = $750K actual reserve.
                 </p>
               </div>
             </div>
@@ -270,8 +264,9 @@ export default function Planning() {
                   </tr>
                 </thead>
                 <tbody>
-                  {futureRounds.map((round: any) => {
-                    const actualReserve = (round.reserveAmount || 0) * ((round.graduationRate || 0) / 100);
+                  {futureRounds.map((round: InvestmentRound) => {
+                    const actualReserve =
+                      (round.reserveAmount || 0) * ((round.graduationRate || 0) / 100);
                     return (
                       <tr key={round.id} className="border-b hover:bg-gray-50">
                         <td className="p-3">
@@ -281,29 +276,22 @@ export default function Planning() {
                           <Badge variant="outline">{round.round}</Badge>
                         </td>
                         <td className="p-3">
-                          <Input 
-                            type="date" 
-                            defaultValue={round.date}
-                            className="w-auto"
-                          />
+                          <Input type="date" defaultValue={round.date} className="w-auto" />
                         </td>
                         <td className="p-3">
-                          <Input 
+                          <Input
                             defaultValue={`$${(round.investment / 1000000).toFixed(1)}M`}
                             className="w-20"
                           />
                         </td>
                         <td className="p-3">
-                          <Input 
+                          <Input
                             defaultValue={`$${((round.reserveAmount || 0) / 1000000).toFixed(1)}M`}
                             className="w-20"
                           />
                         </td>
                         <td className="p-3">
-                          <Input 
-                            defaultValue={`${round.graduationRate}%`}
-                            className="w-16"
-                          />
+                          <Input defaultValue={`${round.graduationRate}%`} className="w-16" />
                         </td>
                         <td className="p-3">
                           <span className="font-medium text-green-600">
@@ -312,18 +300,22 @@ export default function Planning() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center space-x-2">
-                            <span className={`text-sm ${round.fmvOverride ? 'text-blue-600 font-medium' : ''}`}>
+                            <span
+                              className={`text-sm ${round.fmvOverride ? 'text-blue-600 font-medium' : ''}`}
+                            >
                               ${(round.fmv / 1000).toFixed(0)}K
                             </span>
                             {round.fmvOverride && (
-                              <Badge variant="secondary" className="text-xs">Manual</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                Manual
+                              </Badge>
                             )}
                           </div>
                         </td>
                         <td className="p-3">
                           <div className="flex space-x-1">
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => {
                                 setSelectedRound(round);
@@ -345,12 +337,8 @@ export default function Planning() {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button variant="outline">
-                Reset Changes
-              </Button>
-              <Button className="povc-bg-primary hover:bg-blue-700">
-                Save Changes
-              </Button>
+              <Button variant="outline">Reset Changes</Button>
+              <Button className="povc-bg-primary hover:bg-blue-700">Save Changes</Button>
             </div>
           </div>
         </CardContent>
@@ -366,24 +354,20 @@ export default function Planning() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex-col space-y-2"
-              onClick={() => handleCloneCase("base")}
+              onClick={() => handleCloneCase('base')}
             >
               <Copy className="h-5 w-5" />
               <span>Clone from Base</span>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex-col space-y-2"
-              onClick={handleSyncCases}
-            >
+            <Button variant="outline" className="h-20 flex-col space-y-2" onClick={handleSyncCases}>
               <RotateCcw className="h-5 w-5" />
               <span>Sync All Cases</span>
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex-col space-y-2"
               onClick={() => setShowCaseDialog(true)}
             >
@@ -403,25 +387,24 @@ export default function Planning() {
               Override the Fair Market Value calculation for this investment round
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium mb-2">FMV Override</h4>
               <p className="text-sm text-muted-foreground mb-3">
-                By default, the system determines the FMV based on the Valuation and
-                Ownership as Aggregate Valuation x Ownership (%). You can override
-                the FMV here to disconnect the FMV from the underlying Aggregate
-                Valuation and Ownership.
+                By default, the system determines the FMV based on the Valuation and Ownership as
+                Aggregate Valuation x Ownership (%). You can override the FMV here to disconnect the
+                FMV from the underlying Aggregate Valuation and Ownership.
               </p>
-              
+
               <div className="space-y-3">
                 <div>
                   <h5 className="font-medium text-sm mb-1">When to override?</h5>
                   <p className="text-sm text-muted-foreground">
-                    You may want to override the FMV if your fund's valuation policy
-                    differs from the default calculation. These include affecting FMV for any
-                    outstanding liquidation preferences, or how your fund wants to
-                    report valuations on SAFEs and Convertible Notes.
+                    You may want to override the FMV if your fund's valuation policy differs from
+                    the default calculation. These include affecting FMV for any outstanding
+                    liquidation preferences, or how your fund wants to report valuations on SAFEs
+                    and Convertible Notes.
                   </p>
                 </div>
               </div>
@@ -436,9 +419,9 @@ export default function Planning() {
               <Label htmlFor="new-fmv">New Fair Market Value</Label>
               <div className="flex items-center space-x-2 mt-1">
                 <span className="text-sm">$</span>
-                <Input 
+                <Input
                   id="new-fmv"
-                  defaultValue={selectedRound?.fmv.toString() || "200000"}
+                  defaultValue={selectedRound?.fmv.toString() || '200000'}
                   className="flex-1"
                 />
               </div>
@@ -448,7 +431,7 @@ export default function Planning() {
               <Button variant="outline" onClick={() => setShowFMVDialog(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 className="povc-bg-primary hover:bg-blue-700"
                 onClick={() => {
                   if (selectedRound) {
@@ -480,20 +463,40 @@ export default function Planning() {
             <CardHeader>
               <CardTitle>Investment Cases Management</CardTitle>
               <CardDescription>
-                Current investment cases view displayed above - switch tabs for advanced planning analysis
+                Current investment cases view displayed above - switch tabs for advanced planning
+                analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                The investment cases table and management interface is shown above. Use the other tabs to access:
+                The investment cases table and management interface is shown above. Use the other
+                tabs to access:
               </p>
               <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-muted-foreground">
-                <li><strong>Portfolio Construction:</strong> Interactive fund modeling with parameter sliders</li>
-                <li><strong>Optimal Reserves:</strong> Rank portfolio companies by follow-on MOIC potential</li>
-                <li><strong>Follow-On Strategy:</strong> Graduation rate analysis and Monte Carlo simulations</li>
-                <li><strong>Exit Analysis:</strong> Calculate fund returns based on exit rates and valuations</li>
-                <li><strong>Fund Liquidation:</strong> Review investments that extend beyond fund term with early liquidation warnings</li>
-                <li><strong>Exit Recycling:</strong> Manage recycling of exit proceeds into new investments based on timing conditions</li>
+                <li>
+                  <strong>Portfolio Construction:</strong> Interactive fund modeling with parameter
+                  sliders
+                </li>
+                <li>
+                  <strong>Optimal Reserves:</strong> Rank portfolio companies by follow-on MOIC
+                  potential
+                </li>
+                <li>
+                  <strong>Follow-On Strategy:</strong> Graduation rate analysis and Monte Carlo
+                  simulations
+                </li>
+                <li>
+                  <strong>Exit Analysis:</strong> Calculate fund returns based on exit rates and
+                  valuations
+                </li>
+                <li>
+                  <strong>Fund Liquidation:</strong> Review investments that extend beyond fund term
+                  with early liquidation warnings
+                </li>
+                <li>
+                  <strong>Exit Recycling:</strong> Manage recycling of exit proceeds into new
+                  investments based on timing conditions
+                </li>
               </ul>
             </CardContent>
           </Card>
@@ -516,10 +519,7 @@ export default function Planning() {
         </TabsContent>
 
         <TabsContent value="liquidation">
-          <FundLiquidationWarnings 
-            fundEndDate="March 2030"
-            investments={[]}
-          />
+          <FundLiquidationWarnings fundEndDate="March 2030" investments={[]} />
         </TabsContent>
 
         <TabsContent value="recycling">

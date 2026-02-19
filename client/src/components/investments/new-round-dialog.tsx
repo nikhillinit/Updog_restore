@@ -50,23 +50,7 @@ export default function NewRoundDialog({ isOpen, onOpenChange, investment }: New
   const [fullyDilutedShares, setFullyDilutedShares] = useState('12483333.333333');
 
   const handleSave = () => {
-    console.log('Saving new round:', {
-      securityType,
-      month,
-      roundName,
-      graduationRate: parseFloat(graduationRate),
-      currency,
-      investmentAmount: parseFloat(investmentAmount),
-      roundSize: parseFloat(roundSize),
-      preMoneyValuation: parseFloat(preMoneyValuation),
-      ...(showAdvancedShares && {
-        sharePrice: parseFloat(sharePrice),
-        newSharesPurchased: parseFloat(newSharesPurchased),
-        totalSharesOwned: parseFloat(totalSharesOwned),
-        newSharesIssued: parseFloat(newSharesIssued),
-        fullyDilutedShares: parseFloat(fullyDilutedShares),
-      }),
-    });
+    // TODO: persist new round via API
     onOpenChange(false);
   };
 

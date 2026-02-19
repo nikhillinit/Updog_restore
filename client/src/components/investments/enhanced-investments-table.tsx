@@ -11,11 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Search,
   Filter,
@@ -25,7 +21,7 @@ import {
   Tag,
   MoreHorizontal,
   Eye,
-  Upload
+  Upload,
 } from 'lucide-react';
 import BulkImportModal from './BulkImportModal';
 import BulkOperationsToolbar from './BulkOperationsToolbar';
@@ -65,7 +61,7 @@ const MOCK_INVESTMENTS: Investment[] = [
     lastRound: 'Series A',
     status: 'Active',
     partnerLead: 'Jane Smith',
-    dateInvested: '2023-03-15'
+    dateInvested: '2023-03-15',
   },
   {
     id: 'inv-2',
@@ -76,13 +72,13 @@ const MOCK_INVESTMENTS: Investment[] = [
     tags: ['Female Founder'],
     totalInvested: 750000,
     currentValue: 1200000,
-    moic: 1.60,
+    moic: 1.6,
     irr: 32.1,
     ownershipPercentage: 12.3,
     lastRound: 'Seed',
     status: 'Active',
     partnerLead: 'John Davis',
-    dateInvested: '2023-07-22'
+    dateInvested: '2023-07-22',
   },
   {
     id: 'inv-3',
@@ -93,13 +89,13 @@ const MOCK_INVESTMENTS: Investment[] = [
     tags: ['AI/ML', 'Female Founder'],
     totalInvested: 500000,
     currentValue: 850000,
-    moic: 1.70,
+    moic: 1.7,
     irr: 45.2,
     ownershipPercentage: 15.2,
     lastRound: 'Pre-Seed',
     status: 'Active',
     partnerLead: 'Sarah Wilson',
-    dateInvested: '2024-01-10'
+    dateInvested: '2024-01-10',
   },
   {
     id: 'inv-4',
@@ -110,13 +106,13 @@ const MOCK_INVESTMENTS: Investment[] = [
     tags: ['Environmental'],
     totalInvested: 2000000,
     currentValue: 3400000,
-    moic: 1.70,
+    moic: 1.7,
     irr: 28.9,
     ownershipPercentage: 5.8,
     lastRound: 'Series B',
     status: 'Active',
     partnerLead: 'Mike Chen',
-    dateInvested: '2022-11-05'
+    dateInvested: '2022-11-05',
   },
   {
     id: 'inv-5',
@@ -133,7 +129,7 @@ const MOCK_INVESTMENTS: Investment[] = [
     lastRound: 'Seed',
     status: 'Active',
     partnerLead: 'Alex Rodriguez',
-    dateInvested: '2023-09-18'
+    dateInvested: '2023-09-18',
   },
   {
     id: 'inv-6',
@@ -144,13 +140,13 @@ const MOCK_INVESTMENTS: Investment[] = [
     tags: ['Governance', 'Asia'],
     totalInvested: 1500000,
     currentValue: 2250000,
-    moic: 1.50,
+    moic: 1.5,
     irr: 22.4,
     ownershipPercentage: 7.2,
     lastRound: 'Series A',
     status: 'Active',
     partnerLead: 'Lisa Zhang',
-    dateInvested: '2023-05-30'
+    dateInvested: '2023-05-30',
   },
   {
     id: 'inv-7',
@@ -161,13 +157,13 @@ const MOCK_INVESTMENTS: Investment[] = [
     tags: ['Social', 'Female Founder'],
     totalInvested: 600000,
     currentValue: 420000,
-    moic: 0.70,
+    moic: 0.7,
     irr: -12.5,
     ownershipPercentage: 11.8,
     lastRound: 'Seed',
     status: 'Written Off',
     partnerLead: 'Tom Anderson',
-    dateInvested: '2022-08-12'
+    dateInvested: '2022-08-12',
   },
   {
     id: 'inv-8',
@@ -184,23 +180,47 @@ const MOCK_INVESTMENTS: Investment[] = [
     lastRound: 'Series A',
     status: 'Active',
     partnerLead: 'David Kim',
-    dateInvested: '2022-12-03'
-  }
+    dateInvested: '2022-12-03',
+  },
 ];
 
 // All available tags from the predefined list
 const ALL_TAGS = [
-  'Asia', 'CSR', 'Environmental', 'Female Founder', 'General', 'Governance',
-  'Loan', 'Minority Founder', 'Social', 'Warehoused', 'AI/ML', 'B2B', 'B2C',
-  'Payments', 'Digital Health', 'Marketplace', 'SaaS', 'FinTech', 'EdTech',
-  'PropTech', 'CleanTech', 'DeepTech', 'Hardware', 'Mobile', 'Enterprise', 'Consumer'
+  'Asia',
+  'CSR',
+  'Environmental',
+  'Female Founder',
+  'General',
+  'Governance',
+  'Loan',
+  'Minority Founder',
+  'Social',
+  'Warehoused',
+  'AI/ML',
+  'B2B',
+  'B2C',
+  'Payments',
+  'Digital Health',
+  'Marketplace',
+  'SaaS',
+  'FinTech',
+  'EdTech',
+  'PropTech',
+  'CleanTech',
+  'DeepTech',
+  'Hardware',
+  'Mobile',
+  'Enterprise',
+  'Consumer',
 ];
 
 interface EnhancedInvestmentsTableProps {
   className?: string;
 }
 
-export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInvestmentsTableProps) {
+export default function EnhancedInvestmentsTable({
+  className = '',
+}: EnhancedInvestmentsTableProps) {
   const [investments] = useState<Investment[]>(MOCK_INVESTMENTS);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
@@ -223,26 +243,27 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     ownership: true,
     status: true,
     partner: true,
-    actions: true
+    actions: true,
   });
 
   // Get unique values for filters
-  const sectors = [...new Set(investments.map(inv => inv.sector))];
-  const stages = [...new Set(investments.map(inv => inv.stage))];
-  const statuses = [...new Set(investments.map(inv => inv.status))];
+  const sectors = [...new Set(investments.map((inv) => inv.sector))];
+  const stages = [...new Set(investments.map((inv) => inv.stage))];
+  const statuses = [...new Set(investments.map((inv) => inv.status))];
 
   // Filter and sort investments
   const filteredInvestments = useMemo(() => {
-    const filtered = investments.filter(investment => {
-      const matchesSearch = investment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           investment.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           investment.partnerLead.toLowerCase().includes(searchTerm.toLowerCase());
-      
+    const filtered = investments.filter((investment) => {
+      const matchesSearch =
+        investment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        investment.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        investment.partnerLead.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesSector = selectedSector === 'all' || investment.sector === selectedSector;
       const matchesStage = selectedStage === 'all' || investment.stage === selectedStage;
       const matchesStatus = selectedStatus === 'all' || investment.status === selectedStatus;
-      const matchesTags = selectedTags.length === 0 || 
-                         selectedTags.some(tag => investment.tags.includes(tag));
+      const matchesTags =
+        selectedTags.length === 0 || selectedTags.some((tag) => investment.tags.includes(tag));
 
       return matchesSearch && matchesSector && matchesStage && matchesStatus && matchesTags;
     });
@@ -251,22 +272,31 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     filtered.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      
+
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       }
-      
+
       return 0;
     });
 
     return filtered;
-  }, [investments, searchTerm, selectedSector, selectedStage, selectedStatus, selectedTags, sortField, sortDirection]);
+  }, [
+    investments,
+    searchTerm,
+    selectedSector,
+    selectedStage,
+    selectedStatus,
+    selectedTags,
+    sortField,
+    sortDirection,
+  ]);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -280,10 +310,14 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Exited': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Written Off': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Active':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Exited':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Written Off':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -304,10 +338,8 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
   };
 
   const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
@@ -315,43 +347,37 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     if (selectedInvestments.length === filteredInvestments.length) {
       setSelectedInvestments([]);
     } else {
-      setSelectedInvestments(filteredInvestments.map(inv => inv.id));
+      setSelectedInvestments(filteredInvestments.map((inv) => inv.id));
     }
   };
 
   const handleSelectInvestment = (id: string) => {
-    setSelectedInvestments(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    setSelectedInvestments((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
   // Bulk operations handlers
-  const handleBulkImport = async (newInvestments: unknown[]) => {
-    console.log('Importing investments:', newInvestments);
-    // In real implementation, this would call an API
-    // setInvestments(prev => [...prev, ...newInvestments]);
+  const handleBulkImport = async (_newInvestments: unknown[]) => {
+    // TODO: call bulk import API
   };
 
-  const handleBulkUpdate = async (updates: Partial<Investment>) => {
-    console.log('Bulk updating investments:', selectedInvestments, updates);
-    // In real implementation, this would call an API
-    // Update the investments in state or refetch data
+  const handleBulkUpdate = async (_updates: Partial<Investment>) => {
+    // TODO: call bulk update API
   };
 
-  const handleBulkDelete = async (ids: string[]) => {
-    console.log('Bulk deleting investments:', ids);
-    // In real implementation, this would call an API
-    // setInvestments(prev => prev.filter(inv => !ids.includes(inv.id)));
+  const handleBulkDelete = async (_ids: string[]) => {
+    // TODO: call bulk delete API
     setSelectedInvestments([]);
   };
 
-  const handleBulkTag = async (ids: string[], tags: string[]) => {
-    console.log('Bulk tagging investments:', ids, tags);
-    // In real implementation, this would call an API
-    // Update investments with new tags
+  const handleBulkTag = async (_ids: string[], _tags: string[]) => {
+    // TODO: call bulk tag API
   };
 
-  const selectedInvestmentObjects = investments.filter(inv => selectedInvestments.includes(inv.id));
+  const selectedInvestmentObjects = investments.filter((inv) =>
+    selectedInvestments.includes(inv.id)
+  );
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -406,8 +432,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sectors</SelectItem>
-                  {sectors.map(sector => (
-                    <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                  {sectors.map((sector) => (
+                    <SelectItem key={sector} value={sector}>
+                      {sector}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -418,8 +446,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Stages</SelectItem>
-                  {stages.map(stage => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                  {stages.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -430,8 +460,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  {statuses.map(status => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -453,7 +485,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Filter by Tags</h4>
                     <div className="max-h-60 overflow-y-auto space-y-2">
-                      {ALL_TAGS.map(tag => (
+                      {ALL_TAGS.map((tag) => (
                         <div key={tag} className="flex items-center space-x-2">
                           <Checkbox
                             id={tag}
@@ -467,9 +499,9 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                       ))}
                     </div>
                     {selectedTags.length > 0 && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setSelectedTags([])}
                         className="w-full"
                       >
@@ -497,13 +529,15 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                           id={key}
                           checked={visible}
                           onCheckedChange={(checked) =>
-                            setVisibleColumns(prev => ({ ...prev, [key]: checked }))
+                            setVisibleColumns((prev) => ({ ...prev, [key]: checked }))
                           }
                         />
                         <label htmlFor={key} className="text-sm capitalize cursor-pointer">
-                          {key === 'moic' ? 'MOIC' : 
-                           key === 'irr' ? 'IRR' :
-                           key.replace(/([A-Z])/g, ' $1').trim()}
+                          {key === 'moic'
+                            ? 'MOIC'
+                            : key === 'irr'
+                              ? 'IRR'
+                              : key.replace(/([A-Z])/g, ' $1').trim()}
                         </label>
                       </div>
                     ))}
@@ -514,25 +548,45 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
           </div>
 
           {/* Active Filters */}
-          {(selectedTags.length > 0 || selectedSector !== 'all' || selectedStage !== 'all' || selectedStatus !== 'all') && (
+          {(selectedTags.length > 0 ||
+            selectedSector !== 'all' ||
+            selectedStage !== 'all' ||
+            selectedStatus !== 'all') && (
             <div className="flex flex-wrap gap-2 mt-4">
-              {selectedTags.map(tag => (
-                <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => handleTagToggle(tag)}>
+              {selectedTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => handleTagToggle(tag)}
+                >
                   {tag} ×
                 </Badge>
               ))}
               {selectedSector !== 'all' && (
-                <Badge variant="secondary" className="cursor-pointer" onClick={() => setSelectedSector('all')}>
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedSector('all')}
+                >
                   Sector: {selectedSector} ×
                 </Badge>
               )}
               {selectedStage !== 'all' && (
-                <Badge variant="secondary" className="cursor-pointer" onClick={() => setSelectedStage('all')}>
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedStage('all')}
+                >
                   Stage: {selectedStage} ×
                 </Badge>
               )}
               {selectedStatus !== 'all' && (
-                <Badge variant="secondary" className="cursor-pointer" onClick={() => setSelectedStatus('all')}>
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedStatus('all')}
+                >
                   Status: {selectedStatus} ×
                 </Badge>
               )}
@@ -550,13 +604,19 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 <tr>
                   <th className="text-left py-3 px-4">
                     <Checkbox
-                      checked={selectedInvestments.length === filteredInvestments.length && filteredInvestments.length > 0}
+                      checked={
+                        selectedInvestments.length === filteredInvestments.length &&
+                        filteredInvestments.length > 0
+                      }
                       onCheckedChange={handleSelectAll}
                     />
                   </th>
                   <th className="text-left py-3 px-4">Actions</th>
                   {visibleColumns.name && (
-                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('name')}>
+                    <th
+                      className="text-left py-3 px-4 cursor-pointer"
+                      onClick={() => handleSort('name')}
+                    >
                       <div className="flex items-center space-x-1">
                         <span>Name</span>
                         <ArrowUpDown className="h-4 w-4" />
@@ -567,7 +627,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                   {visibleColumns.stage && <th className="text-left py-3 px-4">Stage</th>}
                   {visibleColumns.tags && <th className="text-left py-3 px-4">Tags</th>}
                   {visibleColumns.invested && (
-                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('totalInvested')}>
+                    <th
+                      className="text-left py-3 px-4 cursor-pointer"
+                      onClick={() => handleSort('totalInvested')}
+                    >
                       <div className="flex items-center space-x-1">
                         <span>Invested</span>
                         <ArrowUpDown className="h-4 w-4" />
@@ -575,7 +638,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                     </th>
                   )}
                   {visibleColumns.currentValue && (
-                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('currentValue')}>
+                    <th
+                      className="text-left py-3 px-4 cursor-pointer"
+                      onClick={() => handleSort('currentValue')}
+                    >
                       <div className="flex items-center space-x-1">
                         <span>Current Value</span>
                         <ArrowUpDown className="h-4 w-4" />
@@ -583,7 +649,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                     </th>
                   )}
                   {visibleColumns.moic && (
-                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('moic')}>
+                    <th
+                      className="text-left py-3 px-4 cursor-pointer"
+                      onClick={() => handleSort('moic')}
+                    >
                       <div className="flex items-center space-x-1">
                         <span>MOIC</span>
                         <ArrowUpDown className="h-4 w-4" />
@@ -591,7 +660,10 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                     </th>
                   )}
                   {visibleColumns.irr && (
-                    <th className="text-left py-3 px-4 cursor-pointer" onClick={() => handleSort('irr')}>
+                    <th
+                      className="text-left py-3 px-4 cursor-pointer"
+                      onClick={() => handleSort('irr')}
+                    >
                       <div className="flex items-center space-x-1">
                         <span>IRR</span>
                         <ArrowUpDown className="h-4 w-4" />
@@ -631,9 +703,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                           <div className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
                             {investment.name}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {investment.dateInvested}
-                          </div>
+                          <div className="text-sm text-gray-500">{investment.dateInvested}</div>
                         </div>
                       </td>
                     )}
@@ -642,14 +712,16 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                         <Badge variant="outline">{investment.sector}</Badge>
                       </td>
                     )}
-                    {visibleColumns.stage && (
-                      <td className="py-3 px-4">{investment.stage}</td>
-                    )}
+                    {visibleColumns.stage && <td className="py-3 px-4">{investment.stage}</td>}
                     {visibleColumns.tags && (
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
                           {investment.tags.slice(0, 2).map((tag, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                            <Badge
+                              key={idx}
+                              variant="outline"
+                              className="text-xs bg-blue-50 text-blue-700"
+                            >
                               {tag}
                             </Badge>
                           ))}

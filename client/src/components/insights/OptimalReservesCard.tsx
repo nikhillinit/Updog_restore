@@ -1,5 +1,9 @@
-import React from "react";
-import { ReserveOpportunityTable, type ReserveRow, type ReserveSummary } from "@/components/reserves/ReserveOpportunityTable";
+import React from 'react';
+import {
+  ReserveOpportunityTable,
+  type ReserveRow,
+  type ReserveSummary,
+} from '@/components/reserves/ReserveOpportunityTable';
 
 /**
  * Type guard to safely coerce values to number
@@ -19,11 +23,11 @@ export function OptimalReservesCard() {
   const state = {
     reserveAnalysis: {
       ranking: [] as Array<Record<string, unknown>>,
-      summary: { totalAvailable: 0, totalPlanned: 0, unallocated: 0 }
-    }
+      summary: { totalAvailable: 0, totalPlanned: 0, unallocated: 0 },
+    },
   };
   const calculateReserveOptimization = () => {
-    console.log('Reserve optimization not yet implemented - integrate with reserves engine');
+    // TODO: integrate with reserves engine
   };
 
   const ranking = state.reserveAnalysis.ranking;
@@ -34,7 +38,7 @@ export function OptimalReservesCard() {
     company: String(r['company'] ?? r['name'] ?? ''),
     plannedReserve: toNumber(r['plannedReserves'] ?? r['plannedReserve']),
     expectedExitMOIC: toNumber(r['exitMoicOnPlanned'] ?? r['expectedExitMOIC']),
-    ...(r['rationale'] ? { rationale: String(r['rationale']) } : {})
+    ...(r['rationale'] ? { rationale: String(r['rationale']) } : {}),
   }));
 
   return (
