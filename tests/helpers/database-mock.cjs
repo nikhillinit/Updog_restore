@@ -137,7 +137,7 @@ function createUpdateBuilder(table) {
   return {
     set(updateData) {
       return {
-        where(_condition) {
+        where(_condition) { // eslint-disable-line no-unused-vars
           const rows = tableStore.get(tableName) || [];
           if (rows.length === 0) {
             return {
@@ -161,7 +161,7 @@ function createUpdateBuilder(table) {
 function createDeleteBuilder(table) {
   const tableName = getTableNameFromObject(table);
   return {
-    where(_condition) {
+    where(_condition) { // eslint-disable-line no-unused-vars
       const rows = tableStore.get(tableName) || [];
       if (rows.length === 0) {
         return {
