@@ -6,18 +6,23 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Edit3,
-  Trash2,
-  Tag,
-  CheckCircle,
-  X,
-  AlertTriangle
-} from 'lucide-react';
+import { Edit3, Trash2, Tag, CheckCircle, X, AlertTriangle } from 'lucide-react';
 
 interface Investment {
   id: string;
@@ -26,6 +31,7 @@ interface Investment {
   stage: string;
   sector: string;
   tags?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic investment fields from various sources
   [key: string]: any;
 }
 
@@ -37,16 +43,40 @@ interface BulkOperationsToolbarProps {
   onBulkTag: (ids: string[], tags: string[]) => Promise<void>;
 }
 
-const INVESTMENT_STAGES = ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D+', 'Growth', 'Exit'];
-const INVESTMENT_STATUSES = ['Active', 'Exited', 'Written Off', 'Under Review', 'Follow-on Required'];
-const SECTORS = ['Technology', 'Healthcare', 'Financial Services', 'Consumer', 'Industrial', 'Energy', 'Real Estate', 'Other'];
+const INVESTMENT_STAGES = [
+  'Pre-Seed',
+  'Seed',
+  'Series A',
+  'Series B',
+  'Series C',
+  'Series D+',
+  'Growth',
+  'Exit',
+];
+const INVESTMENT_STATUSES = [
+  'Active',
+  'Exited',
+  'Written Off',
+  'Under Review',
+  'Follow-on Required',
+];
+const SECTORS = [
+  'Technology',
+  'Healthcare',
+  'Financial Services',
+  'Consumer',
+  'Industrial',
+  'Energy',
+  'Real Estate',
+  'Other',
+];
 
 export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   selectedInvestments,
   onClearSelection,
   onBulkUpdate,
   onBulkDelete,
-  onBulkTag
+  onBulkTag,
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -82,7 +112,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   const handleBulkDelete = async () => {
     setIsLoading(true);
     try {
-      const ids = selectedInvestments.map(inv => inv.id);
+      const ids = selectedInvestments.map((inv) => inv.id);
       await onBulkDelete(ids);
       setIsDeleteModalOpen(false);
     } catch (error) {
@@ -95,8 +125,11 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   const handleBulkTag = async () => {
     setIsLoading(true);
     try {
-      const tags = newTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-      const ids = selectedInvestments.map(inv => inv.id);
+      const tags = newTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+      const ids = selectedInvestments.map((inv) => inv.id);
       await onBulkTag(ids, tags);
       setIsTagModalOpen(false);
       setNewTags('');
@@ -136,14 +169,16 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Status</Label>
                     <Select
                       value={editForm.status || ''}
-                      onValueChange={(value) => setEditForm(prev => ({ ...prev, status: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {INVESTMENT_STATUSES.map(status => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
+                        {INVESTMENT_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -153,14 +188,16 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Stage</Label>
                     <Select
                       value={editForm.stage || ''}
-                      onValueChange={(value) => setEditForm(prev => ({ ...prev, stage: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, stage: value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select stage" />
                       </SelectTrigger>
                       <SelectContent>
-                        {INVESTMENT_STAGES.map(stage => (
-                          <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                        {INVESTMENT_STAGES.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -170,14 +207,16 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Sector</Label>
                     <Select
                       value={editForm.sector || ''}
-                      onValueChange={(value) => setEditForm(prev => ({ ...prev, sector: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, sector: value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select sector" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SECTORS.map(sector => (
-                          <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                        {SECTORS.map((sector) => (
+                          <SelectItem key={sector} value={sector}>
+                            {sector}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -187,7 +226,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Notes (append to existing)</Label>
                     <Textarea
                       value={editForm['notes'] || ''}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
                       placeholder="Additional notes to append"
                       rows={3}
                     />
@@ -226,12 +265,17 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                       placeholder="e.g., high-growth, ai-company, priority"
                     />
                     <p className="text-sm text-gray-600 mt-1">
-                      Enter tags separated by commas. These will be added to all selected investments.
+                      Enter tags separated by commas. These will be added to all selected
+                      investments.
                     </p>
                   </div>
 
                   <div className="flex gap-2 pt-4">
-                    <Button onClick={handleBulkTag} disabled={isLoading || !newTags.trim()} className="flex-1">
+                    <Button
+                      onClick={handleBulkTag}
+                      disabled={isLoading || !newTags.trim()}
+                      className="flex-1"
+                    >
                       {isLoading ? 'Adding Tags...' : `Tag ${selectedCount} Investments`}
                     </Button>
                     <Button variant="outline" onClick={() => setIsTagModalOpen(false)}>
@@ -258,7 +302,11 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
             {/* Bulk Delete */}
             <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1 text-red-700 border-red-200 hover:bg-red-50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-red-700 border-red-200 hover:bg-red-50"
+                >
                   <Trash2 className="h-4 w-4" />
                   Delete
                 </Button>
@@ -272,12 +320,12 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                 </DialogHeader>
                 <div className="space-y-4">
                   <p className="text-gray-700">
-                    Are you sure you want to delete {selectedCount} investment{selectedCount !== 1 ? 's' : ''}?
-                    This action cannot be undone.
+                    Are you sure you want to delete {selectedCount} investment
+                    {selectedCount !== 1 ? 's' : ''}? This action cannot be undone.
                   </p>
 
                   <div className="max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
-                    {selectedInvestments.map(inv => (
+                    {selectedInvestments.map((inv) => (
                       <div key={inv.id} className="text-sm py-1">
                         • {inv.company_name}
                       </div>
@@ -318,7 +366,11 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
       <div className="mt-3 pt-3 border-t border-blue-200">
         <div className="flex flex-wrap gap-2">
           <div className="text-sm text-blue-700">
-            <strong>Companies:</strong> {selectedInvestments.slice(0, 3).map(inv => inv.company_name).join(', ')}
+            <strong>Companies:</strong>{' '}
+            {selectedInvestments
+              .slice(0, 3)
+              .map((inv) => inv.company_name)
+              .join(', ')}
             {selectedCount > 3 && ` and ${selectedCount - 3} more`}
           </div>
         </div>

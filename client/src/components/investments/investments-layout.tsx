@@ -1,15 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Plus,
   Search,
@@ -19,9 +21,15 @@ import {
   Eye,
   BarChart3,
   Edit2,
-  Upload
+  Upload,
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { BRANDING } from '@/config/branding';
 
@@ -51,7 +59,7 @@ const SAMPLE_INVESTMENTS: Investment[] = [
     moic: 1.85,
     ownership: 4.2,
     currentValue: 4440000,
-    irr: 42.3
+    irr: 42.3,
   },
   {
     id: '2',
@@ -64,7 +72,7 @@ const SAMPLE_INVESTMENTS: Investment[] = [
     moic: 1.65,
     ownership: 3.8,
     currentValue: 3960000,
-    irr: 28.7
+    irr: 28.7,
   },
   {
     id: '3',
@@ -77,7 +85,7 @@ const SAMPLE_INVESTMENTS: Investment[] = [
     moic: 2.15,
     ownership: 5.2,
     currentValue: 2580000,
-    irr: 65.4
+    irr: 65.4,
   },
   {
     id: '4',
@@ -90,7 +98,7 @@ const SAMPLE_INVESTMENTS: Investment[] = [
     moic: 1.45,
     ownership: 4.8,
     currentValue: 2175000,
-    irr: 18.9
+    irr: 18.9,
   },
   {
     id: '5',
@@ -103,8 +111,8 @@ const SAMPLE_INVESTMENTS: Investment[] = [
     moic: 3.25,
     ownership: 0,
     currentValue: 3250000,
-    irr: 89.2
-  }
+    irr: 89.2,
+  },
 ];
 
 export default function InvestmentsLayout() {
@@ -112,7 +120,7 @@ export default function InvestmentsLayout() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedStage, setSelectedStage] = useState('all');
 
-  const filteredInvestments = SAMPLE_INVESTMENTS.filter(investment => {
+  const filteredInvestments = SAMPLE_INVESTMENTS.filter((investment) => {
     const matchesSearch = investment.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || investment.status === selectedStatus;
     const matchesStage = selectedStage === 'all' || investment.stage === selectedStage;
@@ -121,9 +129,9 @@ export default function InvestmentsLayout() {
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      'Active': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Realized': 'bg-green-100 text-green-800 border-green-200',
-      'Written Off': 'bg-red-100 text-red-800 border-red-200'
+      Active: 'bg-blue-100 text-blue-800 border-blue-200',
+      Realized: 'bg-green-100 text-green-800 border-green-200',
+      'Written Off': 'bg-red-100 text-red-800 border-red-200',
     };
     return variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800';
   };
@@ -133,7 +141,7 @@ export default function InvestmentsLayout() {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -146,7 +154,9 @@ export default function InvestmentsLayout() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{BRANDING.company.legalName} / Investments</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {BRANDING.company.legalName} / Investments
+          </h1>
           <p className="text-gray-600 mt-1">View and manage investments</p>
         </div>
       </div>
@@ -154,8 +164,12 @@ export default function InvestmentsLayout() {
       {/* Tabs */}
       <Tabs defaultValue="direct" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="direct" className="text-sm">Direct Investments</TabsTrigger>
-          <TabsTrigger value="fund" className="text-sm">Fund Investments</TabsTrigger>
+          <TabsTrigger value="direct" className="text-sm">
+            Direct Investments
+          </TabsTrigger>
+          <TabsTrigger value="fund" className="text-sm">
+            Fund Investments
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="direct" className="space-y-6">
@@ -166,7 +180,7 @@ export default function InvestmentsLayout() {
               Add Investment
               <ChevronDown className="h-4 w-4 ml-2" />
             </Button>
-            
+
             <Button variant="outline" className="text-gray-700 border-gray-300">
               <Upload className="h-4 w-4 mr-2" />
               Bulk Import
@@ -178,12 +192,12 @@ export default function InvestmentsLayout() {
                 <Calendar className="h-4 w-4 mr-1" />
                 Upcoming Rounds
               </Button>
-              
+
               <Button variant="outline" size="sm" className="text-gray-600">
                 <BarChart3 className="h-4 w-4 mr-1" />
                 Planning View
               </Button>
-              
+
               <Button variant="outline" size="sm" className="text-gray-600">
                 <TrendingUp className="h-4 w-4 mr-1" />
                 FMV Update
@@ -198,11 +212,11 @@ export default function InvestmentsLayout() {
               <Input
                 placeholder="Search by company name. Press Enter to search."
                 value={searchTerm}
-                onChange={(e: any) => setSearchTerm(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-white border-gray-300"
               />
             </div>
-            
+
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Status" />
@@ -247,7 +261,7 @@ export default function InvestmentsLayout() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvestments.map((investment: any) => (
+                {filteredInvestments.map((investment: Investment) => (
                   <TableRow key={investment.id} className="hover:bg-gray-50 cursor-pointer">
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -263,7 +277,7 @@ export default function InvestmentsLayout() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      <a 
+                      <a
                         href={`/investments/company/${investment.id}`}
                         className="text-blue-600 hover:text-blue-800 cursor-pointer"
                       >
@@ -271,7 +285,7 @@ export default function InvestmentsLayout() {
                       </a>
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("text-xs border", getStatusBadge(investment.status))}>
+                      <Badge className={cn('text-xs border', getStatusBadge(investment.status))}>
                         {investment.status}
                       </Badge>
                     </TableCell>
@@ -285,22 +299,34 @@ export default function InvestmentsLayout() {
                       {formatCurrency(investment.currentValue)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      <span className={cn(
-                        investment.moic >= 2 ? "text-green-600" : 
-                        investment.moic >= 1 ? "text-blue-600" : "text-red-600"
-                      )}>
+                      <span
+                        className={cn(
+                          investment.moic >= 2
+                            ? 'text-green-600'
+                            : investment.moic >= 1
+                              ? 'text-blue-600'
+                              : 'text-red-600'
+                        )}
+                      >
                         {investment.moic.toFixed(2)}x
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {investment.irr ? (
-                        <span className={cn(
-                          investment.irr >= 30 ? "text-green-600" : 
-                          investment.irr >= 15 ? "text-blue-600" : "text-red-600"
-                        )}>
+                        <span
+                          className={cn(
+                            investment.irr >= 30
+                              ? 'text-green-600'
+                              : investment.irr >= 15
+                                ? 'text-blue-600'
+                                : 'text-red-600'
+                          )}
+                        >
                           {formatPercent(investment.irr)}
                         </span>
-                      ) : '-'}
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatPercent(investment.ownership)}
@@ -319,21 +345,21 @@ export default function InvestmentsLayout() {
                 <p className="text-sm text-gray-600">Total Investments</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">{formatCurrency(8500000)}</div>
                 <p className="text-sm text-gray-600">Total Invested</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">{formatCurrency(16405000)}</div>
                 <p className="text-sm text-gray-600">Current Portfolio Value</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-green-600">1.93x</div>
@@ -342,7 +368,7 @@ export default function InvestmentsLayout() {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="fund">
           <div className="text-center py-12">
             <p className="text-gray-500">Fund Investments will be displayed here</p>

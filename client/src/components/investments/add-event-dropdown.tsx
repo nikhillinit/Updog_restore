@@ -1,22 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import OwnershipUpdateDialog from "./ownership-update-dialog";
-import NewRoundDialog from "./new-round-dialog";
-import ValuationUpdateDialog from "./valuation-update-dialog";
-import { 
-  Plus, 
-  DollarSign, 
-  TrendingUp, 
-  ArrowUpDown, 
-  Banknote,
-  Calculator
-} from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import OwnershipUpdateDialog from './ownership-update-dialog';
+import NewRoundDialog from './new-round-dialog';
+import ValuationUpdateDialog from './valuation-update-dialog';
+import { Plus, DollarSign, TrendingUp, ArrowUpDown, Banknote, Calculator } from 'lucide-react';
 
 interface AddEventDropdownProps {
   onSelectEvent: (_eventType: string) => void;
@@ -34,66 +22,63 @@ const eventTypes = [
     id: 'new-round',
     label: 'New Round',
     icon: Plus,
-    description: 'Add a new funding round'
+    description: 'Add a new funding round',
   },
   {
     id: 'ownership-update',
     label: 'Ownership Update',
     icon: ArrowUpDown,
-    description: 'Update ownership percentage'
+    description: 'Update ownership percentage',
   },
   {
     id: 'valuation-update',
     label: 'Valuation Update',
     icon: TrendingUp,
-    description: 'Update company valuation'
+    description: 'Update company valuation',
   },
   {
     id: 'secondary-acquisition',
     label: 'Secondary Acquisition',
     icon: DollarSign,
-    description: 'Secondary share purchase'
+    description: 'Secondary share purchase',
   },
   {
     id: 'partial-sale',
     label: 'Partial Sale',
     icon: Calculator,
-    description: 'Partial exit or sale'
+    description: 'Partial exit or sale',
   },
   {
     id: 'dividend',
     label: 'Dividend, Interest or Distribution',
     icon: Banknote,
-    description: 'Cash distributions'
-  }
+    description: 'Cash distributions',
+  },
 ];
 
-export default function AddEventDropdown({ 
-  onSelectEvent, 
-  isOpen, 
+export default function AddEventDropdown({
+  onSelectEvent,
+  isOpen,
   onToggle,
-  investment 
+  investment,
 }: AddEventDropdownProps) {
   const [showOwnershipDialog, setShowOwnershipDialog] = useState(false);
   const [showNewRoundDialog, setShowNewRoundDialog] = useState(false);
   const [showValuationDialog, setShowValuationDialog] = useState(false);
   return (
     <div className="relative">
-      <Button 
-        onClick={onToggle}
-        className="povc-bg-primary hover:bg-blue-700"
-      >
+      <Button onClick={onToggle} className="povc-bg-primary hover:bg-blue-700">
         <Plus className="mr-2 h-4 w-4" />
         Add
       </Button>
-      
+
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onToggle} />
           <Card className="absolute top-full mt-2 right-0 w-80 z-50 shadow-lg">
             <CardContent className="p-2">
               <div className="space-y-1">
-                {eventTypes.map((event: any) => {
+                {eventTypes.map((event) => {
                   const IconComponent = event.icon;
                   return (
                     <button
@@ -119,12 +104,8 @@ export default function AddEventDropdown({
                         <IconComponent className="h-4 w-4 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {event.label}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {event.description}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900">{event.label}</p>
+                        <p className="text-xs text-gray-500">{event.description}</p>
                       </div>
                     </button>
                   );
@@ -134,7 +115,7 @@ export default function AddEventDropdown({
           </Card>
         </>
       )}
-      
+
       {/* Dialogs */}
       <OwnershipUpdateDialog
         isOpen={showOwnershipDialog}
@@ -147,14 +128,14 @@ export default function AddEventDropdown({
         onOpenChange={setShowNewRoundDialog}
         {...(investment !== undefined ? { investment } : {})}
       />
-      
+
       <ValuationUpdateDialog
         isOpen={showValuationDialog}
         onOpenChange={setShowValuationDialog}
         investment={{
-          id: investment?.id || "",
-          company: investment?.company || "",
-          currentValuation: 15000000
+          id: investment?.id || '',
+          company: investment?.company || '',
+          currentValuation: 15000000,
         }}
       />
     </div>

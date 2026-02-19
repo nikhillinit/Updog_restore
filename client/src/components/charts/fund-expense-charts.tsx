@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -12,17 +7,11 @@ import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Download,
-  Info,
-  DollarSign,
-  Percent,
-  TrendingUp
-} from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Download, Info, DollarSign, Percent, TrendingUp } from 'lucide-react';
 
 interface ExpenseData {
   date: string;
@@ -67,7 +56,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       audit: { monthly: 5000, setup: 0 }, // $600k over 120 months
       software: { monthly: 5000, setup: 0 }, // $300k over 60 months
       setup: { monthly: 0, setup: 500000 }, // $500k upfront
-      other: { monthly: 10000, setup: 0 } // $1.2M over 120 months
+      other: { monthly: 10000, setup: 0 }, // $1.2M over 120 months
     };
 
     const cumulativeTotals = {
@@ -77,25 +66,29 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       audit: 0,
       software: 0,
       setup: 500000, // Setup paid upfront
-      other: 0
+      other: 0,
     };
 
     for (let month = 0; month < 120; month++) {
       const currentDate = new Date(startDate);
       currentDate.setMonth(startDate.getMonth() + month);
-      
+
       // Add monthly expenses
-      if (month < 60) { // Legal and Software only for 60 months
+      if (month < 60) {
+        // Legal and Software only for 60 months
         cumulativeTotals.legal += categories.legal.monthly;
         cumulativeTotals.software += categories.software.monthly;
       }
-      
+
       cumulativeTotals.administration += categories.administration.monthly;
       cumulativeTotals.tax += categories.tax.monthly;
       cumulativeTotals.audit += categories.audit.monthly;
       cumulativeTotals.other += categories.other.monthly;
 
-      const total = Object.values(cumulativeTotals).reduce((sum: any, val: any) => sum + val, 0);
+      const total = Object.values(cumulativeTotals).reduce(
+        (sum: number, val: number) => sum + val,
+        0
+      );
 
       data.push({
         date: currentDate.toISOString().slice(0, 7), // YYYY-MM format
@@ -106,7 +99,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
         software: cumulativeTotals.software,
         setup: cumulativeTotals.setup,
         other: cumulativeTotals.other,
-        total: total
+        total: total,
       });
     }
 
@@ -117,7 +110,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
   const fundSize = 200000000; // $200M fund
 
   // Convert to expense ratios
-  const expenseRatioData: ExpenseRatioData[] = expenseData.map(item => ({
+  const expenseRatioData: ExpenseRatioData[] = expenseData.map((item) => ({
     date: item.date,
     legalRatio: (item.legal / fundSize) * 100,
     administrationRatio: (item.administration / fundSize) * 100,
@@ -126,7 +119,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
     softwareRatio: (item.software / fundSize) * 100,
     setupRatio: (item.setup / fundSize) * 100,
     otherRatio: (item.other / fundSize) * 100,
-    totalRatio: (item.total / fundSize) * 100
+    totalRatio: (item.total / fundSize) * 100,
   }));
 
   // Color scheme for expense categories
@@ -138,7 +131,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
     software: '#22c55e', // Green
     setup: '#a855f7', // Purple
     other: '#ef4444', // Red
-    total: '#fbbf24' // Yellow
+    total: '#fbbf24', // Yellow
   };
 
   const formatCurrency = (value: number) => {
@@ -149,46 +142,62 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
 
   const formatPercent = (value: number) => `${value.toFixed(3)}%`;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
+    active?: boolean;
+    payload?: Array<{ dataKey: string; value: number; color: string }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
-      const currentData = viewType === 'expenses' ? 
-        expenseData.find(d => d.date === label) : 
-        expenseRatioData.find(d => d.date === label);
-      
+      const currentData =
+        viewType === 'expenses'
+          ? expenseData.find((d) => d.date === label)
+          : expenseRatioData.find((d) => d.date === label);
+
       if (!currentData) return null;
 
       const formatDate = (dateStr: string) => {
-        const date = new Date(`${dateStr  }-01`);
+        const date = new Date(`${dateStr}-01`);
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       };
 
-      const totalValue = viewType === 'expenses' ? 
-        (currentData as ExpenseData).total : 
-        (currentData as ExpenseRatioData).totalRatio;
+      const totalValue =
+        viewType === 'expenses'
+          ? (currentData as ExpenseData).total
+          : (currentData as ExpenseRatioData).totalRatio;
 
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg max-w-xs">
-          <p className="font-medium mb-2">{formatDate(label)}</p>
+          <p className="font-medium mb-2">{label ? formatDate(label) : ''}</p>
           <p className="font-bold text-yellow-600 mb-2">
-            Total: {viewType === 'expenses' ? formatCurrency(totalValue) : formatPercent(totalValue)}
+            Total:{' '}
+            {viewType === 'expenses' ? formatCurrency(totalValue) : formatPercent(totalValue)}
           </p>
           <div className="space-y-1 text-sm">
             {payload
-              .filter((entry: any) => entry.dataKey !== 'total' && entry.dataKey !== 'totalRatio')
-              .sort((a: any, b: any) => b.value - a.value)
-              .map((entry: any, index: number) => (
+              .filter(
+                (entry: { dataKey: string; value: number; color: string }) =>
+                  entry.dataKey !== 'total' && entry.dataKey !== 'totalRatio'
+              )
+              .sort((a: { value: number }, b: { value: number }) => b.value - a.value)
+              .map((entry: { dataKey: string; value: number; color: string }, index: number) => (
                 <div key={index} className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
-                    <div 
-                      className="w-3 h-3 rounded"
-                      style={{ backgroundColor: entry.color }}
-                    />
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: entry.color }} />
                     <span className="capitalize">
-                      {entry.dataKey.replace('Ratio', '').replace(/([A-Z])/g, ' $1').trim()}
+                      {entry.dataKey
+                        .replace('Ratio', '')
+                        .replace(/([A-Z])/g, ' $1')
+                        .trim()}
                     </span>
                   </div>
                   <span className="font-medium">
-                    {viewType === 'expenses' ? formatCurrency(entry.value) : formatPercent(entry.value)}
+                    {viewType === 'expenses'
+                      ? formatCurrency(entry.value)
+                      : formatPercent(entry.value)}
                   </span>
                 </div>
               ))}
@@ -225,7 +234,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
 
       {/* Toggle between Expenses and Ratios */}
       <div className="flex items-center space-x-4">
-        <Button 
+        <Button
           variant={viewType === 'expenses' ? 'default' : 'outline'}
           onClick={() => setViewType('expenses')}
           className="flex items-center space-x-2"
@@ -233,7 +242,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
           <DollarSign className="h-4 w-4" />
           <span>Fund Expenses</span>
         </Button>
-        <Button 
+        <Button
           variant={viewType === 'ratios' ? 'default' : 'outline'}
           onClick={() => setViewType('ratios')}
           className="flex items-center space-x-2"
@@ -248,10 +257,9 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
         <CardHeader>
           <CardTitle>{viewType === 'expenses' ? 'Fund Expenses' : 'Expense Ratio'}</CardTitle>
           <CardDescription>
-            {viewType === 'expenses' ? 
-              'Cumulative fund expenses over time by category' : 
-              'Expense ratios as percentage of fund size over time'
-            }
+            {viewType === 'expenses'
+              ? 'Cumulative fund expenses over time by category'
+              : 'Expense ratios as percentage of fund size over time'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -269,22 +277,25 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value: any) => {
-                        const date = new Date(`${value  }-01`);
-                        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                      tickFormatter={(value: string) => {
+                        const date = new Date(`${value}-01`);
+                        return date.toLocaleDateString('en-US', {
+                          month: 'short',
+                          year: '2-digit',
+                        });
                       }}
                     />
-                    <YAxis 
+                    <YAxis
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value: any) => 
+                      tickFormatter={(value: number) =>
                         viewType === 'expenses' ? formatCurrency(value) : formatPercent(value)
                       }
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    
+
                     {/* Stacked areas for all categories */}
                     <Area
                       type="monotone"
@@ -344,34 +355,64 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={viewType === 'expenses' ? expenseData.slice(-12) : expenseRatioData.slice(-12)}
+                    data={
+                      viewType === 'expenses' ? expenseData.slice(-12) : expenseRatioData.slice(-12)
+                    }
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value: any) => {
-                        const date = new Date(`${value  }-01`);
+                      tickFormatter={(value: string) => {
+                        const date = new Date(`${value}-01`);
                         return date.toLocaleDateString('en-US', { month: 'short' });
                       }}
                     />
-                    <YAxis 
+                    <YAxis
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value: any) => 
+                      tickFormatter={(value: number) =>
                         viewType === 'expenses' ? formatCurrency(value) : formatPercent(value)
                       }
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    
+
                     {/* Stacked bars for recent periods */}
-                    <Bar dataKey={viewType === 'expenses' ? 'legal' : 'legalRatio'} stackId="a" fill={expenseColors.legal} />
-                    <Bar dataKey={viewType === 'expenses' ? 'administration' : 'administrationRatio'} stackId="a" fill={expenseColors.administration} />
-                    <Bar dataKey={viewType === 'expenses' ? 'tax' : 'taxRatio'} stackId="a" fill={expenseColors.tax} />
-                    <Bar dataKey={viewType === 'expenses' ? 'audit' : 'auditRatio'} stackId="a" fill={expenseColors.audit} />
-                    <Bar dataKey={viewType === 'expenses' ? 'software' : 'softwareRatio'} stackId="a" fill={expenseColors.software} />
-                    <Bar dataKey={viewType === 'expenses' ? 'setup' : 'setupRatio'} stackId="a" fill={expenseColors.setup} />
-                    <Bar dataKey={viewType === 'expenses' ? 'other' : 'otherRatio'} stackId="a" fill={expenseColors.other} />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'legal' : 'legalRatio'}
+                      stackId="a"
+                      fill={expenseColors.legal}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'administration' : 'administrationRatio'}
+                      stackId="a"
+                      fill={expenseColors.administration}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'tax' : 'taxRatio'}
+                      stackId="a"
+                      fill={expenseColors.tax}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'audit' : 'auditRatio'}
+                      stackId="a"
+                      fill={expenseColors.audit}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'software' : 'softwareRatio'}
+                      stackId="a"
+                      fill={expenseColors.software}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'setup' : 'setupRatio'}
+                      stackId="a"
+                      fill={expenseColors.setup}
+                    />
+                    <Bar
+                      dataKey={viewType === 'expenses' ? 'other' : 'otherRatio'}
+                      stackId="a"
+                      fill={expenseColors.other}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -382,10 +423,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             {Object.entries(expenseColors).map(([category, color]) => (
               <div key={category} className="flex items-center space-x-2">
-                <div 
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: color }}
-                />
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: color }} />
                 <span className="text-sm capitalize">
                   {category === 'total' ? 'Total' : category}
                 </span>

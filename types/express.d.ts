@@ -56,7 +56,7 @@ declare global {
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;
-        [key: string]: any;
+        [key: string]: unknown;
       };
     }
 
@@ -66,7 +66,7 @@ declare global {
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;
-        [key: string]: any;
+        [key: string]: unknown;
       };
       /** Unique request identifier for tracing */
       requestId?: string;

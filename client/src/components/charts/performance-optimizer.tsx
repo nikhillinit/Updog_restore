@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -12,14 +7,19 @@ import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { memo } from 'react';
 
+interface PerformanceDataPoint {
+  month: string;
+  value: number;
+}
+
 interface PerformanceOptimizerProps {
-  data: any[];
+  data: PerformanceDataPoint[];
   height?: number;
 }
 
-const PerformanceOptimizer = memo(function PerformanceOptimizer({ 
-  data, 
-  height = 300 
+const PerformanceOptimizer = memo(function PerformanceOptimizer({
+  data,
+  height = 300,
 }: PerformanceOptimizerProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -28,10 +28,10 @@ const PerformanceOptimizer = memo(function PerformanceOptimizer({
         <XAxis dataKey="month" />
         <YAxis />
         <Tooltip />
-        <Line 
-          type="monotone" 
-          dataKey="value" 
-          stroke="#3b82f6" 
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke="#3b82f6"
           strokeWidth={2}
           dot={false} // Remove dots for better performance
         />

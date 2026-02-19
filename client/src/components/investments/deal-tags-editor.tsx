@@ -1,13 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { X, Plus, Search, Tag } from 'lucide-react';
 
@@ -44,18 +45,21 @@ const PREDEFINED_TAGS = [
   'Hardware',
   'Mobile',
   'Enterprise',
-  'Consumer'
+  'Consumer',
 ];
 
-export default function DealTagsEditor({ selectedTags, onTagsChange, className = '' }: DealTagsEditorProps) {
+export default function DealTagsEditor({
+  selectedTags,
+  onTagsChange,
+  className = '',
+}: DealTagsEditorProps) {
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Filter available tags (exclude already selected ones)
-  const availableTags = PREDEFINED_TAGS.filter(tag => 
-    !selectedTags.includes(tag) && 
-    tag.toLowerCase().includes(inputValue.toLowerCase())
+  const availableTags = PREDEFINED_TAGS.filter(
+    (tag) => !selectedTags.includes(tag) && tag.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   const handleTagSelect = (tag: string) => {
@@ -67,7 +71,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
   };
 
   const handleTagRemove = (tagToRemove: string) => {
-    onTagsChange(selectedTags.filter(tag => tag !== tagToRemove));
+    onTagsChange(selectedTags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleCustomTag = () => {
@@ -109,10 +113,10 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
       {/* Selected Tags Display */}
       {selectedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {selectedTags.map((tag: any) => (
-            <Badge 
-              key={tag} 
-              variant="secondary" 
+          {selectedTags.map((tag) => (
+            <Badge
+              key={tag}
+              variant="secondary"
               className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 pr-1"
             >
               {tag}
@@ -137,7 +141,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
               ref={inputRef}
               placeholder="Investment Tags (you can enter new tags)"
               value={inputValue}
-              onChange={(e: any) => setInputValue(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
               onFocus={() => setIsOpen(true)}
               onKeyDown={handleKeyDown}
               className="pr-8"
@@ -145,13 +149,13 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
             <Search className="h-4 w-4 absolute right-3 top-3 text-gray-400" />
           </div>
         </PopoverTrigger>
-        
+
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command>
             <CommandList className="max-h-[200px]">
               {availableTags.length > 0 ? (
                 <CommandGroup>
-                  {availableTags.map((tag: any) => (
+                  {availableTags.map((tag) => (
                     <CommandItem
                       key={tag}
                       onSelect={() => handleTagSelect(tag)}
@@ -163,19 +167,16 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
                   ))}
                 </CommandGroup>
               ) : null}
-              
+
               {inputValue.trim() && !selectedTags.includes(inputValue.trim()) && (
                 <CommandGroup>
-                  <CommandItem
-                    onSelect={handleCustomTag}
-                    className="cursor-pointer border-t"
-                  >
+                  <CommandItem onSelect={handleCustomTag} className="cursor-pointer border-t">
                     <Plus className="h-4 w-4 mr-2 text-green-500" />
                     Create "{inputValue.trim()}"
                   </CommandItem>
                 </CommandGroup>
               )}
-              
+
               {availableTags.length === 0 && !inputValue.trim() && (
                 <CommandEmpty>No tags found.</CommandEmpty>
               )}

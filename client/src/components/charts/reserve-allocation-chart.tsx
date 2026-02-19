@@ -1,12 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useReserveData } from '@/hooks/use-engine-data';
 import NivoAllocationPie from './nivo-allocation-pie';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ReserveAllocationChartProps {
   fundId: number;
@@ -47,12 +42,13 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
   }
 
   // Transform reserve engine data to allocation pie chart format
-  const pieData = reserveData?.allocations.map((item: any, index: any) => ({
-    id: `company-${index + 1}`,
-    label: `Company ${index + 1}`,
-    value: item.allocation,
-    confidence: item.confidence
-  })) || [];
+  const pieData =
+    reserveData?.allocations.map((item, index) => ({
+      id: `company-${index + 1}`,
+      label: `Company ${index + 1}`,
+      value: item.allocation,
+      confidence: item.confidence,
+    })) || [];
 
   // Calculate summary stats from ReserveSummary
   const totalAllocation = reserveData?.totalAllocation || 0;
@@ -62,12 +58,12 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
 
   return (
     <div className="space-y-6">
-      <NivoAllocationPie 
+      <NivoAllocationPie
         title="Reserve Allocations by Portfolio Company"
         data={pieData}
         height={400}
       />
-      
+
       {/* Engine Insights Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -100,7 +96,9 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
                   ) : (
                     <TrendingDown className="h-4 w-4 text-orange-500 mr-1" />
                   )}
-                  <span className={`text-sm font-medium ${avgConfidence >= 0.7 ? 'text-green-600' : 'text-orange-600'}`}>
+                  <span
+                    className={`text-sm font-medium ${avgConfidence >= 0.7 ? 'text-green-600' : 'text-orange-600'}`}
+                  >
                     {avgConfidence >= 0.7 ? 'High confidence' : 'Cold-start mode'}
                   </span>
                 </div>
@@ -118,7 +116,10 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
                   {highConfidenceCount}/{allocationCount}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {allocationCount > 0 ? ((highConfidenceCount / allocationCount) * 100).toFixed(0) : 0}% of positions
+                  {allocationCount > 0
+                    ? ((highConfidenceCount / allocationCount) * 100).toFixed(0)
+                    : 0}
+                  % of positions
                 </p>
               </div>
             </div>
@@ -133,8 +134,11 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {reserveData?.allocations.map((item: any, index: any) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            {reserveData?.allocations.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">Company {index + 1}</p>
                   <p className="text-sm text-gray-600">{item.rationale}</p>
@@ -143,11 +147,13 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
                   <p className="font-semibold text-gray-800">
                     ${(item.allocation / 1000000).toFixed(1)}M
                   </p>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium inline-block ${
-                    item.confidence >= 0.7 
-                      ? 'bg-green-50 text-green-700' 
-                      : 'bg-orange-50 text-orange-700'
-                  }`}>
+                  <div
+                    className={`px-2 py-1 rounded-full text-xs font-medium inline-block ${
+                      item.confidence >= 0.7
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-orange-50 text-orange-700'
+                    }`}
+                  >
                     {(item.confidence * 100).toFixed(0)}% confidence
                   </div>
                 </div>

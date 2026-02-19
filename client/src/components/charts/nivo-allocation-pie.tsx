@@ -11,7 +11,7 @@ import { Cell } from 'recharts/es6/component/Cell';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getChartColor } from '@/lib/chart-theme';
 
 interface AllocationData {
@@ -29,7 +29,13 @@ interface NivoAllocationPieProps {
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; name: string; payload: { total: number } }>;
+}) => {
   if (active && payload && payload.length) {
     const data = payload[0]!;
     const total = payload[0]!.payload.total || 0;
@@ -46,18 +52,14 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export default function NivoAllocationPie({ 
-  title, 
-  data, 
-  height = 400 
-}: NivoAllocationPieProps) {
+export default function NivoAllocationPie({ title, data, height = 400 }: NivoAllocationPieProps) {
   // Transform data for Recharts
   const total = data.reduce((sum, item) => sum + item.value, 0);
   const chartData = data.map((item, index) => ({
     name: item.label,
     value: item.value,
     total: total,
-    fill: item.color || getChartColor(index)
+    fill: item.color || getChartColor(index),
   }));
 
   return (
@@ -73,7 +75,7 @@ export default function NivoAllocationPie({
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={(props: any) => {
+              label={(props: { name?: string; value?: number }) => {
                 const name = props.name || '';
                 const value = props.value || 0;
                 const safeTotal = total || 1;
@@ -84,7 +86,7 @@ export default function NivoAllocationPie({
               fill="#8884d8"
               dataKey="value"
             >
-              {chartData.map((entry: any, index: any) => (
+              {chartData.map((entry: { fill: string }, index: number) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </Pie>
