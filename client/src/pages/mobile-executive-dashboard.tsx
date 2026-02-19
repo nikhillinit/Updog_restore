@@ -14,8 +14,8 @@ import { POVBrandHeader } from '@/components/ui/POVLogo';
 
 // Lazy load the main dashboard component for optimal bundle splitting
 const MobileExecutiveDashboardDemo = React.lazy(() =>
-  import('@/components/dashboard/MobileExecutiveDashboardDemo').then(module => ({
-    default: module.MobileExecutiveDashboardDemo
+  import('@/components/dashboard/MobileExecutiveDashboardDemo').then((module) => ({
+    default: module.MobileExecutiveDashboardDemo,
   }))
 );
 
@@ -25,7 +25,7 @@ function usePerformanceMetrics() {
     fcpTime: 0,
     bundleSize: 0,
     loadTime: 0,
-    isLoaded: false
+    isLoaded: false,
   });
 
   useEffect(() => {
@@ -37,7 +37,7 @@ function usePerformanceMetrics() {
         const observer = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
             if (entry.name === 'first-contentful-paint') {
-              setMetrics(prev => ({ ...prev, fcpTime: entry.startTime }));
+              setMetrics((prev) => ({ ...prev, fcpTime: entry.startTime }));
             }
           }
         });
@@ -50,10 +50,10 @@ function usePerformanceMetrics() {
     // Monitor load time
     const handleLoad = () => {
       const loadTime = performance.now() - startTime;
-      setMetrics(prev => ({
+      setMetrics((prev) => ({
         ...prev,
         loadTime,
-        isLoaded: true
+        isLoaded: true,
       }));
     };
 
@@ -142,12 +142,15 @@ function MobileErrorFallback({ error }: { error: Error }) {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
         <div className="text-red-500 mb-4">
           <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"
+            />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-2">
-          Dashboard Unavailable
-        </h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Dashboard Unavailable</h2>
         <p className="text-slate-600 mb-4">
           There was an issue loading the executive dashboard. Please try refreshing the page.
         </p>
@@ -176,28 +179,22 @@ export default function MobileExecutiveDashboardPage() {
   // Enable debugger in development or with URL parameter
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const debugMode = urlParams.get('debug') === 'true' || process.env['NODE_ENV'] === 'development';
+    const debugMode =
+      urlParams.get('debug') === 'true' || process.env['NODE_ENV'] === 'development';
     setEnableDebugger(debugMode);
   }, []);
 
   // Performance logging
   useEffect(() => {
     if (performanceMetrics.isLoaded) {
-      console.log('📱 Mobile Executive Dashboard Performance:', {
-        'First Contentful Paint': `${performanceMetrics.fcpTime.toFixed(1)}ms`,
-        'Total Load Time': `${performanceMetrics.loadTime.toFixed(1)}ms`,
-        'Target FCP': '<1500ms',
-        'Performance': performanceMetrics.fcpTime < 1500 ? '✅ Excellent' : '⚠️ Needs Optimization'
-      });
-
       // Track performance metrics for monitoring
       if (typeof window !== 'undefined' && 'gtag' in window) {
         // Example: Send to Google Analytics
         (window as any).gtag?.('event', 'mobile_dashboard_performance', {
-          'custom_map': {
-            'fcp_time': performanceMetrics.fcpTime,
-            'load_time': performanceMetrics.loadTime
-          }
+          custom_map: {
+            fcp_time: performanceMetrics.fcpTime,
+            load_time: performanceMetrics.loadTime,
+          },
         });
       }
     }
@@ -211,7 +208,10 @@ export default function MobileExecutiveDashboardPage() {
     <div className="min-h-screen bg-slate-50">
       {/* SEO optimizations for mobile */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <meta name="description" content="Mobile-optimized executive dashboard for venture capital fund management" />
+      <meta
+        name="description"
+        content="Mobile-optimized executive dashboard for venture capital fund management"
+      />
       <meta name="keywords" content="VC dashboard, mobile, executive, portfolio management" />
 
       {/* Progressive Web App hints */}
@@ -256,7 +256,10 @@ class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback: React.ComponentType<{ error: Error }> },
   { hasError: boolean; error: Error | null }
 > {
-  constructor(props: { children: React.ReactNode; fallback: React.ComponentType<{ error: Error }> }) {
+  constructor(props: {
+    children: React.ReactNode;
+    fallback: React.ComponentType<{ error: Error }>;
+  }) {
     super(props);
     this.state = { hasError: false, error: null };
   }

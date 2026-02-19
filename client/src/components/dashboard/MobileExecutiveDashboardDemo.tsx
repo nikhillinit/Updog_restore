@@ -26,7 +26,7 @@ import {
   MobileDonutChart,
   MobileBarChart,
   Sparkline,
-  ChartSkeleton
+  ChartSkeleton,
 } from '@/components/charts/MobileOptimizedCharts';
 import {
   ResponsiveGrid,
@@ -35,14 +35,14 @@ import {
   ResponsiveFlex,
   ResponsiveLayoutDebugger,
   useResponsiveBreakpoint,
-  type ResponsiveContentItem
+  type ResponsiveContentItem,
 } from '@/components/layout/ResponsiveLayout';
 
 // Agent 1 Components (AI-Enhanced)
 import { AIInsightCard, type PortfolioInsight } from '@/components/ui/ai-insight-card';
 import {
   ProgressiveDisclosureContainer,
-  type DataSection
+  type DataSection,
 } from '@/components/ui/progressive-disclosure-container';
 
 // Icons
@@ -56,7 +56,7 @@ import {
   Smartphone,
   BarChart3,
   Zap,
-  Eye
+  Eye,
 } from 'lucide-react';
 
 interface MobileExecutiveDashboardDemoProps {
@@ -68,11 +68,13 @@ interface MobileExecutiveDashboardDemoProps {
 export function MobileExecutiveDashboardDemo({
   className,
   enableDebugger = false,
-  performanceMode = 'optimized'
+  performanceMode = 'optimized',
 }: MobileExecutiveDashboardDemoProps) {
   const { currentFund, isLoading } = useFundContext();
   const { viewport, isMobile, isTablet, dimensions } = useResponsiveBreakpoint();
-  const [activeDemo, setActiveDemo] = useState<'executive' | 'charts' | 'ai-integration'>('executive');
+  const [activeDemo, setActiveDemo] = useState<'executive' | 'charts' | 'ai-integration'>(
+    'executive'
+  );
 
   // Generate demo data based on fund context
   const demoMetrics: MetricCardData[] = React.useMemo(() => {
@@ -91,7 +93,7 @@ export function MobileExecutiveDashboardDemo({
         change: '+15.2%',
         trend: 'up' as const,
         severity: 'success' as const,
-        icon: DollarSign as React.ComponentType<{ className?: string }>
+        icon: DollarSign as React.ComponentType<{ className?: string }>,
       },
       {
         id: 'net-irr',
@@ -101,7 +103,7 @@ export function MobileExecutiveDashboardDemo({
         change: '+2.8%',
         trend: 'up' as const,
         severity: 'success' as const,
-        icon: TrendingUp as React.ComponentType<{ className?: string }>
+        icon: TrendingUp as React.ComponentType<{ className?: string }>,
       },
       {
         id: 'deployment',
@@ -111,7 +113,7 @@ export function MobileExecutiveDashboardDemo({
         change: '+8.5%',
         trend: 'up' as const,
         severity: deploymentRate > 70 ? ('warning' as const) : ('neutral' as const),
-        icon: Target as React.ComponentType<{ className?: string }>
+        icon: Target as React.ComponentType<{ className?: string }>,
       },
       {
         id: 'portfolio-count',
@@ -121,8 +123,8 @@ export function MobileExecutiveDashboardDemo({
         change: '+3',
         trend: 'up' as const,
         severity: 'neutral' as const,
-        icon: Users as React.ComponentType<{ className?: string }>
-      }
+        icon: Users as React.ComponentType<{ className?: string }>,
+      },
     ];
   }, [currentFund]);
 
@@ -132,45 +134,49 @@ export function MobileExecutiveDashboardDemo({
     { timestamp: 'Q2 23', value: 116 },
     { timestamp: 'Q3 23', value: 142 },
     { timestamp: 'Q4 23', value: 162 },
-    { timestamp: 'Q1 24', value: 192 }
+    { timestamp: 'Q1 24', value: 192 },
   ];
 
   const sectorData = [
     { label: 'FinTech', value: 35, color: '#3b82f6' },
     { label: 'HealthTech', value: 28, color: '#10b981' },
     { label: 'Enterprise SaaS', value: 22, color: '#f59e0b' },
-    { label: 'Consumer', value: 15, color: '#ef4444' }
+    { label: 'Consumer', value: 15, color: '#ef4444' },
   ];
 
   const riskData = [
     { label: 'Concentration Risk', value: 25 },
     { label: 'Vintage Risk', value: 60 },
     { label: 'Sector Risk', value: 35 },
-    { label: 'Stage Risk', value: 45 }
+    { label: 'Stage Risk', value: 45 },
   ];
 
   // AI Insights for demo
   const aiInsights: PortfolioInsight[] = [
     {
-      title: "Exceptional Performance Trajectory",
-      insight: "Your portfolio is performing 15% above target with top-quartile IRR. The power law distribution is working in your favor with 3 potential unicorns in the pipeline.",
-      recommendation: "Consider increasing check sizes for follow-on rounds in top performers. Current deployment pace is optimal for market conditions.",
+      title: 'Exceptional Performance Trajectory',
+      insight:
+        'Your portfolio is performing 15% above target with top-quartile IRR. The power law distribution is working in your favor with 3 potential unicorns in the pipeline.',
+      recommendation:
+        'Consider increasing check sizes for follow-on rounds in top performers. Current deployment pace is optimal for market conditions.',
       confidence: 94,
       severity: 'low',
       category: 'opportunity',
       metrics: [
         { label: 'vs Target', value: '+15%', trend: 'up' },
-        { label: 'Industry Rank', value: 'Top 10%', trend: 'up' }
-      ]
+        { label: 'Industry Rank', value: 'Top 10%', trend: 'up' },
+      ],
     },
     {
-      title: "Optimal Capital Deployment",
-      insight: "Your 68% deployment rate aligns perfectly with vintage curve projections. The Series A Chasm impact is minimal in your portfolio.",
-      recommendation: "Maintain current pacing while building reserves for promising companies entering growth stages.",
+      title: 'Optimal Capital Deployment',
+      insight:
+        'Your 68% deployment rate aligns perfectly with vintage curve projections. The Series A Chasm impact is minimal in your portfolio.',
+      recommendation:
+        'Maintain current pacing while building reserves for promising companies entering growth stages.',
       confidence: 88,
       severity: 'medium',
-      category: 'strategy'
-    }
+      category: 'strategy',
+    },
   ];
 
   // Progressive disclosure sections
@@ -193,12 +199,7 @@ export function MobileExecutiveDashboardDemo({
               <div className="text-sm text-blue-600">Total Multiple</div>
             </div>
           </div>
-          <MobileLineChart
-            data={performanceData}
-            height={120}
-            color="#10b981"
-            showPoints={true}
-          />
+          <MobileLineChart data={performanceData} height={120} color="#10b981" showPoints={true} />
         </div>
       ),
       strategicContent: (
@@ -230,15 +231,10 @@ export function MobileExecutiveDashboardDemo({
           </div>
           <div>
             <h4 className="font-semibold mb-3">Risk Assessment</h4>
-            <MobileBarChart
-              data={riskData}
-              height={120}
-              color="#f59e0b"
-              showValues={true}
-            />
+            <MobileBarChart data={riskData} height={120} color="#f59e0b" showValues={true} />
           </div>
         </div>
-      )
+      ),
     },
     {
       id: 'ai-insights',
@@ -246,13 +242,8 @@ export function MobileExecutiveDashboardDemo({
       priority: 'high',
       complexity: 1,
       category: 'scenarios',
-      executiveContent: (
-        <AIInsightCard
-          insights={aiInsights}
-          variant="compact"
-        />
-      )
-    }
+      executiveContent: <AIInsightCard insights={aiInsights} variant="compact" />,
+    },
   ];
 
   // Responsive content configuration
@@ -278,7 +269,7 @@ export function MobileExecutiveDashboardDemo({
           </CardContent>
         </Card>
       ),
-      span: { mobile: 1, tablet: 2, desktop: 2 }
+      span: { mobile: 1, tablet: 2, desktop: 2 },
     },
     {
       id: 'ai-insights-card',
@@ -292,14 +283,11 @@ export function MobileExecutiveDashboardDemo({
             </h3>
           </CardHeader>
           <CardContent>
-            <AIInsightCard
-              insights={aiInsights}
-              variant={isMobile ? 'compact' : 'default'}
-            />
+            <AIInsightCard insights={aiInsights} variant={isMobile ? 'compact' : 'default'} />
           </CardContent>
         </Card>
       ),
-      span: { mobile: 1, tablet: 2, desktop: 2 }
+      span: { mobile: 1, tablet: 2, desktop: 2 },
     },
     {
       id: 'performance-charts',
@@ -315,11 +303,7 @@ export function MobileExecutiveDashboardDemo({
                 <span className="text-sm">Portfolio Growth</span>
                 <Sparkline data={[100, 116, 142, 162, 192]} trend="up" />
               </div>
-              <MobileLineChart
-                data={performanceData}
-                height={100}
-                color="#10b981"
-              />
+              <MobileLineChart data={performanceData} height={100} color="#10b981" />
             </div>
           </CardContent>
         </Card>
@@ -345,17 +329,13 @@ export function MobileExecutiveDashboardDemo({
               </div>
               <div>
                 <h4 className="font-medium mb-2">Sector Breakdown</h4>
-                <MobileDonutChart
-                  data={sectorData}
-                  size={isTablet ? 120 : 160}
-                  showLabels={true}
-                />
+                <MobileDonutChart data={sectorData} size={isTablet ? 120 : 160} showLabels={true} />
               </div>
             </div>
           </CardContent>
         </Card>
       ),
-      span: { mobile: 1, tablet: 1, desktop: 1 }
+      span: { mobile: 1, tablet: 1, desktop: 1 },
     },
     {
       id: 'progressive-disclosure',
@@ -378,8 +358,8 @@ export function MobileExecutiveDashboardDemo({
           </CardContent>
         </Card>
       ),
-      span: { mobile: 1, tablet: 2, desktop: 2 }
-    }
+      span: { mobile: 1, tablet: 2, desktop: 2 },
+    },
   ];
 
   if (isLoading) {
@@ -397,19 +377,10 @@ export function MobileExecutiveDashboardDemo({
   }
 
   return (
-    <ResponsiveContainer
-      maxWidth="2xl"
-      padding="md"
-      className={cn("space-y-6", className)}
-    >
+    <ResponsiveContainer maxWidth="2xl" padding="md" className={cn('space-y-6', className)}>
       {/* Header with viewport info */}
       <div className="space-y-4">
-        <ResponsiveFlex
-          direction="row-mobile-col"
-          justify="between"
-          align="center"
-          gap="md"
-        >
+        <ResponsiveFlex direction="row-mobile-col" justify="between" align="center" gap="md">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold font-inter">
               Mobile Executive Dashboard
@@ -435,7 +406,7 @@ export function MobileExecutiveDashboardDemo({
           {[
             { id: 'executive', label: 'Executive Dashboard', icon: DollarSign },
             { id: 'charts', label: 'Mobile Charts', icon: BarChart3 },
-            { id: 'ai-integration', label: 'AI Integration', icon: Brain }
+            { id: 'ai-integration', label: 'AI Integration', icon: Brain },
           ].map(({ id, label, icon: Icon }) => (
             <Button
               key={id}
@@ -457,25 +428,20 @@ export function MobileExecutiveDashboardDemo({
           <ExecutiveDashboard
             enableSwipeNavigation={true}
             compactMode={isMobile}
-            onMetricSelect={(metricId) => console.log('Selected metric:', metricId)}
+            onMetricSelect={() => undefined}
           />
         )}
 
         {activeDemo === 'charts' && (
           <ResponsiveGrid
-            items={responsiveContent.filter(item =>
+            items={responsiveContent.filter((item) =>
               ['metrics-swipeable', 'performance-charts'].includes(item.id)
             )}
             gap="md"
           />
         )}
 
-        {activeDemo === 'ai-integration' && (
-          <ResponsiveGrid
-            items={responsiveContent}
-            gap="md"
-          />
-        )}
+        {activeDemo === 'ai-integration' && <ResponsiveGrid items={responsiveContent} gap="md" />}
       </Suspense>
 
       {/* Performance Stats */}

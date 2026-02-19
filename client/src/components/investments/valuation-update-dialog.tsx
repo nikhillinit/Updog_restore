@@ -30,10 +30,6 @@ export default function ValuationUpdateDialog({
   const [newValuation, setNewValuation] = useState('20.00');
 
   const handleSave = () => {
-    console.log('Saving valuation update:', {
-      month,
-      newValuation: parseFloat(newValuation) * 1000000,
-    });
     onOpenChange(false);
   };
 

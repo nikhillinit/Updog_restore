@@ -30,7 +30,7 @@ import {
   FeesExpensesStep,
   ExitRecyclingStep,
   WaterfallStep,
-  ScenariosStep
+  ScenariosStep,
 } from './steps';
 
 // ============================================================================
@@ -82,7 +82,7 @@ export function ModelingWizard({
   loadSavedProgress = true,
   onComplete,
   onError,
-  redirectOnComplete = '/dashboard'
+  redirectOnComplete = '/dashboard',
 }: ModelingWizardProps) {
   const [, navigate] = useLocation();
 
@@ -91,9 +91,7 @@ export function ModelingWizard({
     skipOptionalSteps,
     autoSaveInterval,
     loadSavedProgress,
-    onComplete: (data) => {
-      console.log('[ModelingWizard] Wizard completed successfully!', data);
-
+    onComplete: () => {
       // Call user callback
       onComplete?.();
 
@@ -105,7 +103,7 @@ export function ModelingWizard({
     onError: (error) => {
       console.error('[ModelingWizard] Wizard error:', error);
       onError?.(error);
-    }
+    },
   });
 
   // Handle submission (on last step)
@@ -169,7 +167,17 @@ export function ModelingWizard({
         <CapitalAllocationStep
           {...(capitalAllocationData !== undefined ? { initialData: capitalAllocationData } : {})}
           onSave={(data) => wizard.saveStep('capitalAllocation', data)}
-          fundFinancials={(wizard as any).getStepData?.('fundFinancials') || { fundSize: 100, investmentPeriod: 5, orgExpenses: 0, additionalExpenses: [], gpCommitment: 1, cashlessSplit: 50, managementFee: { rate: 2, stepDown: { enabled: false } } }}
+          fundFinancials={
+            (wizard as any).getStepData?.('fundFinancials') || {
+              fundSize: 100,
+              investmentPeriod: 5,
+              orgExpenses: 0,
+              additionalExpenses: [],
+              gpCommitment: 1,
+              cashlessSplit: 50,
+              managementFee: { rate: 2, stepDown: { enabled: false } },
+            }
+          }
           sectorProfiles={(wizard as any).getStepData?.('sectorProfiles')?.sectorProfiles || []}
         />
       )}
@@ -187,7 +195,17 @@ export function ModelingWizard({
         <ExitRecyclingStep
           {...(exitRecyclingData !== undefined ? { initialData: exitRecyclingData } : {})}
           onSave={(data) => wizard.saveStep('exitRecycling', data)}
-          fundFinancials={(wizard as any).getStepData?.('fundFinancials') || { fundSize: 100, investmentPeriod: 5, orgExpenses: 0, additionalExpenses: [], gpCommitment: 1, cashlessSplit: 50, managementFee: { rate: 2, stepDown: { enabled: false } } }}
+          fundFinancials={
+            (wizard as any).getStepData?.('fundFinancials') || {
+              fundSize: 100,
+              investmentPeriod: 5,
+              orgExpenses: 0,
+              additionalExpenses: [],
+              gpCommitment: 1,
+              cashlessSplit: 50,
+              managementFee: { rate: 2, stepDown: { enabled: false } },
+            }
+          }
         />
       )}
 
@@ -237,22 +255,22 @@ export function WizardDebugPanel({ wizard }: { wizard: ReturnType<typeof useMode
           <strong>Is Dirty:</strong> {wizard.isDirty ? 'Yes' : 'No'}
         </div>
         <div>
-          <strong>Completed Steps:</strong> {wizard.completedSteps.size} / {wizard.context.totalSteps}
+          <strong>Completed Steps:</strong> {wizard.completedSteps.size} /{' '}
+          {wizard.context.totalSteps}
         </div>
         <div>
           <strong>Visited Steps:</strong> {Array.from(wizard.visitedSteps).join(', ')}
         </div>
         <div>
           <strong>Last Saved:</strong>{' '}
-          {wizard.context.lastSaved ? new Date(wizard.context.lastSaved).toLocaleTimeString() : 'Never'}
+          {wizard.context.lastSaved
+            ? new Date(wizard.context.lastSaved).toLocaleTimeString()
+            : 'Never'}
         </div>
       </div>
 
       <div className="mt-3 pt-3 border-t border-charcoal-200">
-        <button
-          onClick={wizard.reset}
-          className="text-xs text-error hover:underline"
-        >
+        <button onClick={wizard.reset} className="text-xs text-error hover:underline">
           Reset Wizard
         </button>
       </div>

@@ -189,7 +189,7 @@ export function useInvalidateMetrics() {
         },
       });
 
-      console.log(`✅ Cache invalidated for fund ${fundId} (server + client + related queries)`);
+      // Cache invalidated for fund (server + client + related queries)
     } catch (error) {
       console.error('Error invalidating metrics cache:', error);
       throw error;
@@ -210,7 +210,7 @@ export function useInvalidateMetrics() {
  */
 export function useMetricValue<
   T extends 'actual' | 'projected' | 'target' | 'variance',
-  K extends keyof NonNullable<UnifiedFundMetrics[T]>
+  K extends keyof NonNullable<UnifiedFundMetrics[T]>,
 >(type: T, key: K): NonNullable<UnifiedFundMetrics[T]>[K] | undefined {
   const { data } = useFundMetrics();
   return data?.[type]?.[key];

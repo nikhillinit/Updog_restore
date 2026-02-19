@@ -98,7 +98,9 @@ export default function InvestmentRoundsStepV2() {
   const [activeProfileId, setActiveProfileId] = useState('default');
   const [stages, setStages] = useState<StageData[]>(DEFAULT_STAGES);
   const [profiles] = useState<SectorProfile[]>(DEFAULT_PROFILES);
-  const [validationStatus, setValidationStatus] = useState<'success' | 'warning' | 'error'>('success');
+  const [validationStatus, setValidationStatus] = useState<'success' | 'warning' | 'error'>(
+    'success'
+  );
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
 
   // Get the fromInvestmentStrategy action to sync data to fundStore
@@ -226,7 +228,9 @@ export default function InvestmentRoundsStepV2() {
           }))}
           activeProfileId={activeProfileId}
           onSelectProfile={setActiveProfileId}
-          onAddProfile={() => console.log('Add profile - future feature')}
+          onAddProfile={() => {
+            /* TODO: future feature */
+          }}
         />
 
         {/* Main Content */}
@@ -238,7 +242,9 @@ export default function InvestmentRoundsStepV2() {
               {...(activeProfile.isDefault !== undefined && { isDefault: activeProfile.isDefault })}
               stageCount={stages.length}
               onAddStage={handleAddStage}
-              onDuplicate={() => console.log('Duplicate profile - future feature')}
+              onDuplicate={() => {
+                /* TODO: future feature */
+              }}
             />
 
             {/* Info Banner */}

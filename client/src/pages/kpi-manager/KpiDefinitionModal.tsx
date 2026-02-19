@@ -59,7 +59,6 @@ export function KpiDefinitionModal({
 
   const handleSave = () => {
     // TODO: Implement save logic
-    console.log('Saving KPI:', formData);
     onClose();
   };
 

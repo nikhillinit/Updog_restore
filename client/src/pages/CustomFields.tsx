@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { Button } from '@/components/ui/button';
@@ -76,9 +71,8 @@ export default function CustomFields() {
 
   const handleSave = () => {
     // Here you would typically save to the backend
-    console.log('Saving custom fields:', customFields);
     setHasUnsavedChanges(false);
-    
+
     // Show success message
     // toast.success('Custom fields saved successfully');
   };
@@ -111,11 +105,7 @@ export default function CustomFields() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-              >
+              <Button variant="ghost" size="sm" onClick={handleCancel}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Investments
               </Button>
@@ -145,10 +135,7 @@ export default function CustomFields() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <CustomFieldsManager
-          fields={customFields}
-          onFieldsChange={handleFieldsChange}
-        />
+        <CustomFieldsManager fields={customFields} onFieldsChange={handleFieldsChange} />
       </div>
     </div>
   );

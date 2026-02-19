@@ -51,7 +51,7 @@ export function PrivacySettings() {
       ? 'Performance monitoring enabled for next session.'
       : 'Performance monitoring disabled.';
 
-    console.log(message);
+    void message;
   };
 
   return (

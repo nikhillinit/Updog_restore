@@ -1,7 +1,12 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsiveLine } from '@nivo/line';
-import type { PointTooltipProps } from '@nivo/line';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface LinePoint {
+  seriesColor: string;
+  seriesId: string | number;
+  data: { xFormatted: string; yFormatted: string };
+}
 
 interface PerformanceData {
   id: string;
@@ -24,7 +29,7 @@ const NivoPerformanceChart = memo(function NivoPerformanceChart({
 }: NivoPerformanceChartProps) {
   // Memoize tooltip component
   const TooltipComponent = useCallback(
-    ({ point }: PointTooltipProps<PerformanceData>) => (
+    ({ point }: { point: LinePoint }) => (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
         <div className="font-semibold" style={{ color: point.seriesColor }}>
           {point.seriesId}
