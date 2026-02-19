@@ -340,7 +340,7 @@
     "@neondatabase/serverless": "^0.10.4",
     "@nivo/line": "^0.99.0",
     "@nivo/scatterplot": "^0.99.0",
-    "@notionhq/client": "^4.0.1",
+    "@notionhq/client": "^5.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.68.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.210.0",
     "@opentelemetry/resources": "2.5.1",
