@@ -219,11 +219,11 @@ export class ReservesErrorBoundary {
     for (const strategy of sortedStrategies) {
       if (strategy.canRecover(error, context)) {
         try {
-          console.log(`Attempting recovery with strategy: ${strategy.name}`);
+          console.info(`Attempting recovery with strategy: ${strategy.name}`);
           const result = await strategy.recover(error, context);
 
           if (result) {
-            console.log(`Recovery successful with strategy: ${strategy.name}`);
+            console.info(`Recovery successful with strategy: ${strategy.name}`);
             return result;
           }
         } catch (recoveryError) {

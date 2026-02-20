@@ -1,14 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
-import "./styles/brand-tokens.css"; // Phase 1: Brand consistency (Inter/Poppins, neutral palette)
-import { installFetchTap } from "./debug/fetch-tap";
+
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
+import './styles/brand-tokens.css'; // Phase 1: Brand consistency (Inter/Poppins, neutral palette)
+import { installFetchTap } from './debug/fetch-tap';
 // Vitals loaded dynamically in production
 
 // Install fetch interceptor for debugging
@@ -21,25 +18,25 @@ function checkEmergencyRollback() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams['get']('emergency_rollback') === 'true') {
       (window as any).__FORCE_LEGACY_STATE = true;
-      console.warn('🚨 Emergency rollback activated via URL parameter');
+      console.warn('[CRITICAL] Emergency rollback activated via URL parameter');
       return;
     }
 
     // Check localStorage (persistent emergency rollback)
     if (localStorage.getItem('emergency_rollback') === 'true') {
       (window as any).__FORCE_LEGACY_STATE = true;
-      console.warn('🚨 Emergency rollback activated via localStorage');
-      
+      console.warn('[CRITICAL] Emergency rollback activated via localStorage');
+
       // Show user-friendly notification
       const notification = document.createElement('div');
       notification.innerHTML = `
         <div style="position: fixed; top: 10px; right: 10px; z-index: 9999; background: #ff4444; color: white; padding: 12px 16px; border-radius: 4px; font-family: monospace; max-width: 300px;">
-          🚨 Emergency Mode Active<br>
+          [CRITICAL] Emergency Mode Active<br>
           <small>Using legacy state system. Contact support if this persists.</small>
         </div>
       `;
       document.body.appendChild(notification);
-      
+
       // Auto-remove notification after 10 seconds
       setTimeout(() => notification.remove(), 10000);
     }
@@ -55,11 +52,13 @@ checkEmergencyRollback();
 if (import.meta.env.PROD) {
   // Code-split Sentry - only load when DSN is configured
   if (import.meta.env.VITE_SENTRY_DSN) {
-    import('@/monitoring').then(() => {
-      console.log('Sentry monitoring initialized');
-    }).catch(err => {
-      console.warn('Failed to load Sentry:', err);
-    });
+    import('@/monitoring')
+      .then(() => {
+        console.debug('Sentry monitoring initialized');
+      })
+      .catch((err) => {
+        console.warn('Failed to load Sentry:', err);
+      });
   }
   // Start Web Vitals collection after app mounts
   requestIdleCallback(() => {
@@ -67,7 +66,7 @@ if (import.meta.env.PROD) {
   });
 }
 
-const rootElement = document.getElementById("root");
+const rootElement = document.getElementById('root');
 if (rootElement) {
   createRoot(rootElement).render(
     process.env['NODE_ENV'] === 'development' ? (
@@ -79,6 +78,5 @@ if (rootElement) {
     )
   );
 } else {
-  console.error("Root element not found");
+  console.error('Root element not found');
 }
-

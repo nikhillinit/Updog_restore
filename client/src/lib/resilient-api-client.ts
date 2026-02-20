@@ -108,7 +108,7 @@ export class ResilientApiClient {
     }
 
     let lastError: Error;
-    
+
     for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
       try {
         const response = await this.makeRequest<T>(path, body);
@@ -117,29 +117,31 @@ export class ResilientApiClient {
       } catch (error) {
         lastError = error as Error;
         this.onFailure();
-        
+
         // Don't retry if circuit is now open or error is not retryable
         if (this.isCircuitOpen() || !isRetryableError(error)) {
           throw lastError;
         }
-        
+
         // Don't retry on last attempt
         if (attempt === this.config.maxRetries - 1) {
           throw lastError;
         }
-        
+
         // Calculate delay and wait before retry
         const delay = calculateBackoffDelay(
           attempt,
           this.config.baseDelayMs,
           this.config.maxDelayMs
         );
-        
-        console.log(`Retrying request (attempt ${attempt + 1}/${this.config.maxRetries}) after ${delay}ms`);
+
+        console.debug(
+          `Retrying request (attempt ${attempt + 1}/${this.config.maxRetries}) after ${delay}ms`
+        );
         await this.sleep(delay);
       }
     }
-    
+
     throw lastError!;
   }
 
@@ -153,7 +155,7 @@ export class ResilientApiClient {
     }
 
     let lastError: Error;
-    
+
     for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
       try {
         const response = await this.makeGetRequest<T>(path);
@@ -162,25 +164,25 @@ export class ResilientApiClient {
       } catch (error) {
         lastError = error as Error;
         this.onFailure();
-        
+
         if (this.isCircuitOpen() || !isRetryableError(error)) {
           throw lastError;
         }
-        
+
         if (attempt === this.config.maxRetries - 1) {
           throw lastError;
         }
-        
+
         const delay = calculateBackoffDelay(
           attempt,
           this.config.baseDelayMs,
           this.config.maxDelayMs
         );
-        
+
         await this.sleep(delay);
       }
     }
-    
+
     throw lastError!;
   }
 
@@ -190,7 +192,7 @@ export class ResilientApiClient {
   private async makeRequest<T>(path: string, body: unknown): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
-    
+
     try {
       const response = await fetch(`${this.config.baseUrl}${path}`, {
         method: 'POST',
@@ -201,15 +203,15 @@ export class ResilientApiClient {
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
         const error: HttpError = new Error(errorText);
         error.status = response.status;
         throw error;
       }
-      
-      return await response.json() as T;
+
+      return (await response.json()) as T;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -221,7 +223,7 @@ export class ResilientApiClient {
   private async makeGetRequest<T>(path: string): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
-    
+
     try {
       const response = await fetch(`${this.config.baseUrl}${path}`, {
         method: 'GET',
@@ -230,15 +232,15 @@ export class ResilientApiClient {
         },
         signal: controller.signal,
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
         const error: HttpError = new Error(errorText);
         error.status = response.status;
         throw error;
       }
-      
-      return await response.json() as T;
+
+      return (await response.json()) as T;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -249,15 +251,15 @@ export class ResilientApiClient {
    */
   private isCircuitOpen(): boolean {
     const now = Date.now();
-    
+
     // Check if we should transition from OPEN to HALF_OPEN
     if (this.circuitBreaker.state === 'OPEN') {
       if (now - this.circuitBreaker.lastFailureTime > this.config.circuitBreakerResetMs) {
         this.circuitBreaker.state = 'HALF_OPEN';
-        console.log('Circuit breaker transitioned to HALF_OPEN');
+        console.debug('Circuit breaker transitioned to HALF_OPEN');
       }
     }
-    
+
     return this.circuitBreaker.state === 'OPEN';
   }
 
@@ -268,7 +270,7 @@ export class ResilientApiClient {
     if (this.circuitBreaker.state === 'HALF_OPEN') {
       this.circuitBreaker.state = 'CLOSED';
       this.circuitBreaker.failures = 0;
-      console.log('Circuit breaker transitioned to CLOSED');
+      console.debug('Circuit breaker transitioned to CLOSED');
     }
   }
 
@@ -278,7 +280,7 @@ export class ResilientApiClient {
   private onFailure(): void {
     this.circuitBreaker.failures++;
     this.circuitBreaker.lastFailureTime = Date.now();
-    
+
     if (this.circuitBreaker.failures >= this.config.circuitBreakerThreshold) {
       if (this.circuitBreaker.state !== 'OPEN') {
         this.circuitBreaker.state = 'OPEN';
@@ -291,7 +293,7 @@ export class ResilientApiClient {
    * Sleep utility
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -303,7 +305,7 @@ export class ResilientApiClient {
       lastFailureTime: 0,
       state: 'CLOSED',
     };
-    console.log('Circuit breaker reset to CLOSED');
+    console.debug('Circuit breaker reset to CLOSED');
   }
 }
 
