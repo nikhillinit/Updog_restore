@@ -38,8 +38,8 @@ describe('Exit Recycling Truth Cases', () => {
         const validation = validateExitRecyclingResult(result, tc);
 
         if (!validation.pass) {
-          console.log(`[${tc.id}] Failures:`);
-          validation.failures.forEach((f) => console.log(`  - ${f}`));
+          console.error(`[${tc.id}] Failures:`);
+          validation.failures.forEach((f) => console.error(`  - ${f}`));
         }
 
         expect(validation.pass, `Validation failed: ${validation.failures.join(', ')}`).toBe(true);
@@ -56,9 +56,9 @@ describe('Exit Recycling Truth Cases', () => {
     const total = passed + failed;
     const passRate = total > 0 ? (passed / total) * 100 : 0;
 
-    console.log(`\nER Truth Cases Summary:`);
-    console.log(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
-    console.log(`  Failed: ${failed}`);
+    console.warn(`\nER Truth Cases Summary:`);
+    console.warn(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
+    console.warn(`  Failed: ${failed}`);
 
     // Target: 100% pass rate
     expect(passRate).toBeGreaterThanOrEqual(95);
@@ -85,8 +85,12 @@ describe('Exit Recycling Category Tests', () => {
         expect(validation.pass, validation.failures.join(', ')).toBe(true);
 
         // Log key metrics
-        console.log(`[${tc.id}] capacity.maxRecyclableCapital: ${result.capacity.maxRecyclableCapital}`);
-        console.log(`[${tc.id}] capacity.annualRecyclingCapacity: ${result.capacity.annualRecyclingCapacity}`);
+        console.warn(
+          `[${tc.id}] capacity.maxRecyclableCapital: ${result.capacity.maxRecyclableCapital}`
+        );
+        console.warn(
+          `[${tc.id}] capacity.annualRecyclingCapacity: ${result.capacity.annualRecyclingCapacity}`
+        );
       });
     });
   });
@@ -105,10 +109,10 @@ describe('Exit Recycling Category Tests', () => {
         const validation = validateExitRecyclingResult(result, tc);
 
         if (!validation.pass) {
-          console.log(`[${tc.id}] Schedule failures:`, validation.failures);
+          console.error(`[${tc.id}] Schedule failures:`, validation.failures);
           if (result.schedule) {
-            console.log(`[${tc.id}] Actual totalRecycled: ${result.schedule.totalRecycled}`);
-            console.log(`[${tc.id}] Actual capReached: ${result.schedule.capReached}`);
+            console.warn(`[${tc.id}] Actual totalRecycled: ${result.schedule.totalRecycled}`);
+            console.warn(`[${tc.id}] Actual capReached: ${result.schedule.capReached}`);
           }
         }
 
@@ -128,7 +132,7 @@ describe('Exit Recycling Category Tests', () => {
         const validation = validateExitRecyclingResult(result, tc);
 
         if (!validation.pass) {
-          console.log(`[${tc.id}] Cap enforcement failures:`, validation.failures);
+          console.error(`[${tc.id}] Cap enforcement failures:`, validation.failures);
         }
 
         expect(validation.pass, validation.failures.join(', ')).toBe(true);
@@ -147,7 +151,7 @@ describe('Exit Recycling Category Tests', () => {
         const validation = validateExitRecyclingResult(result, tc);
 
         if (!validation.pass) {
-          console.log(`[${tc.id}] Term validation failures:`, validation.failures);
+          console.error(`[${tc.id}] Term validation failures:`, validation.failures);
         }
 
         expect(validation.pass, validation.failures.join(', ')).toBe(true);

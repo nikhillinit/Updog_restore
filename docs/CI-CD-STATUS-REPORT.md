@@ -29,25 +29,26 @@ for new development work, with only 3 documented pre-existing issues remaining.
 
 **Current State:**
 
-- 13 active CI workflows (5 quality gates + 5 security + 3 docs validators)
+- 15 active CI workflows (6 quality gates + 5 security + 4 docs validators)
 - 3 pre-existing failures (security, api-performance, Vercel)
 - 100% Phase 0 validation (all 6 calculation modules passing)
 - Baseline comparison approach: PRs evaluated on delta, not perfection
 
 ---
 
-## Active CI Workflows (13 Total)
+## Active CI Workflows (15 Total)
 
-The project maintains 13 active workflows after rationalization on 2025-11-09
+The project maintains 15 active workflows after rationalization on 2025-11-09
 and cleanup on 2026-02-19:
 
-### Core Quality Gates (5 workflows)
+### Core Quality Gates (6 workflows)
 
 1. **ci-unified.yml** - Main unified CI pipeline with smart test selection
 2. **code-quality.yml** - Code quality analysis
 3. **bundle-size-check.yml** - Bundle size validation
 4. **dependency-validation.yml** - Dependency validation
 5. **testcontainers-ci.yml** - Docker-based integration tests (label-triggered)
+6. **skip-counter.yml** - Tracks skipped/quarantined test counts per PR
 
 ### Security Workflows (5 workflows)
 
@@ -57,11 +58,12 @@ and cleanup on 2026-02-19:
 13. **zap-baseline.yml** - OWASP ZAP security baseline
 14. **dockerfile-lint.yml** - Dockerfile linting
 
-### Documentation Workflows (3 workflows)
+### Documentation Workflows (4 workflows)
 
 15. **docs-validate.yml** - Documentation validation
 16. **docs-routing-check.yml** - Discovery routing validation
 17. **verify-strategic-docs.yml** - Strategic documentation checks
+18. **reflection-validate.yml** - Validates reflection/learning documents on PR
 
 **Note:** 42 experimental/redundant workflows were archived on 2025-11-09. 4
 additional redundant/disabled workflows (ci.yml.disabled,

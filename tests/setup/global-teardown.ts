@@ -9,7 +9,7 @@
  */
 
 export default async function globalTeardown() {
-  console.log('[globalTeardown] Cleaning up database connections...');
+  console.warn('[globalTeardown] Cleaning up database connections...');
 
   try {
     // Dynamic import to avoid side effects during setup phase
@@ -17,7 +17,7 @@ export default async function globalTeardown() {
 
     if (typeof shutdownDatabases === 'function') {
       await shutdownDatabases();
-      console.log('[globalTeardown] Database connections closed');
+      console.warn('[globalTeardown] Database connections closed');
     }
   } catch (error) {
     // Swallow errors - teardown should be idempotent

@@ -27,8 +27,8 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
       stageAllocations: [
         {
           stage: 'seed',
-          allocationPct: 1.0 // 100% in seed
-        }
+          allocationPct: 1.0, // 100% in seed
+        },
       ],
 
       reservePoolPct: 0.0, // No reserves for simplicity
@@ -38,7 +38,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
         series_a: 0,
         series_b: 0,
         series_c: 0,
-        growth: 0
+        growth: 0,
       },
 
       graduationRates: {
@@ -46,7 +46,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
         series_a: 0,
         series_b: 0,
         series_c: 0,
-        growth: 0
+        growth: 0,
       },
 
       exitRates: {
@@ -54,7 +54,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
         series_a: 0,
         series_b: 0,
         series_c: 0,
-        growth: 0
+        growth: 0,
       },
 
       monthsToGraduate: {
@@ -62,7 +62,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
         series_a: 999,
         series_b: 999,
         series_c: 999,
-        growth: 999
+        growth: 999,
       },
 
       monthsToExit: {
@@ -70,8 +70,8 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
         series_a: 999,
         series_b: 999,
         series_c: 999,
-        growth: 999
-      }
+        growth: 999,
+      },
     };
 
     const result = runFundModel(inputs);
@@ -95,12 +95,12 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
     expect(lastPeriod.periodIndex).toBeGreaterThanOrEqual(9); // Period 9 = year 10 (0-indexed)
 
     // Verify all companies exited by period 3
-    expect(result.companyLedger.every(c => c.exitValue > 0)).toBe(true);
+    expect(result.companyLedger.every((c) => c.exitValue > 0)).toBe(true);
 
     // Log for verification
-    console.log(`Total periods simulated: ${result.periodResults.length}`);
-    console.log(`Total management fees: $${(actualTotalFees / 1_000_000).toFixed(2)}M`);
-    console.log(`Expected fees: $${(expectedTotalFees / 1_000_000).toFixed(2)}M`);
+    console.warn(`Total periods simulated: ${result.periodResults.length}`);
+    console.warn(`Total management fees: $${(actualTotalFees / 1_000_000).toFixed(2)}M`);
+    console.warn(`Expected fees: $${(expectedTotalFees / 1_000_000).toFixed(2)}M`);
   });
 
   it('should use longer of exit time or fee horizon', () => {
@@ -119,7 +119,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
       graduationRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       exitRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       monthsToGraduate: { seed: 999, series_a: 999, series_b: 999, series_c: 999, growth: 999 },
-      monthsToExit: { seed: 144, series_a: 999, series_b: 999, series_c: 999, growth: 999 } // 12 years
+      monthsToExit: { seed: 144, series_a: 999, series_b: 999, series_c: 999, growth: 999 }, // 12 years
     };
 
     const result1 = runFundModel(longExits);
@@ -130,7 +130,7 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
     // Scenario 2: Exits at 3 years, fees for 10 years
     const shortExits: FundModelInputs = {
       ...longExits,
-      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 } // 3 years
+      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 }, // 3 years
     };
 
     const result2 = runFundModel(shortExits);
@@ -154,13 +154,13 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
       graduationRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       exitRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       monthsToGraduate: { seed: 999, series_a: 999, series_b: 999, series_c: 999, growth: 999 },
-      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 }
+      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 },
     };
 
     const result = runFundModel(inputs);
 
     // Find period at year 6 (after fee horizon)
-    const year6Period = result.periodResults.find(p => p.periodIndex === 6);
+    const year6Period = result.periodResults.find((p) => p.periodIndex === 6);
 
     if (year6Period) {
       // Fees should be 0 after year 5
@@ -189,14 +189,14 @@ describe('Management Fee Horizon Fix (PR #112)', () => {
       graduationRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       exitRates: { seed: 0, series_a: 0, series_b: 0, series_c: 0, growth: 0 },
       monthsToGraduate: { seed: 999, series_a: 999, series_b: 999, series_c: 999, growth: 999 },
-      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 }
+      monthsToExit: { seed: 36, series_a: 999, series_b: 999, series_c: 999, growth: 999 },
     };
 
     const result = runFundModel(inputs);
 
     // After all exits (year 3), NAV should decrease each year due to fees
-    const year3Period = result.periodResults.find(p => p.periodIndex === 3);
-    const year10Period = result.periodResults.find(p => p.periodIndex === 10);
+    const year3Period = result.periodResults.find((p) => p.periodIndex === 3);
+    const year10Period = result.periodResults.find((p) => p.periodIndex === 10);
 
     if (year3Period && year10Period) {
       // NAV at year 10 should be LOWER than year 3 (fees consumed uninvested cash)
