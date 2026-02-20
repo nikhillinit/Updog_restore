@@ -8,6 +8,7 @@
 
 import { createClient } from 'redis';
 import { sql } from '../db-serverless';
+import { logger } from './logger.js';
 
 /**
  * Validate STAGE_VALIDATION_MODE environment variable
@@ -46,14 +47,9 @@ export function validateStageValidationMode(): boolean {
     return false;
   }
 
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation',
-      component: 'stage_validation_mode',
-      message: `STAGE_VALIDATION_MODE="${mode}" is valid`,
-      timestamp: new Date().toISOString(),
-    })
+  logger.info(
+    { event: 'startup_validation', component: 'stage_validation_mode' },
+    `STAGE_VALIDATION_MODE="${mode}" is valid`
   );
   return true;
 }
@@ -98,14 +94,9 @@ export function validateWebhookSecret(): boolean {
     return false;
   }
 
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation',
-      component: 'webhook_secret',
-      message: `ALERTMANAGER_WEBHOOK_SECRET is valid (${secret.length} chars)`,
-      timestamp: new Date().toISOString(),
-    })
+  logger.info(
+    { event: 'startup_validation', component: 'webhook_secret', length: secret.length },
+    'ALERTMANAGER_WEBHOOK_SECRET is valid'
   );
   return true;
 }
@@ -142,15 +133,9 @@ export async function validateDatabaseFunction(): Promise<boolean> {
       );
     }
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'startup_validation',
-        component: 'database_function',
-        message: 'normalize_stage() function exists and is working',
-        test_result: testStage,
-        timestamp: new Date().toISOString(),
-      })
+    logger.info(
+      { event: 'startup_validation', component: 'database_function', test_result: testStage },
+      'normalize_stage() function exists and is working'
     );
     return true;
   } catch (err) {
@@ -186,15 +171,13 @@ export async function validateRedisConnection(): Promise<boolean> {
     await client.ping();
     await client.disconnect();
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
+    logger.info(
+      {
         event: 'startup_validation',
         component: 'redis_connection',
-        message: 'Redis connection successful',
-        url: redisUrl.replace(/:[^:@]+@/, ':****@'), // Mask password
-        timestamp: new Date().toISOString(),
-      })
+        url: redisUrl.replace(/:[^:@]+@/, ':****@'),
+      },
+      'Redis connection successful'
     );
     return true;
   } catch (err) {
@@ -220,13 +203,9 @@ export async function validateRedisConnection(): Promise<boolean> {
  * @throws Error if any critical validation fails
  */
 export async function runStartupValidations(): Promise<void> {
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation_begin',
-      message: 'Running Stage Normalization v3.4 startup validations',
-      timestamp: new Date().toISOString(),
-    })
+  logger.info(
+    { event: 'startup_validation_begin' },
+    'Running Stage Normalization v3.4 startup validations'
   );
 
   const results = {
@@ -271,13 +250,8 @@ export async function runStartupValidations(): Promise<void> {
     );
   }
 
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation_complete',
-      message: 'All critical startup validations passed',
-      results,
-      timestamp: new Date().toISOString(),
-    })
+  logger.info(
+    { event: 'startup_validation_complete', results },
+    'All critical startup validations passed'
   );
 }

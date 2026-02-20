@@ -95,8 +95,14 @@ class InMemoryRedis {
 
 // Create Redis client using typed factory (skip in memory mode)
 let redis: RedisClient;
+
+// Lazy logger import to avoid circular dependencies
+const getLogger = async () => (await import('../lib/logger.js')).logger;
+
 if (process.env['REDIS_URL'] === 'memory://') {
-  console.log('[Redis Circuit] Memory mode detected, using in-memory Redis stub');
+  getLogger().then((l) =>
+    l.info('[Redis Circuit] Memory mode detected, using in-memory Redis stub')
+  );
   redis = new InMemoryRedis() as unknown as RedisClient;
 } else {
   redis = createCacheFromEnv() as unknown as RedisClient;
@@ -104,25 +110,25 @@ if (process.env['REDIS_URL'] === 'memory://') {
 
 // Redis event handlers for monitoring
 redis.on('connect', () => {
-  console.log('[Redis] Connected to Redis server');
+  getLogger().then((l) => l.info('[Redis] Connected to Redis server'));
 });
 
 redis.on('ready', () => {
-  console.log('[Redis] Redis client ready');
+  getLogger().then((l) => l.info('[Redis] Redis client ready'));
 });
 
 redis.on('error', (...args: unknown[]) => {
   const err = args[0] as Error;
-  console.error('[Redis] Redis client error:', err.message);
+  getLogger().then((l) => l.error({ err }, '[Redis] Redis client error'));
 });
 
 redis.on('close', () => {
-  console.log('[Redis] Redis connection closed');
+  getLogger().then((l) => l.info('[Redis] Redis connection closed'));
 });
 
 redis.on('reconnecting', (...args: unknown[]) => {
   const delay = args[0] as number;
-  console.log(`[Redis] Reconnecting in ${delay}ms`);
+  getLogger().then((l) => l.debug({ delay }, `[Redis] Reconnecting in ${delay}ms`));
 });
 
 // Circuit breaker configuration for Redis operations
@@ -511,7 +517,7 @@ export async function healthCheck(): Promise<{
  */
 export function clearMemoryCache(): void {
   memoryCache.clear();
-  console.log('[Redis] Memory cache cleared');
+  getLogger().then((l) => l.debug('[Redis] Memory cache cleared'));
 }
 
 /**
@@ -519,7 +525,7 @@ export function clearMemoryCache(): void {
  */
 export async function closeRedis(): Promise<void> {
   await redis.quit();
-  console.log('[Redis] Connection closed');
+  getLogger().then((l) => l.info('[Redis] Connection closed'));
 }
 
 /**
