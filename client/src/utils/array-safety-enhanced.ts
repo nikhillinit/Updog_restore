@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 // client/src/utils/array-safety-enhanced.ts
 // --------------------------------------------------
 // Comprehensive array safety utilities for null/undefined handling
@@ -25,7 +20,7 @@ export function isSafeArray<T>(value: T[] | null | undefined): value is T[] {
 export function forEach<T>(
   array: T[] | null | undefined,
   callback: (_item: T, _index: number, _array: T[]) => void,
-  thisArg?: any
+  thisArg?: unknown
 ): void {
   if (!isSafeArray(array)) {
     if (process.env['NODE_ENV'] === 'development') {
@@ -33,7 +28,7 @@ export function forEach<T>(
     }
     return;
   }
-  
+
   array.forEach(callback, thisArg);
 }
 
@@ -43,7 +38,7 @@ export function forEach<T>(
 export function map<T, R>(
   array: T[] | null | undefined,
   callback: (_item: T, _index: number, _array: T[]) => R,
-  thisArg?: any
+  thisArg?: unknown
 ): R[] {
   if (!isSafeArray(array)) return [];
   return array.map(callback, thisArg);
@@ -55,7 +50,7 @@ export function map<T, R>(
 export function filter<T>(
   array: T[] | null | undefined,
   predicate: (_item: T, _index: number, _array: T[]) => boolean,
-  thisArg?: any
+  thisArg?: unknown
 ): T[] {
   if (!isSafeArray(array)) return [];
   return array.filter(predicate, thisArg);
@@ -79,7 +74,7 @@ export function reduce<T, R>(
 export function find<T>(
   array: T[] | null | undefined,
   predicate: (_item: T, _index: number, _array: T[]) => boolean,
-  thisArg?: any
+  thisArg?: unknown
 ): T | undefined {
   if (!isSafeArray(array)) return undefined;
   return array.find(predicate, thisArg);
@@ -91,7 +86,7 @@ export function find<T>(
 export function some<T>(
   array: T[] | null | undefined,
   predicate: (_item: T, _index: number, _array: T[]) => boolean,
-  thisArg?: any
+  thisArg?: unknown
 ): boolean {
   if (!isSafeArray(array)) return false;
   return array.some(predicate, thisArg);
@@ -103,7 +98,7 @@ export function some<T>(
 export function every<T>(
   array: T[] | null | undefined,
   predicate: (_item: T, _index: number, _array: T[]) => boolean,
-  thisArg?: any
+  thisArg?: unknown
 ): boolean {
   if (!isSafeArray(array)) return true; // Empty array behavior
   return array.every(predicate, thisArg);
@@ -112,27 +107,21 @@ export function every<T>(
 /**
  * Safe array access with default fallback
  */
-export function safeArray<T>(
-  array: T[] | null | undefined,
-  defaultValue: T[] = []
-): T[] {
+export function safeArray<T>(array: T[] | null | undefined, defaultValue: T[] = []): T[] {
   return isSafeArray(array) ? array : defaultValue;
 }
 
 /**
  * Get array length safely
  */
-export function length(array: any[] | null | undefined): number {
+export function length(array: unknown[] | null | undefined): number {
   return isSafeArray(array) ? array.length : 0;
 }
 
 /**
  * Get item at index safely
  */
-export function at<T>(
-  array: T[] | null | undefined,
-  index: number
-): T | undefined {
+export function at<T>(array: T[] | null | undefined, index: number): T | undefined {
   if (!isSafeArray(array)) return undefined;
   return array.at(index);
 }
@@ -142,48 +131,48 @@ export function at<T>(
  */
 export class SafeArray<T> {
   constructor(private array: T[] | null | undefined) {}
-  
+
   forEach(callback: (_item: T, _index: number) => void): SafeArray<T> {
     forEach(this.array, callback);
     return this;
   }
-  
+
   map<R>(callback: (_item: T, _index: number) => R): SafeArray<R> {
     return new SafeArray(map(this.array, callback));
   }
-  
+
   filter(predicate: (_item: T, _index: number) => boolean): SafeArray<T> {
     return new SafeArray(filter(this.array, predicate));
   }
-  
+
   reduce<R>(callback: (_acc: R, _item: T) => R, initial: R): R {
     return reduce(this.array, callback, initial);
   }
-  
+
   find(predicate: (_item: T, _index: number) => boolean): T | undefined {
     return find(this.array, predicate);
   }
-  
+
   some(predicate: (_item: T, _index: number) => boolean): boolean {
     return some(this.array, predicate);
   }
-  
+
   every(predicate: (_item: T, _index: number) => boolean): boolean {
     return every(this.array, predicate);
   }
-  
+
   toArray(): T[] {
     return safeArray(this.array);
   }
-  
+
   get length(): number {
     return length(this.array);
   }
-  
+
   isEmpty(): boolean {
     return this.length === 0;
   }
-  
+
   isNotEmpty(): boolean {
     return this.length > 0;
   }
@@ -204,8 +193,8 @@ export function forEachNested<T, U>(
   nestedGetter: (_item: T) => U[] | null | undefined,
   callback: (_parent: T, _child: U, _parentIndex: number, _childIndex: number) => void
 ): void {
-  forEach(array, (parent: any, parentIndex: any) => {
-    forEach(nestedGetter(parent), (child: any, childIndex: any) => {
+  forEach(array, (parent: T, parentIndex: number) => {
+    forEach(nestedGetter(parent), (child: U, childIndex: number) => {
       callback(parent, child, parentIndex, childIndex);
     });
   });
@@ -221,7 +210,7 @@ export function forEachWithMetrics<T>(
 ): void {
   const start = performance.now();
   forEach(array, callback);
-  
+
   if (metricName && process.env['NODE_ENV'] === 'development') {
     const duration = performance.now() - start;
     console.debug(`forEach[${metricName}]: ${duration.toFixed(2)}ms for ${length(array)} items`);
@@ -236,7 +225,7 @@ export async function forEachAsync<T>(
   callback: (_item: T, _index: number) => Promise<void>
 ): Promise<void> {
   if (!isSafeArray(array)) return;
-  
+
   for (let i = 0; i < array.length; i++) {
     const item = array[i];
     if (item !== undefined) {
@@ -254,15 +243,15 @@ export async function forEachParallel<T>(
   concurrency: number = 10
 ): Promise<void> {
   if (!isSafeArray(array)) return;
-  
+
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += concurrency) {
     chunks.push(array.slice(i, i + concurrency));
   }
-  
+
   for (const chunk of chunks) {
     await Promise.all(
-      chunk.map((item: any, localIndex: any) => {
+      chunk.map((item: T, localIndex: number) => {
         const globalIndex = chunks.indexOf(chunk) * concurrency + localIndex;
         return callback(item, globalIndex);
       })
@@ -277,4 +266,3 @@ export const safeForEach = forEach;
 export const safeMap = map;
 export const safeFilter = filter;
 export const safeReduce = reduce;
-
