@@ -87,7 +87,7 @@ export async function createServer(
     const version = config.APP_VERSION;
     res['set']('X-Service-Version', version);
     res['set']('X-Service-Name', 'fund-platform-api');
-    (req as any).version = version;
+    req.version = version;
     next();
   });
 
@@ -130,23 +130,19 @@ export async function createServer(
     if (!err) return next();
 
     // Ensure X-Request-ID is set
-    if ((req as any).requestId && !res['get']('X-Request-ID')) {
-      res['set']('X-Request-ID', (req as any).requestId);
+    if (req.requestId && !res['get']('X-Request-ID')) {
+      res['set']('X-Request-ID', req.requestId);
     }
 
     if (err?.type === 'entity.too.large') {
       return sendApiError(
         res,
         413,
-        createErrorBody('Payload Too Large', (req as any).requestId, 'PAYLOAD_TOO_LARGE')
+        createErrorBody('Payload Too Large', req.requestId, 'PAYLOAD_TOO_LARGE')
       );
     }
     if (err?.type === 'entity.parse.failed') {
-      return sendApiError(
-        res,
-        400,
-        createErrorBody('Invalid JSON', (req as any).requestId, 'INVALID_JSON')
-      );
+      return sendApiError(res, 400, createErrorBody('Invalid JSON', req.requestId, 'INVALID_JSON'));
     }
     next(err);
   });
@@ -195,7 +191,7 @@ export async function createServer(
             path,
             statusCode: res.statusCode,
             duration,
-            requestId: (req as any).requestId,
+            requestId: req.requestId,
           })
         );
       }
@@ -236,7 +232,7 @@ export async function createServer(
     // For development, you might want to bypass auth - remove this in production!
     if (config.NODE_ENV === 'development' && !process.env['REQUIRE_AUTH']) {
       // Mock context for development
-      (req as any).context = {
+      req.context = {
         userId: 'dev-user',
         email: 'dev@example.com',
         role: 'admin',
@@ -266,7 +262,7 @@ export async function createServer(
       req.path.includes('/reserves') ||
       req.path.includes('/portfolio');
 
-    if (requiresTransaction && (req as any).context) {
+    if (requiresTransaction && req.context) {
       return withRLSTransaction()(req, res, next);
     }
 

@@ -51,19 +51,19 @@ const SOFT_REPLAY_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
 export function validateReplayWindow(timestamp: number): { valid: boolean; reason?: string } {
   const now = Date.now();
   const age = now - timestamp;
-  
+
   if (age < 0) {
     return { valid: false, reason: 'future_timestamp' };
   }
-  
+
   if (age > SOFT_REPLAY_WINDOW_MS) {
     return { valid: false, reason: 'stale' };
   }
-  
+
   if (age > REPLAY_WINDOW_MS) {
     return { valid: false, reason: 'stale_soft' };
   }
-  
+
   return { valid: true };
 }
 
@@ -74,16 +74,14 @@ export function validateOrigin(origin: string | undefined, referer: string | und
 
   const allowedOrigins = (process.env['ALLOWED_ORIGINS'] ?? '')
     .split(',')
-    .map(o => o.trim())
+    .map((o) => o.trim())
     .filter(Boolean); // avoid [''] when env is unset
   if (allowedOrigins.length === 0) {
     // Default to public URL
     allowedOrigins.push(process.env['PUBLIC_URL'] || 'http://localhost:5173');
   }
-  
-  return allowedOrigins.some(allowed => 
-    origin === allowed || referer.startsWith(allowed)
-  );
+
+  return allowedOrigins.some((allowed) => origin === allowed || referer.startsWith(allowed));
 }
 
 // ===== Cardinality Guard =====
@@ -93,13 +91,16 @@ const MAX_ROUTES_PER_DAY = parseInt(process.env['RUM_MAX_ROUTES'] || '1000');
 const MAX_LABELS_PER_ROUTE = parseInt(process.env['RUM_MAX_LABELS'] || '50');
 
 // Reset daily at midnight
-setInterval(() => {
-  const hour = new Date().getHours();
-  if (hour === 0) {
-    routeCardinality.clear();
-    rumUniqueRoutesToday['set'](0);
-  }
-}, 60 * 60 * 1000); // Check every hour
+setInterval(
+  () => {
+    const hour = new Date().getHours();
+    if (hour === 0) {
+      routeCardinality.clear();
+      rumUniqueRoutesToday['set'](0);
+    }
+  },
+  60 * 60 * 1000
+); // Check every hour
 
 export function checkCardinality(pathname: string, labels: Record<string, string>): boolean {
   // Get or create route entry
@@ -109,28 +110,33 @@ export function checkCardinality(pathname: string, labels: Record<string, string
     }
     routeCardinality['set'](pathname, new Set());
   }
-  
+
   const routeLabels = routeCardinality['get'](pathname)!;
   const labelKey = JSON.stringify(labels);
-  
+
   if (!routeLabels.has(labelKey)) {
     if (routeLabels.size >= MAX_LABELS_PER_ROUTE) {
       return false; // Exceeded labels per route
     }
     routeLabels.add(labelKey);
   }
-  
+
   // Update gauge
   rumUniqueRoutesToday['set'](routeCardinality.size);
-  
+
   // Calculate and update label budget
-  const totalLabels = Array.from(routeCardinality.values()).reduce((sum: any, set: any) => sum + set.size, 0);
+  const totalLabels = Array.from(routeCardinality.values()).reduce(
+    (sum: any, set: any) => sum + set.size,
+    0
+  );
   const maxTotalLabels = MAX_ROUTES_PER_DAY * MAX_LABELS_PER_ROUTE;
   const budgetUsed = (totalLabels / maxTotalLabels) * 100;
-  
+
   rumLabelBudgetUsed.labels({ dimension: 'total' })['set'](budgetUsed);
-  rumLabelBudgetUsed.labels({ dimension: 'routes' })['set']((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
-  
+  rumLabelBudgetUsed
+    .labels({ dimension: 'routes' })
+    ['set']((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
+
   return true;
 }
 
@@ -141,20 +147,20 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
   if (process.env['ENABLE_RUM_V2'] !== '1') {
     return next();
   }
-  
+
   // Attach v2 processing to request
-  (req as any).rumV2 = {
+  req.rumV2 = {
     processMetric: (name: string, value: number, labels: Record<string, any>) => {
       const { pathname = '/', rating = 'unknown', navigationType = 'navigate' } = labels;
       const timestamp = labels['timestamp'] || Date.now();
-      
+
       // 1. Validate replay window
       const replayValidation = validateReplayWindow(timestamp);
       if (!replayValidation.valid) {
         rumIngestRejectedTotal.labels({ reason: replayValidation.reason! }).inc();
         return false;
       }
-      
+
       // 2. Validate origin
       const origin = req['get']('origin');
       const referer = req['get']('referer');
@@ -162,34 +168,36 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
         rumIngestRejectedTotal.labels({ reason: 'origin' }).inc();
         return false;
       }
-      
+
       // 3. Check cardinality budget
       const sanitizedPath = pathname.split('?')[0].replace(/\/[a-f0-9-]{36}/gi, '/:id');
       if (!checkCardinality(sanitizedPath, { rating, navigationType })) {
         rumIngestRejectedTotal.labels({ reason: 'label_budget' }).inc();
         return false;
       }
-      
+
       // 4. Detect device type and connection
       const userAgent = req['get']('user-agent') || '';
       const device = /mobile/i.test(userAgent) ? 'mobile' : 'desktop';
       const connection = req['get']('downlink') || 'unknown';
-      
+
       // 5. Record accepted metric
-      rumIngestTotal.labels({ 
-        metric_type: name.toUpperCase(),
-        device,
-        connection
-      }).inc();
-      
+      rumIngestTotal
+        .labels({
+          metric_type: name.toUpperCase(),
+          device,
+          connection,
+        })
+        .inc();
+
       return true;
     },
-    
+
     getMetrics: async () => {
       return rumV2Registry.metrics();
-    }
+    },
   };
-  
+
   next();
 }
 
@@ -203,7 +211,7 @@ class RUMCircuitBreaker {
   private readonly threshold = 10;
   private readonly timeout = 60000; // 1 minute
   private readonly successThreshold = 5;
-  
+
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     if (this.state === 'open') {
       if (Date.now() - this.lastFailureTime > this.timeout) {
@@ -214,7 +222,7 @@ class RUMCircuitBreaker {
         throw new Error('Circuit breaker is OPEN');
       }
     }
-    
+
     try {
       const result = await fn();
       this.onSuccess();
@@ -224,10 +232,10 @@ class RUMCircuitBreaker {
       throw error;
     }
   }
-  
+
   private onSuccess() {
     this.failures = 0;
-    
+
     if (this.state === 'half-open') {
       this.successes++;
       if (this.successes >= this.successThreshold) {
@@ -240,17 +248,17 @@ class RUMCircuitBreaker {
       rumCircuitBreakerState['set'](0);
     }
   }
-  
+
   private onFailure() {
     this.failures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.failures >= this.threshold) {
       this.state = 'open';
       rumCircuitBreakerState['set'](1);
     }
   }
-  
+
   getState() {
     return this.state;
   }

@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Generic error handling patterns
- 
- 
- 
- 
+
 /**
  * Consolidated error handling patterns
  * Unified approach to error management across the application
@@ -15,7 +12,7 @@ import {
   isDatabaseError,
   isIdempotencyError,
   isRateLimitError,
-  isValidationError
+  isValidationError,
 } from '../types/errors.js';
 import { createErrorBody } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
@@ -26,7 +23,7 @@ export enum ErrorSeverity {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 // Error handling configuration
@@ -41,7 +38,7 @@ const defaultConfig: ErrorHandlingConfig = {
   captureAsync: true,
   notifyOnSeverity: [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL],
   retryableErrors: ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'],
-  sensitiveFields: ['password', 'token', 'secret', 'key', 'authorization']
+  sensitiveFields: ['password', 'token', 'secret', 'key', 'authorization'],
 };
 
 // Enhanced error context
@@ -66,7 +63,7 @@ export class UnifiedErrorHandler {
 
   // Main error handling method
   async handleError(
-    error: Error, 
+    error: Error,
     context: Partial<ErrorContext> = {}
   ): Promise<{
     statusCode: number;
@@ -79,7 +76,7 @@ export class UnifiedErrorHandler {
       timestamp: Date.now(),
       severity: this.determineSeverity(error),
       retryable: this.isRetryable(error),
-      ...context
+      ...context,
     };
 
     // Sanitize sensitive data
@@ -103,7 +100,7 @@ export class UnifiedErrorHandler {
       statusCode: errorResponse.statusCode,
       response: errorResponse.body,
       severity: enrichedContext.severity,
-      action
+      action,
     };
   }
 
@@ -111,8 +108,8 @@ export class UnifiedErrorHandler {
   middleware() {
     return async (err: any, req: Request, res: Response, _next: NextFunction) => {
       const context: Partial<ErrorContext> = {
-        requestId: (req as any).requestId,
-        userId: (req as any).user?.id,
+        ...(req.requestId != null && { requestId: req.requestId }),
+        ...(req.user?.id != null && { userId: req.user.id }),
         operation: `${req.method} ${req.path}`,
         component: 'api',
         metadata: {
@@ -120,24 +117,24 @@ export class UnifiedErrorHandler {
           path: req.path,
           query: req.query,
           ip: req.ip,
-          userAgent: req['get']('user-agent')
-        }
+          userAgent: req['get']('user-agent'),
+        },
       };
 
       try {
         const result = await this.handleError(err, context);
-        
+
         if (!res.headersSent) {
-          res["status"](result.statusCode)["json"](result.response);
+          res['status'](result.statusCode)['json'](result.response);
         }
       } catch (handlingError) {
         console.error('Error in error handler:', handlingError);
-        
+
         if (!res.headersSent) {
-          res["status"](500)["json"]({
+          res['status'](500)['json']({
             error: 'Internal Server Error',
             code: 'INTERNAL_ERROR',
-            requestId: context.requestId
+            requestId: context.requestId,
           });
         }
       }
@@ -149,23 +146,23 @@ export class UnifiedErrorHandler {
     if (isDeploymentError(error)) {
       return error.stage === 'production' ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
     }
-    
+
     if (isDatabaseError(error)) {
       return error.message.includes('connection') ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH;
     }
-    
+
     if (isHealthCheckError(error)) {
       return error.checkType === 'connectivity' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
     }
-    
+
     if (isRateLimitError(error)) {
       return ErrorSeverity.LOW;
     }
-    
+
     if (isValidationError(error)) {
       return ErrorSeverity.LOW;
     }
-    
+
     if (isIdempotencyError(error)) {
       return error.conflictType === 'storage_error' ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
     }
@@ -182,7 +179,7 @@ export class UnifiedErrorHandler {
   // Check if error is retryable
   private isRetryable(error: Error): boolean {
     // Check against configured retryable errors
-    if (this.config.retryableErrors.some(code => error.message.includes(code))) {
+    if (this.config.retryableErrors.some((code) => error.message.includes(code))) {
       return true;
     }
 
@@ -203,7 +200,10 @@ export class UnifiedErrorHandler {
   }
 
   // Create appropriate error response
-  private createErrorResponse(error: Error, context: ErrorContext): { statusCode: number; body: any } {
+  private createErrorResponse(
+    error: Error,
+    context: ErrorContext
+  ): { statusCode: number; body: any } {
     let statusCode = 500;
     let message = 'Internal Server Error';
     let code = 'INTERNAL_ERROR';
@@ -236,7 +236,7 @@ export class UnifiedErrorHandler {
 
     return {
       statusCode,
-      body: createErrorBody(message, context.requestId, code)
+      body: createErrorBody(message, context.requestId, code),
     };
   }
 
@@ -260,25 +260,29 @@ export class UnifiedErrorHandler {
 
     // Track specific error type metrics
     if (isDatabaseError(error)) {
-      businessMetrics.trackDatabaseOperation(
-        'error',
-        'unknown',
-        'simple',
-        'default',
-        async () => { throw error; }
-      ).catch((metricErr) => {
-        console.debug('[ErrorHandler] Failed to track database error metric:', metricErr?.message || metricErr);
-      });
+      businessMetrics
+        .trackDatabaseOperation('error', 'unknown', 'simple', 'default', async () => {
+          throw error;
+        })
+        .catch((metricErr) => {
+          console.debug(
+            '[ErrorHandler] Failed to track database error metric:',
+            metricErr?.message || metricErr
+          );
+        });
     }
 
     if (isIdempotencyError(error)) {
-      businessMetrics.trackIdempotency(
-        'conflict',
-        error.cacheHit ? 'redis' : 'database',
-        async () => { throw error; }
-      ).catch((metricErr) => {
-        console.debug('[ErrorHandler] Failed to track idempotency error metric:', metricErr?.message || metricErr);
-      });
+      businessMetrics
+        .trackIdempotency('conflict', error.cacheHit ? 'redis' : 'database', async () => {
+          throw error;
+        })
+        .catch((metricErr) => {
+          console.debug(
+            '[ErrorHandler] Failed to track idempotency error metric:',
+            metricErr?.message || metricErr
+          );
+        });
     }
   }
 
@@ -291,22 +295,21 @@ export class UnifiedErrorHandler {
           error_type: error.constructor.name,
           severity: context.severity,
           component: context.component || 'unknown',
-          operation: context.operation || 'unknown'
+          operation: context.operation || 'unknown',
         });
 
         tracer.log(errorSpan.id, 'error', error.message, {
           stack: error.stack,
-          context: this.sanitizeForLogging(context)
+          context: this.sanitizeForLogging(context),
         });
 
         tracer.finishSpan(errorSpan.id, 'completed', {
           captured: true,
-          severity: context.severity
+          severity: context.severity,
         });
 
         // In production, send to external error tracking (Sentry, etc.)
         this.sendToExternalTracking(error, context);
-
       } catch (captureError) {
         console.error('Failed to capture error asynchronously:', captureError);
       }
@@ -320,7 +323,7 @@ export class UnifiedErrorHandler {
     if (this.config.notifyOnSeverity.includes(context.severity)) {
       console.error(`[${context.severity.toUpperCase()}] ${error.name}: ${error.message}`, {
         context: this.sanitizeForLogging(context),
-        stack: error.stack
+        stack: error.stack,
       });
     }
   }
@@ -328,7 +331,7 @@ export class UnifiedErrorHandler {
   // Sanitize context for logging
   private sanitizeForLogging(context: ErrorContext): Partial<ErrorContext> {
     const sanitized = { ...context };
-    
+
     if (sanitized.metadata) {
       sanitized.metadata = this.removeSensitiveFields(sanitized.metadata);
     }
@@ -341,7 +344,7 @@ export class UnifiedErrorHandler {
     if (!obj || typeof obj !== 'object') return obj;
 
     const sanitized = { ...obj };
-    
+
     for (const field of this.config.sensitiveFields) {
       if (field in sanitized) {
         sanitized[field] = '[REDACTED]';
@@ -416,13 +419,16 @@ export class ErrorCircuitBreaker {
       return result;
     } catch (error) {
       this.onFailure();
-      
+
       const handlingResult = await this.monitor.handleError(
         error instanceof Error ? error : new Error(String(error)),
         { ...context, component: 'circuit-breaker' }
       );
 
-      if (handlingResult.action === 'retry' && (this.state === 'closed' || this.state === 'half-open')) {
+      if (
+        handlingResult.action === 'retry' &&
+        (this.state === 'closed' || this.state === 'half-open')
+      ) {
         // Could implement retry logic here
       }
 
@@ -438,7 +444,7 @@ export class ErrorCircuitBreaker {
   private onFailure() {
     this.failures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.failures >= this.threshold) {
       this.state = 'open';
     }
@@ -448,7 +454,7 @@ export class ErrorCircuitBreaker {
     return {
       state: this.state,
       failures: this.failures,
-      lastFailureTime: this.lastFailureTime
+      lastFailureTime: this.lastFailureTime,
     };
   }
 }

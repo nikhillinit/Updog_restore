@@ -77,13 +77,20 @@ const rumMetricsReceived = new client.Counter({
 // Helper to select the right histogram
 function getHistogram(name: string): client.Histogram | null {
   switch (name.toUpperCase()) {
-    case 'LCP': return webVitalsLCP;
-    case 'INP': return webVitalsINP;
-    case 'CLS': return webVitalsCLS;
-    case 'FCP': return webVitalsFCP;
-    case 'TTFB': return webVitalsTTFB;
-    case 'TTI': return webVitalsTTI;
-    default: return null;
+    case 'LCP':
+      return webVitalsLCP;
+    case 'INP':
+      return webVitalsINP;
+    case 'CLS':
+      return webVitalsCLS;
+    case 'FCP':
+      return webVitalsFCP;
+    case 'TTFB':
+      return webVitalsTTFB;
+    case 'TTI':
+      return webVitalsTTI;
+    default:
+      return null;
   }
 }
 
@@ -100,74 +107,87 @@ metricsRumRouter.use(rumPrivacyGuard);
 metricsRumRouter.use(rumV2Enhancement);
 
 // Accept RUM metrics from browser
-metricsRumRouter.post('/metrics/rum', express["json"]({ limit: '10kb' }), async (req: Request, res: Response) => {
-  try {
-    const validation = rumMetricSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res["status"](400)["json"]({ error: 'Invalid metric data', issues: validation.error.issues });
-    }
-    const { name, value, rating, navigationType, pathname, timestamp } = validation.data;
-    
-    // If RUM v2 is enabled, use enhanced processing
-    if (process.env['ENABLE_RUM_V2'] === '1' && (req as any).rumV2) {
-      try {
-        const processed = await rumCircuitBreaker.execute(async () => {
-          return (req as any).rumV2.processMetric(name, value, {
-            pathname,
-            rating,
-            navigationType,
-            timestamp: timestamp || Date.now()
-          });
+metricsRumRouter.post(
+  '/metrics/rum',
+  express['json']({ limit: '10kb' }),
+  async (req: Request, res: Response) => {
+    try {
+      const validation = rumMetricSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res['status'](400)['json']({
+          error: 'Invalid metric data',
+          issues: validation.error.issues,
         });
-        
-        if (!processed) {
-          // Metric was rejected by v2 validation
-          return res["status"](204)["end"]();
+      }
+      const { name, value, rating, navigationType, pathname, timestamp } = validation.data;
+
+      // If RUM v2 is enabled, use enhanced processing
+      const rumProcessor = req.rumV2;
+      if (process.env['ENABLE_RUM_V2'] === '1' && rumProcessor) {
+        try {
+          const processed = await rumCircuitBreaker.execute(async () => {
+            return rumProcessor.processMetric(name, value, {
+              pathname,
+              rating,
+              navigationType,
+              timestamp: timestamp || Date.now(),
+            });
+          });
+
+          if (!processed) {
+            // Metric was rejected by v2 validation
+            return res['status'](204)['end']();
+          }
+        } catch (circuitError) {
+          console.error('[RUM v2] Circuit breaker triggered:', circuitError);
+          // Fall through to legacy processing
         }
-      } catch (circuitError) {
-        console.error('[RUM v2] Circuit breaker triggered:', circuitError);
-        // Fall through to legacy processing
       }
-    }
-    
-    // Sanitize pathname to prevent cardinality explosion
-    const sanitizedPath = pathname?.split('?')?.[0]?.replace(/\/[a-f0-9-]{36}/gi, '/:id') ?? '/';
-    
-    // Get the appropriate histogram
-    const histogram = getHistogram(name);
-    if (histogram) {
-      histogram.labels({
-        pathname: sanitizedPath,
-        rating: rating || 'unknown',
-        navigationType: navigationType || 'navigate',
-      }).observe(value);
-      
-      // Increment counter
-      rumMetricsReceived.labels({ metric_name: name.toUpperCase() }).inc();
-      
-      // Log in development
-      if (process.env['NODE_ENV'] === 'development') {
-        console.log(`[RUM] ${name}: ${value}ms (${rating}) - ${sanitizedPath}`);
+
+      // Sanitize pathname to prevent cardinality explosion
+      const sanitizedPath = pathname?.split('?')?.[0]?.replace(/\/[a-f0-9-]{36}/gi, '/:id') ?? '/';
+
+      // Get the appropriate histogram
+      const histogram = getHistogram(name);
+      if (histogram) {
+        histogram
+          .labels({
+            pathname: sanitizedPath,
+            rating: rating || 'unknown',
+            navigationType: navigationType || 'navigate',
+          })
+          .observe(value);
+
+        // Increment counter
+        rumMetricsReceived.labels({ metric_name: name.toUpperCase() }).inc();
+
+        // Log in development
+        if (process.env['NODE_ENV'] === 'development') {
+          console.log(`[RUM] ${name}: ${value}ms (${rating}) - ${sanitizedPath}`);
+        }
       }
+
+      // Always return 204 No Content for beacon requests
+      res['status'](204)['end']();
+    } catch (error) {
+      console.error('Error processing RUM metric:', error);
+      // Still return 204 to prevent beacon retries
+      res['status'](204)['end']();
     }
-    
-    // Always return 204 No Content for beacon requests
-    res["status"](204)["end"]();
-  } catch (error) {
-    console.error('Error processing RUM metric:', error);
-    // Still return 204 to prevent beacon retries
-    res["status"](204)["end"]();
   }
-});
+);
 
 // Expose RUM metrics separately from main metrics
 metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
   res['set']('Content-Type', rumRegistry.contentType);
-  rumRegistry.metrics().then(metrics => {
-    res["send"](metrics);
-  }).catch(err => {
-    res["status"](500)["json"]({ error: 'Failed to generate metrics', message: err.message });
-  });
+  rumRegistry
+    .metrics()
+    .then((metrics) => {
+      res['send'](metrics);
+    })
+    .catch((err) => {
+      res['status'](500)['json']({ error: 'Failed to generate metrics', message: err.message });
+    });
 });
 
 // Counter for synthetic beacon tracking
@@ -183,23 +203,26 @@ metricsRumRouter['get']('/metrics/rum/health', async (req: Request, res: Respons
   // Track synthetic health check
   const source = req['get']('X-Synthetic-Source') || 'health-check';
   syntheticBeaconCounter.labels({ source }).inc();
-  
+
   // Get metrics as string and parse to count total
   const metricsText = await rumRegistry.metrics();
   const totalMatch = metricsText.match(/rum_metrics_received_total\{[^}]*\}\s+(\d+)/g);
   let totalReceived = 0;
   if (totalMatch) {
-    totalMatch.forEach(match => {
+    totalMatch.forEach((match) => {
       const value = parseInt(match.split(' ').pop() || '0');
       totalReceived += value;
     });
   }
-  
+
   // Get synthetic beacon count
   const syntheticCount = await syntheticBeaconCounter['get']();
-  const syntheticTotal = syntheticCount.values.reduce((sum: any, v: any) => sum + (v.value || 0), 0);
-  
-  res["json"]({
+  const syntheticTotal = syntheticCount.values.reduce(
+    (sum: any, v: any) => sum + (v.value || 0),
+    0
+  );
+
+  res['json']({
     status: 'healthy',
     metrics_received: totalReceived,
     synthetic_beacons: syntheticTotal,

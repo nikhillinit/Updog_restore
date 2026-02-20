@@ -244,7 +244,7 @@ router['post']('/calculate', async (req: Request, res: Response) => {
 router['post']('/scenarios', async (req: Request, res: Response) => {
   try {
     const { portfolioCompanyId, scenarioName, result } = req.body as SaveScenarioRequest;
-    const userId = (req as any).user?.id || 'system'; // TODO: Get from auth middleware
+    const userId = req.user?.id || 'system'; // TODO: Get from auth middleware
 
     // Validate request
     if (!portfolioCompanyId || !scenarioName || !result) {
@@ -284,7 +284,7 @@ router['post']('/scenarios', async (req: Request, res: Response) => {
  */
 router['get']('/scenarios', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id || 'system'; // TODO: Get from auth middleware
+    const userId = req.user?.id || 'system'; // TODO: Get from auth middleware
     const { companyId } = req.query;
 
     // TODO: Fetch from database
@@ -313,7 +313,7 @@ router['get']('/scenarios', async (req: Request, res: Response) => {
 router['delete']('/scenarios/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.id || 'system';
+    const userId = req.user?.id || 'system';
 
     // TODO: Soft delete in database
     // await db.query(`

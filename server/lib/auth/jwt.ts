@@ -61,18 +61,18 @@ async function getSigningKey(kid: string): Promise<string> {
  * For RS256: Async verification using JWKS public keys
  */
 export function verifyAccessToken(token: string): JWTClaims {
-  if (cfg.JWT_ALG === "HS256") {
+  if (cfg.JWT_ALG === 'HS256') {
     const verified = jwt.verify(token, cfg.JWT_SECRET!, {
-      algorithms: ["HS256" as Algorithm],
+      algorithms: ['HS256' as Algorithm],
       issuer: cfg.JWT_ISSUER,
-      audience: cfg.JWT_AUDIENCE
+      audience: cfg.JWT_AUDIENCE,
     });
     return verified as JWTClaims;
   }
 
   // RS256: Need to handle async key retrieval
   // For sync API compatibility, we throw here and use verifyAccessTokenAsync for RS256
-  throw new Error("Use verifyAccessTokenAsync for RS256");
+  throw new Error('Use verifyAccessTokenAsync for RS256');
 }
 
 /**
@@ -80,7 +80,7 @@ export function verifyAccessToken(token: string): JWTClaims {
  * Falls back to sync verification for HS256
  */
 export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> {
-  if (cfg.JWT_ALG === "HS256") {
+  if (cfg.JWT_ALG === 'HS256') {
     return verifyAccessToken(token);
   }
 
@@ -92,7 +92,7 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
 
   const publicKey = await getSigningKey(decoded.header.kid);
   const verified = jwt.verify(token, publicKey, {
-    algorithms: ["RS256" as Algorithm],
+    algorithms: ['RS256' as Algorithm],
     issuer: cfg.JWT_ISSUER,
     audience: cfg.JWT_AUDIENCE,
   });
@@ -104,23 +104,22 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
  * Assign verified claims to request user object
  */
 function assignUserFromClaims(req: Request, claims: JWTClaims): void {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- Express Request lacks typed user property
-  (req as any).user = {
+  req.user = {
     id: claims.sub,
     sub: claims.sub,
     email: claims.email ?? claims.sub,
-    role: claims.role,
+    ...(claims.role != null && { role: claims.role }),
     roles: claims.role ? [claims.role] : [],
     fundIds: claims.fundIds || [],
-    lpId: claims.lpId, // LP-specific: attach if present in token
+    ...(claims.lpId != null && { lpId: claims.lpId }),
     ip: req.ip || 'unknown',
-    userAgent: req.header("user-agent") || 'unknown',
+    userAgent: req.header('user-agent') || 'unknown',
   };
 }
 
 export const requireAuth = () => async (req: Request, res: Response, next: NextFunction) => {
-  const h = req.header("authorization") || "";
-  const token = h.startsWith("Bearer ") ? h.slice(7) : undefined;
+  const h = req.header('authorization') || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
 
   if (!token) {
     authMetrics.jwtMissingToken.inc?.();
@@ -132,9 +131,9 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     const claims = await verifyAccessTokenAsync(token);
     assignUserFromClaims(req, claims);
     next();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT library error shape not typed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT library error shape not typed
   } catch (err: any) {
-    console.warn("JWT verification failed", { name: err?.name, message: err?.message });
+    console.warn('JWT verification failed', { name: err?.name, message: err?.message });
     authMetrics.jwtVerificationFailed.inc?.();
     return res.sendStatus(401);
   }
@@ -192,9 +191,9 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
 export function signToken(data: any): string {
   const cfg = getConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {
-    algorithm: "HS256" as Algorithm,
-    expiresIn: "7d",
+    algorithm: 'HS256' as Algorithm,
+    expiresIn: '7d',
     issuer: cfg.JWT_ISSUER,
-    audience: cfg.JWT_AUDIENCE
+    audience: cfg.JWT_AUDIENCE,
   });
 }

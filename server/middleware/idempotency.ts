@@ -7,12 +7,12 @@ import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
 
 interface IdempotencyOptions {
-  ttl?: number;                    // TTL in seconds (default: 300 = 5 minutes)
-  prefix?: string;                 // Redis key prefix (default: 'idem')
+  ttl?: number; // TTL in seconds (default: 300 = 5 minutes)
+  prefix?: string; // Redis key prefix (default: 'idem')
   generateKey?: (req: Request) => string | undefined; // Custom key generator
-  skipPaths?: string[];            // Paths to skip idempotency
-  memoryFallback?: boolean;        // Use memory if Redis unavailable
-  includeStatusCodes?: number[];   // Status codes to cache (default: [200, 201])
+  skipPaths?: string[]; // Paths to skip idempotency
+  memoryFallback?: boolean; // Use memory if Redis unavailable
+  includeStatusCodes?: number[]; // Status codes to cache (default: [200, 201])
 }
 
 interface ResolvedIdempotencyConfig {
@@ -59,21 +59,21 @@ interface IdempotentResponse {
 class MemoryIdempotencyStore {
   private store = new Map<string, { data: IdempotentResponse; expiry: number }>();
   private readonly maxSize = 1000;
-  
+
   set(key: string, data: IdempotentResponse, ttl: number): void {
     // Cleanup expired entries
     this.cleanup();
-    
+
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
       if (firstKey) this.store.delete(firstKey);
     }
-    
-    const expiry = Date.now() + (ttl * 1000);
+
+    const expiry = Date.now() + ttl * 1000;
     this.store['set'](key, { data, expiry });
   }
-  
+
   get(key: string): IdempotentResponse | null {
     const entry = this.store['get'](key);
 
@@ -92,11 +92,11 @@ class MemoryIdempotencyStore {
 
     return entry.data;
   }
-  
+
   delete(key: string): void {
     this.store.delete(key);
   }
-  
+
   cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.store.entries()) {
@@ -105,11 +105,11 @@ class MemoryIdempotencyStore {
       }
     }
   }
-  
+
   clear(): void {
     this.store.clear();
   }
-  
+
   size(): number {
     return this.store.size;
   }
@@ -125,21 +125,22 @@ function getIdempotencyKey(req: Request, options: IdempotencyOptions): string | 
   if (options.generateKey) {
     return options.generateKey(req);
   }
-  
+
   // Check headers for idempotency key
-  const headerKey = req.headers['idempotency-key'] || 
-                    req.headers['x-idempotency-key'] ||
-                    req.headers['idempotent-key'];
-  
+  const headerKey =
+    req.headers['idempotency-key'] ||
+    req.headers['x-idempotency-key'] ||
+    req.headers['idempotent-key'];
+
   if (headerKey && typeof headerKey === 'string') {
     return headerKey;
   }
-  
+
   // Generate key from request signature for specific endpoints
   if (req.method === 'POST' && shouldAutoGenerateKey(req)) {
     return generateRequestHash(req);
   }
-  
+
   return undefined;
 }
 
@@ -147,14 +148,9 @@ function getIdempotencyKey(req: Request, options: IdempotencyOptions): string | 
  * Check if we should auto-generate idempotency key
  */
 function shouldAutoGenerateKey(req: Request): boolean {
-  const criticalPaths = [
-    '/api/funds',
-    '/api/simulations',
-    '/api/transactions',
-    '/api/payments',
-  ];
-  
-  return criticalPaths.some(path => req.path.startsWith(path));
+  const criticalPaths = ['/api/funds', '/api/simulations', '/api/transactions', '/api/payments'];
+
+  return criticalPaths.some((path) => req.path.startsWith(path));
 }
 
 /**
@@ -167,16 +163,16 @@ function stableStringify(obj: unknown): string {
   }
 
   if (Array.isArray(obj)) {
-    return `[${  obj.map(stableStringify).join(',')  }]`;
+    return `[${obj.map(stableStringify).join(',')}]`;
   }
 
   const sortedKeys = Object.keys(obj).sort();
-  const pairs = sortedKeys.map(key => {
+  const pairs = sortedKeys.map((key) => {
     const value = (obj as any)[key];
-    return `${JSON.stringify(key)  }:${  stableStringify(value)}`;
+    return `${JSON.stringify(key)}:${stableStringify(value)}`;
   });
 
-  return `{${  pairs.join(',')  }}`;
+  return `{${pairs.join(',')}}`;
 }
 
 /**
@@ -187,13 +183,10 @@ function generateRequestHash(req: Request): string {
     method: req.method,
     path: req.path,
     body: req.body,
-    userId: (req as any).user?.id,
+    userId: req.user?.id,
   };
 
-  return crypto
-    .createHash('sha256')
-    .update(stableStringify(data))
-    .digest('hex');
+  return crypto.createHash('sha256').update(stableStringify(data)).digest('hex');
 }
 
 /**
@@ -230,7 +223,7 @@ async function retrieveResponse(
   options: IdempotencyOptions
 ): Promise<IdempotentResponse | null> {
   const redisKey = `${options.prefix}:${key}`;
-  
+
   try {
     // Try Redis first
     if (redisClient) {
@@ -242,12 +235,12 @@ async function retrieveResponse(
   } catch (error) {
     console.warn('[Idempotency] Failed to retrieve from Redis:', error);
   }
-  
+
   // Fallback to memory if enabled
   if (options.memoryFallback) {
     return memoryStore['get'](key);
   }
-  
+
   return null;
 }
 
@@ -263,21 +256,21 @@ export function idempotency(options: IdempotencyOptions = {}) {
     includeStatusCodes: options.includeStatusCodes || [200, 201],
     ...(options.generateKey && { generateKey: options.generateKey }),
   };
-  
+
   return async (req: Request, res: Response, next: NextFunction) => {
     // Skip if path is excluded
     if (config.skipPaths.includes(req.path)) {
       return next();
     }
-    
+
     // Get idempotency key
     const key = getIdempotencyKey(req, config);
-    
+
     if (!key) {
       // No idempotency key, proceed normally
       return next();
     }
-    
+
     // Check for existing response
     const cached = await retrieveResponse(key, config);
 
@@ -288,7 +281,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
       if (cached.fingerprint && cached.fingerprint !== currentFingerprint) {
         return res.status(422).json({
           error: 'idempotency_key_reused',
-          message: 'Idempotency key used with different request payload'
+          message: 'Idempotency key used with different request payload',
         });
       }
 
@@ -305,7 +298,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         }
       });
 
-      return res["status"](cached.statusCode)["json"](cached.body);
+      return res['status'](cached.statusCode)['json'](cached.body);
     }
 
     // Atomic PENDING lock for in-flight requests
@@ -325,20 +318,18 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
         if (!locked) {
           // Another request is processing this key
-          return res['setHeader']('Retry-After', '30')
-            .status(409)
-            .json({
-              error: 'request_in_progress',
-              message: 'Request with this idempotency key is currently being processed',
-              retryAfter: 30
-            });
+          return res['setHeader']('Retry-After', '30').status(409).json({
+            error: 'request_in_progress',
+            message: 'Request with this idempotency key is currently being processed',
+            retryAfter: 30,
+          });
         }
       }
     } catch (error) {
       console.warn('[Idempotency] Failed to acquire PENDING lock:', error);
       // Continue without lock if Redis unavailable
     }
-    
+
     // Capture response for caching
     const originalSend = res.send;
     const originalJson = res.json;
@@ -359,7 +350,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     };
 
     // Override send method
-    res.send = function(body?: any) {
+    res.send = function (body?: any) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
         responseBody = body;
         responseCaptured = true;
@@ -374,7 +365,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         };
 
         storeResponse(key, response, config as IdempotencyOptions)
-          .catch(error => {
+          .catch((error) => {
             console.error('[Idempotency] Failed to cache response:', error);
           })
           .finally(cleanupLock);
@@ -385,7 +376,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     };
 
     // Override json method
-    res.json = function(body?: any) {
+    res.json = function (body?: any) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
         responseBody = body;
         responseCaptured = true;
@@ -400,7 +391,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         };
 
         storeResponse(key, response, config as IdempotencyOptions)
-          .catch(error => {
+          .catch((error) => {
             console.error('[Idempotency] Failed to cache response:', error);
           })
           .finally(cleanupLock);
@@ -441,7 +432,7 @@ export function getIdempotencyStats() {
  * Express route handler for idempotency status
  */
 export function idempotencyStatusHandler(req: Request, res: Response) {
-  res["json"]({
+  res['json']({
     status: 'active',
     stats: getIdempotencyStats(),
     timestamp: new Date().toISOString(),
