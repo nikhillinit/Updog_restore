@@ -348,7 +348,7 @@ export class IntelligentReservesCache {
 
     // Prefetch in background
     setTimeout(async () => {
-      console.log(`Prefetching ${toPrefetch.length} related calculations`);
+      if (import.meta.env.DEV) console.log(`Prefetching ${toPrefetch.length} related calculations`);
 
       for (const prefetchKey of toPrefetch) {
         try {
