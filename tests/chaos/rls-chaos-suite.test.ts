@@ -26,11 +26,14 @@ describe('RLS Chaos Engineering Test Suite', () => {
 
     // Create test organization
     try {
-      await pool.query(`
+      await pool.query(
+        `
         INSERT INTO organizations (id, name, slug, status)
         VALUES ($1, 'Chaos Test Org', 'chaos-test-org', 'active')
         ON CONFLICT (slug) DO NOTHING
-      `, [CHAOS_CONFIG.testOrgId]);
+      `,
+        [CHAOS_CONFIG.testOrgId]
+      );
       testOrgCreated = true;
     } catch (err) {
       console.warn('Test org already exists or failed to create:', err);
@@ -93,11 +96,16 @@ describe('RLS Chaos Engineering Test Suite', () => {
         await client.query('BEGIN');
 
         // Create fund in test org
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
-        await client.query(`
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
+        await client.query(
+          `
           INSERT INTO funds (name, size, vintage_year, organization_id)
           VALUES ('Test Fund', 10000000, 2024, $1)
-        `, [CHAOS_CONFIG.testOrgId]);
+        `,
+          [CHAOS_CONFIG.testOrgId]
+        );
 
         // Reset context to NULL
         await client.query("SELECT set_config('app.current_org', NULL, true)");
@@ -121,7 +129,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
         await client.query('BEGIN');
 
         // Set context with SET LOCAL
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
         // Verify context is set
         let result = await client.query("SELECT current_setting('app.current_org', true) as org");
@@ -170,7 +180,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
       try {
         // Simulate PgBouncer behavior
         await client.query('BEGIN');
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
         await client.query('COMMIT');
 
         // Simulate DISCARD ALL on connection return
@@ -198,7 +210,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
 
         // Check client2 has no context
         await client2.query('BEGIN');
-        const result = await client2.query("SELECT current_setting('app.current_org', true) as org");
+        const result = await client2.query(
+          "SELECT current_setting('app.current_org', true) as org"
+        );
         expect(result.rows[0]?.org).toBe('');
 
         await client1.query('ROLLBACK');
@@ -216,7 +230,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
 
       try {
         await client.query('BEGIN');
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
         // Measure query performance
         const measurements: number[] = [];
@@ -232,7 +248,7 @@ describe('RLS Chaos Engineering Test Suite', () => {
         measurements.sort((a, b) => a - b);
         const p95 = measurements[Math.floor(measurements.length * 0.95)];
 
-        console.log(`RLS query p95: ${p95}ms`);
+        console.warn(`RLS query p95: ${p95}ms`);
         expect(p95).toBeLessThan(5);
 
         await client.query('ROLLBACK');
@@ -246,7 +262,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
 
       try {
         await client.query('BEGIN');
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
         // Get query plan
         const result = await client.query(`
@@ -296,9 +314,13 @@ describe('RLS Chaos Engineering Test Suite', () => {
         await client.query('BEGIN');
 
         // Correct: parameterized
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
-        const result = await client.query('SELECT * FROM funds WHERE organization_id = $1', [CHAOS_CONFIG.testOrgId]);
+        const result = await client.query('SELECT * FROM funds WHERE organization_id = $1', [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
         // Should succeed
         expect(result.rows).toBeDefined();
@@ -317,7 +339,9 @@ describe('RLS Chaos Engineering Test Suite', () => {
       try {
         // Count rows with RLS enabled
         await client.query('BEGIN');
-        await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+        await client.query("SELECT set_config('app.current_org', $1, true)", [
+          CHAOS_CONFIG.testOrgId,
+        ]);
 
         const withRLS = await client.query('SELECT COUNT(*) FROM funds');
         const countWithRLS = parseInt(withRLS.rows[0]?.count || '0');
@@ -443,7 +467,10 @@ describe('RLS Chaos Engineering Test Suite', () => {
 
         for (const row of policies.rows) {
           // Each table should have at least 4 policies (SELECT, INSERT, UPDATE, DELETE)
-          expect(parseInt(row.policy_count), `${row.tablename} should have 4+ policies`).toBeGreaterThanOrEqual(4);
+          expect(
+            parseInt(row.policy_count),
+            `${row.tablename} should have 4+ policies`
+          ).toBeGreaterThanOrEqual(4);
         }
 
         await client.query('ROLLBACK');
@@ -474,7 +501,9 @@ describe('Performance Benchmarks', () => {
 
     try {
       await client.query('BEGIN');
-      await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+      await client.query("SELECT set_config('app.current_org', $1, true)", [
+        CHAOS_CONFIG.testOrgId,
+      ]);
 
       const iterations = 1000;
       const start = Date.now();
@@ -486,7 +515,7 @@ describe('Performance Benchmarks', () => {
       const duration = Date.now() - start;
       const avgMs = duration / iterations;
 
-      console.log(`Simple SELECT average: ${avgMs.toFixed(3)}ms`);
+      console.warn(`Simple SELECT average: ${avgMs.toFixed(3)}ms`);
       expect(avgMs).toBeLessThan(5);
 
       await client.query('ROLLBACK');
@@ -500,7 +529,9 @@ describe('Performance Benchmarks', () => {
 
     try {
       await client.query('BEGIN');
-      await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+      await client.query("SELECT set_config('app.current_org', $1, true)", [
+        CHAOS_CONFIG.testOrgId,
+      ]);
 
       const iterations = 100;
       const start = Date.now();
@@ -512,7 +543,7 @@ describe('Performance Benchmarks', () => {
       const duration = Date.now() - start;
       const avgMs = duration / iterations;
 
-      console.log(`List query average: ${avgMs.toFixed(3)}ms`);
+      console.warn(`List query average: ${avgMs.toFixed(3)}ms`);
       expect(avgMs).toBeLessThan(20);
 
       await client.query('ROLLBACK');
@@ -526,7 +557,9 @@ describe('Performance Benchmarks', () => {
 
     try {
       await client.query('BEGIN');
-      await client.query("SELECT set_config('app.current_org', $1, true)", [CHAOS_CONFIG.testOrgId]);
+      await client.query("SELECT set_config('app.current_org', $1, true)", [
+        CHAOS_CONFIG.testOrgId,
+      ]);
 
       const iterations = 50;
       const start = Date.now();

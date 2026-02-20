@@ -43,10 +43,11 @@ class ToxiproxyClient {
         name,
         listen,
         upstream,
-        enabled: true
+        enabled: true,
       });
     } catch (error: any) {
-      if (error.response?.status !== 409) { // Ignore if proxy already exists
+      if (error.response?.status !== 409) {
+        // Ignore if proxy already exists
         throw error;
       }
     }
@@ -60,8 +61,8 @@ class ToxiproxyClient {
       toxicity: 1.0,
       attributes: {
         latency,
-        jitter
-      }
+        jitter,
+      },
     });
   }
 
@@ -72,8 +73,8 @@ class ToxiproxyClient {
       stream: 'downstream',
       toxicity: 1.0,
       attributes: {
-        timeout
-      }
+        timeout,
+      },
     });
   }
 
@@ -84,8 +85,8 @@ class ToxiproxyClient {
       stream: 'downstream',
       toxicity: 1.0,
       attributes: {
-        rate // bytes per second
-      }
+        rate, // bytes per second
+      },
     });
   }
 
@@ -96,8 +97,8 @@ class ToxiproxyClient {
       stream: 'downstream',
       toxicity: lossPercentage / 100,
       attributes: {
-        bytes: 0
-      }
+        bytes: 0,
+      },
     });
   }
 
@@ -110,13 +111,13 @@ class ToxiproxyClient {
 
   async disableProxy(proxyName: string) {
     await axios.post(`${this.baseUrl}/proxies/${proxyName}`, {
-      enabled: false
+      enabled: false,
     });
   }
 
   async enableProxy(proxyName: string) {
     await axios.post(`${this.baseUrl}/proxies/${proxyName}`, {
-      enabled: true
+      enabled: true,
     });
   }
 }
@@ -172,7 +173,7 @@ class MetricsCollector {
       p99: this.getP99(),
       errorRate: this.getErrorRate(),
       totalRequests: this.samples.length + this.errors,
-      circuitBreakerOpenCount: this.circuitBreakerOpenCount
+      circuitBreakerOpenCount: this.circuitBreakerOpenCount,
     };
   }
 
@@ -189,15 +190,15 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
 
   beforeAll(async () => {
     // Start chaos infrastructure
-    console.log('Starting chaos infrastructure...');
+    console.warn('Starting chaos infrastructure...');
     await execAsync('docker-compose -f docker-compose.chaos.yml up -d');
-    
+
     // Wait for services to be ready
-    await new Promise(resolve => setTimeout(resolve, 10000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
     toxiproxy = new ToxiproxyClient();
     metrics = new MetricsCollector();
-    
+
     // Ensure proxies are created
     await toxiproxy.createProxy('postgres-proxy', '0.0.0.0:5433', 'postgres:5432');
     await toxiproxy.createProxy('redis-proxy', '0.0.0.0:6380', 'redis:6379');
@@ -205,7 +206,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
 
   afterAll(async () => {
     // Clean up chaos infrastructure
-    console.log('Cleaning up chaos infrastructure...');
+    console.warn('Cleaning up chaos infrastructure...');
     await execAsync('docker-compose -f docker-compose.chaos.yml down');
   });
 
@@ -224,23 +225,23 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should handle 500ms PostgreSQL latency without violating SLOs', async () => {
     // Inject 500ms latency
     await toxiproxy.addLatency('postgres-proxy', 500, 100);
-    
+
     // Run load test
     const duration = 30000; // 30 seconds
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < duration) {
       const requestStart = Date.now();
-      
+
       try {
         const response = await axios.get(`${APP_URL}/api/funds`, {
           timeout: 5000,
-          validateStatus: (status) => status < 500
+          validateStatus: (status) => status < 500,
         });
-        
+
         const latency = Date.now() - requestStart;
         metrics.recordLatency(latency);
-        
+
         // Check if circuit breaker opened
         if (response.status === 503) {
           metrics.recordCircuitBreakerOpen();
@@ -248,21 +249,21 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
       } catch (error) {
         metrics.recordError();
       }
-      
+
       // Small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    
+
     // Verify SLOs
     const stats = metrics.getStats();
-    console.log('Test results with 500ms PG latency:', stats);
-    
+    console.warn('Test results with 500ms PG latency:', stats);
+
     // P95 should remain under 2 seconds (with circuit breaker and caching)
     expect(stats.p95).toBeLessThan(2000);
-    
+
     // Error rate should be under 5%
     expect(stats.errorRate).toBeLessThan(0.05);
-    
+
     // Circuit breaker should have opened
     expect(stats.circuitBreakerOpenCount).toBeGreaterThan(0);
   });
@@ -270,18 +271,18 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should handle PostgreSQL connection failures gracefully', async () => {
     // Disable proxy to simulate connection failure
     await toxiproxy.disableProxy('postgres-proxy');
-    
+
     // Make requests and verify circuit breaker opens quickly
     const requests = 10;
     let circuitBreakerOpened = false;
-    
+
     for (let i = 0; i < requests; i++) {
       try {
         const response = await axios.get(`${APP_URL}/api/funds`, {
           timeout: 2000,
-          validateStatus: () => true
+          validateStatus: () => true,
         });
-        
+
         if (response.status === 503) {
           circuitBreakerOpened = true;
           break;
@@ -290,15 +291,15 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
         // Expected
       }
     }
-    
+
     expect(circuitBreakerOpened).toBe(true);
-    
+
     // Re-enable proxy
     await toxiproxy.enableProxy('postgres-proxy');
-    
+
     // Wait for circuit breaker to recover
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
     // Verify recovery
     const response = await axios.get(`${APP_URL}/api/funds`);
     expect(response.status).toBe(200);
@@ -307,16 +308,16 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should handle network partition (timeout) scenarios', async () => {
     // Add timeout toxic to simulate network partition
     await toxiproxy.addTimeout('postgres-proxy', 10000); // 10 second timeout
-    
+
     const startTime = Date.now();
-    
+
     try {
       await axios.get(`${APP_URL}/api/funds`, {
-        timeout: 3000
+        timeout: 3000,
       });
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      
+
       // Should timeout quickly due to circuit breaker
       expect(duration).toBeLessThan(3500);
       expect(error.code).toMatch(/ECONNABORTED|ETIMEDOUT|503/);
@@ -327,41 +328,42 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
     // Add moderate latency and packet loss
     await toxiproxy.addLatency('postgres-proxy', 200, 50);
     await toxiproxy.addPacketLoss('postgres-proxy', 10);
-    
+
     // Verify cached reads still work
     const results = [];
-    
+
     for (let i = 0; i < 20; i++) {
       const start = Date.now();
-      
+
       try {
         const response = await axios.get(`${APP_URL}/api/funds`, {
           timeout: 2000,
-          validateStatus: () => true
+          validateStatus: () => true,
         });
-        
+
         results.push({
           status: response.status,
           latency: Date.now() - start,
-          cached: response.headers['x-cache-hit'] === 'true'
+          cached: response.headers['x-cache-hit'] === 'true',
         });
       } catch (error) {
         results.push({
           status: 0,
           latency: Date.now() - start,
-          cached: false
+          cached: false,
         });
       }
     }
-    
+
     // At least 50% of requests should succeed (via cache or resilience)
-    const successRate = results.filter(r => r.status === 200).length / results.length;
+    const successRate = results.filter((r) => r.status === 200).length / results.length;
     expect(successRate).toBeGreaterThan(0.5);
-    
+
     // Cached responses should be fast
-    const cachedResults = results.filter(r => r.cached);
+    const cachedResults = results.filter((r) => r.cached);
     if (cachedResults.length > 0) {
-      const avgCachedLatency = cachedResults.reduce((sum, r) => sum + r.latency, 0) / cachedResults.length;
+      const avgCachedLatency =
+        cachedResults.reduce((sum, r) => sum + r.latency, 0) / cachedResults.length;
       expect(avgCachedLatency).toBeLessThan(100);
     }
   });
@@ -369,34 +371,34 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should handle gradual PostgreSQL degradation', async () => {
     const latencies = [0, 100, 200, 500, 1000, 2000];
     const results = [];
-    
+
     for (const latency of latencies) {
       // Reset and add new latency
       await toxiproxy.removeAllToxics('postgres-proxy');
       await toxiproxy.addLatency('postgres-proxy', latency);
-      
+
       // Measure performance
       const samples = [];
       for (let i = 0; i < 10; i++) {
         const start = Date.now();
-        
+
         try {
           await axios.get(`${APP_URL}/api/funds`, {
             timeout: 5000,
-            validateStatus: () => true
+            validateStatus: () => true,
           });
           samples.push(Date.now() - start);
         } catch (error) {
           samples.push(5000);
         }
       }
-      
+
       const avgLatency = samples.reduce((a, b) => a + b, 0) / samples.length;
       results.push({ pgLatency: latency, avgResponseTime: avgLatency });
     }
-    
-    console.log('Degradation test results:', results);
-    
+
+    console.warn('Degradation test results:', results);
+
     // Response time should not increase linearly with PG latency (due to circuit breaker)
     const lastResult = results[results.length - 1];
     expect(lastResult.avgResponseTime).toBeLessThan(3000);
@@ -405,7 +407,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should recover quickly after PostgreSQL recovers', async () => {
     // Start with high latency
     await toxiproxy.addLatency('postgres-proxy', 3000);
-    
+
     // Wait for circuit breaker to open
     for (let i = 0; i < 5; i++) {
       try {
@@ -414,14 +416,14 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
         // Expected
       }
     }
-    
+
     // Remove latency (simulate recovery)
     await toxiproxy.removeAllToxics('postgres-proxy');
-    
+
     // Measure recovery time
     const recoveryStart = Date.now();
     let recovered = false;
-    
+
     while (Date.now() - recoveryStart < 30000) {
       try {
         const response = await axios.get(`${APP_URL}/api/funds`);
@@ -432,10 +434,10 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
       } catch (error) {
         // Still recovering
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    
+
     const recoveryTime = Date.now() - recoveryStart;
     expect(recovered).toBe(true);
     expect(recoveryTime).toBeLessThan(15000); // Should recover within 15 seconds
@@ -444,17 +446,17 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
   test('Should handle bandwidth limitations gracefully', async () => {
     // Limit bandwidth to 10KB/s
     await toxiproxy.addBandwidthLimit('postgres-proxy', 10240);
-    
+
     // Test with timeout
     const start = Date.now();
-    
+
     try {
       await axios.get(`${APP_URL}/api/funds`, {
-        timeout: 2000
+        timeout: 2000,
       });
     } catch (error: any) {
       const duration = Date.now() - start;
-      
+
       // Should timeout or get circuit breaker response
       expect(duration).toBeLessThan(2500);
       expect([408, 503, 'ECONNABORTED']).toContain(error.response?.status || error.code);
@@ -476,27 +478,27 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('Redis Chaos Testing', () => {
   test('Should handle Redis latency without affecting critical operations', async () => {
     // Add 200ms latency to Redis
     await toxiproxy.addLatency('redis-proxy', 200);
-    
+
     // Critical operations should still work (may be slower)
     const response = await axios.get(`${APP_URL}/api/funds`, {
-      timeout: 5000
+      timeout: 5000,
     });
-    
+
     expect(response.status).toBe(200);
   });
 
   test('Should fallback gracefully when Redis is unavailable', async () => {
     // Disable Redis proxy
     await toxiproxy.disableProxy('redis-proxy');
-    
+
     // App should still function without cache
     const response = await axios.get(`${APP_URL}/api/funds`, {
-      validateStatus: () => true
+      validateStatus: () => true,
     });
-    
+
     // Should work but may indicate cache miss
     expect([200, 206]).toContain(response.status);
-    
+
     // Re-enable for cleanup
     await toxiproxy.enableProxy('redis-proxy');
   });

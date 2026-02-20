@@ -12,13 +12,13 @@
 import { setupTestContainers, cleanupTestContainers } from '../helpers/testcontainers';
 
 export async function setup() {
-  console.log('[global-setup] Starting testcontainers for integration tests...');
+  console.warn('[global-setup] Starting testcontainers for integration tests...');
 
   try {
     const state = await setupTestContainers();
-    console.log('[global-setup] Testcontainers ready');
-    console.log(`[global-setup] PostgreSQL: ${state.postgres?.getConnectionUri()}`);
-    console.log(
+    console.warn('[global-setup] Testcontainers ready');
+    console.warn(`[global-setup] PostgreSQL: ${state.postgres?.getConnectionUri()}`);
+    console.warn(
       `[global-setup] Redis: ${state.redis?.getHost()}:${state.redis?.getMappedPort(6379)}`
     );
   } catch (error) {
@@ -28,7 +28,7 @@ export async function setup() {
 }
 
 export async function teardown() {
-  console.log('[global-setup] Tearing down testcontainers...');
+  console.warn('[global-setup] Tearing down testcontainers...');
   await cleanupTestContainers();
-  console.log('[global-setup] Testcontainers cleanup complete');
+  console.warn('[global-setup] Testcontainers cleanup complete');
 }

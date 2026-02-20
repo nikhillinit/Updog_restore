@@ -1,11 +1,20 @@
 # COMPLEXITY CHECKPOINT
 
-**Triggered at:** 2026-02-15 23:54:18 **Prompt excerpt:** &nbsp; I'm continuing
-work on Updog_restore (VC fund modeling platform) from a previous session.
+**Triggered at:** 2026-02-19 03:14:04 **Prompt excerpt:** critically review the
+workflow cleanup assessment • All four subagents have completed their analys...
 
-...
+## [PLANNING-WITH-FILES] Comprehensive analysis task
 
-## [CODEX CHECKPOINT] Multi-file change requiring coordination
+Create before starting:
+
+```
+docs/plans/2026-02-19-<task-name>/
+  task_plan.md   - Phases and progress
+  findings.md    - Research and discoveries
+  progress.md    - Session log
+```
+
+## [CODEX CHECKPOINT] Security-related changes require review
 
 Per CLAUDE.md codex_checkpoint rule, Codex is REQUIRED for:
 

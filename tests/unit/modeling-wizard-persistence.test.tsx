@@ -200,9 +200,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     expect(snapshot.context.currentStep).toBe('generalInfo');
 
     if (snapshot.context.currentStep !== 'generalInfo') {
-      console.log('[EXPECTED FAILURE] Navigation happened despite persistence failure');
-      console.log('Current step:', snapshot.context.currentStep);
-      console.log('Expected: generalInfo');
+      console.error('[EXPECTED FAILURE] Navigation happened despite persistence failure');
+      console.warn('Current step:', snapshot.context.currentStep);
+      console.warn('Expected: generalInfo');
       throw new Error('Navigation executed despite QuotaExceededError (data loss!)');
     }
 
@@ -281,8 +281,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       snapshotAfterFailure.matches({ active: { editing: 'persistFailed' } });
 
     if (!hasRetryState) {
-      console.log('[EXPECTED FAILURE] No retry state exists in current implementation');
-      console.log('Current state:', snapshotAfterFailure.value);
+      console.error('[EXPECTED FAILURE] No retry state exists in current implementation');
+      console.warn('Current state:', snapshotAfterFailure.value);
       throw new Error('Retry mechanism not implemented');
     }
 
