@@ -61,82 +61,84 @@ const metricsLimiter = rateLimit({
  *
  * Response: UnifiedFundMetrics
  */
-router["get"](
+router['get'](
   '/api/funds/:fundId/metrics',
   requireAuth(),
   requireFundAccess,
   metricsLimiter,
   async (req: Request, res: Response) => {
-  try {
-    // Parse and validate fund ID
-    const fundIdParam = req.params['fundId'];
-    const fundId = toNumber(fundIdParam, 'fundId');
+    try {
+      // Parse and validate fund ID
+      const fundIdParam = req.params['fundId'];
+      const fundId = toNumber(fundIdParam, 'fundId');
 
-    if (fundId <= 0) {
-      return res["status"](400)["json"]({
-        error: 'Invalid fund ID',
-        message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
+      if (fundId <= 0) {
+        return res['status'](400)['json']({
+          error: 'Invalid fund ID',
+          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
+        });
+      }
+
+      // Parse query options
+      const skipCache = req.query['skipCache'] === 'true';
+      const skipProjections = req.query['skipProjections'] === 'true';
+
+      // Log skipCache usage for operational visibility
+      if (skipCache) {
+        console.info(
+          JSON.stringify({
+            event: 'metrics.skipCache',
+            user: req.user?.id || 'unknown',
+            fundId,
+            ip: req.ip,
+            reason: req.query['reason'] || 'manual',
+            timestamp: new Date().toISOString(),
+          })
+        );
+      }
+
+      // Get unified metrics
+      const metrics: UnifiedFundMetrics = await metricsAggregator.getUnifiedMetrics(fundId, {
+        skipCache,
+        skipProjections,
+      });
+
+      // Add response headers
+      res['setHeader']('Content-Type', 'application/json');
+      res['setHeader']('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
+
+      // Return metrics
+      return res['json'](metrics);
+    } catch (error) {
+      console.error('Metrics API error:', error);
+
+      // Handle parameter validation errors
+      if (error instanceof NumberParseError) {
+        return res['status'](400)['json']({
+          error: 'Invalid parameter',
+          message: error.message,
+        });
+      }
+
+      // Handle metrics calculation errors
+      if (isMetricsCalculationError(error)) {
+        const statusCode = getStatusCodeForError(error.code);
+        return res['status'](statusCode)['json']({
+          error: error.code,
+          message: error.message,
+          component: error.component,
+          timestamp: error.timestamp,
+        });
+      }
+
+      // Handle unexpected errors
+      return res['status'](500)['json']({
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to calculate metrics',
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-
-    // Parse query options
-    const skipCache = req.query['skipCache'] === 'true';
-    const skipProjections = req.query['skipProjections'] === 'true';
-
-    // Log skipCache usage for operational visibility
-    if (skipCache) {
-      console.info(JSON.stringify({
-        event: 'metrics.skipCache',
-        user: (req as any).user?.id || 'unknown',
-        fundId,
-        ip: req.ip,
-        reason: req.query['reason'] || 'manual',
-        timestamp: new Date().toISOString(),
-      }));
-    }
-
-    // Get unified metrics
-    const metrics: UnifiedFundMetrics = await metricsAggregator.getUnifiedMetrics(fundId, {
-      skipCache,
-      skipProjections,
-    });
-
-    // Add response headers
-    res["setHeader"]('Content-Type', 'application/json');
-    res["setHeader"]('Cache-Control', 'private, max-age=60'); // Client cache for 1 minute
-
-    // Return metrics
-    return res["json"](metrics);
-  } catch (error) {
-    console.error('Metrics API error:', error);
-
-    // Handle parameter validation errors
-    if (error instanceof NumberParseError) {
-      return res["status"](400)["json"]({
-        error: 'Invalid parameter',
-        message: error.message,
-      });
-    }
-
-    // Handle metrics calculation errors
-    if (isMetricsCalculationError(error)) {
-      const statusCode = getStatusCodeForError(error.code);
-      return res["status"](statusCode)["json"]({
-        error: error.code,
-        message: error.message,
-        component: error.component,
-        timestamp: error.timestamp,
-      });
-    }
-
-    // Handle unexpected errors
-    return res["status"](500)["json"]({
-      error: 'INTERNAL_ERROR',
-      message: 'Failed to calculate metrics',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
   }
-}
 );
 
 /**
@@ -151,44 +153,45 @@ router["get"](
  *
  * Response: 204 No Content on success
  */
-router["post"](
+router['post'](
   '/api/funds/:fundId/metrics/invalidate',
   requireAuth(),
   requireFundAccess,
   invalidateLimiter,
   async (req: Request, res: Response) => {
-  try {
-    const fundIdParam = req.params['fundId'];
-    const fundId = toNumber(fundIdParam, 'fundId');
+    try {
+      const fundIdParam = req.params['fundId'];
+      const fundId = toNumber(fundIdParam, 'fundId');
 
-    if (fundId <= 0) {
-      return res["status"](400)["json"]({
-        error: 'Invalid fund ID',
-        message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
+      if (fundId <= 0) {
+        return res['status'](400)['json']({
+          error: 'Invalid fund ID',
+          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
+        });
+      }
+
+      await metricsAggregator.invalidateCache(fundId);
+
+      // 204 No Content - successful invalidation, no body needed
+      return res['status'](204)['end']();
+    } catch (error) {
+      console.error('Cache invalidation error:', error);
+
+      if (error instanceof NumberParseError) {
+        return res['status'](400)['json']({
+          error: 'Invalid parameter',
+          message: error.message,
+        });
+      }
+
+      return res['status'](500)['json']({
+        error: 'INTERNAL_ERROR',
+        message: 'Failed to invalidate cache',
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-
-    await metricsAggregator.invalidateCache(fundId);
-
-    // 204 No Content - successful invalidation, no body needed
-    return res["status"](204)["end"]();
-  } catch (error) {
-    console.error('Cache invalidation error:', error);
-
-    if (error instanceof NumberParseError) {
-      return res["status"](400)["json"]({
-        error: 'Invalid parameter',
-        message: error.message,
-      });
-    }
-
-    return res["status"](500)["json"]({
-      error: 'INTERNAL_ERROR',
-      message: 'Failed to invalidate cache',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
   }
-});
+);
 
 /**
  * Type guard for MetricsCalculationError
