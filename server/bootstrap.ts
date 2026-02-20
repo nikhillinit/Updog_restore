@@ -11,50 +11,63 @@ import { loadEnv } from './config/index.js';
 import { buildProviders } from './providers.js';
 import { createServer } from './server.js';
 import { setReady } from './health/state.js';
+import { logger } from './lib/logger.js';
 import type { Socket } from 'net';
 
 async function bootstrap() {
   try {
-    console.log('[bootstrap] ===== PHASE 0: START =====');
-    console.log('[bootstrap] Starting application...');
+    logger.info({ phase: 'start' }, 'PHASE 0: START');
+    logger.info({ phase: 'start' }, 'Starting application...');
 
-    console.log('[bootstrap] ===== PHASE 1: ENV LOAD =====');
+    logger.info({ phase: 'env' }, 'PHASE 1: ENV LOAD');
     // Load and validate environment first
     const cfg = loadEnv();
-    console.log(`[bootstrap] Environment: ${cfg.NODE_ENV}, Port: ${cfg.PORT}`);
-    console.log(`[bootstrap] REDIS_URL: ${cfg.REDIS_URL}`);
-    console.log(`[bootstrap] DATABASE_URL: ${cfg.DATABASE_URL ? 'set' : 'undefined'}`);
-    console.log(`[bootstrap] ENABLE_QUEUES: ${cfg.ENABLE_QUEUES}`);
-    console.log(`[bootstrap] DISABLE_AUTH: ${process.env['DISABLE_AUTH']}`);
+    logger.info({ phase: 'env', env: cfg.NODE_ENV, port: cfg.PORT }, 'Environment loaded');
+    logger.debug({ phase: 'env', redisUrl: cfg.REDIS_URL }, 'REDIS_URL');
+    logger.debug({ phase: 'env', dbSet: !!cfg.DATABASE_URL }, 'DATABASE_URL');
+    logger.debug({ phase: 'env', queues: cfg.ENABLE_QUEUES }, 'ENABLE_QUEUES');
+    logger.debug({ phase: 'env', disableAuth: process.env['DISABLE_AUTH'] }, 'DISABLE_AUTH');
 
-    console.log('[bootstrap] ===== PHASE 2: PROVIDERS =====');
+    logger.info({ phase: 'providers' }, 'PHASE 2: PROVIDERS');
     // Build providers based on configuration (single source of truth)
     const providers = await buildProviders(cfg);
-    console.log('[bootstrap] Providers built successfully');
-    console.log(
-      `[providers] Cache: ${providers.mode}, RateLimit: ${!!providers.rateLimitStore}, Queues: ${providers.queue?.enabled}`
+    logger.info({ phase: 'providers' }, 'Providers built successfully');
+    logger.info(
+      {
+        phase: 'providers',
+        cache: providers.mode,
+        rateLimit: !!providers.rateLimitStore,
+        queues: providers.queue?.enabled,
+      },
+      'Provider summary'
     );
 
-    console.log('[bootstrap] ===== PHASE 3: SERVER CREATE =====');
+    logger.info({ phase: 'server' }, 'PHASE 3: SERVER CREATE');
     // Create server with dependency injection
     const app = await createServer(cfg, providers);
-    console.log('[bootstrap] Server created successfully');
+    logger.info({ phase: 'server' }, 'Server created successfully');
 
-    console.log('[bootstrap] ===== PHASE 4: LISTEN =====');
+    logger.info({ phase: 'listen' }, 'PHASE 4: LISTEN');
     // Start server
     const server = app.listen(cfg.PORT, () => {
       const address = server.address();
       const actualPort =
         typeof address === 'object' && address && 'port' in address ? address.port : cfg.PORT;
-      console.log('[bootstrap] ===== SERVER READY =====');
-      console.log(
-        `[startup] ${cfg.NODE_ENV} on :${cfg.PORT} | cache=${providers.mode} rl=${providers.rateLimitStore ? 'redis' : 'memory'}`
+      logger.info({ phase: 'ready' }, 'SERVER READY');
+      logger.info(
+        {
+          phase: 'ready',
+          env: cfg.NODE_ENV,
+          port: cfg.PORT,
+          cache: providers.mode,
+          rateLimit: providers.rateLimitStore ? 'redis' : 'memory',
+        },
+        `api on http://localhost:${actualPort}`
       );
-      console.log(`api on http://localhost:${actualPort}`);
 
       // Mark server as ready for requests
       setReady(true);
-      console.log('[bootstrap] Server ready for requests');
+      logger.info({ phase: 'ready' }, 'Server ready for requests');
     });
 
     // Track open sockets for graceful shutdown
@@ -71,22 +84,22 @@ async function bootstrap() {
 
     // Graceful shutdown handling
     async function gracefulShutdown(signal: string) {
-      console.log(`\n[shutdown] Received ${signal}, shutting down gracefully...`);
+      logger.info({ phase: 'shutdown', signal }, `Received ${signal}, shutting down gracefully...`);
 
       // Mark server as not ready
       setReady(false);
-      console.log('[providers] Tearing down...');
+      logger.info({ phase: 'shutdown' }, 'Tearing down...');
 
       // Stop accepting new connections
       server.close(async () => {
-        console.log('[shutdown] HTTP server closed');
+        logger.info({ phase: 'shutdown' }, 'HTTP server closed');
 
         // Close providers
         try {
           await providers.teardown?.();
-          console.log('[shutdown] Providers closed');
+          logger.info({ phase: 'shutdown' }, 'Providers closed');
         } catch (error) {
-          console.error('[shutdown] Error during provider cleanup:', error);
+          logger.error({ phase: 'shutdown', err: error }, 'Error during provider cleanup');
         }
 
         process.exit(0);
@@ -94,11 +107,14 @@ async function bootstrap() {
 
       // Force close sockets and exit after 10 seconds
       setTimeout(() => {
-        console.error('[shutdown] Forcing socket closure after timeout');
+        logger.error({ phase: 'shutdown' }, 'Forcing socket closure after timeout');
         for (const socket of sockets) {
           socket.destroy();
         }
-        console.error('[shutdown] Could not close connections in time, forcefully shutting down');
+        logger.error(
+          { phase: 'shutdown' },
+          'Could not close connections in time, forcefully shutting down'
+        );
         process.exit(1);
       }, 10_000).unref();
     }
@@ -109,19 +125,19 @@ async function bootstrap() {
 
     // Handle uncaught errors
     process['on']('uncaughtException', (error: any) => {
-      console.error('Uncaught Exception:', error);
+      logger.fatal({ err: error }, 'Uncaught Exception');
       gracefulShutdown('uncaughtException');
     });
 
-    process['on']('unhandledRejection', (reason: any, promise: any) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process['on']('unhandledRejection', (reason: any, _promise: any) => {
+      logger.error({ err: reason }, 'Unhandled Rejection');
       // Don't exit on unhandled rejections in dev, but log them
       if (cfg.NODE_ENV === 'production') {
         gracefulShutdown('unhandledRejection');
       }
     });
   } catch (error) {
-    console.error('[bootstrap] FATAL: Bootstrap failed:', error);
+    logger.fatal({ err: error }, 'FATAL: Bootstrap failed');
     process.exit(1);
   }
 }
