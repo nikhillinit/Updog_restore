@@ -21,6 +21,7 @@ export default defineConfig({
   },
   test: {
     name: 'integration',
+    globalSetup: ['tests/integration/global-setup.ts'],
     include: [
       'tests/integration/**/*.int.spec.ts',
       'tests/integration/**/*.spec.ts',
@@ -41,18 +42,10 @@ export default defineConfig({
       'tests/integration/migration-runner.test.ts',
       // Quarantined: 6/6 tests timeout at 30s each, causing cascade resource exhaustion
       'tests/integration/fund-idempotency.spec.ts',
-      // Quarantined: server startup healthz timeout after ~31 per-file spawn/kill cycles
-      // in singleFork mode. Root cause: setupFiles spawns a new server per test file;
-      // after ~31 cycles the CI runner can no longer start new servers within 30s.
-      // Fix: migrate to globalSetup for shared server lifecycle (tracked separately).
-      'tests/api/funds.contract.spec.ts',
-      'tests/integration/dev-memory-mode.test.ts',
+      // Quarantined: pre-existing forbidden-token violations in shared schemas
+      // (catchUp in cashflow-schema.ts, european in kpi-selector.contract.ts).
+      // Remediate the schema violations, then remove this exclude.
       'tests/integration/forbidden-tokens.test.ts',
-      'tests/integration/fund-calculation.test.ts',
-      'tests/integration/security/auth.int.spec.ts',
-      'tests/integration/security/headers.int.spec.ts',
-      'tests/integration/security/injection.int.spec.ts',
-      'tests/integration/zero-variance-bridge/oracle.test.ts',
     ],
     environment: 'node',
     testTimeout: 30000,
