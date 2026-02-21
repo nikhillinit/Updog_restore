@@ -12,18 +12,21 @@
  */
 
 import { z } from 'zod';
+import { WaterfallTypeSchema } from '../types/forbidden-features';
+
+export { WaterfallTypeSchema };
 
 // ============================================================================
 // CORE DATA TYPES
 // ============================================================================
 
 export const FeeBasisSchema = z.enum([
-  'committed',           // Fee on total committed capital
-  'called',              // Fee on capital called to date
-  'cumulative_called',   // Fee on cumulative called capital
-  'invested',            // Fee on net invested capital (cost basis)
-  'nav',                 // Fee on current Net Asset Value
-  'fmv',                 // Fee on Fair Market Value
+  'committed', // Fee on total committed capital
+  'called', // Fee on capital called to date
+  'cumulative_called', // Fee on cumulative called capital
+  'invested', // Fee on net invested capital (cost basis)
+  'nav', // Fee on current Net Asset Value
+  'fmv', // Fee on Fair Market Value
 ]);
 
 export type FeeBasis = z.infer<typeof FeeBasisSchema>;
@@ -33,8 +36,6 @@ export const RecyclingConfigSchema = z.object({
   maxRecyclePercent: z.number().min(0).max(200), // e.g., 120% = can recycle up to 120% of committed
   recycleOnlyProfits: z.boolean(), // If true, only recycle gains, not RoC
 });
-
-export const WaterfallTypeSchema = z.enum(['american', 'european']);
 
 // ============================================================================
 // KPI RESPONSE CONTRACT (Primary Output)
@@ -75,21 +76,25 @@ export const KPIResponseSchema = z.object({
   }),
 
   // Recycling Impact (critical for correct KPI calculation)
-  recycling: z.object({
-    totalRecycled: z.number().nonnegative(),
-    availableCapacity: z.number().nonnegative(),
-    recycledCount: z.number().int().nonnegative(), // Number of recycling events
-  }).optional(),
+  recycling: z
+    .object({
+      totalRecycled: z.number().nonnegative(),
+      availableCapacity: z.number().nonnegative(),
+      recycledCount: z.number().int().nonnegative(), // Number of recycling events
+    })
+    .optional(),
 
   // Waterfall Preview (if distributions occurred)
-  waterfall: z.object({
-    type: WaterfallTypeSchema,
-    lpShare: z.number().nonnegative(),
-    gpShare: z.number().nonnegative(),
-    preferredReturnAccrued: z.number().nonnegative(),
-    carryEarned: z.number().nonnegative(),
-    clawbackObligation: z.number().nonnegative().optional(), // If GP owes back carry
-  }).optional(),
+  waterfall: z
+    .object({
+      type: WaterfallTypeSchema,
+      lpShare: z.number().nonnegative(),
+      gpShare: z.number().nonnegative(),
+      preferredReturnAccrued: z.number().nonnegative(),
+      carryEarned: z.number().nonnegative(),
+      clawbackObligation: z.number().nonnegative().optional(), // If GP owes back carry
+    })
+    .optional(),
 });
 
 export type KPIResponse = z.infer<typeof KPIResponseSchema>;
@@ -100,7 +105,14 @@ export type KPIResponse = z.infer<typeof KPIResponseSchema>;
 
 export const TransactionSchema = z.object({
   id: z.string().uuid(),
-  type: z.enum(['capital_call', 'distribution', 'valuation_update', 'fee_payment', 'investment', 'exit']),
+  type: z.enum([
+    'capital_call',
+    'distribution',
+    'valuation_update',
+    'fee_payment',
+    'investment',
+    'exit',
+  ]),
   date: z.string().datetime(),
   amount: z.number(),
   companyId: z.string().uuid().optional(),
@@ -116,11 +128,15 @@ export const FundLedgerSchema = z.object({
   // Fee structure
   managementFeeRate: z.number().nonnegative(),
   feeBasis: FeeBasisSchema,
-  feeBasisTransitions: z.array(z.object({
-    effectiveDate: z.string().datetime(),
-    newBasis: FeeBasisSchema,
-    newRate: z.number().nonnegative().optional(),
-  })).optional(),
+  feeBasisTransitions: z
+    .array(
+      z.object({
+        effectiveDate: z.string().datetime(),
+        newBasis: FeeBasisSchema,
+        newRate: z.number().nonnegative().optional(),
+      })
+    )
+    .optional(),
 
   // Carry structure
   carryRate: z.number().nonnegative(),
@@ -161,10 +177,7 @@ export interface KPISelectors {
   /**
    * Recycling impact on paid-in capital (CRITICAL)
    */
-  calculateNetPaidInCapital(
-    totalCalled: number,
-    recycledRoC: number
-  ): number;
+  calculateNetPaidInCapital(totalCalled: number, recycledRoC: number): number;
 
   /**
    * Waterfall distribution split
@@ -173,7 +186,7 @@ export interface KPISelectors {
     totalDistributions: number,
     paidInCapital: number,
     carryRate: number,
-    waterfallType: 'american' | 'european',
+    waterfallType: 'american',
     catchupPercent?: number
   ): KPIResponse['waterfall'];
 }

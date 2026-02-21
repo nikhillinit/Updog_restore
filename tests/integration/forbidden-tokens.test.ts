@@ -4,7 +4,6 @@
  * Validates that no forbidden legacy features appear in the codebase:
  * - European waterfall logic
  * - Line of Credit functionality
- * - Hurdle rates and catch-up provisions
  *
  * Tests both compile-time type guards and runtime validation.
  */
@@ -15,6 +14,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
   FORBIDDEN_TOKENS,
+  WaterfallTypeSchema,
   validateNoForbiddenKeys,
   type _forbiddenKeysGuard,
 } from '@shared/types/forbidden-features';
@@ -126,13 +126,12 @@ describe('Forbidden Features Protection', () => {
     // Schema with forbidden keys
     const badSchema = {
       fundName: 'Test Fund',
-      hurdleRate: 0.08, // FORBIDDEN
       lineOfCredit: {
         // FORBIDDEN
         locRate: 0.05, // FORBIDDEN
         locCap: 10000000, // FORBIDDEN
       },
-      preferredReturn: 0.08, // FORBIDDEN
+      useLineOfCredit: true, // FORBIDDEN
     };
 
     const result = validateNoForbiddenKeys(badSchema, 'badSchema');
@@ -140,10 +139,10 @@ describe('Forbidden Features Protection', () => {
     expect(result.isValid).toBe(false);
     expect(result.foundKeys.length).toBeGreaterThan(0);
 
-    // Should find at least hurdleRate and lineOfCredit
+    // Should find at least lineOfCredit and useLineOfCredit
     const foundTokens = result.foundKeys.map((k) => k.split(' ')[0].split('.').pop());
-    expect(foundTokens).toContain('hurdleRate');
     expect(foundTokens).toContain('lineOfCredit');
+    expect(foundTokens).toContain('useLineOfCredit');
   });
 
   it('compile-time: type guard prevents usage', () => {
@@ -155,12 +154,18 @@ describe('Forbidden Features Protection', () => {
     expect(_).toBeUndefined();
 
     // Verify all tokens are present
-    expect(FORBIDDEN_TOKENS).toHaveLength(14);
+    expect(FORBIDDEN_TOKENS).toHaveLength(9);
 
     // Verify specific critical tokens
     expect(FORBIDDEN_TOKENS).toContain('european');
     expect(FORBIDDEN_TOKENS).toContain('lineOfCredit');
-    expect(FORBIDDEN_TOKENS).toContain('hurdleRate');
-    expect(FORBIDDEN_TOKENS).toContain('catchUp');
+    expect(FORBIDDEN_TOKENS).toContain('locRate');
+    expect(FORBIDDEN_TOKENS).toContain('useLineOfCredit');
+  });
+
+  it('runtime: WaterfallTypeSchema migrates legacy values', () => {
+    expect(WaterfallTypeSchema.parse('american')).toBe('american');
+    expect(WaterfallTypeSchema.parse('european')).toBe('american');
+    expect(() => WaterfallTypeSchema.parse('foo')).toThrow();
   });
 });

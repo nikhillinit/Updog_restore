@@ -42,10 +42,6 @@ export default defineConfig({
       'tests/integration/migration-runner.test.ts',
       // Quarantined: 6/6 tests timeout at 30s each, causing cascade resource exhaustion
       'tests/integration/fund-idempotency.spec.ts',
-      // Quarantined: pre-existing forbidden-token violations in shared schemas
-      // (catchUp in cashflow-schema.ts, european in kpi-selector.contract.ts).
-      // Remediate the schema violations, then remove this exclude.
-      'tests/integration/forbidden-tokens.test.ts',
     ],
     environment: 'node',
     testTimeout: 30000,

@@ -18,7 +18,7 @@ export function ComingSoonPage({
   hub,
   eta = 'Sprint 2',
   features,
-  showBackButton = true
+  showBackButton = true,
 }: ComingSoonPageProps) {
   const [, navigate] = useLocation();
 
@@ -31,14 +31,10 @@ export function ComingSoonPage({
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl font-inter font-semibold text-[#292929] mb-3">
-          {hub} Hub
-        </h1>
+        <h1 className="text-3xl font-inter font-semibold text-[#292929] mb-3">{hub} Hub</h1>
 
         {/* ETA */}
-        <p className="text-lg font-poppins text-[#292929]/70 mb-6">
-          Coming {eta}
-        </p>
+        <p className="text-lg font-poppins text-[#292929]/70 mb-6">Coming {eta}</p>
 
         {/* Planned Features */}
         {features && features.length > 0 && (
@@ -60,8 +56,8 @@ export function ComingSoonPage({
         {/* Architecture Note */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
           <p className="text-sm font-poppins text-blue-800">
-            <strong>📊 Architecture Ready:</strong> The backend infrastructure and data contracts
-            for this hub are complete. UI development is scheduled for {eta}.
+            <strong>Architecture Ready:</strong> The backend infrastructure and data contracts for
+            this hub are complete. UI development is scheduled for {eta}.
           </p>
         </div>
 
@@ -95,7 +91,7 @@ export function ModelingHubComingSoon() {
         'Reserve optimization using deterministic binary search engine',
         'Scenario comparison (Construction vs Current)',
         'Fee basis configuration (Committed, Called, Cumulative, FMV)',
-        'American/European waterfall modeling with custom tiers',
+        'American waterfall modeling with custom tiers',
         'Export models to Excel with full detail',
       ]}
     />

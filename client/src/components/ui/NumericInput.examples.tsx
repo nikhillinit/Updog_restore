@@ -131,7 +131,7 @@ export function CustomPrefixSuffixExample() {
         onChange={setEuroAmount}
         prefix="€"
         min={0}
-        help="European fund size"
+        help="Fund size (EUR)"
       />
 
       <NumericInput

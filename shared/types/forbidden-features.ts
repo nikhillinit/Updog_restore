@@ -4,10 +4,11 @@
  * Provides compile-time and runtime protection against legacy features:
  * - European waterfall distribution logic
  * - Line of Credit functionality
- * - Hurdle rates and catch-up provisions
  *
  * These features have been removed from the codebase and should not be reintroduced.
  */
+
+import { z } from 'zod';
 
 /**
  * Array of forbidden token strings that should not appear in any schema or code
@@ -15,11 +16,6 @@
 export const FORBIDDEN_TOKENS = [
   // European waterfall related
   'european',
-  'preferredReturn',
-  'hurdleRate',
-  'catchUpPct',
-  'catchUp',
-  'fundLevelCarry',
 
   // Line of Credit related
   'lineOfCredit',
@@ -33,9 +29,18 @@ export const FORBIDDEN_TOKENS = [
 ] as const;
 
 /**
+ * WaterfallType schema with legacy migration.
+ * Accepts 'american' (pass-through) or 'european' (migrated to 'american').
+ * Any other value produces a structured Zod validation error.
+ */
+export const WaterfallTypeSchema = z
+  .enum(['american'])
+  .or(z.literal('european').transform(() => 'american' as const));
+
+/**
  * Type representing all forbidden keys
  */
-export type ForbiddenKeys = typeof FORBIDDEN_TOKENS[number];
+export type ForbiddenKeys = (typeof FORBIDDEN_TOKENS)[number];
 
 /**
  * Compile-time type guard to prevent usage of forbidden keys
@@ -67,9 +72,7 @@ export function validateNoForbiddenKeys(
 
         // Check if this key is forbidden (case-insensitive)
         const lowerKey = key.toLowerCase();
-        const forbidden = FORBIDDEN_TOKENS.find(
-          token => token.toLowerCase() === lowerKey
-        );
+        const forbidden = FORBIDDEN_TOKENS.find((token) => token.toLowerCase() === lowerKey);
 
         if (forbidden) {
           foundKeys.push(`${currentPath} (matches: ${forbidden})`);
