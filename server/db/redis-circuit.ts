@@ -429,7 +429,8 @@ export async function getJSON<T>(key: string): Promise<T | null> {
   try {
     return JSON.parse(value) as T;
   } catch (error) {
-    console.error(`[Redis] Failed to parse JSON for key ${key}:`, error);
+    const log = await getLogger();
+    log.error({ key, err: error }, 'Failed to parse JSON for Redis key');
     return null;
   }
 }

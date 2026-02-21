@@ -5,7 +5,7 @@ const pinoOptions: pino.LoggerOptions = {
   redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
 };
 
-if (process.env['NODE_ENV'] !== 'production') {
+if (process.env['NODE_ENV'] !== 'production' && process.env['NODE_ENV'] !== 'test') {
   pinoOptions.transport = { target: 'pino-pretty' };
 }
 

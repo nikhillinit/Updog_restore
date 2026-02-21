@@ -2,7 +2,7 @@
 type: reflection
 id: REFL-022
 title: Prometheus Metrics Duplicate Registration on Hot Reload
-status: VERIFIED
+status: DRAFT
 date: 2026-02-18
 version: 1
 severity: high
@@ -19,7 +19,7 @@ keywords:
     registry,
     integration-test,
   ]
-test_file: null
+test_file: tests/regressions/REFL-022.test.ts
 superseded_by: null
 ---
 

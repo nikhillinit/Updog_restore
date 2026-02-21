@@ -40,8 +40,9 @@ describe('Vite Build Regression - Fix #3', () => {
       const viteConfig = await fs.readFile(viteConfigPath, 'utf-8');
 
       // The fix sets manualChunks: undefined in rollupOptions.output
+      // Match the output section including nested objects (greedy through braces)
       const rollupOutputSection = viteConfig.match(
-        /rollupOptions:\s*{[\s\S]*?output:\s*{[\s\S]*?}/
+        /rollupOptions:\s*\{[\s\S]*?output:\s*\{[\s\S]*?manualChunks:[^\n]*/
       );
       expect(rollupOutputSection).toBeTruthy();
 

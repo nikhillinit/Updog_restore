@@ -1,0 +1,8 @@
+name: 'CodeQL configuration'
+
+paths-ignore:
+  - tests
+  - _archive
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+  - '**/*.test.tsx'

@@ -2,7 +2,7 @@
 type: reflection
 id: REFL-024
 title: Integration Test Environment Leakage (5-Layer Defense)
-status: VERIFIED
+status: DRAFT
 date: 2026-02-18
 version: 1
 severity: high
@@ -22,7 +22,7 @@ keywords:
     vitest-workers,
     5-layer-defense,
   ]
-test_file: null
+test_file: tests/regressions/REFL-024.test.ts
 superseded_by: null
 ---
 
