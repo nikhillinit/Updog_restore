@@ -220,12 +220,25 @@ export async function createServer(
   // Guards run in order: origin check -> rate limit -> sampling -> privacy (in router)
   app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
 
+  // Centralized public-path matcher (mount-relative, no /api prefix)
+  // Normalizes trailing slashes for consistent matching
+  const PUBLIC_EXACT = new Set(['/healthz', '/readyz', '/flags', '/flags/status']);
+  const PUBLIC_PREFIXES = ['/health/', '/health'];
+
+  function isPublicPath(mountRelativePath: string): boolean {
+    const p =
+      mountRelativePath.endsWith('/') && mountRelativePath.length > 1
+        ? mountRelativePath.slice(0, -1)
+        : mountRelativePath;
+    if (PUBLIC_EXACT.has(p)) return true;
+    return PUBLIC_PREFIXES.some((prefix) => p === prefix || p.startsWith(prefix));
+  }
+
   // Apply authentication and RLS middleware to protected routes
   // Note: Some routes like /healthz and /metrics are public
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
-    // Skip auth for public endpoints
-    const publicPaths = ['/api/health', '/api/healthz', '/api/readyz', '/api-docs'];
-    if (publicPaths.some((path) => req.path.startsWith(path))) {
+    // Skip auth for public endpoints (req.path is mount-relative under /api)
+    if (isPublicPath(req.path)) {
       return next();
     }
 
@@ -248,9 +261,9 @@ export async function createServer(
 
   // Apply RLS transaction middleware to protected data routes
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
-    // Skip for public endpoints
-    const publicPaths = ['/api/health', '/api/healthz', '/api/readyz', '/api-docs', '/api/flags'];
-    if (publicPaths.some((path) => req.path.startsWith(path))) {
+    // Skip for public endpoints (mount-relative paths)
+    // /flags and /flags/status are public; /flags/admin/* requires auth+RLS
+    if (isPublicPath(req.path)) {
       return next();
     }
 
