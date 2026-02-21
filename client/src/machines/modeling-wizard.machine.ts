@@ -101,7 +101,7 @@ export interface ExitRecyclingData {
 }
 
 export interface WaterfallData {
-  type: 'american' | 'european' | 'hybrid';
+  type: 'american' | 'hybrid';
   preferredReturn: number;
   catchUp: number;
   carriedInterest: number;
@@ -528,11 +528,8 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       const type = data['type'];
       const preferredReturn = data['preferredReturn'];
 
-      if (
-        !type ||
-        (typeof type === 'string' && !['american', 'european', 'hybrid'].includes(type))
-      ) {
-        errors.push('Waterfall type must be specified');
+      if (!type || (typeof type === 'string' && !['american', 'hybrid'].includes(type))) {
+        errors.push('Waterfall type must be american or hybrid');
       }
       if (
         preferredReturn &&

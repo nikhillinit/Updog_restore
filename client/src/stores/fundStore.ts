@@ -156,7 +156,7 @@ export type FundState = {
   pipelineProfiles: PipelineProfile[];
 
   // Distributions & Carry
-  waterfallType?: 'american' | 'european' | 'hybrid';
+  waterfallType?: 'american' | 'hybrid';
   waterfallTiers: WaterfallTier[];
   recyclingEnabled?: boolean;
   recyclingType?: 'exits' | 'fees' | 'both';
