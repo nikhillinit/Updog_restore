@@ -180,6 +180,7 @@ beforeAll(async () => {
     env: serverEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
+    detached: true,
   });
 
   serverProcess.stdout?.on('data', (data) => {
@@ -239,17 +240,27 @@ beforeAll(async () => {
 }, 60000); // Increase timeout for server startup
 
 afterAll(async () => {
-  if (serverProcess) {
+  if (serverProcess && serverProcess.pid) {
     console.log('Shutting down test server...');
-    serverProcess.kill('SIGTERM');
+    // Kill the entire process group (npm -> tsx -> node) to prevent zombie processes.
+    // With detached: true, the child is the leader of its own process group.
+    try {
+      process.kill(-serverProcess.pid, 'SIGTERM');
+    } catch {
+      // Process group already exited
+    }
 
-    // Wait for graceful shutdown
+    // Wait for graceful shutdown, then force-kill the group
     await new Promise((resolve) => {
       if (serverProcess) {
         serverProcess.on('exit', resolve);
         globalThis.setTimeout(() => {
-          if (serverProcess && !serverProcess.killed) {
-            serverProcess.kill('SIGKILL');
+          if (serverProcess?.pid) {
+            try {
+              process.kill(-serverProcess.pid, 'SIGKILL');
+            } catch {
+              // Already dead
+            }
           }
           resolve(null);
         }, 5000);
