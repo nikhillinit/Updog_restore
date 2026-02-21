@@ -25,6 +25,10 @@ const explicitJwtIssuer = process.env['JWT_ISSUER'];
 const explicitJwtIssuerMarker = process.env['_EXPLICIT_JWT_ISSUER'];
 const explicitJwtAudience = process.env['JWT_AUDIENCE'];
 const explicitJwtAudienceMarker = process.env['_EXPLICIT_JWT_AUDIENCE'];
+const explicitJwtAlg = process.env['JWT_ALG'];
+const explicitJwtAlgMarker = process.env['_EXPLICIT_JWT_ALG'];
+const explicitJwtJwksUrl = process.env['JWT_JWKS_URL'];
+const explicitJwtJwksUrlMarker = process.env['_EXPLICIT_JWT_JWKS_URL'];
 
 // TEMP FIX: Windows system has NODE_ENV=production set globally, override it
 const shouldOverrideEnv = true;
@@ -77,6 +81,22 @@ if (
   explicitJwtAudience !== process.env['JWT_AUDIENCE']
 ) {
   process.env['JWT_AUDIENCE'] = explicitJwtAudience;
+}
+// Restore explicitly-set JWT_ALG if .env tried to override it
+if (
+  explicitJwtAlgMarker &&
+  explicitJwtAlg !== undefined &&
+  explicitJwtAlg !== process.env['JWT_ALG']
+) {
+  process.env['JWT_ALG'] = explicitJwtAlg;
+}
+// Restore explicitly-set JWT_JWKS_URL if .env tried to override it
+if (
+  explicitJwtJwksUrlMarker &&
+  explicitJwtJwksUrl !== undefined &&
+  explicitJwtJwksUrl !== process.env['JWT_JWKS_URL']
+) {
+  process.env['JWT_JWKS_URL'] = explicitJwtJwksUrl;
 }
 
 const envSchema = z.object({
