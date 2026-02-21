@@ -6,7 +6,7 @@
  */
 
 import type { Response, NextFunction } from 'express';
-import express, { type Express, type Request } from 'express';
+import express, { type Request } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import compression from 'compression';
@@ -52,7 +52,7 @@ function parseOrigins(raw?: string): string[] {
 export async function createServer(
   config: ReturnType<typeof import('./config/index.js').loadEnv>,
   providers: Providers
-): Promise<Express> {
+): Promise<import('node:http').Server> {
   const app = express();
 
   console.log('[server] Creating Express application...');
@@ -282,8 +282,8 @@ export async function createServer(
     next();
   });
 
-  // Register API routes with dependency injection
-  await registerRoutes(app);
+  // Register API routes with dependency injection (returns http.Server with WebSocket)
+  const httpServer = await registerRoutes(app);
 
   // Precondition error handler
   app.use(handlePreconditionError);
@@ -325,5 +325,5 @@ export async function createServer(
   console.log(`[server] Mode selected: ${serverMode}`);
 
   console.log('[server] Express application created successfully');
-  return app;
+  return httpServer;
 }
