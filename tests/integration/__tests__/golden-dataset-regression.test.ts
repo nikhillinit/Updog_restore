@@ -136,15 +136,17 @@ describe('Golden Dataset Tolerance Regression - Fix #2', () => {
         ],
       };
 
-      // Tiny error within both tolerances
+      // Tiny error comfortably within both tolerances
+      // NOTE: avoid boundary-exact values — IEEE 754 subtraction of near-equal
+      // large numbers produces rounding artefacts that can exceed the tolerance
       const actual: TimeSeriesRow[] = [
         {
           month: 0,
           quarter: 0,
-          contributions: 1000000.000001, // 0.000001 absolute, ~0.000000000001 relative
-          fees: 500.0000005, // ~0.0000005 absolute, ~0.000000001 relative
+          contributions: 1000000.0000005, // ~0.0000005 absolute, well under tolerance
+          fees: 500.0000003, // ~0.0000003 absolute
           distributions: 0,
-          nav: 999499.9999995, // ~0.0000005 absolute, ~0.0000000005 relative
+          nav: 999499.9999997, // ~0.0000003 absolute
           dpi: 0,
           tvpi: 1.0,
           gpCarry: 0,

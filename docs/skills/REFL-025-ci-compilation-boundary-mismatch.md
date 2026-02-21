@@ -2,7 +2,7 @@
 type: reflection
 id: REFL-025
 title: CI Compilation Boundary Mismatch
-status: VERIFIED
+status: DRAFT
 date: 2026-02-18
 version: 1
 severity: medium
@@ -20,7 +20,7 @@ keywords:
     separate-compilation,
     pre-push-hook,
   ]
-test_file: null
+test_file: tests/regressions/REFL-025.test.ts
 superseded_by: null
 ---
 

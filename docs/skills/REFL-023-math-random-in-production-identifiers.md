@@ -2,7 +2,7 @@
 type: reflection
 id: REFL-023
 title: Math.random in Production Identifiers
-status: VERIFIED
+status: DRAFT
 date: 2026-02-18
 version: 1
 severity: medium
@@ -11,7 +11,7 @@ error_codes: []
 components: [client, security, feature-flags, rollout]
 keywords:
   [Math.random, crypto, randomUUID, security, predictable-ids, feature-flags]
-test_file: null
+test_file: tests/regressions/REFL-023.test.ts
 superseded_by: null
 ---
 

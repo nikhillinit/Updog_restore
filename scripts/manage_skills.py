@@ -64,6 +64,8 @@ def normalize_rel_path(raw: str, field: str = "path") -> str:
     Raises:
         ValueError: If path is absolute or contains path traversal
     """
+    if raw is None:
+        raise ValueError(f"{field} is required but got None")
     normalized = raw.replace("\\", "/")
     if PureWindowsPath(normalized).is_absolute() or PurePosixPath(normalized).is_absolute():
         raise ValueError(f"{field} must be repo-relative, got absolute path: {raw!r}")

@@ -73,7 +73,9 @@ export function makeApp() {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers['origin'] as string | undefined;
     const dev = process.env['NODE_ENV'] !== 'production';
-    const ok = dev || (origin && allow.includes(origin));
+    const devOriginOk =
+      dev && origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const ok = devOriginOk || (origin && allow.includes(origin));
     if (ok && origin) {
       res['setHeader']('Access-Control-Allow-Origin', origin);
       res['setHeader']('Vary', 'Origin');

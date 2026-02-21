@@ -359,6 +359,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
             objectShorthand: true,
           },
           minifyInternalExports: true,
+          format: 'es',
           manualChunks: undefined,
         },
       },
