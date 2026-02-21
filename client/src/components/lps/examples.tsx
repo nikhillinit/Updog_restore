@@ -41,7 +41,7 @@ export function LPCardExample() {
 export function AmericanWaterfallExample() {
   const [tiers, setTiers] = useState<Tier[]>([
     { type: 'return', value: 1.0, label: 'Return of Capital' },
-    { type: 'carry', value: 0.20, label: 'Carried Interest (20%)' },
+    { type: 'carry', value: 0.2, label: 'Carried Interest (20%)' },
   ]);
 
   return (
@@ -60,21 +60,21 @@ export function AmericanWaterfallExample() {
 }
 
 /**
- * Example: WaterfallEditor Usage (European Waterfall)
+ * Example: WaterfallEditor Usage (Custom Tiered Waterfall)
  */
 export function EuropeanWaterfallExample() {
   const [tiers, setTiers] = useState<Tier[]>([
     { type: 'return', value: 1.0, label: 'Return of Capital' },
     { type: 'pref', value: 0.08, label: 'Preferred Return (8%)' },
     { type: 'catchup', value: 0.5, label: 'GP Catch-Up (50%)' },
-    { type: 'carry', value: 0.20, label: 'Carried Interest (20%)' },
+    { type: 'carry', value: 0.2, label: 'Carried Interest (20%)' },
   ]);
 
   return (
     <div className="max-w-2xl space-y-4">
       <div>
         <h3 className="mb-2 font-heading text-lg font-semibold text-charcoal">
-          European Waterfall
+          Custom Tiered Waterfall
         </h3>
         <p className="mb-4 font-poppins text-sm text-charcoal/60">
           Hurdle rate with catch-up and carry
@@ -93,7 +93,7 @@ export function LPDashboardExample() {
     { type: 'return', value: 1.0, label: 'Return of Capital' },
     { type: 'pref', value: 0.08, label: 'Preferred Return (8%)' },
     { type: 'catchup', value: 0.5, label: 'GP Catch-Up (50%)' },
-    { type: 'carry', value: 0.20, label: 'Carried Interest (20%)' },
+    { type: 'carry', value: 0.2, label: 'Carried Interest (20%)' },
   ]);
 
   const lps = [
@@ -121,9 +121,7 @@ export function LPDashboardExample() {
     <div className="space-y-8 p-8">
       {/* Fund Overview Section */}
       <div>
-        <h2 className="mb-6 font-heading text-2xl font-bold text-charcoal">
-          Fund I - LP Overview
-        </h2>
+        <h2 className="mb-6 font-heading text-2xl font-bold text-charcoal">Fund I - LP Overview</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {lps.map((lp) => (
             <LPCard key={lp.name} {...lp} />
