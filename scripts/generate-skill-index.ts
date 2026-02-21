@@ -1,0 +1,226 @@
+/**
+ * generate-skill-index.ts
+ *
+ * Scans all skill files across 3 glob patterns and emits:
+ *   .claude/skills/_index.json  (machine-readable manifest)
+ *   .claude/skills/INDEX.md     (human-readable table)
+ *
+ * Usage:
+ *   npx tsx scripts/generate-skill-index.ts          # generate
+ *   npx tsx scripts/generate-skill-index.ts --check   # verify freshness
+ */
+
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
+import { globSync } from 'glob';
+
+// ── Types ──────────────────────────────────────────────────────────────
+
+interface SkillEntry {
+  name: string;
+  path: string;
+  format: 'flat' | 'subdirectory' | 'workflow-engine';
+  status: string;
+  description: string;
+  category?: string;
+}
+
+interface SkillManifest {
+  generated: string;
+  count: number;
+  skills: SkillEntry[];
+}
+
+// ── Constants ──────────────────────────────────────────────────────────
+
+const ROOT = process.cwd();
+const SKILLS_DIR = '.claude/skills';
+const INDEX_JSON = `${SKILLS_DIR}/_index.json`;
+const INDEX_MD = `${SKILLS_DIR}/INDEX.md`;
+
+const PATTERNS: Array<{ glob: string; format: SkillEntry['format'] }> = [
+  { glob: `${SKILLS_DIR}/*.md`, format: 'flat' },
+  { glob: `${SKILLS_DIR}/*/SKILL.md`, format: 'subdirectory' },
+  { glob: `${SKILLS_DIR}/workflow-engine/*/SKILL.md`, format: 'workflow-engine' },
+];
+
+const EXCLUDE = new Set(['README.md', '_index.json', 'INDEX.md']);
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
+function parseFrontmatter(content: string): Record<string, string> {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return {};
+  const fm: Record<string, string> = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const idx = line.indexOf(':');
+    if (idx > 0) {
+      const key = line.slice(0, idx).trim();
+      let val = line.slice(idx + 1).trim();
+      // Strip surrounding quotes
+      if (
+        (val.startsWith("'") && val.endsWith("'")) ||
+        (val.startsWith('"') && val.endsWith('"'))
+      ) {
+        val = val.slice(1, -1);
+      }
+      fm[key] = val;
+    }
+  }
+  return fm;
+}
+
+function extractHeadingAndDescription(content: string): { heading: string; description: string } {
+  // Strip frontmatter
+  const stripped = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n*/, '');
+  const lines = stripped.split(/\r?\n/);
+
+  let heading = '';
+  let description = '';
+
+  for (const line of lines) {
+    if (!heading && /^#\s+/.test(line)) {
+      heading = line.replace(/^#\s+/, '').trim();
+      continue;
+    }
+    if (heading && !description && line.trim() !== '' && !/^#/.test(line)) {
+      description = line.trim();
+      break;
+    }
+  }
+
+  return { heading, description };
+}
+
+function nameFromPath(filePath: string, format: SkillEntry['format']): string {
+  if (format === 'flat') {
+    return basename(filePath, '.md');
+  }
+  if (format === 'workflow-engine') {
+    // .claude/skills/workflow-engine/<name>/SKILL.md
+    return basename(dirname(filePath));
+  }
+  // subdirectory: .claude/skills/<name>/SKILL.md
+  return basename(dirname(filePath));
+}
+
+// ── Scanner ────────────────────────────────────────────────────────────
+
+function scanSkills(): SkillEntry[] {
+  const seen = new Set<string>();
+  const skills: SkillEntry[] = [];
+
+  for (const { glob: pattern, format } of PATTERNS) {
+    const matches = globSync(pattern.split('\\').join('/'), { cwd: ROOT });
+    for (const match of matches) {
+      const fileName = basename(match);
+      if (EXCLUDE.has(fileName) && format === 'flat') continue;
+
+      const fullPath = `${ROOT}/${match}`;
+      const relPath = match.split('\\').join('/');
+
+      // Deduplicate (workflow-engine skills also match */SKILL.md)
+      if (seen.has(relPath)) continue;
+      seen.add(relPath);
+
+      const content = readFileSync(fullPath, 'utf-8');
+      const fm = parseFrontmatter(content);
+      const { heading, description: paraDesc } = extractHeadingAndDescription(content);
+
+      const name = fm.name || nameFromPath(match, format);
+      const status = fm.status || 'ACTIVE';
+      const description = fm.description || paraDesc || heading || name;
+      const category = fm.category;
+
+      skills.push({
+        name,
+        path: relPath,
+        format,
+        status: status.toUpperCase(),
+        description: description.slice(0, 200),
+        ...(category ? { category } : {}),
+      });
+    }
+  }
+
+  skills.sort((a, b) => a.name.localeCompare(b.name));
+  return skills;
+}
+
+// ── Emitters ───────────────────────────────────────────────────────────
+
+function buildManifest(skills: SkillEntry[]): SkillManifest {
+  return {
+    generated: new Date().toISOString(),
+    count: skills.length,
+    skills,
+  };
+}
+
+function buildMarkdown(skills: SkillEntry[]): string {
+  const lines: string[] = [
+    '<!-- DO NOT EDIT - Auto-generated by scripts/generate-skill-index.ts -->',
+    '',
+    '# Skill Index',
+    '',
+    `**${skills.length} skills** discovered across 3 scan patterns.`,
+    '',
+    '| Name | Format | Status | Path |',
+    '| ---- | ------ | ------ | ---- |',
+  ];
+
+  for (const s of skills) {
+    lines.push(`| ${s.name} | ${s.format} | ${s.status} | \`${s.path}\` |`);
+  }
+
+  lines.push('');
+  lines.push(`_Generated: ${new Date().toISOString()}_`);
+  lines.push('');
+  return lines.join('\n');
+}
+
+// ── Main ───────────────────────────────────────────────────────────────
+
+function main() {
+  const isCheck = process.argv.includes('--check');
+  const skills = scanSkills();
+  const manifest = buildManifest(skills);
+
+  if (isCheck) {
+    if (!existsSync(INDEX_JSON)) {
+      console.error(`FAIL: ${INDEX_JSON} does not exist. Run npm run skills:index first.`);
+      process.exit(1);
+    }
+    const existing: SkillManifest = JSON.parse(readFileSync(INDEX_JSON, 'utf-8'));
+    // Compare skill list (ignore generated timestamp)
+    const currentKeys = skills
+      .map((s) => s.path)
+      .sort()
+      .join('\n');
+    const existingKeys = existing.skills
+      .map((s) => s.path)
+      .sort()
+      .join('\n');
+    if (currentKeys !== existingKeys || existing.count !== skills.length) {
+      console.error(
+        `FAIL: Skill index is stale (${existing.count} indexed vs ${skills.length} found).`
+      );
+      console.error('Run: npm run skills:index');
+      process.exit(1);
+    }
+    console.log(`PASS: Skill index is fresh (${skills.length} skills).`);
+    process.exit(0);
+  }
+
+  // Write JSON
+  const jsonContent = JSON.stringify(manifest, null, 2) + '\n';
+  writeFileSync(INDEX_JSON, jsonContent, 'utf-8');
+  console.log(`Wrote ${INDEX_JSON} (${manifest.count} skills)`);
+
+  // Write Markdown
+  const mdContent = buildMarkdown(skills);
+  writeFileSync(INDEX_MD, mdContent, 'utf-8');
+  console.log(`Wrote ${INDEX_MD}`);
+}
+
+main();

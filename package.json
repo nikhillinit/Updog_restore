@@ -308,6 +308,8 @@
     "docs:routing:generate": "npx tsx scripts/generate-discovery-map.ts",
     "docs:routing:check": "npx tsx scripts/generate-discovery-map.ts --check",
     "docs:routing:query": "npx tsx scripts/routeQueryFast.ts",
+    "skills:index": "npx tsx scripts/generate-skill-index.ts",
+    "skills:check": "npx tsx scripts/generate-skill-index.ts --check",
     "reflection:new": "python scripts/manage_skills.py new --title",
     "reflection:check": "python scripts/manage_skills.py check --title",
     "reflection:rebuild": "python scripts/manage_skills.py rebuild",
