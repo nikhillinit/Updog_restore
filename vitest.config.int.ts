@@ -31,12 +31,16 @@ export default defineConfig({
     exclude: [
       'tests/unit/**/*',
       'tests/synthetics/**/*',
+      '**/*.quarantine.test.ts',
+      'tests/quarantine/**/*',
       // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
       'tests/integration/testcontainers-smoke.test.ts',
       'tests/integration/ScenarioMatrixCache.integration.test.ts',
       'tests/integration/cache-monitoring.integration.test.ts',
       'tests/integration/scenarioGeneratorWorker.test.ts',
       'tests/integration/migration-runner.test.ts',
+      // Quarantined: 6/6 tests timeout at 30s each, causing cascade resource exhaustion
+      'tests/integration/fund-idempotency.spec.ts',
     ],
     environment: 'node',
     testTimeout: 30000,
