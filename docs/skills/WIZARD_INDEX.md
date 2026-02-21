@@ -68,6 +68,10 @@ This index groups reflections by the wizard step they affect, helping you find r
 | [REFL-018](REFL-018-reserve-engine-null-safety.md) | VERIFIED | Reserve Engine Null Safety | medium |
 | [REFL-019](REFL-019-k1-template-drops-data-footnotes.md) | VERIFIED | K-1 PDF Template Silently Drops Data Footnotes | medium |
 | [REFL-020](REFL-020-large-iteration-tests-need-explicit-timeouts.md) | DRAFT | Large-Iteration Tests Need Explicit Timeouts | medium |
+| [REFL-022](REFL-022-prometheus-metrics-duplicate-registration.md) | DRAFT | Prometheus Metrics Duplicate Registration on Hot Reload | high |
+| [REFL-023](REFL-023-math-random-in-production-identifiers.md) | DRAFT | Math.random in Production Identifiers | medium |
+| [REFL-024](REFL-024-integration-test-environment-leakage.md) | DRAFT | Integration Test Environment Leakage (5-Layer Defense) | high |
+| [REFL-025](REFL-025-ci-compilation-boundary-mismatch.md) | DRAFT | CI Compilation Boundary Mismatch | medium |
 
 ---
 
