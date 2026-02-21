@@ -1,0 +1,378 @@
+{
+  "generated": "2026-02-21T19:50:00.594Z",
+  "count": 53,
+  "skills": [
+    {
+      "name": "ai-model-selection",
+      "path": ".claude/skills/ai-model-selection.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "A decision framework for selecting the optimal AI model based on task"
+    },
+    {
+      "name": "analogical-thinking",
+      "path": ".claude/skills/analogical-thinking.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use structured analogies (\"X is like Y because..., but differs in...\") to bridge"
+    },
+    {
+      "name": "api-design-principles",
+      "path": ".claude/skills/api-design-principles.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "REST API design principles for building intuitive, scalable, and maintainable"
+    },
+    {
+      "name": "architecture-patterns",
+      "path": ".claude/skills/architecture-patterns.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Master proven backend architecture patterns including Clean Architecture,"
+    },
+    {
+      "name": "async-error-resilience",
+      "path": ".claude/skills/async-error-resilience.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when implementing error handling for async operations, background jobs,"
+    },
+    {
+      "name": "baseline-governance",
+      "path": ".claude/skills/baseline-governance/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill defines the policy for baseline-based merge criteria. Baselines provide a \"ratchet\" mechanism: quality metrics can improve but cannot regress without explicit approval."
+    },
+    {
+      "name": "brainstorming",
+      "path": ".claude/skills/brainstorming.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Transform rough ideas into fully-formed designs through structured questioning"
+    },
+    {
+      "name": "bundle-size",
+      "path": ".claude/skills/bundle-size/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "|"
+    },
+    {
+      "name": "claude-infra-integrity",
+      "path": ".claude/skills/claude-infra-integrity/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Ensure .claude/ changes are internally consistent and CI-safe."
+    },
+    {
+      "name": "code-formatter",
+      "path": ".claude/skills/workflow-engine/code-formatter/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Multi-language code formatting and style enforcement with automatic linting fixes"
+    },
+    {
+      "name": "continuous-improvement",
+      "path": ".claude/skills/continuous-improvement.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Self-review process to build adaptive expertise through structured reflection."
+    },
+    {
+      "name": "database-schema-evolution",
+      "path": ".claude/skills/database-schema-evolution.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when making database schema changes with Drizzle ORM. This skill covers"
+    },
+    {
+      "name": "dependency-guardian",
+      "path": ".claude/skills/workflow-engine/dependency-guardian/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Automated dependency management with security scanning, update orchestration, and compatibility validation"
+    },
+    {
+      "name": "dispatching-parallel-agents",
+      "path": ".claude/skills/dispatching-parallel-agents.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when facing 3+ independent failures that can be investigated without shared"
+    },
+    {
+      "name": "documentation-sync",
+      "path": ".claude/skills/workflow-engine/documentation-sync/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Detects code/documentation drift, validates examples, generates diagrams, auto-updates documentation"
+    },
+    {
+      "name": "extended-thinking-framework",
+      "path": ".claude/skills/extended-thinking-framework.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "A reusable scaffold for complex tasks and audits that require structured,"
+    },
+    {
+      "name": "financial-calc-correctness",
+      "path": ".claude/skills/financial-calc-correctness/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill defines patterns for validating financial calculations against Excel models, maintaining truth-case accuracy, and ensuring numerical correctness for IRR, waterfalls, Monte Carlo, and relate"
+    },
+    {
+      "name": "integration-with-other-skills",
+      "path": ".claude/skills/integration-with-other-skills.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Coordinate research methods and thinking frameworks with complementary Claude"
+    },
+    {
+      "name": "inversion-thinking",
+      "path": ".claude/skills/inversion-thinking.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Invert the question to reveal pitfalls and failure modes; systematically avoid"
+    },
+    {
+      "name": "iterative-improvement",
+      "path": ".claude/skills/iterative-improvement.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Systematically refine solutions through structured evaluation feedback loops."
+    },
+    {
+      "name": "memory-management",
+      "path": ".claude/skills/memory-management.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Keep structured notes during research and development sessions to maintain"
+    },
+    {
+      "name": "multi-model-consensus",
+      "path": ".claude/skills/multi-model-consensus.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Query multiple AI models in parallel for high-stakes decisions where"
+    },
+    {
+      "name": "notebooklm",
+      "path": ".claude/skills/notebooklm.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Query Google NotebookLM notebooks directly from Claude Code for source-grounded,"
+    },
+    {
+      "name": "owasp-security",
+      "path": ".claude/skills/owasp-security/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Apply these security standards when writing or reviewing code."
+    },
+    {
+      "name": "pattern-recognition",
+      "path": ".claude/skills/pattern-recognition.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Detect patterns, contradictions, and causal relationships to strengthen"
+    },
+    {
+      "name": "phoenix-advanced-forecasting",
+      "path": ".claude/skills/phoenix-advanced-forecasting/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You are the architectural and implementation guide for Phoenix's probabilistic"
+    },
+    {
+      "name": "phoenix-brand-reporting",
+      "path": ".claude/skills/phoenix-brand-reporting/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You ensure Phoenix outputs (UI, charts, PDFs, screenshots) match Press On"
+    },
+    {
+      "name": "phoenix-capital-exit-investigator",
+      "path": ".claude/skills/phoenix-capital-exit-investigator/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You focus on the weakest-provenance modules: capital allocation and exit"
+    },
+    {
+      "name": "phoenix-docs-sync",
+      "path": ".claude/skills/phoenix-docs-sync/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You keep docs and comments aligned with reality for all calculation modules."
+    },
+    {
+      "name": "phoenix-precision-guard",
+      "path": ".claude/skills/phoenix-precision-guard/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You enforce numeric precision and type safety for all P0 calculation paths in"
+    },
+    {
+      "name": "phoenix-reserves-optimizer",
+      "path": ".claude/skills/phoenix-reserves-optimizer/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You handle reserve sizing and follow-on allocation logic, especially around the"
+    },
+    {
+      "name": "phoenix-truth-case-orchestrator",
+      "path": ".claude/skills/phoenix-truth-case-orchestrator/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You coordinate all truth-case work for the Phoenix VC fund model. The Phoenix"
+    },
+    {
+      "name": "phoenix-waterfall-ledger-semantics",
+      "path": ".claude/skills/phoenix-waterfall-ledger-semantics/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You own GP/LP waterfall semantics for both the tier-based and ledger-based"
+    },
+    {
+      "name": "phoenix-workflow-orchestrator",
+      "path": ".claude/skills/phoenix-workflow-orchestrator/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Master routing skill for the 9 Phoenix domain skills. Use this skill to"
+    },
+    {
+      "name": "phoenix-xirr-fees-validator",
+      "path": ".claude/skills/phoenix-xirr-fees-validator/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "You ensure XIRR and fee calculations match their intended behavior and, where"
+    },
+    {
+      "name": "prompt-caching-usage",
+      "path": ".claude/skills/prompt-caching-usage.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Leverage cached prompts to reduce latency by 85% and cost by 90% for repeated"
+    },
+    {
+      "name": "react-hook-form-stability",
+      "path": ".claude/skills/react-hook-form-stability/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill codifies patterns for stable, loop-free React Hook Form (RHF) usage in combination with TanStack Query and autosave. It addresses the specific failure modes encountered in wizard-style mult"
+    },
+    {
+      "name": "react-performance-optimization",
+      "path": ".claude/skills/react-performance-optimization.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when encountering slow renders, excessive re-renders, bundle size issues, or"
+    },
+    {
+      "name": "refactor-code",
+      "path": ".claude/skills/refactor-code/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Safely improve code quality through test-driven refactoring with automatic validation and rollback. Use during quality review to reduce technical debt while preserving behavior."
+    },
+    {
+      "name": "regression-checker",
+      "path": ".claude/skills/regression-checker/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Run full test suite to catch regressions after implementation changes. Auto-detects framework, reports pass/fail with counts. Use after code changes to verify nothing broke."
+    },
+    {
+      "name": "root-cause-tracing",
+      "path": ".claude/skills/root-cause-tracing.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when errors occur deep in execution and you need to trace back to find the"
+    },
+    {
+      "name": "security-scanner",
+      "path": ".claude/skills/workflow-engine/security-scanner/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Comprehensive security scanning for SAST, secrets, OWASP vulnerabilities, container and IaC security"
+    },
+    {
+      "name": "session-learnings",
+      "path": ".claude/skills/session-learnings/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Extract and codify learnings from planning-with-files sessions"
+    },
+    {
+      "name": "statistical-testing",
+      "path": ".claude/skills/statistical-testing/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill provides patterns for testing probabilistic code (Monte Carlo simulations, statistical estimates, random sampling) in a way that is both rigorous and stable in CI. The goal is to eliminate "
+    },
+    {
+      "name": "systematic-debugging",
+      "path": ".claude/skills/systematic-debugging.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Use when encountering any bug, test failure, or unexpected behavior, before"
+    },
+    {
+      "name": "task-decomposition",
+      "path": ".claude/skills/task-decomposition.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Break complex tasks into manageable, independently testable subtasks with clear"
+    },
+    {
+      "name": "tech-debt-tracker",
+      "path": ".claude/skills/workflow-engine/tech-debt-tracker/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Automated technical debt identification, tracking, and prioritization system",
+      "category": "code-quality"
+    },
+    {
+      "name": "test-first-change",
+      "path": ".claude/skills/workflow-engine/test-first-change/SKILL.md",
+      "format": "workflow-engine",
+      "status": "ACTIVE",
+      "description": "Reduce regressions by discovering tests, running them, then editing code"
+    },
+    {
+      "name": "test-fixture-generator",
+      "path": ".claude/skills/test-fixture-generator/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill defines patterns and strategies for generating test fixtures, factory"
+    },
+    {
+      "name": "test-pyramid",
+      "path": ".claude/skills/test-pyramid/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "This skill defines the test pyramid strategy for this repository, establishing"
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "path": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "UI/UX design intelligence. 50 styles, 21 palettes, 50 font pairings, 20 charts, 9 stacks (React, Next.js, Vue, Svelte, SwiftUI, React Native, Flutter, Tailwind, shadcn/ui). Actions: plan, build, creat"
+    },
+    {
+      "name": "writing-plans",
+      "path": ".claude/skills/writing-plans.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Write comprehensive implementation plans assuming the engineer has zero context"
+    },
+    {
+      "name": "xlsx",
+      "path": ".claude/skills/xlsx.md",
+      "format": "flat",
+      "status": "ACTIVE",
+      "description": "Comprehensive spreadsheet operations for VC fund LP reporting, portfolio data"
+    }
+  ]
+}
