@@ -19,6 +19,15 @@ import {
 } from '@/core/capitalAllocation';
 import capitalCases from '../../../docs/capital-allocation.truth-cases.json';
 
+/**
+ * @quarantine
+ * @reason CA-005 truth case locked per docs/CA-SEMANTIC-LOCK.md Section 6; dynamic_ratio policy cases skipped by engine policy
+ * @category STALE
+ * @owner P5.1 tech debt audit
+ * @date 2026-02-18
+ * @exitCriteria Unlock CA-005 when dynamic_ratio allocation policy is implemented in the reserve engine
+ */
+
 // Type for truth case JSON structure
 interface CATruthCase {
   id: string;

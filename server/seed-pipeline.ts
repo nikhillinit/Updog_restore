@@ -1,13 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Pipeline seeding utilities
- 
- 
- 
- 
+
 import { db } from './db';
-import { dealOpportunities, dueDiligenceItems, scoringModels, pipelineActivities, marketResearch, financialProjections } from '@shared/schema';
+import {
+  dealOpportunities,
+  dueDiligenceItems,
+  scoringModels,
+  pipelineActivities,
+  marketResearch,
+  financialProjections,
+} from '@shared/schema';
 
 async function seedPipelineData() {
-  console.log('🌱 Seeding pipeline data...');
+  console.log('[SEED] Seeding pipeline data...');
 
   // Sample deal opportunities
   const sampleOpportunities = [
@@ -73,7 +77,7 @@ async function seedPipelineData() {
       sourceNotes: 'Met at HealthTech Summit 2024',
       nextAction: 'Financial model review',
       nextActionDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-    }
+    },
   ];
 
   // Insert opportunities and get IDs
@@ -82,7 +86,7 @@ async function seedPipelineData() {
     .values(sampleOpportunities)
     .returning();
 
-  console.log(`✅ Inserted ${insertedOpportunities.length} deal opportunities`);
+  console.log(`[DONE] Inserted ${insertedOpportunities.length} deal opportunities`);
 
   // Sample due diligence items for the first opportunity
   const sampleDDItems = [
@@ -95,7 +99,7 @@ async function seedPipelineData() {
       priority: 'high',
       assignedTo: 'Finance Team',
       completedDate: new Date(),
-      notes: 'Strong revenue growth, healthy margins'
+      notes: 'Strong revenue growth, healthy margins',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
@@ -116,11 +120,11 @@ async function seedPipelineData() {
       priority: 'medium',
       assignedTo: 'Investment Team',
       dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
-    }
+    },
   ];
 
   await db.insert(dueDiligenceItems).values(sampleDDItems);
-  console.log(`✅ Inserted ${sampleDDItems.length} due diligence items`);
+  console.log(`[DONE] Inserted ${sampleDDItems.length} due diligence items`);
 
   // Sample scoring models
   const sampleScores = [
@@ -128,46 +132,46 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Team',
       score: 9,
-      weight: "0.25",
+      weight: '0.25',
       notes: 'Exceptional founding team with deep domain expertise',
-      scoredBy: 'Investment Partner'
+      scoredBy: 'Investment Partner',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Market',
       score: 8,
-      weight: "0.20",
+      weight: '0.20',
       notes: 'Large addressable market with growing demand',
-      scoredBy: 'Investment Partner'
+      scoredBy: 'Investment Partner',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Product',
       score: 9,
-      weight: "0.25",
+      weight: '0.25',
       notes: 'Breakthrough technology with strong IP position',
-      scoredBy: 'Technical Advisor'
+      scoredBy: 'Technical Advisor',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Traction',
       score: 7,
-      weight: "0.20",
+      weight: '0.20',
       notes: 'Good early customer validation, need more enterprise deals',
-      scoredBy: 'Investment Associate'
+      scoredBy: 'Investment Associate',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Financials',
       score: 8,
-      weight: "0.10",
+      weight: '0.10',
       notes: 'Strong unit economics and capital efficiency',
-      scoredBy: 'Finance Team'
-    }
+      scoredBy: 'Finance Team',
+    },
   ];
 
   await db.insert(scoringModels).values(sampleScores);
-  console.log(`✅ Inserted ${sampleScores.length} scoring model entries`);
+  console.log(`[DONE] Inserted ${sampleScores.length} scoring model entries`);
 
   // Sample pipeline activities
   const sampleActivities = [
@@ -179,10 +183,10 @@ async function seedPipelineData() {
       outcome: 'Positive impression, moving to next stage',
       participants: [
         { name: 'Sarah Chen', role: 'CEO' },
-        { name: 'Investment Partner', role: 'Partner' }
+        { name: 'Investment Partner', role: 'Partner' },
       ],
       completedDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      createdBy: 'Investment Partner'
+      createdBy: 'Investment Partner',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
@@ -192,17 +196,17 @@ async function seedPipelineData() {
       outcome: 'Strong validation of product-market fit',
       participants: [
         { name: 'Enterprise Customer CTO', role: 'Reference' },
-        { name: 'Investment Associate', role: 'VC Team' }
+        { name: 'Investment Associate', role: 'VC Team' },
       ],
       completedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
       followUpRequired: true,
       followUpDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      createdBy: 'Investment Associate'
-    }
+      createdBy: 'Investment Associate',
+    },
   ];
 
   await db.insert(pipelineActivities).values(sampleActivities);
-  console.log(`✅ Inserted ${sampleActivities.length} pipeline activities`);
+  console.log(`[DONE] Inserted ${sampleActivities.length} pipeline activities`);
 
   // Sample market research
   const sampleResearch = {
@@ -213,7 +217,7 @@ async function seedPipelineData() {
     competitorAnalysis: {
       direct: ['IBM Quantum', 'Google Quantum AI', 'Rigetti Computing'],
       indirect: ['AWS Braket', 'Microsoft Azure Quantum'],
-      differentiation: 'Focus on optimization algorithms for specific industries'
+      differentiation: 'Focus on optimization algorithms for specific industries',
     },
     marketTrends: 'Quantum computing moving from research to commercial applications',
     riskFactors: 'Technology still early, regulatory uncertainty',
@@ -221,12 +225,12 @@ async function seedPipelineData() {
     researchedBy: 'Investment Team',
     sources: [
       { type: 'report', title: 'McKinsey Quantum Computing Report 2024' },
-      { type: 'interview', title: 'Customer interviews (5)' }
-    ]
+      { type: 'interview', title: 'Customer interviews (5)' },
+    ],
   };
 
   await db.insert(marketResearch).values([sampleResearch]);
-  console.log(`✅ Inserted market research`);
+  console.log(`[DONE] Inserted market research`);
 
   // Sample financial projections
   const sampleProjections = [
@@ -243,7 +247,7 @@ async function seedPipelineData() {
       ltv: '890000',
       cac: '45000',
       projectionType: 'management',
-      assumptions: 'Assumes successful Series A and 3 major enterprise deals'
+      assumptions: 'Assumes successful Series A and 3 major enterprise deals',
     },
     {
       opportunityId: insertedOpportunities[0]!.id,
@@ -258,14 +262,14 @@ async function seedPipelineData() {
       ltv: '1200000',
       cac: '52000',
       projectionType: 'management',
-      assumptions: 'Market expansion and product line diversification'
-    }
+      assumptions: 'Market expansion and product line diversification',
+    },
   ];
 
   await db.insert(financialProjections).values(sampleProjections);
-  console.log(`✅ Inserted ${sampleProjections.length} financial projections`);
+  console.log(`[DONE] Inserted ${sampleProjections.length} financial projections`);
 
-  console.log('🎉 Pipeline data seeding completed successfully!');
+  console.log('[DONE] Pipeline data seeding completed successfully!');
 }
 
 // Run if called directly
@@ -273,7 +277,7 @@ if (import.meta.url === `file://${process.argv[1]!}`) {
   seedPipelineData()
     .then(() => process.exit(0))
     .catch((error: any) => {
-      console.error('❌ Error seeding pipeline data:', error);
+      console.error('[FAIL] Error seeding pipeline data:', error);
       process.exit(1);
     });
 }

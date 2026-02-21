@@ -314,7 +314,6 @@ export default function InvestmentStrategyStep() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              console.log('Edit clicked for profile:', profile.id);
                               setEditingProfile(profile.id);
                             }}
                             data-testid={`edit-profile-${profile.id}`}

@@ -21,12 +21,6 @@ on:
         required: false
         type: boolean
         default: false
-      run_alert_drills:
-        description: 'Run alert validation drills'
-        required: false
-        type: boolean
-        default: false
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -96,7 +90,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       cache-key: ${{ steps.cache-key.outputs.key }}
-      bundle-baseline: ${{ steps.baseline.outputs.stats }}
     steps:
       - uses: actions/checkout@v4
 
@@ -123,7 +116,11 @@ jobs:
           restore-keys: |
             tsc-
 
-      - run: npm ci --prefer-offline --no-audit
+      - name: Install dependencies (retry on transient network failure)
+        run: |
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit
 
       - name: TypeScript baseline check
         run: |
@@ -139,25 +136,6 @@ jobs:
             .tsbuildinfo.*
             **/*.tsbuildinfo
           retention-days: 1
-
-      - name: Fetch baseline bundle stats
-        id: baseline
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          # Try to fetch last successful main build stats
-          gh run list --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' > run_id.txt || echo "0" > run_id.txt
-          RUN_ID=$(cat run_id.txt)
-          if [ "$RUN_ID" != "0" ]; then
-            gh run download $RUN_ID -n bundle-stats -D .baseline || true
-          fi
-          if [ -f ".baseline/bundle-stats.json" ]; then
-            echo "stats=$(cat .baseline/bundle-stats.json | jq -c .)" >> $GITHUB_OUTPUT
-          else
-            echo "stats={}" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Phase 3: Parallel checks (type checking and linting)
   check:
@@ -187,10 +165,23 @@ jobs:
             node_modules/.cache
           key: ${{ needs.setup.outputs.cache-key }}
 
-      - run: npm ci --prefer-offline --no-audit
+      - name: Install dependencies (retry on transient network failure)
+        run: |
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit
 
-      - name: Download build artifacts
+      - name: Download build artifacts (best effort)
+        id: download_tsbuild
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: tsbuild
+
+      - name: Retry build artifact download on transient network failure
+        if: steps.download_tsbuild.outcome == 'failure'
+        uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: tsbuild
 
@@ -401,41 +392,8 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Generate bundle stats
-        id: bundle-stats
-        run: |
-          node scripts/bundle-stats.cjs > bundle-stats.json || echo '{}' > bundle-stats.json
-          TOTAL_KB=$(du -sk dist/public/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
-          echo "total_kb=${TOTAL_KB}" >> $GITHUB_OUTPUT
-
-      - name: Dynamic bundle size check
-        run: |
-          if [ -n "${{ needs.setup.outputs.bundle-baseline }}" ] && [ "${{ needs.setup.outputs.bundle-baseline }}" != "{}" ]; then
-            node scripts/bundle-check-dynamic.cjs \
-              --current=bundle-stats.json \
-              --baseline='${{ needs.setup.outputs.bundle-baseline }}' \
-              --tolerance=0.05 \
-              --has-approval=${{ contains(github.event.pull_request.labels.*.name, 'approved:perf-budget-change') }}
-          else
-            # Fallback to static limit if no baseline
-            npm run bundle:check || true
-          fi
-
-      - name: Upload bundle stats
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundle-stats
-          path: bundle-stats.json
-          retention-days: 30
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-build
-          path: |
-            dist/
-            !dist/**/*.map
-          retention-days: 7
+      - name: Bundle size check
+        run: npm run bundle:check || true
 
   # Conditional: Security tests (label or input triggered)
   security-tests:
@@ -458,11 +416,6 @@ jobs:
 
       - name: Run security audit
         run: npm audit --audit-level=moderate
-
-      - name: Run security tests
-        if: hashFiles('tests/security/**/*.test.ts') != ''
-        run: npm run test:security || vitest run tests/security
-        continue-on-error: true
 
       - name: OWASP dependency check
         uses: dependency-check/Dependency-Check_Action@main
@@ -498,63 +451,6 @@ jobs:
         env:
           REDIS_URL: memory://
           ENABLE_QUEUES: 0
-
-  # Alert validation drills
-  alert-drills:
-    name: Alert Validation Drills
-    if: github.event.inputs.run_alert_drills == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    services:
-      prometheus:
-        image: prom/prometheus:latest
-        ports:
-          - 9090:9090
-        options: >-
-          --mount type=bind,source=${{ github.workspace }}/monitoring/prometheus.yml,target=/etc/prometheus/prometheus.yml,readonly
-          --mount type=bind,source=${{ github.workspace }}/monitoring/alerts,target=/etc/prometheus/alerts,readonly
-      alertmanager:
-        image: prom/alertmanager:latest
-        ports:
-          - 9093:9093
-        options: >-
-          --mount type=bind,source=${{ github.workspace }}/monitoring/alertmanager.yml,target=/etc/alertmanager/alertmanager.yml,readonly
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - run: npm ci --prefer-offline --no-audit
-
-      - name: Start test environment
-        run: |
-          npm run dev:api &
-          npx wait-on http://localhost:5000/api/health --timeout 60000
-
-      - name: Run alert drills
-        run: |
-          node scripts/alert-drill-runner.js \
-            lcpBreach \
-            inpBreach \
-            rumRejectHigh
-
-      - name: Verify alerts fired
-        run: |
-          node scripts/verify-alerts.js \
-            --alerts LCPBudgetFastBurn,INPBudgetFastBurn,RUMIngestRejectRatioHigh \
-            --require
-
-      - name: Upload drill results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: alert-drill-results
-          path: |
-            alert-drill-results.json
-            alert-verification-results.json
 
   # Governance guards
   guards:

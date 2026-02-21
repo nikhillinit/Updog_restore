@@ -19,7 +19,7 @@ import {
   type ReserveAllocation,
   type EnrichedReserveAllocation,
   type PortfolioValidationResult,
-  type WizardPortfolioCompany
+  type WizardPortfolioCompany,
 } from '@/lib/wizard-calculations';
 
 // ============================================================================
@@ -154,10 +154,12 @@ export interface ModelingWizardContext {
   portfolioValidation?: PortfolioValidationResult | undefined;
 
   // Calculation results
-  calculations?: {
-    reserves?: ReserveAllocation | undefined;
-    enrichedReserves?: EnrichedReserveAllocation | undefined;
-  } | undefined;
+  calculations?:
+    | {
+        reserves?: ReserveAllocation | undefined;
+        enrichedReserves?: EnrichedReserveAllocation | undefined;
+      }
+    | undefined;
 
   // Persistence state
   lastSaved: number | null;
@@ -232,7 +234,7 @@ const STEP_ORDER: WizardStep[] = [
   'feesExpenses',
   'exitRecycling',
   'waterfall',
-  'scenarios'
+  'scenarios',
 ];
 
 const OPTIONAL_STEPS: Set<WizardStep> = new Set(['exitRecycling']);
@@ -311,11 +313,10 @@ function persistToStorage(context: ModelingWizardContext): void {
       completedSteps: Array.from(context.completedSteps),
       visitedSteps: Array.from(context.visitedSteps),
       skipOptionalSteps: context.skipOptionalSteps,
-      lastSaved: Date.now()
+      lastSaved: Date.now(),
     };
 
     localStorage.setItem('modeling-wizard-progress', JSON.stringify(storageData));
-    console.log('[ModelingWizard] Progress saved to localStorage', { timestamp: storageData.lastSaved });
   } catch (error) {
     console.error('[ModelingWizard] Failed to save to localStorage:', error);
   }
@@ -333,46 +334,49 @@ function persistToStorage(context: ModelingWizardContext): void {
  * @returns Promise that resolves on successful save
  * @throws Error with specific message for each failure type
  */
-export const persistDataService = fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
-  // Force async rejection semantics (prevents synchronous throws from escaping before promise chain)
-  await Promise.resolve();
+export const persistDataService = fromPromise(
+  async ({ input }: { input: ModelingWizardContext }) => {
+    // Force async rejection semantics (prevents synchronous throws from escaping before promise chain)
+    await Promise.resolve();
 
-  try {
-    const storageData = {
-      steps: input.steps,
-      currentStep: input.currentStep,
-      completedSteps: Array.from(input.completedSteps),
-      visitedSteps: Array.from(input.visitedSteps),
-      skipOptionalSteps: input.skipOptionalSteps,
-      lastSaved: Date.now()
-    };
+    try {
+      const storageData = {
+        steps: input.steps,
+        currentStep: input.currentStep,
+        completedSteps: Array.from(input.completedSteps),
+        visitedSteps: Array.from(input.visitedSteps),
+        skipOptionalSteps: input.skipOptionalSteps,
+        lastSaved: Date.now(),
+      };
 
-    localStorage.setItem('modeling-wizard-progress', JSON.stringify(storageData));
-    console.log('[ModelingWizard] Progress saved to localStorage (async service)', { timestamp: storageData.lastSaved });
+      localStorage.setItem('modeling-wizard-progress', JSON.stringify(storageData));
 
-    return storageData;
-  } catch (error) {
-    // Handle specific localStorage errors for better UX
-    if (error instanceof Error) {
-      if (error.name === 'QuotaExceededError') {
-        console.error('[ModelingWizard] Storage quota exceeded:', error);
-        throw Object.assign(new Error('Storage limit exceeded'), { name: 'QuotaExceededError' });
+      return storageData;
+    } catch (error) {
+      // Handle specific localStorage errors for better UX
+      if (error instanceof Error) {
+        if (error.name === 'QuotaExceededError') {
+          console.error('[ModelingWizard] Storage quota exceeded:', error);
+          throw Object.assign(new Error('Storage limit exceeded'), { name: 'QuotaExceededError' });
+        }
+
+        if (error.name === 'SecurityError') {
+          console.error('[ModelingWizard] Storage access blocked (privacy mode):', error);
+          throw Object.assign(new Error('Storage unavailable (privacy mode)'), {
+            name: 'SecurityError',
+          });
+        }
       }
 
-      if (error.name === 'SecurityError') {
-        console.error('[ModelingWizard] Storage access blocked (privacy mode):', error);
-        throw Object.assign(new Error('Storage unavailable (privacy mode)'), { name: 'SecurityError' });
-      }
+      // Generic error fallback
+      console.error('[ModelingWizard] Failed to save to localStorage:', error);
+      const genericError = error instanceof Error ? error : new Error('Could not save data');
+      throw Object.assign(new Error(genericError.message), {
+        name: genericError.name || 'PersistenceError',
+      });
     }
-
-    // Generic error fallback
-    console.error('[ModelingWizard] Failed to save to localStorage:', error);
-    const genericError = error instanceof Error ? error : new Error('Could not save data');
-    throw Object.assign(new Error(genericError.message), {
-      name: genericError.name || 'PersistenceError'
-    });
   }
-});
+);
 
 /**
  * Load wizard context from localStorage
@@ -393,7 +397,7 @@ function loadFromStorage(): Partial<ModelingWizardContext> | null {
       completedSteps: new Set(data.completedSteps || []),
       visitedSteps: new Set(data.visitedSteps || []),
       skipOptionalSteps: data.skipOptionalSteps ?? false,
-      lastSaved: data.lastSaved || null
+      lastSaved: data.lastSaved || null,
     };
   } catch (error) {
     console.error('[ModelingWizard] Failed to load from localStorage:', error);
@@ -407,7 +411,6 @@ function loadFromStorage(): Partial<ModelingWizardContext> | null {
 function clearStorage(): void {
   try {
     localStorage.removeItem('modeling-wizard-progress');
-    console.log('[ModelingWizard] Progress cleared from localStorage');
   } catch (error) {
     console.error('[ModelingWizard] Failed to clear localStorage:', error);
   }
@@ -441,7 +444,10 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       if (!fundName || (typeof fundName === 'string' && fundName.trim().length === 0)) {
         errors.push('Fund name is required');
       }
-      if (!vintageYear || (typeof vintageYear === 'number' && (vintageYear < 2000 || vintageYear > 2030))) {
+      if (
+        !vintageYear ||
+        (typeof vintageYear === 'number' && (vintageYear < 2000 || vintageYear > 2030))
+      ) {
         errors.push('Vintage year must be between 2000 and 2030');
       }
       if (!fundSize || (typeof fundSize === 'number' && fundSize <= 0)) {
@@ -459,7 +465,9 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       // Check allocations sum to 100%
       if (Array.isArray(sectorProfiles)) {
         const totalAllocation = sectorProfiles.reduce((sum, sp) => {
-          return sum + (isRecord(sp) && typeof sp['allocation'] === 'number' ? sp['allocation'] : 0);
+          return (
+            sum + (isRecord(sp) && typeof sp['allocation'] === 'number' ? sp['allocation'] : 0)
+          );
         }, 0);
         if (Math.abs(totalAllocation - 100) > 0.01) {
           errors.push('Sector allocations must sum to 100%');
@@ -477,7 +485,10 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       }
       if (isRecord(followOnStrategy)) {
         const reserveRatio = followOnStrategy['reserveRatio'];
-        if (!reserveRatio || (typeof reserveRatio === 'number' && (reserveRatio < 0 || reserveRatio > 1))) {
+        if (
+          !reserveRatio ||
+          (typeof reserveRatio === 'number' && (reserveRatio < 0 || reserveRatio > 1))
+        ) {
           errors.push('Reserve ratio must be between 0 and 1');
         }
       }
@@ -502,7 +513,11 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       const recyclingCap = data['recyclingCap'];
 
       if (enabled) {
-        if (recyclingCap && typeof recyclingCap === 'number' && (recyclingCap < 0 || recyclingCap > 100)) {
+        if (
+          recyclingCap &&
+          typeof recyclingCap === 'number' &&
+          (recyclingCap < 0 || recyclingCap > 100)
+        ) {
           errors.push('Recycling cap must be between 0% and 100%');
         }
       }
@@ -513,10 +528,17 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       const type = data['type'];
       const preferredReturn = data['preferredReturn'];
 
-      if (!type || (typeof type === 'string' && !['american', 'european', 'hybrid'].includes(type))) {
+      if (
+        !type ||
+        (typeof type === 'string' && !['american', 'european', 'hybrid'].includes(type))
+      ) {
         errors.push('Waterfall type must be specified');
       }
-      if (preferredReturn && typeof preferredReturn === 'number' && (preferredReturn < 0 || preferredReturn > 20)) {
+      if (
+        preferredReturn &&
+        typeof preferredReturn === 'number' &&
+        (preferredReturn < 0 || preferredReturn > 20)
+      ) {
         errors.push('Preferred return must be between 0% and 20%');
       }
       break;
@@ -537,8 +559,6 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
  * Submit fund model to API
  */
 const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
-  console.log('[ModelingWizard] Submitting fund model to API', { steps: Object.keys(input.steps) });
-
   // Construct fund model from wizard steps
   const fundModel = {
     ...input.steps.generalInfo,
@@ -547,16 +567,16 @@ const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardCon
     fees: input.steps.feesExpenses,
     exitRecycling: input.steps.exitRecycling,
     waterfall: input.steps.waterfall,
-    scenarios: input.steps.scenarios
+    scenarios: input.steps.scenarios,
   };
 
   try {
     const response = await fetch('/api/funds', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(fundModel)
+      body: JSON.stringify(fundModel),
     });
 
     if (!response.ok) {
@@ -565,7 +585,6 @@ const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardCon
     }
 
     const result = await response.json();
-    console.log('[ModelingWizard] Fund model submitted successfully', { fundId: result.id });
 
     return result;
   } catch (error) {
@@ -585,7 +604,7 @@ export const modelingWizardMachine = setup({
     input: {} as {
       skipOptionalSteps?: boolean;
       autoSaveInterval?: number;
-    }
+    },
   },
 
   actors: {
@@ -622,7 +641,7 @@ export const modelingWizardMachine = setup({
      * Persist wizard context to localStorage (ADR-016)
      * Handles QuotaExceededError and SecurityError
      */
-    persistDataService
+    persistDataService,
   },
 
   actions: {
@@ -641,18 +660,18 @@ export const modelingWizardMachine = setup({
         ...context,
         steps: {
           ...context.steps,
-          [step]: data
+          [step]: data,
         },
         visitedSteps: new Set([...context.visitedSteps, step]),
         validationErrors: {
           ...context.validationErrors,
-          [step]: errors
+          [step]: errors,
         },
         isStepValid: {
           ...context.isStepValid,
-          [step]: errors.length === 0
+          [step]: errors.length === 0,
         },
-        isDirty: true
+        isDirty: true,
       };
     }),
 
@@ -673,7 +692,7 @@ export const modelingWizardMachine = setup({
 
       return {
         ...context,
-        portfolioValidation: validation
+        portfolioValidation: validation,
       };
     }),
 
@@ -682,15 +701,19 @@ export const modelingWizardMachine = setup({
      */
     saveReserveCalculation: assign(({ context, event }) => {
       // XState v5 invoke done events pass output directly
-      const output = (event as unknown as { output: { allocation: ReserveAllocation; enriched: EnrichedReserveAllocation } }).output;
+      const output = (
+        event as unknown as {
+          output: { allocation: ReserveAllocation; enriched: EnrichedReserveAllocation };
+        }
+      ).output;
 
       return {
         ...context,
         calculations: {
           ...context.calculations,
           reserves: output.allocation,
-          enrichedReserves: output.enriched
-        }
+          enrichedReserves: output.enriched,
+        },
       };
     }),
 
@@ -723,7 +746,7 @@ export const modelingWizardMachine = setup({
         currentStep: nextStep,
         currentStepIndex: getStepIndex(nextStep),
         completedSteps: newCompletedSteps,
-        visitedSteps: new Set([...context.visitedSteps, nextStep])
+        visitedSteps: new Set([...context.visitedSteps, nextStep]),
       };
     }),
 
@@ -737,7 +760,7 @@ export const modelingWizardMachine = setup({
      */
 
     setPersistenceError: assign({
-      persistenceError: ({ event }) => ((event as { error?: Error }).error as Error).message
+      persistenceError: ({ event }) => ((event as { error?: Error }).error as Error).message,
     }),
 
     /**
@@ -754,7 +777,7 @@ export const modelingWizardMachine = setup({
       return {
         ...context,
         currentStep: prevStep,
-        currentStepIndex: getStepIndex(prevStep)
+        currentStepIndex: getStepIndex(prevStep),
       };
     }),
 
@@ -772,7 +795,7 @@ export const modelingWizardMachine = setup({
         ...context,
         currentStep: step,
         currentStepIndex: getStepIndex(step),
-        visitedSteps: new Set([...context.visitedSteps, step])
+        visitedSteps: new Set([...context.visitedSteps, step]),
       };
     }),
 
@@ -785,40 +808,42 @@ export const modelingWizardMachine = setup({
       return {
         ...context,
         skipOptionalSteps: event.skip,
-        totalSteps: getTotalSteps(event.skip)
+        totalSteps: getTotalSteps(event.skip),
       };
     }),
 
     /**
      * Track navigation intent triggered by manual navigation controls
      */
-    setNavigationIntent: assign(({ context, event }: { context: ModelingWizardContext; event: ModelingWizardEvents }) => {
-      if (event.type === 'NEXT') {
-        return {
-          ...context,
-          navigationIntent: 'next' as const,
-          targetStep: null
-        };
-      }
+    setNavigationIntent: assign(
+      ({ context, event }: { context: ModelingWizardContext; event: ModelingWizardEvents }) => {
+        if (event.type === 'NEXT') {
+          return {
+            ...context,
+            navigationIntent: 'next' as const,
+            targetStep: null,
+          };
+        }
 
-      if (event.type === 'BACK') {
-        return {
-          ...context,
-          navigationIntent: 'back' as const,
-          targetStep: null
-        };
-      }
+        if (event.type === 'BACK') {
+          return {
+            ...context,
+            navigationIntent: 'back' as const,
+            targetStep: null,
+          };
+        }
 
-      if (event.type === 'GOTO') {
-        return {
-          ...context,
-          navigationIntent: 'goto' as const,
-          targetStep: event.step
-        };
-      }
+        if (event.type === 'GOTO') {
+          return {
+            ...context,
+            navigationIntent: 'goto' as const,
+            targetStep: event.step,
+          };
+        }
 
-      return context;
-    }),
+        return context;
+      }
+    ),
 
     /**
      * Capture auto-save intent so UI can differentiate from manual navigation
@@ -826,7 +851,7 @@ export const modelingWizardMachine = setup({
     setAutoSaveIntent: assign(({ context }: { context: ModelingWizardContext }) => ({
       ...context,
       navigationIntent: 'auto-save' as const,
-      targetStep: null
+      targetStep: null,
     })),
 
     /**
@@ -835,14 +860,21 @@ export const modelingWizardMachine = setup({
     clearNavigationIntent: assign(({ context }) => ({
       ...context,
       navigationIntent: null,
-      targetStep: null
+      targetStep: null,
     })),
 
     /**
      * Execute navigation intent after successful persistence
      */
     executeNavigationIntent: assign(({ context }) => {
-      const { navigationIntent, targetStep, currentStep, skipOptionalSteps, completedSteps, visitedSteps } = context;
+      const {
+        navigationIntent,
+        targetStep,
+        currentStep,
+        skipOptionalSteps,
+        completedSteps,
+        visitedSteps,
+      } = context;
 
       if (navigationIntent === 'next') {
         const nextStep = getNextStep(currentStep, skipOptionalSteps);
@@ -856,7 +888,7 @@ export const modelingWizardMachine = setup({
           currentStep: nextStep,
           currentStepIndex: getStepIndex(nextStep),
           completedSteps: newCompletedSteps,
-          visitedSteps: new Set([...visitedSteps, nextStep])
+          visitedSteps: new Set([...visitedSteps, nextStep]),
         };
       }
 
@@ -867,7 +899,7 @@ export const modelingWizardMachine = setup({
         return {
           ...context,
           currentStep: prevStep,
-          currentStepIndex: getStepIndex(prevStep)
+          currentStepIndex: getStepIndex(prevStep),
         };
       }
 
@@ -876,7 +908,7 @@ export const modelingWizardMachine = setup({
           ...context,
           currentStep: targetStep,
           currentStepIndex: getStepIndex(targetStep),
-          visitedSteps: new Set([...visitedSteps, targetStep])
+          visitedSteps: new Set([...visitedSteps, targetStep]),
         };
       }
 
@@ -889,7 +921,7 @@ export const modelingWizardMachine = setup({
      */
     incrementRetryCount: assign(({ context }) => ({
       ...context,
-      retryCount: context.retryCount + 1
+      retryCount: context.retryCount + 1,
     })),
 
     /**
@@ -897,7 +929,7 @@ export const modelingWizardMachine = setup({
      */
     resetRetryCount: assign(({ context }) => ({
       ...context,
-      retryCount: 0
+      retryCount: 0,
     })),
 
     /**
@@ -905,7 +937,7 @@ export const modelingWizardMachine = setup({
      */
     recordPersistAttempt: assign(({ context }) => ({
       ...context,
-      lastPersistAttempt: Date.now()
+      lastPersistAttempt: Date.now(),
     })),
 
     /**
@@ -921,7 +953,7 @@ export const modelingWizardMachine = setup({
     markSaved: assign(({ context }) => ({
       ...context,
       lastSaved: Date.now(),
-      isDirty: false
+      isDirty: false,
     })),
 
     /**
@@ -931,20 +963,14 @@ export const modelingWizardMachine = setup({
       const stored = loadFromStorage();
 
       if (!stored) {
-        console.log('[ModelingWizard] No saved progress found');
         return context;
       }
-
-      console.log('[ModelingWizard] Loaded progress from localStorage', {
-        currentStep: stored.currentStep,
-        completedSteps: stored.completedSteps?.size
-      });
 
       return {
         ...context,
         ...stored,
         currentStepIndex: getStepIndex(stored.currentStep || 'generalInfo'),
-        totalSteps: getTotalSteps(stored.skipOptionalSteps ?? false)
+        totalSteps: getTotalSteps(stored.skipOptionalSteps ?? false),
       };
     }),
 
@@ -960,14 +986,12 @@ export const modelingWizardMachine = setup({
      */
     setSubmissionError: assign(({ context, event }) => {
       // Extract error message from event or context
-      const errorMessage = 'error' in event
-        ? String(event.error)
-        : 'Failed to submit fund model';
+      const errorMessage = 'error' in event ? String(event.error) : 'Failed to submit fund model';
 
       return {
         ...context,
         submissionError: errorMessage,
-        submissionRetryCount: context.submissionRetryCount + 1
+        submissionRetryCount: context.submissionRetryCount + 1,
       };
     }),
 
@@ -976,13 +1000,13 @@ export const modelingWizardMachine = setup({
      */
     clearSubmissionError: assign(({ context }) => ({
       ...context,
-      submissionError: null
+      submissionError: null,
     })),
 
     /**
      * Reset wizard to initial state
      */
-    resetWizard: assign(() => createInitialContext({ skipOptionalSteps: false }))
+    resetWizard: assign(() => createInitialContext({ skipOptionalSteps: false })),
   },
 
   guards: {
@@ -990,12 +1014,7 @@ export const modelingWizardMachine = setup({
      * Check if current step is valid
      */
     isCurrentStepValid: ({ context }) => {
-      const isValid = context.isStepValid[context.currentStep];
-      console.log('[ModelingWizard] Step validation check', {
-        step: context.currentStep,
-        isValid
-      });
-      return isValid ?? false;
+      return context.isStepValid[context.currentStep] ?? false;
     },
 
     /**
@@ -1024,7 +1043,7 @@ export const modelingWizardMachine = setup({
      */
     canRetryPersistence: ({ context }) => {
       return context.retryCount < 3;
-    }
+    },
   },
 
   delays: {
@@ -1039,9 +1058,8 @@ export const modelingWizardMachine = setup({
      */
     PERSIST_RETRY_DELAY: ({ context }) => {
       return Math.pow(2, context.retryCount) * 1000;
-    }
-  }
-
+    },
+  },
 }).createMachine({
   id: 'modelingWizard',
 
@@ -1057,12 +1075,12 @@ export const modelingWizardMachine = setup({
       on: {
         LOAD_FROM_STORAGE: {
           actions: ['loadFromStorage'],
-          target: 'active'
+          target: 'active',
         },
         NEXT: {
-          target: 'active'
-        }
-      }
+          target: 'active',
+        },
+      },
     },
 
     /**
@@ -1086,52 +1104,57 @@ export const modelingWizardMachine = setup({
               // Auto-save timer (action-only, no target to avoid re-entry)
               after: {
                 autoSaveInterval: {
-                  actions: ['setAutoSaveIntent', 'persistToStorage', 'markSaved', 'clearNavigationIntent']
-                }
+                  actions: [
+                    'setAutoSaveIntent',
+                    'persistToStorage',
+                    'markSaved',
+                    'clearNavigationIntent',
+                  ],
+                },
               },
 
               on: {
                 SAVE_STEP: {
-                  actions: ['saveStep']
+                  actions: ['saveStep'],
                 },
 
                 NEXT: {
                   guard: 'isCurrentStepValid',
                   actions: ['setNavigationIntent', 'recordPersistAttempt'],
-                  target: '#modelingWizard.active.persisting'
+                  target: '#modelingWizard.active.persisting',
                 },
 
                 BACK: {
                   guard: 'hasPreviousStep',
                   actions: ['setNavigationIntent', 'recordPersistAttempt'],
-                  target: '#modelingWizard.active.persisting'
+                  target: '#modelingWizard.active.persisting',
                 },
 
                 GOTO: {
                   actions: ['setNavigationIntent', 'recordPersistAttempt'],
-                  target: '#modelingWizard.active.persisting'
+                  target: '#modelingWizard.active.persisting',
                 },
 
                 TOGGLE_SKIP_OPTIONAL: {
-                  actions: ['toggleSkipOptional', 'persistToStorage']
+                  actions: ['toggleSkipOptional', 'persistToStorage'],
                 },
 
                 // Reactive validation on portfolio changes
                 PORTFOLIO_CHANGED: {
-                  actions: 'validatePortfolio'
+                  actions: 'validatePortfolio',
                 },
 
                 // Calculate reserves (only enabled if valid)
                 CALCULATE_RESERVES: {
-                  target: '#modelingWizard.active.calculatingReserves'
+                  target: '#modelingWizard.active.calculatingReserves',
                   // Note: UI should guard this with context.portfolioValidation?.valid check
                 },
 
                 SUBMIT: {
                   guard: 'isCurrentStepValid',
-                  target: '#modelingWizard.active.submitting'
-                }
-              }
+                  target: '#modelingWizard.active.submitting',
+                },
+              },
             },
 
             /**
@@ -1141,16 +1164,16 @@ export const modelingWizardMachine = setup({
               on: {
                 RETRY_PERSIST: {
                   actions: ['clearPersistenceError'],
-                  target: '#modelingWizard.active.persisting'
+                  target: '#modelingWizard.active.persisting',
                 },
 
                 DISMISS_PERSIST_ERROR: {
                   actions: ['clearPersistenceError', 'clearNavigationIntent', 'resetRetryCount'],
-                  target: 'idle'
-                }
-              }
-            }
-          }
+                  target: 'idle',
+                },
+              },
+            },
+          },
         },
 
         /**
@@ -1162,20 +1185,26 @@ export const modelingWizardMachine = setup({
             input: ({ context }) => context,
             onDone: {
               target: 'editing.idle',
-              actions: ['executeNavigationIntent', 'clearNavigationIntent', 'clearPersistenceError', 'resetRetryCount', 'markSaved']
+              actions: [
+                'executeNavigationIntent',
+                'clearNavigationIntent',
+                'clearPersistenceError',
+                'resetRetryCount',
+                'markSaved',
+              ],
             },
             onError: [
               {
                 guard: 'canRetryPersistence',
                 target: 'delaying',
-                actions: ['setPersistenceError']
+                actions: ['setPersistenceError'],
               },
               {
                 target: 'editing.persistFailed',
-                actions: ['setPersistenceError']
-              }
-            ]
-          }
+                actions: ['setPersistenceError'],
+              },
+            ],
+          },
         },
 
         /**
@@ -1185,9 +1214,9 @@ export const modelingWizardMachine = setup({
           after: {
             PERSIST_RETRY_DELAY: {
               target: 'persisting',
-              actions: ['incrementRetryCount']
-            }
-          }
+              actions: ['incrementRetryCount'],
+            },
+          },
         },
 
         /**
@@ -1199,13 +1228,13 @@ export const modelingWizardMachine = setup({
             input: ({ context }) => context,
             onDone: {
               target: 'editing',
-              actions: ['saveReserveCalculation']
+              actions: ['saveReserveCalculation'],
             },
             onError: {
               target: 'editing',
-              actions: ['clearReserveCalculation']
-            }
-          }
+              actions: ['clearReserveCalculation'],
+            },
+          },
         },
 
         /**
@@ -1217,13 +1246,13 @@ export const modelingWizardMachine = setup({
             input: ({ context }) => context,
             onDone: {
               target: '#modelingWizard.completed',
-              actions: ['clearProgress', 'clearSubmissionError']
+              actions: ['clearProgress', 'clearSubmissionError'],
             },
             onError: {
               target: 'submissionError',
-              actions: ['setSubmissionError']
-            }
-          }
+              actions: ['setSubmissionError'],
+            },
+          },
         },
 
         /**
@@ -1234,23 +1263,23 @@ export const modelingWizardMachine = setup({
             RETRY_SUBMIT: {
               guard: 'canRetry',
               target: 'submitting',
-              actions: ['clearSubmissionError']
+              actions: ['clearSubmissionError'],
             },
 
             CANCEL_SUBMISSION: {
               target: 'editing',
-              actions: ['clearSubmissionError']
-            }
-          }
-        }
+              actions: ['clearSubmissionError'],
+            },
+          },
+        },
       },
 
       on: {
         RESET: {
           actions: ['resetWizard', 'clearProgress'],
-          target: 'idle'
-        }
-      }
+          target: 'idle',
+        },
+      },
     },
 
     /**
@@ -1258,21 +1287,20 @@ export const modelingWizardMachine = setup({
      */
     completed: {
       type: 'final',
-      entry: () => {
-        console.log('[ModelingWizard] Wizard completed successfully');
-      }
-    }
-  }
+    },
+  },
 });
 
 // ============================================================================
 // INITIAL CONTEXT FACTORY
 // ============================================================================
 
-function createInitialContext(input: {
-  skipOptionalSteps?: boolean;
-  autoSaveInterval?: number;
-} = {}): ModelingWizardContext {
+function createInitialContext(
+  input: {
+    skipOptionalSteps?: boolean;
+    autoSaveInterval?: number;
+  } = {}
+): ModelingWizardContext {
   const skipOptionalSteps = input.skipOptionalSteps ?? false;
 
   // Omit optional fields that would be undefined (exactOptionalPropertyTypes)
@@ -1290,7 +1318,7 @@ function createInitialContext(input: {
       feesExpenses: [],
       exitRecycling: [],
       waterfall: [],
-      scenarios: []
+      scenarios: [],
     },
     isStepValid: {
       generalInfo: false,
@@ -1299,7 +1327,7 @@ function createInitialContext(input: {
       feesExpenses: false,
       exitRecycling: true, // Optional step defaults to valid
       waterfall: false,
-      scenarios: false
+      scenarios: false,
     },
     // portfolioValidation and calculations omitted (undefined) per exactOptionalPropertyTypes
     lastSaved: null,
@@ -1312,7 +1340,7 @@ function createInitialContext(input: {
     submissionError: null,
     submissionRetryCount: 0,
     skipOptionalSteps,
-    autoSaveInterval: input.autoSaveInterval ?? 30000 // 30 seconds default
+    autoSaveInterval: input.autoSaveInterval ?? 30000, // 30 seconds default
   } as ModelingWizardContext;
 }
 

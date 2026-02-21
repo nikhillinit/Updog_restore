@@ -1,14 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { TrendingUp, Calendar, Info } from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { TrendingUp, Calendar, Info } from 'lucide-react';
 
 interface ValuationUpdateDialogProps {
   isOpen: boolean;
@@ -20,19 +21,15 @@ interface ValuationUpdateDialogProps {
   };
 }
 
-export default function ValuationUpdateDialog({ 
-  isOpen, 
-  onOpenChange, 
-  investment 
+export default function ValuationUpdateDialog({
+  isOpen,
+  onOpenChange,
+  investment,
 }: ValuationUpdateDialogProps) {
-  const [month, setMonth] = useState("Jul-2024");
-  const [newValuation, setNewValuation] = useState("20.00");
+  const [month, setMonth] = useState('Jul-2024');
+  const [newValuation, setNewValuation] = useState('20.00');
 
   const handleSave = () => {
-    console.log("Saving valuation update:", {
-      month,
-      newValuation: parseFloat(newValuation) * 1000000
-    });
     onOpenChange(false);
   };
 
@@ -45,10 +42,10 @@ export default function ValuationUpdateDialog({
             <span>Valuation Update</span>
           </DialogTitle>
           <DialogDescription>
-            Update the valuation for {investment?.company || "this investment"}
+            Update the valuation for {investment?.company || 'this investment'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           {/* Month Selection */}
           <div className="space-y-2">
@@ -60,7 +57,7 @@ export default function ValuationUpdateDialog({
             <Input
               id="month"
               value={month}
-              onChange={(e: any) => setMonth(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMonth(e.target.value)}
               placeholder="Jul-2024"
               className="font-mono"
             />
@@ -76,7 +73,9 @@ export default function ValuationUpdateDialog({
               <Input
                 id="valuation"
                 value={newValuation}
-                onChange={(e: any) => setNewValuation(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewValuation(e.target.value)
+                }
                 className="pl-8 text-center bg-blue-50 border-blue-200 font-mono text-lg"
                 placeholder="20.00"
               />
@@ -108,10 +107,7 @@ export default function ValuationUpdateDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave}
-              className="povc-bg-primary hover:bg-blue-700"
-            >
+            <Button onClick={handleSave} className="povc-bg-primary hover:bg-blue-700">
               Update Valuation
             </Button>
           </div>

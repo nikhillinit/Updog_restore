@@ -31,44 +31,46 @@ const ALLOWED_EVENTS = {
   tour_started: {
     allowedFields: ['version'],
     validators: {
-      version: (v: unknown) => v === 'gp_v1'
-    }
+      version: (v: unknown) => v === 'gp_v1',
+    },
   },
   tour_step_viewed: {
     allowedFields: ['stepIndex'],
     validators: {
-      stepIndex: (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0
-    }
+      stepIndex: (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0,
+    },
   },
   tour_completed: {
     allowedFields: ['version'],
     validators: {
-      version: (v: unknown) => v === 'gp_v1'
-    }
+      version: (v: unknown) => v === 'gp_v1',
+    },
   },
 
   // Navigation events
   nav_clicked: {
     allowedFields: ['navItem'],
     validators: {
-      navItem: (v: unknown) => ['overview', 'portfolio', 'model', 'operate', 'report'].includes(v as string)
-    }
+      navItem: (v: unknown) =>
+        ['overview', 'portfolio', 'model', 'operate', 'report'].includes(v as string),
+    },
   },
 
   // Portfolio events
   portfolio_tab_changed: {
     allowedFields: ['tab'],
     validators: {
-      tab: (v: unknown) => ['overview', 'allocations', 'reallocation'].includes(v as string)
-    }
+      tab: (v: unknown) => ['overview', 'allocations', 'reallocation'].includes(v as string),
+    },
   },
 
   // Empty state events
   empty_state_cta_clicked: {
     allowedFields: ['surface'],
     validators: {
-      surface: (v: unknown) => ['portfolio_overview', 'model_empty', 'operate_empty'].includes(v as string)
-    }
+      surface: (v: unknown) =>
+        ['portfolio_overview', 'model_empty', 'operate_empty'].includes(v as string),
+    },
   },
 
   // Progressive disclosure events
@@ -76,8 +78,8 @@ const ALLOWED_EVENTS = {
     allowedFields: ['section', 'state'],
     validators: {
       section: (v: unknown) => ['allocation_advanced', 'scenario_advanced'].includes(v as string),
-      state: (v: unknown) => ['open', 'close'].includes(v as string)
-    }
+      state: (v: unknown) => ['open', 'close'].includes(v as string),
+    },
   },
 
   // Legacy events (kept for backward compatibility)
@@ -85,7 +87,10 @@ const ALLOWED_EVENTS = {
   fund_create_success: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
   fund_create_failure: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
   fund_create_conflict: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
-  api_error: { allowedFields: ['endpoint', 'error_message', 'error_code', 'request_id', 'status_code'], validators: {} }
+  api_error: {
+    allowedFields: ['endpoint', 'error_message', 'error_code', 'request_id', 'status_code'],
+    validators: {},
+  },
 } as const;
 
 type AllowedEventName = keyof typeof ALLOWED_EVENTS;
@@ -199,7 +204,7 @@ function validateEventName(eventName: string): ValidationResult {
   if (!(eventName in ALLOWED_EVENTS)) {
     return {
       valid: false,
-      reason: `Event '${eventName}' is not in the allowlist`
+      reason: `Event '${eventName}' is not in the allowlist`,
     };
   }
   return { valid: true };
@@ -208,7 +213,10 @@ function validateEventName(eventName: string): ValidationResult {
 /**
  * Validate event payload against schema.
  */
-function validatePayload(eventName: AllowedEventName, properties: Record<string, unknown>): ValidationResult {
+function validatePayload(
+  eventName: AllowedEventName,
+  properties: Record<string, unknown>
+): ValidationResult {
   const schema = ALLOWED_EVENTS[eventName];
 
   // Check for disallowed fields
@@ -217,7 +225,7 @@ function validatePayload(eventName: AllowedEventName, properties: Record<string,
     if (!(schema.allowedFields as readonly string[]).includes(key)) {
       return {
         valid: false,
-        reason: `Field '${key}' is not allowed for event '${eventName}'`
+        reason: `Field '${key}' is not allowed for event '${eventName}'`,
       };
     }
   }
@@ -228,7 +236,7 @@ function validatePayload(eventName: AllowedEventName, properties: Record<string,
     if (value !== undefined && !validator(value)) {
       return {
         valid: false,
-        reason: `Invalid value for field '${field}' in event '${eventName}'`
+        reason: `Invalid value for field '${field}' in event '${eventName}'`,
       };
     }
   }
@@ -244,7 +252,7 @@ function checkEventSize(event: TelemetryEvent): ValidationResult {
   if (size > MAX_EVENT_SIZE_BYTES) {
     return {
       valid: false,
-      reason: `Event size ${size} bytes exceeds limit of ${MAX_EVENT_SIZE_BYTES} bytes`
+      reason: `Event size ${size} bytes exceeds limit of ${MAX_EVENT_SIZE_BYTES} bytes`,
     };
   }
   return { valid: true };
@@ -262,7 +270,10 @@ function checkEventSize(event: TelemetryEvent): ValidationResult {
  *
  * @returns The event if valid and tracked, or null if rejected
  */
-export function track(eventName: string, properties: Record<string, unknown> = {}): TelemetryEvent | null {
+export function track(
+  eventName: string,
+  properties: Record<string, unknown> = {}
+): TelemetryEvent | null {
   // Validate event name
   const nameValidation = validateEventName(eventName);
   if (!nameValidation.valid) {
@@ -286,7 +297,7 @@ export function track(eventName: string, properties: Record<string, unknown> = {
     event: eventName,
     timestamp: new Date().toISOString(),
     session_id: getOrCreateSessionId(),
-    properties
+    properties,
   };
 
   // Check size
@@ -310,43 +321,6 @@ export function track(eventName: string, properties: Record<string, unknown> = {
 }
 
 // ============================================================================
-// CONVENIENCE FUNCTIONS (Legacy API compatibility)
-// ============================================================================
-
-/**
- * Track fund creation with idempotency status.
- * @deprecated Use track() directly with fund_create_* events
- */
-export function trackFundCreation(
-  status: 'attempt' | 'success' | 'failure' | 'conflict',
-  details?: Record<string, unknown>
-): TelemetryEvent | null {
-  return track(`fund_create_${status}`, {
-    idempotency_status: status,
-    request_id: generateRequestId(),
-    ...details
-  });
-}
-
-/**
- * Track API errors with correlation.
- * @deprecated Use track() directly with api_error event
- */
-export function trackApiError(
-  endpoint: string,
-  error: { message?: string; code?: string; response?: { status?: number } },
-  requestId?: string
-): TelemetryEvent | null {
-  return track('api_error', {
-    endpoint,
-    error_message: error.message || String(error),
-    error_code: error.code,
-    request_id: requestId || generateRequestId(),
-    status_code: error.response?.status
-  });
-}
-
-// ============================================================================
 // BASE CONTEXT (for backward compatibility)
 // ============================================================================
 
@@ -360,8 +334,8 @@ export function baseTelemetryContext() {
     user_agent: navigator.userAgent,
     viewport: {
       width: window.innerWidth,
-      height: window.innerHeight
-    }
+      height: window.innerHeight,
+    },
   };
 }
 
@@ -369,7 +343,7 @@ export function baseTelemetryContext() {
 export const TELEMETRY_HEADERS = {
   'X-Session-ID': getOrCreateSessionId(),
   'X-App-Version': import.meta.env.VITE_APP_VERSION || 'unknown',
-  'X-Git-SHA': import.meta.env.VITE_GIT_SHA || 'unknown'
+  'X-Git-SHA': import.meta.env.VITE_GIT_SHA || 'unknown',
 };
 
 // ============================================================================
@@ -383,6 +357,6 @@ export function getTelemetryBufferInfo() {
     maxEvents: MAX_EVENTS,
     storageKey: STORAGE_KEY,
     oldestEvent: events[0]?.timestamp || null,
-    newestEvent: events[events.length - 1]?.timestamp || null
+    newestEvent: events[events.length - 1]?.timestamp || null,
   };
 }

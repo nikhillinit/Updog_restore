@@ -1,18 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Percent, Calendar, Info } from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Percent, Calendar, Info } from 'lucide-react';
 
 interface OwnershipUpdateDialogProps {
   isOpen: boolean;
@@ -24,23 +25,18 @@ interface OwnershipUpdateDialogProps {
   };
 }
 
-export default function OwnershipUpdateDialog({ 
-  isOpen, 
-  onOpenChange, 
-  investment 
+export default function OwnershipUpdateDialog({
+  isOpen,
+  onOpenChange,
+  investment,
 }: OwnershipUpdateDialogProps) {
-  const [month, setMonth] = useState("Dec-2024");
-  const [updatedOwnership, setUpdatedOwnership] = useState("2.284727");
+  const [month, setMonth] = useState('Dec-2024');
+  const [updatedOwnership, setUpdatedOwnership] = useState('2.284727');
   const [advancedMode, setAdvancedMode] = useState(false);
-  const [eventNotes, setEventNotes] = useState("");
+  const [eventNotes, setEventNotes] = useState('');
   const [isDilutionMode, setIsDilutionMode] = useState(false);
 
   const handleSave = () => {
-    console.log("Saving ownership update:", {
-      month,
-      updatedOwnership: parseFloat(updatedOwnership),
-      advancedMode
-    });
     onOpenChange(false);
   };
 
@@ -53,10 +49,10 @@ export default function OwnershipUpdateDialog({
             <span>Ownership Update</span>
           </DialogTitle>
           <DialogDescription>
-            Update ownership percentage for {investment?.company || "this investment"}
+            Update ownership percentage for {investment?.company || 'this investment'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           {/* Month Selection */}
           <div className="space-y-2">
@@ -68,7 +64,7 @@ export default function OwnershipUpdateDialog({
             <Input
               id="month"
               value={month}
-              onChange={(e: any) => setMonth(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMonth(e.target.value)}
               placeholder="Feb-2021"
               className="font-mono"
             />
@@ -79,20 +75,22 @@ export default function OwnershipUpdateDialog({
             <Label htmlFor="ownership" className="flex items-center space-x-2">
               <span>Updated ownership (%)</span>
               <Info className="h-3 w-3 text-muted-foreground" />
-              <span 
+              <span
                 className="text-blue-600 text-sm cursor-pointer hover:underline"
                 onClick={() => setIsDilutionMode(!isDilutionMode)}
               >
-                {isDilutionMode ? "Enter Ownership (%)" : "Enter Dilution (%)"}
+                {isDilutionMode ? 'Enter Ownership (%)' : 'Enter Dilution (%)'}
               </span>
             </Label>
             <div className="relative">
               <Input
                 id="ownership"
                 value={updatedOwnership}
-                onChange={(e: any) => setUpdatedOwnership(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setUpdatedOwnership(e.target.value)
+                }
                 className="pr-8 text-center bg-yellow-50 border-yellow-200 font-mono"
-                placeholder={isDilutionMode ? "5.0" : "2.284727"}
+                placeholder={isDilutionMode ? '5.0' : '2.284727'}
               />
               <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
                 %
@@ -109,7 +107,9 @@ export default function OwnershipUpdateDialog({
             <Textarea
               id="event-notes"
               value={eventNotes}
-              onChange={(e: any) => setEventNotes(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setEventNotes(e.target.value)
+              }
               placeholder="Enter text here"
               className="min-h-[80px] resize-none"
             />
@@ -122,13 +122,9 @@ export default function OwnershipUpdateDialog({
               <span className="text-blue-600 cursor-pointer">Enter Share Data (Advanced)</span>
             </div>
             <div className="flex items-center space-x-2 ml-auto">
-              <Switch 
-                id="advanced-mode"
-                checked={advancedMode}
-                onCheckedChange={setAdvancedMode}
-              />
-              <Badge variant={advancedMode ? "default" : "secondary"}>
-                {advancedMode ? "Yes" : "No"}
+              <Switch id="advanced-mode" checked={advancedMode} onCheckedChange={setAdvancedMode} />
+              <Badge variant={advancedMode ? 'default' : 'secondary'}>
+                {advancedMode ? 'Yes' : 'No'}
               </Badge>
             </div>
           </div>
@@ -176,10 +172,9 @@ export default function OwnershipUpdateDialog({
             <div className="text-center">
               <div className="text-xs text-muted-foreground">New Ownership</div>
               <div className="text-lg font-semibold text-blue-600">
-                {isDilutionMode 
-                  ? `${((investment?.currentOwnership || 8.5) - parseFloat(updatedOwnership || "0")).toFixed(3)}%`
-                  : `${updatedOwnership}%`
-                }
+                {isDilutionMode
+                  ? `${((investment?.currentOwnership || 8.5) - parseFloat(updatedOwnership || '0')).toFixed(3)}%`
+                  : `${updatedOwnership}%`}
               </div>
             </div>
           </div>
@@ -189,10 +184,7 @@ export default function OwnershipUpdateDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
-            <Button 
-              onClick={handleSave}
-              className="povc-bg-primary hover:bg-blue-700"
-            >
+            <Button onClick={handleSave} className="povc-bg-primary hover:bg-blue-700">
               Save Ownership Update
             </Button>
           </div>

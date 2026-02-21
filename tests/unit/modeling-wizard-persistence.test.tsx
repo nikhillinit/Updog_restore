@@ -17,6 +17,13 @@
  * After refactoring to invoke pattern, all tests should pass (GREEN PHASE)
  *
  * See: ADR-016 in DECISIONS.md for architectural decision rationale
+ *
+ * @quarantine tdd-red -- 2 tests skipped (TDD RED phase)
+ * @owner modeling-wizard
+ * @reason persistDataService not yet implemented (PR#1 pending)
+ * @exitCriteria Merge PR#1 implementing persistDataService with QuotaExceededError and SecurityError handling
+ * @skipCount 2
+ * @addedDate 2026-02-17
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -193,9 +200,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     expect(snapshot.context.currentStep).toBe('generalInfo');
 
     if (snapshot.context.currentStep !== 'generalInfo') {
-      console.log('[EXPECTED FAILURE] Navigation happened despite persistence failure');
-      console.log('Current step:', snapshot.context.currentStep);
-      console.log('Expected: generalInfo');
+      console.error('[EXPECTED FAILURE] Navigation happened despite persistence failure');
+      console.warn('Current step:', snapshot.context.currentStep);
+      console.warn('Expected: generalInfo');
       throw new Error('Navigation executed despite QuotaExceededError (data loss!)');
     }
 
@@ -274,8 +281,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       snapshotAfterFailure.matches({ active: { editing: 'persistFailed' } });
 
     if (!hasRetryState) {
-      console.log('[EXPECTED FAILURE] No retry state exists in current implementation');
-      console.log('Current state:', snapshotAfterFailure.value);
+      console.error('[EXPECTED FAILURE] No retry state exists in current implementation');
+      console.warn('Current state:', snapshotAfterFailure.value);
       throw new Error('Retry mechanism not implemented');
     }
 

@@ -1,4 +1,12 @@
 /**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Perf harness currently uses stale sector fixture shape and non-deterministic timing assumptions.
+ * @exitCriteria Update fixtures to current sector schema and recalibrate debounce thresholds with fake timers.
+ * @addedDate 2026-02-17
+ */
+
+/**
  * Performance Tests: watch() Debouncing and Memoization
  *
  * **Purpose**: Verify that form value changes trigger minimal recalculations

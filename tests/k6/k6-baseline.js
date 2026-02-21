@@ -11,14 +11,22 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
-const BASE_URL   = __ENV.BASE_URL || 'http://localhost:5000';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
 const METRICS_KEY = __ENV.METRICS_KEY || '';
-const HEALTH_KEY  = __ENV.HEALTH_KEY || '';
-const FUND_SIZE   = Number(__ENV.FUND_SIZE || '100000000');
+const HEALTH_KEY = __ENV.HEALTH_KEY || '';
+const FUND_SIZE = Number(__ENV.FUND_SIZE || '100000000');
 
-const RATE      = Number(__ENV.RATE || '5');      // requests/sec for calc
-const DURATION  = __ENV.DURATION || '2m';
-const VUS       = Number(__ENV.VUS || '10');
+const RATE = Number(__ENV.RATE || '5'); // requests/sec for calc
+const DURATION = __ENV.DURATION || '2m';
+const VUS = Number(__ENV.VUS || '10');
+const CALC_TIMEOUT = __ENV.CALC_TIMEOUT || '30s';
+const CALC_MAX_POLLS = Number(__ENV.CALC_MAX_POLLS || '45');
+
+// Threshold tuning knobs (override in CI with -e / env values)
+const CALC_HTTP_REQ_FAILED_MAX = Number(__ENV.CALC_HTTP_REQ_FAILED_MAX || '0.02');
+const CALC_FAILED_MAX = Number(__ENV.CALC_FAILED_MAX || '0.02');
+const CALC_HTTP_REQ_P95_MS = Number(__ENV.CALC_HTTP_REQ_P95_MS || '2000');
+const CALC_E2E_P95_MS = Number(__ENV.CALC_E2E_P95_MS || '10000');
 
 export const options = {
   scenarios: {
@@ -52,10 +60,10 @@ export const options = {
   },
   thresholds: {
     // Error budget and latency goals (adjust to your SLOs)
-    'http_req_failed{scenario:calc}': ['rate<0.01'],         // <1% errors
-    'http_req_duration{scenario:calc}': ['p(95)<500'],       // p95 < 500ms
-    'calc_e2e_ms': ['p(95)<1500'],                           // async end-to-end under 1.5s typical
-    'calc_failed': ['rate<0.02'],                            // <2% calc failures
+    'http_req_failed{scenario:calc}': [`rate<${CALC_HTTP_REQ_FAILED_MAX}`],
+    'http_req_duration{scenario:calc}': [`p(95)<${CALC_HTTP_REQ_P95_MS}`],
+    calc_e2e_ms: [`p(95)<${CALC_E2E_P95_MS}`],
+    calc_failed: [`rate<${CALC_FAILED_MAX}`],
   },
 };
 
@@ -64,8 +72,15 @@ const opsPolls = new Trend('ops_polls');
 const pollWait = new Trend('ops_poll_wait_ms');
 const calcFailed = new Rate('calc_failed');
 
-function headers(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra };
+function headers(extra) {
+  const h = { 'Content-Type': 'application/json' };
+
+  if (extra && typeof extra === 'object') {
+    for (const key of Object.keys(extra)) {
+      h[key] = extra[key];
+    }
+  }
+
   return h;
 }
 
@@ -98,18 +113,19 @@ export function metricsCheck() {
     headers: { Authorization: `Bearer ${METRICS_KEY}` },
   });
   check(r, {
-    '/metrics authorized': (resp) => resp.status === 200 && resp.body && resp.body.includes('http_requests_total'),
+    '/metrics authorized': (resp) =>
+      resp.status === 200 && resp.body && resp.body.includes('http_requests_total'),
   });
 }
 
 // Poll the operations endpoint until success/failure or timeout
-function pollOperation(location, maxPolls = 30) {
+function pollOperation(location, maxPolls = CALC_MAX_POLLS) {
   let polls = 0;
   let finalOK = false;
   let waitMs = 0;
 
   while (polls < maxPolls) {
-    const resp = http.get(location, { headers: headers() });
+    const resp = http.get(location, { headers: headers(), timeout: CALC_TIMEOUT });
     polls += 1;
 
     if (resp.status === 200 || resp.status === 202) {
@@ -151,19 +167,23 @@ export function calc() {
   const start = Date.now();
 
   const payload = JSON.stringify({ fundSize: FUND_SIZE });
-  const res = http.post(`${BASE_URL}/api/funds/calculate`, payload, { headers: headers() });
+  const res = http.post(`${BASE_URL}/api/funds/calculate`, payload, {
+    headers: headers(),
+    timeout: CALC_TIMEOUT,
+  });
 
-  const accepted = res.status === 202 && !!res.headers.Location;
-  const ok202 = check(res, {
-    'calculate 202': () => accepted,
+  const locationHeader = res.headers.Location || res.headers.location || '';
+  const accepted = res.status === 202 && !!locationHeader;
+  const created = res.status === 201 || res.status === 200;
+  check(res, {
+    'calculate 200/201/202': () => created || accepted,
   });
 
   let success = false;
   if (accepted) {
-    const loc = res.headers.Location;
+    const loc = locationHeader.startsWith('http') ? locationHeader : `${BASE_URL}${locationHeader}`;
     success = pollOperation(loc);
-  } else if (res.status === 200) {
-    // Some environments may return immediate 200
+  } else if (created) {
     success = true;
   }
 

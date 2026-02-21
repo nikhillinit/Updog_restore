@@ -1,12 +1,12 @@
 /**
  * @group integration
- * FIXME: Requires Vite build process integration testing
+ * Verifies Vite config does not regress to problematic manual chunking
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 
-describe.skip('Vite Build Regression - Fix #3', () => {
+describe('Vite Build Regression - Fix #3', () => {
   describe('Manual chunking should not cause TDZ errors', () => {
     it('should not have manual chunking that splits providers (causes TDZ errors)', async () => {
       // Original bug: manualChunks splitting FeatureFlagProvider into separate chunk
@@ -40,8 +40,9 @@ describe.skip('Vite Build Regression - Fix #3', () => {
       const viteConfig = await fs.readFile(viteConfigPath, 'utf-8');
 
       // The fix sets manualChunks: undefined in rollupOptions.output
+      // Match the output section including nested objects (greedy through braces)
       const rollupOutputSection = viteConfig.match(
-        /rollupOptions:\s*{[\s\S]*?output:\s*{[\s\S]*?}/
+        /rollupOptions:\s*\{[\s\S]*?output:\s*\{[\s\S]*?manualChunks:[^\n]*/
       );
       expect(rollupOutputSection).toBeTruthy();
 

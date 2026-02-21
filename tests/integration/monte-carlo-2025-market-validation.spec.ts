@@ -85,7 +85,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
     MODEST_RETURN_RATE: 15         // 15% modest returns (1-3x)
   };
 
-  beforeAll(async () => {
+  const setupDbMocks = async () => {
     // Mock realistic 2024-2025 fund database responses
     const { db } = await import('../../server/db');
 
@@ -131,8 +131,15 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       size: 150_000_000 // $150M fund
     });
 
-    // Mock insert for snapshots
-    db.insert.mockResolvedValue({ insertId: 1 });
+    // Mock insert chain used by drizzle: db.insert(...).values(...)
+    db.insert.mockImplementation(() => ({
+      values: vi.fn().mockResolvedValue([{ id: 1 }])
+    }));
+
+    return db;
+  };
+
+  beforeAll(() => {
 
     // Initialize services
     monteCarloService = new MonteCarloSimulationService();
@@ -145,8 +152,9 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
     });
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await setupDbMocks();
   });
 
   afterAll(() => {
@@ -293,7 +301,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
   describe('2024-2025 Market Parameter Validation', () => {
     it('should reflect Series A Chasm (18% graduation rate)', async () => {
       // Test with seed-heavy portfolio
-      const { db } = require('../../server/db');
+      const { db } = await import('../../server/db');
       db.query.portfolioCompanies.findMany.mockResolvedValueOnce([
         ...Array(10).fill(null).map((_, i) => ({
           id: i + 1,
@@ -476,7 +484,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
   describe('Series C+ Stage Handling', () => {
     it('should properly handle Series C+ as terminal stage', async () => {
       // Test with portfolio including Series C+ companies
-      const { db } = require('../../server/db');
+      const { db } = await import('../../server/db');
       db.query.portfolioCompanies.findMany.mockResolvedValueOnce([
         { id: 1, fundId: 1, stage: 'seed', sector: 'fintech' },
         { id: 2, fundId: 1, stage: 'series-a', sector: 'healthtech' },
@@ -579,7 +587,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
     });
 
     it('should handle empty portfolio in Monte Carlo simulation', async () => {
-      const { db } = require('../../server/db');
+      const { db } = await import('../../server/db');
       db.query.portfolioCompanies.findMany.mockResolvedValueOnce([]);
 
       const params: SimulationParameters = {

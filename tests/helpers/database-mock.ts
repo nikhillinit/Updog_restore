@@ -47,6 +47,8 @@ interface MockQueryResult {
 interface MockExecuteResult extends Array<MockQueryResult> {
   insertId?: string | number;
   affectedRows?: number;
+  rows?: MockQueryResult[];
+  rowCount?: number;
 }
 
 // Constraint validation types
@@ -92,6 +94,7 @@ class DatabaseMock {
   private mockData = new Map<string, MockQueryResult[]>();
   private callHistory: CallHistoryEntry[] = [];
   private constraints = new Map<string, TableConstraints>();
+  private _nextParamIndex = 0;
 
   constructor() {
     this.setupDefaultData();
@@ -332,10 +335,11 @@ class DatabaseMock {
 
     // Investment lots constraints
     this.constraints.set('investment_lots', {
-      enums: {
-        lot_type: ['initial', 'follow_on', 'secondary'],
-      },
       checks: {
+        lot_type_valid: (row: Record<string, unknown>) => {
+          if (row.lot_type === undefined || row.lot_type === null) return true;
+          return ['initial', 'follow_on', 'secondary'].includes(String(row.lot_type));
+        },
         idempotency_key_length: (row: Record<string, unknown>) => {
           if (row.idempotency_key !== undefined && row.idempotency_key !== null) {
             const len = String(row.idempotency_key).length;
@@ -344,8 +348,37 @@ class DatabaseMock {
           return true;
         },
       },
+      unique: {
+        investment_lots_idempotency_unique: (
+          row: Record<string, unknown>,
+          existingData: Record<string, unknown>[]
+        ) => {
+          if (row.idempotency_key === undefined || row.idempotency_key === null) return true;
+          const key = String(row.idempotency_key);
+          const exists = existingData.some(
+            (existing) =>
+              existing.idempotency_key !== undefined && String(existing.idempotency_key) === key
+          );
+          if (exists) {
+            throw new Error('duplicate key value violates unique constraint');
+          }
+          return true;
+        },
+      },
       foreignKeys: {
         investment_id: 'investments',
+      },
+    });
+
+    this.constraints.set('forecast_snapshots', {
+      checks: {
+        status_valid: (row: Record<string, unknown>) => {
+          if (row.status === undefined || row.status === null) return true;
+          return ['pending', 'calculating', 'complete', 'error'].includes(String(row.status));
+        },
+      },
+      foreignKeys: {
+        fund_id: 'funds',
       },
     });
   }
@@ -444,13 +477,93 @@ class DatabaseMock {
 
     // Mock forecast_snapshots (initially empty, populated by tests)
     this.mockData.set('forecast_snapshots', []);
+
+    // Mock reserve_allocations (initially empty, populated by tests)
+    this.mockData.set('reserve_allocations', []);
   }
 
   /**
    * Mock the execute method (raw SQL)
    */
-  execute = vi.fn(async (query: string, params?: unknown[]): Promise<MockExecuteResult> => {
-    const normalizedQuery = query.toLowerCase().trim();
+  execute = vi.fn(async (query: unknown, params?: unknown[]): Promise<MockExecuteResult> => {
+    let queryStr: string | undefined;
+    let queryParams = params || [];
+
+    if (typeof query === 'string') {
+      queryStr = query;
+    } else if (query && typeof query === 'object') {
+      const maybeSql = query as {
+        sql?: unknown;
+        text?: unknown;
+        values?: unknown;
+        queryChunks?: unknown;
+        toQuery?: (cfg: {
+          casing?: unknown;
+          escapeName: (name: string) => string;
+          escapeParam: (num: number, value: unknown) => string;
+          escapeString: (str: string) => string;
+          prepareTyping: () => 'none';
+          inlineParams: boolean;
+          paramStartIndex: { value: number };
+        }) => { sql?: unknown; params?: unknown };
+        toString?: () => string;
+      };
+
+      if (typeof maybeSql.sql === 'string') {
+        queryStr = maybeSql.sql;
+      } else if (typeof maybeSql.text === 'string') {
+        queryStr = maybeSql.text;
+        if (queryParams.length === 0 && Array.isArray(maybeSql.values)) {
+          queryParams = maybeSql.values;
+        }
+      } else if (typeof maybeSql.toQuery === 'function') {
+        try {
+          const compiled = maybeSql.toQuery({
+            casing: undefined,
+            escapeName: (name: string) => `"${name.replace(/"/g, '""')}"`,
+            escapeParam: (num: number) => `$${num + 1}`,
+            escapeString: (str: string) => `'${str.replace(/'/g, "''")}'`,
+            prepareTyping: () => 'none',
+            inlineParams: false,
+            paramStartIndex: { value: 0 },
+          });
+          if (compiled && typeof compiled.sql === 'string') {
+            queryStr = compiled.sql;
+            if (queryParams.length === 0 && Array.isArray(compiled.params)) {
+              queryParams = compiled.params;
+            }
+          }
+        } catch {
+          // Fall through to additional extraction strategies below.
+        }
+      }
+
+      if ((!queryStr || queryStr === '[object Object]') && Array.isArray(maybeSql.queryChunks)) {
+        queryStr = maybeSql.queryChunks
+          .map((chunk: unknown) => {
+            if (typeof chunk === 'string') return chunk;
+            if (chunk && typeof chunk === 'object') {
+              const value = (chunk as { value?: unknown }).value;
+              if (Array.isArray(value)) return value.join('');
+            }
+            return '';
+          })
+          .join('');
+      }
+
+      if (
+        (!queryStr || queryStr === '[object Object]') &&
+        typeof maybeSql.toString === 'function'
+      ) {
+        queryStr = maybeSql.toString();
+      }
+    }
+
+    if (!queryStr || queryStr === '[object Object]') {
+      throw new Error('DatabaseMock received unsupported query format');
+    }
+
+    const normalizedQuery = queryStr.toLowerCase().trim();
 
     let result: MockExecuteResult = [];
 
@@ -459,14 +572,16 @@ class DatabaseMock {
       const tableName = this.extractTableName(normalizedQuery, 'insert');
       const id = this.generateId();
 
+      this._nextParamIndex = 0;
       const insertedRow = {
         id,
-        ...this.parseInsertValues(query, params || []),
+        ...this.parseInsertValues(queryStr, queryParams),
       };
+      this._nextParamIndex = 0;
 
       // Validate constraints before inserting
       const existingData = this.mockData.get(tableName) || [];
-      this.validateConstraints(tableName, insertedRow, params || [], existingData);
+      this.validateConstraints(tableName, insertedRow, queryParams, existingData);
 
       // Add to mock data
       if (!this.mockData.has(tableName)) {
@@ -479,9 +594,13 @@ class DatabaseMock {
       result.affectedRows = 1;
     } else if (normalizedQuery.startsWith('select')) {
       // Handle SELECT queries
-      if (normalizedQuery.includes('pg_indexes')) {
+      if (normalizedQuery.includes('information_schema.columns')) {
+        result = this.getMockInformationSchemaColumns(queryStr) as MockExecuteResult;
+      } else if (normalizedQuery.includes('count(*)')) {
+        result = this.getMockCountResult(queryStr, queryParams) as MockExecuteResult;
+      } else if (normalizedQuery.includes('pg_indexes')) {
         // Handle system table queries for indexes
-        result = this.getMockIndexes() as MockExecuteResult;
+        result = this.getMockIndexesForQuery(queryStr) as MockExecuteResult;
       } else {
         const tableName = this.extractTableName(normalizedQuery, 'select');
 
@@ -514,26 +633,24 @@ class DatabaseMock {
     } else if (normalizedQuery.startsWith('delete')) {
       // Handle DELETE queries
       const tableName = this.extractTableName(normalizedQuery, 'delete');
-
-      if (this.mockData.has(tableName)) {
-        const beforeCount = this.mockData.get(tableName)!.length;
-        this.mockData.set(tableName, []);
-        result = [] as MockExecuteResult;
-        result.affectedRows = beforeCount;
-      }
+      const affectedRows = this.deleteRows(tableName, queryStr, queryParams);
+      result = [] as MockExecuteResult;
+      result.affectedRows = affectedRows;
     } else if (normalizedQuery.includes('pg_indexes') || normalizedQuery.includes('indexname')) {
       // Handle index queries
-      result = this.getMockIndexes() as MockExecuteResult;
+      result = this.getMockIndexesForQuery(queryStr) as MockExecuteResult;
     } else {
       // Default empty result
       result = [] as MockExecuteResult;
     }
 
+    this.attachExecuteMetadata(result);
+
     // Record the call
     this.callHistory.push({
       method: 'execute',
-      query,
-      params,
+      query: queryStr,
+      params: queryParams,
       result: JSON.parse(JSON.stringify(result)),
     });
 
@@ -795,6 +912,299 @@ class DatabaseMock {
     return match ? match[1] : 'unknown_table';
   }
 
+  private attachExecuteMetadata(result: MockExecuteResult): void {
+    result.rows = [...result];
+    result.rowCount = result.length;
+  }
+
+  private getMockInformationSchemaColumns(query: string): MockQueryResult[] {
+    const tableNameMatch = query.match(/table_name\s*=\s*'([^']+)'/i);
+    const tableName = tableNameMatch?.[1]?.toLowerCase();
+
+    const columnsByTable: Record<string, MockQueryResult[]> = {
+      investment_lots: [
+        {
+          column_name: 'id',
+          data_type: 'uuid',
+          is_nullable: 'NO',
+          column_default: 'gen_random_uuid()',
+        },
+        {
+          column_name: 'investment_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        { column_name: 'lot_type', data_type: 'text', is_nullable: 'NO', column_default: null },
+        {
+          column_name: 'share_price_cents',
+          data_type: 'bigint',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        {
+          column_name: 'shares_acquired',
+          data_type: 'numeric',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        {
+          column_name: 'cost_basis_cents',
+          data_type: 'bigint',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        { column_name: 'version', data_type: 'integer', is_nullable: 'NO', column_default: '1' },
+        {
+          column_name: 'idempotency_key',
+          data_type: 'text',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'created_at',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'NO',
+          column_default: 'now()',
+        },
+        {
+          column_name: 'updated_at',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'NO',
+          column_default: 'now()',
+        },
+      ],
+      forecast_snapshots: [
+        {
+          column_name: 'id',
+          data_type: 'uuid',
+          is_nullable: 'NO',
+          column_default: 'gen_random_uuid()',
+        },
+        { column_name: 'fund_id', data_type: 'integer', is_nullable: 'NO', column_default: null },
+        { column_name: 'name', data_type: 'text', is_nullable: 'NO', column_default: null },
+        {
+          column_name: 'status',
+          data_type: 'text',
+          is_nullable: 'NO',
+          column_default: "'pending'::text",
+        },
+        { column_name: 'source_hash', data_type: 'text', is_nullable: 'YES', column_default: null },
+        {
+          column_name: 'calculated_metrics',
+          data_type: 'jsonb',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        { column_name: 'fund_state', data_type: 'jsonb', is_nullable: 'YES', column_default: null },
+        {
+          column_name: 'portfolio_state',
+          data_type: 'jsonb',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'metrics_state',
+          data_type: 'jsonb',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'snapshot_time',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        {
+          column_name: 'created_at',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'NO',
+          column_default: 'now()',
+        },
+        {
+          column_name: 'updated_at',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'NO',
+          column_default: 'now()',
+        },
+        { column_name: 'version', data_type: 'integer', is_nullable: 'NO', column_default: '1' },
+        {
+          column_name: 'idempotency_key',
+          data_type: 'text',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+      ],
+      reserve_allocations: [
+        {
+          column_name: 'id',
+          data_type: 'uuid',
+          is_nullable: 'NO',
+          column_default: 'gen_random_uuid()',
+        },
+        { column_name: 'snapshot_id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
+        {
+          column_name: 'company_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        {
+          column_name: 'planned_reserve_cents',
+          data_type: 'bigint',
+          is_nullable: 'NO',
+          column_default: null,
+        },
+        {
+          column_name: 'allocation_score',
+          data_type: 'numeric',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        { column_name: 'priority', data_type: 'integer', is_nullable: 'YES', column_default: null },
+        { column_name: 'rationale', data_type: 'text', is_nullable: 'YES', column_default: null },
+      ],
+      investments: [
+        {
+          column_name: 'share_price_cents',
+          data_type: 'bigint',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'shares_acquired',
+          data_type: 'numeric',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'cost_basis_cents',
+          data_type: 'bigint',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'pricing_confidence',
+          data_type: 'text',
+          is_nullable: 'YES',
+          column_default: "'calculated'::text",
+        },
+        { column_name: 'version', data_type: 'integer', is_nullable: 'YES', column_default: '1' },
+      ],
+    };
+
+    let columns = tableName ? columnsByTable[tableName] || [] : [];
+
+    const inMatch = query.match(/column_name\s+in\s*\(([^)]+)\)/i);
+    if (inMatch) {
+      const names = inMatch[1]
+        .split(',')
+        .map((item) => item.trim().replace(/^'|'$/g, ''))
+        .filter(Boolean);
+      if (names.length > 0) {
+        columns = columns.filter((column) => names.includes(String(column.column_name)));
+      }
+    }
+
+    return columns;
+  }
+
+  private getMockCountResult(query: string, params: unknown[]): MockQueryResult[] {
+    const tableName = this.extractTableName(query.toLowerCase(), 'select');
+    let rows = [...(this.mockData.get(tableName) || [])];
+    const filter = this.parseSimpleWhereFilter(query, params);
+    if (filter) {
+      rows = rows.filter((row) => this.valuesEqual(row[filter.column], filter.value));
+    }
+    return [{ count: String(rows.length) }];
+  }
+
+  private getMockIndexesForQuery(query: string): MockQueryResult[] {
+    const indexes = this.getMockIndexes();
+    const tableNameMatch = query.match(/tablename\s*=\s*'([^']+)'/i);
+    if (!tableNameMatch) return indexes;
+    const tableName = tableNameMatch[1].toLowerCase();
+    return indexes.filter((index) => String(index.tablename).toLowerCase() === tableName);
+  }
+
+  private deleteRows(tableName: string, query: string, params: unknown[]): number {
+    const tableData = this.mockData.get(tableName) || [];
+    const filter = this.parseSimpleWhereFilter(query, params);
+
+    let deletedRows: MockQueryResult[] = [];
+    let remainingRows: MockQueryResult[] = [];
+
+    if (filter) {
+      deletedRows = tableData.filter((row) => this.valuesEqual(row[filter.column], filter.value));
+      remainingRows = tableData.filter(
+        (row) => !this.valuesEqual(row[filter.column], filter.value)
+      );
+    } else {
+      deletedRows = [...tableData];
+      remainingRows = [];
+    }
+
+    this.mockData.set(tableName, remainingRows);
+    this.applyCascadeDeletes(tableName, deletedRows);
+
+    return deletedRows.length;
+  }
+
+  private parseSimpleWhereFilter(
+    query: string,
+    params: unknown[]
+  ): { column: string; value: unknown } | null {
+    const whereMatch = query.match(/where\s+([a-z_][a-z0-9_]*)\s*=\s*(\$\d+|'[^']*'|-?\d+)/i);
+    if (!whereMatch) return null;
+
+    const column = whereMatch[1];
+    const token = whereMatch[2];
+
+    if (token.startsWith('$')) {
+      const index = Number.parseInt(token.slice(1), 10) - 1;
+      return { column, value: params[index] };
+    }
+
+    if (token.startsWith("'") && token.endsWith("'")) {
+      return { column, value: token.slice(1, -1) };
+    }
+
+    if (/^-?\d+$/.test(token)) {
+      return { column, value: Number.parseInt(token, 10) };
+    }
+
+    return { column, value: token };
+  }
+
+  private applyCascadeDeletes(tableName: string, deletedRows: MockQueryResult[]): void {
+    if (deletedRows.length === 0) return;
+
+    if (tableName === 'investments') {
+      const deletedIds = new Set(deletedRows.map((row) => String(row.id)));
+      const lots = this.mockData.get('investment_lots') || [];
+      this.mockData.set(
+        'investment_lots',
+        lots.filter((lot) => !deletedIds.has(String(lot.investment_id)))
+      );
+      return;
+    }
+
+    if (tableName === 'forecast_snapshots') {
+      const deletedIds = new Set(deletedRows.map((row) => String(row.id)));
+      const allocations = this.mockData.get('reserve_allocations') || [];
+      this.mockData.set(
+        'reserve_allocations',
+        allocations.filter((allocation) => !deletedIds.has(String(allocation.snapshot_id)))
+      );
+    }
+  }
+
+  private valuesEqual(left: unknown, right: unknown): boolean {
+    if (left === right) return true;
+    if (left === undefined || right === undefined) return false;
+    return String(left) === String(right);
+  }
+
   /**
    * Get table name from Drizzle table object
    * Simplified version - assumes table object has dbName property or falls back to checking property names
@@ -837,11 +1247,25 @@ class DatabaseMock {
 
     const columns = columnMatch[1].split(',').map((col) => col.trim());
 
-    // Case 1: Parameterized query with ? placeholders
-    if (params.length > 0) {
-      for (let i = 0; i < Math.min(columns.length, params.length); i++) {
+    const valuesMatch = query.match(/VALUES\s*\(([\s\S]*?)\)/i);
+    if (valuesMatch) {
+      const valueTokens = this.splitSqlValues(valuesMatch[1]);
+      for (let i = 0; i < Math.min(columns.length, valueTokens.length); i++) {
         const columnName = columns[i];
-        let value = params[i];
+        const token = valueTokens[i].trim();
+
+        let value: unknown;
+        const paramMatch = token.match(/^\$(\d+)$/);
+        if (paramMatch) {
+          const paramIndex = Number.parseInt(paramMatch[1], 10) - 1;
+          value = params[paramIndex];
+        } else if (token === '?' && params.length > 0) {
+          // Handle positional ? placeholders (consume params in order)
+          value = params[this._nextParamIndex ?? 0];
+          this._nextParamIndex = (this._nextParamIndex ?? 0) + 1;
+        } else {
+          value = this.parseValue(token);
+        }
 
         // Handle JSON strings for JSONB columns
         if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
@@ -861,14 +1285,10 @@ class DatabaseMock {
 
         row[columnName] = value;
       }
-    } else {
-      // Case 2: Inline VALUES in SQL (no parameters)
-      const valuesMatch = query.match(/VALUES\s*\(([^)]+)\)/i);
-      if (valuesMatch) {
-        const values = this.parseInlineValues(valuesMatch[1]);
-        for (let i = 0; i < Math.min(columns.length, values.length); i++) {
-          row[columns[i]] = values[i];
-        }
+    } else if (params.length > 0) {
+      // Fallback for unparsed VALUES clauses
+      for (let i = 0; i < Math.min(columns.length, params.length); i++) {
+        row[columns[i]] = params[i];
       }
     }
 
@@ -879,10 +1299,15 @@ class DatabaseMock {
    * Parse inline VALUES from SQL (e.g., VALUES (1, 'text', true, 10.5))
    */
   private parseInlineValues(valuesStr: string): unknown[] {
+    return this.splitSqlValues(valuesStr).map((value) => this.parseValue(value.trim()));
+  }
+
+  private splitSqlValues(valuesStr: string): string[] {
     const values: unknown[] = [];
     let current = '';
     let inString = false;
     let stringChar = '';
+    let parenDepth = 0;
 
     for (let i = 0; i < valuesStr.length; i++) {
       const char = valuesStr[i];
@@ -897,8 +1322,14 @@ class DatabaseMock {
         } else {
           current += char;
         }
-      } else if (char === ',' && !inString) {
-        values.push(this.parseValue(current.trim()));
+      } else if (!inString && char === '(') {
+        parenDepth++;
+        current += char;
+      } else if (!inString && char === ')' && parenDepth > 0) {
+        parenDepth--;
+        current += char;
+      } else if (char === ',' && !inString && parenDepth === 0) {
+        values.push(current);
         current = '';
       } else {
         current += char;
@@ -906,10 +1337,10 @@ class DatabaseMock {
     }
 
     if (current.trim()) {
-      values.push(this.parseValue(current.trim()));
+      values.push(current);
     }
 
-    return values;
+    return values.map((value) => String(value));
   }
 
   /**
@@ -1708,6 +2139,54 @@ class DatabaseMock {
         indexname: 'alert_rules_enabled_idx',
         tablename: 'alert_rules',
         indexdef: 'CREATE INDEX alert_rules_enabled_idx ON alert_rules (is_enabled)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'investment_lots_pkey',
+        tablename: 'investment_lots',
+        indexdef: 'CREATE UNIQUE INDEX investment_lots_pkey ON investment_lots (id)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'investment_lots_investment_id_idx',
+        tablename: 'investment_lots',
+        indexdef:
+          'CREATE INDEX investment_lots_investment_id_idx ON investment_lots (investment_id)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'investment_lots_investment_lot_type_idx',
+        tablename: 'investment_lots',
+        indexdef:
+          'CREATE INDEX investment_lots_investment_lot_type_idx ON investment_lots (investment_id, lot_type)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'investment_lots_idempotency_key_unique',
+        tablename: 'investment_lots',
+        indexdef:
+          'CREATE UNIQUE INDEX investment_lots_idempotency_key_unique ON investment_lots (idempotency_key)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'forecast_snapshots_fund_snapshot_time_idx',
+        tablename: 'forecast_snapshots',
+        indexdef:
+          'CREATE INDEX forecast_snapshots_fund_snapshot_time_idx ON forecast_snapshots (fund_id, snapshot_time DESC)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'forecast_snapshots_idempotency_key_unique',
+        tablename: 'forecast_snapshots',
+        indexdef:
+          'CREATE UNIQUE INDEX forecast_snapshots_idempotency_key_unique ON forecast_snapshots (idempotency_key)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'forecast_snapshots_source_hash_idx',
+        tablename: 'forecast_snapshots',
+        indexdef:
+          'CREATE INDEX forecast_snapshots_source_hash_idx ON forecast_snapshots (source_hash)',
         schemaname: 'public',
       },
     ];

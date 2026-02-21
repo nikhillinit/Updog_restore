@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { PieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
@@ -31,23 +26,27 @@ interface InvestmentBreakdownChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: number | undefined, _name?: string, props?: any) => {
+const formatTooltipValue = (
+  value: number | undefined,
+  _name?: string,
+  props?: { payload?: SectorData }
+) => {
   const amount = props?.payload?.amount;
   return [
     value !== undefined ? `${value}% ${amount ? `($${amount}M)` : ''}` : '',
-    'Portfolio Allocation'
+    'Portfolio Allocation',
   ];
 };
 
-export default function InvestmentBreakdownChart({ 
-  data = sectorData, 
-  title = "Portfolio Allocation by Sector",
-  height = 320 
+export default function InvestmentBreakdownChart({
+  data = sectorData,
+  title = 'Portfolio Allocation by Sector',
+  height = 320,
 }: InvestmentBreakdownChartProps) {
   if (!data || data.length === 0) {
     return (
-      <ChartContainer 
-        title={title} 
+      <ChartContainer
+        title={title}
         description="Investment distribution across sectors"
         height={height}
       >
@@ -59,8 +58,8 @@ export default function InvestmentBreakdownChart({
   }
 
   return (
-    <ChartContainer 
-      title={title} 
+    <ChartContainer
+      title={title}
       description="Investment distribution across sectors"
       height={height}
     >
@@ -80,28 +79,28 @@ export default function InvestmentBreakdownChart({
                 stroke="#fff"
                 strokeWidth={2}
               >
-                {data.map((entry: any, index: any) => (
+                {data.map((entry: SectorData, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 formatter={formatTooltipValue}
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #e0e0e0', 
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e0e0e0',
                   borderRadius: '8px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                 }}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
-        
+
         <div className="space-y-3 pt-4 border-t border-gray-100">
-          {data.map((sector: any, index: any) => (
+          {data.map((sector: SectorData, index: number) => (
             <div key={index} className="flex items-center justify-between text-sm">
               <div className="flex items-center space-x-3">
-                <div 
+                <div
                   className="w-4 h-4 rounded-full shadow-sm"
                   style={{ backgroundColor: sector.color }}
                 ></div>
@@ -109,9 +108,7 @@ export default function InvestmentBreakdownChart({
               </div>
               <div className="text-right">
                 <span className="font-semibold text-gray-800">{sector.value}%</span>
-                {sector.amount && (
-                  <div className="text-xs text-gray-500">${sector.amount}M</div>
-                )}
+                {sector.amount && <div className="text-xs text-gray-500">${sector.amount}M</div>}
               </div>
             </div>
           ))}
@@ -120,4 +117,3 @@ export default function InvestmentBreakdownChart({
     </ChartContainer>
   );
 }
-

@@ -61,8 +61,12 @@ jspm_packages/
 # Optional eslint cache
 .eslintcache
 
-# Local baseline backups (development artifacts)
-.baselines/
+# Local baseline artifacts:
+# - Keep CI ratchet baselines committed
+# - Ignore generated lint output artifact
+.baselines/*
+!.baselines/console-prod-baseline.json
+!.baselines/eslint-file-disable-baseline.json
 
 # Optional REPL history
 .node_repl_history

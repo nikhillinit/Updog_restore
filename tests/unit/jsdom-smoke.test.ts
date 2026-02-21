@@ -12,23 +12,23 @@ import { describe, it, expect } from 'vitest';
 
 describe('jsdom smoke test', () => {
   it('has a window object', () => {
-    console.log('[jsdom-smoke] typeof window:', typeof window);
+    console.warn('[jsdom-smoke] typeof window:', typeof window);
 
     expect(typeof window).toBe('object');
     expect(window).not.toBeUndefined();
   });
 
   it('has a document object', () => {
-    console.log('[jsdom-smoke] typeof document:', typeof document);
+    console.warn('[jsdom-smoke] typeof document:', typeof document);
 
     expect(typeof document).toBe('object');
     expect(document).not.toBeUndefined();
   });
 
   it('has a document.body element', () => {
-    console.log('[jsdom-smoke] body exists?', !!document?.body);
+    console.warn('[jsdom-smoke] body exists?', !!document?.body);
 
-    console.log('[jsdom-smoke] body tagName:', document?.body?.tagName);
+    console.warn('[jsdom-smoke] body tagName:', document?.body?.tagName);
 
     expect(document.body).not.toBeNull();
     expect(document.body).toBeInstanceOf(HTMLElement);

@@ -15,7 +15,7 @@ function isTelemetryAllowed(): boolean {
   if (navigator.doNotTrack === '1') {
     return false;
   }
-  
+
   // Check user opt-out preference
   const privacySettings = localStorage.getItem('privacy-settings');
   if (privacySettings) {
@@ -28,13 +28,13 @@ function isTelemetryAllowed(): boolean {
       // Invalid settings, allow by default
     }
   }
-  
+
   // Check if RUM v2 is enabled and should validate
   if (import.meta.env.VITE_ENABLE_RUM_V2 === '1') {
     // Additional v2 checks can go here
     return true;
   }
-  
+
   return true;
 }
 
@@ -49,13 +49,13 @@ function sendToAnalytics(metric: VitalMetric) {
     }
     return;
   }
-  
+
   // Get or create correlation ID
   const cid = sessionStorage.getItem('cid') || crypto.randomUUID();
   if (!sessionStorage.getItem('cid')) {
     sessionStorage.setItem('cid', cid);
   }
-  
+
   const body = {
     name: metric.name,
     value: metric.value,
@@ -82,8 +82,8 @@ function sendToAnalytics(metric: VitalMetric) {
         level: 'info',
         data: {
           value: metric.value,
-          rating: metric.rating
-        }
+          rating: metric.rating,
+        },
       });
     });
   }
@@ -114,29 +114,34 @@ function sendToAnalytics(metric: VitalMetric) {
  */
 export function startVitals() {
   // Core Web Vitals
-  onLCP(sendToAnalytics);  // Largest Contentful Paint
-  onINP(sendToAnalytics);  // Interaction to Next Paint (replaces FID)
-  onCLS(sendToAnalytics);  // Cumulative Layout Shift
-  
+  onLCP(sendToAnalytics); // Largest Contentful Paint
+  onINP(sendToAnalytics); // Interaction to Next Paint (replaces FID)
+  onCLS(sendToAnalytics); // Cumulative Layout Shift
+
   // Additional metrics
-  onFCP(sendToAnalytics);  // First Contentful Paint
+  onFCP(sendToAnalytics); // First Contentful Paint
   onTTFB(sendToAnalytics); // Time to First Byte
-  
+
   // Custom performance marks
   if (window.performance && window.performance.mark) {
     // Mark when React app is interactive
     window.addEventListener('load', () => {
       window.performance.mark('app-interactive');
-      
+
       // Measure time to interactive
       window.performance.measure('time-to-interactive', 'navigationStart', 'app-interactive');
       const measure = window.performance.getEntriesByName('time-to-interactive')[0];
-      
+
       if (measure) {
         sendToAnalytics({
           name: 'TTI',
           value: measure.duration,
-          rating: measure.duration < 3800 ? 'good' : measure.duration < 7300 ? 'needs-improvement' : 'poor',
+          rating:
+            measure.duration < 3800
+              ? 'good'
+              : measure.duration < 7300
+                ? 'needs-improvement'
+                : 'poor',
           id: `tti-${Date.now()}`,
           entries: [],
           navigationType: 'navigate',
@@ -144,7 +149,7 @@ export function startVitals() {
       }
     });
   }
-  
+
   // Monitor long tasks
   if ('PerformanceObserver' in window) {
     try {
@@ -171,8 +176,10 @@ export function startVitals() {
       console.warn('Long task observer not supported:', e);
     }
   }
-  
-  console.log('Web Vitals monitoring initialized');
+
+  if (import.meta.env.DEV) {
+    console.log('Web Vitals monitoring initialized');
+  }
 }
 
 /**
@@ -186,14 +193,39 @@ export function getVitalsSnapshot() {
     fcp: null,
     ttfb: null,
   };
-  
+
   // Collect current values (note: these are cumulative)
-  onLCP((metric) => { vitals['lcp'] = metric.value; }, { reportAllChanges: false });
-  onINP((metric) => { vitals['inp'] = metric.value; }, { reportAllChanges: false });
-  onCLS((metric) => { vitals['cls'] = metric.value; }, { reportAllChanges: false });
-  onFCP((metric) => { vitals['fcp'] = metric.value; }, { reportAllChanges: false });
-  onTTFB((metric) => { vitals['ttfb'] = metric.value; }, { reportAllChanges: false });
-  
+  onLCP(
+    (metric) => {
+      vitals['lcp'] = metric.value;
+    },
+    { reportAllChanges: false }
+  );
+  onINP(
+    (metric) => {
+      vitals['inp'] = metric.value;
+    },
+    { reportAllChanges: false }
+  );
+  onCLS(
+    (metric) => {
+      vitals['cls'] = metric.value;
+    },
+    { reportAllChanges: false }
+  );
+  onFCP(
+    (metric) => {
+      vitals['fcp'] = metric.value;
+    },
+    { reportAllChanges: false }
+  );
+  onTTFB(
+    (metric) => {
+      vitals['ttfb'] = metric.value;
+    },
+    { reportAllChanges: false }
+  );
+
   return vitals;
 }
 

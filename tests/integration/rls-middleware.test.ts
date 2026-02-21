@@ -1,4 +1,12 @@
 /**
+ * @quarantine
+ * @owner @qa-team
+ * @reason Temporarily skipped pending stabilization triage.
+ * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
+ * @addedDate 2026-02-17
+ */
+
+/**
  * Integration tests for RLS request-scoped transaction middleware
  *
  * @group integration
@@ -32,8 +40,7 @@ const mockClient = {
 };
 
 // Test JWT secret
-const JWT_SECRET = 'test-secret';
-process.env.JWT_SECRET = JWT_SECRET;
+const JWT_SECRET = 'test-jwt-secret-for-rls-tests-minimum-32-chars';
 
 describe.skip('RLS Middleware Integration', () => {
   let app: express.Application;

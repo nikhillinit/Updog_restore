@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Inflight request tracking
- 
- 
- 
- 
 import type { IdempotencyStore } from './idempotency';
 
 export async function getOrStart<T>(
@@ -28,8 +23,9 @@ export async function getOrStart<T>(
       const out = await worker(controller.signal);
       await store['set'](key, { status: 'succeeded', result: out, updatedAt: Date.now(), ttlMs });
       return out;
-    } catch (e: any) {
-      await store['set'](key, { status: 'failed', error: String(e?.message ?? e), updatedAt: Date.now(), ttlMs });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await store['set'](key, { status: 'failed', error: msg, updatedAt: Date.now(), ttlMs });
       throw e;
     }
   })();

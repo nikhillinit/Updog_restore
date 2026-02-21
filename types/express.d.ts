@@ -8,6 +8,7 @@
  *   - server/middleware/audit.ts (id, email, orgId)
  */
 import 'express-serve-static-core';
+import type { UserContext } from '../server/lib/secure-context';
 
 declare global {
   namespace Express {
@@ -55,7 +56,7 @@ declare global {
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;
-        [key: string]: any;
+        [key: string]: unknown;
       };
     }
 
@@ -65,7 +66,7 @@ declare global {
       /** Session data (optional, for JWT middleware) */
       session?: {
         id: string;
-        [key: string]: any;
+        [key: string]: unknown;
       };
       /** Unique request identifier for tracing */
       requestId?: string;
@@ -78,7 +79,7 @@ declare global {
       /** API version from request header (server.ts:89) */
       version?: string;
       /** User security context (locks.ts:80) */
-      context?: any; // TODO: Import UserContext from server/middleware/secure-context
+      context?: UserContext;
       /** Rate limit metadata (rateLimits.ts:120) */
       rateLimit?: {
         limit: number;

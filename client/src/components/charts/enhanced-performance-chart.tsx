@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
@@ -28,7 +23,7 @@ interface EnhancedPerformanceChartProps {
   height?: number;
 }
 
-const formatTooltipValue = (value: any, name?: string) => {
+const formatTooltipValue = (value: number | undefined, name?: string) => {
   if (typeof value !== 'number') return [value, name ?? ''];
 
   switch (name) {
@@ -45,15 +40,15 @@ const formatTooltipValue = (value: any, name?: string) => {
   }
 };
 
-export default function EnhancedPerformanceChart({ 
-  data, 
-  title = "Fund Performance Metrics", 
-  height = 400 
+export default function EnhancedPerformanceChart({
+  data,
+  title = 'Fund Performance Metrics',
+  height = 400,
 }: EnhancedPerformanceChartProps) {
   if (!data || data.length === 0) {
     return (
-      <ChartContainer 
-        title={title} 
+      <ChartContainer
+        title={title}
         description="Track IRR, multiple, DPI, and TVPI performance over time"
         height={height}
       >
@@ -65,39 +60,32 @@ export default function EnhancedPerformanceChart({
   }
 
   return (
-    <ChartContainer 
-      title={title} 
+    <ChartContainer
+      title={title}
       description="Track IRR, multiple, DPI, and TVPI performance over time"
       height={height}
     >
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 12, fill: '#666' }}
           />
-          <YAxis 
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: '#666' }}
-          />
-          <Tooltip 
+          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#666' }} />
+          <Tooltip
             formatter={formatTooltipValue}
             labelStyle={{ color: '#333', fontWeight: 'bold' }}
-            contentStyle={{ 
-              backgroundColor: '#fff', 
-              border: '1px solid #e0e0e0', 
+            contentStyle={{
+              backgroundColor: '#fff',
+              border: '1px solid #e0e0e0',
               borderRadius: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             }}
           />
-          <Legend 
-            wrapperStyle={{ paddingTop: '20px' }}
-            iconType="line"
-          />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="line" />
           <Area
             type="monotone"
             dataKey="irr"

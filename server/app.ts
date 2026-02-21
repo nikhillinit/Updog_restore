@@ -14,7 +14,6 @@ interface HttpError {
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
-import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
 import { flagsRouter } from './routes/flags.js';
 import cashflowRouter from './routes/cashflow.js';
@@ -74,7 +73,9 @@ export function makeApp() {
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers['origin'] as string | undefined;
     const dev = process.env['NODE_ENV'] !== 'production';
-    const ok = dev || (origin && allow.includes(origin));
+    const devOriginOk =
+      dev && origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const ok = devOriginOk || (origin && allow.includes(origin));
     if (ok && origin) {
       res['setHeader']('Access-Control-Allow-Origin', origin);
       res['setHeader']('Vary', 'Origin');
@@ -86,6 +87,9 @@ export function makeApp() {
     if (!ok && origin) return res.sendStatus(403);
     next();
   });
+
+  const rateLimitWindowMs = Number(process.env['RATE_LIMIT_WINDOW_MS'] || '60000');
+  const rateLimitMax = Number(process.env['RATE_LIMIT_MAX'] || '60');
 
   // Content-Type validation for mutations
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -109,19 +113,30 @@ export function makeApp() {
     res['setHeader']('x-request-id', reqWithId.rid);
     next();
   });
-  app.use(rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true }));
+  app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
 
-  // API Documentation
-  app.use(
-    '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      customSiteTitle: 'POVC Fund Platform API',
-      customfavIcon: '/favicon.ico',
-      customCss: '.swagger-ui .topbar { display: none }',
-      explorer: true,
-    })
-  );
+  // API Documentation landing page
+  app['get']('/api-docs', (_req: Request, res: Response) => {
+    res['setHeader']('Content-Type', 'text/html; charset=utf-8');
+    res['send'](`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>POVC Fund Platform API Docs</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; line-height: 1.5; }
+      code { background: #f4f4f5; padding: 0.15rem 0.35rem; border-radius: 4px; }
+      a { color: #0a66c2; }
+    </style>
+  </head>
+  <body>
+    <h1>POVC Fund Platform API Docs</h1>
+    <p>OpenAPI JSON: <a href="/api-docs.json"><code>/api-docs.json</code></a></p>
+    <p>Import the JSON into your preferred OpenAPI viewer (Swagger Editor, Stoplight, Postman, etc.).</p>
+  </body>
+</html>`);
+  });
 
   // OpenAPI spec endpoint
   app['get']('/api-docs.json', (_req: Request, res: Response) => {
