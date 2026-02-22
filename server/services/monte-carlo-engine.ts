@@ -231,11 +231,31 @@ interface VarianceReportRecord {
 // MONTE CARLO ENGINE CLASS
 // ============================================================================
 
+/**
+ * Data source interface for constructor injection (testing).
+ * Production code uses the default `db` import; tests can provide
+ * an in-memory implementation to remove DB-coupled skips.
+ */
+export interface MonteCarloDataSource {
+  query: {
+    fundBaselines: { findFirst: (opts: unknown) => Promise<FundBaseline | undefined> };
+    funds: {
+      findFirst: (
+        opts: unknown
+      ) => Promise<{ size: string | number; [key: string]: unknown } | undefined>;
+    };
+    varianceReports: { findMany: (opts: unknown) => Promise<VarianceReportRecord[]> };
+  };
+  insert: (table: unknown) => { values: (data: unknown) => Promise<void> };
+}
+
 export class MonteCarloEngine {
   private prng: PRNG;
+  private dataSource: MonteCarloDataSource;
 
-  constructor(seed?: number) {
+  constructor(seed?: number, dataSource?: MonteCarloDataSource) {
     this.prng = new PRNG(seed);
+    this.dataSource = dataSource ?? (db as unknown as MonteCarloDataSource);
   }
 
   /**
@@ -527,7 +547,7 @@ export class MonteCarloEngine {
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await db.query.fundBaselines.findFirst({
+      baseline = await this.dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(fundBaselines.id, baselineId),
           eq(fundBaselines.fundId, fundId),
@@ -535,7 +555,7 @@ export class MonteCarloEngine {
         ),
       });
     } else {
-      baseline = await db.query.fundBaselines.findFirst({
+      baseline = await this.dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true),
@@ -556,7 +576,7 @@ export class MonteCarloEngine {
     baseline: FundBaseline
   ): Promise<PortfolioInputs> {
     // Get fund size
-    const fund = await db.query.funds.findFirst({
+    const fund = await this.dataSource.query.funds.findFirst({
       where: eq(funds.id, fundId),
     });
 
@@ -607,7 +627,7 @@ export class MonteCarloEngine {
     baseline: FundBaseline
   ): Promise<DistributionParameters> {
     // Get historical variance data
-    const reports = await db.query.varianceReports.findMany({
+    const reports = await this.dataSource.query.varianceReports.findMany({
       where: and(eq(varianceReports.fundId, fundId), eq(varianceReports.baselineId, baseline.id)),
       orderBy: desc(varianceReports.asOfDate),
       limit: 30, // Last 30 reports for calibration
@@ -1047,7 +1067,7 @@ export class MonteCarloEngine {
       createdBy: 1, // TODO: Get from context
     };
 
-    await db.insert(monteCarloSimulations).values(simulationData);
+    await this.dataSource.insert(monteCarloSimulations).values(simulationData);
   }
 
   // Utility functions using local PRNG (no global Math.random override)
