@@ -68,6 +68,8 @@ sanitizeSecrets(process.env);
 process.env._EXPLICIT_JWT_SECRET = process.env.JWT_SECRET;
 process.env._EXPLICIT_JWT_ISSUER = process.env.JWT_ISSUER;
 process.env._EXPLICIT_JWT_AUDIENCE = process.env.JWT_AUDIENCE;
+process.env.JWT_ALG = process.env.JWT_ALG || 'HS256';
+process.env._EXPLICIT_JWT_ALG = process.env.JWT_ALG;
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
 process.env.REDIS_URL = 'memory://';

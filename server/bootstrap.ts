@@ -43,13 +43,13 @@ async function bootstrap() {
     );
 
     logger.info({ phase: 'server' }, 'PHASE 3: SERVER CREATE');
-    // Create server with dependency injection
-    const app = await createServer(cfg, providers);
+    // Create server with dependency injection (returns http.Server with WebSocket)
+    const server = await createServer(cfg, providers);
     logger.info({ phase: 'server' }, 'Server created successfully');
 
     logger.info({ phase: 'listen' }, 'PHASE 4: LISTEN');
     // Start server
-    const server = app.listen(cfg.PORT, () => {
+    server.listen(cfg.PORT, () => {
       const address = server.address();
       const actualPort =
         typeof address === 'object' && address && 'port' in address ? address.port : cfg.PORT;

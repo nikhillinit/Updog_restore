@@ -3,19 +3,20 @@
   "projects": {
     "server": {
       "errors": [
-        "server/config.ts:TS6307:cba79c3e",
+        "server/config.ts:TS6307:42a73e4b",
+        "server/config/index.ts:TS6307:d3ce82e3",
         "server/lib/auth/jwt.ts:TS6307:67b748cc",
         "server/lib/auth/jwt.ts:TS6307:c9b54042",
         "server/lib/secure-context.ts:TS6307:2a5850ce",
         "server/lib/secure-context.ts:TS6307:4a8f4cc4",
-        "server/lib/secure-context.ts:TS6307:86d2fb4a"
+        "server/lib/secure-context.ts:TS6307:960a21f7"
       ],
-      "total": 6,
-      "lastUpdated": "2026-02-17T05:45:25.626Z"
+      "total": 7,
+      "lastUpdated": "2026-02-22T00:30:58.234Z"
     }
   },
-  "totalErrors": 6,
-  "timestamp": "2026-02-17T05:45:25.626Z",
+  "totalErrors": 7,
+  "timestamp": "2026-02-22T00:30:58.234Z",
   "buildMode": "per-project",
-  "elapsedMs": 21349
+  "elapsedMs": 26285
 }

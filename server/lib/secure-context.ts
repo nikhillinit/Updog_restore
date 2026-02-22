@@ -4,7 +4,6 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from './auth/jwt';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 
@@ -33,7 +32,9 @@ export interface JWTClaims {
  */
 import { getAuthToken } from './headers-helper';
 
-export function extractUserContext(req: Request): UserContext | null {
+export async function extractUserContext(req: Request): Promise<UserContext | null> {
+  // Lazy import to avoid circular dependency issues at module load time
+  const { verifyAccessTokenAsync } = await import('./auth/jwt');
   const token = getAuthToken(req.headers);
 
   if (!token) {
@@ -41,8 +42,8 @@ export function extractUserContext(req: Request): UserContext | null {
   }
 
   try {
-    // Verify JWT and extract claims using centralized auth
-    const claims = verifyAccessToken(token) as JWTClaims;
+    // Verify JWT (supports both HS256 sync and RS256 async via JWKS)
+    const claims = (await verifyAccessTokenAsync(token)) as JWTClaims;
 
     // Build context from verified JWT claims only
     const context: UserContext = {
@@ -70,35 +71,40 @@ export function extractUserContext(req: Request): UserContext | null {
 
 /**
  * Middleware to enforce secure context
+ * Async to support RS256 JWKS key retrieval; Express 4 requires explicit next(err)
  */
-export function requireSecureContext(
+export async function requireSecureContext(
   req: Request & { context?: UserContext },
   res: Response,
   next: NextFunction
-): void {
-  const context = extractUserContext(req);
+): Promise<void> {
+  try {
+    const context = await extractUserContext(req);
 
-  if (!context) {
-    res['status'](401)['json']({
-      error: 'unauthorized',
-      message: 'Valid JWT token required',
-    });
-    return;
-  }
-
-  // Ignore any client-supplied user headers
-  const suspiciousHeaders = ['x-user-id', 'x-user-email', 'x-org-id', 'x-partner-id', 'x-role'];
-
-  for (const header of suspiciousHeaders) {
-    if (req.headers[header]) {
-      console.warn(`Client attempted to send ${header} header, ignoring`);
-      delete req.headers[header];
+    if (!context) {
+      res['status'](401)['json']({
+        error: 'unauthorized',
+        message: 'Valid JWT token required',
+      });
+      return;
     }
-  }
 
-  // Attach verified context to request
-  req.context = context;
-  next();
+    // Ignore any client-supplied user headers
+    const suspiciousHeaders = ['x-user-id', 'x-user-email', 'x-org-id', 'x-partner-id', 'x-role'];
+
+    for (const header of suspiciousHeaders) {
+      if (req.headers[header]) {
+        console.warn(`Client attempted to send ${header} header, ignoring`);
+        delete req.headers[header];
+      }
+    }
+
+    // Attach verified context to request
+    req.context = context;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**

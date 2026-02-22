@@ -56,12 +56,12 @@ export function withRLSTransaction() {
       await client.query(
         `
         SELECT 
-          setconfig('app.current_user', $1, true),
-          setconfig('app.current_email', $2, true),
-          setconfig('app.current_org', $3, true),
-          setconfig('app.current_fund', $4, true),
-          setconfig('app.current_role', $5, true),
-          setconfig('app.current_partner', $6, true)
+          set_config('app.current_user', $1, true),
+          set_config('app.current_email', $2, true),
+          set_config('app.current_org', $3, true),
+          set_config('app.current_fund', $4, true),
+          set_config('app.current_role', $5, true),
+          set_config('app.current_partner', $6, true)
       `,
         [userId, email, orgId, fundId || '', role, partnerId || '']
       );
