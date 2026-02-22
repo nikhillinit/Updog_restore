@@ -7,10 +7,10 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import type { Server } from 'node:http';
 
 describe('Dev memory mode', () => {
-  let app: Express;
+  let app: Server;
   let providers: any;
   let loadEnv: typeof import('../../server/config/index.js').loadEnv;
   let buildProviders: typeof import('../../server/providers.js').buildProviders;

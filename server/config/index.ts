@@ -25,6 +25,10 @@ const explicitJwtIssuer = process.env['JWT_ISSUER'];
 const explicitJwtIssuerMarker = process.env['_EXPLICIT_JWT_ISSUER'];
 const explicitJwtAudience = process.env['JWT_AUDIENCE'];
 const explicitJwtAudienceMarker = process.env['_EXPLICIT_JWT_AUDIENCE'];
+const explicitJwtAlg = process.env['JWT_ALG'];
+const explicitJwtAlgMarker = process.env['_EXPLICIT_JWT_ALG'];
+const explicitJwtJwksUrl = process.env['JWT_JWKS_URL'];
+const explicitJwtJwksUrlMarker = process.env['_EXPLICIT_JWT_JWKS_URL'];
 
 // TEMP FIX: Windows system has NODE_ENV=production set globally, override it
 const shouldOverrideEnv = true;
@@ -78,6 +82,22 @@ if (
 ) {
   process.env['JWT_AUDIENCE'] = explicitJwtAudience;
 }
+// Restore explicitly-set JWT_ALG if .env tried to override it
+if (
+  explicitJwtAlgMarker &&
+  explicitJwtAlg !== undefined &&
+  explicitJwtAlg !== process.env['JWT_ALG']
+) {
+  process.env['JWT_ALG'] = explicitJwtAlg;
+}
+// Restore explicitly-set JWT_JWKS_URL if .env tried to override it
+if (
+  explicitJwtJwksUrlMarker &&
+  explicitJwtJwksUrl !== undefined &&
+  explicitJwtJwksUrl !== process.env['JWT_JWKS_URL']
+) {
+  process.env['JWT_JWKS_URL'] = explicitJwtJwksUrl;
+}
 
 const envSchema = z.object({
   // Core environment
@@ -107,6 +127,18 @@ const envSchema = z.object({
   CSP_REPORT_ONLY: bool.default(false),
   SESSION_SECRET: z.string().min(32).optional(),
   JWT_SECRET: z.string().min(32).optional(),
+
+  // Auth - JWT algorithm and identity provider
+  JWT_ALG: z.enum(['HS256', 'RS256']).default('HS256'),
+  JWT_ISSUER: z.string().default('updog'),
+  JWT_AUDIENCE: z.string().default('updog-app'),
+  JWT_JWKS_URL: z.string().url().optional(),
+  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+
+  // Feature flags & modes
+  DEMO_MODE: bool.default(false),
+  REQUIRE_AUTH: bool.default(true),
+  ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).default(0),
 
   // Monitoring & Observability
   PROMETHEUS_URL: z.string().optional(),
@@ -175,7 +207,23 @@ export function loadEnv() {
     throw new Error(`Invalid configuration: ${parsed.error.message}`);
   }
 
-  const config = parsed.data;
+  const base = parsed.data;
+
+  // Computed environment helpers
+  const config = {
+    ...base,
+    isDev: base.NODE_ENV === 'development',
+    isProd: base.NODE_ENV === 'production',
+    isTest: base.NODE_ENV === 'test',
+  };
+
+  // Cross-field JWT validation (matches legacy server/config.ts behavior)
+  if (config.JWT_ALG === 'HS256' && !config.JWT_SECRET && !config.isTest) {
+    throw new Error('JWT_ALG=HS256 requires JWT_SECRET (>= 32 chars)');
+  }
+  if (config.JWT_ALG === 'RS256' && !config.JWT_JWKS_URL) {
+    throw new Error('JWT_ALG=RS256 requires JWT_JWKS_URL');
+  }
 
   console.log(
     `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env['NODE_ENV']})`
@@ -266,6 +314,14 @@ export function loadEnv() {
       throw error;
     }
 
+    // Validate CLIENT_URL uses HTTPS in production
+    assertSecureURL(config.CLIENT_URL, 'CLIENT_URL', config.NODE_ENV);
+
+    // Validate JWKS URL if using RS256
+    if (config.JWT_JWKS_URL) {
+      assertSecureURL(config.JWT_JWKS_URL, 'JWT_JWKS_URL', config.NODE_ENV);
+    }
+
     // Validate external service URLs use HTTPS
     const urlsToValidate = [
       { url: config.PROMETHEUS_URL, context: 'PROMETHEUS_URL' },
@@ -317,6 +373,8 @@ export function loadEnv() {
 
   return config;
 }
+
+export type AppConfig = ReturnType<typeof loadEnv>;
 
 // Lazy-loaded config to avoid import-time side effects (critical for Vercel Preview)
 let _cachedConfig: ReturnType<typeof loadEnv> | null = null;

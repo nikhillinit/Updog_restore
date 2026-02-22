@@ -10,6 +10,7 @@ const TEST_JWT_SECRET = 'test-secret-key-for-integration-tests';
 const originalJwtSecret = process.env.JWT_SECRET;
 process.env.JWT_SECRET = TEST_JWT_SECRET;
 process.env.JWT_ALG = 'HS256';
+process.env._EXPLICIT_JWT_ALG = 'HS256';
 process.env.JWT_ISSUER = 'test-issuer';
 process.env.JWT_AUDIENCE = 'test-audience';
 
