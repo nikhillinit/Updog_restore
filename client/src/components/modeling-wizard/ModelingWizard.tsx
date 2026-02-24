@@ -82,7 +82,6 @@ export function ModelingWizard({
   loadSavedProgress = true,
   onComplete,
   onError,
-  redirectOnComplete = '/dashboard',
 }: ModelingWizardProps) {
   const [, navigate] = useLocation();
 
@@ -91,14 +90,27 @@ export function ModelingWizard({
     skipOptionalSteps,
     autoSaveInterval,
     loadSavedProgress,
-    onComplete: () => {
+    onComplete: (data) => {
       // Call user callback
       onComplete?.();
 
-      // Redirect after short delay to show success message
+      // Store wizard step data for the results page to reconstruct engine output
+      try {
+        const wizardData = {
+          generalInfo: data.steps.generalInfo,
+          sectorProfiles: data.steps.sectorProfiles,
+          capitalAllocation: data.steps.capitalAllocation,
+          scenarios: data.steps.scenarios,
+        };
+        sessionStorage.setItem('wizard-completion-data', JSON.stringify(wizardData));
+      } catch {
+        // Silent -- results page will show empty state if storage fails
+      }
+
+      // Redirect to results page after short delay to show success message
       setTimeout(() => {
-        navigate(redirectOnComplete);
-      }, 2000);
+        navigate('/fund-model-results/latest');
+      }, 1500);
     },
     onError: (error) => {
       console.error('[ModelingWizard] Wizard error:', error);

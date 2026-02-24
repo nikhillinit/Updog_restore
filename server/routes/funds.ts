@@ -5,6 +5,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { z } from 'zod';
 import { positiveInt, percent100 } from '@shared/schema-helpers';
+import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
 import { hashPayload } from '../lib/hash';
 import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
@@ -27,6 +28,9 @@ const CreateFundSchema = z.object({
     .min(2000)
     .max(2100)
     .default(() => new Date().getFullYear()),
+
+  // Optional: Engine calculation results from the modeling wizard
+  engineResults: engineResultsSchema.nullable().optional(),
 
   // Optional: Legacy wizard format support
   basics: z
@@ -75,6 +79,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
       managementFee: String(managementFee),
       carryPercentage: String(carryPercentage),
       vintageYear: data.vintageYear ?? new Date().getFullYear(),
+      ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
     // Persist fund using storage abstraction (DatabaseStorage or MemStorage)
@@ -91,6 +96,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
         carryPercentage: fund.carryPercentage,
         vintageYear: fund.vintageYear,
         status: fund.status,
+        engineResults: fund.engineResults ?? null,
         createdAt: fund.createdAt,
       },
       message: 'Fund created successfully',

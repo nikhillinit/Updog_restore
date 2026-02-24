@@ -55,6 +55,8 @@ const TimeTravelPage = React.lazy(() => import('@/pages/time-travel'));
 const VarianceTrackingPage = React.lazy(() => import('@/pages/variance-tracking'));
 const PortfolioConstructor = React.lazy(() => import('@/pages/portfolio-constructor'));
 const MonteCarloPage = React.lazy(() => import('@/pages/monte-carlo'));
+// Fund Model Results (post-wizard output)
+const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
 // Development dashboard for solo developer productivity
 const DevDashboardPage = React.lazy(() => import('@/pages/DevDashboardPage'));
 // Agent 2: Mobile Executive Dashboard
@@ -273,6 +275,7 @@ const APP_ROUTES: AppRouteEntry[] = [
   { path: '/monte-carlo', component: MonteCarloPage, isProtected: true },
   { path: '/secondary-market', component: SecondaryMarketPage, isProtected: true },
   { path: '/notion-integration', component: NotionIntegrationPage, isProtected: true },
+  { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/dev-dashboard', component: DevDashboardPage },
   {
     path: '/mobile-executive-dashboard',
