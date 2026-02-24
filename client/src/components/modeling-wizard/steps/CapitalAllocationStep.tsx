@@ -13,12 +13,16 @@ import { Label } from '@/components/ui/label';
 import {
   capitalAllocationSchema,
   type CapitalAllocationInput,
+  type CapitalAllocationOutput,
   type FundFinancialsOutput,
   type SectorProfile,
 } from '@/schemas/modeling-wizard.schemas';
 import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
 import { useDebounceDeep } from '@/hooks/useDebounceDeep';
+import { useEngineComparison } from '@/hooks/useEngineComparison';
+import { FLAGS } from '@/core/flags/featureFlags';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
+import { EngineRecommendationsPanel } from './capital-allocation/EngineRecommendationsPanel';
 import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
 import { PacingHorizonBuilder } from './capital-allocation/PacingHorizonBuilder';
 import { CalculationSummaryCard } from './capital-allocation/CalculationSummaryCard';
@@ -142,6 +146,71 @@ export function CapitalAllocationStep({
     };
   }, [watch, onSave]);
 
+  // Engine comparison (behind feature flag)
+  const minimalWizardContext = React.useMemo(
+    () => ({
+      steps: {
+        generalInfo: {
+          fundName: 'Model',
+          vintageYear: new Date().getFullYear(),
+          fundSize: fundFinancials.fundSize,
+          currency: 'USD' as const,
+          establishmentDate: `${new Date().getFullYear()}-01-01`,
+          isEvergreen: false,
+          fundLife: 10,
+          investmentPeriod: fundFinancials.investmentPeriod,
+        },
+        sectorProfiles: { sectorProfiles },
+        capitalAllocation: {
+          initialCheckSize: debouncedFormValues.initialCheckSize,
+          followOnStrategy: debouncedFormValues.followOnStrategy,
+          pacingModel: debouncedFormValues.pacingModel,
+        },
+      },
+      currentStep: 'capitalAllocation' as const,
+      currentStepIndex: 2,
+      totalSteps: 7,
+      completedSteps: new Set(['generalInfo', 'sectorProfiles'] as const),
+      visitedSteps: new Set(['generalInfo', 'sectorProfiles', 'capitalAllocation'] as const),
+      validationErrors: {
+        generalInfo: [],
+        sectorProfiles: [],
+        capitalAllocation: [],
+        feesExpenses: [],
+        exitRecycling: [],
+        waterfall: [],
+        scenarios: [],
+      },
+      isStepValid: {
+        generalInfo: true,
+        sectorProfiles: true,
+        capitalAllocation: false,
+        feesExpenses: false,
+        exitRecycling: true,
+        waterfall: false,
+        scenarios: false,
+      },
+      lastSaved: null,
+      isDirty: false,
+      persistenceError: null,
+      retryCount: 0,
+      lastPersistAttempt: null,
+      navigationIntent: null,
+      targetStep: null,
+      submissionError: null,
+      submissionRetryCount: 0,
+      skipOptionalSteps: false,
+      autoSaveInterval: 30000,
+    }),
+    [fundFinancials, sectorProfiles, debouncedFormValues]
+  );
+
+  const engineState = useEngineComparison({
+    wizardContext: minimalWizardContext as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- minimal context shim
+    sectorProfiles,
+    capitalAllocation: debouncedFormValues as CapitalAllocationOutput,
+  });
+
   // Data loss prevention: warn on tab close if save pending
   React.useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -260,6 +329,11 @@ export function CapitalAllocationStep({
           {...(errors.pacingHorizon && { errors: errors.pacingHorizon })}
         />
       </div>
+
+      {/* Engine Recommendations (feature-flagged) */}
+      {FLAGS.ENABLE_ENGINE_INTEGRATION && (
+        <EngineRecommendationsPanel engineState={engineState} userReserveRatio={reserveRatio} />
+      )}
 
       {/* Section D: Calculation Summary */}
       <CalculationSummaryCard

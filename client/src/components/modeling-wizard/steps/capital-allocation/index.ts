@@ -17,7 +17,11 @@ export type { PortfolioTableProps } from './PortfolioTable';
 
 // Validation and metrics display components
 export { ValidationDisplay, ValidationSummary } from './ValidationDisplay';
-export type { ValidationMessage, ValidationDisplayProps, ValidationSummaryProps } from './ValidationDisplay';
+export type {
+  ValidationMessage,
+  ValidationDisplayProps,
+  ValidationSummaryProps,
+} from './ValidationDisplay';
 
 export { PortfolioSummary } from './PortfolioSummary';
 export type {
@@ -35,7 +39,7 @@ export type {
 } from './ReserveMetricsDisplay';
 
 export { AllocationsTable, AllocationsTableCompact } from './AllocationsTable';
-export type {
-  CompanyAllocation,
-  AllocationsTableProps,
-} from './AllocationsTable';
+export type { CompanyAllocation, AllocationsTableProps } from './AllocationsTable';
+
+export { EngineRecommendationsPanel } from './EngineRecommendationsPanel';
+export type { EngineRecommendationsPanelProps } from './EngineRecommendationsPanel';
