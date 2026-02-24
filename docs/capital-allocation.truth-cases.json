@@ -499,11 +499,11 @@
       "allocations_by_cohort": [
         {
           "cohort": "Core-25",
-          "amount": 1200000
+          "amount": 1800000
         },
         {
           "cohort": "Growth-25",
-          "amount": 800000
+          "amount": 1200000
         }
       ],
       "reserve_balance_over_time": [
@@ -522,9 +522,9 @@
           "target": 6000000
         }
       ],
-      "violations": ["carryover_applied_q2"]
+      "violations": []
     },
-    "notes": "Shortfall in Q1 rolls into Q2 target."
+    "notes": "Gross pacing: $3M Q1 contribution fully deployed (below $6M target). See docs/CA-PACING-ORACLE.md."
   },
   {
     "schemaVersion": "1.0.0",
@@ -581,11 +581,11 @@
       "allocations_by_cohort": [
         {
           "cohort": "Core",
-          "amount": 2100000
+          "amount": 1750000
         },
         {
           "cohort": "Growth",
-          "amount": 900000
+          "amount": 750000
         }
       ],
       "reserve_balance_over_time": [
@@ -604,9 +604,9 @@
           "target": 1250000
         }
       ],
-      "violations": ["front_loaded_pipeline_capped"]
+      "violations": []
     },
-    "notes": "Excess demand deferred to later periods."
+    "notes": "Gross pacing: $1.25M/mo cap on $5M contributions. See docs/CA-PACING-ORACLE.md."
   },
   {
     "schemaVersion": "1.0.0",
@@ -716,12 +716,12 @@
       "allocations_by_cohort": [
         {
           "cohort": "Main-24",
-          "amount": 1200000
+          "amount": 2666667
         }
       ],
       "reserve_balance_over_time": [
         {
-          "date": "2025-06-30",
+          "date": "2024-07-31",
           "balance": 2400000
         },
         {
@@ -731,8 +731,8 @@
       ],
       "pacing_targets_by_period": [
         {
-          "period": "2025-06",
-          "target": 1000000
+          "period": "2024-07",
+          "target": 1333333
         },
         {
           "period": "2025-07",
@@ -741,7 +741,7 @@
       ],
       "violations": []
     },
-    "notes": "This file captures the 18‑month case; compare against a separate 24‑month run."
+    "notes": "18-month gross pacing: $1,333,333/mo target, 2 contribution months. See docs/CA-PACING-ORACLE.md."
   },
   {
     "schemaVersion": "1.0.0",
