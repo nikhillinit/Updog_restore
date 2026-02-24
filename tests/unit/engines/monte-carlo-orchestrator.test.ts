@@ -4,14 +4,8 @@
  * Task 2.5: Validates the orchestrator's expectation mode,
  * stochastic mode, and reproducibility guarantees.
  *
- * @quarantine
- * @owner @phoenix-team
- * @reason Stochastic mode assertions depend on baseline DB fixtures unavailable in unit test runtime.
- * @exitCriteria Add deterministic baseline fixture strategy (or seeded integration DB) for stochastic mode tests.
- * @addedDate 2026-01-14
- *
- * Note: Expectation mode tests are active. Only stochastic mode tests
- * require Phase 2 infrastructure (distribution sampling, multi-run aggregation).
+ * Stochastic tests unblocked via deterministic fixture provider (Phase 2 B2).
+ * @see tests/fixtures/monte-carlo-fixtures.ts
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -21,10 +15,13 @@ import type {
   StochasticModeResult,
 } from '../../../server/services/monte-carlo-orchestrator';
 import { MonteCarloOrchestrator } from '../../../server/services/monte-carlo-orchestrator';
+import { createMCFixtureProvider } from '../../fixtures/monte-carlo-fixtures';
 
 // =============================================================================
 // TEST FIXTURES
 // =============================================================================
+
+const fixtureDataSource = createMCFixtureProvider();
 
 const createBaseConfig = (overrides: Partial<OrchestratorConfig> = {}): OrchestratorConfig => ({
   fundId: 1,
@@ -157,16 +154,13 @@ describe('MonteCarloOrchestrator - Expectation Mode', () => {
 // STOCHASTIC MODE TESTS
 // =============================================================================
 
-// Note: Stochastic mode tests require database access and are skipped in unit tests
-// Run these as integration tests with a test database
-describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
+describe('MonteCarloOrchestrator - Stochastic Mode', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
-    orchestrator = new MonteCarloOrchestrator(42);
+    orchestrator = new MonteCarloOrchestrator(42, fixtureDataSource);
   });
 
-  // @group integration - Requires database baseline data
   it('should return stochastic mode result', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 500 });
     const result = await orchestrator.runStochasticMode(config);
@@ -177,25 +171,21 @@ describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
     expect(result.tvpi).toBeDefined();
   });
 
-  // @group integration - Requires database baseline data
   it('should be reproducible with same seed', async () => {
     const seed = 12345;
     const config = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: seed });
 
-    // Reset orchestrator between runs to ensure fresh state
     orchestrator.reset(seed);
     const result1 = await orchestrator.runStochasticMode(config);
 
     orchestrator.reset(seed);
     const result2 = await orchestrator.runStochasticMode(config);
 
-    // Same seed should produce identical results
     expect(result1.irr.statistics.mean).toBe(result2.irr.statistics.mean);
     expect(result1.tvpi.statistics.mean).toBe(result2.tvpi.statistics.mean);
     expect(result1.seed).toBe(result2.seed);
   });
 
-  // @group integration - Requires database baseline data
   it('should produce different results with different seeds', async () => {
     const config1 = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: 111 });
     const config2 = createBaseConfig({ mode: 'stochastic', runs: 500, randomSeed: 222 });
@@ -206,13 +196,9 @@ describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
     orchestrator.reset(222);
     const result2 = await orchestrator.runStochasticMode(config2);
 
-    // Different seeds should produce different results
-    // (with high probability - exact equality is astronomically unlikely)
     expect(result1.seed).not.toBe(result2.seed);
-    // Note: means might be similar due to central limit theorem, so just check seeds differ
   });
 
-  // @group integration - Requires database baseline data
   it('should include scenarios array', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 500 });
     const result = await orchestrator.runStochasticMode(config);
@@ -221,12 +207,10 @@ describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
     expect(result.irr.scenarios.length).toBeGreaterThan(0);
   });
 
-  // @group integration - Requires database baseline data
   it('should calculate percentiles', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
 
-    // Percentiles should be monotonic
     expect(result.irr.percentiles.p5).toBeLessThanOrEqual(result.irr.percentiles.p25);
     expect(result.irr.percentiles.p25).toBeLessThanOrEqual(result.irr.percentiles.p50);
     expect(result.irr.percentiles.p50).toBeLessThanOrEqual(result.irr.percentiles.p75);
@@ -238,15 +222,13 @@ describe.skip('MonteCarloOrchestrator - Stochastic Mode', () => {
 // REPRODUCIBILITY VERIFICATION TESTS
 // =============================================================================
 
-// Note: Reproducibility tests require database access and are skipped in unit tests
-describe.skip('MonteCarloOrchestrator - Reproducibility Verification', () => {
+describe('MonteCarloOrchestrator - Reproducibility Verification', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
-    orchestrator = new MonteCarloOrchestrator(42);
+    orchestrator = new MonteCarloOrchestrator(42, fixtureDataSource);
   });
 
-  // @group integration - Requires database baseline data
   it('should verify reproducibility for same seed', async () => {
     const config = createBaseConfig({
       mode: 'stochastic',
@@ -261,7 +243,6 @@ describe.skip('MonteCarloOrchestrator - Reproducibility Verification', () => {
     expect(verification.run1Hash).toBe(verification.run2Hash);
   });
 
-  // @group integration - Requires database baseline data
   it('should return hash comparison', async () => {
     const config = createBaseConfig({
       mode: 'stochastic',
@@ -297,10 +278,10 @@ describe('MonteCarloOrchestrator - Run Method Dispatch', () => {
     expect((result as ExpectationModeResult).expectedIRR).toBeDefined();
   });
 
-  // @group integration - Requires database baseline data
-  it.skip('should dispatch to stochastic mode', async () => {
+  it('should dispatch to stochastic mode', async () => {
+    const stochasticOrchestrator = new MonteCarloOrchestrator(42, fixtureDataSource);
     const config = createBaseConfig({ mode: 'stochastic', runs: 500 });
-    const result = await orchestrator.run(config);
+    const result = await stochasticOrchestrator.run(config);
 
     expect(result.mode).toBe('stochastic');
     expect((result as StochasticModeResult).seed).toBeDefined();
@@ -318,10 +299,10 @@ describe('MonteCarloOrchestrator - Edge Cases', () => {
     orchestrator = new MonteCarloOrchestrator(42);
   });
 
-  // @group integration - Requires database baseline data
-  it.skip('should handle minimum runs', async () => {
+  it('should handle minimum runs', async () => {
+    const stochasticOrchestrator = new MonteCarloOrchestrator(42, fixtureDataSource);
     const config = createBaseConfig({ mode: 'stochastic', runs: 100 });
-    const result = await orchestrator.runStochasticMode(config);
+    const result = await stochasticOrchestrator.runStochasticMode(config);
 
     expect(result).toBeDefined();
     expect(result.irr.scenarios.length).toBeGreaterThanOrEqual(100);
@@ -364,16 +345,13 @@ describe('MonteCarloOrchestrator - Edge Cases', () => {
 // DISTRIBUTION VALIDITY TESTS (Pre-Task 2.7)
 // =============================================================================
 
-// Note: Distribution validity tests require database access and are skipped in unit tests
-// These will be properly tested in Task 2.7 with full integration tests
-describe.skip('MonteCarloOrchestrator - Distribution Validity', () => {
+describe('MonteCarloOrchestrator - Distribution Validity', () => {
   let orchestrator: MonteCarloOrchestrator;
 
   beforeEach(() => {
-    orchestrator = new MonteCarloOrchestrator(42);
+    orchestrator = new MonteCarloOrchestrator(42, fixtureDataSource);
   });
 
-  // @group integration - Requires database baseline data (Task 2.7)
   it('should produce valid percentile monotonicity', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
@@ -387,7 +365,6 @@ describe.skip('MonteCarloOrchestrator - Distribution Validity', () => {
     }
   });
 
-  // @group integration - Requires database baseline data (Task 2.7)
   it('should produce positive multiples', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);
@@ -396,7 +373,6 @@ describe.skip('MonteCarloOrchestrator - Distribution Validity', () => {
     expect(result.multiple.statistics.min).toBeGreaterThanOrEqual(0);
   });
 
-  // @group integration - Requires database baseline data (Task 2.7)
   it('should produce reasonable mean values', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 2000 });
     const result = await orchestrator.runStochasticMode(config);
@@ -409,7 +385,6 @@ describe.skip('MonteCarloOrchestrator - Distribution Validity', () => {
     expect(result.multiple.statistics.mean).toBeGreaterThan(0);
   });
 
-  // @group integration - Requires database baseline data (Task 2.7)
   it('should have consistent confidence intervals', async () => {
     const config = createBaseConfig({ mode: 'stochastic', runs: 1000 });
     const result = await orchestrator.runStochasticMode(config);

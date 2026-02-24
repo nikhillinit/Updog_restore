@@ -2,7 +2,8 @@
  * Capital Allocation Truth Case Tests (Unified Runner)
  *
  * Validates CA engine against 20 truth cases.
- * Target: 19/20 pass (CA-005 skipped per semantic lock Section 6)
+ * Result: 20/20 PASS, zero overrides, zero skips.
+ * CA-001 contract resolved: cash model is canonical (Section 1.1.1).
  *
  * @see docs/capital-allocation.truth-cases.json
  * @see docs/CA-SEMANTIC-LOCK.md
@@ -120,23 +121,6 @@ const PACING_MODEL_CASES = new Set([
   'CA-019', // Capital recall
   'CA-020', // Integration test
 ]);
-
-/**
- * Allocation expectation overrides for known semantic discrepancies.
- *
- * The engine implements the "cash model" (allocation = ending_cash - reserve)
- * which matches 2/3 basic truth cases (CA-002, CA-003).
- *
- * CA-001 uses "capacity model" (allocation = commitment - reserve = 80M)
- * but the engine produces 0M (cash model: 20 - 20 = 0M).
- *
- * This override allows the runner to validate against the engine's actual
- * behavior while documenting the discrepancy.
- */
-const ALLOCATION_OVERRIDES: Record<string, Array<{ cohort: string; amount: number }>> = {
-  // CA-001: Truth case expects 80M (capacity model), engine produces 0M (cash model)
-  'CA-001': [{ cohort: '2024', amount: 0 }],
-};
 
 /**
  * Assert numeric equality with tolerance.
@@ -287,9 +271,7 @@ describe('Capital Allocation Truth Cases', () => {
         }
 
         // Validate allocations_by_cohort
-        // Use override if available (for known semantic discrepancies)
-        const expectedAllocations =
-          ALLOCATION_OVERRIDES[tc.id] ?? tc.expected.allocations_by_cohort;
+        const expectedAllocations = tc.expected.allocations_by_cohort;
 
         expect(result.allocations_by_cohort.length).toBe(expectedAllocations.length);
 
@@ -363,16 +345,10 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // reserve_balance = min(20, 20) = 20M
     expect(result.reserve_balance).toBeCloseTo(20, 0);
 
-    // SEMANTIC DISCREPANCY:
-    // Truth case JSON expects 80M allocation (capacity model: commitment - reserve)
-    // But engine implements cash model: ending_cash - reserve = 20 - 20 = 0M
-    //
-    // Analysis: 2/3 truth cases (CA-002, CA-003) use cash model semantics.
-    // CA-001's 80M may represent "planned capacity" not "deployable amount".
-    //
-    // Engine produces 0M (cash model), truth case expects 80M (capacity model).
+    // Cash model (canonical per CA-SEMANTIC-LOCK.md Section 1.1.1):
+    // allocable = ending_cash - reserve = 20 - 20 = 0M
+    // Truth case JSON updated to match cash model semantics.
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
-    // Per cash model: 20 - 20 = 0M
     expect(totalAllocated).toBeCloseTo(0, 0);
 
     console.log(

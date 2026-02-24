@@ -47,12 +47,12 @@
       "allocations_by_cohort": [
         {
           "cohort": "2024",
-          "amount": 80
+          "amount": 0
         }
       ],
       "violations": []
     },
-    "notes": "Baseline case: reserve reaches 20% target with no violations",
+    "notes": "Baseline case: reserve reaches 20% target. Cash model: ending_cash (20M) - reserve (20M) = 0M allocable. Capacity model would yield 80M but cash model is canonical per CA-SEMANTIC-LOCK.md Section 1.1.1.",
     "schemaVersion": "1.0.0"
   },
   {

@@ -12,7 +12,11 @@
  * @version 1.0
  */
 
-import type { SimulationConfig, SimulationResults } from './monte-carlo-engine';
+import type {
+  SimulationConfig,
+  SimulationResults,
+  MonteCarloDataSource,
+} from './monte-carlo-engine';
 import { MonteCarloEngine } from './monte-carlo-engine';
 import { PRNG } from '@shared/utils/prng';
 
@@ -73,11 +77,13 @@ export interface ConvergenceTestResult {
 export class MonteCarloOrchestrator {
   private engine: MonteCarloEngine;
   private prng: PRNG;
+  private dataSource: MonteCarloDataSource | undefined;
   private readonly modelVersion = '2.0.0';
 
-  constructor(seed?: number) {
+  constructor(seed?: number, dataSource?: MonteCarloDataSource) {
     this.prng = new PRNG(seed);
-    this.engine = new MonteCarloEngine(seed);
+    this.dataSource = dataSource;
+    this.engine = new MonteCarloEngine(seed, dataSource);
   }
 
   /**
@@ -272,7 +278,7 @@ export class MonteCarloOrchestrator {
   reset(seed?: number): void {
     const effectiveSeed = seed ?? Date.now();
     this.prng.reset(effectiveSeed);
-    this.engine = new MonteCarloEngine(effectiveSeed);
+    this.engine = new MonteCarloEngine(effectiveSeed, this.dataSource);
   }
 
   // ============================================================================
@@ -387,6 +393,9 @@ export class MonteCarloOrchestrator {
 }
 
 // Export singleton factory
-export function createMonteCarloOrchestrator(seed?: number): MonteCarloOrchestrator {
-  return new MonteCarloOrchestrator(seed);
+export function createMonteCarloOrchestrator(
+  seed?: number,
+  dataSource?: MonteCarloDataSource
+): MonteCarloOrchestrator {
+  return new MonteCarloOrchestrator(seed, dataSource);
 }
