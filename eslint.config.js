@@ -16,6 +16,7 @@ const __dirname = path.dirname(__filename);
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
 const noDbImportInSkippedTests = require('./eslint-rules/no-db-import-in-skipped-tests.cjs');
+const warnStaleSkips = require('./eslint-rules/warn-stale-skips.cjs');
 const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
 
 // Boundary enforcement rules for server/client/shared separation
@@ -169,6 +170,7 @@ export default [
         rules: {
           'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
           'no-db-import-in-skipped-tests': noDbImportInSkippedTests,
+          'warn-stale-skips': warnStaleSkips,
         },
       },
       'povc-security': povcSecurityPlugin,
@@ -416,6 +418,8 @@ export default [
       '@typescript-eslint/no-unsafe-argument': 'off',
       // Prevent pool creation at import time in skipped tests (Phase 5 regression gate)
       'custom/no-db-import-in-skipped-tests': 'error',
+      // Surface stale .skip() annotations -- add "// SKIP: reason" to suppress
+      'custom/warn-stale-skips': 'warn',
     },
   },
   // Security test files - allow testing dangerous patterns

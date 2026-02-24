@@ -1,16 +1,8 @@
 /**
- * @quarantine
- * @owner @qa-team
- * @reason Temporarily skipped pending stabilization triage.
- * @exitCriteria Remove skip and re-enable once deterministic behavior or required test infrastructure is available.
- * @addedDate 2026-02-17
- */
-
-/**
  * Core Validation Test for 2024-2025 Market Parameters
  *
- * This test validates just the core logic of our investment strategy builder
- * and power law distribution without requiring full database/server setup.
+ * Validates investment strategy builder and power law distribution.
+ * Pure compute -- no DB dependency. Quarantine removed 2026-02-24.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -23,7 +15,7 @@ import {
   createVCPowerLawDistribution,
 } from '../../server/services/power-law-distribution';
 
-describe.skip('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
+describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
   // 2024-2025 Market Constants
   const MARKET_2025_CONFIG = {
     SERIES_A_GRADUATION_RATE: 18, // Down from pre-2020 ~40%
@@ -386,7 +378,7 @@ describe.skip('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () =>
 
     it('should handle higher reserve allocation for current market conditions', () => {
       const strategyInputs: StrategyInputs = {
-        stages: [{ id: 'seed', name: 'Seed', graduate: 18, exit: 12, months: 25 }],
+        stages: [{ id: 'seed', name: 'Seed', graduate: 0, exit: 12, months: 25 }],
         sectorProfiles: [
           { id: 'tech', name: 'Technology', targetPercentage: 100, description: 'Technology' },
         ],
