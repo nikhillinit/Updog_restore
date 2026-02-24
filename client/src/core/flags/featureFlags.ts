@@ -29,6 +29,11 @@ export const FLAGS = {
   // GP Modernization flags
   ONBOARDING_TOUR: getFlag('VITE_ONBOARDING_TOUR', 'FF_ONBOARDING_TOUR'),
   UI_CATALOG: getAdminFlag('VITE_UI_CATALOG'), // Admin flag - no localStorage override
+  // Engine integration (wizard -> reserve/pacing engines)
+  ENABLE_ENGINE_INTEGRATION: getFlag(
+    'VITE_ENABLE_ENGINE_INTEGRATION',
+    'FF_ENABLE_ENGINE_INTEGRATION'
+  ),
 } as const;
 
 export type Flags = typeof FLAGS;

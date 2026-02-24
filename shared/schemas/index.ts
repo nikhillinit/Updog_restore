@@ -23,5 +23,8 @@ export * from './parse-stage-distribution';
 // Portfolio optimization schemas
 export * from './portfolio-optimization';
 
+// Engine results schemas
+export * from './engine-results-schema';
+
 // Re-export Decimal for convenience
 export { Decimal } from 'decimal.js';

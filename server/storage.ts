@@ -139,6 +139,7 @@ export class MemStorage implements IStorage {
       carryPercentage: '0.20',
       vintageYear: 2020,
       status: 'active',
+      engineResults: null,
       createdAt: new Date(),
     };
     this.funds.set(1, sampleFund);
@@ -289,6 +290,7 @@ export class MemStorage implements IStorage {
       carryPercentage: String(insertFund.carryPercentage),
       vintageYear: insertFund.vintageYear,
       status: 'active', // Default value from schema
+      engineResults: insertFund.engineResults ?? null,
       createdAt: new Date(),
     };
     this.funds.set(id, fund);
@@ -495,6 +497,7 @@ export class DatabaseStorage implements IStorage {
         managementFee: insertFund.managementFee.toString(),
         carryPercentage: insertFund.carryPercentage.toString(),
         vintageYear: insertFund.vintageYear,
+        ...(insertFund.engineResults != null && { engineResults: insertFund.engineResults }),
       })
       .returning();
     if (!fund) throw new Error('Failed to create fund');
