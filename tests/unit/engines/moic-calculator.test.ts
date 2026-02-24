@@ -475,4 +475,135 @@ describe('MOICCalculator', () => {
       expect(portfolio[2].name).toBe('Gamma Bio');
     });
   });
+
+  /**
+   * Ranking Robustness Invariant (Phase 2, Workstream D)
+   *
+   * For adjacent ranks with gap g > T, a perturbation delta < g/2
+   * must not flip the ordering. Near-tie pairs (gap <= T) are excluded
+   * from strict ordering assertions.
+   */
+  describe('rankByReservesMOIC perturbation stability', () => {
+    const GAP_THRESHOLD = 0.1; // T: minimum gap to assert stability
+
+    it('small perturbation does not flip well-separated ranks', () => {
+      // Reserves MOIC values: high=3.0, mid=2.0, low=1.0 (gaps of 1.0 each)
+      const investments: Investment[] = [
+        createTestInvestment({
+          id: 'low',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 2.0,
+          exitProbability: 0.5, // Reserves MOIC = 2.0 * 0.5 = 1.0
+        }),
+        createTestInvestment({
+          id: 'high',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 6.0,
+          exitProbability: 0.5, // Reserves MOIC = 6.0 * 0.5 = 3.0
+        }),
+        createTestInvestment({
+          id: 'mid',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 4.0,
+          exitProbability: 0.5, // Reserves MOIC = 4.0 * 0.5 = 2.0
+        }),
+      ];
+
+      const baseline = MOICCalculator.rankByReservesMOIC(investments);
+
+      // Verify baseline order: high(3.0) > mid(2.0) > low(1.0)
+      expect(baseline[0].investment.id).toBe('high');
+      expect(baseline[1].investment.id).toBe('mid');
+      expect(baseline[2].investment.id).toBe('low');
+
+      // For each adjacent pair, check perturbation stability
+      for (let i = 0; i < baseline.length - 1; i++) {
+        const upperMOIC = baseline[i].reservesMOIC.value!;
+        const lowerMOIC = baseline[i + 1].reservesMOIC.value!;
+        const gap = upperMOIC - lowerMOIC;
+
+        if (gap <= GAP_THRESHOLD) continue; // Skip near-tie pairs
+
+        // Perturb the lower-ranked investment upward by gap/2 - epsilon
+        const perturbDelta = gap / 2 - 0.01;
+        const lowerInv = baseline[i + 1].investment;
+
+        // New exit multiple that adds perturbDelta to the reserves MOIC
+        // reservesMOIC = reserves * exitMultiple * exitProb / reserves = exitMultiple * exitProb
+        // So to add perturbDelta: newMultiple = (lowerMOIC + perturbDelta) / exitProb
+        const perturbedMultiple = (lowerMOIC + perturbDelta) / lowerInv.exitProbability;
+
+        const perturbedInvestments = investments.map((inv) =>
+          inv.id === lowerInv.id
+            ? createTestInvestment({ ...inv, reserveExitMultiple: perturbedMultiple })
+            : inv
+        );
+
+        const perturbed = MOICCalculator.rankByReservesMOIC(perturbedInvestments);
+
+        // The higher-ranked investment should still be ranked above
+        const upperIdx = perturbed.findIndex((r) => r.investment.id === baseline[i].investment.id);
+        const lowerIdx = perturbed.findIndex((r) => r.investment.id === lowerInv.id);
+        expect(upperIdx).toBeLessThan(lowerIdx);
+      }
+    });
+
+    it('perturbation exceeding gap DOES flip ranks (sanity check)', () => {
+      const investments: Investment[] = [
+        createTestInvestment({
+          id: 'a',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 4.0,
+          exitProbability: 0.5, // Reserves MOIC = 2.0
+        }),
+        createTestInvestment({
+          id: 'b',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 6.0,
+          exitProbability: 0.5, // Reserves MOIC = 3.0
+        }),
+      ];
+
+      const baseline = MOICCalculator.rankByReservesMOIC(investments);
+      expect(baseline[0].investment.id).toBe('b'); // 3.0 ranked first
+
+      // Boost 'a' past 'b': new MOIC > 3.0 → exitMultiple > 6.0
+      const flippedInvestments = investments.map((inv) =>
+        inv.id === 'a'
+          ? createTestInvestment({ ...inv, reserveExitMultiple: 8.0 }) // MOIC = 4.0
+          : inv
+      );
+
+      const flipped = MOICCalculator.rankByReservesMOIC(flippedInvestments);
+      expect(flipped[0].investment.id).toBe('a'); // Now ranked first
+    });
+
+    it('near-tie pairs are not asserted for strict ordering', () => {
+      // Two investments with reserves MOIC difference < GAP_THRESHOLD
+      const investments: Investment[] = [
+        createTestInvestment({
+          id: 'x',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 4.0,
+          exitProbability: 0.5, // MOIC = 2.0
+        }),
+        createTestInvestment({
+          id: 'y',
+          plannedReserves: 100_000,
+          reserveExitMultiple: 4.15,
+          exitProbability: 0.5, // MOIC = 2.075 → gap = 0.075 < 0.1
+        }),
+      ];
+
+      const ranked = MOICCalculator.rankByReservesMOIC(investments);
+
+      // Both should appear in results, but we don't assert strict order
+      // because the gap is within the tie threshold
+      const gap = Math.abs(
+        (ranked[0].reservesMOIC.value ?? 0) - (ranked[1].reservesMOIC.value ?? 0)
+      );
+      expect(gap).toBeLessThanOrEqual(GAP_THRESHOLD);
+      expect(ranked).toHaveLength(2);
+    });
+  });
 });

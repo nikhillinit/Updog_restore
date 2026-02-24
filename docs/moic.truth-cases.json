@@ -1,0 +1,173 @@
+[
+  {
+    "id": "MOIC-001",
+    "variant": "current",
+    "description": "Basic current MOIC: 2x return on $1M invested",
+    "input": {
+      "initialInvestment": 500000,
+      "followOnInvestment": 500000,
+      "currentValuation": 2000000,
+      "projectedExitValue": 3000000,
+      "exitProbability": 0.7,
+      "plannedReserves": 200000,
+      "reserveExitMultiple": 3.0
+    },
+    "expected": { "currentMOIC": 2.0 },
+    "derivation": "currentValuation / (initial + followOn) = 2,000,000 / (500,000 + 500,000) = 2.0"
+  },
+  {
+    "id": "MOIC-002",
+    "variant": "current",
+    "description": "Zero follow-on: current MOIC on initial only",
+    "input": {
+      "initialInvestment": 250000,
+      "followOnInvestment": 0,
+      "currentValuation": 750000,
+      "projectedExitValue": 1000000,
+      "exitProbability": 0.6,
+      "plannedReserves": 0,
+      "reserveExitMultiple": 0
+    },
+    "expected": { "currentMOIC": 3.0 },
+    "derivation": "750,000 / (250,000 + 0) = 3.0"
+  },
+  {
+    "id": "MOIC-003",
+    "variant": "exit",
+    "description": "Exit MOIC without probability weighting",
+    "input": {
+      "initialInvestment": 1000000,
+      "followOnInvestment": 500000,
+      "currentValuation": 2000000,
+      "projectedExitValue": 6000000,
+      "exitProbability": 0.8,
+      "plannedReserves": 300000,
+      "reserveExitMultiple": 2.5
+    },
+    "expected": { "exitMOIC": 4.0, "exitMOICWeighted": 3.2 },
+    "derivation": "Unweighted: 6,000,000 / 1,500,000 = 4.0. Weighted: (6,000,000 * 0.8) / 1,500,000 = 3.2"
+  },
+  {
+    "id": "MOIC-004",
+    "variant": "initial",
+    "description": "Initial MOIC: pro-rata value attribution to initial check",
+    "input": {
+      "initialInvestment": 200000,
+      "followOnInvestment": 800000,
+      "currentValuation": 5000000,
+      "projectedExitValue": 8000000,
+      "exitProbability": 0.9,
+      "plannedReserves": 100000,
+      "reserveExitMultiple": 4.0
+    },
+    "expected": { "initialMOIC": 5.0 },
+    "derivation": "initialShare = 200,000 / 1,000,000 = 0.2. initialValue = 5,000,000 * 0.2 = 1,000,000. MOIC = 1,000,000 / 200,000 = 5.0"
+  },
+  {
+    "id": "MOIC-005",
+    "variant": "followOn",
+    "description": "Follow-on MOIC: pro-rata value attribution to follow-ons",
+    "input": {
+      "initialInvestment": 200000,
+      "followOnInvestment": 800000,
+      "currentValuation": 5000000,
+      "projectedExitValue": 8000000,
+      "exitProbability": 0.9,
+      "plannedReserves": 100000,
+      "reserveExitMultiple": 4.0
+    },
+    "expected": { "followOnMOIC": 5.0 },
+    "derivation": "followOnShare = 800,000 / 1,000,000 = 0.8. followOnValue = 5,000,000 * 0.8 = 4,000,000. MOIC = 4,000,000 / 800,000 = 5.0"
+  },
+  {
+    "id": "MOIC-006",
+    "variant": "reserves",
+    "description": "Reserves MOIC with probability weighting",
+    "input": {
+      "initialInvestment": 500000,
+      "followOnInvestment": 200000,
+      "currentValuation": 1400000,
+      "projectedExitValue": 3000000,
+      "exitProbability": 0.5,
+      "plannedReserves": 300000,
+      "reserveExitMultiple": 4.0
+    },
+    "expected": { "reservesMOIC": 2.0, "reservesMOICUnweighted": 4.0 },
+    "derivation": "Weighted: (300,000 * 4.0 * 0.5) / 300,000 = 2.0. Unweighted: (300,000 * 4.0) / 300,000 = 4.0"
+  },
+  {
+    "id": "MOIC-007",
+    "variant": "opportunityCost",
+    "description": "Opportunity cost MOIC vs 1.02x treasury benchmark",
+    "input": {
+      "initialInvestment": 1000000,
+      "followOnInvestment": 0,
+      "currentValuation": 3000000,
+      "projectedExitValue": 5000000,
+      "exitProbability": 0.7,
+      "plannedReserves": 0,
+      "reserveExitMultiple": 0
+    },
+    "expected": { "opportunityCostMOIC": 1.98 },
+    "derivation": "actualMOIC = 3,000,000 / 1,000,000 = 3.0. opportunityCost = 3.0 - 1.02 = 1.98",
+    "alternativeReturnRate": 1.02
+  },
+  {
+    "id": "MOIC-008",
+    "variant": "blended",
+    "description": "Blended MOIC across 3-company portfolio",
+    "input": {
+      "portfolio": [
+        {
+          "initialInvestment": 500000,
+          "followOnInvestment": 0,
+          "currentValuation": 1500000
+        },
+        {
+          "initialInvestment": 1000000,
+          "followOnInvestment": 500000,
+          "currentValuation": 3000000
+        },
+        {
+          "initialInvestment": 250000,
+          "followOnInvestment": 250000,
+          "currentValuation": 0
+        }
+      ]
+    },
+    "expected": { "blendedMOIC": 1.8 },
+    "derivation": "Co1: invested=500K, MOIC=3.0. Co2: invested=1.5M, MOIC=2.0. Co3: invested=500K, MOIC=0. Weighted = (500K*3.0 + 1.5M*2.0 + 500K*0) / (500K + 1.5M + 500K) = (1.5M + 3M + 0) / 2.5M = 4.5M / 2.5M = 1.8"
+  },
+  {
+    "id": "MOIC-009",
+    "variant": "current",
+    "description": "Zero total investment returns null (division by zero guard)",
+    "input": {
+      "initialInvestment": 0,
+      "followOnInvestment": 0,
+      "currentValuation": 100000,
+      "projectedExitValue": 200000,
+      "exitProbability": 1.0,
+      "plannedReserves": 0,
+      "reserveExitMultiple": 0
+    },
+    "expected": { "currentMOIC": null },
+    "derivation": "100,000 / (0 + 0) = null (safeDiv returns null for zero denominator)"
+  },
+  {
+    "id": "MOIC-010",
+    "variant": "followOn",
+    "description": "No follow-on returns null",
+    "input": {
+      "initialInvestment": 500000,
+      "followOnInvestment": 0,
+      "currentValuation": 2000000,
+      "projectedExitValue": 3000000,
+      "exitProbability": 0.8,
+      "plannedReserves": 0,
+      "reserveExitMultiple": 0
+    },
+    "expected": { "followOnMOIC": null },
+    "derivation": "followOnInvestment = 0 -> returns null (no follow-on investment made)"
+  }
+]

@@ -414,30 +414,15 @@ function deriveEndDate(input: TruthCaseInput): string {
 }
 
 // =============================================================================
-// CA-005 Skip Gate
+// Skip Gate
 // =============================================================================
 
 /**
- * Pacing model cases with inconsistent truth case semantics.
- *
- * Per Codex analysis (2026-01-21): Truth cases mix gross and net pacing semantics.
- * - CA-008 uses gross pacing (commitment / window) - passes with current engine
- * - CA-009/010/012 have mixed semantics that don't match either gross or net pacing
- *
- * Engine uses gross pacing for pacing_engine category (matches CA-008).
- * These cases need truth case corrections before enabling.
- *
- * @see docs/CA-SEMANTIC-LOCK.md Section 7 (pending)
- */
-const PACING_MODEL_DEFERRED_CASES = new Set([
-  'CA-009', // Quarterly pacing - truth case allocation doesn't match gross or net pacing
-  'CA-010', // Front-loaded pipeline - 3M expected vs 2.5M (gross) or 2M (net)
-  'CA-012', // Window comparison - targets are gross but allocation is net-based
-]);
-
-/**
  * Check if a truth case should be skipped.
- * Per FOUNDATION-HARDENING-EXECUTION-PLAN.md: Pacing model cases deferred.
+ *
+ * CA-009/010/012 pacing cases: UNDEFERRED (2026-02-22).
+ * Truth case expected values corrected to match gross pacing semantics.
+ * @see docs/CA-PACING-ORACLE.md for derivations.
  *
  * CA-005 (dynamic_ratio) is now implemented - NAV-based reserve calculation.
  */
@@ -445,18 +430,9 @@ export function shouldSkipTruthCase(
   caseId: string,
   _reservePolicy?: string
 ): { skip: boolean; reason?: string } {
-  // CA-005 (dynamic_ratio) is now implemented - no longer skipped
-
-  // Pacing model cases - truth cases have inconsistent semantics
-  if (PACING_MODEL_DEFERRED_CASES.has(caseId)) {
-    return {
-      skip: true,
-      reason:
-        `${caseId} deferred: truth case semantics inconsistent (gross vs net pacing). ` +
-        'See adapter.ts PACING_MODEL_DEFERRED_CASES for details.',
-    };
-  }
-
+  // All pacing cases now pass with corrected truth case values.
+  // No cases are currently deferred.
+  void caseId; // preserve signature for callers
   return { skip: false };
 }
 
