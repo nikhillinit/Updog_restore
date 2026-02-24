@@ -77,7 +77,7 @@ export interface ConvergenceTestResult {
 export class MonteCarloOrchestrator {
   private engine: MonteCarloEngine;
   private prng: PRNG;
-  private dataSource?: MonteCarloDataSource;
+  private dataSource: MonteCarloDataSource | undefined;
   private readonly modelVersion = '2.0.0';
 
   constructor(seed?: number, dataSource?: MonteCarloDataSource) {
