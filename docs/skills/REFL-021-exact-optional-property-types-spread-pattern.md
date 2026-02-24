@@ -58,6 +58,38 @@ object.
 - `client/src/components/pipeline/AddDealModal.tsx` (fundId prop)
 - `client/src/components/pipeline/ImportDealsModal.tsx` (fundId prop)
 
+## Class Fields Variant (TS2412)
+
+The same rule applies to class fields. `private field?: T` means the property
+can be absent on the instance, but you cannot assign `undefined` to it:
+
+```typescript
+// ANTI-PATTERN: TS2412 under exactOptionalPropertyTypes
+class MyService {
+  private dataSource?: MonteCarloDataSource; // "absent" not "undefined"
+
+  constructor(dataSource?: MonteCarloDataSource) {
+    this.dataSource = dataSource; // TS2412: undefined not assignable
+  }
+}
+
+// FIX: use explicit union type
+class MyService {
+  private dataSource: MonteCarloDataSource | undefined;
+
+  constructor(dataSource?: MonteCarloDataSource) {
+    this.dataSource = dataSource; // OK: undefined is in the union
+  }
+}
+```
+
+**Detection note:** Local `npx tsc --noEmit` may PASS because it compiles the
+full project as one unit. The pre-push baseline hook compiles
+client/server/shared separately and catches TS2412. Always trust the baseline
+over local tsc.
+
+**Source:** `server/services/monte-carlo-orchestrator.ts:85`, fixed 2026-02-24.
+
 ## Related
 
 - REFL-008: TypeScript type inference from database schemas
