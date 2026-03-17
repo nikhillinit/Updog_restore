@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Benchmarking Dashboard
  *
@@ -31,11 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Search,
-  Settings,
-  Info
-} from 'lucide-react';
+import { Search, Settings, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 // Mock data - in real app, this would come from API
@@ -57,8 +52,8 @@ const PORTFOLIO_COMPANIES = [
       grossMargin: 79,
       operatingMargin: 93,
       burnRate: 55,
-      runway: 68
-    }
+      runway: 68,
+    },
   },
   {
     id: 2,
@@ -77,8 +72,8 @@ const PORTFOLIO_COMPANIES = [
       grossMargin: 70,
       operatingMargin: 40,
       burnRate: 75,
-      runway: 80
-    }
+      runway: 80,
+    },
   },
   {
     id: 3,
@@ -97,9 +92,9 @@ const PORTFOLIO_COMPANIES = [
       grossMargin: 30,
       operatingMargin: 91,
       burnRate: 50,
-      runway: 60
-    }
-  }
+      runway: 60,
+    },
+  },
 ];
 
 const BENCHMARK_DATA = [
@@ -108,29 +103,29 @@ const BENCHMARK_DATA = [
     portfolioMedian: 35,
     globalMedian: 28,
     portfolioCount: 21,
-    globalCount: 7500
+    globalCount: 7500,
   },
   {
     metric: 'Gross Margin',
     portfolioMedian: 75,
     globalMedian: 65,
     portfolioCount: 21,
-    globalCount: 7500
+    globalCount: 7500,
   },
   {
     metric: 'Operating Margin',
     portfolioMedian: -24,
     globalMedian: -18,
     portfolioCount: 21,
-    globalCount: 7500
+    globalCount: 7500,
   },
   {
     metric: 'Burn Rate',
     portfolioMedian: -566000,
     globalMedian: -420000,
     portfolioCount: 21,
-    globalCount: 7500
-  }
+    globalCount: 7500,
+  },
 ];
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
@@ -159,14 +154,14 @@ export default function BenchmarkingDashboard() {
   };
 
   // Portfolio Quartile Ranking Radar Chart
-  const renderRadarChart = (company: typeof PORTFOLIO_COMPANIES[0]) => {
+  const renderRadarChart = (company: (typeof PORTFOLIO_COMPANIES)[0]) => {
     const radarData = [
       { metric: 'Revenue', value: company.percentiles.revenue, fullMark: 100 },
       { metric: 'Revenue Growth', value: company.percentiles.revenueGrowth, fullMark: 100 },
       { metric: 'Gross Margin', value: company.percentiles.grossMargin, fullMark: 100 },
       { metric: 'Operating Margin', value: company.percentiles.operatingMargin, fullMark: 100 },
       { metric: 'Burn Rate', value: company.percentiles.burnRate, fullMark: 100 },
-      { metric: 'Runway', value: company.percentiles.runway, fullMark: 100 }
+      { metric: 'Runway', value: company.percentiles.runway, fullMark: 100 },
     ];
 
     return (
@@ -189,7 +184,7 @@ export default function BenchmarkingDashboard() {
   };
 
   // Performance Score Card
-  const renderScorecard = (company: typeof PORTFOLIO_COMPANIES[0]) => {
+  const renderScorecard = (company: (typeof PORTFOLIO_COMPANIES)[0]) => {
     const getPerformanceColor = (percentile: number) => {
       if (percentile >= 75) return 'text-green-600 bg-green-100';
       if (percentile >= 50) return 'text-blue-600 bg-blue-100';
@@ -226,14 +221,36 @@ export default function BenchmarkingDashboard() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { label: 'Revenue', value: company.revenue, percentile: company.percentiles.revenue },
-                { label: 'Revenue Growth', value: `${company.revenueGrowth}%`, percentile: company.percentiles.revenueGrowth },
-                { label: 'Gross Margin', value: `${company.grossMargin}%`, percentile: company.percentiles.grossMargin },
-                { label: 'Operating Margin', value: `${company.operatingMargin}%`, percentile: company.percentiles.operatingMargin },
-                { label: 'Runway', value: `${company.runway} Mo.`, percentile: company.percentiles.runway }
-              ].map((item: any, index: any) => (
+                {
+                  label: 'Revenue',
+                  value: company.revenue,
+                  percentile: company.percentiles.revenue,
+                },
+                {
+                  label: 'Revenue Growth',
+                  value: `${company.revenueGrowth}%`,
+                  percentile: company.percentiles.revenueGrowth,
+                },
+                {
+                  label: 'Gross Margin',
+                  value: `${company.grossMargin}%`,
+                  percentile: company.percentiles.grossMargin,
+                },
+                {
+                  label: 'Operating Margin',
+                  value: `${company.operatingMargin}%`,
+                  percentile: company.percentiles.operatingMargin,
+                },
+                {
+                  label: 'Runway',
+                  value: `${company.runway} Mo.`,
+                  percentile: company.percentiles.runway,
+                },
+              ].map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
-                  <div className="text-sm">{item.label} {item.value}</div>
+                  <div className="text-sm">
+                    {item.label} {item.value}
+                  </div>
                   <Badge className={`${getPerformanceColor(item.percentile)} border-0`}>
                     {item.percentile}th %tile
                   </Badge>
@@ -252,7 +269,9 @@ export default function BenchmarkingDashboard() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Benchmarks</h2>
-          <p className="text-gray-600">Compare your portfolio companies against industry benchmarks</p>
+          <p className="text-gray-600">
+            Compare your portfolio companies against industry benchmarks
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -325,9 +344,7 @@ export default function BenchmarkingDashboard() {
                 <div className="text-sm text-gray-500">Q4 2024</div>
               </div>
             </CardHeader>
-            <CardContent>
-              {renderBenchmarkChart()}
-            </CardContent>
+            <CardContent>{renderBenchmarkChart()}</CardContent>
           </Card>
 
           {/* Standard Metrics Sidebar */}
@@ -344,9 +361,16 @@ export default function BenchmarkingDashboard() {
             <CardContent>
               <div className="space-y-2">
                 {[
-                  'Burn / FTE', 'Gross Margin', 'Headcount', 'Operating Margin',
-                  'Net Burn', 'Revenue', 'Revenue / FTE', 'Revenue Growth', 'Runway'
-                ].map((metric: any) => (
+                  'Burn / FTE',
+                  'Gross Margin',
+                  'Headcount',
+                  'Operating Margin',
+                  'Net Burn',
+                  'Revenue',
+                  'Revenue / FTE',
+                  'Revenue Growth',
+                  'Runway',
+                ].map((metric) => (
                   <div
                     key={metric}
                     className="p-2 text-sm border rounded cursor-pointer hover:bg-gray-50"
@@ -364,8 +388,8 @@ export default function BenchmarkingDashboard() {
           <div className="flex items-center gap-4">
             <Select
               value={selectedCompany?.id?.toString() ?? ''}
-              onValueChange={(value: any) => {
-                const company = PORTFOLIO_COMPANIES.find(c => c.id.toString() === value);
+              onValueChange={(value: string) => {
+                const company = PORTFOLIO_COMPANIES.find((c) => c.id.toString() === value);
                 if (company) setSelectedCompany(company);
               }}
             >
@@ -373,7 +397,7 @@ export default function BenchmarkingDashboard() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PORTFOLIO_COMPANIES.map((company: any) => (
+                {PORTFOLIO_COMPANIES.map((company) => (
                   <SelectItem key={company.id} value={company.id.toString()}>
                     {company.name}
                   </SelectItem>
@@ -414,16 +438,16 @@ export default function BenchmarkingDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Portfolio quartile ranking</CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">Chart shows company's metrics vs. peers.</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Chart shows company's metrics vs. peers.
+                    </p>
                   </div>
                   <Button variant="outline" size="sm">
                     Edit Chart
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                {selectedCompany && renderRadarChart(selectedCompany)}
-              </CardContent>
+              <CardContent>{selectedCompany && renderRadarChart(selectedCompany)}</CardContent>
             </Card>
           </div>
 
@@ -434,7 +458,7 @@ export default function BenchmarkingDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {PORTFOLIO_COMPANIES.map((company: any) => (
+                {PORTFOLIO_COMPANIES.map((company) => (
                   <div
                     key={company.id}
                     className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${
@@ -472,7 +496,7 @@ export default function BenchmarkingDashboard() {
                     Above Average
                   </Badge>
                 </div>
-                
+
                 {/* Performance Bar */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm text-gray-500">
@@ -503,7 +527,7 @@ export default function BenchmarkingDashboard() {
               <Input
                 placeholder="Search companies..."
                 value={searchTerm}
-                onChange={(e: any) => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-64"
               />
             </div>
@@ -527,9 +551,7 @@ export default function BenchmarkingDashboard() {
                 <SelectItem value="annual">Annual</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Add company
-            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700">Add company</Button>
           </div>
 
           {/* Companies Table */}
@@ -540,18 +562,40 @@ export default function BenchmarkingDashboard() {
                   <thead className="border-b">
                     <tr className="text-left">
                       <th className="p-4 font-medium text-gray-500 uppercase text-xs">Vendor</th>
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">Firm Sector</th>
-                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">Cash in Bank</th>
+                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">
+                        Firm Sector
+                      </th>
+                      <th className="p-4 font-medium text-gray-500 uppercase text-xs">
+                        Cash in Bank
+                      </th>
                       <th className="p-4 font-medium text-gray-500 uppercase text-xs">Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { name: 'Bike.Ai', sector: 'AI', cash: '$36M', revenue: '$51M', logo: '🚲' },
-                      { name: 'Stewart Gaming', sector: 'SaaS', cash: '$2M', revenue: '$551K', logo: '🎮' },
-                      { name: 'Dakarai', sector: 'FinTech', cash: '$18M', revenue: '$4M', logo: '🔺' },
-                      { name: 'Oceans Drone', sector: 'ClimateTech', cash: '$30K', revenue: '$47K', logo: '🌊' }
-                    ].map((company: any, index: any) => (
+                      { name: 'Bike.Ai', sector: 'AI', cash: '$36M', revenue: '$51M', logo: 'B' },
+                      {
+                        name: 'Stewart Gaming',
+                        sector: 'SaaS',
+                        cash: '$2M',
+                        revenue: '$551K',
+                        logo: 'S',
+                      },
+                      {
+                        name: 'Dakarai',
+                        sector: 'FinTech',
+                        cash: '$18M',
+                        revenue: '$4M',
+                        logo: 'D',
+                      },
+                      {
+                        name: 'Oceans Drone',
+                        sector: 'ClimateTech',
+                        cash: '$30K',
+                        revenue: '$47K',
+                        logo: 'O',
+                      },
+                    ].map((company, index) => (
                       <tr key={index} className="border-b hover:bg-gray-50">
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
