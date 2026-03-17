@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { useState } from 'react';
 import { generatePdf, downloadBlob } from '@/utils/pdf';
 import { TearSheetTemplate } from '@/utils/pdf/templates/TearSheetTemplate';
@@ -384,7 +384,7 @@ export default function TearSheetDashboard() {
         <div>
           <div className="text-gray-500 text-xs uppercase mb-2">Board Composition</div>
           <div className="flex flex-wrap gap-1">
-            {tearSheet.data.boardComposition.map((member: any, idx: any) => (
+            {tearSheet.data.boardComposition.map((member, idx) => (
               <Badge key={idx} variant="secondary" className="text-xs">
                 {member}
               </Badge>
@@ -396,7 +396,7 @@ export default function TearSheetDashboard() {
         <div>
           <div className="text-gray-500 text-xs uppercase mb-2">Co-Investors</div>
           <div className="flex flex-wrap gap-1">
-            {tearSheet.data.coInvestors.map((investor: any, idx: any) => (
+            {tearSheet.data.coInvestors.map((investor, idx) => (
               <Badge key={idx} variant="outline" className="text-xs">
                 {investor}
               </Badge>
@@ -408,7 +408,7 @@ export default function TearSheetDashboard() {
         <div className="flex items-center justify-between">
           <div className="text-gray-500 text-xs uppercase">Contact</div>
           <div className="flex items-center space-x-2">
-            {tearSheet.contacts.map((contact: any, idx: any) => (
+            {tearSheet.contacts.map((contact, idx) => (
               <div key={idx} className="flex items-center space-x-1">
                 <div className={`w-6 h-6 rounded-full ${contact.color} text-white text-xs flex items-center justify-center`}>
                   {contact.initial}
@@ -498,7 +498,7 @@ export default function TearSheetDashboard() {
           <Input
             placeholder="Search companies, sectors, or team members..."
             value={searchTerm}
-            onChange={(e: any) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -568,7 +568,7 @@ export default function TearSheetDashboard() {
               <label className="text-sm font-medium mb-2 block">Current Commentary</label>
               <Textarea
                 value={commentaryDraft}
-                onChange={(e: any) => setCommentaryDraft(e.target.value)}
+                onChange={(e) => setCommentaryDraft(e.target.value)}
                 placeholder="Enter your commentary about this company..."
                 rows={6}
               />
@@ -603,7 +603,7 @@ export default function TearSheetDashboard() {
           </DialogHeader>
           
           <div className="space-y-4">
-            {auditLog.map((entry: any) => (
+            {auditLog.map((entry) => (
               <div key={entry.id} className="border-l-4 border-blue-500 pl-4 py-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium">

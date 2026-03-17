@@ -1,14 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -40,15 +41,20 @@ interface ScenarioManagerProps {
   investmentId?: string;
 }
 
-export default function ScenarioManager({ scenarios, onScenariosChange, investmentId }: ScenarioManagerProps) {
+export default function ScenarioManager({
+  scenarios,
+  onScenariosChange,
+  investmentId,
+}: ScenarioManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [_selectedScenario, _setSelectedScenario] = useState<CapTableScenario | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredScenarios = scenarios.filter(scenario => {
-    const matchesSearch = scenario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         scenario.investmentCompany.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredScenarios = scenarios.filter((scenario) => {
+    const matchesSearch =
+      scenario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      scenario.investmentCompany.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || scenario.status === filterStatus;
     const matchesInvestment = !investmentId || scenario.investmentId === investmentId;
     return matchesSearch && matchesStatus && matchesInvestment;
@@ -65,10 +71,14 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'archived':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -86,7 +96,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
       totalSAFEs: data.totalSAFEs || 0,
       totalNotes: data.totalNotes || 0,
       dilution: data.dilution || 0,
-      ...(data.description !== undefined && { description: data.description })
+      ...(data.description !== undefined && { description: data.description }),
     };
 
     onScenariosChange([...scenarios, newScenario]);
@@ -100,22 +110,24 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
       name: `${scenario.name} (Copy)`,
       status: 'draft',
       lastModified: new Date().toISOString(),
-      createdBy: 'Current User'
+      createdBy: 'Current User',
     };
 
     onScenariosChange([...scenarios, duplicated]);
   };
 
   const handleDeleteScenario = (scenarioId: string) => {
-    onScenariosChange(scenarios.filter(s => s.id !== scenarioId));
+    onScenariosChange(scenarios.filter((s) => s.id !== scenarioId));
   };
 
   const handleStatusChange = (scenarioId: string, newStatus: CapTableScenario['status']) => {
-    onScenariosChange(scenarios.map(s => 
-      s.id === scenarioId 
-        ? { ...s, status: newStatus, lastModified: new Date().toISOString() }
-        : s
-    ));
+    onScenariosChange(
+      scenarios.map((s) =>
+        s.id === scenarioId
+          ? { ...s, status: newStatus, lastModified: new Date().toISOString() }
+          : s
+      )
+    );
   };
 
   return (
@@ -173,12 +185,16 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => handleCreateScenario({
-                  name: 'New Scenario',
-                  investmentCompany: 'Selected Company',
-                  preMoneyValuation: 15000000,
-                  roundSize: 5000000
-                })}>
+                <Button
+                  onClick={() =>
+                    handleCreateScenario({
+                      name: 'New Scenario',
+                      investmentCompany: 'Selected Company',
+                      preMoneyValuation: 15000000,
+                      roundSize: 5000000,
+                    })
+                  }
+                >
                   Create Scenario
                 </Button>
               </div>
@@ -192,7 +208,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
         <Input
           placeholder="Search scenarios..."
           value={searchTerm}
-          onChange={(e: any) => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -210,7 +226,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
 
       {/* Scenarios Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredScenarios.map((scenario: any) => (
+        {filteredScenarios.map((scenario) => (
           <Card key={scenario.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -219,12 +235,12 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
                   <p className="text-sm text-gray-600">{scenario.investmentCompany}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge className={getStatusColor(scenario.status)}>
-                    {scenario.status}
-                  </Badge>
+                  <Badge className={getStatusColor(scenario.status)}>{scenario.status}</Badge>
                   <Select
                     value={scenario.status}
-                    onValueChange={(value: any) => handleStatusChange(scenario.id, value as CapTableScenario['status'])}
+                    onValueChange={(value: string) =>
+                      handleStatusChange(scenario.id, value as CapTableScenario['status'])
+                    }
                   >
                     <SelectTrigger className="w-24 h-6 text-xs">
                       <SelectValue />
@@ -253,7 +269,9 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">SAFEs/Notes</p>
-                  <p className="font-medium">{formatCurrency(scenario.totalSAFEs + scenario.totalNotes)}</p>
+                  <p className="font-medium">
+                    {formatCurrency(scenario.totalSAFEs + scenario.totalNotes)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Dilution</p>
@@ -274,13 +292,21 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
 
               <div className="flex items-center justify-between pt-3 border-t">
                 <div className="flex items-center space-x-1">
-                  <Button size="sm" variant="ghost" onClick={() => handleDuplicateScenario(scenario)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDuplicateScenario(scenario)}
+                  >
                     <Copy className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost">
                     <Edit className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDeleteScenario(scenario.id)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteScenario(scenario.id)}
+                  >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -305,10 +331,9 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
             <Calculator className="mx-auto h-16 w-16 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium mb-2">No Scenarios Found</h3>
             <p className="text-gray-600 mb-6">
-              {searchTerm || filterStatus !== 'all' 
+              {searchTerm || filterStatus !== 'all'
                 ? 'No scenarios match your current filters.'
-                : 'Create your first cap table scenario to get started.'
-              }
+                : 'Create your first cap table scenario to get started.'}
             </p>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
