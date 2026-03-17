@@ -108,7 +108,7 @@ const useSharedDashboard = (shareId: string) => {
           // If passkey required and no fundId returned, need passkey verification
           if (body.share.requirePasskey && !body.share.fundId) {
             setRequiresPasskey(true);
-          } else {
+          } else if (body.share.fundId) {
             // No passkey required - fetch dashboard data
             await fetchDashboardData(body.share.fundId);
           }
@@ -149,7 +149,7 @@ const useSharedDashboard = (shareId: string) => {
           return false;
         }
 
-        if (body.success && body.share) {
+        if (body.success && body.share && body.share.fundId) {
           setShareData(body.share);
           setRequiresPasskey(false);
           await fetchDashboardData(body.share.fundId);
