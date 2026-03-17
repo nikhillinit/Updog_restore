@@ -20,6 +20,13 @@ import {
   FlaskConical,
 } from 'lucide-react';
 
+export interface NavigationItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  path?: string;
+}
+
 /**
  * 4-item simplified IA (NEW_IA enabled)
  * Codex-validated restructure - see DECISIONS.md
@@ -74,10 +81,10 @@ const FULL_NAV = [
 // - 'cap-tables' (not relevant for fund dashboard)
 // - 'kpi-manager' (moved to Settings page)
 
-export function getNavigationItems() {
+export function getNavigationItems(): NavigationItem[] {
   return FLAGS.NEW_IA ? SIMPLE_NAV : FULL_NAV;
 }
 
-export function getFooterNavigationItems() {
+export function getFooterNavigationItems(): NavigationItem[] {
   return FLAGS.NEW_IA ? FOOTER_NAV : [];
 }
