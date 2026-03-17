@@ -24,6 +24,36 @@ interface ShareData {
   customMessage?: string | null;
 }
 
+interface ShareApiResponse {
+  success?: boolean;
+  error?: string;
+  share?: ShareData;
+}
+
+interface DashboardApiResponse {
+  fund?: {
+    name?: string;
+    size?: string;
+    deployedCapital?: string;
+  };
+  summary?: {
+    currentIRR?: number;
+    totalCompanies?: number;
+  };
+  metrics?: {
+    irr?: number;
+    moic?: number;
+    dpi?: number;
+    rvpi?: number;
+  };
+  portfolioCompanies?: Array<{
+    name: string;
+    stage?: string;
+    moic?: number;
+    status?: string;
+  }>;
+}
+
 interface DashboardData {
   fundName: string;
   totalCommitments: number;
@@ -59,15 +89,15 @@ const useSharedDashboard = (shareId: string) => {
       try {
         setIsLoading(true);
         const response = await fetch(`/api/shares/${shareId}`);
-        const body = await response.json();
+        const body = (await response.json()) as ShareApiResponse;
 
         if (!response.ok) {
           if (response.status === 404) {
             setError('Share link not found');
           } else if (response.status === 410) {
-            setError(body.error || 'Share has expired or been revoked');
+            setError(body.error ?? 'Share has expired or been revoked');
           } else {
-            setError(body.error || 'Failed to load share');
+            setError(body.error ?? 'Failed to load share');
           }
           return;
         }
@@ -83,7 +113,7 @@ const useSharedDashboard = (shareId: string) => {
             await fetchDashboardData(body.share.fundId);
           }
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to connect to server');
       } finally {
         setIsLoading(false);
@@ -96,43 +126,46 @@ const useSharedDashboard = (shareId: string) => {
   }, [shareId]);
 
   // Verify passkey and get full share data
-  const verifyPasskey = useCallback(async (passkey: string): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const verifyPasskey = useCallback(
+    async (passkey: string): Promise<boolean> => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const response = await fetch(`/api/shares/${shareId}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passkey }),
-      });
+        const response = await fetch(`/api/shares/${shareId}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passkey }),
+        });
 
-      const body = await response.json();
+        const body = (await response.json()) as ShareApiResponse;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError('Invalid passkey');
+        if (!response.ok) {
+          if (response.status === 401) {
+            setError('Invalid passkey');
+            return false;
+          }
+          setError(body.error ?? 'Verification failed');
           return false;
         }
-        setError(body.error || 'Verification failed');
+
+        if (body.success && body.share) {
+          setShareData(body.share);
+          setRequiresPasskey(false);
+          await fetchDashboardData(body.share.fundId);
+          return true;
+        }
+
         return false;
+      } catch (_err) {
+        setError('Failed to verify passkey');
+        return false;
+      } finally {
+        setIsLoading(false);
       }
-
-      if (body.success && body.share) {
-        setShareData(body.share);
-        setRequiresPasskey(false);
-        await fetchDashboardData(body.share.fundId);
-        return true;
-      }
-
-      return false;
-    } catch (err) {
-      setError('Failed to verify passkey');
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [shareId]);
+    },
+    [shareId]
+  );
 
   // Fetch fund dashboard data
   const fetchDashboardData = async (fundId: string) => {
@@ -141,27 +174,28 @@ const useSharedDashboard = (shareId: string) => {
       const response = await fetch(`/api/dashboard-summary/${fundId}`);
 
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as DashboardApiResponse;
         // Transform API response to dashboard format
         setDashboardData({
-          fundName: data.fund?.name || 'Fund',
-          totalCommitments: parseFloat(data.fund?.size || '0'),
-          totalCalled: parseFloat(data.fund?.deployedCapital || '0'),
-          totalDistributed: data.summary?.currentIRR ? parseFloat(data.fund?.size || '0') * 0.3 : 0,
-          nav: parseFloat(data.fund?.size || '0') * 1.2,
-          portfolioCompanies: data.summary?.totalCompanies || 0,
+          fundName: data.fund?.name ?? 'Fund',
+          totalCommitments: parseFloat(data.fund?.size ?? '0'),
+          totalCalled: parseFloat(data.fund?.deployedCapital ?? '0'),
+          totalDistributed: data.summary?.currentIRR ? parseFloat(data.fund?.size ?? '0') * 0.3 : 0,
+          nav: parseFloat(data.fund?.size ?? '0') * 1.2,
+          portfolioCompanies: data.summary?.totalCompanies ?? 0,
           metrics: {
-            irr: data.metrics?.irr || data.summary?.currentIRR || 0,
-            moic: data.metrics?.moic || 1.0,
-            dpi: data.metrics?.dpi || 0,
-            rvpi: data.metrics?.rvpi || 1.0,
+            irr: data.metrics?.irr ?? data.summary?.currentIRR ?? 0,
+            moic: data.metrics?.moic ?? 1.0,
+            dpi: data.metrics?.dpi ?? 0,
+            rvpi: data.metrics?.rvpi ?? 1.0,
           },
-          topPerformers: data.portfolioCompanies?.slice(0, 5).map((c: any) => ({
-            name: c.name,
-            stage: c.stage || 'Active',
-            moic: c.moic || 1.0,
-            status: c.status || 'Active',
-          })) || [],
+          topPerformers:
+            data.portfolioCompanies?.slice(0, 5).map((c) => ({
+              name: c.name,
+              stage: c.stage ?? 'Active',
+              moic: c.moic ?? 1.0,
+              status: c.status ?? 'Active',
+            })) ?? [],
         });
       } else {
         // Use placeholder data if fund API not available
@@ -301,18 +335,14 @@ const SharedDashboard: React.FC = () => {
                   className={passkeyError ? 'border-red-500' : ''}
                   required
                 />
-                {passkeyError && (
-                  <p className="text-sm text-red-600 mt-1">{passkeyError}</p>
-                )}
+                {passkeyError && <p className="text-sm text-red-600 mt-1">{passkeyError}</p>}
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Verifying...' : 'Access Dashboard'}
               </Button>
             </form>
             {shareConfig?.customMessage && (
-              <p className="text-sm text-gray-500 mt-4 text-center">
-                {shareConfig.customMessage}
-              </p>
+              <p className="text-sm text-gray-500 mt-4 text-center">{shareConfig.customMessage}</p>
             )}
           </CardContent>
         </Card>
@@ -367,9 +397,7 @@ const SharedDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Total Commitments
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Commitments</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -380,25 +408,22 @@ const SharedDashboard: React.FC = () => {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Capital Called
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Capital Called</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 ${(dashboardData.totalCalled / 1000000).toFixed(1)}M
               </div>
               <div className="text-sm text-gray-500">
-                {((dashboardData.totalCalled / dashboardData.totalCommitments) * 100).toFixed(1)}% of commitments
+                {((dashboardData.totalCalled / dashboardData.totalCommitments) * 100).toFixed(1)}%
+                of commitments
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Distributions
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Distributions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -409,14 +434,10 @@ const SharedDashboard: React.FC = () => {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Current NAV
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Current NAV</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${(dashboardData.nav / 1000000).toFixed(1)}M
-              </div>
+              <div className="text-2xl font-bold">${(dashboardData.nav / 1000000).toFixed(1)}M</div>
             </CardContent>
           </Card>
         </div>
@@ -425,9 +446,7 @@ const SharedDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                IRR
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">IRR</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
@@ -438,40 +457,28 @@ const SharedDashboard: React.FC = () => {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                MOIC
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">MOIC</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardData.metrics.moic.toFixed(1)}x
-              </div>
+              <div className="text-2xl font-bold">{dashboardData.metrics.moic.toFixed(1)}x</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                DPI
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">DPI</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardData.metrics.dpi.toFixed(2)}x
-              </div>
+              <div className="text-2xl font-bold">{dashboardData.metrics.dpi.toFixed(2)}x</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                RVPI
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">RVPI</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardData.metrics.rvpi.toFixed(2)}x
-              </div>
+              <div className="text-2xl font-bold">{dashboardData.metrics.rvpi.toFixed(2)}x</div>
             </CardContent>
           </Card>
         </div>
@@ -493,17 +500,19 @@ const SharedDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboardData.topPerformers.map((company: any, index: number) => (
+                  {dashboardData.topPerformers.map((company, index) => (
                     <tr key={index} className="border-b">
                       <td className="py-3 font-medium">{company.name}</td>
                       <td className="py-3">{company.stage}</td>
                       <td className="py-3 font-bold">{company.moic.toFixed(1)}x</td>
                       <td className="py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          company.status === 'Active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            company.status === 'Active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
                           {company.status}
                         </span>
                       </td>
@@ -528,8 +537,8 @@ const SharedDashboard: React.FC = () => {
             </div>
           </div>
           <p className="mt-2">
-            This dashboard is provided for informational purposes only.
-            Please contact your fund manager for any questions.
+            This dashboard is provided for informational purposes only. Please contact your fund
+            manager for any questions.
           </p>
         </div>
       </div>
