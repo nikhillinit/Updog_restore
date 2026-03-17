@@ -1,19 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Link, useLocation } from "wouter";
-import { useFundContext } from "@/contexts/FundContext";
-import { POVIcon } from "@/components/ui/POVLogo";
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Link, useLocation } from 'wouter';
+import { useFundContext } from '@/contexts/FundContext';
+import { POVIcon } from '@/components/ui/POVLogo';
 import { getNavigationItems, getFooterNavigationItems } from './navigation-config';
-import {
-  ChevronDown,
-  ChevronRight,
-  Plus
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 
 interface SidebarProps {
   activeModule: string;
@@ -51,7 +42,9 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
           <div className="flex items-center justify-center w-10 h-10">
             <POVIcon variant="white" size="md" />
           </div>
-          <div className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}>
+          <div
+            className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
+          >
             <h1 className="font-inter font-bold text-lg text-white whitespace-nowrap">Updawg</h1>
             <p className="font-poppins text-xs text-slate-300 whitespace-nowrap">Fund Management</p>
           </div>
@@ -73,9 +66,13 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 transition-all duration-300">
             <div className="flex items-center space-x-2 mb-2">
               <Plus className="h-4 w-4 text-amber-700" />
-              <span className="font-poppins text-sm font-medium text-amber-800">Setup Required</span>
+              <span className="font-poppins text-sm font-medium text-amber-800">
+                Setup Required
+              </span>
             </div>
-            <p className="font-poppins text-xs text-amber-600 mb-3">Configure your fund to access all features</p>
+            <p className="font-poppins text-xs text-amber-600 mb-3">
+              Configure your fund to access all features
+            </p>
             <Link href="/fund-setup">
               <button className="w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200">
                 Start Fund Setup
@@ -85,7 +82,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         )}
 
         <ul className="space-y-1">
-          {navigationItems.map((item: any) => {
+          {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeModule === item.id;
             const isDisabled = needsSetup && item.id !== 'fund-setup';
@@ -98,18 +95,18 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                     onClick={() => !isDisabled && onModuleChange(item.id)}
                     title={!isHovered ? item.label : undefined}
                     className={cn(
-                      "w-full flex items-center rounded-md transition-colors font-poppins relative group",
-                      isHovered ? "space-x-3 px-3 py-2.5" : "justify-center p-2.5",
+                      'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+                      isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
                       isDisabled
-                        ? "text-charcoal/40 cursor-not-allowed bg-lightGray"
+                        ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
                         : isActive
-                          ? "bg-beige/30 text-charcoal font-medium"
-                          : "text-charcoal/70 hover:bg-lightGray"
+                          ? 'bg-beige/30 text-charcoal font-medium'
+                          : 'text-charcoal/70 hover:bg-lightGray'
                     )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     {isHovered && (
-                      <span className={cn("text-sm whitespace-nowrap", isActive && "font-medium")}>
+                      <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
                         {item.label}
                       </span>
                     )}
@@ -143,7 +140,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
 
             {isChartsExpanded && (
               <ul className="mt-3 space-y-1">
-                {chartCategories.map((category: any) => (
+                {chartCategories.map((category) => (
                   <li key={category.id}>
                     <button className="w-full text-left px-2 py-1 text-sm text-charcoal/70 hover:text-charcoal hover:bg-lightGray rounded-md transition-colors">
                       {category.label}
@@ -160,7 +157,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
       {footerItems.length > 0 && (
         <div className="border-t border-lightGray p-2 bg-gray-50">
           <ul className="space-y-1">
-            {footerItems.map((item: any) => {
+            {footerItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeModule === item.id;
 
@@ -171,16 +168,18 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                       onClick={() => onModuleChange(item.id)}
                       title={!isHovered ? item.label : undefined}
                       className={cn(
-                        "w-full flex items-center rounded-md transition-colors font-poppins relative group",
-                        isHovered ? "space-x-3 px-3 py-2" : "justify-center p-2",
+                        'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+                        isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
                         isActive
-                          ? "bg-beige/30 text-charcoal font-medium"
-                          : "text-charcoal/60 hover:bg-lightGray hover:text-charcoal"
+                          ? 'bg-beige/30 text-charcoal font-medium'
+                          : 'text-charcoal/60 hover:bg-lightGray hover:text-charcoal'
                       )}
                     >
                       <Icon className="h-4 w-4 flex-shrink-0" />
                       {isHovered && (
-                        <span className={cn("text-sm whitespace-nowrap", isActive && "font-medium")}>
+                        <span
+                          className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}
+                        >
                           {item.label}
                         </span>
                       )}
@@ -202,4 +201,3 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
     </aside>
   );
 }
-
