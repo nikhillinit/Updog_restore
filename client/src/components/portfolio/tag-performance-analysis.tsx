@@ -261,7 +261,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />
                   <Tooltip
-                    formatter={(value: number) => [
+                    formatter={(value) => [
                       getChartData().find((d) => d.value === value)?.display || value,
                       getMetricLabel(),
                     ]}
@@ -285,7 +285,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => [
+                    formatter={(value) => [
                       getChartData().find((d) => d.value === value)?.display || value,
                       getMetricLabel(),
                     ]}
