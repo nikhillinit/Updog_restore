@@ -1,14 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Calendar, TrendingDown, Info } from "lucide-react";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, Calendar, TrendingDown, Info } from 'lucide-react';
 
 interface InvestmentRound {
   id: string;
@@ -26,49 +21,49 @@ interface FundLiquidationWarningsProps {
   investments: InvestmentRound[];
 }
 
-export default function FundLiquidationWarnings({ 
-  fundEndDate, 
-  investments 
+export default function FundLiquidationWarnings({
+  fundEndDate,
+  investments,
 }: FundLiquidationWarningsProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   // Sample data for demonstration
   const sampleInvestments: InvestmentRound[] = [
     {
-      id: "1",
-      company: "TechCorp",
-      round: "Exit",
-      date: "Apr 2031",
+      id: '1',
+      company: 'TechCorp',
+      round: 'Exit',
+      date: 'Apr 2031',
       exitValue: 3000000,
       moic: 3.79,
       irr: 16.45,
-      afterFundDate: true
+      afterFundDate: true,
     },
     {
-      id: "2", 
-      company: "DataFlow Inc",
-      round: "Series C",
-      date: "Jun 2032",
+      id: '2',
+      company: 'DataFlow Inc',
+      round: 'Series C',
+      date: 'Jun 2032',
       exitValue: 5500000,
       moic: 4.12,
       irr: 18.23,
-      afterFundDate: true
+      afterFundDate: true,
     },
     {
-      id: "3",
-      company: "AI Solutions",
-      round: "Exit",
-      date: "Dec 2030",
+      id: '3',
+      company: 'AI Solutions',
+      round: 'Exit',
+      date: 'Dec 2030',
       exitValue: 2800000,
       moic: 2.95,
       irr: 14.67,
-      afterFundDate: false
-    }
+      afterFundDate: false,
+    },
   ];
 
   const investmentData = investments.length > 0 ? investments : sampleInvestments;
-  const afterFundDateInvestments = investmentData.filter(inv => inv.afterFundDate);
-  const liquidatedInvestments = investmentData.filter(inv => !inv.afterFundDate);
+  const afterFundDateInvestments = investmentData.filter((inv) => inv.afterFundDate);
+  const liquidatedInvestments = investmentData.filter((inv) => !inv.afterFundDate);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -88,12 +83,13 @@ export default function FundLiquidationWarnings({
           <AlertDescription className="text-orange-800">
             <div className="font-semibold mb-2">Fund Term Impact Warning</div>
             <p className="text-sm mb-2">
-              Your fund has a fixed term ending in <strong>{fundEndDate}</strong>. 
-              {afterFundDateInvestments.length} investment(s) have expected exits after this date and will be liquidated early.
+              Your fund has a fixed term ending in <strong>{fundEndDate}</strong>.
+              {afterFundDateInvestments.length} investment(s) have expected exits after this date
+              and will be liquidated early.
             </p>
             <p className="text-sm">
-              This may reduce returns as investments won't reach their full exit potential. 
-              Consider extending the fund term or removing the end date to allow investments to mature.
+              This may reduce returns as investments won't reach their full exit potential. Consider
+              extending the fund term or removing the end date to allow investments to mature.
             </p>
           </AlertDescription>
         </Alert>
@@ -117,31 +113,27 @@ export default function FundLiquidationWarnings({
                 {afterFundDateInvestments.length}
               </div>
               <div className="text-sm text-red-700 mt-1">Early Liquidations</div>
-              <div className="text-xs text-gray-600 mt-2">
-                Exits after fund date
-              </div>
+              <div className="text-xs text-gray-600 mt-2">Exits after fund date</div>
             </div>
-            
+
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {liquidatedInvestments.length}
               </div>
               <div className="text-sm text-green-700 mt-1">Natural Exits</div>
-              <div className="text-xs text-gray-600 mt-2">
-                Exits within fund term
-              </div>
+              <div className="text-xs text-gray-600 mt-2">Exits within fund term</div>
             </div>
-            
+
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">
-                {afterFundDateInvestments.reduce((sum: any, inv: any) => sum + inv.exitValue, 0) > 0 
-                  ? formatCurrency(afterFundDateInvestments.reduce((sum: any, inv: any) => sum + inv.exitValue, 0))
-                  : "$0"}
+                {afterFundDateInvestments.reduce((sum, inv) => sum + inv.exitValue, 0) > 0
+                  ? formatCurrency(
+                      afterFundDateInvestments.reduce((sum, inv) => sum + inv.exitValue, 0)
+                    )
+                  : '$0'}
               </div>
               <div className="text-sm text-orange-700 mt-1">Affected Value</div>
-              <div className="text-xs text-gray-600 mt-2">
-                Value at early liquidation
-              </div>
+              <div className="text-xs text-gray-600 mt-2">Value at early liquidation</div>
             </div>
           </div>
         </CardContent>
@@ -152,11 +144,7 @@ export default function FundLiquidationWarnings({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Investment Details</CardTitle>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowDetails(!showDetails)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setShowDetails(!showDetails)}>
               {showDetails ? 'Hide Details' : 'Show Details'}
             </Button>
           </div>
@@ -185,12 +173,14 @@ export default function FundLiquidationWarnings({
                         </tr>
                       </thead>
                       <tbody>
-                        {afterFundDateInvestments.map((investment: any) => (
+                        {afterFundDateInvestments.map((investment) => (
                           <tr key={investment.id} className="border-b hover:bg-gray-50">
                             <td className="py-2 px-3 font-medium">{investment.company}</td>
                             <td className="py-2 px-3">{investment.round}</td>
                             <td className="py-2 px-3 text-red-600">{investment.date}</td>
-                            <td className="py-2 px-3 text-right">{formatCurrency(investment.exitValue)}</td>
+                            <td className="py-2 px-3 text-right">
+                              {formatCurrency(investment.exitValue)}
+                            </td>
                             <td className="py-2 px-3 text-right">{investment.moic.toFixed(2)}x</td>
                             <td className="py-2 px-3 text-right">{investment.irr.toFixed(1)}%</td>
                             <td className="py-2 px-3">
@@ -227,16 +217,21 @@ export default function FundLiquidationWarnings({
                         </tr>
                       </thead>
                       <tbody>
-                        {liquidatedInvestments.map((investment: any) => (
+                        {liquidatedInvestments.map((investment) => (
                           <tr key={investment.id} className="border-b hover:bg-gray-50">
                             <td className="py-2 px-3 font-medium">{investment.company}</td>
                             <td className="py-2 px-3">{investment.round}</td>
                             <td className="py-2 px-3">{investment.date}</td>
-                            <td className="py-2 px-3 text-right">{formatCurrency(investment.exitValue)}</td>
+                            <td className="py-2 px-3 text-right">
+                              {formatCurrency(investment.exitValue)}
+                            </td>
                             <td className="py-2 px-3 text-right">{investment.moic.toFixed(2)}x</td>
                             <td className="py-2 px-3 text-right">{investment.irr.toFixed(1)}%</td>
                             <td className="py-2 px-3">
-                              <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                              <Badge
+                                variant="default"
+                                className="text-xs bg-green-100 text-green-800"
+                              >
                                 On Schedule
                               </Badge>
                             </td>
@@ -263,13 +258,16 @@ export default function FundLiquidationWarnings({
         <CardContent>
           <div className="space-y-3 text-sm">
             <div className="p-3 bg-blue-50 rounded-lg">
-              <strong>Extend Fund Term:</strong> Consider extending the fund term to allow investments to reach their full exit potential instead of early liquidation.
+              <strong>Extend Fund Term:</strong> Consider extending the fund term to allow
+              investments to reach their full exit potential instead of early liquidation.
             </div>
             <div className="p-3 bg-purple-50 rounded-lg">
-              <strong>Remove End Date:</strong> Remove the fund end date from Construction Wizard to let investments run to their expected exits.
+              <strong>Remove End Date:</strong> Remove the fund end date from Construction Wizard to
+              let investments run to their expected exits.
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
-              <strong>Optimize Exit Strategy:</strong> Focus on accelerating exits for investments that will be liquidated early to maximize returns.
+              <strong>Optimize Exit Strategy:</strong> Focus on accelerating exits for investments
+              that will be liquidated early to maximize returns.
             </div>
           </div>
         </CardContent>
