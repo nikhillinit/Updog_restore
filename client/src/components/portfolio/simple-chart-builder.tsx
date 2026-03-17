@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,15 +9,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { 
-  BarChart3, 
-  LineChart, 
-  PieChart, 
-  TrendingUp
-} from 'lucide-react';
+import { BarChart3, LineChart, PieChart, TrendingUp } from 'lucide-react';
+
+interface ChartConfig {
+  type: string;
+  xAxis: string;
+  yAxis: string;
+  title: string;
+}
 
 interface ChartBuilderProps {
-  onChartChange: (config: any) => void;
+  onChartChange: (config: ChartConfig) => void;
 }
 
 const CHART_TYPES = [
@@ -57,7 +54,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
   const [yAxis, setYAxis] = useState('revenue');
   const [title, setTitle] = useState('Revenue by Company');
 
-  const updateChart = (updates: any) => {
+  const updateChart = (updates: Partial<ChartConfig>) => {
     const config = {
       type: chartType,
       xAxis,
@@ -65,7 +62,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
       title,
       ...updates,
     };
-    
+
     onChartChange(config);
   };
 
@@ -105,7 +102,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CHART_TYPES.map((type: any) => {
+                  {CHART_TYPES.map((type) => {
                     const Icon = type.icon;
                     return (
                       <SelectItem key={type.value} value={type.value}>
@@ -127,7 +124,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DIMENSIONS.map((dim: any) => (
+                  {DIMENSIONS.map((dim) => (
                     <SelectItem key={dim.value} value={dim.value}>
                       {dim.label}
                     </SelectItem>
@@ -143,7 +140,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {METRICS.map((metric: any) => (
+                  {METRICS.map((metric) => (
                     <SelectItem key={metric.value} value={metric.value}>
                       {metric.label}
                     </SelectItem>
@@ -156,7 +153,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
               <label className="block text-sm font-medium mb-2">Title</label>
               <Input
                 value={title}
-                onChange={(e: any) => handleTitleChange(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="Chart title"
               />
             </div>
@@ -172,17 +169,13 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
         <CardContent>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">
-              Chart: {CHART_TYPES.find(t => t.value === chartType)?.label}
+              Chart: {CHART_TYPES.find((t) => t.value === chartType)?.label}
             </Badge>
             <Badge variant="outline">
-              X-Axis: {DIMENSIONS.find(d => d.value === xAxis)?.label}
+              X-Axis: {DIMENSIONS.find((d) => d.value === xAxis)?.label}
             </Badge>
-            <Badge variant="outline">
-              Y-Axis: {METRICS.find(m => m.value === yAxis)?.label}
-            </Badge>
-            <Badge variant="outline">
-              Title: {title}
-            </Badge>
+            <Badge variant="outline">Y-Axis: {METRICS.find((m) => m.value === yAxis)?.label}</Badge>
+            <Badge variant="outline">Title: {title}</Badge>
           </div>
         </CardContent>
       </Card>

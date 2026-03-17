@@ -1,23 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CapTableCalculator from '@/components/cap-table/cap-table-calculator';
-import { Plus, Search, Calculator, Download, Building2, TrendingUp, DollarSign } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Calculator,
+  Download,
+  Building2,
+  TrendingUp,
+  DollarSign,
+} from 'lucide-react';
 
 interface CapTableScenario {
   id: string;
@@ -47,7 +51,7 @@ const SAMPLE_CAP_TABLE_SCENARIOS: CapTableScenario[] = [
     roundSize: 5000000,
     totalSAFEs: 750000,
     totalNotes: 500000,
-    dilution: 23.5
+    dilution: 23.5,
   },
   {
     id: 'ct-2',
@@ -61,7 +65,7 @@ const SAMPLE_CAP_TABLE_SCENARIOS: CapTableScenario[] = [
     roundSize: 2500000,
     totalSAFEs: 300000,
     totalNotes: 200000,
-    dilution: 28.2
+    dilution: 28.2,
   },
   {
     id: 'ct-3',
@@ -75,8 +79,8 @@ const SAMPLE_CAP_TABLE_SCENARIOS: CapTableScenario[] = [
     roundSize: 1500000,
     totalSAFEs: 450000,
     totalNotes: 350000,
-    dilution: 15.8
-  }
+    dilution: 15.8,
+  },
 ];
 
 export default function CapTables() {
@@ -88,9 +92,10 @@ export default function CapTables() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredScenarios = scenarios.filter(scenario => {
-    const matchesSearch = scenario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         scenario.investmentCompany.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredScenarios = scenarios.filter((scenario) => {
+    const matchesSearch =
+      scenario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      scenario.investmentCompany.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || scenario.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -106,10 +111,14 @@ export default function CapTables() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'archived':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -118,11 +127,7 @@ export default function CapTables() {
       <div className="min-h-screen bg-gray-50">
         <div className="p-6">
           <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => setShowCalculator(false)}
-              className="mb-4"
-            >
+            <Button variant="ghost" onClick={() => setShowCalculator(false)} className="mb-4">
               ← Back to Cap Tables
             </Button>
           </div>
@@ -137,7 +142,7 @@ export default function CapTables() {
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-gray-500">Please select a fund to manage cap tables.</p>
-          <Button className="mt-4" onClick={() => window.location.href = '/setup'}>
+          <Button className="mt-4" onClick={() => (window.location.href = '/setup')}>
             Set Up Fund
           </Button>
         </div>
@@ -152,10 +157,17 @@ export default function CapTables() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Cap Tables</h1>
-            <p className="text-gray-600">Model SAFE/Note conversions and analyze dilution scenarios</p>
+            <p className="text-gray-600">
+              Model SAFE/Note conversions and analyze dilution scenarios
+            </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => { setShowCalculator(true); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCalculator(true);
+              }}
+            >
               <Calculator className="h-4 w-4 mr-2" />
               Cap Table Calculator
             </Button>
@@ -186,7 +198,9 @@ export default function CapTables() {
                 <TrendingUp className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-sm text-gray-600">Active Models</p>
-                  <p className="text-lg font-bold">{scenarios.filter(s => s.status === 'active').length}</p>
+                  <p className="text-lg font-bold">
+                    {scenarios.filter((s) => s.status === 'active').length}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -199,7 +213,9 @@ export default function CapTables() {
                 <div>
                   <p className="text-sm text-gray-600">Avg Pre-Money</p>
                   <p className="text-lg font-bold">
-                    {formatCurrency(scenarios.reduce((sum: any, s: any) => sum + s.preMoneyValuation, 0) / scenarios.length)}
+                    {formatCurrency(
+                      scenarios.reduce((sum, s) => sum + s.preMoneyValuation, 0) / scenarios.length
+                    )}
                   </p>
                 </div>
               </div>
@@ -212,7 +228,9 @@ export default function CapTables() {
                 <Building2 className="h-5 w-5 text-orange-600" />
                 <div>
                   <p className="text-sm text-gray-600">Companies Modeled</p>
-                  <p className="text-lg font-bold">{new Set(scenarios.map(s => s.investmentCompany)).size}</p>
+                  <p className="text-lg font-bold">
+                    {new Set(scenarios.map((s) => s.investmentCompany)).size}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -226,7 +244,7 @@ export default function CapTables() {
             <Input
               placeholder="Search cap table scenarios..."
               value={searchTerm}
-              onChange={(e: any) => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -264,7 +282,7 @@ export default function CapTables() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredScenarios.map((scenario: any) => (
+            {filteredScenarios.map((scenario) => (
               <Card key={scenario.id} className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -272,9 +290,7 @@ export default function CapTables() {
                       <CardTitle className="text-lg">{scenario.name}</CardTitle>
                       <p className="text-sm text-gray-600">{scenario.investmentCompany}</p>
                     </div>
-                    <Badge className={getStatusColor(scenario.status)}>
-                      {scenario.status}
-                    </Badge>
+                    <Badge className={getStatusColor(scenario.status)}>{scenario.status}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -292,7 +308,9 @@ export default function CapTables() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500">SAFEs/Notes</p>
-                      <p className="font-medium">{formatCurrency(scenario.totalSAFEs + scenario.totalNotes)}</p>
+                      <p className="font-medium">
+                        {formatCurrency(scenario.totalSAFEs + scenario.totalNotes)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-gray-500">Dilution</p>
@@ -302,13 +320,14 @@ export default function CapTables() {
 
                   <div className="pt-3 border-t">
                     <p className="text-xs text-gray-500">
-                      Modified by {scenario.createdBy} • {new Date(scenario.lastModified).toLocaleDateString()}
+                      Modified by {scenario.createdBy} •{' '}
+                      {new Date(scenario.lastModified).toLocaleDateString()}
                     </p>
                   </div>
 
                   <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="flex-1"
                       onClick={() => {
@@ -334,7 +353,7 @@ export default function CapTables() {
             <DialogHeader>
               <DialogTitle>Add Cap Table Scenario</DialogTitle>
             </DialogHeader>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Select Investment</label>
@@ -360,10 +379,12 @@ export default function CapTables() {
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => {
-                  setShowCreateDialog(false);
-                  setShowCalculator(true);
-                }}>
+                <Button
+                  onClick={() => {
+                    setShowCreateDialog(false);
+                    setShowCalculator(true);
+                  }}
+                >
                   Create & Open Calculator
                 </Button>
               </div>
