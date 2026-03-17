@@ -79,7 +79,7 @@ export function ApprovalPanel() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
-  
+
   const queryClient = useQueryClient();
 
   // Fetch pending approvals
@@ -145,19 +145,27 @@ export function ApprovalPanel() {
 
   const getRiskBadgeColor = (level: string) => {
     switch (level) {
-      case 'low': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'high': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved': return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case 'rejected': return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'expired': return <Clock className="h-5 w-5 text-gray-500" />;
-      default: return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      case 'approved':
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case 'rejected':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'expired':
+        return <Clock className="h-5 w-5 text-gray-500" />;
+      default:
+        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
     }
   };
 
@@ -172,12 +180,12 @@ export function ApprovalPanel() {
     const now = Date.now();
     const expires = new Date(expiresAt).getTime();
     const diff = expires - now;
-    
+
     if (diff <= 0) return 'Expired';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
-    
+
     if (days > 0) return `${days} day${days > 1 ? 's' : ''} remaining`;
     return `${hours} hour${hours > 1 ? 's' : ''} remaining`;
   };
@@ -197,25 +205,19 @@ export function ApprovalPanel() {
         <CardContent>
           <Tabs defaultValue="pending" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pending">
-                Pending ({pendingApprovals?.total || 0})
-              </TabsTrigger>
+              <TabsTrigger value="pending">Pending ({pendingApprovals?.total || 0})</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="pending" className="space-y-4">
               {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Loading approvals...
-                </div>
+                <div className="text-center py-8 text-muted-foreground">Loading approvals...</div>
               ) : pendingApprovals?.approvals?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No pending approvals
-                </div>
+                <div className="text-center py-8 text-muted-foreground">No pending approvals</div>
               ) : (
                 pendingApprovals?.approvals?.map((approval: Approval) => (
-                  <Card 
+                  <Card
                     key={approval.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
                     onClick={() => setSelectedApproval(approval.id)}
@@ -226,7 +228,8 @@ export function ApprovalPanel() {
                           <div className="flex items-center gap-2">
                             {getStatusIcon(approval.status)}
                             <span className="font-semibold">
-                              {approval.action.charAt(0).toUpperCase() + approval.action.slice(1)} Strategy
+                              {approval.action.charAt(0).toUpperCase() + approval.action.slice(1)}{' '}
+                              Strategy
                             </span>
                             <Badge className={getRiskBadgeColor(approval.riskLevel)}>
                               {approval.riskLevel} risk
@@ -236,9 +239,7 @@ export function ApprovalPanel() {
                             Requested by {approval.requestedBy}
                           </p>
                         </div>
-                        <Badge variant="outline">
-                          {getTimeRemaining(approval.expiresAt)}
-                        </Badge>
+                        <Badge variant="outline">{getTimeRemaining(approval.expiresAt)}</Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="pb-3">
@@ -259,7 +260,7 @@ export function ApprovalPanel() {
                     <CardFooter className="pt-3 border-t">
                       <div className="flex justify-between items-center w-full">
                         <div className="flex items-center gap-2">
-                          {approval.signatures.map((sig: any, idx: any) => (
+                          {approval.signatures.map((sig, idx) => (
                             <div key={idx} className="flex items-center gap-1">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                               <span className="text-xs text-muted-foreground">
@@ -269,7 +270,8 @@ export function ApprovalPanel() {
                           ))}
                         </div>
                         <span className="text-sm font-medium">
-                          {approval.remainingApprovals} approval{approval.remainingApprovals !== 1 ? 's' : ''} needed
+                          {approval.remainingApprovals} approval
+                          {approval.remainingApprovals !== 1 ? 's' : ''} needed
                         </span>
                       </div>
                     </CardFooter>
@@ -343,7 +345,7 @@ export function ApprovalPanel() {
                   {approvalDetails.signatures.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No signatures yet</p>
                   ) : (
-                    approvalDetails.signatures.map((sig: any, idx: any) => (
+                    approvalDetails.signatures.map((sig, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-sm">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                         <span>{sig.partnerEmail}</span>
@@ -360,7 +362,7 @@ export function ApprovalPanel() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm">Audit Trail</h4>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {approvalDetails.auditLog.map((entry: any, idx: any) => (
+                  {approvalDetails.auditLog.map((entry, idx) => (
                     <div key={idx} className="text-xs text-muted-foreground">
                       {new Date(entry.timestamp).toLocaleString()} - {entry.actor} {entry.action}
                     </div>
@@ -372,17 +374,10 @@ export function ApprovalPanel() {
             <DialogFooter className="gap-2">
               {approvalDetails.canSign && !approvalDetails.isExpired && (
                 <>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowRejectDialog(true)}
-                  >
+                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
                     Reject
                   </Button>
-                  <Button
-                    onClick={() => setShowSignDialog(true)}
-                  >
-                    Approve & Sign
-                  </Button>
+                  <Button onClick={() => setShowSignDialog(true)}>Approve & Sign</Button>
                 </>
               )}
               {approvalDetails.isExpired && (
@@ -398,9 +393,7 @@ export function ApprovalPanel() {
                 <Alert>
                   <CheckCircle2 className="h-4 w-4" />
                   <AlertTitle>Approved</AlertTitle>
-                  <AlertDescription>
-                    This change has been approved and executed.
-                  </AlertDescription>
+                  <AlertDescription>This change has been approved and executed.</AlertDescription>
                 </Alert>
               )}
             </DialogFooter>
@@ -424,7 +417,7 @@ export function ApprovalPanel() {
                 id="verification"
                 placeholder="Enter 2FA code for enhanced security"
                 value={verificationCode}
-                onChange={(e: any) => setVerificationCode(e.target.value)}
+                onChange={(e) => setVerificationCode(e.target.value)}
               />
             </div>
           </div>
@@ -437,7 +430,7 @@ export function ApprovalPanel() {
                 if (selectedApproval) {
                   signMutation.mutate({
                     id: selectedApproval,
-                    ...spreadIfDefined("code", verificationCode || undefined)
+                    ...spreadIfDefined('code', verificationCode || undefined),
                   });
                 }
               }}
@@ -465,7 +458,7 @@ export function ApprovalPanel() {
                 id="reason"
                 placeholder="Enter reason for rejection (min 10 characters)"
                 value={rejectionReason}
-                onChange={(e: any) => setRejectionReason(e.target.value)}
+                onChange={(e) => setRejectionReason(e.target.value)}
                 rows={4}
               />
             </div>
@@ -474,13 +467,13 @@ export function ApprovalPanel() {
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => {
                 if (selectedApproval && rejectionReason.length >= 10) {
-                  rejectMutation.mutate({ 
-                    id: selectedApproval, 
-                    reason: rejectionReason 
+                  rejectMutation.mutate({
+                    id: selectedApproval,
+                    reason: rejectionReason,
                   });
                 }
               }}
