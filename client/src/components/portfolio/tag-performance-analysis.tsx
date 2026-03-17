@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Tag Performance Analysis
  *
@@ -19,7 +18,13 @@ import { Cell } from 'recharts/es6/component/Cell';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
 import { getChartColor } from '@/lib/chart-theme';
 
@@ -46,40 +51,40 @@ const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
     irr: 18.5,
     averageInvestment: 869347,
     topPerformer: 'AsiaFlow Systems',
-    performance: 'good'
+    performance: 'good',
   },
   {
     tag: 'General',
     count: 5,
     totalInvested: 2500000,
     currentValue: 3750000,
-    moic: 1.50,
+    moic: 1.5,
     irr: 15.2,
     averageInvestment: 500000,
     topPerformer: 'GenTech Solutions',
-    performance: 'good'
+    performance: 'good',
   },
   {
     tag: 'Female Founder',
     count: 4,
     totalInvested: 2428571,
     currentValue: 3400000,
-    moic: 1.40,
+    moic: 1.4,
     irr: 22.3,
     averageInvestment: 607143,
     topPerformer: 'FoundHer Inc',
-    performance: 'excellent'
+    performance: 'excellent',
   },
   {
     tag: 'Social',
     count: 2,
     totalInvested: 2378437,
     currentValue: 2850000,
-    moic: 1.20,
+    moic: 1.2,
     irr: 8.9,
     averageInvestment: 1189219,
     topPerformer: 'SocialGood Co',
-    performance: 'average'
+    performance: 'average',
   },
   {
     tag: 'Minority Founder',
@@ -90,7 +95,7 @@ const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
     irr: 19.7,
     averageInvestment: 689500,
     topPerformer: 'DiverseTech',
-    performance: 'good'
+    performance: 'good',
   },
   {
     tag: 'Governance',
@@ -101,7 +106,7 @@ const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
     irr: 5.2,
     averageInvestment: 994026,
     topPerformer: 'GovTech Pro',
-    performance: 'poor'
+    performance: 'poor',
   },
   {
     tag: 'Environmental',
@@ -112,7 +117,7 @@ const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
     irr: 16.8,
     averageInvestment: 925000,
     topPerformer: 'EcoInnovate',
-    performance: 'good'
+    performance: 'good',
   },
   {
     tag: 'AI/ML',
@@ -123,8 +128,8 @@ const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
     irr: 28.4,
     averageInvestment: 533333,
     topPerformer: 'AI Dynamics',
-    performance: 'excellent'
-  }
+    performance: 'excellent',
+  },
 ];
 
 interface TagPerformanceAnalysisProps {
@@ -132,16 +137,23 @@ interface TagPerformanceAnalysisProps {
 }
 
 export default function TagPerformanceAnalysis({ className = '' }: TagPerformanceAnalysisProps) {
-  const [selectedMetric, setSelectedMetric] = useState<'invested' | 'moic' | 'irr' | 'count'>('invested');
+  const [selectedMetric, setSelectedMetric] = useState<'invested' | 'moic' | 'irr' | 'count'>(
+    'invested'
+  );
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
 
   const getPerformanceColor = (performance: string) => {
     switch (performance) {
-      case 'excellent': return 'bg-green-100 text-green-800 border-green-200';
-      case 'good': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'average': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'poor': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'excellent':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'good':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'average':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'poor':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -156,26 +168,39 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
   };
 
   const getChartData = () => {
-    return MOCK_TAG_PERFORMANCE.map(tag => ({
+    return MOCK_TAG_PERFORMANCE.map((tag) => ({
       name: tag.tag,
-      value: selectedMetric === 'invested' ? tag.totalInvested :
-             selectedMetric === 'moic' ? tag.moic :
-             selectedMetric === 'irr' ? tag.irr :
-             tag.count,
-      display: selectedMetric === 'invested' ? formatCurrency(tag.totalInvested) :
-               selectedMetric === 'moic' ? `${tag.moic.toFixed(2)}x` :
-               selectedMetric === 'irr' ? `${tag.irr.toFixed(1)}%` :
-               tag.count.toString()
+      value:
+        selectedMetric === 'invested'
+          ? tag.totalInvested
+          : selectedMetric === 'moic'
+            ? tag.moic
+            : selectedMetric === 'irr'
+              ? tag.irr
+              : tag.count,
+      display:
+        selectedMetric === 'invested'
+          ? formatCurrency(tag.totalInvested)
+          : selectedMetric === 'moic'
+            ? `${tag.moic.toFixed(2)}x`
+            : selectedMetric === 'irr'
+              ? `${tag.irr.toFixed(1)}%`
+              : tag.count.toString(),
     }));
   };
 
   const getMetricLabel = () => {
     switch (selectedMetric) {
-      case 'invested': return 'Invested to Date';
-      case 'moic': return 'MOIC';
-      case 'irr': return 'IRR (%)';
-      case 'count': return 'Number of Companies';
-      default: return 'Invested to Date';
+      case 'invested':
+        return 'Invested to Date';
+      case 'moic':
+        return 'MOIC';
+      case 'irr':
+        return 'IRR (%)';
+      case 'count':
+        return 'Number of Companies';
+      default:
+        return 'Invested to Date';
     }
   };
 
@@ -190,7 +215,10 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
           <h3 className="text-lg font-semibold">Tag Performance Analysis</h3>
         </div>
         <div className="flex items-center space-x-2">
-          <Select value={selectedMetric} onValueChange={(value: any) => setSelectedMetric(value)}>
+          <Select
+            value={selectedMetric}
+            onValueChange={(value: string) => setSelectedMetric(value as typeof selectedMetric)}
+          >
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -201,7 +229,10 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
               <SelectItem value="count">Company Count</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={chartType} onValueChange={(value: any) => setChartType(value)}>
+          <Select
+            value={chartType}
+            onValueChange={(value: string) => setChartType(value as typeof chartType)}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -222,18 +253,18 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
-                <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart
+                  data={getChartData()}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    fontSize={12}
-                  />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />
-                  <Tooltip 
-                    formatter={(value: any, _name: any) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]}
+                  <Tooltip
+                    formatter={(value: number) => [
+                      getChartData().find((d) => d.value === value)?.display || value,
+                      getMetricLabel(),
+                    ]}
                   />
                   <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
@@ -253,7 +284,12 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                       <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any, _name: any) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />
+                  <Tooltip
+                    formatter={(value: number) => [
+                      getChartData().find((d) => d.value === value)?.display || value,
+                      getMetricLabel(),
+                    ]}
+                  />
                 </PieChart>
               )}
             </ResponsiveContainer>
@@ -268,20 +304,19 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {MOCK_TAG_PERFORMANCE.map((tag: any) => (
-              <div key={tag.tag} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+            {MOCK_TAG_PERFORMANCE.map((tag) => (
+              <div
+                key={tag.tag}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+              >
                 <div className="flex items-center space-x-4">
                   <Badge variant="outline" className="font-medium">
                     {tag.tag}
                   </Badge>
-                  <Badge className={getPerformanceColor(tag.performance)}>
-                    {tag.performance}
-                  </Badge>
-                  <div className="text-sm text-gray-600">
-                    {tag.count} companies
-                  </div>
+                  <Badge className={getPerformanceColor(tag.performance)}>{tag.performance}</Badge>
+                  <div className="text-sm text-gray-600">{tag.count} companies</div>
                 </div>
-                
+
                 <div className="flex items-center space-x-6 text-sm">
                   <div className="text-center">
                     <div className="font-medium">{formatCurrency(tag.totalInvested)}</div>
@@ -323,7 +358,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -335,7 +370,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
