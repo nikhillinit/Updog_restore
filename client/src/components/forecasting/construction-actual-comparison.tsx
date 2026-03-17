@@ -1,150 +1,142 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ArrowUp, 
-  ArrowDown,
-  BarChart3,
-  Activity
-} from "lucide-react";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowUp, ArrowDown, BarChart3, Activity } from 'lucide-react';
 
 export function ConstructionActualComparison() {
   // Sample data for construction vs actual comparison
   const comparisonData = {
     initialChecks: [
-      { 
-        entryRound: "Seed", 
-        constructionAverage: 1250000, 
-        actualAverage: 1110660, 
-        difference: -139340, 
-        differencePercent: -11.15 
+      {
+        entryRound: 'Seed',
+        constructionAverage: 1250000,
+        actualAverage: 1110660,
+        difference: -139340,
+        differencePercent: -11.15,
       },
-      { 
-        entryRound: "Series A", 
-        constructionAverage: 2200000, 
-        actualAverage: 1824540, 
-        difference: -375460, 
-        differencePercent: -17.07 
+      {
+        entryRound: 'Series A',
+        constructionAverage: 2200000,
+        actualAverage: 1824540,
+        difference: -375460,
+        differencePercent: -17.07,
       },
-      { 
-        entryRound: "Pre-Seed", 
-        constructionAverage: 500000, 
-        actualAverage: 1500000, 
-        difference: 1000000, 
-        differencePercent: 200.00 
-      }
+      {
+        entryRound: 'Pre-Seed',
+        constructionAverage: 500000,
+        actualAverage: 1500000,
+        difference: 1000000,
+        differencePercent: 200.0,
+      },
     ],
     followOnReserves: [
-      { 
-        entryRound: "Seed", 
-        constructionAverage: 2100000, 
-        actualAverage: 1850000, 
-        difference: -250000, 
-        differencePercent: -11.90 
+      {
+        entryRound: 'Seed',
+        constructionAverage: 2100000,
+        actualAverage: 1850000,
+        difference: -250000,
+        differencePercent: -11.9,
       },
-      { 
-        entryRound: "Series A", 
-        constructionAverage: 3200000, 
-        actualAverage: 2750000, 
-        difference: -450000, 
-        differencePercent: -14.06 
+      {
+        entryRound: 'Series A',
+        constructionAverage: 3200000,
+        actualAverage: 2750000,
+        difference: -450000,
+        differencePercent: -14.06,
       },
-      { 
-        entryRound: "Pre-Seed", 
-        constructionAverage: 800000, 
-        actualAverage: 1200000, 
-        difference: 400000, 
-        differencePercent: 50.00 
-      }
+      {
+        entryRound: 'Pre-Seed',
+        constructionAverage: 800000,
+        actualAverage: 1200000,
+        difference: 400000,
+        differencePercent: 50.0,
+      },
     ],
     roundSizes: [
-      { 
-        entryRound: "Seed", 
-        constructionAverage: 8500000, 
-        actualAverage: 9200000, 
-        difference: 700000, 
-        differencePercent: 8.24 
+      {
+        entryRound: 'Seed',
+        constructionAverage: 8500000,
+        actualAverage: 9200000,
+        difference: 700000,
+        differencePercent: 8.24,
       },
-      { 
-        entryRound: "Series A", 
-        constructionAverage: 15000000, 
-        actualAverage: 14200000, 
-        difference: -800000, 
-        differencePercent: -5.33 
+      {
+        entryRound: 'Series A',
+        constructionAverage: 15000000,
+        actualAverage: 14200000,
+        difference: -800000,
+        differencePercent: -5.33,
       },
-      { 
-        entryRound: "Pre-Seed", 
-        constructionAverage: 3000000, 
-        actualAverage: 4500000, 
-        difference: 1500000, 
-        differencePercent: 50.00 
-      }
+      {
+        entryRound: 'Pre-Seed',
+        constructionAverage: 3000000,
+        actualAverage: 4500000,
+        difference: 1500000,
+        differencePercent: 50.0,
+      },
     ],
     preMoneyValuations: [
-      { 
-        entryRound: "Seed", 
-        constructionAverage: 13500000, 
-        actualAverage: 16456322, 
-        difference: 2956322, 
-        differencePercent: 21.90 
+      {
+        entryRound: 'Seed',
+        constructionAverage: 13500000,
+        actualAverage: 16456322,
+        difference: 2956322,
+        differencePercent: 21.9,
       },
-      { 
-        entryRound: "Series A", 
-        constructionAverage: 39600000, 
-        actualAverage: 37389960, 
-        difference: -2210040, 
-        differencePercent: -5.58 
+      {
+        entryRound: 'Series A',
+        constructionAverage: 39600000,
+        actualAverage: 37389960,
+        difference: -2210040,
+        differencePercent: -5.58,
       },
-      { 
-        entryRound: "Pre-Seed", 
-        constructionAverage: 7000000, 
-        actualAverage: 15000000, 
-        difference: 8000000, 
-        differencePercent: 114.29 
-      }
+      {
+        entryRound: 'Pre-Seed',
+        constructionAverage: 7000000,
+        actualAverage: 15000000,
+        difference: 8000000,
+        differencePercent: 114.29,
+      },
     ],
     postMoneyValuations: [
-      { 
-        entryRound: "Seed", 
-        constructionAverage: 22000000, 
-        actualAverage: 25656322, 
-        difference: 3656322, 
-        differencePercent: 16.62 
+      {
+        entryRound: 'Seed',
+        constructionAverage: 22000000,
+        actualAverage: 25656322,
+        difference: 3656322,
+        differencePercent: 16.62,
       },
-      { 
-        entryRound: "Series A", 
-        constructionAverage: 54600000, 
-        actualAverage: 51589960, 
-        difference: -3010040, 
-        differencePercent: -5.51 
+      {
+        entryRound: 'Series A',
+        constructionAverage: 54600000,
+        actualAverage: 51589960,
+        difference: -3010040,
+        differencePercent: -5.51,
       },
-      { 
-        entryRound: "Pre-Seed", 
-        constructionAverage: 10000000, 
-        actualAverage: 19500000, 
-        difference: 9500000, 
-        differencePercent: 95.00 
-      }
-    ]
+      {
+        entryRound: 'Pre-Seed',
+        constructionAverage: 10000000,
+        actualAverage: 19500000,
+        difference: 9500000,
+        differencePercent: 95.0,
+      },
+    ],
   };
 
   // Investment pacing over time data
   const pacingData = [
-    { period: "2021", construction: 86, actual: 21, currentForecast: 79 },
-    { period: "2022", construction: 86, actual: 35, currentForecast: 79 },
-    { period: "2023", construction: 86, actual: 21, currentForecast: 79 },
-    { period: "Total", construction: 86, actual: 21, currentForecast: 79 }
+    { period: '2021', construction: 86, actual: 21, currentForecast: 79 },
+    { period: '2022', construction: 86, actual: 35, currentForecast: 79 },
+    { period: '2023', construction: 86, actual: 21, currentForecast: 79 },
+    { period: 'Total', construction: 86, actual: 21, currentForecast: 79 },
   ];
 
   // Entry round breakdown
   const entryRoundData = [
-    { round: "Pre-Seed", construction: 32, actual: 2, projected: 24, remaining: 22 },
-    { round: "Seed", construction: 30, actual: 14, projected: 34, remaining: 20 },
-    { round: "Series A", construction: 24, actual: 5, projected: 21, remaining: 16 }
+    { round: 'Pre-Seed', construction: 32, actual: 2, projected: 24, remaining: 22 },
+    { round: 'Seed', construction: 30, actual: 14, projected: 34, remaining: 20 },
+    { round: 'Series A', construction: 24, actual: 5, projected: 21, remaining: 16 },
   ];
 
   const formatCurrency = (value: number) => {
@@ -159,14 +151,26 @@ export function ConstructionActualComparison() {
   };
 
   const getDifferenceIcon = (value: number) => {
-    return value > 0 ? <ArrowUp className="h-3 w-3 text-green-600" /> : <ArrowDown className="h-3 w-3 text-red-600" />;
+    return value > 0 ? (
+      <ArrowUp className="h-3 w-3 text-green-600" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-red-600" />
+    );
   };
 
   const getDifferenceColor = (value: number) => {
-    return value > 0 ? "text-green-600" : "text-red-600";
+    return value > 0 ? 'text-green-600' : 'text-red-600';
   };
 
-  const ComparisonTable = ({ data, title, description }: { data: any[], title: string, description: string }) => (
+  const ComparisonTable = ({
+    data,
+    title,
+    description,
+  }: {
+    data: any[];
+    title: string;
+    description: string;
+  }) => (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
@@ -185,7 +189,7 @@ export function ConstructionActualComparison() {
               </tr>
             </thead>
             <tbody>
-              {data.map((item: any, index: any) => (
+              {data.map((item, index) => (
                 <tr key={index} className="border-b hover:bg-gray-50">
                   <td className="p-3 font-medium">{item.entryRound}</td>
                   <td className="text-center p-3">{formatCurrency(item.constructionAverage)}</td>
@@ -254,7 +258,7 @@ export function ConstructionActualComparison() {
                 </tr>
               </thead>
               <tbody>
-                {entryRoundData.map((item: any, index: any) => (
+                {entryRoundData.map((item, index) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
                     <td className="p-3 font-medium">{item.round}</td>
                     <td className="text-center p-3">{item.construction}</td>
@@ -292,7 +296,7 @@ export function ConstructionActualComparison() {
         </TabsList>
 
         <TabsContent value="initial-checks">
-          <ComparisonTable 
+          <ComparisonTable
             data={comparisonData.initialChecks}
             title="Construction vs. Actual Comparison, By Entry Stage"
             description="Average initial check size per deal in actual investments compared between construction plan and actual investments."
@@ -300,7 +304,7 @@ export function ConstructionActualComparison() {
         </TabsContent>
 
         <TabsContent value="follow-on-reserves">
-          <ComparisonTable 
+          <ComparisonTable
             data={comparisonData.followOnReserves}
             title="Follow-On Reserves Comparison"
             description="Average follow-on reserve allocation per deal comparing construction plan with actual reserve deployment."
@@ -308,7 +312,7 @@ export function ConstructionActualComparison() {
         </TabsContent>
 
         <TabsContent value="round-sizes">
-          <ComparisonTable 
+          <ComparisonTable
             data={comparisonData.roundSizes}
             title="Round Sizes Comparison"
             description="Average total round size for deals comparing construction assumptions with actual market conditions."
@@ -316,7 +320,7 @@ export function ConstructionActualComparison() {
         </TabsContent>
 
         <TabsContent value="pre-money">
-          <ComparisonTable 
+          <ComparisonTable
             data={comparisonData.preMoneyValuations}
             title="Pre-Money Valuations Comparison"
             description="Average pre-money valuation per deal of actual investments compared between construction plan and actual investments."
@@ -324,7 +328,7 @@ export function ConstructionActualComparison() {
         </TabsContent>
 
         <TabsContent value="post-money">
-          <ComparisonTable 
+          <ComparisonTable
             data={comparisonData.postMoneyValuations}
             title="Post-Money Valuations Comparison"
             description="Average post-money valuation per deal comparing construction assumptions with actual investment terms."
