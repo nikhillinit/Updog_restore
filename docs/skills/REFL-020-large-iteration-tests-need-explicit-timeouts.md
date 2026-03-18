@@ -6,16 +6,12 @@ status: DRAFT
 date: 2026-02-15
 version: 1
 severity: medium
-components:
-  - vitest
-  - power-law-distribution
-  - test infrastructure
-keywords:
-  - test timeout
-  - flaky test
-  - monte carlo
-  - pre-push hook
-  - CI
+wizard_steps: []
+error_codes: [ERR_TEST_TIMEOUT]
+components: [vitest, power-law-distribution, test-infrastructure]
+keywords: [test-timeout, flaky-test, monte-carlo, pre-push-hook, ci]
+test_file: tests/regressions/REFL-020.test.ts
+superseded_by: null
 ---
 
 # REFL-020: Large-Iteration Tests Need Explicit Timeouts

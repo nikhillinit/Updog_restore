@@ -24,12 +24,15 @@ export type JWTClaims = JwtPayload & {
   lpId?: number; // LP-specific: Limited Partner ID for LP role users
 };
 
-const cfg = getConfig();
+function getJwtConfig() {
+  return getConfig();
+}
 
 // JWKS client singleton for RS256 (lazy initialized)
 let jwksClientInstance: jwksClient.JwksClient | null = null;
 
 function getJwksClient(): jwksClient.JwksClient {
+  const cfg = getJwtConfig();
   if (!jwksClientInstance && cfg.JWT_JWKS_URL) {
     jwksClientInstance = jwksClient({
       jwksUri: cfg.JWT_JWKS_URL,
@@ -61,6 +64,7 @@ async function getSigningKey(kid: string): Promise<string> {
  * For RS256: Async verification using JWKS public keys
  */
 export function verifyAccessToken(token: string): JWTClaims {
+  const cfg = getJwtConfig();
   if (cfg.JWT_ALG === 'HS256') {
     const verified = jwt.verify(token, cfg.JWT_SECRET!, {
       algorithms: ['HS256' as Algorithm],
@@ -80,6 +84,7 @@ export function verifyAccessToken(token: string): JWTClaims {
  * Falls back to sync verification for HS256
  */
 export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> {
+  const cfg = getJwtConfig();
   if (cfg.JWT_ALG === 'HS256') {
     return verifyAccessToken(token);
   }
@@ -189,7 +194,7 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT payload accepts arbitrary claims
 export function signToken(data: any): string {
-  const cfg = getConfig();
+  const cfg = getJwtConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {
     algorithm: 'HS256' as Algorithm,
     expiresIn: '7d',
