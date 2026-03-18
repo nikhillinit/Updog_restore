@@ -1,12 +1,12 @@
-#!/usr/bin/env tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Application bootstrap
 
 /**
- * Bootstrap Entrypoint - Ensures env + providers are settled before any Redis access
- * Eliminates side-effect imports that auto-connect to Redis
+ * Bootstrap - Ensures env + providers are settled before any Redis access.
+ * Eliminates side-effect imports that auto-connect to Redis.
+ *
+ * This module is side-effect-free: call bootstrap() explicitly from main.ts.
  */
 
-// Environment should already be loaded by process
 import { loadEnv } from './config/index.js';
 import { buildProviders } from './providers.js';
 import { createServer } from './server.js';
@@ -14,7 +14,7 @@ import { setReady } from './health/state.js';
 import { logger } from './lib/logger.js';
 import type { Socket } from 'net';
 
-async function bootstrap() {
+export async function bootstrap() {
   try {
     logger.info({ phase: 'start' }, 'PHASE 0: START');
     logger.info({ phase: 'start' }, 'Starting application...');
@@ -141,6 +141,3 @@ async function bootstrap() {
     process.exit(1);
   }
 }
-
-// Run bootstrap
-bootstrap();
