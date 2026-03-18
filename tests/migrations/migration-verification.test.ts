@@ -15,22 +15,23 @@ describe('Migration Verification', () => {
       const migrationsDir = path.join(process.cwd(), 'migrations');
       expect(fs.existsSync(migrationsDir)).toBe(true);
 
-      const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql'));
+      const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
       expect(files.length).toBeGreaterThan(0);
 
       // Check file naming convention
-      files.forEach(file => {
+      files.forEach((file) => {
         expect(file).toMatch(/^\d{4}_[a-z_]+\.sql$/);
       });
     });
 
     it('should have sequential migration numbers', () => {
       const migrationsDir = path.join(process.cwd(), 'migrations');
-      const files = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+      const files = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
         .sort();
 
-      const numbers = files.map(f => parseInt(f.split('_')[0]));
+      const numbers = files.map((f) => parseInt(f.split('_')[0]));
 
       for (let i = 1; i < numbers.length; i++) {
         const diff = numbers[i] - numbers[i - 1];
@@ -40,9 +41,9 @@ describe('Migration Verification', () => {
 
     it('should have valid SQL syntax', () => {
       const migrationsDir = path.join(process.cwd(), 'migrations');
-      const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql'));
+      const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
 
-      files.forEach(file => {
+      files.forEach((file) => {
         const content = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
 
         // Should not be empty
@@ -214,12 +215,14 @@ describe('Migration Verification', () => {
 
       for (const tableName of tables) {
         try {
-          const result = await db.execute(sql.raw(`
+          const result = await db.execute(
+            sql.raw(`
             SELECT id, COUNT(*) as count
             FROM "${tableName}"
             GROUP BY id
             HAVING COUNT(*) > 1
-          `));
+          `)
+          );
 
           expect(result.rows.length).toBe(0);
         } catch (error) {
@@ -277,7 +280,7 @@ describe('Migration Verification', () => {
             SELECT 1
             FROM pg_indexes
             WHERE tablename = ${table}
-            AND indexdef LIKE ${`%${  column  }%`}
+            AND indexdef LIKE ${`%${column}%`}
           ) as has_index
         `);
 
@@ -304,7 +307,7 @@ describe('Migration Verification', () => {
   describe('Migration Safety', () => {
     it('should not drop tables without backup', async () => {
       const migrationsDir = path.join(process.cwd(), 'migrations');
-      const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql'));
+      const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
 
       for (const file of files) {
         const content = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
@@ -321,7 +324,7 @@ describe('Migration Verification', () => {
 
     it('should handle concurrent migrations safely', async () => {
       // Check if migrations use appropriate locking
-      const result = await db.execute(sql`
+      await db.execute(sql`
         SELECT EXISTS (
           SELECT 1
           FROM pg_locks
@@ -338,9 +341,9 @@ describe('Migration Verification', () => {
       const backupDir = path.join(migrationsDir, 'backups');
 
       // Should have backup directory for rollback points
-      expect(
-        fs.existsSync(backupDir) || fs.existsSync(path.join(migrationsDir, 'snapshots'))
-      ).toBe(true);
+      expect(fs.existsSync(backupDir) || fs.existsSync(path.join(migrationsDir, 'snapshots'))).toBe(
+        true
+      );
     });
   });
 
@@ -358,8 +361,8 @@ describe('Migration Verification', () => {
 
       // Should have standard columns
       const allColumns = result.rows as any[];
-      const hasId = allColumns.some(r => r.column_name === 'id');
-      const hasCreatedAt = allColumns.some(r => r.column_name === 'created_at');
+      const hasId = allColumns.some((r) => r.column_name === 'id');
+      const hasCreatedAt = allColumns.some((r) => r.column_name === 'created_at');
 
       expect(hasId).toBe(true);
       expect(hasCreatedAt).toBe(true);

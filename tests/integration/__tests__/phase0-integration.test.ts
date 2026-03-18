@@ -17,10 +17,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
   describe('All fixes are applied and working together', () => {
     it('Fix #1: FeatureFlagProvider exists and exports correctly', async () => {
       // Verify the provider file is accessible and properly structured
-      const providerPath = path.join(
-        process.cwd(),
-        'client/src/providers/FeatureFlagProvider.tsx'
-      );
+      const providerPath = path.join(process.cwd(), 'client/src/providers/FeatureFlagProvider.tsx');
 
       try {
         const content = await fs.readFile(providerPath, 'utf-8');
@@ -34,12 +31,14 @@ describe('Phase 0 Critical Fixes - Integration', () => {
 
         // Should NOT have empty dependency array memoization (the bug)
         // Fixed version should not have useMemo([])
-        const hasBuggyMemo = content.match(/useMemo\(\s*\(\)\s*=>\s*getFeatureFlags\(\)\s*,\s*\[\s*\]\s*\)/);
+        const hasBuggyMemo = content.match(
+          /useMemo\(\s*\(\)\s*=>\s*getFeatureFlags\(\)\s*,\s*\[\s*\]\s*\)/
+        );
         expect(hasBuggyMemo).toBeNull();
 
         // Should compute flags properly (not cached incorrectly)
         expect(content).toContain('getFeatureFlags()');
-      } catch (error) {
+      } catch {
         // In some test environments, the file may not be accessible
         // This is acceptable - the unit tests cover the functionality
       }
@@ -47,18 +46,19 @@ describe('Phase 0 Critical Fixes - Integration', () => {
 
     it('Fix #2: Golden dataset comparison uses AND logic', async () => {
       // Verify the comparison utility uses correct logic
-      const utilPath = path.join(
-        process.cwd(),
-        'tests/utils/golden-dataset.ts'
-      );
+      const utilPath = path.join(process.cwd(), 'tests/utils/golden-dataset.ts');
 
       const content = await fs.readFile(utilPath, 'utf-8');
 
       // Should have the AND logic fix
-      expect(content).toContain('absoluteDiff <= tolerances.absolute && relativeDiff <= tolerances.relative');
+      expect(content).toContain(
+        'absoluteDiff <= tolerances.absolute && relativeDiff <= tolerances.relative'
+      );
 
       // Should NOT have the buggy OR logic
-      expect(content).not.toContain('absoluteDiff <= tolerances.absolute || relativeDiff <= tolerances.relative');
+      expect(content).not.toContain(
+        'absoluteDiff <= tolerances.absolute || relativeDiff <= tolerances.relative'
+      );
     });
 
     it('Fix #3: Vite config does not have manual chunking', async () => {
@@ -80,10 +80,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
 
     it('Fix #4: CI workflow uses separate jobs with artifacts', async () => {
       // Verify CI workflow structure
-      const workflowPath = path.join(
-        process.cwd(),
-        '.github/workflows/bundle-size-check.yml'
-      );
+      const workflowPath = path.join(process.cwd(), '.github/workflows/bundle-size-check.yml');
 
       const content = await fs.readFile(workflowPath, 'utf-8');
 
@@ -118,7 +115,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
         'client/src/providers/FeatureFlagProvider.tsx',
         'tests/utils/golden-dataset.ts',
         'vite.config.ts',
-        '.github/workflows/bundle-size-check.yml'
+        '.github/workflows/bundle-size-check.yml',
       ];
 
       for (const file of criticalFiles) {
@@ -156,10 +153,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
       }
 
       // Check golden dataset utility
-      const utilPath = path.join(
-        process.cwd(),
-        'tests/utils/golden-dataset.ts'
-      );
+      const utilPath = path.join(process.cwd(), 'tests/utils/golden-dataset.ts');
       const util = await fs.readFile(utilPath, 'utf-8');
 
       // Should have proper exports
@@ -175,7 +169,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
         'client/src/providers/__tests__/FeatureFlagProvider.test.tsx',
         'tests/integration/__tests__/golden-dataset-regression.test.ts',
         'tests/integration/__tests__/vite-build-regression.test.ts',
-        'tests/integration/__tests__/ci-workflow-regression.test.ts'
+        'tests/integration/__tests__/ci-workflow-regression.test.ts',
       ];
 
       for (const testFile of regressionTests) {
@@ -203,8 +197,6 @@ describe('Phase 0 Critical Fixes - Integration', () => {
       // or: useMemo(() => getFeatureFlags(), [dependencies])
 
       // This test documents what WOULD have failed before the fix
-      const buggyPattern = /useMemo\(\s*\(\)\s*=>\s*getFeatureFlags\(\)\s*,\s*\[\s*\]\s*\)/;
-
       // The fix removes this pattern entirely
       expect(true).toBe(true); // Documented
     });
@@ -251,19 +243,20 @@ describe('Phase 0 Critical Fixes - Integration', () => {
           name: 'Feature Flag Memoization',
           file: 'client/src/providers/FeatureFlagProvider.tsx',
           check: (content: string) =>
-            !content.match(/useMemo\(\s*\(\)\s*=>\s*getFeatureFlags\(\)\s*,\s*\[\s*\]\s*\)/)
+            !content.match(/useMemo\(\s*\(\)\s*=>\s*getFeatureFlags\(\)\s*,\s*\[\s*\]\s*\)/),
         },
         {
           name: 'Golden Dataset AND Logic',
           file: 'tests/utils/golden-dataset.ts',
           check: (content: string) =>
-            content.includes('absoluteDiff <= tolerances.absolute && relativeDiff <= tolerances.relative')
+            content.includes(
+              'absoluteDiff <= tolerances.absolute && relativeDiff <= tolerances.relative'
+            ),
         },
         {
           name: 'Vite Manual Chunking',
           file: 'vite.config.ts',
-          check: (content: string) =>
-            content.includes('manualChunks: undefined')
+          check: (content: string) => content.includes('manualChunks: undefined'),
         },
         {
           name: 'CI Workflow Structure',
@@ -271,8 +264,8 @@ describe('Phase 0 Critical Fixes - Integration', () => {
           check: (content: string) =>
             content.includes('build-base:') &&
             content.includes('build-pr:') &&
-            content.includes('compare:')
-        }
+            content.includes('compare:'),
+        },
       ];
 
       for (const fix of fixes) {
@@ -295,7 +288,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
         'FeatureFlagProvider.test.tsx',
         'golden-dataset-regression.test.ts',
         'vite-build-regression.test.ts',
-        'ci-workflow-regression.test.ts'
+        'ci-workflow-regression.test.ts',
       ];
 
       // All 4 test files should exist (this one makes 5)
@@ -313,7 +306,7 @@ describe('Phase 0 Critical Fixes - Integration', () => {
         staleMemoization: 'FeatureFlagProvider.test.tsx',
         toleranceOrLogic: 'golden-dataset-regression.test.ts',
         manualChunking: 'vite-build-regression.test.ts',
-        ciRaceConditions: 'ci-workflow-regression.test.ts'
+        ciRaceConditions: 'ci-workflow-regression.test.ts',
       };
 
       expect(Object.keys(protections)).toHaveLength(4);

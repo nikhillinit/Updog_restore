@@ -155,7 +155,7 @@ test.describe('LP Data Privacy & Isolation', () => {
       await expect(page.getByText(LP_ACCOUNTS.lp3.name)).not.toBeVisible();
     });
 
-    test('LP2 capital account shows different data than LP1', async ({ page, context }) => {
+    test('LP2 capital account shows different data than LP1', async ({ page }) => {
       // Login as LP2
       await page.goto('/lp/login');
       await page.fill('[name=email]', LP_ACCOUNTS.lp2.email);

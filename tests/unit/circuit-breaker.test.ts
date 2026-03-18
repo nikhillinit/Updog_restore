@@ -21,7 +21,7 @@ class MockCache implements Cache {
     return this.data.get(key);
   }
 
-  async set<T>(key: string, value: T, ttlSec?: number): Promise<void> {
+  async set<T>(key: string, value: T, _ttlSec?: number): Promise<void> {
     if (this.shouldFail) {
       this.failureCount++;
       throw new Error(`Mock failure ${this.failureCount}`);
@@ -74,7 +74,7 @@ describe('CircuitBreakerCache', () => {
   let mockFallbackStore: MockCache;
   let circuitBreaker: CircuitBreakerCache;
   let mockTime: number;
-  
+
   const getMockTime = () => mockTime;
 
   beforeEach(() => {
@@ -88,9 +88,9 @@ describe('CircuitBreakerCache', () => {
       {
         failureThreshold: 3,
         resetTimeout: 1000,
-        monitoringPeriod: 5000
+        monitoringPeriod: 5000,
       },
-      getMockTime  // Use our manual time function
+      getMockTime // Use our manual time function
     );
   });
 
@@ -199,7 +199,7 @@ describe('CircuitBreakerCache', () => {
       // Fix backing store but make it slow
       mockBackingStore.setFailureMode(false);
       let resolvePromise: ((value: any) => void) | null = null;
-      const slowPromise = new Promise(resolve => {
+      const slowPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
 
@@ -213,7 +213,7 @@ describe('CircuitBreakerCache', () => {
         circuitBreaker.get('test'),
         circuitBreaker.get('test'),
         circuitBreaker.get('test'),
-        circuitBreaker.get('test')
+        circuitBreaker.get('test'),
       ];
 
       // The first request should be in-flight, others should use fallback
@@ -228,7 +228,7 @@ describe('CircuitBreakerCache', () => {
 
       // First request should succeed, others should use fallback
       expect(results[0]).toBe('slow-value');
-      expect(results.slice(1).every(r => r === 'fallback-value')).toBe(true);
+      expect(results.slice(1).every((r) => r === 'fallback-value')).toBe(true);
     }, 15000);
   });
 

@@ -29,7 +29,7 @@ test.describe('Pipeline Management', () => {
   // --------------------------------------------------------
   // Add Deal: open modal, submit, see in list
   // --------------------------------------------------------
-  test('add deal modal opens and submits successfully', async ({ page }) => {
+  test('add deal modal opens and submits successfully', async () => {
     await pipeline.navigateTo();
     await pipeline.verifyPageLoaded();
 

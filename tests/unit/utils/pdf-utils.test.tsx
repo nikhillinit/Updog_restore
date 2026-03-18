@@ -197,7 +197,7 @@ describe('formatDate', () => {
 
   it('formats date in short format', () => {
     const result = formatDate(testDate, 'short');
-    expect(result).toContain('6');  // Month
+    expect(result).toContain('6'); // Month
     expect(result).toContain('15'); // Day
   });
 
@@ -265,7 +265,6 @@ describe('getCopyrightText', () => {
 describe('downloadBlob', () => {
   let createObjectURLMock: ReturnType<typeof vi.fn>;
   let revokeObjectURLMock: ReturnType<typeof vi.fn>;
-  let createElementSpy: ReturnType<typeof vi.spyOn>;
   let appendChildSpy: ReturnType<typeof vi.spyOn>;
   let removeChildSpy: ReturnType<typeof vi.spyOn>;
   let mockLink: { href: string; download: string; click: ReturnType<typeof vi.fn> };
@@ -283,9 +282,13 @@ describe('downloadBlob', () => {
       click: vi.fn(),
     };
 
-    createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
-    appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as unknown as Node);
-    removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as unknown as Node);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    appendChildSpy = vi
+      .spyOn(document.body, 'appendChild')
+      .mockImplementation(() => mockLink as unknown as Node);
+    removeChildSpy = vi
+      .spyOn(document.body, 'removeChild')
+      .mockImplementation(() => mockLink as unknown as Node);
   });
 
   afterEach(() => {

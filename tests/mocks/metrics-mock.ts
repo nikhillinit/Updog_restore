@@ -11,7 +11,7 @@ export const metrics = {
   recordWarning: vi.fn(),
   recordDivergence: vi.fn(),
   recordRecovery: vi.fn(),
-  recordPerformanceMetric: vi.fn((name: string, value: number, unit: string) => {
+  recordPerformanceMetric: vi.fn(() => {
     // No-op mock for testing
   }),
   recordCacheHit: vi.fn(),

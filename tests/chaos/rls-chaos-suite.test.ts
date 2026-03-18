@@ -581,7 +581,7 @@ describe('Performance Benchmarks', () => {
       const duration = Date.now() - start;
       const avgMs = duration / iterations;
 
-      console.log(`Complex join average: ${avgMs.toFixed(3)}ms`);
+      console.warn(`Complex join average: ${avgMs.toFixed(3)}ms`);
       expect(avgMs).toBeLessThan(100);
 
       await client.query('ROLLBACK');
@@ -652,7 +652,6 @@ describe('Concurrency Stress Tests', () => {
     }
 
     // Try to get one more (should timeout or queue)
-    const startTime = Date.now();
     let timedOut = false;
 
     try {
@@ -665,7 +664,7 @@ describe('Concurrency Stress Tests', () => {
           }, 2000)
         ),
       ]);
-    } catch (err) {
+    } catch {
       expect(timedOut).toBe(true);
     }
 
