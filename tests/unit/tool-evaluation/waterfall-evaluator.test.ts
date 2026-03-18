@@ -12,6 +12,12 @@ import {
   EVALUATION_TOOLS,
 } from '../../../ai-utils/tool-evaluation/waterfall-evaluator';
 
+function logWaterfallEvaluation(...args: unknown[]): void {
+  if (process.env.WATERFALL_EVAL_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 describe('Tool Evaluation Framework', () => {
   describe('Waterfall Calculations', () => {
     it('should calculate AMERICAN waterfall correctly', async () => {
@@ -127,11 +133,15 @@ describe('Tool Evaluation Framework', () => {
       // Log failing Phase 1B tasks for diagnostics
       const failedPhase1B = results.filter((r) => !r.passed);
       if (failedPhase1B.length > 0) {
-        console.log('\nFAILING PHASE 1B TASKS:');
+        logWaterfallEvaluation('\nFAILING PHASE 1B TASKS:');
         failedPhase1B.forEach((task) => {
-          console.log(`  - ID: ${task.taskId}, Category: ${task.category || 'unknown'}`);
-          console.log(`    Expected: ${JSON.stringify(task.expected)?.substring(0, 100)}...`);
-          console.log(`    Actual: ${JSON.stringify(task.actual)?.substring(0, 100)}...`);
+          logWaterfallEvaluation(`  - ID: ${task.taskId}, Category: ${task.category || 'unknown'}`);
+          logWaterfallEvaluation(
+            `    Expected: ${JSON.stringify(task.expected)?.substring(0, 100)}...`
+          );
+          logWaterfallEvaluation(
+            `    Actual: ${JSON.stringify(task.actual)?.substring(0, 100)}...`
+          );
         });
       }
 

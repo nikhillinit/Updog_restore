@@ -1,6 +1,6 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: ARCHIVED
+last_updated: 2026-03-17
 ---
 
 # AI Agent Backtesting Framework Design
@@ -11,6 +11,11 @@ A comprehensive framework to evaluate AI agent performance using historical git
 data. This system replays past failures, measures agent effectiveness against
 human fixes, and provides quantitative metrics for continuous improvement of the
 4 agent patterns: Evaluator-Optimizer, PromptCache, Router, and Orchestrator.
+
+Note: the original `packages/backtest-framework/` stub package was archived to
+`archive/2026-q1/unused-code/packages/backtest-framework/` on 2026-03-17 after
+validation showed it was not wired into build, test, or package configs. Path
+references below are historical.
 
 ## Architecture Overview
 

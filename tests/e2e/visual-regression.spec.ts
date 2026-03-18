@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('UI Catalog Visual Regression', () => {
+  // SKIP: snapshot baselines are only maintained for Chromium, not the other Playwright browsers
   test.skip(({ browserName }) => browserName !== 'chromium', 'Visual tests only on Chrome');
 
   test.beforeEach(async ({ page }) => {
@@ -131,6 +132,7 @@ test.describe('UI Catalog Visual Regression', () => {
 });
 
 test.describe('Component Isolation Snapshots', () => {
+  // SKIP: snapshot baselines are only maintained for Chromium, not the other Playwright browsers
   test.skip(({ browserName }) => browserName !== 'chromium', 'Visual tests only on Chrome');
 
   test('GuidedTour dialog appearance', async ({ page }) => {

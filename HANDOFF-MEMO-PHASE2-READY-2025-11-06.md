@@ -34,7 +34,7 @@ infrastructure investment.
 - **15 files** organized for AI consumption
 - 340KB ready for NotebookLM upload
 - Includes: Core docs, Phase 2 strategy, infrastructure guides, cheatsheets
-- **Location:** `notebooklm-upload/`
+- **Location:** `archive/2026-q1/unused-code/notebooklm-upload/`
 
 ### Commit 2: Strategy & Anti-Patterns (bba66b7)
 

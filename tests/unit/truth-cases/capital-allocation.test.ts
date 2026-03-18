@@ -20,6 +20,12 @@ import {
 } from '@/core/capitalAllocation';
 import capitalCases from '../../../docs/capital-allocation.truth-cases.json';
 
+function logCapitalAllocationTruthCase(...args: unknown[]): void {
+  if (process.env.CA_TRUTH_CASE_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 /**
  * @quarantine
  * @reason CA-005 truth case locked per docs/CA-SEMANTIC-LOCK.md Section 6; dynamic_ratio policy cases skipped by engine policy
@@ -187,6 +193,7 @@ describe('Capital Allocation Truth Cases', () => {
     const skipCheck = shouldSkipTruthCase(tc.id, tc.inputs.fund.reserve_policy);
 
     if (skipCheck.skip) {
+      // SKIP: dynamic_ratio policy cases remain intentionally disabled until reserve-engine support lands
       it.skip(`${tc.id}: ${tc.description} - ${skipCheck.reason}`, () => {
         skipped++;
       });
@@ -314,10 +321,10 @@ describe('Capital Allocation Truth Cases', () => {
     const total = passed + failed;
     const passRate = total > 0 ? (passed / total) * 100 : 0;
 
-    console.log(`\nCA Truth Cases Summary:`);
-    console.log(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
-    console.log(`  Failed: ${failed}`);
-    console.log(`  Skipped: ${skipped}`);
+    logCapitalAllocationTruthCase(`\nCA Truth Cases Summary:`);
+    logCapitalAllocationTruthCase(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
+    logCapitalAllocationTruthCase(`  Failed: ${failed}`);
+    logCapitalAllocationTruthCase(`  Skipped: ${skipped}`);
 
     // Phase 1 target: Core reserve calculations (CA-001, CA-002, CA-003)
     // Full target: 19/20 (95%)
@@ -351,7 +358,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(0, 0);
 
-    console.log(
+    logCapitalAllocationTruthCase(
       `CA-001 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );
@@ -372,7 +379,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // reserve_balance = min(2, 20) = 2M
     expect(result.reserve_balance).toBeCloseTo(2, 0);
 
-    console.log(
+    logCapitalAllocationTruthCase(
       `CA-002 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );
@@ -398,7 +405,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(10, 0);
 
-    console.log(
+    logCapitalAllocationTruthCase(
       `CA-003 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );

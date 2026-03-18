@@ -335,6 +335,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
     // ESM modules cannot be uncached like CJS - require.cache doesn't work
     // These tests validate behavior that occurs at module load time
     // which can only be tested by restarting the process
+    // SKIP: startup validation is module-load behavior and this Vitest ESM harness cannot reliably reload the module
     it.skip('throws on startup if webhook secret is missing (ESM limitation)', async () => {
       delete process.env.ALERTMANAGER_WEBHOOK_SECRET;
 
@@ -345,6 +346,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
       }).rejects.toThrow('ALERTMANAGER_WEBHOOK_SECRET');
     });
 
+    // SKIP: startup validation is module-load behavior and this Vitest ESM harness cannot reliably reload the module
     it.skip('throws on startup if webhook secret is too short (ESM limitation)', async () => {
       process.env.ALERTMANAGER_WEBHOOK_SECRET = 'short';
 

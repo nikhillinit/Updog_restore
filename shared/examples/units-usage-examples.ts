@@ -19,19 +19,13 @@ import {
   type Dollars,
 } from '../units';
 
-import {
-  PercentageSchema,
-  DollarsSchema,
-} from '../schemas/unit-schemas';
+import { PercentageSchema, DollarsSchema } from '../schemas/unit-schemas';
 
 // ============================================================================
 // Example 1: Type-Safe Ownership Calculation
 // ============================================================================
 
-function calculateOwnershipStake(
-  investmentAmount: Dollars,
-  postMoneyValuation: Dollars
-): Fraction {
+function calculateOwnershipStake(investmentAmount: Dollars, postMoneyValuation: Dollars): Fraction {
   // TypeScript ensures both parameters are Dollars
   const ownershipFraction = investmentAmount / postMoneyValuation;
 
@@ -43,16 +37,12 @@ function calculateOwnershipStake(
 const investment = asDollars(5_000_000); // $5M investment
 const valuation = asDollars(25_000_000); // $25M post-money valuation
 const ownership = calculateOwnershipStake(investment, valuation);
-console.log(`Ownership: ${formatFractionAsPct(ownership)}`); // "20.00%"
 
 // ============================================================================
 // Example 2: Management Fee Calculation
 // ============================================================================
 
-function calculateAnnualManagementFee(
-  fundSize: Dollars,
-  feeRate: Percentage
-): Dollars {
+function calculateAnnualManagementFee(fundSize: Dollars, feeRate: Percentage): Dollars {
   // Convert percentage to fraction for calculation
   const feeRateFraction = pctToFraction(feeRate);
 
@@ -67,16 +57,12 @@ function calculateAnnualManagementFee(
 const fundSize = asDollars(100_000_000); // $100M fund
 const mgmtFeeRate = asPercentage(2); // 2% management fee
 const annualFee = calculateAnnualManagementFee(fundSize, mgmtFeeRate);
-console.log(`Annual management fee: ${formatDollars(annualFee)}`); // "$2.0M"
 
 // ============================================================================
 // Example 3: Carry Calculation
 // ============================================================================
 
-function calculateCarryAmount(
-  totalProfit: Dollars,
-  carryPercentage: Percentage
-): Dollars {
+function calculateCarryAmount(totalProfit: Dollars, carryPercentage: Percentage): Dollars {
   const carryFraction = pctToFraction(carryPercentage);
   const carryAmount = totalProfit * carryFraction;
   return asDollars(carryAmount);
@@ -86,7 +72,6 @@ function calculateCarryAmount(
 const profit = asDollars(50_000_000); // $50M profit
 const carryRate = asPercentage(20); // 20% carry
 const gpCarry = calculateCarryAmount(profit, carryRate);
-console.log(`GP carry: ${formatDollars(gpCarry)}`); // "$10.0M"
 
 // ============================================================================
 // Example 4: API Validation with Zod
@@ -107,13 +92,7 @@ type InvestmentRequest = z.infer<typeof InvestmentRequestSchema>;
 // API handler with validated units
 function processInvestmentRequest(data: unknown): InvestmentRequest {
   // Zod validates and transforms to branded types
-  const validated = InvestmentRequestSchema.parse(data);
-
-  // Now we have type-safe units
-  console.log(`Investment: ${formatDollars(validated.investmentAmount)}`);
-  console.log(`Target ownership: ${formatPct(validated.targetOwnership)}`);
-
-  return validated;
+  return InvestmentRequestSchema.parse(data);
 }
 
 // Usage:
@@ -124,9 +103,9 @@ const requestData = {
   expectedReturn: 25.5,
 };
 
-const validated = processInvestmentRequest(requestData);
-// validated.investmentAmount is Dollars
-// validated.targetOwnership is Percentage
+const validatedRequest = processInvestmentRequest(requestData);
+// validatedRequest.investmentAmount is Dollars
+// validatedRequest.targetOwnership is Percentage
 
 // ============================================================================
 // Example 5: Portfolio Calculations with Multiple Units
@@ -144,10 +123,7 @@ function calculatePortfolioValue(companies: PortfolioCompany[]): {
   currentValue: Dollars;
   averageOwnership: Percentage;
 } {
-  const totalInvested = companies.reduce(
-    (sum, company) => sum + company.investmentAmount,
-    0
-  );
+  const totalInvested = companies.reduce((sum, company) => sum + company.investmentAmount, 0);
 
   const currentValue = companies.reduce(
     (sum, company) => sum + company.currentValuation * company.ownership,
@@ -180,16 +156,13 @@ const portfolio: PortfolioCompany[] = [
 ];
 
 const portfolioMetrics = calculatePortfolioValue(portfolio);
-console.log(`Total invested: ${formatDollars(portfolioMetrics.totalInvested)}`);
-console.log(`Current value: ${formatDollars(portfolioMetrics.currentValue)}`);
-console.log(`Avg ownership: ${formatPct(portfolioMetrics.averageOwnership)}`);
 
 // ============================================================================
 // Example 6: Preventing Common Bugs
 // ============================================================================
 
 // ❌ INCORRECT: Mixing units causes runtime errors
-function buggyCalculation() {
+function buggyCalculation(): string | null {
   try {
     const ownership = asPercentage(20); // 20%
     const fundSize = asDollars(100_000_000);
@@ -200,27 +173,35 @@ function buggyCalculation() {
     // ✅ CORRECT: Convert percentage to fraction first
     const ownershipFraction = pctToFraction(ownership);
     const result = asDollars(fundSize * ownershipFraction);
-    console.log(`Correct result: ${formatDollars(result)}`);
+    return formatDollars(result);
   } catch (error) {
     console.error('Caught unit mismatch:', error);
+    return null;
   }
 }
 
 // ❌ INCORRECT: Invalid values are caught
-function catchInvalidValues() {
+function catchInvalidValues(): {
+  invalidPercentage: string | null;
+  negativeDollars: string | null;
+} {
+  let invalidPercentage: string | null = null;
   try {
     // This will throw - ownership > 100%
-    const invalidOwnership = asPercentage(150);
+    void asPercentage(150);
   } catch (error) {
-    console.error('Caught invalid percentage:', error);
+    invalidPercentage = error instanceof Error ? error.message : String(error);
   }
 
+  let negativeDollars: string | null = null;
   try {
     // This will throw - negative dollars
-    const invalidAmount = asDollars(-1000);
+    void asDollars(-1000);
   } catch (error) {
-    console.error('Caught negative dollar amount:', error);
+    negativeDollars = error instanceof Error ? error.message : String(error);
   }
+
+  return { invalidPercentage, negativeDollars };
 }
 
 // ============================================================================
@@ -258,9 +239,29 @@ const apiResponse: RawFundMetrics = {
 };
 
 const safeMetrics = transformApiResponse(apiResponse);
-console.log(`Fund size: ${formatDollars(safeMetrics.fundSize)}`);
-console.log(`Deployment: ${formatPct(safeMetrics.deploymentRate)}`);
-console.log(`Ownership: ${formatFractionAsPct(safeMetrics.averageOwnership)}`);
+const usageExampleSummaries = {
+  ownership: formatFractionAsPct(ownership),
+  annualFee: formatDollars(annualFee),
+  gpCarry: formatDollars(gpCarry),
+  validatedRequest: {
+    investmentAmount: formatDollars(validatedRequest.investmentAmount),
+    targetOwnership: formatPct(validatedRequest.targetOwnership),
+  },
+  portfolioMetrics: {
+    totalInvested: formatDollars(portfolioMetrics.totalInvested),
+    currentValue: formatDollars(portfolioMetrics.currentValue),
+    averageOwnership: formatPct(portfolioMetrics.averageOwnership),
+  },
+  bugPrevention: {
+    correctedCarryExample: buggyCalculation(),
+    invalidValueErrors: catchInvalidValues(),
+  },
+  safeMetrics: {
+    fundSize: formatDollars(safeMetrics.fundSize),
+    deploymentRate: formatPct(safeMetrics.deploymentRate),
+    averageOwnership: formatFractionAsPct(safeMetrics.averageOwnership),
+  },
+};
 
 // ============================================================================
 // Export examples for testing
@@ -273,4 +274,7 @@ export {
   processInvestmentRequest,
   calculatePortfolioValue,
   transformApiResponse,
+  buggyCalculation,
+  catchInvalidValues,
+  usageExampleSummaries,
 };

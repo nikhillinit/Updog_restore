@@ -352,8 +352,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     const hasIntentField = 'navigationIntent' in snapshot.context;
 
     if (!hasIntentField) {
-      console.log('[EXPECTED FAILURE] No navigationIntent tracking in current implementation');
-      console.log('Context keys:', Object.keys(snapshot.context));
+      console.warn('[EXPECTED FAILURE] No navigationIntent tracking in current implementation');
+      console.warn('Context keys:', Object.keys(snapshot.context));
       throw new Error('navigationIntent field not present in context');
     }
 
@@ -507,8 +507,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     const hasInvokeCleanup = snapshot.status === 'stopped';
 
     if (!hasInvokeCleanup) {
-      console.log('[EXPECTED FAILURE] Actor not properly stopped');
-      console.log('Status:', snapshot.status);
+      console.warn('[EXPECTED FAILURE] Actor not properly stopped');
+      console.warn('Status:', snapshot.status);
       throw new Error('Invoke cleanup not implemented');
     }
 
@@ -573,9 +573,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     // Current: Only 1 call (no retries)
 
     if (retryTimestamps.length < 3) {
-      console.log('[EXPECTED FAILURE] Retry mechanism not implemented');
-      console.log('Retry attempts:', retryTimestamps.length);
-      console.log('Expected: 3 retries with exponential backoff');
+      console.warn('[EXPECTED FAILURE] Retry mechanism not implemented');
+      console.warn('Retry attempts:', retryTimestamps.length);
+      console.warn('Expected: 3 retries with exponential backoff');
       throw new Error('Exponential backoff not implemented');
     }
 
@@ -627,9 +627,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     const missingFields = requiredFields.filter((field) => !(field in context));
 
     if (missingFields.length > 0) {
-      console.log('[EXPECTED FAILURE] Missing context fields for persistence tracking');
-      console.log('Missing fields:', missingFields);
-      console.log('Current context keys:', Object.keys(context));
+      console.warn('[EXPECTED FAILURE] Missing context fields for persistence tracking');
+      console.warn('Missing fields:', missingFields);
+      console.warn('Current context keys:', Object.keys(context));
       throw new Error(`Missing persistence tracking fields: ${missingFields.join(', ')}`);
     }
 
@@ -743,6 +743,7 @@ describe('PR #1: Context Fields & Service Integration', () => {
    * Verify service throws appropriate error when storage quota exceeded
    */
   // FIXME: persistDataService implementation pending (PR#1)
+  // SKIP: persistDataService implementation pending (PR#1)
   it.skip('persistDataService should throw on QuotaExceededError', async () => {
     // Mock setItem to throw QuotaExceededError
     localStorageMock.setItem.mockImplementation(() => {
@@ -792,6 +793,7 @@ describe('PR #1: Context Fields & Service Integration', () => {
    * Verify service throws appropriate error when storage access denied (privacy mode)
    */
   // FIXME: persistDataService implementation pending (PR#1)
+  // SKIP: persistDataService implementation pending (PR#1)
   it.skip('persistDataService should throw on SecurityError (privacy mode)', async () => {
     // Mock setItem to throw SecurityError
     localStorageMock.setItem.mockImplementation(() => {

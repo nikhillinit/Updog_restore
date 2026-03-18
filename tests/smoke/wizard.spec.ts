@@ -12,7 +12,10 @@ import { test, expect } from '@playwright/test';
 
 // Skip in CI environments - smoke tests require deployed application
 const SMOKE_ENV_AVAILABLE = !process.env.DEMO_CI && !process.env.CI;
-if (!SMOKE_ENV_AVAILABLE) test.skip();
+if (!SMOKE_ENV_AVAILABLE) {
+  // SKIP: smoke tests require a deployed application instead of CI or demo environments
+  test.skip();
+}
 
 // Get configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
@@ -34,7 +37,7 @@ test.describe('Production Smoke Tests', () => {
     expect(healthResponse.status()).toBe(200);
     const healthData = await healthResponse.json();
     expect(healthData.status).toBe('healthy');
-    
+
     // Verify critical dependencies
     expect(healthData.checks?.database).toBe('healthy');
     expect(healthData.checks?.redis).toBe('healthy');
@@ -42,64 +45,72 @@ test.describe('Production Smoke Tests', () => {
 
   test('Home page loads successfully', async ({ page }) => {
     await page.goto(BASE_URL);
-    
+
     // Wait for main content
     await page.waitForLoadState('networkidle');
-    
+
     // Check for critical elements
     const mainContent = page.locator('main, #root, .app-container').first();
     await expect(mainContent).toBeVisible({ timeout: 10000 });
-    
+
     // Verify no console errors
     const errors: string[] = [];
-    page.on('console', msg => {
+    page.on('console', (msg) => {
       if (msg.type() === 'error') {
         errors.push(msg.text());
       }
     });
-    
+
     await page.waitForTimeout(1000);
     expect(errors.length).toBe(0);
   });
 
   test('Login flow works', async ({ page }) => {
     await page.goto(`${BASE_URL}/login`);
-    
+
     // Fill login form
     const emailInput = page.locator('input[type="email"], input[name="email"], #email').first();
-    const passwordInput = page.locator('input[type="password"], input[name="password"], #password').first();
-    
-    if (await emailInput.count() > 0 && await passwordInput.count() > 0) {
+    const passwordInput = page
+      .locator('input[type="password"], input[name="password"], #password')
+      .first();
+
+    if ((await emailInput.count()) > 0 && (await passwordInput.count()) > 0) {
       await emailInput.fill(SMOKE_USER);
       await passwordInput.fill(SMOKE_PASS);
-      
+
       // Submit form
-      const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
+      const submitButton = page
+        .locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")')
+        .first();
       await submitButton.click();
-      
+
       // Wait for navigation or success indicator
-      await page.waitForURL(url => !url.includes('/login'), { timeout: 10000 }).catch(() => {
-        // Alternative: wait for success message
-        return page.waitForSelector('.success-message, [data-testid="login-success"]', { timeout: 5000 });
-      });
+      await page
+        .waitForURL((url) => !url.includes('/login'), { timeout: 10000 })
+        .catch(() => {
+          // Alternative: wait for success message
+          return page.waitForSelector('.success-message, [data-testid="login-success"]', {
+            timeout: 5000,
+          });
+        });
     }
   });
 
   test('Wizard loads and is interactive', async ({ page }) => {
     await page.goto(`${BASE_URL}/wizard`);
-    
+
     // Wait for wizard to load
     const wizard = page.locator('.wizard, #wizard, [data-testid="wizard-container"]').first();
     await expect(wizard).toBeVisible({ timeout: 10000 });
-    
+
     // Check for form fields
     const inputs = page.locator('input:visible, select:visible');
     const inputCount = await inputs.count();
     expect(inputCount).toBeGreaterThan(0);
-    
+
     // Test navigation
     const nextButton = page.locator('button:has-text("Next"), button:has-text("Continue")').first();
-    if (await nextButton.count() > 0 && await nextButton.isEnabled()) {
+    if ((await nextButton.count()) > 0 && (await nextButton.isEnabled())) {
       // Fill required fields first
       const requiredInputs = page.locator('input[required]:visible').all();
       for (const input of await requiredInputs) {
@@ -110,13 +121,13 @@ test.describe('Production Smoke Tests', () => {
           await input.fill('100');
         }
       }
-      
+
       await nextButton.click();
       await page.waitForTimeout(1000);
-      
+
       // Verify step changed
       const stepIndicator = page.locator('[data-step="2"], .step-2, [aria-current="step"]').first();
-      if (await stepIndicator.count() > 0) {
+      if ((await stepIndicator.count()) > 0) {
         await expect(stepIndicator).toBeVisible();
       }
     }
@@ -125,15 +136,15 @@ test.describe('Production Smoke Tests', () => {
   test('Fund setup Step 2→3 transition works without errors', async ({ page }) => {
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
-    
+
     // Capture console and page errors
-    page.on('console', msg => {
+    page.on('console', (msg) => {
       if (msg.type() === 'error') {
         consoleErrors.push(msg.text().toLowerCase());
       }
     });
-    
-    page.on('pageerror', error => {
+
+    page.on('pageerror', (error) => {
       pageErrors.push(error.message.toLowerCase());
     });
 
@@ -142,16 +153,24 @@ test.describe('Production Smoke Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Wait for the step to be fully loaded
-    await expect(page.locator('[data-testid="wizard-step-investment-strategy-container"], [data-testid="wizard-step3-container"]')).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator(
+        '[data-testid="wizard-step-investment-strategy-container"], [data-testid="wizard-step3-container"]'
+      )
+    ).toBeVisible({ timeout: 10000 });
 
     // Fill minimal required fields if present
-    const fundNameInput = page.locator('input[name="name"], input[placeholder*="fund"], input[placeholder*="Fund"]').first();
-    if (await fundNameInput.count() > 0) {
+    const fundNameInput = page
+      .locator('input[name="name"], input[placeholder*="fund"], input[placeholder*="Fund"]')
+      .first();
+    if ((await fundNameInput.count()) > 0) {
       await fundNameInput.fill('Test Fund');
     }
 
-    const sizeInput = page.locator('input[name="size"], input[placeholder*="size"], input[type="number"]').first();
-    if (await sizeInput.count() > 0) {
+    const sizeInput = page
+      .locator('input[name="size"], input[placeholder*="size"], input[type="number"]')
+      .first();
+    if ((await sizeInput.count()) > 0) {
       await sizeInput.fill('25000000');
     }
 
@@ -162,23 +181,25 @@ test.describe('Production Smoke Tests', () => {
 
     // Wait for Step 3 to load
     await page.waitForTimeout(2000);
-    
+
     // Check that we successfully navigated to step 3
     await expect(page).toHaveURL(/step=3/);
 
     // Filter critical errors (exclude known non-issues)
-    const criticalConsoleErrors = consoleErrors.filter(error => 
-      error.includes('maximum update depth exceeded') ||
-      error.includes('failed to fetch dynamically imported module') ||
-      error.includes('getsnapshot should be cached') ||
-      error.includes('infinite loop') ||
-      error.includes('stack overflow')
+    const criticalConsoleErrors = consoleErrors.filter(
+      (error) =>
+        error.includes('maximum update depth exceeded') ||
+        error.includes('failed to fetch dynamically imported module') ||
+        error.includes('getsnapshot should be cached') ||
+        error.includes('infinite loop') ||
+        error.includes('stack overflow')
     );
 
-    const criticalPageErrors = pageErrors.filter(error =>
-      error.includes('maximum update depth') ||
-      error.includes('dynamic import') ||
-      error.includes('infinite loop')
+    const criticalPageErrors = pageErrors.filter(
+      (error) =>
+        error.includes('maximum update depth') ||
+        error.includes('dynamic import') ||
+        error.includes('infinite loop')
     );
 
     // Assert no critical errors occurred during Step 2→3 transition
@@ -188,15 +209,15 @@ test.describe('Production Smoke Tests', () => {
 
   test('Dashboard loads with data', async ({ page }) => {
     await page.goto(`${BASE_URL}/dashboard`);
-    
+
     // Wait for dashboard to load
     await page.waitForLoadState('networkidle');
-    
+
     // Check for dashboard content
     const dashboard = page.locator('.dashboard, #dashboard, [data-testid="dashboard"]').first();
-    if (await dashboard.count() > 0) {
+    if ((await dashboard.count()) > 0) {
       await expect(dashboard).toBeVisible({ timeout: 10000 });
-      
+
       // Check for charts or data elements
       const dataElements = page.locator('canvas, svg.chart, .data-table, [data-testid*="chart"]');
       const dataCount = await dataElements.count();
@@ -206,18 +227,14 @@ test.describe('Production Smoke Tests', () => {
 
   test('API endpoints respond correctly', async ({ page }) => {
     // Test critical API endpoints
-    const endpoints = [
-      '/api/funds',
-      '/api/simulations',
-      '/api/portfolios'
-    ];
-    
+    const endpoints = ['/api/funds', '/api/simulations', '/api/portfolios'];
+
     for (const endpoint of endpoints) {
       const response = await page.request.get(`${BASE_URL}${endpoint}`).catch(() => null);
       if (response) {
         // Expect either 200 (data) or 401 (auth required)
         expect([200, 401, 404]).toContain(response.status());
-        
+
         // If 200, verify response structure
         if (response.status() === 200) {
           const data = await response.json();
@@ -228,14 +245,16 @@ test.describe('Production Smoke Tests', () => {
   });
 
   test('Circuit breakers are functioning', async ({ page }) => {
-    const response = await page.request.get(`${BASE_URL}/api/circuit-breaker/status`).catch(() => null);
-    
+    const response = await page.request
+      .get(`${BASE_URL}/api/circuit-breaker/status`)
+      .catch(() => null);
+
     if (response && response.status() === 200) {
       const status = await response.json();
-      
+
       // Check that breakers exist
       expect(status.breakers).toBeDefined();
-      
+
       // Warn if any breakers are open
       for (const [name, breaker] of Object.entries(status.breakers || {})) {
         const state = (breaker as any).state;
@@ -248,58 +267,60 @@ test.describe('Production Smoke Tests', () => {
 
   test('No critical JavaScript errors', async ({ page }) => {
     const errors: string[] = [];
-    
-    page.on('pageerror', error => {
+
+    page.on('pageerror', (error) => {
       errors.push(error.message);
     });
-    
-    page.on('console', msg => {
+
+    page.on('console', (msg) => {
       if (msg.type() === 'error') {
         errors.push(msg.text());
       }
     });
-    
+
     // Navigate through key pages
     await page.goto(BASE_URL);
     await page.waitForTimeout(2000);
-    
+
     await page.goto(`${BASE_URL}/wizard`);
     await page.waitForTimeout(2000);
-    
+
     await page.goto(`${BASE_URL}/dashboard`);
     await page.waitForTimeout(2000);
-    
+
     // Filter out known non-critical errors
-    const criticalErrors = errors.filter(error => {
-      return !error.includes('ResizeObserver') && 
-             !error.includes('Non-Error promise rejection') &&
-             !error.includes('[HMR]');
+    const criticalErrors = errors.filter((error) => {
+      return (
+        !error.includes('ResizeObserver') &&
+        !error.includes('Non-Error promise rejection') &&
+        !error.includes('[HMR]')
+      );
     });
-    
+
     expect(criticalErrors).toHaveLength(0);
   });
 
   test('Memory usage is stable', async ({ page }) => {
     if (page.context().browser()?.browserType().name() === 'chromium') {
       await page.goto(BASE_URL);
-      
+
       // Get initial memory
       const initialMemory = await page.evaluate(() => {
         return (performance as any).memory?.usedJSHeapSize || 0;
       });
-      
+
       // Navigate through pages
       await page.goto(`${BASE_URL}/wizard`);
       await page.waitForTimeout(1000);
       await page.goto(`${BASE_URL}/dashboard`);
       await page.waitForTimeout(1000);
       await page.goto(BASE_URL);
-      
+
       // Get final memory
       const finalMemory = await page.evaluate(() => {
         return (performance as any).memory?.usedJSHeapSize || 0;
       });
-      
+
       // Memory shouldn't increase by more than 50MB
       const memoryIncrease = (finalMemory - initialMemory) / 1024 / 1024;
       expect(memoryIncrease).toBeLessThan(50);
@@ -316,6 +337,6 @@ export default {
     baseURL: BASE_URL,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    trace: 'on-first-retry'
-  }
+    trace: 'on-first-retry',
+  },
 };

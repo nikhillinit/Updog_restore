@@ -20,6 +20,7 @@ import { test, expect } from '@playwright/test';
 const RUN_E2E = !process.env.CI || process.env.E2E_ENABLED === 'true';
 
 test.describe('FeesExpensesStep Navigation (Issue #235)', () => {
+  // SKIP: these browser-level navigation checks require a running application instead of default CI environments
   test.skip(!RUN_E2E, 'E2E tests require running application');
 
   const FEES_STEP_URL = '/fund-setup?step=4';
@@ -106,7 +107,10 @@ test.describe('FeesExpensesStep Navigation (Issue #235)', () => {
     expect(page.url()).toContain('step=4');
 
     // Verify data is preserved
-    const rateValue = await page.locator('input[name="managementFee.rate"], #mgmtFeeRate').first().inputValue();
+    const rateValue = await page
+      .locator('input[name="managementFee.rate"], #mgmtFeeRate')
+      .first()
+      .inputValue();
     // Value should be preserved (1.75) or empty if form reset
     expect(['1.75', '2', '2.0', '']).toContain(rateValue);
   });
@@ -136,7 +140,7 @@ test.describe('FeesExpensesStep Navigation (Issue #235)', () => {
     await page.waitForLoadState('networkidle');
 
     // Check if data was preserved in localStorage or form
-    const savedState = await page.evaluate((key) => {
+    await page.evaluate((key) => {
       const state = localStorage.getItem(key);
       return state ? JSON.parse(state) : null;
     }, STORAGE_KEY);
@@ -181,7 +185,10 @@ test.describe('FeesExpensesStep Navigation (Issue #235)', () => {
     expect(page.url()).toContain('fund-setup');
 
     // If rate input is visible and has our value, restoration worked
-    const restoredRate = await page.locator('input[name="managementFee.rate"], #mgmtFeeRate').first().inputValue();
+    const restoredRate = await page
+      .locator('input[name="managementFee.rate"], #mgmtFeeRate')
+      .first()
+      .inputValue();
     // Accept either restored value or default
     expect(['2.25', '2', '2.0', '']).toContain(restoredRate);
   });

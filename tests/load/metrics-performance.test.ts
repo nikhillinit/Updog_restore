@@ -13,6 +13,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { performance } from 'perf_hooks';
 
+function logMetricsPerformance(...args: unknown[]): void {
+  if (process.env.METRICS_PERF_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 describe('Metrics API Performance - Load Testing', () => {
   const BASE_URL = process.env.TEST_API_URL || 'http://localhost:5000';
   let testFundId: number;
@@ -33,7 +39,7 @@ describe('Metrics API Performance - Load Testing', () => {
     const durations: number[] = [];
     const numRequests = 20;
 
-    console.log(`Running ${numRequests} requests to measure p95 latency...`);
+    logMetricsPerformance(`Running ${numRequests} requests to measure p95 latency...`);
 
     for (let i = 0; i < numRequests; i++) {
       const start = performance.now();
@@ -53,7 +59,7 @@ describe('Metrics API Performance - Load Testing', () => {
       expect(data).toHaveProperty('target');
       expect(data).toHaveProperty('variance');
 
-      console.log(`Request ${i + 1}/${numRequests}: ${duration.toFixed(0)}ms`);
+      logMetricsPerformance(`Request ${i + 1}/${numRequests}: ${duration.toFixed(0)}ms`);
     }
 
     // Calculate p95
@@ -69,15 +75,15 @@ describe('Metrics API Performance - Load Testing', () => {
     const min = Math.min(...durations);
     const max = Math.max(...durations);
 
-    console.log('\nPerformance Results:');
-    console.log('====================');
-    console.log(`Min:    ${min.toFixed(0)}ms`);
-    console.log(`p50:    ${p50.toFixed(0)}ms`);
-    console.log(`Avg:    ${avg.toFixed(0)}ms`);
-    console.log(`p95:    ${p95.toFixed(0)}ms`);
-    console.log(`p99:    ${p99.toFixed(0)}ms`);
-    console.log(`Max:    ${max.toFixed(0)}ms`);
-    console.log('====================');
+    logMetricsPerformance('\nPerformance Results:');
+    logMetricsPerformance('====================');
+    logMetricsPerformance(`Min:    ${min.toFixed(0)}ms`);
+    logMetricsPerformance(`p50:    ${p50.toFixed(0)}ms`);
+    logMetricsPerformance(`Avg:    ${avg.toFixed(0)}ms`);
+    logMetricsPerformance(`p95:    ${p95.toFixed(0)}ms`);
+    logMetricsPerformance(`p99:    ${p99.toFixed(0)}ms`);
+    logMetricsPerformance(`Max:    ${max.toFixed(0)}ms`);
+    logMetricsPerformance('====================');
 
     // Assert p95 meets target
     expect(p95).toBeLessThan(500);
@@ -89,7 +95,7 @@ describe('Metrics API Performance - Load Testing', () => {
    * Target: Cache hit should be at least 5x faster than cache miss
    */
   it('should show significant speedup from caching', async () => {
-    console.log('Testing cache effectiveness...');
+    logMetricsPerformance('Testing cache effectiveness...');
 
     // Invalidate cache first
     await fetch(`${BASE_URL}/api/funds/${testFundId}/metrics/invalidate`, {
@@ -123,12 +129,12 @@ describe('Metrics API Performance - Load Testing', () => {
 
     const speedup = cacheMissDuration / cacheHitDuration;
 
-    console.log('\nCache Performance:');
-    console.log('==================');
-    console.log(`Cache miss: ${cacheMissDuration.toFixed(0)}ms`);
-    console.log(`Cache hit:  ${cacheHitDuration.toFixed(0)}ms`);
-    console.log(`Speedup:    ${speedup.toFixed(1)}x`);
-    console.log('==================');
+    logMetricsPerformance('\nCache Performance:');
+    logMetricsPerformance('==================');
+    logMetricsPerformance(`Cache miss: ${cacheMissDuration.toFixed(0)}ms`);
+    logMetricsPerformance(`Cache hit:  ${cacheHitDuration.toFixed(0)}ms`);
+    logMetricsPerformance(`Speedup:    ${speedup.toFixed(1)}x`);
+    logMetricsPerformance('==================');
 
     // Assert at least 3x speedup (relaxed from 5x for reliability)
     expect(speedup).toBeGreaterThan(3);
@@ -142,7 +148,7 @@ describe('Metrics API Performance - Load Testing', () => {
   it('should handle concurrent requests efficiently', async () => {
     const concurrency = 10;
 
-    console.log(`Running ${concurrency} concurrent requests...`);
+    logMetricsPerformance(`Running ${concurrency} concurrent requests...`);
 
     const start = performance.now();
 
@@ -153,8 +159,10 @@ describe('Metrics API Performance - Load Testing', () => {
     const results = await Promise.all(promises);
     const duration = performance.now() - start;
 
-    console.log(`\nCompleted ${concurrency} concurrent requests in ${duration.toFixed(0)}ms`);
-    console.log(`Average per request: ${(duration / concurrency).toFixed(0)}ms`);
+    logMetricsPerformance(
+      `\nCompleted ${concurrency} concurrent requests in ${duration.toFixed(0)}ms`
+    );
+    logMetricsPerformance(`Average per request: ${(duration / concurrency).toFixed(0)}ms`);
 
     // All requests should succeed
     expect(results).toHaveLength(concurrency);
@@ -200,14 +208,14 @@ describe('Metrics API Performance - Load Testing', () => {
     await response2.json();
     const skipDuration = performance.now() - start2;
 
-    console.log('\nskipProjections Performance:');
-    console.log('=============================');
-    console.log(`With projections:    ${fullDuration.toFixed(0)}ms`);
-    console.log(`Without projections: ${skipDuration.toFixed(0)}ms`);
-    console.log(
+    logMetricsPerformance('\nskipProjections Performance:');
+    logMetricsPerformance('=============================');
+    logMetricsPerformance(`With projections:    ${fullDuration.toFixed(0)}ms`);
+    logMetricsPerformance(`Without projections: ${skipDuration.toFixed(0)}ms`);
+    logMetricsPerformance(
       `Savings:             ${(fullDuration - skipDuration).toFixed(0)}ms (${((1 - skipDuration / fullDuration) * 100).toFixed(0)}%)`
     );
-    console.log('=============================');
+    logMetricsPerformance('=============================');
 
     // Skip should be faster
     expect(skipDuration).toBeLessThan(fullDuration);
@@ -230,6 +238,7 @@ describe('Metrics API Performance - Load Testing', () => {
 describe('Metrics API - Stress Testing', () => {
   const BASE_URL = process.env.TEST_API_URL || 'http://localhost:5000';
 
+  // SKIP: manual-only sustained load test; unsuitable for CI and default local runs
   it.skip(
     'should handle sustained load (100 req/min for 5 minutes)',
     async () => {
@@ -238,7 +247,7 @@ describe('Metrics API - Stress Testing', () => {
       const requestsPerMinute = 100;
       const intervalMs = (60 * 1000) / requestsPerMinute; // 600ms between requests
 
-      console.log(
+      logMetricsPerformance(
         `Starting stress test: ${requestsPerMinute} req/min for ${durationMinutes} minutes...`
       );
 
@@ -263,7 +272,7 @@ describe('Metrics API - Stress Testing', () => {
           }
           const reqEnd = performance.now();
           results.durations.push(reqEnd - reqStart);
-        } catch (error) {
+        } catch {
           results.errors++;
         }
 
@@ -271,15 +280,15 @@ describe('Metrics API - Stress Testing', () => {
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
 
-      console.log('\nStress Test Results:');
-      console.log('====================');
-      console.log(`Total requests: ${results.success + results.errors}`);
-      console.log(`Successful:     ${results.success}`);
-      console.log(`Errors:         ${results.errors}`);
-      console.log(
+      logMetricsPerformance('\nStress Test Results:');
+      logMetricsPerformance('====================');
+      logMetricsPerformance(`Total requests: ${results.success + results.errors}`);
+      logMetricsPerformance(`Successful:     ${results.success}`);
+      logMetricsPerformance(`Errors:         ${results.errors}`);
+      logMetricsPerformance(
         `Success rate:   ${((results.success / (results.success + results.errors)) * 100).toFixed(2)}%`
       );
-      console.log('====================');
+      logMetricsPerformance('====================');
 
       // 99% success rate expected
       expect(results.errors / (results.success + results.errors)).toBeLessThan(0.01);

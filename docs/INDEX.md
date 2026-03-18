@@ -145,13 +145,14 @@ Hardening baseline)
 
 **Standalone ADRs (docs/adr/)**:
 
-| ADR | Title                                            |
-| --- | ------------------------------------------------ |
-| 017 | Monte Carlo Validation Strategy                  |
-| 018 | Typed Stage Normalization & Statistical Testing  |
-| 019 | mem0 Integration for AI Agent Memory Management  |
+| ADR | Title                                           |
+| --- | ----------------------------------------------- |
+| 017 | Monte Carlo Validation Strategy                 |
+| 018 | Typed Stage Normalization & Statistical Testing |
+| 019 | mem0 Integration for AI Agent Memory Management |
 
-*Note: ADR-017/018/019 were renumbered from 010/011/012 to avoid conflicts with DECISIONS.md (2026-01-19).*
+_Note: ADR-017/018/019 were renumbered from 010/011/012 to avoid conflicts with
+DECISIONS.md (2026-01-19)._
 
 ---
 
@@ -159,13 +160,13 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Agents
 
-| Document                                                                    | Description                           | When to Use                      |
-| --------------------------------------------------------------------------- | ------------------------------------- | -------------------------------- |
-| [ai-utils/README.md](../ai-utils/README.md)                                 | Memory-enabled code review system     | Code review automation           |
-| [ai/prompt/README.md](../ai/prompt/README.md)                               | Type-safe prompt templates            | Portfolio QA, Reserve Sizing     |
-| [.claude/skills/README.md](../.claude/skills/README.md)                     | 21 skills catalog                     | Finding skills for workflows     |
-| [.claude/agents/PHOENIX-AGENTS.md](../.claude/agents/PHOENIX-AGENTS.md)     | 9 Phoenix-specific agents             | Phoenix project workflows        |
-| [claude_code-multi-AI-MCP/README.md](../claude_code-multi-AI-MCP/README.md) | Multi-AI collaboration (16 functions) | Consensus, debate, collaboration |
+| Document                                                                                                                            | Description                               | When to Use                         |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------- |
+| [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system         | Code review automation              |
+| [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                | Portfolio QA, Reserve Sizing        |
+| [.claude/skills/README.md](../.claude/skills/README.md)                                                                             | 21 skills catalog                         | Finding skills for workflows        |
+| [.claude/agents/PHOENIX-AGENTS.md](../.claude/agents/PHOENIX-AGENTS.md)                                                             | 9 Phoenix-specific agents                 | Phoenix project workflows           |
+| [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md](../archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md) | Archived Multi-AI collaboration prototype | Historical consensus/debate tooling |
 
 **Key Features**:
 

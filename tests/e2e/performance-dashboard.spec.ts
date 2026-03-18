@@ -12,15 +12,12 @@
 
 import { test, expect } from '@playwright/test';
 import { PerformancePage } from './page-objects/PerformancePage';
-import { NavigationPage } from './page-objects/NavigationPage';
 
 test.describe('Performance Dashboard', () => {
   let performancePage: PerformancePage;
-  let navigationPage: NavigationPage;
 
   test.beforeEach(async ({ page }) => {
     performancePage = new PerformancePage(page);
-    navigationPage = new NavigationPage(page);
 
     // Navigate to performance page
     await performancePage.navigateToPerformance();
@@ -28,6 +25,7 @@ test.describe('Performance Dashboard', () => {
     // Check if we have a fund selected, skip if redirected to fund setup
     const currentUrl = page.url();
     if (currentUrl.includes('/fund-setup')) {
+      // SKIP: performance dashboard assertions require an existing fund instead of fund-setup redirect
       test.skip();
     }
   });
@@ -50,8 +48,7 @@ test.describe('Performance Dashboard', () => {
 
     // Loading skeleton should appear briefly
     const skeleton = page.locator('.animate-pulse');
-    const hadLoadingState = await skeleton.isVisible() ||
-      (await skeleton.count()) === 0; // May have already loaded
+    const hadLoadingState = (await skeleton.isVisible()) || (await skeleton.count()) === 0; // May have already loaded
 
     expect(hadLoadingState).toBeTruthy();
 
@@ -59,7 +56,7 @@ test.describe('Performance Dashboard', () => {
     await performancePage.waitForLoadingToComplete();
   });
 
-  test('should show no-fund message when no fund is selected', async ({ page }) => {
+  test('should show no-fund message when no fund is selected', async () => {
     // This test may not apply if a fund is always selected
     const noFundVisible = await performancePage.noFundMessage.isVisible();
 
@@ -83,7 +80,7 @@ test.describe('Performance Dashboard', () => {
     expect(metricsDisplayed).toBeTruthy();
   });
 
-  test('should show metric values or N/A placeholders', async ({ page }) => {
+  test('should show metric values or N/A placeholders', async () => {
     await performancePage.verifyPageLoaded();
 
     const metrics = await performancePage.getDisplayedMetrics();
@@ -93,7 +90,7 @@ test.describe('Performance Dashboard', () => {
 
     // If we have metrics, they should contain valid content
     if (hasMetrics) {
-      for (const [key, value] of Object.entries(metrics)) {
+      for (const value of Object.values(metrics)) {
         if (value) {
           // Should contain either a number, percentage, or N/A
           const hasValidContent = /\d|%|x|N\/A/.test(value);
@@ -173,7 +170,9 @@ test.describe('Performance Dashboard', () => {
     await performancePage.verifyPageLoaded();
 
     // Try to find and interact with timeframe selector
-    const timeframeButtons = page.locator('button:has-text("1y"), button:has-text("YTD"), button:has-text("All")');
+    const timeframeButtons = page.locator(
+      'button:has-text("1y"), button:has-text("YTD"), button:has-text("All")'
+    );
     const buttonsCount = await timeframeButtons.count();
 
     if (buttonsCount > 0) {
@@ -191,7 +190,9 @@ test.describe('Performance Dashboard', () => {
     await performancePage.verifyPageLoaded();
 
     // Look for granularity selector
-    const granularitySelect = page.locator('[data-testid="granularity-select"], select, [role="combobox"]').first();
+    const granularitySelect = page
+      .locator('[data-testid="granularity-select"], select, [role="combobox"]')
+      .first();
     const selectVisible = await granularitySelect.isVisible();
 
     if (selectVisible) {
@@ -218,11 +219,17 @@ test.describe('Performance Dashboard', () => {
       await performancePage.waitForLoadingToComplete();
 
       // Try to change groupBy
-      const groupBySelect = page.locator('[data-testid="groupby-select"], button:has-text("Sector"), button:has-text("Stage")').first();
+      const groupBySelect = page
+        .locator(
+          '[data-testid="groupby-select"], button:has-text("Sector"), button:has-text("Stage")'
+        )
+        .first();
       if (await groupBySelect.isVisible()) {
         await groupBySelect.click();
 
-        const option = page.locator('[role="option"]:has-text("Stage"), button:has-text("Stage")').first();
+        const option = page
+          .locator('[role="option"]:has-text("Stage"), button:has-text("Stage")')
+          .first();
         if (await option.isVisible()) {
           await option.click();
           await performancePage.waitForLoadingToComplete();
@@ -242,8 +249,9 @@ test.describe('Performance Dashboard', () => {
     await performancePage.verifyPageLoaded();
 
     // Charts should be visible on desktop
-    const hasContent = await performancePage.verifyChartsVisible() ||
-      await performancePage.verifyMetricsDisplayed();
+    const hasContent =
+      (await performancePage.verifyChartsVisible()) ||
+      (await performancePage.verifyMetricsDisplayed());
     expect(hasContent || !(await performancePage.hasError())).toBeTruthy();
   });
 
@@ -272,7 +280,7 @@ test.describe('Performance Dashboard', () => {
   // ERROR HANDLING TESTS
   // ============================================================================
 
-  test('should handle API errors gracefully', async ({ page }) => {
+  test('should handle API errors gracefully', async () => {
     await performancePage.verifyPageLoaded();
 
     // Page should either show data or a meaningful error state
@@ -319,7 +327,9 @@ test.describe('Performance Dashboard', () => {
     await performancePage.waitForLoadingToComplete();
 
     // Look for performance link
-    const performanceLink = page.locator('a[href="/performance"], a:has-text("Performance")').first();
+    const performanceLink = page
+      .locator('a[href="/performance"], a:has-text("Performance")')
+      .first();
     if (await performanceLink.isVisible()) {
       await performanceLink.click();
       await page.waitForURL(/\/performance/);

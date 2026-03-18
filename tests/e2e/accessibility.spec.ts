@@ -21,6 +21,7 @@ test.describe('Accessibility Tests', () => {
 
       // Skip if redirected to auth (fund fixture should handle fund-setup)
       const currentUrl = page.url();
+      // SKIP: accessibility scan requires the target page to be reachable instead of redirecting to authentication
       test.skip(
         currentUrl.includes('/login') || currentUrl.includes('/auth'),
         'Redirected to authentication'
@@ -47,6 +48,7 @@ test.describe('Accessibility Tests', () => {
 
     // Skip if not accessible (fund fixture should handle fund-setup)
     const currentUrl = page.url();
+    // SKIP: keyboard navigation assertions require the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Page not accessible or redirected'
@@ -147,7 +149,6 @@ test.describe('Accessibility Tests', () => {
     const formElements = await page.locator('input, select, textarea').all();
 
     for (const element of formElements) {
-      const tagName = await element.evaluate((el) => el.tagName.toLowerCase());
       const type = await element.getAttribute('type');
 
       // Skip hidden inputs
@@ -185,6 +186,7 @@ test.describe('Accessibility Tests', () => {
 
     // Skip if redirected (fund fixture should handle fund-setup)
     const currentUrl = page.url();
+    // SKIP: color-contrast scan requires the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Redirected to different page'
@@ -209,6 +211,7 @@ test.describe('Accessibility Tests', () => {
     await page.goto('/dashboard');
 
     const currentUrl = page.url();
+    // SKIP: image accessibility assertions require the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Redirected to different page'
@@ -233,6 +236,7 @@ test.describe('Accessibility Tests', () => {
     await page.goto('/dashboard');
 
     const currentUrl = page.url();
+    // SKIP: landmark accessibility assertions require the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Redirected to different page'
@@ -257,6 +261,7 @@ test.describe('Accessibility Tests', () => {
     await page.goto('/dashboard');
 
     const currentUrl = page.url();
+    // SKIP: modal focus assertions require the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Redirected to different page'
@@ -324,6 +329,7 @@ test.describe('Accessibility Tests', () => {
     await page.goto('/dashboard');
 
     const currentUrl = page.url();
+    // SKIP: high-contrast assertions require the dashboard route rather than an auth or setup redirect
     test.skip(
       currentUrl.includes('/login') || currentUrl.includes('/fund-setup'),
       'Redirected to different page'

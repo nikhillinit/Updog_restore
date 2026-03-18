@@ -60,11 +60,9 @@ export default [
       'tools/**',
       'ai-utils/**', // Experimental AI development tools
       'notebooks/**', // Jupyter notebooks and examples
-      'examples/**', // Example code
       'server/examples/**', // Server example code
       'docs/**', // Documentation files
       'msw/**', // Mock Service Worker test fixtures
-      'server - memory shim/**', // Memory mode shim files
       'eslint-rules/**', // ESLint rule definitions (CommonJS)
       '*.cjs', // Root-level CommonJS utility scripts
       'src/**', // Legacy source directory (pre-refactor)
@@ -88,7 +86,6 @@ export default [
       'packages/*/dist/**',
       'packages/*/build/**',
       'ml-service/dist/**',
-      'typescript-fix-agents/**',
       'check-db.js',
       'test-*.mjs', // Manual test scripts
       'test-*.js', // Manual test scripts
@@ -107,14 +104,12 @@ export default [
       '.venv/**',
       'archive/**',
       'artifacts/**',
+      '.a5c/**',
       'code-reviewer/**',
       'dev-automation/**',
       'ai-logs/**',
       'ai/**',
       'NotebookLM Skill/**',
-      'notebooklm-upload/**',
-      'claude_code-multi-AI-MCP/**',
-      'Valuation Approaches/**',
       'PATCHES/**',
       'triage-output/**',
       'performance-results/**',
@@ -122,6 +117,7 @@ export default [
       'test-results/**',
       'playwright-report/**',
       'repo/**',
+      'uiux-skill/**',
     ],
   },
   js.configs.recommended,

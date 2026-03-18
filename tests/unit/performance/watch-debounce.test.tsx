@@ -36,6 +36,12 @@ import React from 'react';
 import { CapitalAllocationStep } from '@/components/modeling-wizard/steps/CapitalAllocationStep';
 import * as useCapitalAllocationCalculationsModule from '@/hooks/useCapitalAllocationCalculations';
 
+function logWatchDebouncePerf(...args: unknown[]): void {
+  if (process.env.WATCH_DEBOUNCE_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 // ============================================================================
 // TEST FIXTURES
 // ============================================================================
@@ -103,6 +109,7 @@ function trackCalculation() {
 // TESTS: Calculation Frequency
 // ============================================================================
 
+// SKIP: perf harness still depends on stale fixtures and non-deterministic timing assumptions
 describe.skip('CapitalAllocationStep - Calculation Performance', () => {
   let mockOnSave: ReturnType<typeof vi.fn>;
   let originalUseCalculations: typeof useCapitalAllocationCalculationsModule.useCapitalAllocationCalculations;
@@ -163,8 +170,10 @@ describe.skip('CapitalAllocationStep - Calculation Performance', () => {
     expect(calculationCount).toBeLessThan(5);
 
     // Log for debugging
-    console.log(`[PERF-TEST] Rapid typing "2.5" triggered ${calculationCount} calculations`);
-    console.log(
+    logWatchDebouncePerf(
+      `[PERF-TEST] Rapid typing "2.5" triggered ${calculationCount} calculations`
+    );
+    logWatchDebouncePerf(
       `[PERF-TEST] Timestamps: ${calculationTimestamps.map((t) => t.toFixed(0)).join(', ')}`
     );
   });
@@ -272,7 +281,9 @@ describe.skip('CapitalAllocationStep - Calculation Performance', () => {
     // AFTER FIX: 1-2 calculations (batched during debounce window)
     expect(calculationCount).toBeLessThanOrEqual(2);
 
-    console.log(`[PERF-TEST] Typing "1.25" over 200ms triggered ${calculationCount} calculations`);
+    logWatchDebouncePerf(
+      `[PERF-TEST] Typing "1.25" over 200ms triggered ${calculationCount} calculations`
+    );
   });
 });
 
@@ -280,6 +291,7 @@ describe.skip('CapitalAllocationStep - Calculation Performance', () => {
 // TESTS: Auto-Save Debouncing
 // ============================================================================
 
+// SKIP: perf harness still depends on stale fixtures and non-deterministic timing assumptions
 describe.skip('CapitalAllocationStep - Auto-Save Performance', () => {
   let mockOnSave: ReturnType<typeof vi.fn>;
 
@@ -359,7 +371,9 @@ describe.skip('CapitalAllocationStep - Auto-Save Performance', () => {
     // AFTER FIX: 1-2 saves (debounced)
     expect(savesAfterDebounce).toBeLessThanOrEqual(2);
 
-    console.log(`[PERF-TEST] Typing "12.75" over 500ms triggered ${savesAfterDebounce} auto-saves`);
+    logWatchDebouncePerf(
+      `[PERF-TEST] Typing "12.75" over 500ms triggered ${savesAfterDebounce} auto-saves`
+    );
   });
 });
 
@@ -367,6 +381,7 @@ describe.skip('CapitalAllocationStep - Auto-Save Performance', () => {
 // TESTS: Memoization Effectiveness
 // ============================================================================
 
+// SKIP: perf harness still depends on stale fixtures and non-deterministic timing assumptions
 describe.skip('CapitalAllocationStep - Memoization', () => {
   let mockOnSave: ReturnType<typeof vi.fn>;
 
@@ -453,6 +468,7 @@ describe.skip('CapitalAllocationStep - Memoization', () => {
 // BENCHMARK: Performance Comparison
 // ============================================================================
 
+// SKIP: perf harness still depends on stale fixtures and non-deterministic timing assumptions
 describe.skip('CapitalAllocationStep - Performance Benchmarks', () => {
   let mockOnSave: ReturnType<typeof vi.fn>;
 
@@ -497,7 +513,7 @@ describe.skip('CapitalAllocationStep - Performance Benchmarks', () => {
     // AFTER FIX: 1-3 calculations
     expect(calculationCount).toBeLessThan(5);
 
-    console.log(
+    logWatchDebouncePerf(
       `[BENCHMARK] 10 keystrokes completed in ${totalDuration.toFixed(0)}ms with ${calculationCount} calculations`
     );
   });
