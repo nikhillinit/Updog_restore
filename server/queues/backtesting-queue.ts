@@ -386,17 +386,19 @@ export async function getBacktestJobStatus(jobId: string): Promise<BacktestJobSn
 
 async function reconcileWithBullState(
   jobId: string,
-  state: { resultRef: BacktestingJobResultRef | undefined; error: BacktestingJobError | undefined }
+  _state: { resultRef: BacktestingJobResultRef | undefined; error: BacktestingJobError | undefined }
 ): Promise<BacktestJobSnapshot | null> {
   if (!queue) return null;
   const job = await queue.getJob(jobId);
   if (!job) return null;
 
   const bullState = await job.getState();
-  if (bullState === 'completed' && state.resultRef) {
+  // Trust BullMQ terminal state even if in-memory resultRef/error is missing
+  // (can happen after server restart or memory pressure)
+  if (bullState === 'completed') {
     return buildSnapshot(jobId, 'completed');
   }
-  if (bullState === 'failed' && state.error) {
+  if (bullState === 'failed') {
     return buildSnapshot(jobId, 'failed');
   }
   return null;
