@@ -197,6 +197,7 @@ jobs:
               ;;
             lint)
               npm run lint
+              npm run guardrails:check
               ;;
             unit-fast)
               npm run test:unit -- --bail=1 --reporter=dot || npm run test:quick
