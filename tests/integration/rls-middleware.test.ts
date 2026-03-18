@@ -42,6 +42,7 @@ const mockClient = {
 // Test JWT secret
 const JWT_SECRET = 'test-jwt-secret-for-rls-tests-minimum-32-chars';
 
+// SKIP: this suite still needs a live database plus valid JWT wiring in the integration harness.
 describe.skip('RLS Middleware Integration', () => {
   let app: express.Application;
 

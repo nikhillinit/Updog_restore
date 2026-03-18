@@ -23,6 +23,7 @@ import {
 // @quarantine - These tests are intentionally skipped in CI.
 // Run with: npm run test:quarantine
 // Exit criteria: pass 5 consecutive runs with different seeds.
+// SKIP: output envelope checks remain quarantined until Monte Carlo fixtures are unlocked.
 describe.skip('Phase 2 Calibration: Output Envelopes', () => {
   describe('MOIC envelope', () => {
     it('expected portfolio MOIC falls within [1.5x, 4.0x] band', () => {

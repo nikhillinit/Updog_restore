@@ -1102,6 +1102,7 @@ describe('Portfolio Intelligence API Routes', () => {
      * Note: Security middleware IS applied (server/routes/portfolio-intelligence.ts:91)
      * Rate limiting requires dedicated test infrastructure to verify.
      */
+    // SKIP: rate limiting assertions require dedicated infrastructure and deterministic time control.
     it.skip('should enforce rate limiting', async () => {
       const requests = Array.from({ length: 20 }, () =>
         request(app).get('/api/portfolio/strategies/1')

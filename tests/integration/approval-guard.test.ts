@@ -156,6 +156,7 @@ describe('Approval Guard - Policy Before Compute', () => {
    * @exitCriteria Implement reserve calculation API endpoints per ADR-017
    */
   describe('API Integration', () => {
+    // SKIP: reserve calculation API endpoints are not implemented yet, so this placeholder case stays quarantined.
     it.skip('API integration tests - endpoints not yet implemented', () => {
       // These tests reference /api/reserves/calculate endpoints that don't exist yet
       // Skip for now to avoid test failures

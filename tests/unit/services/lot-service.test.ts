@@ -98,6 +98,7 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
 
     // Deferred to Phase 4 - requires real database UPSERT
     // @group integration - Phase 0-ALPHA feature needs database upsert logic
+    // SKIP: duplicate idempotency coverage depends on a real database UPSERT path that the mock does not implement.
     it.skip('should return existing lot on duplicate idempotency key', async () => {
       // ARRANGE
       const fundId = 1;

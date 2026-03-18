@@ -201,7 +201,7 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
         expect(secondResult.compressed.data).toBeInstanceOf(Uint8Array);
 
         // Verify Redis hit performance (< 5ms target)
-        console.log(`[benchmark] Redis cache hit: ${duration.toFixed(2)}ms`);
+        console.warn(`[benchmark] Redis cache hit: ${duration.toFixed(2)}ms`);
         expect(duration).toBeLessThan(10); // Relaxed to 10ms for CI
       });
 
@@ -248,7 +248,7 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
         expect(secondResult.compressed.numScenarios).toBe(100);
 
         // Verify PostgreSQL hit performance (< 50ms target)
-        console.log(`[benchmark] PostgreSQL cache hit: ${duration.toFixed(2)}ms`);
+        console.warn(`[benchmark] PostgreSQL cache hit: ${duration.toFixed(2)}ms`);
         expect(duration).toBeLessThan(100); // Relaxed to 100ms for CI
 
         // Verify Redis was warmed
@@ -261,7 +261,7 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
         await cache.getOrGenerate(config);
         const thirdDuration = performance.now() - thirdStart;
 
-        console.log(`[benchmark] Redis cache hit after warm-up: ${thirdDuration.toFixed(2)}ms`);
+        console.warn(`[benchmark] Redis cache hit after warm-up: ${thirdDuration.toFixed(2)}ms`);
         expect(thirdDuration).toBeLessThan(10); // Should be fast now
       });
     });
@@ -476,7 +476,7 @@ describe.skipIf(!process.env.CI && process.platform === 'win32')(
         await cache.getOrGenerate(config);
         const duration = performance.now() - start;
 
-        console.log(`[benchmark] Cache miss (generate + store): ${duration.toFixed(2)}ms`);
+        console.warn(`[benchmark] Cache miss (generate + store): ${duration.toFixed(2)}ms`);
         expect(duration).toBeLessThan(500); // Reasonable for 100 scenarios
       });
 

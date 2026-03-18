@@ -2,45 +2,45 @@ import { z } from 'zod';
 import { zBooleanish } from './booleans';
 
 // HTTP DTOs with coercers for boundary parsing
-export const FundInputDTO = z.object({
+export const FundInputDTOSchema = z.object({
   name: z.string().min(1),
   size: z.coerce.number().positive(),
   deployedCapital: z.coerce.number().nonnegative().optional(),
   managementFee: z.coerce.number().min(0).max(1),
   carryPercentage: z.coerce.number().min(0).max(1),
   vintageYear: z.coerce.number().int().min(2000).max(2030),
-  status: z.string().optional()
+  status: z.string().optional(),
 });
-export type FundInputDTO = z.infer<typeof FundInputDTO>;
+export type FundInputDTO = z.infer<typeof FundInputDTOSchema>;
 
-export const FundConfigDTO = z.object({
+export const FundConfigDTOSchema = z.object({
   isActive: zBooleanish,
   isEvergreen: zBooleanish,
   fundSize: z.coerce.number().int().positive(),
-  strategy: z.string().max(256).optional()
+  strategy: z.string().max(256).optional(),
 });
-export type FundConfigDTO = z.infer<typeof FundConfigDTO>;
+export type FundConfigDTO = z.infer<typeof FundConfigDTOSchema>;
 
 // Domain models (strict types)
-export const FundInput = z.object({
+export const FundInputSchema = z.object({
   name: z.string().min(1),
   size: z.number().positive(),
   deployedCapital: z.number().nonnegative().optional(),
   managementFee: z.number().min(0).max(1),
   carryPercentage: z.number().min(0).max(1),
   vintageYear: z.number().int().min(2000).max(2030),
-  status: z.string().optional()
+  status: z.string().optional(),
 });
-export type FundInput = z.infer<typeof FundInput>;
+export type FundInput = z.infer<typeof FundInputSchema>;
 
-export const FundConfig = z.object({
+export const FundConfigSchema = z.object({
   isActive: z.boolean(),
   isEvergreen: z.boolean(),
   fundSize: z.number().int().positive(),
-  strategy: z.string().max(256).optional()
+  strategy: z.string().max(256).optional(),
 });
-export type FundConfig = z.infer<typeof FundConfig>;
+export type FundConfig = z.infer<typeof FundConfigSchema>;
 
 // Conversion functions
-export const toDomainFundInput = (dto: FundInputDTO): FundInput => FundInput.parse(dto);
-export const toDomainFundConfig = (dto: FundConfigDTO): FundConfig => FundConfig.parse(dto);
+export const toDomainFundInput = (dto: FundInputDTO): FundInput => FundInputSchema.parse(dto);
+export const toDomainFundConfig = (dto: FundConfigDTO): FundConfig => FundConfigSchema.parse(dto);

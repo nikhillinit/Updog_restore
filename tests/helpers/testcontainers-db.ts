@@ -1,4 +1,4 @@
-import type { StartedTestContainer} from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { GenericContainer, Wait } from 'testcontainers';
 import { Client } from 'pg';
 import fs from 'fs';
@@ -13,7 +13,7 @@ let client: Client | null = null;
  */
 export async function startTestDb(): Promise<Client> {
   // Start ephemeral Postgres container
-  container = await new GenericContainer('postgres:16-alpine')
+  const startedContainer = await new GenericContainer('postgres:16-alpine')
     .withEnvironment({
       POSTGRES_PASSWORD: 'test',
       POSTGRES_USER: 'test',
@@ -23,10 +23,10 @@ export async function startTestDb(): Promise<Client> {
     .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/))
     .start();
 
-  const port = container.getMappedPort(5432);
-  const host = container.getHost();
+  const port = startedContainer.getMappedPort(5432);
+  const host = startedContainer.getHost();
 
-  client = new Client({
+  const startedClient = new Client({
     host,
     port,
     user: 'test',
@@ -34,11 +34,11 @@ export async function startTestDb(): Promise<Client> {
     database: 'test',
   });
 
-  await client.connect();
+  await startedClient.connect();
 
   // Apply prerequisite schemas (funds, users tables from Drizzle)
   // Note: In real implementation, import and apply full Drizzle schema
-  await client.query(`
+  await startedClient.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -59,22 +59,27 @@ export async function startTestDb(): Promise<Client> {
   );
   const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
 
-  await client.query(migrationSql);
+  await startedClient.query(migrationSql);
 
-  return client;
+  container = startedContainer;
+  client = startedClient;
+
+  return startedClient;
 }
 
 /**
  * Stop and cleanup the test database container
  */
 export async function stopTestDb(): Promise<void> {
-  if (client) {
-    await client.end();
-    client = null;
+  const activeClient = client;
+  client = null;
+  if (activeClient) {
+    await activeClient.end();
   }
-  if (container) {
-    await container.stop();
-    container = null;
+  const activeContainer = container;
+  container = null;
+  if (activeContainer) {
+    await activeContainer.stop();
   }
 }
 

@@ -8,6 +8,15 @@ import { requestId } from '../../server/middleware/requestId';
 import { setReady } from '../../server/health/state';
 import type { Server } from 'http';
 
+function setOptionalEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = value;
+}
+
 describe('Critical Middleware Tests', () => {
   let server: Server;
 
@@ -61,7 +70,7 @@ describe('Critical Middleware Tests', () => {
       const originalHealthKey = process.env.HEALTH_KEY;
       const TEST_HEALTH_KEY = 'test-health-key!';
       try {
-        process.env.HEALTH_KEY = TEST_HEALTH_KEY;
+        setOptionalEnv('HEALTH_KEY', TEST_HEALTH_KEY);
 
         const testApp = express();
         testApp.use(rateLimitDetailed());
@@ -77,11 +86,7 @@ describe('Critical Middleware Tests', () => {
         const allOk = responses.every((r) => r.status === 200);
         expect(allOk).toBe(true);
       } finally {
-        if (originalHealthKey !== undefined) {
-          process.env.HEALTH_KEY = originalHealthKey;
-        } else {
-          delete process.env.HEALTH_KEY;
-        }
+        setOptionalEnv('HEALTH_KEY', originalHealthKey);
       }
     });
   });
@@ -89,7 +94,7 @@ describe('Critical Middleware Tests', () => {
   describe('B. CORS Headers', () => {
     it('should sanitize and parse CORS origins', () => {
       const originalCorsOrigin = process.env.CORS_ORIGIN;
-      process.env.CORS_ORIGIN = ' http://localhost:3000 , http://example.com ,  ';
+      setOptionalEnv('CORS_ORIGIN', ' http://localhost:3000 , http://example.com ,  ');
 
       const testApp = express();
       const corsOrigins = process.env.CORS_ORIGIN
@@ -115,7 +120,7 @@ describe('Critical Middleware Tests', () => {
       // Should have cleaned up the origins
       expect(corsOrigins).toEqual(['http://localhost:3000', 'http://example.com']);
 
-      process.env.CORS_ORIGIN = originalCorsOrigin;
+      setOptionalEnv('CORS_ORIGIN', originalCorsOrigin);
     });
 
     it('should expose RateLimit headers', async () => {

@@ -95,6 +95,7 @@ const renderWithWrapper = (ui: React.ReactElement) => {
   return render(ui, { wrapper: TestWrapper });
 };
 
+// SKIP: page-level constructor tests still require a fuller application setup than this harness provides.
 describe.skip('PortfolioConstructor', () => {
   let user: ReturnType<typeof userEvent.setup>;
 

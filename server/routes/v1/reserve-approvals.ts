@@ -25,6 +25,24 @@ import { getConfig } from '../../config';
 
 const router = Router();
 
+type ApprovalRequestUser = {
+  email?: string;
+};
+
+type ApprovalRequestSession = {
+  id?: string;
+};
+
+function getRequestUserEmail(req: Request): string | null {
+  const user = req.user as ApprovalRequestUser | undefined;
+  return typeof user?.email === 'string' && user.email.length > 0 ? user.email : null;
+}
+
+function getRequestSessionId(req: Request): string | undefined {
+  const session = req.session as ApprovalRequestSession | undefined;
+  return typeof session?.id === 'string' ? session.id : undefined;
+}
+
 // Rate limit: 30 requests per minute per IP
 const approvalLimiter = rateLimit({
   windowMs: 60_000,
@@ -57,6 +75,11 @@ const createApprovalSchema = z.object({
  */
 router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Response) => {
   try {
+    const userEmail = getRequestUserEmail(req);
+    if (!userEmail) {
+      return res['status'](401)['json']({ error: 'Authentication required' });
+    }
+
     const validation = createApprovalSchema.safeParse(req.body);
     if (!validation.success) {
       return res['status'](400)['json']({
@@ -80,7 +103,7 @@ router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Resp
       .insert(reserveApprovals)
       .values({
         strategyId,
-        requestedBy: req.user!.email,
+        requestedBy: userEmail,
         action,
         strategyData,
         reason,
@@ -102,7 +125,7 @@ router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Resp
     await db.insert(approvalAuditLog).values({
       approvalId: approval.id,
       action: 'created',
-      actor: req.user!.email,
+      actor: userEmail,
       details: { reason, impact },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'],
@@ -185,6 +208,11 @@ router['get']('/', async (req: Request, res: Response) => {
  */
 router['get']('/:id', async (req: Request, res: Response) => {
   try {
+    const userEmail = getRequestUserEmail(req);
+    if (!userEmail) {
+      return res['status'](401)['json']({ error: 'Authentication required' });
+    }
+
     const id = req.params['id'] as string;
 
     const [approval] = await db.select().from(reserveApprovals).where(eq(reserveApprovals.id, id));
@@ -210,7 +238,7 @@ router['get']('/:id', async (req: Request, res: Response) => {
       approval,
       signatures,
       auditLog,
-      canSign: await canPartnerSign(req.user!.email, id),
+      canSign: await canPartnerSign(userEmail, id),
       isExpired: approval.expiresAt < new Date(),
       isApproved: signatures.length >= 2,
     });
@@ -230,6 +258,11 @@ const signApprovalSchema = z.object({
 
 router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Response) => {
   try {
+    const userEmail = getRequestUserEmail(req);
+    if (!userEmail) {
+      return res['status'](401)['json']({ error: 'Authentication required' });
+    }
+
     const id = req.params['id'] as string;
     const { verificationCode } = signApprovalSchema.parse(req.body);
 
@@ -237,7 +270,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
     const [partner] = await db
       .select()
       .from(approvalPartners)
-      .where(eq(approvalPartners.email, req.user!.email));
+      .where(eq(approvalPartners.email, userEmail));
 
     if (!partner || partner.deactivated) {
       return res['status'](403)['json']({ error: 'Not authorized as partner' });
@@ -258,7 +291,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       // Mark as expired
       await db
         .update(reserveApprovals)
-        ['set']({ status: 'expired', updatedAt: new Date() })
+        .set({ status: 'expired', updatedAt: new Date() })
         .where(eq(reserveApprovals.id, id));
 
       return res['status'](400)['json']({ error: 'Approval has expired' });
@@ -269,10 +302,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       .select()
       .from(approvalSignatures)
       .where(
-        and(
-          eq(approvalSignatures.approvalId, id),
-          eq(approvalSignatures.partnerEmail, req.user!.email)
-        )
+        and(eq(approvalSignatures.approvalId, id), eq(approvalSignatures.partnerEmail, userEmail))
       );
 
     if (existingSignature) {
@@ -282,7 +312,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
     // Generate signature
     const signatureData = {
       approvalId: id,
-      partnerEmail: req.user!.email,
+      partnerEmail: userEmail,
       timestamp: Date.now(),
       calculationHash: approval.calculationHash,
     };
@@ -302,11 +332,11 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
     // Record signature
     await db.insert(approvalSignatures).values({
       approvalId: id,
-      partnerEmail: req.user!.email,
+      partnerEmail: userEmail,
       signature,
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'],
-      sessionId: req.session?.id,
+      sessionId: getRequestSessionId(req),
       twoFactorVerified: verificationCode ? new Date() : null,
       verificationCode: verificationCode
         ? crypto.createHash('sha256').update(verificationCode).digest('hex')
@@ -317,7 +347,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
     await db.insert(approvalAuditLog).values({
       approvalId: id,
       action: 'signed',
-      actor: req.user!.email,
+      actor: userEmail,
       details: { verified2FA: !!verificationCode },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'],
@@ -333,7 +363,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       // Mark as approved and execute
       await db
         .update(reserveApprovals)
-        ['set']({ status: 'approved', updatedAt: new Date() })
+        .set({ status: 'approved', updatedAt: new Date() })
         .where(eq(reserveApprovals.id, id));
 
       await db.insert(approvalAuditLog).values({
@@ -377,6 +407,11 @@ const rejectionSchema = z.object({
 
 router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: Response) => {
   try {
+    const userEmail = getRequestUserEmail(req);
+    if (!userEmail) {
+      return res['status'](401)['json']({ error: 'Authentication required' });
+    }
+
     const id = req.params['id'] as string;
     const { reason } = rejectionSchema.parse(req.body);
 
@@ -384,7 +419,7 @@ router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: 
     const [partner] = await db
       .select()
       .from(approvalPartners)
-      .where(eq(approvalPartners.email, req.user!.email));
+      .where(eq(approvalPartners.email, userEmail));
 
     if (!partner || partner.deactivated) {
       return res['status'](403)['json']({ error: 'Not authorized as partner' });
@@ -393,14 +428,14 @@ router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: 
     // Update approval status
     await db
       .update(reserveApprovals)
-      ['set']({ status: 'rejected', updatedAt: new Date() })
+      .set({ status: 'rejected', updatedAt: new Date() })
       .where(eq(reserveApprovals.id, id));
 
     // Log rejection
     await db.insert(approvalAuditLog).values({
       approvalId: id,
       action: 'rejected',
-      actor: req.user!.email,
+      actor: userEmail,
       details: { reason },
       ipAddress: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'],
@@ -409,7 +444,7 @@ router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: 
     res['json']({
       success: true,
       message: 'Approval rejected',
-      rejectedBy: req.user!.email,
+      rejectedBy: userEmail,
     });
   } catch (error) {
     console.error('Error rejecting approval:', error);
@@ -507,7 +542,7 @@ async function notifyPartners(
 
     // Email notification (log for now, implement with nodemailer/SES in production)
     if (partner.notifyEmail) {
-      console.log(`[notifyPartners] Email notification queued for ${partner.notifyEmail}:`, {
+      console.warn(`[notifyPartners] Email notification queued for ${partner.notifyEmail}:`, {
         subject: `[${riskLevel.toUpperCase()}] Reserve Strategy Approval Required: ${approval.strategyId}`,
         approvalUrl,
         expiresIn: `${hoursUntilExpiry} hours`,
@@ -517,7 +552,7 @@ async function notifyPartners(
 
     // SMS notification for high-risk changes (log for now, implement with Twilio in production)
     if (partner.notifySms && riskLevel === 'high') {
-      console.log(`[notifyPartners] SMS notification queued for ${partner.notifySms}:`, {
+      console.warn(`[notifyPartners] SMS notification queued for ${partner.notifySms}:`, {
         message: `URGENT: High-risk reserve strategy change requires your approval. ${approvalUrl}`,
       });
       // Future: await smsService.send({ to: partner.notifySms, ... });
@@ -525,7 +560,7 @@ async function notifyPartners(
   });
 
   await Promise.allSettled(notificationPromises);
-  console.log(
+  console.warn(
     `[notifyPartners] Notified ${partners.length} partners about approval ${approval.id}`
   );
 }
@@ -538,7 +573,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
   const strategyData = approval.strategyData as Record<string, unknown>;
   const affectedFunds = (approval.affectedFunds as string[]) ?? [];
 
-  console.log(
+  console.warn(
     `[executeReserveStrategyChange] Executing ${approval.action} for strategy ${approval.strategyId}`
   );
 
@@ -555,19 +590,19 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
     switch (approval.action) {
       case 'create':
         // Insert new reserve decisions based on strategy
-        console.log(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
+        console.warn(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
         // Future: await reserveEngine.createStrategy(strategyData, affectedFunds);
         break;
 
       case 'update':
         // Update existing reserve decisions
-        console.log(`[executeReserveStrategyChange] Updating reserve strategy:`, strategyData);
+        console.warn(`[executeReserveStrategyChange] Updating reserve strategy:`, strategyData);
         // Future: await reserveEngine.updateStrategy(approval.strategyId, strategyData, affectedFunds);
         break;
 
       case 'delete':
         // Mark reserve decisions as deleted/inactive
-        console.log(
+        console.warn(
           `[executeReserveStrategyChange] Deleting reserve strategy:`,
           approval.strategyId
         );
@@ -591,7 +626,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
       systemGenerated: new Date(),
     });
 
-    console.log(
+    console.warn(
       `[executeReserveStrategyChange] Successfully executed strategy change for approval ${approval.id}`
     );
   } catch (error) {
@@ -610,7 +645,7 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
     // Update approval status to failed
     await db
       .update(reserveApprovals)
-      ['set']({
+      .set({
         status: 'failed',
         updatedAt: new Date(),
       })

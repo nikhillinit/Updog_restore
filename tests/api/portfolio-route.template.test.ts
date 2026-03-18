@@ -71,6 +71,7 @@ import {
  * @group template
  * Testcontainers integration test template - requires Docker
  */
+// SKIP: template file remains disabled until it is copied into a concrete route test with real app wiring.
 describe.skip('Portfolio Route API - Integration Tests', () => {
   // Testcontainers instances
   // NOTE: Type annotations commented to prevent module resolution errors

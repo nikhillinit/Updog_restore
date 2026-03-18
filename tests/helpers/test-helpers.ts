@@ -44,7 +44,7 @@ export async function withFakeTime<T>(fn: () => Promise<T> | T): Promise<T> {
         vi.runOnlyPendingTimers();
       }
     } catch {
-      /* no-op */
+      // Ignore timer flush failures during helper cleanup.
     }
     return out;
   } finally {
@@ -67,16 +67,24 @@ export async function resetSingletons(): Promise<void> {
     try {
       await fn();
     } catch {
-      /* swallow to avoid cascading failures */
+      // Swallow reset failures to avoid cascading cleanup noise across tests.
     }
   }
   // If your app exposes these globals (see optional snippet below), use them:
-  try { await (globalThis as any).__resetInflight?.(); } catch {}
-  try { await (globalThis as any).__resetCaches?.(); } catch {}
+  try {
+    await (globalThis as any).__resetInflight?.();
+  } catch {
+    // Ignore optional inflight reset failures in test cleanup.
+  }
+  try {
+    await (globalThis as any).__resetCaches?.();
+  } catch {
+    // Ignore optional cache reset failures in test cleanup.
+  }
 }
 
 // Publish a registration hook for application modules (test-only)
-;(globalThis as any).__registerTestReset = registerTestReset;
+(globalThis as any).__registerTestReset = registerTestReset;
 
 // Install default hooks once (idempotent across multiple imports)
 if (!(globalThis as any).__testHelpersInstalled) {
@@ -94,7 +102,9 @@ if (!(globalThis as any).__testHelpersInstalled) {
       } else {
         vi.runOnlyPendingTimers();
       }
-    } catch { /* no-op */ }
+    } catch {
+      // Ignore pending timer flush failures during afterEach cleanup.
+    }
     vi.useRealTimers();
     vi.restoreAllMocks();
 

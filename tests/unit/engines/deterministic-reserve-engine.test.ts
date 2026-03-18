@@ -659,6 +659,7 @@ describe('DeterministicReserveEngine - Diversification', () => {
 describe('DeterministicReserveEngine - Performance', () => {
   // FIXME: Performance test timing out or exceeding limit
   // @group integration - May need optimization or adjusted timeout threshold
+  // SKIP: performance budget is not stable enough yet for a deterministic suite assertion.
   it.skip('should complete calculation within time limit', async () => {
     const engine = new DeterministicReserveEngine({
       enableNewReserveEngine: true,
@@ -684,6 +685,7 @@ describe('DeterministicReserveEngine - Performance', () => {
 
   // FIXME: Metadata expectations not matching actual output structure
   // @group integration - Needs alignment between test expectations and engine output
+  // SKIP: metadata assertions stay disabled until the engine output contract is aligned with the test.
   it.skip('should provide calculation metadata', async () => {
     const engine = new DeterministicReserveEngine();
     const input = createAllocationInput();

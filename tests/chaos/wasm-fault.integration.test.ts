@@ -11,6 +11,15 @@ import { describe, it, expect } from 'vitest';
 import { withFaults } from '../../server/engine/fault-injector';
 import { assertFiniteDeep } from '../../server/middleware/engine-guards';
 
+function setOptionalEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = value;
+}
+
 // --- Engine stub (replace with real engine import to test actual pipeline)
 type Params = { fundSize: number; horizonQuarters: number; reserves: number };
 function engineStub(p: Params) {
@@ -26,7 +35,11 @@ function engineStub(p: Params) {
 
 describe('WASM/Engine fault injection + non-finite guard', () => {
   it('rejects non-finite outputs when faults are present', async () => {
-    const faulty = withFaults(engineStub, { rate: 0.7, seed: 42, targetKeys: ['irr', 'moic', 'percentiles'] });
+    const faulty = withFaults(engineStub, {
+      rate: 0.7,
+      seed: 42,
+      targetKeys: ['irr', 'moic', 'percentiles'],
+    });
     let foundNonFinite = false;
 
     // Try a handful of runs to surface a fault
@@ -61,7 +74,7 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
         },
       },
     };
-    
+
     const g = assertFiniteDeep(data);
     expect(g.ok).toBe(false);
     expect(g.path).toBe('$.nested.deep.value');
@@ -72,7 +85,7 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
     const data = {
       values: [1, 2, Infinity, 4],
     };
-    
+
     const g = assertFiniteDeep(data);
     expect(g.ok).toBe(false);
     expect(g.path).toBe('$.values[2]');
@@ -97,7 +110,7 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
         },
       },
     };
-    
+
     const g = assertFiniteDeep(data);
     expect(g.ok).toBe(false);
     // Should find the first non-finite value
@@ -109,7 +122,7 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
     for (let i = 0; i < 60; i++) {
       deeply = { nested: deeply };
     }
-    
+
     const g = assertFiniteDeep(deeply, { maxDepth: 50 });
     expect(g.ok).toBe(false);
     expect(g.reason).toBe('too-deep');
@@ -117,9 +130,11 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
 
   it('guards respect breadth limits', () => {
     const wide = {
-      items: Array(300).fill(0).map((_, i) => ({ index: i, value: Math.random() })),
+      items: Array(300)
+        .fill(0)
+        .map((_, i) => ({ index: i, value: Math.random() })),
     };
-    
+
     const g = assertFiniteDeep(wide, { maxBreadth: 200 });
     expect(g.ok).toBe(false);
     expect(g.reason).toBe('too-broad');
@@ -127,16 +142,16 @@ describe('WASM/Engine fault injection + non-finite guard', () => {
 
   it('withFaults preserves original when disabled in production', async () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    process.env.ENGINE_FAULT_ENABLE = '0';
-    
+    setOptionalEnv('NODE_ENV', 'production');
+    setOptionalEnv('ENGINE_FAULT_ENABLE', '0');
+
     const wrapped = withFaults(engineStub, { rate: 1.0 }); // 100% fault rate
     const result = await wrapped({ fundSize: 100e6, horizonQuarters: 12, reserves: 0.15 });
-    
+
     const g = assertFiniteDeep(result);
     expect(g.ok).toBe(true); // Should not inject faults in production
-    
-    process.env.NODE_ENV = originalEnv;
-    delete process.env.ENGINE_FAULT_ENABLE;
+
+    setOptionalEnv('NODE_ENV', originalEnv);
+    setOptionalEnv('ENGINE_FAULT_ENABLE', undefined);
   });
 });

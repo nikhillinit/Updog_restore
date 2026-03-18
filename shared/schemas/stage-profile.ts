@@ -11,121 +11,135 @@ import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 /**
  * Investment stage types
  */
-export const StageType = z.enum([
+export const StageTypeSchema = z.enum([
   'pre_seed',
   'seed',
   'series_a',
   'series_b',
   'series_c',
   'growth',
-  'late_stage'
+  'late_stage',
 ]);
 
-export type StageType = z.infer<typeof StageType>;
+export type StageType = z.infer<typeof StageTypeSchema>;
 
 /**
  * Stage-specific financial and operational assumptions
  */
-export const StageDefinitionSchema = z.object({
-  /** Stage identifier */
-  stage: StageType,
+export const StageDefinitionSchema = z
+  .object({
+    /** Stage identifier */
+    stage: StageTypeSchema,
 
-  /** Average funding round size at this stage */
-  roundSize: ZodPositiveDecimal,
+    /** Average funding round size at this stage */
+    roundSize: ZodPositiveDecimal,
 
-  /** Average post-money valuation at this stage */
-  postMoneyValuation: ZodPositiveDecimal,
+    /** Average post-money valuation at this stage */
+    postMoneyValuation: ZodPositiveDecimal,
 
-  /** ESOP pool percentage allocated in this round */
-  esopPercent: ZodPercentage,
+    /** ESOP pool percentage allocated in this round */
+    esopPercent: ZodPercentage,
 
-  /** Probability of graduating to next stage (0-1) */
-  graduationRate: ZodPercentage,
+    /** Probability of graduating to next stage (0-1) */
+    graduationRate: ZodPercentage,
 
-  /** Probability of exiting at this stage (0-1) */
-  exitRate: ZodPercentage,
+    /** Probability of exiting at this stage (0-1) */
+    exitRate: ZodPercentage,
 
-  /** Average months until graduation to next stage */
-  monthsToGraduate: z.number().int().positive(),
+    /** Average months until graduation to next stage */
+    monthsToGraduate: z.number().int().positive(),
 
-  /** Average months until exit at this stage */
-  monthsToExit: z.number().int().positive(),
+    /** Average months until exit at this stage */
+    monthsToExit: z.number().int().positive(),
 
-  /** Derived failure rate (computed automatically) */
-  failureRate: ZodPercentage.optional(),
+    /** Derived failure rate (computed automatically) */
+    failureRate: ZodPercentage.optional(),
 
-  /** Exit multiple for successful exits at this stage */
-  exitMultiple: ZodPositiveDecimal.default(new Decimal(3)),
+    /** Exit multiple for successful exits at this stage */
+    exitMultiple: ZodPositiveDecimal.default(new Decimal(3)),
 
-  /** Dilution per subsequent round */
-  dilutionPerRound: ZodPercentage.default(new Decimal(0.2))
-}).refine(
-  (data) => {
-    // Ensure graduation + exit + failure = 100%
-    const sum = data.graduationRate.plus(data.exitRate);
-    return sum.lte(1);
-  },
-  {
-    message: 'graduationRate + exitRate cannot exceed 100%',
-    path: ['graduationRate']
-  }
-);
+    /** Dilution per subsequent round */
+    dilutionPerRound: ZodPercentage.default(new Decimal(0.2)),
+  })
+  .refine(
+    (data) => {
+      // Ensure graduation + exit + failure = 100%
+      const sum = data.graduationRate.plus(data.exitRate);
+      return sum.lte(1);
+    },
+    {
+      message: 'graduationRate + exitRate cannot exceed 100%',
+      path: ['graduationRate'],
+    }
+  );
 
 export type StageDefinition = z.infer<typeof StageDefinitionSchema>;
 
 /**
  * Complete stage profile defining company lifecycle
  */
-export const StageProfileSchema = z.object({
-  /** Profile identifier */
-  id: z.string(),
+export const StageProfileSchema = z
+  .object({
+    /** Profile identifier */
+    id: z.string(),
 
-  /** Human-readable profile name */
-  name: z.string(),
+    /** Human-readable profile name */
+    name: z.string(),
 
-  /** Ordered array of stages (earliest to latest) */
-  stages: z.array(StageDefinitionSchema).min(1),
+    /** Ordered array of stages (earliest to latest) */
+    stages: z.array(StageDefinitionSchema).min(1),
 
-  /** Initial portfolio size (supports fractional counts for determinism) */
-  initialPortfolioSize: ZodPositiveDecimal,
+    /** Initial portfolio size (supports fractional counts for determinism) */
+    initialPortfolioSize: ZodPositiveDecimal,
 
-  /** Enable exit proceeds recycling */
-  recyclingEnabled: z.boolean().default(false),
+    /** Enable exit proceeds recycling */
+    recyclingEnabled: z.boolean().default(false),
 
-  /** Global assumptions */
-  assumptions: z.object({
-    /** Average dilution per financing round */
-    dilutionPerRound: ZodPercentage.default(new Decimal(0.2)),
+    /** Global assumptions */
+    assumptions: z
+      .object({
+        /** Average dilution per financing round */
+        dilutionPerRound: ZodPercentage.default(new Decimal(0.2)),
 
-    /** Follow-on investment multiplier (e.g., 2x initial check) */
-    followOnMultiplier: ZodPositiveDecimal.default(new Decimal(2)),
+        /** Follow-on investment multiplier (e.g., 2x initial check) */
+        followOnMultiplier: ZodPositiveDecimal.default(new Decimal(2)),
 
-    /** Reserve allocation strategy */
-    reserveStrategy: z.enum(['pro_rata', 'winner_picking', 'hybrid']).default('pro_rata')
-  }).optional()
-}).refine(
-  (data) => {
-    // Ensure stages are ordered from early to late
-    const stageOrder: StageType[] = ['pre_seed', 'seed', 'series_a', 'series_b', 'series_c', 'growth', 'late_stage'];
-    for (let i = 1; i < data.stages.length; i++) {
-      const current = data.stages[i];
-      const previous = data.stages[i - 1];
-      if (!current || !previous) {
-        return false;
+        /** Reserve allocation strategy */
+        reserveStrategy: z.enum(['pro_rata', 'winner_picking', 'hybrid']).default('pro_rata'),
+      })
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // Ensure stages are ordered from early to late
+      const stageOrder: StageType[] = [
+        'pre_seed',
+        'seed',
+        'series_a',
+        'series_b',
+        'series_c',
+        'growth',
+        'late_stage',
+      ];
+      for (let i = 1; i < data.stages.length; i++) {
+        const current = data.stages[i];
+        const previous = data.stages[i - 1];
+        if (!current || !previous) {
+          return false;
+        }
+        const prevIdx = stageOrder.indexOf(previous.stage);
+        const currIdx = stageOrder.indexOf(current.stage);
+        if (currIdx <= prevIdx) {
+          return false;
+        }
       }
-      const prevIdx = stageOrder.indexOf(previous.stage);
-      const currIdx = stageOrder.indexOf(current.stage);
-      if (currIdx <= prevIdx) {
-        return false;
-      }
+      return true;
+    },
+    {
+      message: 'Stages must be ordered from earliest to latest',
+      path: ['stages'],
     }
-    return true;
-  },
-  {
-    message: 'Stages must be ordered from earliest to latest',
-    path: ['stages']
-  }
-);
+  );
 
 export type StageProfile = z.infer<typeof StageProfileSchema>;
 
@@ -133,9 +147,7 @@ export type StageProfile = z.infer<typeof StageProfileSchema>;
  * Helper: Calculate derived failure rate for a stage
  */
 export function calculateFailureRate(stage: StageDefinition): Decimal {
-  return new Decimal(1)
-    .minus(stage.graduationRate)
-    .minus(stage.exitRate);
+  return new Decimal(1).minus(stage.graduationRate).minus(stage.exitRate);
 }
 
 /**
@@ -146,10 +158,10 @@ export function enrichStageProfile(profile: StageProfile): StageProfile & {
 } {
   return {
     ...profile,
-    stages: profile.stages.map(stage => ({
+    stages: profile.stages.map((stage) => ({
       ...stage,
-      failureRate: calculateFailureRate(stage)
-    }))
+      failureRate: calculateFailureRate(stage),
+    })),
   };
 }
 
@@ -172,7 +184,7 @@ export interface CohortProgression {
 export function calculateCohortProgression(
   profile: StageProfile,
   initialCount: Decimal,
-  monthsElapsed: number
+  _monthsElapsed: number
 ): CohortProgression[] {
   const enriched = enrichStageProfile(profile);
   const results: CohortProgression[] = [];
@@ -190,7 +202,7 @@ export function calculateCohortProgression(
       graduatedCount: graduated,
       exitedCount: exited,
       failedCount: failed,
-      remainingCount: remaining
+      remainingCount: remaining,
     });
 
     // Graduated companies flow to next stage

@@ -46,6 +46,7 @@ import {
   generateIdempotencyKey,
 } from '../../utils/portfolio-test-utils';
 
+// SKIP: snapshot service tests remain in TDD RED until persistence and idempotency are implemented.
 describe.skip('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: SnapshotService;
 

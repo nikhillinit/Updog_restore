@@ -81,7 +81,7 @@ describeMaybe('Database Circuit Breakers', () => {
 
       // Check circuit breaker state
       const state = breakerRegistry.get('postgres')?.getState();
-      console.log('Circuit breaker state after timeout:', state);
+      console.warn('Circuit breaker state after timeout:', state);
     });
 
     it('should retry with backoff', async () => {

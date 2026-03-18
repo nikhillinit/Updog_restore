@@ -48,7 +48,7 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
     (testInfo as any)._networkErrors = networkErrors;
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async ({ page: _page }, testInfo) => {
     // Retrieve logs from test context
     const logs = (testInfo as any)._consoleLogs || [];
     const errors = (testInfo as any)._pageErrors || [];
