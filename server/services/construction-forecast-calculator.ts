@@ -7,7 +7,7 @@
  * Source: 'construction_forecast'
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import type { FeeProfile } from '@shared/schemas/fee-profile';
 import { computeJCurvePath, type JCurveConfig, type JCurvePath } from '@shared/lib/jcurve';
 import { computeFeeBasisTimeline, type FeeBasisConfig } from '@shared/lib/fund-math';
@@ -101,7 +101,7 @@ export class ConstructionForecastCalculator {
       fundLifeYears = 10,
       feeProfile,
       navCalculationMode = 'standard',
-      finalDistributionCoefficient = 0.7
+      finalDistributionCoefficient = 0.7,
     } = config;
 
     // Calculate fund age
@@ -119,7 +119,7 @@ export class ConstructionForecastCalculator {
       const feeBasisConfig: FeeBasisConfig = {
         fundSize,
         numQuarters,
-        feeProfile
+        feeProfile,
       };
       const feeBasisTimeline = computeFeeBasisTimeline(feeBasisConfig);
       // Extract management fees from each period
@@ -187,8 +187,8 @@ export class ConstructionForecastCalculator {
       metadata: {
         fundAge,
         lifecycleStage,
-        isConstruction
-      }
+        isConstruction,
+      },
     };
   }
 
@@ -199,10 +199,7 @@ export class ConstructionForecastCalculator {
    * @param hasInvestments - Whether fund has any investments
    * @returns True if eligible
    */
-  static isEligible(
-    establishmentDate: Date | string,
-    hasInvestments: boolean
-  ): boolean {
+  static isEligible(establishmentDate: Date | string, hasInvestments: boolean): boolean {
     const fundAge = getFundAge(establishmentDate);
     return isConstructionPhase(fundAge, hasInvestments);
   }

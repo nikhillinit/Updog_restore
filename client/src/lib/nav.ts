@@ -1,4 +1,9 @@
+import Decimal from '@shared/lib/decimal-config';
+
 // NAV projection with J-curve modeling for LP-realistic valuations
+
+const ZERO = new Decimal(0);
+const ONE = new Decimal(1);
 
 /**
  * J-curve NAV modeling that reflects real VC fund valuation patterns
@@ -12,6 +17,7 @@ export function projectNAVJCurve(
   blindPoolQuarters = 8 // Default 2 years flat
 ): number[] {
   const navSeries: number[] = [];
+  const totalInvestmentD = new Decimal(totalInvestment);
 
   for (let q = 0; q <= totalQuarters; q++) {
     if (q <= blindPoolQuarters) {
@@ -20,9 +26,9 @@ export function projectNAVJCurve(
     } else {
       // Post blind pool: linear decay to zero
       const remainingQuarters = Math.max(1, totalQuarters - blindPoolQuarters);
-      const progressPct = (q - blindPoolQuarters) / remainingQuarters;
-      const remaining = Math.max(0, 1 - progressPct);
-      navSeries.push(totalInvestment * remaining);
+      const progressPct = new Decimal(q - blindPoolQuarters).div(remainingQuarters);
+      const remaining = Decimal.max(ZERO, ONE.minus(progressPct));
+      navSeries.push(totalInvestmentD.mul(remaining).toNumber());
     }
   }
 
@@ -51,11 +57,12 @@ export function projectNAVEnhanced(
   } = options;
 
   const result: Array<{ quarter: number; nav: number; distributions: number; fees: number }> = [];
+  const totalInvestmentD = new Decimal(totalInvestment);
+  const quarterlyFees = totalInvestmentD.mul(0.02).div(4).toNumber();
 
   for (let q = 0; q <= totalQuarters; q++) {
     let nav: number;
     let distributions = 0;
-    const quarterlyFees = totalInvestment * 0.02 / 4; // 2% annual management fee
 
     if (q <= blindPoolQuarters) {
       // Phase 1: Blind pool - flat at cost
@@ -63,20 +70,25 @@ export function projectNAVEnhanced(
     } else if (q <= blindPoolQuarters + appreciationQuarters) {
       // Phase 2: Appreciation phase - step up to peak
       const appreciationProgress = (q - blindPoolQuarters) / appreciationQuarters;
-      const appreciationCurve = Math.sin(appreciationProgress * Math.PI / 2); // Smooth curve
-      nav = totalInvestment * (1 + (peakMultiple - 1) * appreciationCurve);
+      const appreciationCurve = Math.sin((appreciationProgress * Math.PI) / 2); // Smooth curve
+      const navMultiple = ONE.plus(new Decimal(peakMultiple).minus(1).mul(appreciationCurve));
+      nav = totalInvestmentD.mul(navMultiple).toNumber();
     } else {
       // Phase 3: Exit phase - distributions and declining NAV
-      const exitQuarters = totalQuarters - blindPoolQuarters - appreciationQuarters;
-      const exitProgress = (q - blindPoolQuarters - appreciationQuarters) / exitQuarters;
+      const exitQuarters = Math.max(1, totalQuarters - blindPoolQuarters - appreciationQuarters);
+      const exitProgress = new Decimal(q - blindPoolQuarters - appreciationQuarters).div(
+        exitQuarters
+      );
 
       // Distributions increase over time (exits generate cash)
-      const distributionRate = Math.pow(exitProgress, 0.7); // Front-loaded distributions
-      distributions = totalInvestment * peakMultiple * distributionRate * 0.15; // 15% of peak value per quarter at peak
+      const distributionRate = Math.pow(exitProgress.toNumber(), 0.7); // Front-loaded distributions
+      distributions = totalInvestmentD.mul(peakMultiple).mul(distributionRate).mul(0.15).toNumber(); // 15% of peak value per quarter at peak
 
       // NAV declines as distributions occur
-      const navMultiple = peakMultiple * (1 - exitProgress) + finalMultiple * exitProgress;
-      nav = totalInvestment * navMultiple;
+      const navMultiple = new Decimal(peakMultiple)
+        .mul(ONE.minus(exitProgress))
+        .plus(new Decimal(finalMultiple).mul(exitProgress));
+      nav = totalInvestmentD.mul(navMultiple).toNumber();
     }
 
     result.push({
@@ -101,6 +113,7 @@ export function projectNAVSimple(
 ): number[] {
   const nav: number[] = [];
   const flatPeriod = 8; // 2 years flat
+  const totalInvestmentD = new Decimal(totalInvestment);
 
   for (let q = startQuarter; q <= endQuarter; q++) {
     const quarterId = q - startQuarter;
@@ -110,9 +123,9 @@ export function projectNAVSimple(
       nav.push(totalInvestment);
     } else {
       // Linear decay
-      const decayPeriod = endQuarter - startQuarter - flatPeriod;
-      const remaining = Math.max(0, (endQuarter - q) / decayPeriod);
-      nav.push(totalInvestment * remaining);
+      const decayPeriod = Math.max(1, endQuarter - startQuarter - flatPeriod);
+      const remaining = Decimal.max(ZERO, new Decimal(endQuarter - q).div(decayPeriod));
+      nav.push(totalInvestmentD.mul(remaining).toNumber());
     }
   }
 
@@ -128,18 +141,18 @@ export function calculateTVPI(
   totalInvested: number
 ): number {
   if (totalInvested === 0) return 1.0;
-  return Math.max(0, (currentNAV + cumulativeDistributions) / totalInvested);
+  return Decimal.max(
+    ZERO,
+    new Decimal(currentNAV).plus(cumulativeDistributions).div(totalInvested)
+  ).toNumber();
 }
 
 /**
  * Calculate DPI (Distributions to Paid-In)
  */
-export function calculateDPI(
-  cumulativeDistributions: number,
-  totalInvested: number
-): number {
+export function calculateDPI(cumulativeDistributions: number, totalInvested: number): number {
   if (totalInvested === 0) return 0;
-  return Math.max(0, cumulativeDistributions / totalInvested);
+  return Decimal.max(ZERO, new Decimal(cumulativeDistributions).div(totalInvested)).toNumber();
 }
 
 /**
@@ -155,20 +168,19 @@ export function generatePortfolioNAV(
   totalQuarters: number
 ): Array<{ quarter: number; totalNAV: number; totalDistributions: number }> {
   const portfolio: Array<{ quarter: number; totalNAV: number; totalDistributions: number }> = [];
+  const navByInvestment = investments.map((investment) =>
+    projectNAVSimple(investment.amount, investment.startQuarter, investment.exitQuarter)
+  );
 
   for (let q = 0; q <= totalQuarters; q++) {
     let totalNAV = 0;
     let totalDistributions = 0;
 
-    investments.forEach(investment => {
+    investments.forEach((investment, idx) => {
       if (q >= investment.startQuarter && q <= investment.exitQuarter) {
-        const investmentNAV = projectNAVSimple(
-          investment.amount,
-          investment.startQuarter,
-          investment.exitQuarter
-        );
         const navIndex = q - investment.startQuarter;
-        if (navIndex < investmentNAV.length) {
+        const investmentNAV = navByInvestment[idx];
+        if (investmentNAV && navIndex < investmentNAV.length) {
           totalNAV += investmentNAV[navIndex] ?? 0;
         }
       } else if (q > investment.exitQuarter) {
@@ -207,12 +219,13 @@ export function calculateNAVSafe(
     const maturityPct = currentQuarter / totalQuarters;
     let confidence: 'high' | 'medium' | 'low' = 'high';
 
-    if (maturityPct < 0.25) confidence = 'low'; // Early stage, high uncertainty
-    else if (maturityPct < 0.75) confidence = 'medium'; // Mid-stage
+    if (maturityPct < 0.25)
+      confidence = 'low'; // Early stage, high uncertainty
+    else if (maturityPct < 0.75)
+      confidence = 'medium'; // Mid-stage
     else confidence = 'high'; // Mature stage, more predictable
 
     return { nav: Math.max(0, nav), confidence };
-
   } catch (error) {
     console.error('NAV calculation error:', error);
     return { nav: totalInvestment * 0.8, confidence: 'low' }; // Conservative fallback

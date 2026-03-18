@@ -27,6 +27,7 @@ import {
   generateCapitalAccountXLSX,
   generateQuarterlyXLSX,
 } from '../services/xlsx-generation-service.js';
+import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 
 // Job types
 export interface ReportGenerationJobData {
@@ -270,6 +271,22 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   queue: Queue<ReportGenerationJobData, ReportGenerationResult>;
   close: () => Promise<void>;
 }> {
+  if (queue && worker && queueEvents) {
+    return {
+      queue,
+      close: async () => {
+        await worker?.close();
+        await queueEvents?.close();
+        await queue?.close();
+        queue = null;
+        worker = null;
+        queueEvents = null;
+        unregisterQueueRuntime('report');
+        console.log('[ReportQueue] Closed LP report generation queue');
+      },
+    };
+  }
+
   const opts = redisConnection['options'] as Record<string, unknown>;
   const connection = {
     host: (opts['host'] as string) || 'localhost',
@@ -397,6 +414,11 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   });
 
   console.log('[ReportQueue] Initialized LP report generation queue');
+  registerQueueRuntime('report', {
+    getQueue: () => queue,
+    getWorker: () => worker,
+    isInitialized: () => queue !== null && worker !== null && queueEvents !== null,
+  });
 
   return {
     queue,
@@ -410,6 +432,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
       worker = null;
       // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
       queueEvents = null;
+      unregisterQueueRuntime('report');
       console.log('[ReportQueue] Closed LP report generation queue');
     },
   };

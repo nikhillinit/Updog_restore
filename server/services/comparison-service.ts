@@ -10,7 +10,6 @@
 
 import { v4 as uuid } from 'uuid';
 import type { RedisClientType } from 'redis';
-import Decimal from 'decimal.js';
 import type {
   ComparisonMetric,
   DeltaMetric,
@@ -19,9 +18,6 @@ import type {
   WeightedSummarySnapshot,
 } from '../../shared/types/scenario-comparison.js';
 import { calculateWeightedSummary, addMOICToCases } from '../../shared/utils/scenario-math.js';
-
-// Configure decimal.js for financial precision (consistent with scenario-math.ts)
-Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
 // ============================================================================
 // Metric Configuration
@@ -231,9 +227,7 @@ export class ComparisonService {
       follow_ons: summary.follow_ons,
       exit_proceeds: summary.exit_proceeds,
       exit_valuation: summary.exit_valuation,
-      ...(summary.months_to_exit !== undefined
-        ? { months_to_exit: summary.months_to_exit }
-        : {}),
+      ...(summary.months_to_exit !== undefined ? { months_to_exit: summary.months_to_exit } : {}),
     };
   }
 

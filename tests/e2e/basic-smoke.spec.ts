@@ -1,32 +1,76 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+const SMOKE_FUND = {
+  id: 1,
+  name: 'Smoke Fund I',
+  size: 50_000_000,
+  managementFee: 0.02,
+  carryPercentage: 0.2,
+  vintageYear: 2024,
+  deployedCapital: 0,
+  status: 'active',
+  createdAt: '2024-01-01T00:00:00.000Z',
+  updatedAt: '2024-01-01T00:00:00.000Z',
+  termYears: 10,
+};
+
+async function installSmokeApiStubs(page: Page) {
+  await page.route('**/api/telemetry/wizard', async (route) => {
+    await route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.route('**/api/funds*', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (url.pathname.endsWith('/calculated-metrics')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalCommitted: SMOKE_FUND.size,
+          totalInvested: 0,
+          totalValue: 0,
+          irr: 0,
+          moic: 0,
+          dpi: 0,
+          tvpi: 0,
+          activeInvestments: 0,
+          exited: 0,
+          avgCheckSize: 0,
+          deploymentRate: 0,
+          remainingCapital: SMOKE_FUND.size,
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([SMOKE_FUND]),
+      });
+      return;
+    }
+
+    await route.fulfill({ status: 204, body: '' });
+  });
+}
 
 test.describe('Basic Smoke Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    await installSmokeApiStubs(page);
+  });
+
   test('should be able to access the application', async ({ page }) => {
-    // Set a longer timeout for this test since the app might need to start
     test.setTimeout(60000);
 
-    try {
-      await page.goto('/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // If we can load the page, verify it's not an error page
-      const title = await page.title();
-      expect(title).toBeTruthy();
-
-      const body = await page.textContent('body');
-      expect(body).toBeTruthy();
-
-      // Should not contain common error indicators
-      const hasError =
-        body?.toLowerCase().includes('error') ||
-        body?.toLowerCase().includes('cannot be reached') ||
-        body?.toLowerCase().includes('connection refused');
-      expect(hasError).toBeFalsy();
-    } catch (error) {
-      // If the server isn't running, skip the test gracefully
-      console.error('Server appears to be down, skipping test:', error.message);
-      // SKIP: smoke access check requires a running application instead of a down server
-      test.skip();
-    }
+    await expect(page).toHaveURL(/\/dashboard\b/);
+    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/cannot be reached|connection refused/i);
   });
 
   test('should handle direct navigation to common routes', async ({ page }) => {
@@ -35,47 +79,30 @@ test.describe('Basic Smoke Tests', () => {
     const routes = ['/', '/dashboard', '/fund-setup'];
 
     for (const route of routes) {
-      try {
-        await page.goto(route, { timeout: 10000 });
+      await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await expect(page.locator('body')).toBeVisible();
+      await expect(page.locator('body')).not.toContainText(/cannot be reached|connection refused/i);
 
-        // Verify we get some content back
-        const body = await page.textContent('body');
-        expect(body).toBeTruthy();
-
-        // Take a screenshot for documentation
-        await page.screenshot({
-          path: `test-results/smoke-${route.replace('/', 'root')}.png`,
-          fullPage: true,
-        });
-      } catch (error) {
-        console.error(`Route ${route} failed: ${error.message}`);
-        // Continue with other routes
-      }
+      await page.screenshot({
+        path: `test-results/smoke-${route.replace('/', 'root')}.png`,
+        fullPage: true,
+      });
     }
   });
 
   test('reserves demo renders and shows a numeric reserve ratio', async ({ page }) => {
-    try {
-      await page.goto('/reserves-demo', { timeout: 10000 });
+    await page.goto('/reserves-demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-      // Check if the demo root element is visible
-      await expect(page.locator('[data-testid="demo-root"]')).toBeVisible();
+    await expect(page).toHaveURL(/\/reserves-demo\b/);
+    await expect(page.locator('[data-testid="demo-root"]')).toBeVisible();
 
-      // Get the reserve ratio text and extract numeric value
-      const ratioText = await page.locator('[data-testid="demo-ratio"]').first().textContent();
-      const ratio = Number((ratioText || '').replace(/[^\d.]/g, ''));
-      expect(ratio).toBeGreaterThan(0);
+    const ratioText = await page.locator('[data-testid="demo-ratio"]').first().textContent();
+    const ratio = Number((ratioText || '').replace(/[^\d.]/g, ''));
+    expect(ratio).toBeGreaterThan(0);
 
-      // Take a screenshot for documentation
-      await page.screenshot({
-        path: `test-results/reserves-demo.png`,
-        fullPage: true,
-      });
-    } catch (error) {
-      console.error(`Reserves demo test failed: ${error.message}`);
-      // Skip if the route doesn't exist or component fails
-      // SKIP: reserves demo smoke check only applies when the demo route is available in the target app
-      test.skip();
-    }
+    await page.screenshot({
+      path: 'test-results/reserves-demo.png',
+      fullPage: true,
+    });
   });
 });

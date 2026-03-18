@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { ZodDecimal, ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 import { StageProfileSchema } from './stage-profile';
 import { FeeProfileSchema } from './fee-profile';
@@ -38,7 +38,7 @@ export const BaseFundModelInputsSchema = z.object({
   vintageYear: z.number().int().min(2000).max(2100),
 
   /** Investment period in months */
-  investmentPeriodMonths: z.number().int().positive().optional()
+  investmentPeriodMonths: z.number().int().positive().optional(),
 });
 
 export type BaseFundModelInputs = z.infer<typeof BaseFundModelInputsSchema>;
@@ -57,22 +57,24 @@ export const ModelAssumptionsSchema = z.object({
   portfolioConcentrationLimit: ZodPercentage.default(new Decimal(0.2)),
 
   /** Diversification rules */
-  diversificationRules: z.object({
-    /** Max % per stage */
-    maxPerStage: ZodPercentage.optional(),
+  diversificationRules: z
+    .object({
+      /** Max % per stage */
+      maxPerStage: ZodPercentage.optional(),
 
-    /** Max % per sector */
-    maxPerSector: ZodPercentage.optional(),
+      /** Max % per sector */
+      maxPerSector: ZodPercentage.optional(),
 
-    /** Max % per geography */
-    maxPerGeography: ZodPercentage.optional()
-  }).optional(),
+      /** Max % per geography */
+      maxPerGeography: ZodPercentage.optional(),
+    })
+    .optional(),
 
   /** Enable end-of-term liquidation */
   liquidateAtTermEnd: z.boolean().default(false),
 
   /** FMV discount at forced liquidation */
-  liquidationDiscountPercent: ZodPercentage.default(new Decimal(0.3))
+  liquidationDiscountPercent: ZodPercentage.default(new Decimal(0.3)),
 });
 
 export type ModelAssumptions = z.infer<typeof ModelAssumptionsSchema>;
@@ -91,7 +93,7 @@ export const MonteCarloSettingsSchema = z.object({
   confidenceInterval: ZodPercentage.default(new Decimal(0.95)),
 
   /** Random seed for deterministic results */
-  randomSeed: z.string().optional()
+  randomSeed: z.string().optional(),
 });
 
 export type MonteCarloSettings = z.infer<typeof MonteCarloSettingsSchema>;
@@ -119,37 +121,44 @@ export const ExtendedFundModelInputsSchema = BaseFundModelInputsSchema.extend({
   assumptions: ModelAssumptionsSchema.default({}),
 
   /** Monte Carlo settings */
-  monteCarloSettings: MonteCarloSettingsSchema.optional()
-}).refine(
-  (data) => {
-    // Validate investment period <= fund term
-    if (data.investmentPeriodMonths && typeof data.fundTermMonths === 'number') {
-      return data.investmentPeriodMonths <= data.fundTermMonths;
+  monteCarloSettings: MonteCarloSettingsSchema.optional(),
+})
+  .refine(
+    (data) => {
+      // Validate investment period <= fund term
+      if (data.investmentPeriodMonths && typeof data.fundTermMonths === 'number') {
+        return data.investmentPeriodMonths <= data.fundTermMonths;
+      }
+      return true;
+    },
+    {
+      message: 'Investment period cannot exceed fund term',
+      path: ['investmentPeriodMonths'],
     }
-    return true;
-  },
-  {
-    message: 'Investment period cannot exceed fund term',
-    path: ['investmentPeriodMonths']
-  }
-).refine(
-  (data) => {
-    // Validate stage graduation/exit rates sum <= 100%
-    if (data.stageProfile && typeof data.stageProfile === 'object' && 'stages' in data.stageProfile && Array.isArray(data.stageProfile.stages)) {
-      for (const stage of data.stageProfile.stages) {
-        const totalRate = stage.graduationRate.plus(stage.exitRate);
-        if (totalRate.gt(1)) {
-          return false;
+  )
+  .refine(
+    (data) => {
+      // Validate stage graduation/exit rates sum <= 100%
+      if (
+        data.stageProfile &&
+        typeof data.stageProfile === 'object' &&
+        'stages' in data.stageProfile &&
+        Array.isArray(data.stageProfile.stages)
+      ) {
+        for (const stage of data.stageProfile.stages) {
+          const totalRate = stage.graduationRate.plus(stage.exitRate);
+          if (totalRate.gt(1)) {
+            return false;
+          }
         }
       }
+      return true;
+    },
+    {
+      message: 'Stage graduation + exit rates cannot exceed 100%',
+      path: ['stageProfile', 'stages'],
     }
-    return true;
-  },
-  {
-    message: 'Stage graduation + exit rates cannot exceed 100%',
-    path: ['stageProfile', 'stages']
-  }
-);
+  );
 
 export type ExtendedFundModelInputs = z.infer<typeof ExtendedFundModelInputsSchema>;
 
@@ -206,7 +215,7 @@ export const FundModelOutputsSchema = z.object({
   exitedCompanies: z.number().int().min(0),
 
   /** Number of failed companies */
-  failedCompanies: z.number().int().min(0)
+  failedCompanies: z.number().int().min(0),
 });
 
 export type FundModelOutputs = z.infer<typeof FundModelOutputsSchema>;
@@ -229,7 +238,7 @@ export const SimulationResultSchema = z.object({
     moic: ZodDecimal,
     totalExitValue: ZodDecimal,
     totalDistributed: ZodDecimal,
-    fundLifetimeMonths: z.number().int()
+    fundLifetimeMonths: z.number().int(),
   }),
 
   /** Simulation metadata */
@@ -237,8 +246,8 @@ export const SimulationResultSchema = z.object({
     modelVersion: z.string(),
     engineVersion: z.string(),
     computedAt: z.date(),
-    computationTimeMs: z.number()
-  })
+    computationTimeMs: z.number(),
+  }),
 });
 
 export type SimulationResult = z.infer<typeof SimulationResultSchema>;
@@ -252,18 +261,18 @@ export function validateExtendedFundModel(data: unknown) {
     return {
       success: true as const,
       data: validated,
-      errors: null
+      errors: null,
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return {
         success: false as const,
         data: null,
-        errors: error.errors.map(err => ({
+        errors: error.errors.map((err) => ({
           path: err.path.join('.'),
           message: err.message,
-          code: err.code
-        }))
+          code: err.code,
+        })),
       };
     }
     throw error;

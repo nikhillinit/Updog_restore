@@ -38,13 +38,13 @@ const DEMO_FUND: Fund = {
   name: 'Demo Fund I (VC Platform)',
   size: 20000000, // $20M default
   managementFee: 0.025, // 2.5%
-  carryPercentage: 0.20, // 20%
+  carryPercentage: 0.2, // 20%
   vintageYear: 2024,
   deployedCapital: 0, // No deployed capital yet
   status: 'active',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  termYears: 10
+  termYears: 10,
 };
 
 export function FundProvider({ children }: FundProviderProps) {
@@ -53,7 +53,11 @@ export function FundProvider({ children }: FundProviderProps) {
   const [demoModeInitialized, setDemoModeInitialized] = useState(false);
 
   // Fetch fund data
-  const { data: funds, isLoading, error } = useQuery({
+  const {
+    data: funds,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['/api/funds'],
     enabled: true,
     retry: false, // Don't retry failed requests in demo mode
@@ -97,9 +101,16 @@ export function FundProvider({ children }: FundProviderProps) {
     }
   };
 
-  // Consider "loading" until we have a fund OR demo mode is fully initialized
-  // This prevents race condition where ProtectedRoute redirects before demo fund is set
-  const isInitializing = isLoading || (!currentFund && !demoModeInitialized && (!!error || !funds));
+  const hasResolvedFunds = Array.isArray(funds) && funds.length > 0;
+  const awaitingResolvedFundSelection = hasResolvedFunds && !currentFund;
+
+  // Consider "loading" until the first resolved fund has been copied into context
+  // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
+  // redirecting to /fund-setup during the fetch -> effect handoff.
+  const isInitializing =
+    isLoading ||
+    awaitingResolvedFundSelection ||
+    (!currentFund && !demoModeInitialized && (!!error || !funds));
   const needsSetup = !isInitializing && !currentFund;
 
   const value: FundContextType = {
@@ -110,11 +121,7 @@ export function FundProvider({ children }: FundProviderProps) {
     fundId,
   };
 
-  return (
-    <FundContext.Provider value={value}>
-      {children}
-    </FundContext.Provider>
-  );
+  return <FundContext.Provider value={value}>{children}</FundContext.Provider>;
 }
 
 export function useFundContext() {
@@ -128,7 +135,7 @@ export function useFundContext() {
 // Legacy hook for backward compatibility
 export function useFundData() {
   const { currentFund, isLoading, needsSetup } = useFundContext();
-  
+
   return {
     funds: currentFund ? [currentFund] : [],
     isLoading,

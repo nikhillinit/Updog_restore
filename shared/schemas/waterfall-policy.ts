@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { ZodPercentage } from './decimal-zod';
 import { excelRound } from '../lib/excelRound';
 

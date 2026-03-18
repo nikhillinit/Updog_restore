@@ -9,7 +9,7 @@
  * Used by J-curve engine and construction forecasting.
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import type { FeeProfile, FeeBasisType, FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateManagementFees, calculateRecyclableFees } from '@shared/schemas/fee-profile';
 
@@ -138,7 +138,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
         investedCapital,
         fairMarketValue: fmv,
         unrealizedCost,
-        currentMonth: q * 3 // Convert quarters to months
+        currentMonth: q * 3, // Convert quarters to months
       };
 
       // Calculate management fees for the quarter (3 months)
@@ -163,14 +163,14 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
       fairMarketValue: fmv,
       unrealizedCost,
       managementFees,
-      recyclableFees
+      recyclableFees,
     });
   }
 
   return {
     periods,
     totalFees,
-    totalRecyclable
+    totalRecyclable,
   };
 }
 
@@ -181,10 +181,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
  * @param period - Fee basis period data
  * @returns Basis amount as Decimal
  */
-export function resolveFeeBasis(
-  basisType: FeeBasisType,
-  period: FeeBasisPeriod
-): Decimal {
+export function resolveFeeBasis(basisType: FeeBasisType, period: FeeBasisPeriod): Decimal {
   switch (basisType) {
     case 'committed_capital':
       return period.committedCapital;
@@ -210,9 +207,7 @@ export function resolveFeeBasis(
  * @returns Fee-adjusted NAV
  */
 export function calculateFeeAdjustedNAV(period: FeeBasisPeriod): Decimal {
-  return period.fairMarketValue
-    .minus(period.managementFees)
-    .plus(period.recyclableFees);
+  return period.fairMarketValue.minus(period.managementFees).plus(period.recyclableFees);
 }
 
 /**
@@ -312,11 +307,7 @@ export function projectDistributions(
  * @param calledCapital - Total called capital
  * @returns TVPI multiple
  */
-export function calculateTVPI(
-  dpi: Decimal,
-  nav: Decimal,
-  calledCapital: Decimal
-): Decimal {
+export function calculateTVPI(dpi: Decimal, nav: Decimal, calledCapital: Decimal): Decimal {
   if (calledCapital.isZero()) {
     return new Decimal(0);
   }
@@ -334,10 +325,7 @@ export function calculateTVPI(
  * @param calledCapital - Total called capital
  * @returns DPI multiple
  */
-export function calculateDPI(
-  distributions: Decimal,
-  calledCapital: Decimal
-): Decimal {
+export function calculateDPI(distributions: Decimal, calledCapital: Decimal): Decimal {
   if (calledCapital.isZero()) {
     return new Decimal(0);
   }
@@ -354,10 +342,7 @@ export function calculateDPI(
  * @param calledCapital - Total called capital
  * @returns RVPI multiple
  */
-export function calculateRVPI(
-  nav: Decimal,
-  calledCapital: Decimal
-): Decimal {
+export function calculateRVPI(nav: Decimal, calledCapital: Decimal): Decimal {
   if (calledCapital.isZero()) {
     return new Decimal(0);
   }

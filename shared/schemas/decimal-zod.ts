@@ -4,49 +4,40 @@
  */
 
 import { z } from 'zod';
-import Decimal from 'decimal.js';
-
-// Configure global precision for all Decimal instances
-Decimal.set({ precision: 30 });
+import Decimal from '@shared/lib/decimal-config';
 
 /**
  * Custom Zod schema for Decimal.js instances
  * Accepts: Decimal, string, or number
  * Returns: Decimal instance
  */
-export const ZodDecimal = z.custom<Decimal>(
-  (val): val is Decimal => val instanceof Decimal,
-  { message: 'Expected a Decimal.js object' }
-).or(
-  z.union([z.string(), z.number()])
-    .transform((val) => new Decimal(val))
-).pipe(
-  z.custom<Decimal>((val): val is Decimal => val instanceof Decimal)
-);
+export const ZodDecimal = z
+  .custom<Decimal>((val): val is Decimal => val instanceof Decimal, {
+    message: 'Expected a Decimal.js object',
+  })
+  .or(z.union([z.string(), z.number()]).transform((val) => new Decimal(val)))
+  .pipe(z.custom<Decimal>((val): val is Decimal => val instanceof Decimal));
 
 /**
  * Zod schema for percentage values (0-1 as Decimal)
  */
-export const ZodPercentage = ZodDecimal.refine(
-  (d) => d.gte(0) && d.lte(1),
-  { message: 'Percentage must be between 0 and 1 (0% to 100%)' }
-);
+export const ZodPercentage = ZodDecimal.refine((d) => d.gte(0) && d.lte(1), {
+  message: 'Percentage must be between 0 and 1 (0% to 100%)',
+});
 
 /**
  * Zod schema for positive Decimal values
  */
-export const ZodPositiveDecimal = ZodDecimal.refine(
-  (d) => d.gt(0),
-  { message: 'Value must be positive' }
-);
+export const ZodPositiveDecimal = ZodDecimal.refine((d) => d.gt(0), {
+  message: 'Value must be positive',
+});
 
 /**
  * Zod schema for non-negative Decimal values
  */
-export const ZodNonNegativeDecimal = ZodDecimal.refine(
-  (d) => d.gte(0),
-  { message: 'Value must be non-negative' }
-);
+export const ZodNonNegativeDecimal = ZodDecimal.refine((d) => d.gte(0), {
+  message: 'Value must be non-negative',
+});
 
 /**
  * Helper to validate sum of percentages equals 100%

@@ -5,11 +5,8 @@
  * Per AI review: safeDiv(0,0) returns null, not 0
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import type { ScenarioCase, WeightedSummary, ProbabilityValidation } from '../types/scenario';
-
-// Configure decimal.js for financial precision
-Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
 // ============================================================================
 // Safe Math Operations
@@ -36,7 +33,10 @@ export function safeDiv(numerator: number, denominator: number): number | null {
  * deltas(100, 120) // { delta: 20, pct: 0.20 }
  * deltas(100, 0)   // { delta: -100, pct: null } // construction = 0
  */
-export function deltas(construction: number, actual: number): {
+export function deltas(
+  construction: number,
+  actual: number
+): {
   delta: number;
   pct: number | null;
 } {
@@ -82,9 +82,7 @@ export function weighted<T extends { probability: number }>(
   }
 
   // Convert Decimal objects back to numbers
-  return Object.fromEntries(
-    Object.entries(totals).map(([key, value]) => [key, value.toNumber()])
-  );
+  return Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, value.toNumber()]));
 }
 
 /**
@@ -103,7 +101,9 @@ export function calculateWeightedSummary(cases: ScenarioCase[]): WeightedSummary
     follow_ons: weightedValues['follow_ons'] || 0,
     exit_proceeds: weightedValues['exit_proceeds'] || 0,
     exit_valuation: weightedValues['exit_valuation'] || 0,
-    ...(weightedValues['months_to_exit'] !== undefined ? { months_to_exit: weightedValues['months_to_exit'] } : {}),
+    ...(weightedValues['months_to_exit'] !== undefined
+      ? { months_to_exit: weightedValues['months_to_exit'] }
+      : {}),
   };
 }
 
@@ -163,19 +163,17 @@ export function validateProbabilities(
  * ])
  * // Returns probabilities scaled to [0.556, 0.444] (sum = 1.0)
  */
-export function normalizeProbabilities<T extends { probability: number }>(
-  cases: T[]
-): T[] {
+export function normalizeProbabilities<T extends { probability: number }>(cases: T[]): T[] {
   const sum = cases.reduce((acc, c) => acc + c.probability, 0);
 
   if (sum === 0) {
     // Equal distribution if all probabilities are 0
     const equalProb = 1 / cases.length;
-    return cases.map(c => ({ ...c, probability: equalProb }));
+    return cases.map((c) => ({ ...c, probability: equalProb }));
   }
 
   // Scale proportionally
-  return cases.map(c => ({
+  return cases.map((c) => ({
     ...c,
     probability: new Decimal(c.probability).div(sum).toNumber(),
   }));
@@ -239,7 +237,7 @@ export function formatCurrencyForCSV(value: number | null | undefined): string {
  */
 export function formatPercentageForCSV(value: number | null | undefined): string {
   if (value === null || value === undefined) return 'N/A';
-  return `${new Decimal(value).times(100).toFixed(2)  }%`;
+  return `${new Decimal(value).times(100).toFixed(2)}%`;
 }
 
 // ============================================================================

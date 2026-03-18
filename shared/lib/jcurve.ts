@@ -22,7 +22,7 @@
  * - Consider Monte Carlo for true probabilistic forecasting
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { fitTVPI } from './jcurve-fit';
 import { gompertz, logistic } from './jcurve-shapes';
 
@@ -68,7 +68,7 @@ export interface JCurvePath {
  * @param dpiSoFar - Optional: actual distributions to-date (Current mode)
  * @returns Complete J-curve path with sensitivity bands
  */
- 
+
 export function computeJCurvePath(
   cfg: JCurveConfig,
   feeTimelinePerPeriod: Decimal[],
@@ -89,7 +89,7 @@ export function computeJCurvePath(
 
   if (cfg.kind === 'piecewise') {
     const seed = generatePiecewiseSeed(xs, K, cfg);
-    tvpiDecimals = seed.map(v => new Decimal(v));
+    tvpiDecimals = seed.map((v) => new Decimal(v));
   } else {
     const result = buildFittedTVPICurve(cfg, xs, K, startTVPI, calledSoFar, dpiSoFar);
     tvpiDecimals = result.tvpi;
@@ -103,13 +103,7 @@ export function computeJCurvePath(
   // Materialize NAV & DPI
   const calledCumFull = cumulativeFromPeriods(calls);
   const feesCum = cumulativeFromPeriods(feeTimelinePerPeriod);
-  const { nav, dpi } = materializeNAVandDPI(
-    tvpiDecimals,
-    calledCumFull,
-    feesCum,
-    cfg,
-    dpiSoFar
-  );
+  const { nav, dpi } = materializeNAVandDPI(tvpiDecimals, calledCumFull, feesCum, cfg, dpiSoFar);
 
   // Sensitivity bands
   const sensitivityBands = computeSensitivityBands(cfg, paramsRecord, rmse, N, xs);
@@ -239,29 +233,22 @@ export function buildFittedTVPICurve(
   }
 
   // Fit curve to seed
-  const fit = fitTVPI(
-    cfg.kind === 'gompertz' ? 'gompertz' : 'logistic',
-    xs,
-    ysSeed,
-    K,
-    { maxIterations: 200 }
-  );
+  const fit = fitTVPI(cfg.kind === 'gompertz' ? 'gompertz' : 'logistic', xs, ysSeed, K, {
+    maxIterations: 200,
+  });
 
   // Generate TVPI array from fitted parameters
-  const tvpiArr = xs.map(t =>
-    new Decimal(
-      cfg.kind === 'gompertz'
-        ? gompertz(t, K, fit.params[0] ?? 1, fit.params[1] ?? 0.5)
-        : logistic(t, K, fit.params[0] ?? 0.8, fit.params[1] ?? 1)
-    )
+  const tvpiArr = xs.map(
+    (t) =>
+      new Decimal(
+        cfg.kind === 'gompertz'
+          ? gompertz(t, K, fit.params[0] ?? 1, fit.params[1] ?? 0.5)
+          : logistic(t, K, fit.params[0] ?? 0.8, fit.params[1] ?? 1)
+      )
   );
 
   // Sanitize curve
-  const sanitized = sanitizeMonotonicCurve(
-    tvpiArr,
-    new Decimal(startTVPI),
-    new Decimal(K)
-  );
+  const sanitized = sanitizeMonotonicCurve(tvpiArr, new Decimal(startTVPI), new Decimal(K));
 
   // Build params record
   const params: Record<string, number | Decimal> =
@@ -278,11 +265,7 @@ export function buildFittedTVPICurve(
 
 /* ---------------------- Internal Helpers ---------------------- */
 
-function generatePiecewiseSeed(
-  xs: number[],
-  targetTVPI: number,
-  cfg: JCurveConfig
-): number[] {
+function generatePiecewiseSeed(xs: number[], targetTVPI: number, cfg: JCurveConfig): number[] {
   const out: number[] = [];
   const investFrac = Math.max(0, Math.min(1, cfg.investYears / cfg.horizonYears));
   const holdingFrac = 0.5;
@@ -304,11 +287,7 @@ function generatePiecewiseSeed(
   return out;
 }
 
-function generateCapitalCalls(
-  cfg: JCurveConfig,
-  N: number,
-  calledSoFar?: Decimal[]
-): Decimal[] {
+function generateCapitalCalls(cfg: JCurveConfig, N: number, calledSoFar?: Decimal[]): Decimal[] {
   const periodsPerYear = cfg.step === 'quarter' ? 4 : 1;
   const investPeriods = Math.max(1, Math.ceil(cfg.investYears * periodsPerYear));
   const prefix = (calledSoFar ?? []).slice(0, investPeriods);
@@ -321,27 +300,22 @@ function generateCapitalCalls(
       continue;
     }
     let w = 1;
-    if (cfg.pacingStrategy === 'front-loaded')
-      w = 1.5 - i / Math.max(1, investPeriods - 1);
-    if (cfg.pacingStrategy === 'back-loaded')
-      w = 0.5 + i / Math.max(1, investPeriods - 1);
+    if (cfg.pacingStrategy === 'front-loaded') w = 1.5 - i / Math.max(1, investPeriods - 1);
+    if (cfg.pacingStrategy === 'back-loaded') w = 0.5 + i / Math.max(1, investPeriods - 1);
     calls.push(new Decimal(w));
   }
 
   for (let i = investPeriods; i < N; i++) calls.push(new Decimal(0));
 
   // Normalize sum to 1
-  const prefixSum = calls
-    .slice(0, investPeriods)
-    .reduce((s, v) => s.plus(v), new Decimal(0));
+  const prefixSum = calls.slice(0, investPeriods).reduce((s, v) => s.plus(v), new Decimal(0));
   if (prefixSum.gt(0)) {
     for (let i = 0; i < investPeriods; i++) {
       const callVal = calls[i];
       if (callVal) calls[i] = callVal.div(prefixSum);
     }
   } else {
-    for (let i = 0; i < investPeriods; i++)
-      calls[i] = new Decimal(1 / investPeriods);
+    for (let i = 0; i < investPeriods; i++) calls[i] = new Decimal(1 / investPeriods);
   }
 
   while (calls.length < N) calls.push(new Decimal(0));
@@ -357,9 +331,7 @@ function materializeNAVandDPI(
 ): { nav: Decimal[]; dpi: Decimal[] } {
   const N = tvpi.length - 1;
   const periodsPerYear = cfg.step === 'quarter' ? 4 : 1;
-  const distLagPeriods = Math.round(
-    (cfg.distributionLag ?? cfg.investYears + 2) * periodsPerYear
-  );
+  const distLagPeriods = Math.round((cfg.distributionLag ?? cfg.investYears + 2) * periodsPerYear);
   const finalDistCoef = cfg.finalDistributionCoefficient ?? 0.7;
   const navMode: NavCalculationMode = cfg.navCalculationMode ?? 'standard';
 
@@ -388,8 +360,7 @@ function materializeNAVandDPI(
 
     // Ensure monotonic
     const lastDpi = dpi[dpi.length - 1];
-    if (lastDpi && dpiVal.lt(lastDpi))
-      dpiVal = lastDpi;
+    if (lastDpi && dpiVal.lt(lastDpi)) dpiVal = lastDpi;
     dpi.push(dpiVal);
 
     // NAV calculation modes
