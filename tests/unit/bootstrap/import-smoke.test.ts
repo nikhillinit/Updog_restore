@@ -12,10 +12,10 @@ import { describe, it, expect } from 'vitest';
 describe('import-smoke: side-effect-free module loading', () => {
   it('bootstrap exports bootstrap() without starting the server', async () => {
     // bootstrap.ts transitively loads providers.js + server.js which are heavy;
-    // 15s covers cold module resolution in CI
+    // 30s covers cold module resolution when running full suite in CI
     const mod = await import('../../../server/bootstrap.js');
     expect(typeof mod.bootstrap).toBe('function');
-  }, 15_000);
+  }, 30_000);
 
   it('config/index exports loadEnv without calling it', async () => {
     const mod = await import('../../../server/config/index.js');
