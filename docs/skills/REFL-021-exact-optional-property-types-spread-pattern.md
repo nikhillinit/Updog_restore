@@ -1,3 +1,27 @@
+---
+type: reflection
+id: REFL-021
+title: exactOptionalPropertyTypes Requires Spread Pattern
+status: DRAFT
+date: 2026-02-16
+version: 1
+severity: medium
+wizard_steps: []
+error_codes: [TS2375, TS2412]
+components: [typescript, state, client, server]
+keywords:
+  [
+    exactOptionalPropertyTypes,
+    spread-pattern,
+    optional-properties,
+    undefined,
+    TS2375,
+    TS2412,
+  ]
+test_file: tests/regressions/REFL-021.test.ts
+superseded_by: null
+---
+
 # REFL-021: exactOptionalPropertyTypes Requires Spread Pattern
 
 **Created:** 2026-02-16 **Severity:** Medium **Category:** TypeScript / State

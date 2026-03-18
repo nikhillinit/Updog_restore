@@ -1,3 +1,7 @@
+// REFLECTION_ID: REFL-019
+// This test is linked to: docs/skills/REFL-019-k1-template-drops-data-footnotes.md
+// Do not rename without updating the reflection's test_file field.
+
 /**
  * PDF Generation Service - Data Builder Unit Tests
  *

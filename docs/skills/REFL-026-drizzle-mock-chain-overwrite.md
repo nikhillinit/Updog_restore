@@ -1,3 +1,20 @@
+---
+type: reflection
+id: REFL-026
+title: Drizzle ORM Mock Chain Overwrite
+status: DRAFT
+date: 2026-02-24
+version: 1
+severity: high
+wizard_steps: []
+error_codes: [TypeError, ERR_DRIZZLE_CHAIN]
+components: [drizzle, vitest, testing, database]
+keywords:
+  [drizzle, mock-chain, builder-pattern, mockResolvedValue, insert, values]
+test_file: tests/regressions/REFL-026.test.ts
+superseded_by: null
+---
+
 # REFL-026: Drizzle ORM Mock Chain Overwrite
 
 **Created:** 2026-02-24 **Severity:** High **Category:** Infrastructure /

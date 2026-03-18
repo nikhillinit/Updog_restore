@@ -209,18 +209,25 @@ vi.mock('../../server/db', () => ({
    fixed one failure mode only to expose the next
 4. `vi.mock()` hoisting does NOT guarantee the mock executes before the module's
    top-level code in all cases
+5. "Pure" helpers exported from a mixed-purpose module are still vulnerable if
+   that module eagerly resolves config at import time. Keep config access lazy
+   so tests that only need a request helper do not inherit unrelated
+   `DATABASE_URL` or secret requirements.
 
 ## 3. Evidence
 
 - **Source Sessions:** Phase0 (2026-01-15), P4.5 (2026-02-10), P5 (2026-02-17),
-  CI fixes (2026-02-18)
+  CI fixes (2026-02-18), CI triage (2026-03-17)
 - **Commits:** `ee51ae96` (env markers), `687a9a89` (metrics getOrCreate),
-  `3cb593e8` (database mock rewrite), `1cca4add` (RLS pool guard)
+  `3cb593e8` (database mock rewrite), `1cca4add` (RLS pool guard), uncommitted
+  local fix to `server/lib/auth/jwt.ts` (lazy `getConfig()` access)
 - **Files Affected:** `tests/integration/setup.ts`,
   `tests/mocks/database-mock.ts`, `server/metrics.ts`,
   `server/observability/performance-metrics.ts`,
   `server/metrics/variance-metrics.ts`, `server/lib/error-budget.ts`,
-  `server/observability/lp-metrics.ts`
+  `server/observability/lp-metrics.ts`, `server/lib/auth/jwt.ts`
 - **Related:** REFL-001 (dynamic imports), REFL-007 (global mock pollution),
   REFL-022 (Prometheus duplicate registration)
 - **Trend:** Appeared in 4 separate sessions before all 5 layers were in place
+  and recurred again when `requireFundAccess.test.ts` imported `jwt.ts`, which
+  eagerly called `getConfig()` and failed CI with `DATABASE_URL=''`

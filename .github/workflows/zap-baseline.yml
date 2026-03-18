@@ -5,12 +5,17 @@ on:
 jobs:
   zap_scan:
     runs-on: ubuntu-latest
-    if: ${{ secrets.ZAP_BASE_URL != '' }}
+    env:
+      ZAP_BASE_URL: ${{ secrets.ZAP_BASE_URL }}
     steps:
+      - name: Skip when ZAP_BASE_URL is not configured
+        if: ${{ env.ZAP_BASE_URL == '' }}
+        run: echo "Skipping ZAP baseline scan because ZAP_BASE_URL is not configured."
       - name: ZAP Baseline Scan
+        if: ${{ env.ZAP_BASE_URL != '' }}
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: ${{ secrets.ZAP_BASE_URL }}
+          target: ${{ env.ZAP_BASE_URL }}
           rules_file_name: '.zap/rules.tsv'
           fail_action: true
           cmd_options: '-a'
