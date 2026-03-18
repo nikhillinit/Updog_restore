@@ -3,6 +3,8 @@ import type { Fund } from '@shared/schema';
 import { asUser } from '../utils/integrationAuth';
 
 describe('Fund Creation Idempotency', () => {
+  const createdFundIds = new Set<number>();
+
   const apiFetch = (path: string, init?: RequestInit) => {
     const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || '5000'}`;
     const headers = new Headers(init?.headers);
@@ -20,9 +22,9 @@ describe('Fund Creation Idempotency', () => {
   };
 
   let testFundData: Partial<Fund>;
-  let createdFundId: number | null = null;
 
   beforeEach(() => {
+    createdFundIds.clear();
     testFundData = {
       name: `Test Fund ${Date.now()}`,
       size: 10000000,
@@ -36,17 +38,18 @@ describe('Fund Creation Idempotency', () => {
   });
 
   afterEach(async () => {
-    // Clean up created fund if exists
-    if (createdFundId) {
+    const fundIdsToCleanup = Array.from(createdFundIds);
+    createdFundIds.clear();
+
+    for (const fundId of fundIdsToCleanup) {
       try {
-        await apiFetch(`/api/funds/${createdFundId}`, {
+        await apiFetch(`/api/funds/${fundId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
         });
       } catch (error) {
         console.error('Cleanup failed:', error);
       }
-      createdFundId = null;
     }
   });
 
@@ -73,7 +76,7 @@ describe('Fund Creation Idempotency', () => {
       // Extract the successful response
       const successResponse = response1.status === 201 ? response1 : response2;
       const fund = await successResponse.json();
-      createdFundId = fund.id;
+      createdFundIds.add(Number(fund.id));
 
       // Verify only one fund was created
       const listResponse = await apiFetch('/api/funds');
@@ -97,7 +100,7 @@ describe('Fund Creation Idempotency', () => {
 
       expect(response1.status).toBe(201);
       const fund = await response1.json();
-      createdFundId = fund.id;
+      createdFundIds.add(Number(fund.id));
 
       // Second request with same idempotency key
       const response2 = await apiFetch('/api/funds', {
@@ -142,7 +145,7 @@ describe('Fund Creation Idempotency', () => {
 
       expect(response.status).toBe(201);
       const fund = await response.json();
-      createdFundId = fund.id;
+      createdFundIds.add(Number(fund.id));
     });
 
     it('should handle network errors gracefully', async () => {
@@ -166,7 +169,7 @@ describe('Fund Creation Idempotency', () => {
 
       expect(response2.status).toBe(201);
       const fund = await response2.json();
-      createdFundId = fund.id;
+      createdFundIds.add(Number(fund.id));
     });
   });
 
@@ -183,9 +186,9 @@ describe('Fund Creation Idempotency', () => {
         });
         results.push(response.status);
 
-        if (response.status === 201 && !createdFundId) {
+        if (response.status === 201) {
           const fund = await response.json();
-          createdFundId = fund.id;
+          createdFundIds.add(Number(fund.id));
         }
       }
 
@@ -204,7 +207,7 @@ describe('Fund Creation Idempotency', () => {
 
       expect(response1.status).toBe(201);
       const fund1 = await response1.json();
-      createdFundId = fund1.id;
+      createdFundIds.add(Number(fund1.id));
 
       // Create different fund
       const differentFundData = {
@@ -220,12 +223,14 @@ describe('Fund Creation Idempotency', () => {
 
       expect(response2.status).toBe(201);
       const fund2 = await response2.json();
+      createdFundIds.add(Number(fund2.id));
 
       // Clean up second fund
       await apiFetch(`/api/funds/${fund2.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
       });
+      createdFundIds.delete(Number(fund2.id));
 
       expect(fund1.id).not.toBe(fund2.id);
     });

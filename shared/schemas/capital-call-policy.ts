@@ -10,16 +10,16 @@ import { ZodPercentage } from './decimal-zod';
 /**
  * Capital call modes
  */
-export const CapitalCallMode = z.enum([
-  'upfront',      // All capital called at fund inception
-  'quarterly',    // Regular quarterly calls
-  'semi_annual',  // Every 6 months
-  'annual',       // Yearly calls
-  'as_needed',    // Called when investment opportunities arise
-  'custom'        // User-defined schedule
+export const CapitalCallModeSchema = z.enum([
+  'upfront', // All capital called at fund inception
+  'quarterly', // Regular quarterly calls
+  'semi_annual', // Every 6 months
+  'annual', // Yearly calls
+  'as_needed', // Called when investment opportunities arise
+  'custom', // User-defined schedule
 ]);
 
-export type CapitalCallMode = z.infer<typeof CapitalCallMode>;
+export type CapitalCallMode = z.infer<typeof CapitalCallModeSchema>;
 
 /**
  * Custom capital call schedule entry
@@ -32,7 +32,7 @@ export const CustomCallScheduleSchema = z.object({
   percentage: ZodPercentage,
 
   /** Optional description */
-  description: z.string().optional()
+  description: z.string().optional(),
 });
 
 export type CustomCallSchedule = z.infer<typeof CustomCallScheduleSchema>;
@@ -51,7 +51,7 @@ const BaseCapitalCallPolicySchema = z.object({
   noticePeriodDays: z.number().int().min(0).default(30),
 
   /** Funding period (days from notice to payment due) */
-  fundingPeriodDays: z.number().int().min(0).default(60)
+  fundingPeriodDays: z.number().int().min(0).default(60),
 });
 
 /**
@@ -61,7 +61,7 @@ const UpfrontPolicySchema = BaseCapitalCallPolicySchema.extend({
   mode: z.literal('upfront'),
 
   /** Percentage of committed capital to call upfront */
-  percentage: ZodPercentage.default(new Decimal(1))
+  percentage: ZodPercentage.default(new Decimal(1)),
 });
 
 /**
@@ -77,14 +77,11 @@ const PeriodicPolicySchema = BaseCapitalCallPolicySchema.extend({
   startYear: z.number().int().positive().default(1),
 
   /** End year */
-  endYear: z.number().int().positive()
-}).refine(
-  (data) => data.endYear >= data.startYear,
-  {
-    message: 'endYear must be >= startYear',
-    path: ['endYear']
-  }
-);
+  endYear: z.number().int().positive(),
+}).refine((data) => data.endYear >= data.startYear, {
+  message: 'endYear must be >= startYear',
+  path: ['endYear'],
+});
 
 /**
  * As-needed capital call policy
@@ -96,7 +93,7 @@ const AsNeededPolicySchema = BaseCapitalCallPolicySchema.extend({
   minimumNoticeDays: z.number().int().min(0).default(15),
 
   /** Maximum call size as % of committed capital */
-  maxCallSizePercent: ZodPercentage.default(new Decimal(0.25))
+  maxCallSizePercent: ZodPercentage.default(new Decimal(0.25)),
 });
 
 /**
@@ -106,37 +103,39 @@ const CustomPolicySchema = BaseCapitalCallPolicySchema.extend({
   mode: z.literal('custom'),
 
   /** Custom call schedule */
-  schedule: z.array(CustomCallScheduleSchema).min(1)
-}).refine(
-  (data) => {
-    // Validate total percentage <= 100%
-    const totalPercent = data.schedule.reduce(
-      (sum, entry) => sum.plus(entry.percentage),
-      new Decimal(0)
-    );
-    return totalPercent.lte(1);
-  },
-  {
-    message: 'Total custom schedule calls cannot exceed 100%',
-    path: ['schedule']
-  }
-).refine(
-  (data) => {
-    // Validate schedule is sorted by month
-    for (let i = 1; i < data.schedule.length; i++) {
-      const current = data.schedule[i];
-      const previous = data.schedule[i - 1];
-      if (!current || !previous || current.month <= previous.month) {
-        return false;
-      }
+  schedule: z.array(CustomCallScheduleSchema).min(1),
+})
+  .refine(
+    (data) => {
+      // Validate total percentage <= 100%
+      const totalPercent = data.schedule.reduce(
+        (sum, entry) => sum.plus(entry.percentage),
+        new Decimal(0)
+      );
+      return totalPercent.lte(1);
+    },
+    {
+      message: 'Total custom schedule calls cannot exceed 100%',
+      path: ['schedule'],
     }
-    return true;
-  },
-  {
-    message: 'Custom schedule must be sorted by month',
-    path: ['schedule']
-  }
-);
+  )
+  .refine(
+    (data) => {
+      // Validate schedule is sorted by month
+      for (let i = 1; i < data.schedule.length; i++) {
+        const current = data.schedule[i];
+        const previous = data.schedule[i - 1];
+        if (!current || !previous || current.month <= previous.month) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: 'Custom schedule must be sorted by month',
+      path: ['schedule'],
+    }
+  );
 
 /**
  * Discriminated union of all capital call policies
@@ -145,7 +144,7 @@ export const CapitalCallPolicySchema = z.union([
   UpfrontPolicySchema,
   PeriodicPolicySchema,
   AsNeededPolicySchema,
-  CustomPolicySchema
+  CustomPolicySchema,
 ]);
 
 export type CapitalCallPolicy = z.infer<typeof CapitalCallPolicySchema>;
@@ -157,7 +156,7 @@ export function calculateCapitalCall(
   policy: CapitalCallPolicy,
   committedCapital: Decimal,
   currentMonth: number,
-  uncalledCapital: Decimal
+  _uncalledCapital: Decimal
 ): Decimal {
   switch (policy.mode) {
     case 'upfront':

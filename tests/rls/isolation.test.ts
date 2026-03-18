@@ -26,7 +26,8 @@ describe('RLS Cross-Tenant Isolation', () => {
   let db: ReturnType<typeof drizzle>;
 
   beforeEach(async () => {
-    const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
+    const connectionString =
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
     pool = new Pool({ connectionString });
     db = drizzle(pool);
 
@@ -86,16 +87,16 @@ describe('RLS Cross-Tenant Isolation', () => {
       expect(bioFunds.length).toBeGreaterThan(0);
 
       // No overlap in fund IDs
-      const techIds = techFunds.map(f => f.id);
-      const bioIds = bioFunds.map(f => f.id);
-      const intersection = techIds.filter(id => bioIds.includes(id));
+      const techIds = techFunds.map((f) => f.id);
+      const bioIds = bioFunds.map((f) => f.id);
+      const intersection = techIds.filter((id) => bioIds.includes(id));
       expect(intersection).toHaveLength(0);
 
       // Verify org_id matches
-      techFunds.forEach(fund => {
+      techFunds.forEach((fund) => {
         expect(fund.orgId).toBeTruthy();
       });
-      bioFunds.forEach(fund => {
+      bioFunds.forEach((fund) => {
         expect(fund.orgId).toBeTruthy();
       });
 
@@ -123,7 +124,10 @@ describe('RLS Cross-Tenant Isolation', () => {
 
       // Verify fund unchanged
       await switchTenant(db, 'tech-ventures');
-      const [unchanged] = await db.select().from(funds).where(sql`id = ${fundId}`);
+      const [unchanged] = await db
+        .select()
+        .from(funds)
+        .where(sql`id = ${fundId}`);
       expect(unchanged.size).toBe(techFunds[0].size); // Original value
     });
 
@@ -145,7 +149,10 @@ describe('RLS Cross-Tenant Isolation', () => {
 
       // Verify fund still exists
       await switchTenant(db, 'tech-ventures');
-      const stillExists = await db.select().from(funds).where(sql`id = ${fundId}`);
+      const stillExists = await db
+        .select()
+        .from(funds)
+        .where(sql`id = ${fundId}`);
       expect(stillExists).toHaveLength(1);
     });
   });
@@ -164,19 +171,25 @@ describe('RLS Cross-Tenant Isolation', () => {
       expect(bioCompanies.length).toBeGreaterThan(0);
 
       // Verify no overlap
-      const techIds = techCompanies.map(c => c.id);
-      const bioIds = bioCompanies.map(c => c.id);
-      expect(techIds.filter(id => bioIds.includes(id))).toHaveLength(0);
+      const techIds = techCompanies.map((c) => c.id);
+      const bioIds = bioCompanies.map((c) => c.id);
+      expect(techIds.filter((id) => bioIds.includes(id))).toHaveLength(0);
     });
 
     it('should allow same company name across organizations', async () => {
       // Both orgs have "Alpha Innovations" (edge case in seed data)
       const techAlpha = await withTenantContext(db, 'tech-ventures', async () => {
-        return await db.select().from(portfolioCompanies).where(sql`name = 'Alpha Innovations'`);
+        return await db
+          .select()
+          .from(portfolioCompanies)
+          .where(sql`name = 'Alpha Innovations'`);
       });
 
       const bioAlpha = await withTenantContext(db, 'bio-capital', async () => {
-        return await db.select().from(portfolioCompanies).where(sql`name = 'Alpha Innovations'`);
+        return await db
+          .select()
+          .from(portfolioCompanies)
+          .where(sql`name = 'Alpha Innovations'`);
       });
 
       expect(techAlpha).toHaveLength(1);
@@ -206,10 +219,10 @@ describe('RLS Cross-Tenant Isolation', () => {
       expect(bioInvestments.length).toBeGreaterThan(0);
 
       // Verify isolation
-      techInvestments.forEach(inv => {
+      techInvestments.forEach((inv) => {
         expect(inv.orgId).toBeTruthy();
       });
-      bioInvestments.forEach(inv => {
+      bioInvestments.forEach((inv) => {
         expect(inv.orgId).toBeTruthy();
       });
 
@@ -227,20 +240,20 @@ describe('RLS Cross-Tenant Isolation', () => {
         expect(status.enabled, `RLS should be enabled on ${table}`).toBe(true);
         expect(status.policyCount, `${table} should have policies`).toBeGreaterThan(0);
 
-        console.log(`[RLS CHECK] ${table}: ${status.policyCount} policies`);
+        console.warn(`[RLS CHECK] ${table}: ${status.policyCount} policies`);
       }
     });
 
     it('should have standard CRUD policies', async () => {
       const status = await verifyRLS(db, 'funds');
 
-      const policyNames = status.policies.map(p => p.name.toLowerCase());
+      const policyNames = status.policies.map((p) => p.name.toLowerCase());
 
       // Should have policies for all CRUD operations
-      expect(policyNames.some(name => name.includes('select'))).toBe(true);
-      expect(policyNames.some(name => name.includes('insert'))).toBe(true);
-      expect(policyNames.some(name => name.includes('update'))).toBe(true);
-      expect(policyNames.some(name => name.includes('delete'))).toBe(true);
+      expect(policyNames.some((name) => name.includes('select'))).toBe(true);
+      expect(policyNames.some((name) => name.includes('insert'))).toBe(true);
+      expect(policyNames.some((name) => name.includes('update'))).toBe(true);
+      expect(policyNames.some((name) => name.includes('delete'))).toBe(true);
     });
   });
 
@@ -252,7 +265,7 @@ describe('RLS Cross-Tenant Isolation', () => {
       const allFunds = await db.select().from(funds);
 
       // Should see funds from multiple organizations
-      const uniqueOrgIds = new Set(allFunds.map(f => f.orgId));
+      const uniqueOrgIds = new Set(allFunds.map((f) => f.orgId));
       expect(uniqueOrgIds.size).toBeGreaterThanOrEqual(2);
     });
   });

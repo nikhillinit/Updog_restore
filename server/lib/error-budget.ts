@@ -18,6 +18,44 @@ export interface ErrorBudget {
   status: 'healthy' | 'warning' | 'critical' | 'exhausted';
 }
 
+type PrometheusQueryResult = {
+  value?: [unknown, unknown];
+};
+
+type PrometheusQueryResponse = {
+  status?: unknown;
+  data?: {
+    result?: PrometheusQueryResult[];
+  };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractPrometheusValue(payload: unknown): string | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const response = payload as PrometheusQueryResponse;
+  if (response.status !== 'success') {
+    return null;
+  }
+
+  const result = response.data?.result;
+  if (!Array.isArray(result) || result.length === 0) {
+    return null;
+  }
+
+  const firstValue = result[0]?.value;
+  if (!Array.isArray(firstValue) || firstValue.length < 2) {
+    return null;
+  }
+
+  return typeof firstValue[1] === 'string' ? firstValue[1] : null;
+}
+
 function getOrCreateGauge(
   name: string,
   help: string,
@@ -185,25 +223,29 @@ export class ErrorBudgetManager {
   private async getSuccessRate(sloName: string, window: string): Promise<number> {
     // Mock implementation - replace with actual Prometheus queries
     switch (sloName) {
-      case 'api_availability':
+      case 'api_availability': {
         return await this.queryPrometheus(
           `sum(rate(http_requests_total{status=~"2.."}[${window}])) / sum(rate(http_requests_total[${window}]))`
         );
-      case 'api_latency_p95':
+      }
+      case 'api_latency_p95': {
         const latency = await this.queryPrometheus(
           `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[${window}])) by (le))`
         );
         return latency < 0.5 ? 0.95 : 0.8; // Simplified
-      case 'frontend_lcp_p75':
+      }
+      case 'frontend_lcp_p75': {
         const lcp = await this.queryPrometheus(
           `histogram_quantile(0.75, sum(rate(web_vitals_lcp_bucket[${window}])) by (le))`
         );
         return lcp < 2.5 ? 0.8 : 0.6; // Simplified
-      case 'frontend_inp_p75':
+      }
+      case 'frontend_inp_p75': {
         const inp = await this.queryPrometheus(
           `histogram_quantile(0.75, sum(rate(web_vitals_inp_bucket[${window}])) by (le))`
         );
         return inp < 200 ? 0.9 : 0.7; // Simplified
+      }
       default:
         return 0.95; // Default fallback
     }
@@ -232,9 +274,10 @@ export class ErrorBudgetManager {
         return 0.95; // Fallback to healthy state
       }
 
-      const data = await response['json']();
-      if (data.status === 'success' && data.data.result.length > 0) {
-        return parseFloat(data.data.result[0]!.value[1]!);
+      const data: unknown = await response.json();
+      const value = extractPrometheusValue(data);
+      if (value !== null) {
+        return parseFloat(value);
       }
     } catch (error) {
       console.warn(`Prometheus query error: ${error}`);

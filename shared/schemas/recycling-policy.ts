@@ -10,13 +10,9 @@ import { ZodPositiveDecimal } from './decimal-zod';
 /**
  * Recycling sources
  */
-export const RecyclingSource = z.enum([
-  'management_fees',
-  'exit_proceeds',
-  'both'
-]);
+export const RecyclingSourceSchema = z.enum(['management_fees', 'exit_proceeds', 'both']);
 
-export type RecyclingSource = z.infer<typeof RecyclingSource>;
+export type RecyclingSource = z.infer<typeof RecyclingSourceSchema>;
 
 /**
  * Recycling cap structure
@@ -29,11 +25,9 @@ export const RecyclingCapSchema = z.object({
   value: ZodPositiveDecimal,
 
   /** Basis for percentage cap */
-  basis: z.enum([
-    'committed_capital',
-    'called_capital',
-    'original_investment'
-  ]).default('committed_capital')
+  basis: z
+    .enum(['committed_capital', 'called_capital', 'original_investment'])
+    .default('committed_capital'),
 });
 
 export type RecyclingCap = z.infer<typeof RecyclingCapSchema>;
@@ -49,7 +43,7 @@ export const RecyclingTermSchema = z.object({
   extensionMonths: z.number().int().min(0).default(0),
 
   /** Automatic extension if conditions met */
-  automaticExtension: z.boolean().default(false)
+  automaticExtension: z.boolean().default(false),
 });
 
 export type RecyclingTerm = z.infer<typeof RecyclingTermSchema>;
@@ -57,61 +51,63 @@ export type RecyclingTerm = z.infer<typeof RecyclingTermSchema>;
 /**
  * Recycling timing
  */
-export const RecyclingTiming = z.enum([
-  'immediate',    // Reinvest as soon as proceeds available
-  'quarterly',    // Aggregate and reinvest quarterly
-  'semi_annual',  // Aggregate and reinvest semi-annually
-  'annual'        // Aggregate and reinvest annually
+export const RecyclingTimingSchema = z.enum([
+  'immediate', // Reinvest as soon as proceeds available
+  'quarterly', // Aggregate and reinvest quarterly
+  'semi_annual', // Aggregate and reinvest semi-annually
+  'annual', // Aggregate and reinvest annually
 ]);
 
-export type RecyclingTiming = z.infer<typeof RecyclingTiming>;
+export type RecyclingTiming = z.infer<typeof RecyclingTimingSchema>;
 
 /**
  * Complete recycling policy
  */
-export const RecyclingPolicySchema = z.object({
-  /** Policy identifier */
-  id: z.string(),
+export const RecyclingPolicySchema = z
+  .object({
+    /** Policy identifier */
+    id: z.string(),
 
-  /** Human-readable name */
-  name: z.string(),
+    /** Human-readable name */
+    name: z.string(),
 
-  /** Enable recycling */
-  enabled: z.boolean().default(true),
+    /** Enable recycling */
+    enabled: z.boolean().default(true),
 
-  /** Recycling sources */
-  sources: z.array(RecyclingSource).min(1),
+    /** Recycling sources */
+    sources: z.array(RecyclingSourceSchema).min(1),
 
-  /** Recycling cap */
-  cap: RecyclingCapSchema,
+    /** Recycling cap */
+    cap: RecyclingCapSchema,
 
-  /** Recycling term */
-  term: RecyclingTermSchema,
+    /** Recycling term */
+    term: RecyclingTermSchema,
 
-  /** Proactively assume recycling for forecasting */
-  anticipatedRecycling: z.boolean().default(false),
+    /** Proactively assume recycling for forecasting */
+    anticipatedRecycling: z.boolean().default(false),
 
-  /** Reinvestment timing */
-  reinvestmentTiming: RecyclingTiming.default('immediate'),
+    /** Reinvestment timing */
+    reinvestmentTiming: RecyclingTimingSchema.default('immediate'),
 
-  /** Minimum reinvestment amount */
-  minimumReinvestmentAmount: ZodPositiveDecimal.optional(),
+    /** Minimum reinvestment amount */
+    minimumReinvestmentAmount: ZodPositiveDecimal.optional(),
 
-  /** Investment IDs excluded from recycling */
-  excludedInvestments: z.array(z.string()).optional()
-}).refine(
-  (data) => {
-    // If percentage cap, validate <= 100%
-    if (data.cap.type === 'percentage') {
-      return data.cap.value.lte(1);
+    /** Investment IDs excluded from recycling */
+    excludedInvestments: z.array(z.string()).optional(),
+  })
+  .refine(
+    (data) => {
+      // If percentage cap, validate <= 100%
+      if (data.cap.type === 'percentage') {
+        return data.cap.value.lte(1);
+      }
+      return true;
+    },
+    {
+      message: 'Percentage cap cannot exceed 100%',
+      path: ['cap', 'value'],
     }
-    return true;
-  },
-  {
-    message: 'Percentage cap cannot exceed 100%',
-    path: ['cap', 'value']
-  }
-);
+  );
 
 export type RecyclingPolicy = z.infer<typeof RecyclingPolicySchema>;
 
@@ -155,12 +151,13 @@ export function calculateRecyclingAvailability(
       fromFees: new Decimal(0),
       fromProceeds: new Decimal(0),
       capReached: false,
-      termExpired: false
+      termExpired: false,
     };
   }
 
   // Check if term expired
-  const termMonths = policy.term.months + (policy.term.automaticExtension ? policy.term.extensionMonths : 0);
+  const termMonths =
+    policy.term.months + (policy.term.automaticExtension ? policy.term.extensionMonths : 0);
   const termExpired = context.currentMonth > termMonths;
 
   if (termExpired) {
@@ -169,7 +166,7 @@ export function calculateRecyclingAvailability(
       fromFees: new Decimal(0),
       fromProceeds: new Decimal(0),
       capReached: false,
-      termExpired: true
+      termExpired: true,
     };
   }
 
@@ -193,7 +190,7 @@ export function calculateRecyclingAvailability(
       fromFees: new Decimal(0),
       fromProceeds: new Decimal(0),
       capReached: true,
-      termExpired: false
+      termExpired: false,
     };
   }
 
@@ -229,7 +226,7 @@ export function calculateRecyclingAvailability(
     fromFees,
     fromProceeds,
     capReached: false,
-    termExpired: false
+    termExpired: false,
   };
 }
 
@@ -253,10 +250,7 @@ function getRecyclingBasisAmount(
 /**
  * Check if recycling should occur based on timing
  */
-export function shouldRecycleNow(
-  policy: RecyclingPolicy,
-  currentMonth: number
-): boolean {
+export function shouldRecycleNow(policy: RecyclingPolicy, currentMonth: number): boolean {
   if (!policy.enabled) return false;
 
   switch (policy.reinvestmentTiming) {

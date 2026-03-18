@@ -185,6 +185,7 @@ describe('CohortEngine - Company Generation', () => {
 
   // FIXME: Company valuation generation producing unrealistic values
   // @group integration - Needs validation of MOIC/stage distribution logic
+  // SKIP: valuation expectations are not stable until the MOIC and stage distribution logic is recalibrated.
   it.skip('should generate realistic company valuations', () => {
     const cohort = CohortEngine(createCohortInput());
 
@@ -241,6 +242,7 @@ describe('compareCohorts', () => {
   });
 
   // Passes in isolation, fails under full suite (test ordering/shared state)
+  // SKIP: cohort comparison remains quarantined until the shared-state ordering issue is fixed.
   it.skip('should calculate average Multiple across cohorts', () => {
     const cohorts = [
       createCohortInput({ vintageYear: 2020 }),

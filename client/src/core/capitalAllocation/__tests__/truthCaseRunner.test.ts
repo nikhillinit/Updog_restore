@@ -74,7 +74,6 @@ const NUMERIC_TOLERANCE = 0.01;
  */
 function assertNumericEqual(actual: number, expected: number, field: string): void {
   const diff = Math.abs(actual - expected);
-  const relativeDiff = expected !== 0 ? diff / Math.abs(expected) : diff;
 
   // Use relative tolerance for large values, absolute for small
   const tolerance = Math.max(NUMERIC_TOLERANCE, Math.abs(expected) * 0.001);
@@ -134,6 +133,7 @@ describe('Capital Allocation Truth Cases', () => {
     const skipCheck = shouldSkipTruthCase(tc.id, tc.inputs.fund.reserve_policy);
 
     if (skipCheck.skip) {
+      // SKIP: this truth-case harness does not yet support every reserve-policy variant; the specific reason is included in the title.
       it.skip(`${tc.id}: ${tc.description} - ${skipCheck.reason}`, () => {
         skipped++;
       });
@@ -196,10 +196,10 @@ describe('Capital Allocation Truth Cases', () => {
     const total = passed + failed;
     const passRate = total > 0 ? (passed / total) * 100 : 0;
 
-    console.log(`\nCA Truth Cases Summary:`);
-    console.log(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
-    console.log(`  Failed: ${failed}`);
-    console.log(`  Skipped: ${skipped}`);
+    console.warn(`\nCA Truth Cases Summary:`);
+    console.warn(`  Passed: ${passed}/${total} (${passRate.toFixed(1)}%)`);
+    console.warn(`  Failed: ${failed}`);
+    console.warn(`  Skipped: ${skipped}`);
 
     // Phase 1 target: Core reserve calculations (CA-001, CA-002, CA-003)
     // Full target: 19/20 (95%)
@@ -233,7 +233,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(0, 0);
 
-    console.log(
+    console.warn(
       `CA-001 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );
@@ -254,7 +254,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     // reserve_balance = min(2, 20) = 2M
     expect(result.reserve_balance).toBeCloseTo(2, 0);
 
-    console.log(
+    console.warn(
       `CA-002 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );
@@ -280,7 +280,7 @@ describe('CA Core Reserve Calculations (CA-001, CA-002, CA-003)', () => {
     const totalAllocated = result.allocations_by_cohort.reduce((sum, a) => sum + a.amount, 0);
     expect(totalAllocated).toBeCloseTo(10, 0);
 
-    console.log(
+    console.warn(
       `CA-003 result: reserve=${result.reserve_balance}, allocations=`,
       result.allocations_by_cohort
     );

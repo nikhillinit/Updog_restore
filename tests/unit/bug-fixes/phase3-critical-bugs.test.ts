@@ -449,6 +449,7 @@ describe('Phase 3: Critical Bug Fixes', () => {
 
   describe('5. Regression Tests', () => {
     // Engine returns 0 allocations for this input — stageStrategies[] empty triggers no-op path
+    // SKIP: backward-compatibility assertion is blocked until the fixture exercises a non-empty stage strategy path.
     it.skip('should maintain backward compatibility with existing calculations', async () => {
       const engine = new DeterministicReserveEngine();
 

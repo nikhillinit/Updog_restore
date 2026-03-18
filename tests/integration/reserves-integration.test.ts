@@ -128,7 +128,7 @@ describe('Reserves v1.1 Integration Tests', () => {
         expect(result.ok).toBe(true);
         expect(result.data!.metadata.conservation_check).toBe(true);
 
-        console.log(`✓ ${testCase.description}: ${result.data!.allocations.length} allocations`);
+        console.warn(`✓ ${testCase.description}: ${result.data!.allocations.length} allocations`);
       }
     });
   });

@@ -31,6 +31,7 @@ afterAll(async () => {
   await stopTestDb();
 });
 
+// SKIP: this real-database suite requires Docker-backed Testcontainers infrastructure.
 describe.skip('Time-Travel Analytics Migration (Real DB)', () => {
   describe('Table Creation', () => {
     test('fund_state_snapshots table exists with correct structure', async () => {

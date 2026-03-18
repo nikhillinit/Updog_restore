@@ -44,11 +44,7 @@ describe('Golden Dataset Infrastructure', () => {
       // Use the expected data as actual (perfect match)
       const actual = dataset.expected.timeSeries;
 
-      const comparison = compareToExpected(
-        actual,
-        dataset.expected,
-        dataset.metadata.tolerances
-      );
+      const comparison = compareToExpected(actual, dataset.expected, dataset.metadata.tolerances);
 
       expect(comparison.matches).toBe(true);
       expect(comparison.differences).toHaveLength(0);
@@ -68,11 +64,7 @@ describe('Golden Dataset Infrastructure', () => {
         return { ...row };
       });
 
-      const comparison = compareToExpected(
-        actual,
-        dataset.expected,
-        dataset.metadata.tolerances
-      );
+      const comparison = compareToExpected(actual, dataset.expected, dataset.metadata.tolerances);
 
       expect(comparison.matches).toBe(false);
       expect(comparison.differences.length).toBeGreaterThan(0);
@@ -91,11 +83,7 @@ describe('Golden Dataset Infrastructure', () => {
         dpi: row.dpi + 0.0000001, // Within 1e-6 absolute tolerance
       }));
 
-      const comparison = compareToExpected(
-        actual,
-        dataset.expected,
-        dataset.metadata.tolerances
-      );
+      const comparison = compareToExpected(actual, dataset.expected, dataset.metadata.tolerances);
 
       expect(comparison.matches).toBe(true);
       expect(comparison.differences).toHaveLength(0);
@@ -140,14 +128,7 @@ describe('Golden Dataset Infrastructure', () => {
       const { readFile } = await import('fs/promises');
       const { join } = await import('path');
       const expectedCSV = await readFile(
-        join(
-          process.cwd(),
-          'tests',
-          'fixtures',
-          'golden-datasets',
-          'simple',
-          'expected.csv'
-        ),
+        join(process.cwd(), 'tests', 'fixtures', 'golden-datasets', 'simple', 'expected.csv'),
         'utf-8'
       );
 
@@ -155,7 +136,7 @@ describe('Golden Dataset Infrastructure', () => {
       const result = compareCSVBytes(expectedCSV, actualCSV);
 
       if (!result.identical) {
-        console.log('CSV Differences:', result.differences);
+        console.warn('CSV Differences:', result.differences);
       }
 
       expect(result.identical).toBe(true);
@@ -285,14 +266,47 @@ describe('Golden Dataset Infrastructure', () => {
   describe('canonicalizeTimeSeries', () => {
     it('should sort by month ascending', () => {
       const unsorted: TimeSeriesRow[] = [
-        { month: 12, quarter: 4, contributions: 0, fees: 0, distributions: 0, nav: 0, dpi: 0, tvpi: 0, gpCarry: 0, lpProceeds: 0 },
-        { month: 0, quarter: 0, contributions: 0, fees: 0, distributions: 0, nav: 0, dpi: 0, tvpi: 0, gpCarry: 0, lpProceeds: 0 },
-        { month: 6, quarter: 2, contributions: 0, fees: 0, distributions: 0, nav: 0, dpi: 0, tvpi: 0, gpCarry: 0, lpProceeds: 0 },
+        {
+          month: 12,
+          quarter: 4,
+          contributions: 0,
+          fees: 0,
+          distributions: 0,
+          nav: 0,
+          dpi: 0,
+          tvpi: 0,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
+        {
+          month: 0,
+          quarter: 0,
+          contributions: 0,
+          fees: 0,
+          distributions: 0,
+          nav: 0,
+          dpi: 0,
+          tvpi: 0,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
+        {
+          month: 6,
+          quarter: 2,
+          contributions: 0,
+          fees: 0,
+          distributions: 0,
+          nav: 0,
+          dpi: 0,
+          tvpi: 0,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
       ];
 
       const sorted = canonicalizeTimeSeries(unsorted);
 
-      expect(sorted.map(r => r.month)).toEqual([0, 6, 12]);
+      expect(sorted.map((r) => r.month)).toEqual([0, 6, 12]);
     });
 
     it('should round all values to 6 decimals', () => {
@@ -322,8 +336,30 @@ describe('Golden Dataset Infrastructure', () => {
 
     it('should not modify original array', () => {
       const original: TimeSeriesRow[] = [
-        { month: 12, quarter: 4, contributions: 100.123456789, fees: 0, distributions: 0, nav: 0, dpi: 0, tvpi: 0, gpCarry: 0, lpProceeds: 0 },
-        { month: 0, quarter: 0, contributions: 0, fees: 0, distributions: 0, nav: 0, dpi: 0, tvpi: 0, gpCarry: 0, lpProceeds: 0 },
+        {
+          month: 12,
+          quarter: 4,
+          contributions: 100.123456789,
+          fees: 0,
+          distributions: 0,
+          nav: 0,
+          dpi: 0,
+          tvpi: 0,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
+        {
+          month: 0,
+          quarter: 0,
+          contributions: 0,
+          fees: 0,
+          distributions: 0,
+          nav: 0,
+          dpi: 0,
+          tvpi: 0,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
       ];
 
       const originalCopy = JSON.parse(JSON.stringify(original));
@@ -351,8 +387,30 @@ describe('Golden Dataset Infrastructure', () => {
 
     it('should produce consistent output regardless of input order', () => {
       const data: TimeSeriesRow[] = [
-        { month: 0, quarter: 0, contributions: 100, fees: 1, distributions: 0, nav: 99, dpi: 0, tvpi: 0.99, gpCarry: 0, lpProceeds: 0 },
-        { month: 6, quarter: 2, contributions: 200, fees: 2, distributions: 50, nav: 148, dpi: 0.25, tvpi: 0.99, gpCarry: 10, lpProceeds: 40 },
+        {
+          month: 0,
+          quarter: 0,
+          contributions: 100,
+          fees: 1,
+          distributions: 0,
+          nav: 99,
+          dpi: 0,
+          tvpi: 0.99,
+          gpCarry: 0,
+          lpProceeds: 0,
+        },
+        {
+          month: 6,
+          quarter: 2,
+          contributions: 200,
+          fees: 2,
+          distributions: 50,
+          nav: 148,
+          dpi: 0.25,
+          tvpi: 0.99,
+          gpCarry: 10,
+          lpProceeds: 40,
+        },
       ];
 
       const reversed = [...data].reverse();

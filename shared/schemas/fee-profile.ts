@@ -10,23 +10,23 @@ import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 /**
  * Fee calculation bases (what the fee percentage applies to)
  */
-export const FeeBasisType = z.enum([
-  'committed_capital',           // Total fund commitment
-  'called_capital_cumulative',   // All capital called to date
+export const FeeBasisTypeSchema = z.enum([
+  'committed_capital', // Total fund commitment
+  'called_capital_cumulative', // All capital called to date
   'called_capital_net_of_returns', // Called capital minus distributions
-  'invested_capital',            // Capital deployed in investments
-  'fair_market_value',          // Current portfolio FMV
-  'unrealized_cost'             // Cost basis of unrealized investments
+  'invested_capital', // Capital deployed in investments
+  'fair_market_value', // Current portfolio FMV
+  'unrealized_cost', // Cost basis of unrealized investments
 ]);
 
-export type FeeBasisType = z.infer<typeof FeeBasisType>;
+export type FeeBasisType = z.infer<typeof FeeBasisTypeSchema>;
 
 /**
  * Single fee tier with basis, rate, and timing
  */
 export const FeeTierSchema = z.object({
   /** Fee calculation basis */
-  basis: FeeBasisType,
+  basis: FeeBasisTypeSchema,
 
   /** Annual fee rate as percentage (e.g., 0.02 = 2%) */
   annualRatePercent: ZodPercentage,
@@ -41,7 +41,7 @@ export const FeeTierSchema = z.object({
   capPercent: ZodPercentage.optional(),
 
   /** Optional fixed fee cap amount */
-  capAmount: ZodPositiveDecimal.optional()
+  capAmount: ZodPositiveDecimal.optional(),
 });
 
 export type FeeTier = z.infer<typeof FeeTierSchema>;
@@ -49,28 +49,30 @@ export type FeeTier = z.infer<typeof FeeTierSchema>;
 /**
  * Fee recycling policy
  */
-export const FeeRecyclingPolicySchema = z.object({
-  /** Enable fee recycling */
-  enabled: z.boolean(),
+export const FeeRecyclingPolicySchema = z
+  .object({
+    /** Enable fee recycling */
+    enabled: z.boolean(),
 
-  /** Maximum recyclable amount as % of committed capital */
-  recyclingCapPercent: ZodPercentage,
+    /** Maximum recyclable amount as % of committed capital */
+    recyclingCapPercent: ZodPercentage,
 
-  /** Term during which fees can be recycled (months) */
-  recyclingTermMonths: z.number().int().positive(),
+    /** Term during which fees can be recycled (months) */
+    recyclingTermMonths: z.number().int().positive(),
 
-  /** Basis for fee recycling cap */
-  basis: FeeBasisType.default('committed_capital'),
+    /** Basis for fee recycling cap */
+    basis: FeeBasisTypeSchema.default('committed_capital'),
 
-  /** Proactively assume recycling up to cap (for forecasting) */
-  anticipatedRecycling: z.boolean().default(false)
-}).refine(
-  (data) => !data.enabled || (data.recyclingCapPercent.gt(0) && data.recyclingTermMonths > 0),
-  {
-    message: 'Recycling cap and term must be positive when enabled',
-    path: ['enabled']
-  }
-);
+    /** Proactively assume recycling up to cap (for forecasting) */
+    anticipatedRecycling: z.boolean().default(false),
+  })
+  .refine(
+    (data) => !data.enabled || (data.recyclingCapPercent.gt(0) && data.recyclingTermMonths > 0),
+    {
+      message: 'Recycling cap and term must be positive when enabled',
+      path: ['enabled'],
+    }
+  );
 
 export type FeeRecyclingPolicy = z.infer<typeof FeeRecyclingPolicySchema>;
 
@@ -85,7 +87,7 @@ export const FeeHolidaySchema = z.object({
   durationMonths: z.number().int().positive(),
 
   /** Reason for holiday (optional documentation) */
-  reason: z.string().optional()
+  reason: z.string().optional(),
 });
 
 export type FeeHoliday = z.infer<typeof FeeHolidaySchema>;
@@ -93,46 +95,48 @@ export type FeeHoliday = z.infer<typeof FeeHolidaySchema>;
 /**
  * Complete fee profile
  */
-export const FeeProfileSchema = z.object({
-  /** Profile identifier */
-  id: z.string(),
+export const FeeProfileSchema = z
+  .object({
+    /** Profile identifier */
+    id: z.string(),
 
-  /** Human-readable name */
-  name: z.string(),
+    /** Human-readable name */
+    name: z.string(),
 
-  /** Fee tiers (must be ordered by startYear) */
-  tiers: z.array(FeeTierSchema).min(1),
+    /** Fee tiers (must be ordered by startYear) */
+    tiers: z.array(FeeTierSchema).min(1),
 
-  /** Months when fees step down (for reference) */
-  stepDownMonths: z.array(z.number().int().positive()).optional(),
+    /** Months when fees step down (for reference) */
+    stepDownMonths: z.array(z.number().int().positive()).optional(),
 
-  /** Fee recycling policy */
-  recyclingPolicy: FeeRecyclingPolicySchema.optional(),
+    /** Fee recycling policy */
+    recyclingPolicy: FeeRecyclingPolicySchema.optional(),
 
-  /** Fee holidays */
-  feeHolidays: z.array(FeeHolidaySchema).optional()
-}).refine(
-  (data) => {
-    // Validate tiers are sorted by startYear
-    for (let i = 1; i < data.tiers.length; i++) {
-      const current = data.tiers[i];
-      const previous = data.tiers[i - 1];
-      if (!current || !previous || current.startYear <= previous.startYear) {
-        return false;
+    /** Fee holidays */
+    feeHolidays: z.array(FeeHolidaySchema).optional(),
+  })
+  .refine(
+    (data) => {
+      // Validate tiers are sorted by startYear
+      for (let i = 1; i < data.tiers.length; i++) {
+        const current = data.tiers[i];
+        const previous = data.tiers[i - 1];
+        if (!current || !previous || current.startYear <= previous.startYear) {
+          return false;
+        }
+        // Validate endYear > startYear if present
+        const tier = data.tiers[i];
+        if (tier && tier.endYear && tier.endYear <= tier.startYear) {
+          return false;
+        }
       }
-      // Validate endYear > startYear if present
-      const tier = data.tiers[i];
-      if (tier && tier.endYear && tier.endYear <= tier.startYear) {
-        return false;
-      }
+      return true;
+    },
+    {
+      message: 'Fee tiers must be sorted by startYear and endYear must be after startYear',
+      path: ['tiers'],
     }
-    return true;
-  },
-  {
-    message: 'Fee tiers must be sorted by startYear and endYear must be after startYear',
-    path: ['tiers']
-  }
-);
+  );
 
 export type FeeProfile = z.infer<typeof FeeProfileSchema>;
 
@@ -161,7 +165,7 @@ export function calculateManagementFees(
 
   // Check if in fee holiday
   if (profile.feeHolidays) {
-    const inHoliday = profile.feeHolidays.some(holiday => {
+    const inHoliday = profile.feeHolidays.some((holiday) => {
       const holidayEnd = holiday.startMonth + holiday.durationMonths;
       return context.currentMonth >= holiday.startMonth && context.currentMonth < holidayEnd;
     });
@@ -170,8 +174,8 @@ export function calculateManagementFees(
 
   // Calculate fees from active tiers
   for (const tier of profile.tiers) {
-    const tierActive = currentYear >= tier.startYear &&
-                      (!tier.endYear || currentYear <= tier.endYear);
+    const tierActive =
+      currentYear >= tier.startYear && (!tier.endYear || currentYear <= tier.endYear);
 
     if (!tierActive) continue;
 

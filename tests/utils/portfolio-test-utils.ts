@@ -13,10 +13,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import type {
-  ForecastSnapshot,
-  InvestmentLot,
-} from '@shared/schema';
+import type { ForecastSnapshot, InvestmentLot } from '@shared/schema';
 import {
   createTestFund,
   createTestInvestment,
@@ -71,10 +68,7 @@ export function assertBigIntEquals(
   expected: bigint,
   tolerance: bigint = BigInt(1)
 ): void {
-  const diff =
-    actual > expected
-      ? actual - expected
-      : expected - actual;
+  const diff = actual > expected ? actual - expected : expected - actual;
 
   if (diff > tolerance) {
     throw new Error(
@@ -100,8 +94,7 @@ export function assertValidUUID(value: unknown): asserts value is string {
     throw new Error(`Expected UUID string, got ${typeof value}`);
   }
 
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   if (!uuidRegex.test(value)) {
     throw new Error(`Invalid UUID format: ${value}`);
@@ -117,9 +110,7 @@ export function assertValidUUID(value: unknown): asserts value is string {
  * @example
  * assertValidSnapshot(result);
  */
-export function assertValidSnapshot(
-  snapshot: unknown
-): asserts snapshot is ForecastSnapshot {
+export function assertValidSnapshot(snapshot: unknown): asserts snapshot is ForecastSnapshot {
   if (typeof snapshot !== 'object' || snapshot === null) {
     throw new Error('Snapshot must be an object');
   }
@@ -203,10 +194,7 @@ export function assertValidLot(lot: unknown): asserts lot is InvestmentLot {
  *   await cleanup();
  * });
  */
-export async function seedPortfolioData(
-  db: any,
-  config: SeedConfig = {}
-): Promise<SeedResult> {
+export async function seedPortfolioData(db: any, config: SeedConfig = {}): Promise<SeedResult> {
   const {
     fundCount = 1,
     investmentsPerFund = 2,
@@ -270,7 +258,9 @@ export async function seedPortfolioData(
     // await db.delete(funds).where(inArray(funds.id, fundIds));
 
     // For now, just log
-    console.log(`Would clean up ${fundIds.length} funds, ${investmentIds.length} investments, ${lotIds.length} lots, ${snapshotIds.length} snapshots`);
+    console.warn(
+      `Would clean up ${fundIds.length} funds, ${investmentIds.length} investments, ${lotIds.length} lots, ${snapshotIds.length} snapshots`
+    );
   };
 
   return {
@@ -328,7 +318,7 @@ export function generateFundState(fundSize: number) {
     fundSize,
     deploymentRate: 0.4 + Math.random() * 0.4, // 40% - 80%
     managementFeeRate: 0.02,
-    carriedInterest: 0.20,
+    carriedInterest: 0.2,
     vintageYear: 2023,
     fundTerm: 10,
   };
@@ -404,9 +394,7 @@ export function createDuplicateRequest<T extends { idempotencyKey?: string | nul
  * const cursor = encodeCursor(new Date(), 'uuid');
  */
 export function encodeCursor(timestamp: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ timestamp: timestamp.toISOString(), id })).toString(
-    'base64'
-  );
+  return Buffer.from(JSON.stringify({ timestamp: timestamp.toISOString(), id })).toString('base64');
 }
 
 /**

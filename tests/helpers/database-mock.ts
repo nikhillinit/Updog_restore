@@ -834,7 +834,7 @@ class DatabaseMock {
 
           // Debug logging (can be removed later)
           if (process.env.DEBUG_MOCK) {
-            console.log(
+            console.warn(
               `[Mock findFirst] Table: ${tableName}, Data count: ${data.length}, Filtered count: ${filtered.length}`
             );
           }
@@ -1750,8 +1750,8 @@ class DatabaseMock {
 
     // Debug logging
     if (process.env.DEBUG_MOCK && Object.keys(filters).length > 0) {
-      console.log(`[Mock matchesWhereClause] Extracted filters:`, filters);
-      console.log(`[Mock matchesWhereClause] Row:`, row);
+      console.warn(`[Mock matchesWhereClause] Extracted filters:`, filters);
+      console.warn(`[Mock matchesWhereClause] Row:`, row);
     }
 
     // If no filters were extracted, the where clause couldn't be parsed
@@ -1876,9 +1876,9 @@ class DatabaseMock {
       if (typeof toSQLMethod === 'function') {
         try {
           const sql: unknown = toSQLMethod.call(clause);
-          console.log('[extractFilters] SQL:', sql);
+          console.warn('[extractFilters] SQL:', sql);
         } catch (e) {
-          console.log('[extractFilters] toSQL failed:', e);
+          console.warn('[extractFilters] toSQL failed:', e);
         }
       }
     }
@@ -1892,8 +1892,8 @@ class DatabaseMock {
 
     // Debug logging
     if (process.env.DEBUG_MOCK) {
-      console.log('[extractFilters] Columns:', columns);
-      console.log('[extractFilters] Values:', values);
+      console.warn('[extractFilters] Columns:', columns);
+      console.warn('[extractFilters] Values:', values);
     }
 
     // Match columns with values

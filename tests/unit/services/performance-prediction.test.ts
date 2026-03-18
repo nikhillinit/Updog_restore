@@ -416,6 +416,7 @@ describe('PerformancePredictionEngine', () => {
 
       // FIXME: Seasonality detection requires advanced signal processing implementation
       // @group integration - Complex ML feature needs proper Fourier analysis or autocorrelation
+      // SKIP: seasonality detection is disabled until the advanced signal-processing implementation exists.
       it.skip('should detect seasonality when present', async () => {
         // Create seasonal data (24 months with quarterly pattern)
         const seasonalData = Array.from({ length: 24 }, (_, i) => ({
@@ -760,6 +761,7 @@ describe('PerformancePredictionEngine', () => {
   describe('Model Validation and Benchmarking', () => {
     // FIXME: Prediction models produce poor accuracy on test patterns (-93 vs expected >-0.5)
     // @group integration - Models need tuning/validation or test expectations need adjustment
+    // SKIP: prediction-quality expectations remain quarantined until the model or benchmark is recalibrated.
     it.skip('should maintain prediction quality across different data patterns', async () => {
       const patterns = [
         // Linear growth

@@ -27,6 +27,7 @@ import userEvent from '@testing-library/user-event';
 import { act } from 'react-dom/test-utils';
 import { GeneralInfoStep } from '@/components/modeling-wizard/steps/GeneralInfoStep';
 
+// SKIP: component rendering issues still cause timeouts in this integration-style harness.
 describe.skip('GeneralInfoStep - Preservation Pattern', () => {
   beforeEach(() => {
     vi.useFakeTimers();
