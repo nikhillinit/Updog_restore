@@ -22,7 +22,10 @@ import {
   generateK1PDF,
   generateQuarterlyPDF,
   generateCapitalAccountPDF,
+  validateQuarterlyMetrics,
+  ReportDataIncompleteError,
 } from '../services/pdf-generation-service.js';
+import type { ReportMetrics } from '../services/pdf-generation/types.js';
 import {
   generateCapitalAccountXLSX,
   generateQuarterlyXLSX,
@@ -124,6 +127,22 @@ function resolveQuarter(endDate: Date, reportType: string): string {
   return `Q${Math.floor(endDate.getMonth() / 3) + 1}`;
 }
 
+/** Validate metrics before quarterly/annual report; throws REPORT_DATA_INCOMPLETE on failure */
+function requireMetricsForQuarterly(
+  reportMetrics: ReportMetrics | null,
+  reportType: string
+): ReportMetrics {
+  if (reportType === 'capital_account' || reportType === 'tax_package') {
+    // These report types don't require fund performance metrics
+    return reportMetrics ?? { irr: 0, tvpi: 0, dpi: 0, portfolioCompanies: [] };
+  }
+  const check = validateQuarterlyMetrics(reportMetrics);
+  if (!check.complete) {
+    throw new ReportDataIncompleteError(check);
+  }
+  return reportMetrics!;
+}
+
 async function generateXLSXReport(ctx: ReportGenerationContext): Promise<Buffer> {
   const { lpData, fundId, reportType, dateRange, reportMetrics } = ctx;
   if (reportType === 'capital_account') {
@@ -131,12 +150,13 @@ async function generateXLSXReport(ctx: ReportGenerationContext): Promise<Buffer>
     return generateCapitalAccountXLSX(data);
   }
   const endDate = new Date(dateRange.endDate);
+  const metrics = requireMetricsForQuarterly(reportMetrics, reportType);
   const data = buildQuarterlyReportData(
     lpData,
     fundId,
     resolveQuarter(endDate, reportType),
     endDate.getFullYear(),
-    reportMetrics ?? undefined
+    metrics
   );
   return generateQuarterlyXLSX(data);
 }
@@ -168,12 +188,13 @@ async function buildCapitalAccountPdf(ctx: ReportGenerationContext): Promise<Buf
 
 async function buildQuarterlyPdf(ctx: ReportGenerationContext): Promise<Buffer> {
   const endDate = new Date(ctx.dateRange.endDate);
+  const metrics = requireMetricsForQuarterly(ctx.reportMetrics, ctx.reportType);
   const data = buildQuarterlyReportData(
     ctx.lpData,
     ctx.fundId,
     resolveQuarter(endDate, ctx.reportType),
     endDate.getFullYear(),
-    ctx.reportMetrics ?? undefined
+    metrics
   );
   return generateQuarterlyPDF(data);
 }
@@ -321,18 +342,12 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         await reportProgress(job, reportId, 0, 'Starting report generation...');
         await reportProgress(job, reportId, 10, 'Fetching LP data...');
 
-        await simulateWork(500); // Simulate data fetch
-
-        await reportProgress(job, reportId, 20, 'Processing transactions...');
-
-        await simulateWork(1000); // Simulate calculation
-
-        await reportProgress(job, reportId, 40, 'Generating report content...');
-
         // Fetch LP data and resolve fundId once (single source of truth)
         const lpData = await fetchLPReportData(lpId, job.data.fundIds);
         const resolvedFundId = resolveFundId(job.data.fundIds, lpData);
         const reportMetrics = await prefetchReportMetrics(lpId, resolvedFundId);
+
+        await reportProgress(job, reportId, 40, 'Generating report content...');
 
         // Dispatch to format-specific handler
         const handler = FORMAT_HANDLERS[format];
@@ -373,15 +388,17 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         return result;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorCode =
+          error instanceof ReportDataIncompleteError ? error.code : 'GENERATION_FAILED';
 
         await setReportStatus(reportId, 'error', { errorMessage });
 
         reportEvents.emitFailed(job.id!, reportId, errorMessage);
-        console.error(`[ReportQueue] Failed to generate report ${reportId}:`, error);
+        console.error(`[ReportQueue] Failed to generate report ${reportId} [${errorCode}]:`, error);
 
         return {
           success: false,
-          error: errorMessage,
+          error: `[${errorCode}] ${errorMessage}`,
           durationMs: Date.now() - startTime,
         };
       }
@@ -497,11 +514,4 @@ export async function getReportJobStatus(reportId: string): Promise<{
  */
 export function isReportQueueAvailable(): boolean {
   return queue !== null;
-}
-
-/**
- * Simulate work for placeholder implementation
- */
-async function simulateWork(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
