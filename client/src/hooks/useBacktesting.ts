@@ -36,7 +36,7 @@ const KEYS = {
 // TERMINAL STATUS CHECK
 // ============================================================================
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'timed_out', 'cancelled']);
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'timed_out', 'cancelled', 'unknown']);
 
 function isTerminal(status: string | undefined): boolean {
   return !!status && TERMINAL_STATUSES.has(status);
