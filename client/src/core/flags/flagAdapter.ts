@@ -19,21 +19,24 @@ import { isFlagEnabled, type FlagKey, ALL_FLAGS } from '@shared/feature-flags/fl
  * Falls back to flag defaults if env var not set
  */
 export function getInitialFlagStates(): Record<string, boolean> {
-  const toBool = (v: unknown): boolean => String(v).toLowerCase() === 'true';
+  /** Read env var; return flag-definition default when var is absent. */
+  const envFlag = (envKey: string, flagKey: string): boolean => {
+    const raw = import.meta.env[envKey] as string | undefined;
+    if (raw === undefined || raw === '') {
+      return ALL_FLAGS[flagKey]?.enabled ?? false;
+    }
+    return String(raw).toLowerCase() === 'true';
+  };
 
   return {
-    // Foundation flags (map from ENV) - using bracket notation for type safety
-    // @ts-expect-error TS4111 - bracket notation intentional for env access
-    enable_new_ia: toBool(import.meta.env['VITE_NEW_IA']) ?? ALL_FLAGS.enable_new_ia.enabled,
-    enable_kpi_selectors:
-      toBool(import.meta.env['VITE_ENABLE_SELECTOR_KPIS']) ??
-      ALL_FLAGS['enable_kpi_selectors']?.enabled ??
-      false,
-    enable_cap_table_tabs: false, // Default off, enable via flag system
+    // Foundation flags
+    enable_new_ia: envFlag('VITE_NEW_IA', 'enable_new_ia'),
+    enable_kpi_selectors: envFlag('VITE_ENABLE_SELECTOR_KPIS', 'enable_kpi_selectors'),
+    enable_cap_table_tabs: ALL_FLAGS['enable_cap_table_tabs']?.enabled ?? false,
     enable_brand_tokens: true, // Always on (non-breaking CSS)
 
-    // Build flags (map from ENV where available) - using bracket notation
-    enable_modeling_wizard: toBool(import.meta.env['VITE_ENABLE_MODELING_WIZARD']) ?? false,
+    // Build flags
+    enable_modeling_wizard: envFlag('VITE_ENABLE_MODELING_WIZARD', 'enable_modeling_wizard'),
     enable_wizard_step_general: false,
     enable_wizard_step_sectors: false,
     enable_wizard_step_allocations: false,
@@ -43,13 +46,13 @@ export function getInitialFlagStates(): Record<string, boolean> {
     enable_wizard_step_results: false,
     enable_reserve_engine: false,
     enable_portfolio_table_v2: false,
-    enable_operations_hub: toBool(import.meta.env['VITE_ENABLE_OPERATIONS_HUB']) ?? false,
+    enable_operations_hub: envFlag('VITE_ENABLE_OPERATIONS_HUB', 'enable_operations_hub'),
 
     // Polish flags
     enable_pipeline_bulk_actions: false,
-    enable_pipeline_dnd: false,
-    enable_lp_reporting: toBool(import.meta.env['VITE_ENABLE_LP_REPORTING']) ?? false,
-    enable_route_redirects: false, // Keep soft redirects until Phase 3
+    enable_pipeline_dnd: envFlag('VITE_ENABLE_PIPELINE_DND', 'enable_pipeline_dnd'),
+    enable_lp_reporting: envFlag('VITE_ENABLE_LP_REPORTING', 'enable_lp_reporting'),
+    enable_route_redirects: false,
     enable_observability: false,
   };
 }
