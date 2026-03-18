@@ -122,7 +122,8 @@ export async function fetchLPReportData(
 
 /**
  * Prefetch real fund metrics for report generation.
- * Returns null if no data available (callers fall back to placeholders).
+ * Returns null when no upstream data exists; callers must fail-closed
+ * (see requireMetricsForQuarterly in report-generation-queue.ts).
  */
 export async function prefetchReportMetrics(
   lpId: number,
