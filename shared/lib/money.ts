@@ -7,17 +7,7 @@
  * @module shared/lib/money
  */
 
-import Decimal from 'decimal.js';
-
-/**
- * Global Decimal.js configuration
- * - precision: 28 digits (enough for financial calculations)
- * - rounding: ROUND_HALF_UP (standard banker's rounding)
- */
-Decimal.set({
-  precision: 28,
-  rounding: Decimal.ROUND_HALF_UP,
-});
+import Decimal from '@shared/lib/decimal-config';
 
 /**
  * Create a Decimal from any numeric value
@@ -63,8 +53,7 @@ export const MetricPrecision = {
  * Round IRR to basis point precision
  * Example: 0.24567 → 0.2457 (24.57%)
  */
-export const roundIRR = (irr: Decimal.Value): Decimal =>
-  roundP(irr, MetricPrecision.IRR);
+export const roundIRR = (irr: Decimal.Value): Decimal => roundP(irr, MetricPrecision.IRR);
 
 /**
  * Round MOIC/multiples to 2 decimal places
@@ -119,12 +108,10 @@ export function formatMetric(
       return `${roundMultiple(value).toFixed(MetricPrecision.MULTIPLE)}x`;
 
     case 'currency':
-      return `$${roundCurrency(value)
-        .toNumber()
-        .toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`;
+      return `$${roundCurrency(value).toNumber().toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
 
     case 'percentage':
       return `${roundPercentage(value).mul(100).toFixed(MetricPrecision.PERCENTAGE)}%`;
@@ -141,10 +128,7 @@ export function formatMetric(
  * @param denominator - Bottom of fraction
  * @returns Result or null if invalid
  */
-export function safeDivide(
-  numerator: Decimal.Value,
-  denominator: Decimal.Value
-): Decimal | null {
+export function safeDivide(numerator: Decimal.Value, denominator: Decimal.Value): Decimal | null {
   const denom = d(denominator);
   if (denom.isZero()) {
     return null;
@@ -163,10 +147,7 @@ export function safeDivide(
  * @param newValue - Ending value
  * @returns Percentage change (e.g., 0.15 for 15% increase)
  */
-export function percentageChange(
-  oldValue: Decimal.Value,
-  newValue: Decimal.Value
-): Decimal | null {
+export function percentageChange(oldValue: Decimal.Value, newValue: Decimal.Value): Decimal | null {
   const old = d(oldValue);
   if (old.isZero()) {
     return null; // Can't calculate % change from zero

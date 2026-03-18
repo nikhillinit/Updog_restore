@@ -1,11 +1,11 @@
 /**
  * DeterministicReserveEngine
- * 
+ *
  * Implements industry-standard "Exit MOIC on Planned Reserves" allocation algorithm
  * Provides deterministic, repeatable calculations for follow-on investment decisions
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import {
   type PortfolioCompany,
   type GraduationMatrix,
@@ -75,7 +75,7 @@ export class DeterministicReserveEngine {
     input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult> {
     const startTime = Date.now();
-    
+
     // Initialize calculation context
     this.context = {
       startTime,
@@ -107,22 +107,10 @@ export class DeterministicReserveEngine {
 
       // Core calculation steps
       const moicCalculations = await this.calculateMOICForAllCompanies(input);
-      const rankedAllocations = await this.rankByExitMOICOnPlannedReserves(
-        moicCalculations,
-        input
-      );
-      const optimizedAllocations = await this.optimizePortfolioAllocation(
-        rankedAllocations,
-        input
-      );
-      const riskAdjustedAllocations = await this.applyRiskAdjustments(
-        optimizedAllocations,
-        input
-      );
-      const finalAllocations = await this.applyConstraints(
-        riskAdjustedAllocations,
-        input
-      );
+      const rankedAllocations = await this.rankByExitMOICOnPlannedReserves(moicCalculations, input);
+      const optimizedAllocations = await this.optimizePortfolioAllocation(rankedAllocations, input);
+      const riskAdjustedAllocations = await this.applyRiskAdjustments(optimizedAllocations, input);
+      const finalAllocations = await this.applyConstraints(riskAdjustedAllocations, input);
 
       // Generate result
       const result = await this.generateCalculationResult(
@@ -137,14 +125,10 @@ export class DeterministicReserveEngine {
       // Performance tracking
       const duration = Date.now() - startTime;
       if (this.featureFlags.enablePerformanceLogging) {
-        performanceMonitor.recordCalculationPerformance(
-          'reserve-calculation',
-          duration,
-          {
-            portfolioSize: input.portfolio.length,
-            success: true
-          }
-        );
+        performanceMonitor.recordCalculationPerformance('reserve-calculation', duration, {
+          portfolioSize: input.portfolio.length,
+          success: true,
+        });
       }
 
       logger.info('Reserve calculation completed', {
@@ -157,16 +141,12 @@ export class DeterministicReserveEngine {
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       if (this.featureFlags.enablePerformanceLogging) {
-        performanceMonitor.recordCalculationPerformance(
-          'reserve-calculation',
-          duration,
-          {
-            portfolioSize: input.portfolio.length,
-            success: false
-          }
-        );
+        performanceMonitor.recordCalculationPerformance('reserve-calculation', duration, {
+          portfolioSize: input.portfolio.length,
+          success: false,
+        });
       }
 
       const errorDetails = {
@@ -268,7 +248,7 @@ export class DeterministicReserveEngine {
     for (let i = 0; i < sorted.length; i++) {
       const calc = sorted[i];
       if (!calc) continue;
-      const company = input.portfolio.find(c => c.id === calc.companyId);
+      const company = input.portfolio.find((c) => c.id === calc.companyId);
       if (!company) {
         logger.warn(`Company ${calc.companyId} not found in portfolio`);
         continue;
@@ -280,11 +260,7 @@ export class DeterministicReserveEngine {
       }
 
       // Calculate recommended allocation
-      const maxAllocation = this.calculateMaxAllocation(
-        company,
-        stageStrategy,
-        input
-      );
+      const maxAllocation = this.calculateMaxAllocation(company, stageStrategy, input);
       const optimalAllocation = this.calculateOptimalAllocation(
         calc,
         maxAllocation,
@@ -327,12 +303,14 @@ export class DeterministicReserveEngine {
 
     // Apply concentration limits
     for (const allocation of optimized) {
-      const company = input.portfolio.find(c => c.id === allocation.companyId);
+      const company = input.portfolio.find((c) => c.id === allocation.companyId);
       if (!company) {
         logger.warn(`Company ${allocation.companyId} not found in portfolio`);
         continue;
       }
-      const totalInvestment = new Decimal(company.totalInvested).plus(allocation.recommendedAllocation);
+      const totalInvestment = new Decimal(company.totalInvested).plus(
+        allocation.recommendedAllocation
+      );
       const concentrationRatio = totalInvestment.div(totalFundSize);
 
       if (concentrationRatio.gt(input.maxPortfolioConcentration)) {
@@ -340,11 +318,8 @@ export class DeterministicReserveEngine {
         const maxAdditional = totalFundSize
           .mul(input.maxPortfolioConcentration)
           .minus(company.totalInvested);
-        
-        allocation.recommendedAllocation = Math.max(
-          maxAdditional.toNumber(),
-          0
-        );
+
+        allocation.recommendedAllocation = Math.max(maxAdditional.toNumber(), 0);
         allocation.concentrationRisk = 'high';
         allocation.riskFactors.push('Portfolio concentration limit applied');
       }
@@ -372,16 +347,15 @@ export class DeterministicReserveEngine {
     const adjusted = [...allocations];
 
     for (const allocation of adjusted) {
-      const company = input.portfolio.find(c => c.id === allocation.companyId);
+      const company = input.portfolio.find((c) => c.id === allocation.companyId);
       if (!company) {
         logger.warn(`Company ${allocation.companyId} not found in portfolio`);
         continue;
       }
-      
+
       // Apply risk adjustments
       const riskMultiplier = this.calculateRiskMultiplier(company, input);
-      const adjustedAllocation = new Decimal(allocation.recommendedAllocation)
-        .mul(riskMultiplier);
+      const adjustedAllocation = new Decimal(allocation.recommendedAllocation).mul(riskMultiplier);
 
       allocation.recommendedAllocation = adjustedAllocation.toNumber();
       allocation.riskAdjustedReturn = allocation.riskAdjustedReturn * riskMultiplier.toNumber();
@@ -392,9 +366,7 @@ export class DeterministicReserveEngine {
       }
 
       // Recalculate portfolio impact
-      allocation.portfolioWeight = adjustedAllocation
-        .div(input.totalFundSize)
-        .toNumber();
+      allocation.portfolioWeight = adjustedAllocation.div(input.totalFundSize).toNumber();
     }
 
     return adjusted;
@@ -411,7 +383,7 @@ export class DeterministicReserveEngine {
 
     // Remove allocations below minimum threshold
     const filtered = constrained.filter(
-      a => a.recommendedAllocation >= input.minAllocationThreshold
+      (a) => a.recommendedAllocation >= input.minAllocationThreshold
     );
 
     // Apply maximum single allocation constraint
@@ -448,7 +420,7 @@ export class DeterministicReserveEngine {
 
     const conservationCheck = validateReserveAllocationConservation(
       input.availableReserves,
-      filtered.map(a => a.recommendedAllocation),
+      filtered.map((a) => a.recommendedAllocation),
       unallocated,
       0.001 // 0.1% tolerance
     );
@@ -456,7 +428,7 @@ export class DeterministicReserveEngine {
     if (!conservationCheck.isValid) {
       logger.error('Conservation of capital validation failed', {
         ...conservationCheck,
-        context: 'DeterministicReserveEngine.applyConstraints'
+        context: 'DeterministicReserveEngine.applyConstraints',
       });
       throw new ReserveCalculationError(
         `Conservation of capital validation failed: ${conservationCheck.message}`,
@@ -543,7 +515,7 @@ export class DeterministicReserveEngine {
 
     // Find graduation path
     const graduationRate = graduationMatrix.rates.find(
-      rate => rate.fromStage === company.currentStage
+      (rate) => rate.fromStage === company.currentStage
     );
 
     if (!graduationRate) {
@@ -555,9 +527,7 @@ export class DeterministicReserveEngine {
     const projectedMultiple = new Decimal(graduationRate.valuationMultiple);
     const graduationBonus = new Decimal(graduationRate.probability);
 
-    return currentMOIC
-      .mul(projectedMultiple)
-      .mul(graduationBonus.plus(1));
+    return currentMOIC.mul(projectedMultiple).mul(graduationBonus.plus(1));
   }
 
   /**
@@ -569,7 +539,7 @@ export class DeterministicReserveEngine {
     graduationMatrix: GraduationMatrix
   ): Decimal {
     const graduationRate = graduationMatrix.rates.find(
-      rate => rate.fromStage === company.currentStage
+      (rate) => rate.fromStage === company.currentStage
     );
 
     if (graduationRate) {
@@ -578,15 +548,15 @@ export class DeterministicReserveEngine {
 
     // Improved stage-specific defaults based on industry data
     const stageDefaults: Record<string, number> = {
-      'seed': 0.30,        // 30% seed to Series A
-      'series-a': 0.50,    // 50% Series A to Series B
-      'series-b': 0.60,    // 60% Series B to Series C
-      'series-c': 0.70,    // 70% Series C to later stages
-      'growth': 0.75,      // 75% growth to exit
-      'late-stage': 0.80,  // 80% late-stage to exit
+      seed: 0.3, // 30% seed to Series A
+      'series-a': 0.5, // 50% Series A to Series B
+      'series-b': 0.6, // 60% Series B to Series C
+      'series-c': 0.7, // 70% Series C to later stages
+      growth: 0.75, // 75% growth to exit
+      'late-stage': 0.8, // 80% late-stage to exit
     };
 
-    return new Decimal(stageDefaults[company.currentStage.toLowerCase()] || 0.40);
+    return new Decimal(stageDefaults[company.currentStage.toLowerCase()] || 0.4);
   }
 
   /**
@@ -607,9 +577,7 @@ export class DeterministicReserveEngine {
       );
     }
 
-    return new Decimal(company.totalInvested)
-      .mul(projectedMOIC)
-      .mul(graduationProbability);
+    return new Decimal(company.totalInvested).mul(projectedMOIC).mul(graduationProbability);
   }
 
   private calculateRiskAdjustedReturn(
@@ -647,7 +615,7 @@ export class DeterministicReserveEngine {
           companyId: company.id,
           companyName: company.name,
           currentValuation: company.currentValuation,
-          totalInvested: company.totalInvested
+          totalInvested: company.totalInvested,
         }
       );
     }
@@ -662,8 +630,10 @@ export class DeterministicReserveEngine {
     stage: string,
     stageStrategies: StageStrategy[]
   ): StageStrategy | undefined {
-    return stageStrategies.find(s => s.stage === stage) || 
-           DEFAULT_STAGE_STRATEGIES.find(s => s.stage === stage);
+    return (
+      stageStrategies.find((s) => s.stage === stage) ||
+      DEFAULT_STAGE_STRATEGIES.find((s) => s.stage === stage)
+    );
   }
 
   private calculateMaxAllocation(
@@ -691,9 +661,7 @@ export class DeterministicReserveEngine {
     input: ReserveAllocationInput
   ): Decimal {
     // Use allocation score to determine optimal amount within constraints
-    const scoreBasedAllocation = calc.allocationScore
-      .mul(remainingReserves)
-      .div(100); // Normalize score
+    const scoreBasedAllocation = calc.allocationScore.mul(remainingReserves).div(100); // Normalize score
 
     return Decimal.min(
       scoreBasedAllocation,
@@ -711,8 +679,9 @@ export class DeterministicReserveEngine {
     stageStrategy: StageStrategy | undefined,
     input: ReserveAllocationInput
   ): ReserveAllocationOutput {
-    const newOwnership = new Decimal(company.ownershipPercentage)
-      .plus(allocation.div(company.currentValuation));
+    const newOwnership = new Decimal(company.ownershipPercentage).plus(
+      allocation.div(company.currentValuation)
+    );
 
     return {
       companyId: company.id,
@@ -725,10 +694,15 @@ export class DeterministicReserveEngine {
       riskAdjustedReturn: calc.riskAdjustedReturn.toNumber(),
       newOwnership: Math.min(newOwnership.toNumber(), 1),
       portfolioWeight: allocation.div(input.totalFundSize).toNumber(),
-      concentrationRisk: this.assessConcentrationRisk([{ 
-        recommendedAllocation: allocation.toNumber(),
-        companyId: company.id 
-      } as ReserveAllocationOutput], input),
+      concentrationRisk: this.assessConcentrationRisk(
+        [
+          {
+            recommendedAllocation: allocation.toNumber(),
+            companyId: company.id,
+          } as ReserveAllocationOutput,
+        ],
+        input
+      ),
       recommendedStage: company.currentStage,
       timeToDeployment: 6, // Default 6 months
       followOnPotential: stageStrategy?.followOnProbability || 0.5,
@@ -747,24 +721,15 @@ export class DeterministicReserveEngine {
   // Utility methods
   private validateInputs(input: ReserveAllocationInput): void {
     if (input.portfolio.length === 0) {
-      throw new ReserveCalculationError(
-        'Portfolio cannot be empty',
-        'INVALID_INPUT'
-      );
+      throw new ReserveCalculationError('Portfolio cannot be empty', 'INVALID_INPUT');
     }
 
     if (input.availableReserves <= 0) {
-      throw new ReserveCalculationError(
-        'Available reserves must be positive',
-        'INVALID_INPUT'
-      );
+      throw new ReserveCalculationError('Available reserves must be positive', 'INVALID_INPUT');
     }
 
     if (input.totalFundSize <= 0) {
-      throw new ReserveCalculationError(
-        'Total fund size must be positive',
-        'INVALID_INPUT'
-      );
+      throw new ReserveCalculationError('Total fund size must be positive', 'INVALID_INPUT');
     }
   }
 
@@ -805,7 +770,8 @@ export class DeterministicReserveEngine {
 
     // Adjust for company age
     const ageMonths = (Date.now() - company.investmentDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    if (ageMonths > 60) { // Over 5 years
+    if (ageMonths > 60) {
+      // Over 5 years
       multiplier = multiplier.mul(0.9);
     }
 
@@ -824,7 +790,7 @@ export class DeterministicReserveEngine {
     // Apply bonuses for sector diversification
     const sectorCounts = new Map<string, number>();
     for (const allocation of allocations) {
-      const company = input.portfolio.find(c => c.id === allocation.companyId);
+      const company = input.portfolio.find((c) => c.id === allocation.companyId);
       if (!company) {
         logger.warn(`Company ${allocation.companyId} not found in portfolio`);
         continue;
@@ -833,13 +799,13 @@ export class DeterministicReserveEngine {
     }
 
     for (const allocation of allocations) {
-      const company = input.portfolio.find(c => c.id === allocation.companyId);
+      const company = input.portfolio.find((c) => c.id === allocation.companyId);
       if (!company) {
         logger.warn(`Company ${allocation.companyId} not found in portfolio`);
         continue;
       }
       const sectorCount = sectorCounts['get'](company.sector) || 1;
-      
+
       if (sectorCount === 1) {
         // Bonus for unique sector
         allocation.recommendedAllocation *= 1.1;
@@ -850,12 +816,15 @@ export class DeterministicReserveEngine {
 
   private calculateDiversificationIndex(allocations: ReserveAllocationOutput[]): number {
     // Calculate Herfindahl-Hirschman Index (HHI) for diversification
-    const total = allocations.reduce((sum: number, a: ReserveAllocationOutput) => sum + a.recommendedAllocation, 0);
+    const total = allocations.reduce(
+      (sum: number, a: ReserveAllocationOutput) => sum + a.recommendedAllocation,
+      0
+    );
     if (total === 0) return 1;
 
     const hhi = allocations.reduce((sum: number, a: ReserveAllocationOutput) => {
       const share = a.recommendedAllocation / total;
-      return sum + (share * share);
+      return sum + share * share;
     }, 0);
 
     // Return diversification index (1 - HHI)
@@ -866,9 +835,7 @@ export class DeterministicReserveEngine {
     allocations: ReserveAllocationOutput[],
     input: ReserveAllocationInput
   ): 'low' | 'medium' | 'high' {
-    const maxConcentration = Math.max(
-      ...allocations.map(a => a.portfolioWeight || 0)
-    );
+    const maxConcentration = Math.max(...allocations.map((a) => a.portfolioWeight || 0));
 
     if (maxConcentration > input.maxPortfolioConcentration * 0.8) {
       return 'high';
@@ -882,7 +849,8 @@ export class DeterministicReserveEngine {
     if (allocations.length === 0) return 84; // Default 7 years
 
     const totalWeighted = allocations.reduce(
-      (sum: number, a: ReserveAllocationOutput) => sum + (a.calculationMetadata.timeToExit * a.recommendedAllocation),
+      (sum: number, a: ReserveAllocationOutput) =>
+        sum + a.calculationMetadata.timeToExit * a.recommendedAllocation,
       0
     );
     const totalAllocation = allocations.reduce(
@@ -898,10 +866,11 @@ export class DeterministicReserveEngine {
     input: ReserveAllocationInput
   ): ReserveCalculationResult['riskAnalysis'] {
     // Simplified risk analysis
-    const avgRiskAdjustedReturn = allocations.reduce(
-      (sum: number, a: ReserveAllocationOutput) => sum + a.riskAdjustedReturn,
-      0
-    ) / allocations.length;
+    const avgRiskAdjustedReturn =
+      allocations.reduce(
+        (sum: number, a: ReserveAllocationOutput) => sum + a.riskAdjustedReturn,
+        0
+      ) / allocations.length;
 
     return {
       portfolioRisk: avgRiskAdjustedReturn > 10000000 ? 'high' : 'medium',
@@ -919,7 +888,10 @@ export class DeterministicReserveEngine {
     allocations: ReserveAllocationOutput[],
     input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult['scenarioResults']> {
-    const baseValue = allocations.reduce((sum: number, a: ReserveAllocationOutput) => sum + a.expectedValue, 0);
+    const baseValue = allocations.reduce(
+      (sum: number, a: ReserveAllocationOutput) => sum + a.expectedValue,
+      0
+    );
 
     return {
       conservative: {

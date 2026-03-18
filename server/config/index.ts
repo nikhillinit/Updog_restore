@@ -118,6 +118,7 @@ const envSchema = z.object({
   QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   ENABLE_QUEUES: z.enum(['0', '1']).default('0'),
+  ENABLE_QUEUE_DASHBOARD: z.enum(['0', '1']).default('0'),
 
   // Security & CORS
   CORS_ORIGIN: z

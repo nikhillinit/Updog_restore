@@ -1,24 +1,15 @@
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 
 /**
  * Decimal Math Utilities (Shared)
  *
  * Provides high-precision financial calculations using Decimal.js to eliminate
- * floating-point errors. All internal calculations use 20-digit precision;
- * rounding happens only at export/display boundaries.
+ * floating-point errors. All internal calculations use 28-digit precision
+ * (configured in decimal-config.ts); rounding happens only at export/display
+ * boundaries.
  *
- * Policy: See docs/rounding-policy.md
+ * Policy: See docs/financial-precision.md
  */
-
-// =====================
-// GLOBAL CONFIGURATION
-// =====================
-
-// Configure Decimal.js globally for financial precision
-Decimal.set({
-  precision: 20, // 20-digit precision for intermediates
-  rounding: Decimal.ROUND_HALF_UP, // Standard rounding (0.5 rounds up)
-});
 
 // =====================
 // EXPORT/DISPLAY ROUNDING
@@ -70,7 +61,10 @@ export function roundPercent(value: Decimal | number): number {
  * formatForCSV(2.5432, 'ratio') // => "2.5432"
  * formatForCSV(0.1575, 'percent') // => "15.75"
  */
-export function formatForCSV(value: Decimal | number, type: 'currency' | 'ratio' | 'percent'): string {
+export function formatForCSV(
+  value: Decimal | number,
+  type: 'currency' | 'ratio' | 'percent'
+): string {
   switch (type) {
     case 'currency':
       return roundCurrency(value).toFixed(2);
@@ -203,5 +197,5 @@ export function toDecimal(value: Decimal | number | string): Decimal {
 // EXPORTS
 // =====================
 
-// Re-export Decimal for convenience
+// Re-export Decimal for convenience (from configured wrapper)
 export { Decimal };

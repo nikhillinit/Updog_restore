@@ -16,10 +16,7 @@
  * 7. Blended MOIC - Weighted portfolio average
  */
 
-import Decimal from 'decimal.js';
-
-// Configure decimal.js for financial precision
-Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
+import Decimal from '@shared/lib/decimal-config';
 
 // ============================================================================
 // Types
@@ -171,9 +168,7 @@ export class MOICCalculator {
 
     // Calculate the share of value attributable to initial investment
     // Assumes value is distributed pro-rata to investment amounts
-    const initialShare = totalInvested > 0
-      ? investment.initialInvestment / totalInvested
-      : 0;
+    const initialShare = totalInvested > 0 ? investment.initialInvestment / totalInvested : 0;
     const initialValue = investment.currentValuation * initialShare;
 
     const value = safeDiv(initialValue, investment.initialInvestment);
@@ -343,15 +338,11 @@ export class MOICCalculator {
       const invested = inv.initialInvestment + inv.followOnInvestment;
       const moic = this.calculateCurrentMOIC(inv).value ?? 0;
 
-      totalWeightedMOIC = totalWeightedMOIC.plus(
-        new Decimal(invested).times(moic)
-      );
+      totalWeightedMOIC = totalWeightedMOIC.plus(new Decimal(invested).times(moic));
       totalInvested = totalInvested.plus(invested);
     }
 
-    const value = totalInvested.isZero()
-      ? null
-      : totalWeightedMOIC.div(totalInvested).toNumber();
+    const value = totalInvested.isZero() ? null : totalWeightedMOIC.div(totalInvested).toNumber();
 
     return {
       value,
@@ -388,7 +379,7 @@ export class MOICCalculator {
    * Generate portfolio-level MOIC summary
    */
   static generatePortfolioSummary(investments: Investment[]): PortfolioMOICSummary {
-    const companies = investments.map(inv => ({
+    const companies = investments.map((inv) => ({
       id: inv.id,
       name: inv.name,
       currentMOIC: this.calculateCurrentMOIC(inv),
@@ -403,10 +394,7 @@ export class MOICCalculator {
       0
     );
 
-    const totalCurrentValue = investments.reduce(
-      (sum, inv) => sum + inv.currentValuation,
-      0
-    );
+    const totalCurrentValue = investments.reduce((sum, inv) => sum + inv.currentValuation, 0);
 
     const totalProjectedValue = investments.reduce(
       (sum, inv) => sum + inv.projectedExitValue * inv.exitProbability,
@@ -438,7 +426,7 @@ export class MOICCalculator {
     rank: number;
   }> {
     const ranked = investments
-      .map(inv => ({
+      .map((inv) => ({
         investment: inv,
         reservesMOIC: this.calculateReservesMOIC(inv, true),
       }))

@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { type Evaluation, type RunRecord, EvaluationSchema } from './types';
 import { logger } from '@/lib/logger';
 
@@ -26,13 +26,14 @@ export class Evaluator {
     const navDelta = this.calculateDelta(run.candidate.nav, run.baseline.nav);
 
     // Reserve utilization
-    const reserveUtilization = run.reservesAvailable > 0
-      ? new Decimal(run.reservesAllocated).div(run.reservesAvailable).toNumber()
-      : 0;
+    const reserveUtilization =
+      run.reservesAvailable > 0
+        ? new Decimal(run.reservesAllocated).div(run.reservesAvailable).toNumber()
+        : 0;
 
     // Portfolio concentration (simple Herfindahl index proxy)
     // TODO: Calculate from actual company allocations when available
-    const diversificationScore = 1.0 - (1.0 / Math.max(run.portfolioSize, 1));
+    const diversificationScore = 1.0 - 1.0 / Math.max(run.portfolioSize, 1);
 
     const evaluation: Evaluation = {
       runId,
@@ -96,26 +97,21 @@ export class Evaluator {
       totalCostUsd: number;
     };
   } {
-    const evaluations = runs.map(run => this.evaluate(run));
+    const evaluations = runs.map((run) => this.evaluate(run));
 
-    const successful = evaluations.filter(e => e.metrics.success);
+    const successful = evaluations.filter((e) => e.metrics.success);
     const irrLifts = evaluations
-      .map(e => e.metrics.irrDelta)
+      .map((e) => e.metrics.irrDelta)
       .filter((d): d is number => d !== null);
     const tvpiLifts = evaluations
-      .map(e => e.metrics.tvpiDelta)
+      .map((e) => e.metrics.tvpiDelta)
       .filter((d): d is number => d !== null);
 
     const summary = {
-      avgIrrLift: irrLifts.length > 0
-        ? irrLifts.reduce((a, b) => a + b, 0) / irrLifts.length
-        : 0,
-      avgTvpiLift: tvpiLifts.length > 0
-        ? tvpiLifts.reduce((a, b) => a + b, 0) / tvpiLifts.length
-        : 0,
-      successRate: evaluations.length > 0
-        ? successful.length / evaluations.length
-        : 0,
+      avgIrrLift: irrLifts.length > 0 ? irrLifts.reduce((a, b) => a + b, 0) / irrLifts.length : 0,
+      avgTvpiLift:
+        tvpiLifts.length > 0 ? tvpiLifts.reduce((a, b) => a + b, 0) / tvpiLifts.length : 0,
+      successRate: evaluations.length > 0 ? successful.length / evaluations.length : 0,
       totalCostUsd: evaluations.reduce((sum, e) => sum + e.metrics.tokenCostUsd, 0),
     };
 

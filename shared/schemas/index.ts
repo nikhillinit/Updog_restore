@@ -26,5 +26,5 @@ export * from './portfolio-optimization';
 // Engine results schemas
 export * from './engine-results-schema';
 
-// Re-export Decimal for convenience
-export { Decimal } from 'decimal.js';
+// Re-export Decimal for convenience (from configured wrapper)
+export { Decimal } from '@shared/lib/decimal-config';

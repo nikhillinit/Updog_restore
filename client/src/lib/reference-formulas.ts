@@ -7,7 +7,7 @@
  * @module reference-formulas
  */
 
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { toDecimal } from './decimal-utils';
 import type { FundModelOutputs } from '@shared/schemas/fund-model';
 
@@ -139,12 +139,7 @@ export const ReferenceFormulas = {
    * );
    * // => 2.3 ((150 + 100 - 20) / 100)
    */
-  NetMOIC: (
-    distributions: Decimal,
-    nav: Decimal,
-    invested: Decimal,
-    fees: Decimal
-  ): Decimal => {
+  NetMOIC: (distributions: Decimal, nav: Decimal, invested: Decimal, fees: Decimal): Decimal => {
     if (invested.isZero()) return new Decimal(0);
     return distributions.plus(nav).minus(fees).div(invested);
   },
@@ -164,9 +159,7 @@ export const ReferenceFormulas = {
  * const ref = computeReferenceMetrics(outputs);
  * console.log(ref.TVPI.toNumber()); // => 1.3
  */
-export function computeReferenceMetrics(
-  outputs: FundModelOutputs
-): Record<MetricKey, Decimal> {
+export function computeReferenceMetrics(outputs: FundModelOutputs): Record<MetricKey, Decimal> {
   if (outputs.periodResults.length === 0) {
     throw new Error('Fund model outputs must contain at least one period');
   }
@@ -216,16 +209,12 @@ export function computeReferenceMetrics(
  *   console.error('Invariant violations:', violations);
  * }
  */
-export function validateInvariants(
-  metrics: Record<MetricKey, Decimal>
-): string[] {
+export function validateInvariants(metrics: Record<MetricKey, Decimal>): string[] {
   const violations: string[] = [];
 
   // TVPI ≥ DPI
   if (metrics.TVPI.lt(metrics.DPI)) {
-    violations.push(
-      `TVPI (${metrics.TVPI.toFixed(4)}) < DPI (${metrics.DPI.toFixed(4)})`
-    );
+    violations.push(`TVPI (${metrics.TVPI.toFixed(4)}) < DPI (${metrics.DPI.toFixed(4)})`);
   }
 
   // Gross MOIC ≥ Net MOIC

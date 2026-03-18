@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import Decimal from 'decimal.js';
+import Decimal from '@shared/lib/decimal-config';
 import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 
 /**

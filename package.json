@@ -200,7 +200,7 @@
     "test:quick": "vitest run --exclude='**/api/**'",
     "test:build-affected": "npm run test:smart && npm run build:affected",
     "backtest": "npx tsx scripts/backtest.ts",
-    "test:smoke": "playwright test tests/e2e/basic-smoke.spec.ts --project=smoke",
+    "test:smoke": "cross-env CI=1 playwright test tests/e2e/basic-smoke.spec.ts --project=smoke",
     "dev:debug": "cross-env VITE_WIZARD_DEBUG=1 npm run dev",
     "triage": "node scripts/collect-triage.mjs",
     "triage:auto": "playwright test tests/triage.spec.ts --project=chromium",
@@ -334,6 +334,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "@bull-board/api": "6.20.5",
+    "@bull-board/express": "6.20.5",
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/utilities": "3.2.2",
     "@google/generative-ai": "^0.24.1",

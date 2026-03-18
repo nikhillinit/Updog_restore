@@ -432,6 +432,38 @@ export default [
       'use-isnan': 'off', // Testing NaN equality edge cases
     },
   },
+  // Decimal.js import restriction -- runtime code must use the configured wrapper
+  {
+    files: [
+      'shared/**/*.ts',
+      'server/**/*.ts',
+      'client/**/*.ts',
+      'client/**/*.tsx',
+      'ai/**/*.ts',
+      'workers/**/*.ts',
+    ],
+    ignores: [
+      'shared/lib/decimal-config.ts',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/__tests__/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'decimal.js',
+              message: "Import Decimal from '@shared/lib/decimal-config' in runtime code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Core reserves - deterministic math enforcement
   {
     files: ['core/reserves/**/*.ts', 'core/reserves/**/*.tsx'],

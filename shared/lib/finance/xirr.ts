@@ -79,6 +79,20 @@ function clampRate(rate: number): number {
   return Math.max(MIN_RATE, Math.min(MAX_RATE, rate));
 }
 
+function hasFractionalExponent(value: number): boolean {
+  return Math.abs(value - Math.round(value)) > 1e-12;
+}
+
+function hasInvalidPowerBase(rate: number, years: number): boolean {
+  const base = 1 + rate;
+  return base <= 0 && hasFractionalExponent(years);
+}
+
+function validateRoot(irr: number, flows: CashFlow[], t0: Date, tolerance: number): boolean {
+  const npv = npvAt(irr, flows, t0);
+  return Number.isFinite(npv) && Math.abs(npv) < tolerance * 100;
+}
+
 /**
  * NPV at a given rate.
  * `flows` are assumed to be normalized and sorted by date.
@@ -86,7 +100,11 @@ function clampRate(rate: number): number {
 function npvAt(rate: number, flows: CashFlow[], t0: Date): number {
   return flows.reduce((sum, cf) => {
     const years = yearFraction(t0, cf.date);
-    const denom = Math.pow(1 + rate, years);
+    const base = 1 + rate;
+    if (hasInvalidPowerBase(rate, years)) {
+      return NaN;
+    }
+    const denom = Math.pow(base, years);
     return sum + cf.amount / denom;
   }, 0);
 }
@@ -97,7 +115,11 @@ function npvAt(rate: number, flows: CashFlow[], t0: Date): number {
 function dNpvAt(rate: number, flows: CashFlow[], t0: Date): number {
   return flows.reduce((sum, cf) => {
     const years = yearFraction(t0, cf.date);
-    const denom = Math.pow(1 + rate, years + 1);
+    const base = 1 + rate;
+    if (hasInvalidPowerBase(rate, years)) {
+      return NaN;
+    }
+    const denom = Math.pow(base, years + 1);
     return sum - (years * cf.amount) / denom;
   }, 0);
 }
@@ -123,9 +145,17 @@ function solveNewton(
     const f = npvAt(rate, flows, t0);
     if (Math.abs(f) < tolerance) {
       const irr = clampRate(rate);
+      if (validateRoot(irr, flows, t0, tolerance)) {
+        return {
+          irr,
+          converged: true,
+          iterations,
+          method: 'newton',
+        };
+      }
       return {
-        irr,
-        converged: true,
+        irr: null,
+        converged: false,
         iterations,
         method: 'newton',
       };
@@ -203,12 +233,14 @@ function solveBrent(flows: CashFlow[], t0: Date, tolerance: number): XIRRResult 
 
   if (result.converged && result.root !== null && Number.isFinite(result.root)) {
     const irr = clampRate(result.root);
-    return {
-      irr,
-      converged: true,
-      iterations: result.iterations,
-      method: 'brent',
-    };
+    if (validateRoot(irr, flows, t0, tolerance)) {
+      return {
+        irr,
+        converged: true,
+        iterations: result.iterations,
+        method: 'brent',
+      };
+    }
   }
 
   return {
@@ -257,9 +289,17 @@ function solveBisection(
 
     if (Math.abs(fMid) < tolerance || Math.abs(hi - lo) < tolerance) {
       const irr = clampRate(mid);
+      if (validateRoot(irr, flows, t0, tolerance)) {
+        return {
+          irr,
+          converged: true,
+          iterations,
+          method: 'bisection',
+        };
+      }
       return {
-        irr,
-        converged: true,
+        irr: null,
+        converged: false,
         iterations,
         method: 'bisection',
       };

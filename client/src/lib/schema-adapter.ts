@@ -9,7 +9,7 @@
  * 4. Later: Refactor engine to use ExtendedFundModelInputs directly
  */
 
-import { Decimal } from 'decimal.js';
+import { Decimal } from '@shared/lib/decimal-config';
 import type { ExtendedFundModelInputs } from '@shared/schemas/extended-fund-model';
 import type { FundModelInputs, Stage } from '@shared/schemas/fund-model';
 import type { StageType } from '@shared/schemas/stage-profile';
@@ -29,11 +29,11 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
     series_b: 'series_b',
     series_c: 'series_c',
     growth: 'growth',
-    late_stage: 'growth'
+    late_stage: 'growth',
   };
 
   // Extract stage allocations from StageProfile
-  const stageAllocations = extended.stageProfile.stages.map(stage => {
+  const stageAllocations = extended.stageProfile.stages.map((stage) => {
     // Calculate allocation as % of total portfolio
     const roundCapital = stage.roundSize.times(extended.stageProfile.initialPortfolioSize);
     const totalCapital = extended.stageProfile.stages.reduce(
@@ -44,27 +44,27 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
 
     return {
       stage: stageMap[stage.stage],
-      allocationPct
+      allocationPct,
     };
   });
 
   // Extract average check sizes
   const averageCheckSizes: Record<Stage, number> = {} as any;
-  extended.stageProfile.stages.forEach(stage => {
+  extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     averageCheckSizes[legacyStage] = stage.roundSize.toNumber();
   });
 
   // Extract graduation rates (convert from cumulative to per-period if needed)
   const graduationRates: Record<Stage, number> = {} as any;
-  extended.stageProfile.stages.forEach(stage => {
+  extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     graduationRates[legacyStage] = stage.graduationRate.toNumber();
   });
 
   // Extract exit rates
   const exitRates: Record<Stage, number> = {} as any;
-  extended.stageProfile.stages.forEach(stage => {
+  extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     exitRates[legacyStage] = stage.exitRate.toNumber();
   });
@@ -72,7 +72,7 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
   // Extract months to graduate/exit
   const monthsToGraduate: Record<Stage, number> = {} as any;
   const monthsToExit: Record<Stage, number> = {} as any;
-  extended.stageProfile.stages.forEach(stage => {
+  extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     monthsToGraduate[legacyStage] = stage.monthsToGraduate;
     monthsToExit[legacyStage] = stage.monthsToExit;
@@ -83,9 +83,10 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
   const managementFeeRate = firstFeeTier?.annualRatePercent.toNumber() ?? 0.02;
 
   // Calculate reserve pool % from stage profile assumptions
-  const reservePoolPct = extended.stageProfile.assumptions?.reserveStrategy === 'pro_rata'
-    ? 0.3 // Default 30% for pro-rata
-    : 0.4; // Default 40% for winner-picking
+  const reservePoolPct =
+    extended.stageProfile.assumptions?.reserveStrategy === 'pro_rata'
+      ? 0.3 // Default 30% for pro-rata
+      : 0.4; // Default 40% for winner-picking
 
   return {
     fundSize: extended.committedCapital.toNumber(),
@@ -99,7 +100,7 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
     graduationRates,
     exitRates,
     monthsToGraduate,
-    monthsToExit
+    monthsToExit,
   };
 }
 
@@ -115,7 +116,7 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (extended.feeProfile.tiers.length > 1) {
     warnings.push(
       'Legacy engine only supports single fee tier. ' +
-      `Only the first tier (${((extended.feeProfile.tiers[0]?.annualRatePercent.toNumber() ?? 0) * 100).toFixed(2)}%) will be used.`
+        `Only the first tier (${((extended.feeProfile.tiers[0]?.annualRatePercent.toNumber() ?? 0) * 100).toFixed(2)}%) will be used.`
     );
   }
 
@@ -123,7 +124,7 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (extended.capitalCallPolicy.mode !== 'upfront') {
     warnings.push(
       `Legacy engine only supports upfront capital calls. ` +
-      `${extended.capitalCallPolicy.mode} policy will be ignored.`
+        `${extended.capitalCallPolicy.mode} policy will be ignored.`
     );
   }
 
@@ -131,7 +132,7 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (extended.waterfallPolicy.type === 'american') {
     warnings.push(
       'Legacy engine uses simple immediate distribution (Policy A). ' +
-      'American waterfall will not be applied.'
+        'American waterfall will not be applied.'
     );
   }
 
@@ -139,15 +140,14 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (extended.recyclingPolicy?.enabled) {
     warnings.push(
       'Legacy engine does not support exit proceeds recycling. ' +
-      'Recycling policy will be ignored.'
+        'Recycling policy will be ignored.'
     );
   }
 
   // Check for fee recycling
   if (extended.feeProfile.recyclingPolicy?.enabled) {
     warnings.push(
-      'Legacy engine does not support fee recycling. ' +
-      'Fee recycling policy will be ignored.'
+      'Legacy engine does not support fee recycling. ' + 'Fee recycling policy will be ignored.'
     );
   }
 
@@ -155,7 +155,7 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
   if (!extended.stageProfile.initialPortfolioSize.isInteger()) {
     warnings.push(
       `Portfolio size is fractional (${extended.stageProfile.initialPortfolioSize.toString()}). ` +
-      'Legacy engine will floor to integer, losing deterministic precision.'
+        'Legacy engine will floor to integer, losing deterministic precision.'
     );
   }
 
@@ -175,7 +175,7 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
     series_a: 'series_a',
     series_b: 'series_b',
     series_c: 'series_c',
-    growth: 'growth'
+    growth: 'growth',
   };
 
   // Calculate initial portfolio size from allocations
@@ -201,7 +201,7 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
       initialPortfolioSize: new Decimal(totalCompanies),
       recyclingEnabled: false,
 
-      stages: legacy.stageAllocations.map(alloc => ({
+      stages: legacy.stageAllocations.map((alloc) => ({
         stage: stageTypeMap[alloc.stage],
         roundSize: new Decimal(legacy.averageCheckSizes[alloc.stage] ?? 0),
         postMoneyValuation: new Decimal(legacy.averageCheckSizes[alloc.stage] ?? 0).times(5), // Heuristic: 5x check
@@ -211,21 +211,23 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
         monthsToGraduate: legacy.monthsToGraduate[alloc.stage] ?? 24,
         monthsToExit: legacy.monthsToExit[alloc.stage] ?? 60,
         exitMultiple: new Decimal(3), // Default 3x
-        dilutionPerRound: new Decimal(0.2) // Default 20%
-      }))
+        dilutionPerRound: new Decimal(0.2), // Default 20%
+      })),
     },
 
     // Fee profile (single tier from legacy)
     feeProfile: {
       id: 'legacy-fees',
       name: 'Legacy Fee Profile',
-      tiers: [{
-        basis: 'committed_capital',
-        annualRatePercent: new Decimal(legacy.managementFeeRate),
-        startYear: 1,
-        endYear: legacy.managementFeeYears
-      }],
-      recyclingPolicy: undefined
+      tiers: [
+        {
+          basis: 'committed_capital',
+          annualRatePercent: new Decimal(legacy.managementFeeRate),
+          startYear: 1,
+          endYear: legacy.managementFeeYears,
+        },
+      ],
+      recyclingPolicy: undefined,
     },
 
     // Capital call policy (upfront)
@@ -235,7 +237,7 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
       mode: 'upfront',
       percentage: new Decimal(1),
       noticePeriodDays: 0,
-      fundingPeriodDays: 0
+      fundingPeriodDays: 0,
     },
 
     // Waterfall policy (American for Policy A)
@@ -246,10 +248,10 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
       preferredReturnRate: new Decimal(0), // No hurdle in legacy
       tiers: [
         { tierType: 'return_of_capital', priority: 1 },
-        { tierType: 'carry', priority: 2, rate: new Decimal(0) } // No carry in legacy
+        { tierType: 'carry', priority: 2, rate: new Decimal(0) }, // No carry in legacy
       ],
       hurdleRateBasis: 'committed',
-      cumulativeCalculations: true
+      cumulativeCalculations: true,
     },
 
     // No recycling in legacy
@@ -261,14 +263,14 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
       reinvestmentPeriod: 36,
       portfolioConcentrationLimit: new Decimal(0.2),
       liquidateAtTermEnd: false,
-      liquidationDiscountPercent: new Decimal(0.3)
+      liquidationDiscountPercent: new Decimal(0.3),
     },
 
     // Monte Carlo disabled (legacy is deterministic)
     monteCarloSettings: {
       enabled: false,
       numberOfSimulations: 1,
-      confidenceInterval: new Decimal(0.95)
-    }
+      confidenceInterval: new Decimal(0.95),
+    },
   };
 }

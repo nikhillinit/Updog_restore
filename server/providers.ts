@@ -8,6 +8,8 @@
 import type { Cache } from './cache/index.js';
 import { BoundedMemoryCache } from './cache/memory.js';
 import type { Store as RateLimitStore } from 'express-rate-limit';
+import { getQueueConfig } from './config/features.js';
+import { resetQueueRegistry } from './queues/registry.js';
 
 export type ProviderMode = 'memory' | 'redis';
 
@@ -69,13 +71,15 @@ export async function buildProviders(
     logger.info('[providers] Using memory rate limit store');
   }
 
-  // Queues - disabled in development by default, only enabled in production with explicit flag
-  const queueEnabled =
-    mode === 'redis' && cfg.ENABLE_QUEUES === '1' && cfg.NODE_ENV !== 'development';
+  const queueConfig = getQueueConfig(cfg);
+  const queue = queueConfig.enabled
+    ? await buildQueue(cfg)
+    : { enabled: false, close: async () => {} };
 
-  const queue = queueEnabled ? await buildQueue(cfg) : { enabled: false, close: async () => {} };
-
-  logger.info({ queueEnabled: queue.enabled }, '[providers] Queue status');
+  logger.info(
+    { queueEnabled: queue.enabled, queueReason: queueConfig.reason },
+    '[providers] Queue status'
+  );
 
   // Sessions - disabled for now, can be enabled later
   const sessions = { enabled: false };
@@ -90,6 +94,7 @@ export async function buildProviders(
       logger.info('[providers] Tearing down...');
       try {
         await queue?.close?.();
+        resetQueueRegistry();
         await cache?.close?.();
         logger.info('[providers] Teardown complete');
       } catch (error) {
@@ -184,10 +189,10 @@ async function buildCache(redisUrl: string): Promise<Cache> {
 async function buildQueue(
   cfg: ReturnType<typeof import('./config/index.js').loadEnv>
 ): Promise<{ enabled: boolean; close(): Promise<void> }> {
-  // Check if queues should be enabled
-  if (cfg.ENABLE_QUEUES !== '1' || !cfg.REDIS_URL || cfg.REDIS_URL === 'memory://') {
+  const queueConfig = getQueueConfig(cfg);
+  if (!queueConfig.enabled || !queueConfig.queueRedisUrl) {
     const { logger } = await import('./lib/logger.js');
-    logger.info('[providers] Queue disabled (ENABLE_QUEUES not set or no Redis)');
+    logger.info({ reason: queueConfig.reason }, '[providers] Queue disabled');
     return {
       enabled: false,
       close: async () => {},
@@ -196,11 +201,16 @@ async function buildQueue(
 
   const { logger: queueLogger } = await import('./lib/logger.js');
   try {
-    queueLogger.debug('[providers] Initializing BullMQ simulation queue...');
+    queueLogger.debug(
+      { queueRedisUrl: queueConfig.queueRedisUrl },
+      '[providers] Initializing BullMQ queues...'
+    );
     const { default: IORedis } = await import('ioredis');
-    const { initializeSimulationQueue } = await import('./queues/simulation-queue');
+    const { initializeSimulationQueue } = await import('./queues/simulation-queue.js');
+    const { initializeReportQueue } = await import('./queues/report-generation-queue.js');
+    const { initializeBacktestingQueue } = await import('./queues/backtesting-queue.js');
 
-    const redis = new IORedis(cfg.REDIS_URL, {
+    const redis = new IORedis(queueConfig.queueRedisUrl, {
       lazyConnect: true,
       maxRetriesPerRequest: 3,
       connectTimeout: 5000,
@@ -208,14 +218,39 @@ async function buildQueue(
 
     await redis.connect();
 
-    const { close } = await initializeSimulationQueue(redis);
+    const initResults = await Promise.allSettled([
+      initializeSimulationQueue(redis),
+      initializeReportQueue(redis),
+      initializeBacktestingQueue(redis),
+    ]);
 
-    queueLogger.info('[providers] BullMQ queue initialized successfully');
+    const closers = initResults.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value.close] : []
+    );
+    const failures = initResults.filter((result) => result.status === 'rejected');
+
+    for (const failure of failures) {
+      queueLogger.warn({ err: failure.reason }, '[providers] Queue runtime failed to initialize');
+    }
+
+    if (closers.length === 0) {
+      await redis.quit();
+      return {
+        enabled: false,
+        close: async () => {},
+      };
+    }
+
+    queueLogger.info(
+      { initializedQueues: closers.length, failedQueues: failures.length },
+      '[providers] BullMQ queues initialized'
+    );
 
     return {
       enabled: true,
       close: async () => {
-        await close();
+        await Promise.allSettled(closers.map((close) => close()));
+        resetQueueRegistry();
         await redis.quit();
       },
     };

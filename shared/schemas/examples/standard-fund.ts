@@ -3,7 +3,7 @@
  * Example showing realistic fund modeling inputs
  */
 
-import { Decimal } from 'decimal.js';
+import { Decimal } from '@shared/lib/decimal-config';
 import type { ExtendedFundModelInputs } from '../extended-fund-model';
 
 /**
@@ -37,7 +37,7 @@ export const standardFund: ExtendedFundModelInputs = {
         monthsToGraduate: 18,
         monthsToExit: 36,
         exitMultiple: new Decimal('2.5'), // 2.5x on seed exits
-        dilutionPerRound: new Decimal('0.20') // 20% dilution
+        dilutionPerRound: new Decimal('0.20'), // 20% dilution
       },
       {
         stage: 'series_a',
@@ -50,7 +50,7 @@ export const standardFund: ExtendedFundModelInputs = {
         monthsToGraduate: 24,
         monthsToExit: 48,
         exitMultiple: new Decimal('4.0'), // 4x on Series A exits
-        dilutionPerRound: new Decimal('0.18')
+        dilutionPerRound: new Decimal('0.18'),
       },
       {
         stage: 'series_b',
@@ -63,15 +63,15 @@ export const standardFund: ExtendedFundModelInputs = {
         monthsToGraduate: 36, // Not applicable but required
         monthsToExit: 60,
         exitMultiple: new Decimal('6.0'), // 6x on Series B exits
-        dilutionPerRound: new Decimal('0.15')
-      }
+        dilutionPerRound: new Decimal('0.15'),
+      },
     ],
 
     assumptions: {
       dilutionPerRound: new Decimal('0.18'), // Global default
       followOnMultiplier: new Decimal('2.0'), // Reserve 2x initial check
-      reserveStrategy: 'pro_rata'
-    }
+      reserveStrategy: 'pro_rata',
+    },
   },
 
   // ===== FEE PROFILE =====
@@ -84,14 +84,14 @@ export const standardFund: ExtendedFundModelInputs = {
         basis: 'committed_capital',
         annualRatePercent: new Decimal('0.02'), // 2% on committed
         startYear: 1,
-        endYear: 5 // Years 1-5
+        endYear: 5, // Years 1-5
       },
       {
         basis: 'invested_capital',
         annualRatePercent: new Decimal('0.015'), // 1.5% on invested
-        startYear: 6
+        startYear: 6,
         // Continues until fund end
-      }
+      },
     ],
 
     stepDownMonths: [60], // Step down at year 5
@@ -101,8 +101,8 @@ export const standardFund: ExtendedFundModelInputs = {
       recyclingCapPercent: new Decimal('0.10'), // Can recycle up to 10% of fund
       recyclingTermMonths: 60, // During investment period
       basis: 'committed_capital',
-      anticipatedRecycling: true // Forecast assuming full recycling
-    }
+      anticipatedRecycling: true, // Forecast assuming full recycling
+    },
   },
 
   // ===== CAPITAL CALL POLICY =====
@@ -116,7 +116,7 @@ export const standardFund: ExtendedFundModelInputs = {
     endYear: 5, // Call over 5-year investment period
 
     noticePeriodDays: 30,
-    fundingPeriodDays: 60
+    fundingPeriodDays: 60,
   },
 
   // ===== WATERFALL POLICY =====
@@ -130,41 +130,41 @@ export const standardFund: ExtendedFundModelInputs = {
     tiers: [
       {
         tierType: 'return_of_capital',
-        priority: 1
+        priority: 1,
       },
       {
         tierType: 'preferred_return',
         priority: 2,
         rate: new Decimal('0.08'), // 8% pref
-        basis: 'contributed'
+        basis: 'contributed',
       },
       {
         tierType: 'gp_catch_up',
         priority: 3,
-        catchUpRate: new Decimal('1.0') // 100% to GP until 80/20 achieved
+        catchUpRate: new Decimal('1.0'), // 100% to GP until 80/20 achieved
       },
       {
         tierType: 'carry',
         priority: 4,
-        rate: new Decimal('0.20') // 20% carry
-      }
+        rate: new Decimal('0.20'), // 20% carry
+      },
     ],
 
     gpCommitment: {
       percentage: new Decimal('0.01'), // 1% GP commit
       basis: 'committed_capital',
-      fundedFromFees: false
+      fundedFromFees: false,
     },
 
     clawback: {
       enabled: true,
       lookbackMonths: 36,
       securityRequired: true,
-      interestRate: new Decimal('0')
+      interestRate: new Decimal('0'),
     },
 
     hurdleRateBasis: 'contributed',
-    cumulativeCalculations: true
+    cumulativeCalculations: true,
   },
 
   // ===== RECYCLING POLICY =====
@@ -178,18 +178,18 @@ export const standardFund: ExtendedFundModelInputs = {
     cap: {
       type: 'percentage',
       value: new Decimal('0.20'), // Max 20% of committed capital
-      basis: 'committed_capital'
+      basis: 'committed_capital',
     },
 
     term: {
       months: 60, // 5-year investment period
       extensionMonths: 12, // Optional 1-year extension
-      automaticExtension: false
+      automaticExtension: false,
     },
 
     anticipatedRecycling: true,
     reinvestmentTiming: 'quarterly',
-    minimumReinvestmentAmount: new Decimal('500000') // $500K minimum
+    minimumReinvestmentAmount: new Decimal('500000'), // $500K minimum
   },
 
   // ===== MODEL ASSUMPTIONS =====
@@ -199,19 +199,19 @@ export const standardFund: ExtendedFundModelInputs = {
     portfolioConcentrationLimit: new Decimal('0.15'), // Max 15% in one company
     diversificationRules: {
       maxPerStage: new Decimal('0.40'), // Max 40% per stage
-      maxPerSector: new Decimal('0.30') // Max 30% per sector
+      maxPerSector: new Decimal('0.30'), // Max 30% per sector
     },
     liquidateAtTermEnd: false, // Extend to allow exits
-    liquidationDiscountPercent: new Decimal('0.30') // 30% haircut on forced liquidation
+    liquidationDiscountPercent: new Decimal('0.30'), // 30% haircut on forced liquidation
   },
 
   // ===== MONTE CARLO (DISABLED FOR DETERMINISTIC MODE) =====
   monteCarloSettings: {
     enabled: false,
     numberOfSimulations: 1000,
-    confidenceInterval: new Decimal('0.95')
+    confidenceInterval: new Decimal('0.95'),
     // No randomSeed = fully deterministic
-  }
+  },
 };
 
 /**
@@ -241,7 +241,7 @@ export const microVCFund: Partial<ExtendedFundModelInputs> = {
         monthsToGraduate: 12,
         monthsToExit: 24,
         exitMultiple: new Decimal('1.5'),
-        dilutionPerRound: new Decimal('0.22')
+        dilutionPerRound: new Decimal('0.22'),
       },
       {
         stage: 'seed',
@@ -253,11 +253,11 @@ export const microVCFund: Partial<ExtendedFundModelInputs> = {
         monthsToGraduate: 18,
         monthsToExit: 36,
         exitMultiple: new Decimal('3.0'),
-        dilutionPerRound: new Decimal('0.20')
-      }
+        dilutionPerRound: new Decimal('0.20'),
+      },
       // Typically wouldn't lead Series A rounds
-    ]
-  }
+    ],
+  },
 };
 
 /**
@@ -286,7 +286,7 @@ export const growthFund: Partial<ExtendedFundModelInputs> = {
         monthsToGraduate: 24,
         monthsToExit: 48,
         exitMultiple: new Decimal('4.0'),
-        dilutionPerRound: new Decimal('0.15')
+        dilutionPerRound: new Decimal('0.15'),
       },
       {
         stage: 'series_c',
@@ -298,7 +298,7 @@ export const growthFund: Partial<ExtendedFundModelInputs> = {
         monthsToGraduate: 24,
         monthsToExit: 36,
         exitMultiple: new Decimal('5.0'),
-        dilutionPerRound: new Decimal('0.12')
+        dilutionPerRound: new Decimal('0.12'),
       },
       {
         stage: 'growth',
@@ -310,8 +310,8 @@ export const growthFund: Partial<ExtendedFundModelInputs> = {
         monthsToGraduate: 36,
         monthsToExit: 24,
         exitMultiple: new Decimal('3.5'),
-        dilutionPerRound: new Decimal('0.10')
-      }
-    ]
-  }
+        dilutionPerRound: new Decimal('0.10'),
+      },
+    ],
+  },
 };

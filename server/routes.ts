@@ -15,11 +15,11 @@ import {
 // TODO: Issue #309 - Move core engines to shared package
 // These engines are used by scaffold routes (/api/reserves, /api/pacing, /api/cohorts)
 // For now, import from client (ESLint boundary violation - tracked for refactoring)
-// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
+
 import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
-// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
+
 import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine.js';
-// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
+
 import { generateCohortSummary } from '../client/src/core/cohorts/CohortEngine.js';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
@@ -848,6 +848,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio Intelligence API routes (feature-flagged)
   // Routes use /api/portfolio/* prefix internally
   const { FEATURES } = await import('./config/features.js');
+  if (FEATURES.queueDashboard) {
+    const queueDashboardRoutes = await import('./routes/admin/queue-dashboard.js');
+    app.use('/api/admin/queues', queueDashboardRoutes.default);
+  }
+
   if (FEATURES.portfolioIntelligence) {
     const portfolioIntelligenceRoutes = await import('./routes/portfolio-intelligence.js');
     app.use(portfolioIntelligenceRoutes.default);

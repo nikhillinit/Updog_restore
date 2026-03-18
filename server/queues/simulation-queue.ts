@@ -9,6 +9,7 @@ import type { Job } from 'bullmq';
 import { Queue, Worker, QueueEvents } from 'bullmq';
 import { EventEmitter } from 'events';
 import type IORedis from 'ioredis';
+import { registerQueueRuntime, unregisterQueueRuntime } from './registry';
 
 // Job types
 export interface SimulationJobData {
@@ -86,6 +87,23 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   queue: Queue<SimulationJobData, SimulationJobResult>;
   close: () => Promise<void>;
 }> {
+  if (queue && worker && queueEvents) {
+    return {
+      queue,
+      close: async () => {
+        console.log('[queue] Closing simulation queue...');
+        await worker?.close();
+        await queueEvents?.close();
+        await queue?.close();
+        worker = null;
+        queueEvents = null;
+        queue = null;
+        unregisterQueueRuntime('simulation');
+        console.log('[queue] Simulation queue closed');
+      },
+    };
+  }
+
   const connection = {
     host: redisConnection['options']['host'] || 'localhost',
     port: redisConnection['options']['port'] || 6379,
@@ -118,9 +136,8 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
         simulationEvents.emitProgress(job.id!, 0, 'Starting simulation...');
 
         // Import simulation service lazily to avoid circular deps
-        const { unifiedMonteCarloService } = await import(
-          '../services/monte-carlo-service-unified'
-        );
+        const { unifiedMonteCarloService } =
+          await import('../services/monte-carlo-service-unified');
 
         // Run simulation with progress tracking
         const totalRuns = job.data.runs;
@@ -212,6 +229,11 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   });
 
   console.log('[queue] Simulation queue initialized');
+  registerQueueRuntime('simulation', {
+    getQueue: () => queue,
+    getWorker: () => worker,
+    isInitialized: () => queue !== null && worker !== null && queueEvents !== null,
+  });
 
   return {
     queue,
@@ -220,6 +242,10 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
       await worker?.close();
       await queueEvents?.close();
       await queue?.close();
+      worker = null;
+      queueEvents = null;
+      queue = null;
+      unregisterQueueRuntime('simulation');
       console.log('[queue] Simulation queue closed');
     },
   };

@@ -20,6 +20,7 @@ import type {
   BacktestingJobError,
   BacktestingJobResultRef,
 } from '@shared/types/backtesting';
+import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 
 // ============================================================================
 // TYPES
@@ -258,6 +259,26 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
   queue: Queue<BacktestJobData>;
   close: () => Promise<void>;
 }> {
+  if (queue && worker) {
+    return {
+      queue,
+      close: async () => {
+        if (staleSweepTimer) {
+          clearInterval(staleSweepTimer);
+          staleSweepTimer = null;
+        }
+        await worker?.close();
+        await queue?.close();
+        worker = null;
+        queue = null;
+        jobStates.clear();
+        idempotencyMap.clear();
+        unregisterQueueRuntime('backtesting');
+        console.warn('[backtesting-queue] Closed');
+      },
+    };
+  }
+
   const connection = {
     host: redisConnection['options']['host'] || 'localhost',
     port: redisConnection['options']['port'] || 6379,
@@ -284,15 +305,28 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
   worker.on('error', (err) => console.error('[backtesting-queue] Worker error:', err));
   queue.on('error', (err) => console.error('[backtesting-queue] Queue error:', err));
   staleSweepTimer = setInterval(() => sweepStaleJobs(), STALE_SWEEP_INTERVAL_MS);
+  registerQueueRuntime('backtesting', {
+    getQueue: () => queue,
+    getWorker: () => worker,
+    isInitialized: () => queue !== null && worker !== null,
+  });
   console.warn('[backtesting-queue] Initialized');
 
   const queueRef = queue;
   return {
     queue: queueRef,
     close: async () => {
-      if (staleSweepTimer) clearInterval(staleSweepTimer);
+      if (staleSweepTimer) {
+        clearInterval(staleSweepTimer);
+        staleSweepTimer = null;
+      }
       await worker?.close();
       await queue?.close();
+      worker = null;
+      queue = null;
+      jobStates.clear();
+      idempotencyMap.clear();
+      unregisterQueueRuntime('backtesting');
       console.warn('[backtesting-queue] Closed');
     },
   };
