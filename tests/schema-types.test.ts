@@ -9,7 +9,7 @@ import type {
   DealOpportunity,
   InsertDealOpportunity,
   PipelineStage,
-  InsertPipelineStage
+  InsertPipelineStage,
 } from '../shared/schema';
 
 describe('Schema Type Exports', () => {
@@ -18,11 +18,11 @@ describe('Schema Type Exports', () => {
     expectTypeOf<Fund>().toHaveProperty('id');
     expectTypeOf<Fund>().toHaveProperty('name');
     expectTypeOf<Fund>().toHaveProperty('size');
-    
+
     expectTypeOf<PortfolioCompany>().toHaveProperty('id');
     expectTypeOf<PortfolioCompany>().toHaveProperty('name');
     expectTypeOf<PortfolioCompany>().toHaveProperty('fundId');
-    
+
     expectTypeOf<Investment>().toHaveProperty('id');
     expectTypeOf<Investment>().toHaveProperty('companyId');
     expectTypeOf<Investment>().toHaveProperty('amount');
@@ -34,11 +34,11 @@ describe('Schema Type Exports', () => {
     expectTypeOf<InsertFund>().not.toHaveProperty('createdAt');
     expectTypeOf<InsertFund>().toHaveProperty('name');
     expectTypeOf<InsertFund>().toHaveProperty('size');
-    
+
     expectTypeOf<InsertPortfolioCompany>().not.toHaveProperty('id');
     expectTypeOf<InsertPortfolioCompany>().not.toHaveProperty('createdAt');
     expectTypeOf<InsertPortfolioCompany>().toHaveProperty('name');
-    
+
     expectTypeOf<InsertInvestment>().not.toHaveProperty('id');
     expectTypeOf<InsertInvestment>().not.toHaveProperty('createdAt');
     expectTypeOf<InsertInvestment>().toHaveProperty('amount');
@@ -46,22 +46,12 @@ describe('Schema Type Exports', () => {
 
   it('should handle optional fields correctly', () => {
     // Test that optional fields are properly typed
-    type TestInsertFund = {
-      name: string;
-      size: string;
-      deployedCapital?: string | null;
-      managementFee?: string | null;
-      carryPercentage?: string | null;
-      vintageYear?: number | null;
-      status?: string | null;
-    };
-    
     // This should compile without errors
     const testFund: Partial<InsertFund> = {
       name: 'Test Fund',
-      size: '100000000'
+      size: '100000000',
     };
-    
+
     expect(testFund).toBeDefined();
   });
 
@@ -69,13 +59,13 @@ describe('Schema Type Exports', () => {
     expectTypeOf<DealOpportunity>().toHaveProperty('id');
     expectTypeOf<DealOpportunity>().toHaveProperty('name');
     expectTypeOf<DealOpportunity>().toHaveProperty('fundId');
-    
+
     expectTypeOf<InsertDealOpportunity>().not.toHaveProperty('id');
     expectTypeOf<InsertDealOpportunity>().toHaveProperty('name');
-    
+
     expectTypeOf<PipelineStage>().toHaveProperty('id');
     expectTypeOf<PipelineStage>().toHaveProperty('name');
-    
+
     expectTypeOf<InsertPipelineStage>().not.toHaveProperty('id');
     expectTypeOf<InsertPipelineStage>().toHaveProperty('name');
   });

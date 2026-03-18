@@ -15,7 +15,6 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Share API', () => {
   const baseUrl = '/api/shares';
-  let createdShareId: string;
   const testFundId = 'test-fund-123';
 
   test.describe('Create Share', () => {
@@ -35,8 +34,6 @@ test.describe('Share API', () => {
       expect(body.share.fundId).toBe(testFundId);
       expect(body.share.accessLevel).toBe('view_only');
       expect(body.share.shareUrl).toMatch(/^\/share\//);
-
-      createdShareId = body.share.id;
     });
 
     test('creates a passkey-protected share', async ({ request }) => {

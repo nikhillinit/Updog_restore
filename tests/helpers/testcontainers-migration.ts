@@ -261,7 +261,7 @@ export async function getMigrationState(
   container: StartedPostgreSqlContainer
 ): Promise<MigrationState> {
   const migrationsFolder = resolveMigrationsFolder();
-  const { ordered, journal } = readMigrationOrder(migrationsFolder);
+  const { ordered } = readMigrationOrder(migrationsFolder);
 
   const pool = new Pool({
     connectionString: container.getConnectionUri(),

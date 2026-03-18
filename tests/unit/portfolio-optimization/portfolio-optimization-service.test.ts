@@ -43,7 +43,7 @@ vi.mock('../../../server/db', () => ({
         findFirst: vi.fn(),
       },
     },
-    insert: vi.fn((table) => ({
+    insert: vi.fn((_table) => ({
       values: vi.fn((data) => ({
         returning: vi.fn(() =>
           Promise.resolve([
@@ -580,7 +580,6 @@ describe('Portfolio Optimization Service - Critical Corrections', () => {
         })),
       } as any);
 
-      const sqlMock = vi.fn(() => 'SQL_TEMPLATE');
       vi.mocked(db.update).mockReturnValue({
         set: vi.fn((data) => {
           // Verify that sql template is used for nextRunAt

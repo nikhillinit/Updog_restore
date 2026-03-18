@@ -233,7 +233,7 @@ describe('GraduationRateEngine', () => {
       const projections = engine.projectCohort(100, 40);
 
       for (const projection of projections) {
-        for (const [stage, count] of Object.entries(projection.stageDistribution)) {
+        for (const count of Object.values(projection.stageDistribution)) {
           expect(count).toBeGreaterThanOrEqual(0);
         }
       }

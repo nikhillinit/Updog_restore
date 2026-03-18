@@ -39,6 +39,7 @@ test.describe('Navigation and Routing', () => {
 
     // Skip if redirected to fund setup (fund fixture should prevent this)
     const currentUrl = navigationPage.page.url();
+    // SKIP: This suite requires a configured fund; fund-setup redirects block main navigation assertions.
     test.skip(currentUrl.includes('/fund-setup'), 'No fund configured');
 
     await dashboardPage.verifyDashboardLoaded();
@@ -69,6 +70,7 @@ test.describe('Navigation and Routing', () => {
     await dashboardPage.goto('dashboard');
 
     const currentUrl = navigationPage.page.url();
+    // SKIP: Active-state checks only make sense after the app leaves the fund setup wizard.
     test.skip(currentUrl.includes('/fund-setup'), 'Redirected to fund setup');
 
     // Verify active state on dashboard
@@ -236,7 +238,7 @@ test.describe('Navigation and Routing', () => {
           body?.toLowerCase().includes('cannot be reached');
         expect(hasError).toBeFalsy();
       } catch (error) {
-        console.log(`Route ${route} refresh test failed: ${error}`);
+        console.warn(`Route ${route} refresh test failed: ${error}`);
       }
     }
   });
@@ -245,6 +247,7 @@ test.describe('Navigation and Routing', () => {
     await dashboardPage.goto('dashboard');
 
     const currentUrl = navigationPage.page.url();
+    // SKIP: Back/forward navigation assertions are not meaningful while the wizard owns the route flow.
     test.skip(currentUrl.includes('/fund-setup'), 'Redirected to fund setup');
 
     // Navigate to portfolio

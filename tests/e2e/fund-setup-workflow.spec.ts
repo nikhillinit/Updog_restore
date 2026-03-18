@@ -27,7 +27,7 @@ test.describe('Fund Setup Workflow', () => {
     geographicFocus: 'North America',
     minInvestment: '1000000',
     maxInvestment: '10000000',
-    sectors: ['Technology', 'Healthcare']
+    sectors: ['Technology', 'Healthcare'],
   };
 
   test('should complete full fund setup wizard flow', async () => {
@@ -40,10 +40,10 @@ test.describe('Fund Setup Workflow', () => {
 
     // Should redirect to dashboard after completion
     await expect(fundSetupPage.page).toHaveURL(/.*dashboard.*/);
-    
+
     // Verify dashboard loads with fund data
     await dashboardPage.verifyDashboardLoaded();
-    
+
     // Take screenshot of completed setup
     await dashboardPage.takeScreenshot('fund-setup-completed');
   });
@@ -156,12 +156,12 @@ test.describe('Fund Setup Workflow', () => {
     // Try to submit with invalid data
     await fundSetupPage.fundNameInput.fill(''); // Empty name
     await fundSetupPage.vintageYearInput.fill('invalid-year'); // Invalid year
-    
+
     await fundSetupPage.goToNextStep();
 
     // Should show validation errors or stay on current step
     const errorMessages = fundSetupPage.page.locator('.error, .invalid, [aria-invalid="true"]');
-    const hasErrors = await errorMessages.count() > 0;
+    const hasErrors = (await errorMessages.count()) > 0;
     const currentStep = await fundSetupPage.getCurrentStep();
 
     expect(hasErrors || currentStep === 1).toBeTruthy();
@@ -183,9 +183,8 @@ test.describe('Fund Setup Workflow', () => {
     // Test mobile layout
     await fundSetupPage.page.setViewportSize({ width: 375, height: 667 });
     await expect(fundSetupPage.wizardContainer).toBeVisible();
-    
+
     // On mobile, step indicator might be collapsed
-    const stepIndicatorVisible = await fundSetupPage.stepIndicator.isVisible();
     const wizardVisible = await fundSetupPage.wizardContainer.isVisible();
     expect(wizardVisible).toBeTruthy();
 
@@ -216,7 +215,7 @@ test.describe('Fund Setup Workflow', () => {
   test('should complete setup with minimal required data', async () => {
     const minimalData = {
       name: 'Minimal Test Fund',
-      fundSize: '50000000'
+      fundSize: '50000000',
     };
 
     await fundSetupPage.goto('fund-setup');
@@ -250,16 +249,17 @@ test.describe('Fund Setup Workflow', () => {
     // If there's a network error, user should see appropriate feedback
     // This is handled by the application's error handling
     // We just verify the user gets some feedback (error message, retry option, etc.)
-    
+
     const currentUrl = await fundSetupPage.page.url();
     const pageContent = await fundSetupPage.page.textContent('body');
-    
+
     // Either we successfully navigate to dashboard or we get error handling
-    const hasErrorHandling = pageContent?.includes('Error') || 
-                            pageContent?.includes('Try again') ||
-                            pageContent?.includes('Network') ||
-                            currentUrl.includes('/dashboard');
-                            
+    const hasErrorHandling =
+      pageContent?.includes('Error') ||
+      pageContent?.includes('Try again') ||
+      pageContent?.includes('Network') ||
+      currentUrl.includes('/dashboard');
+
     expect(hasErrorHandling).toBeTruthy();
   });
 });

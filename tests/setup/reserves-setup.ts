@@ -20,14 +20,14 @@ async function setupCacheClearing() {
         console.warn('Cache clearing not implemented for class-based cache');
       };
     }
-  } catch (error) {
+  } catch {
     // Try server-side cache if client cache fails
     try {
       const serverCache = await import('@server/lib/cache');
       if ('clearCache' in serverCache) {
         clearCacheFunction = serverCache.clearCache as () => void;
       }
-    } catch (serverError) {
+    } catch {
       console.warn('No cache clearing function found');
     }
   }
@@ -62,7 +62,7 @@ afterEach(() => {
   // Restore all mocks and timers
   vi.restoreAllMocks();
   vi.useRealTimers();
-  
+
   // Clear any remaining cache state
   if (clearCacheFunction) {
     clearCacheFunction();

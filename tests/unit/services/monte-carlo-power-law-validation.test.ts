@@ -360,8 +360,6 @@ describe('Monte Carlo Power Law Validation', () => {
       );
 
       const multiples = returns.map((r) => r.multiple);
-      const irrs = returns.map((r) => r.irr);
-
       // Calculate portfolio-level statistics
       const portfolioReturns = [];
       for (let i = 0; i < scenarios; i++) {

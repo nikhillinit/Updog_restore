@@ -20,37 +20,32 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import {
   buildInvestmentStrategy,
-  type StrategyInputs
+  type StrategyInputs,
 } from '../../client/src/selectors/buildInvestmentStrategy';
 import {
   MonteCarloSimulationService,
-  type SimulationParameters
+  type SimulationParameters,
 } from '../../server/services/monte-carlo-simulation';
-import type {
-  PowerLawDistribution} from '../../server/services/power-law-distribution';
-import {
-  createVCPowerLawDistribution
-} from '../../server/services/power-law-distribution';
 
 // Mock database dependencies for isolation
 vi.mock('../../server/db', () => ({
   db: {
     query: {
       fundBaselines: {
-        findFirst: vi.fn()
+        findFirst: vi.fn(),
       },
       varianceReports: {
-        findMany: vi.fn()
+        findMany: vi.fn(),
       },
       portfolioCompanies: {
-        findMany: vi.fn()
+        findMany: vi.fn(),
       },
       funds: {
-        findFirst: vi.fn()
-      }
+        findFirst: vi.fn(),
+      },
     },
-    insert: vi.fn()
-  }
+    insert: vi.fn(),
+  },
 }));
 
 vi.mock('@shared/schema', () => ({
@@ -61,12 +56,11 @@ vi.mock('@shared/schema', () => ({
   fundSnapshots: {},
   eq: vi.fn(),
   and: vi.fn(),
-  desc: vi.fn()
+  desc: vi.fn(),
 }));
 
 describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
   let monteCarloService: MonteCarloSimulationService;
-  let powerLawDistribution: PowerLawDistribution;
 
   // Test seed for reproducible results
   const TEST_SEED = 42;
@@ -74,15 +68,15 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
   // 2024-2025 Market Constants
   const MARKET_2025_CONFIG = {
     SERIES_A_GRADUATION_RATE: 18, // Down from pre-2020 ~40%
-    SEED_TO_SERIES_A_MONTHS: 25,  // Extended from ~18 months
-    SERIES_A_TO_B_MONTHS: 28,     // Extended timelines
+    SEED_TO_SERIES_A_MONTHS: 25, // Extended from ~18 months
+    SERIES_A_TO_B_MONTHS: 28, // Extended timelines
     SEED_VALUATION_AVG: 16_000_000, // $16M average
     SERIES_A_VALUATION_AVG: 48_000_000, // $48M average
-    FAILURE_RATE: 70,              // 70% total failures
-    UNICORN_RATE: 1,               // 1% unicorns (>50x returns)
-    HOME_RUN_RATE: 4,              // 4% home runs (10-50x)
-    GOOD_OUTCOME_RATE: 10,         // 10% good outcomes (3-10x)
-    MODEST_RETURN_RATE: 15         // 15% modest returns (1-3x)
+    FAILURE_RATE: 70, // 70% total failures
+    UNICORN_RATE: 1, // 1% unicorns (>50x returns)
+    HOME_RUN_RATE: 4, // 4% home runs (10-50x)
+    GOOD_OUTCOME_RATE: 10, // 10% good outcomes (3-10x)
+    MODEST_RETURN_RATE: 15, // 15% modest returns (1-3x)
   };
 
   const setupDbMocks = async () => {
@@ -93,14 +87,14 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
     db.query.fundBaselines.findFirst.mockResolvedValue({
       id: 'baseline-2025',
       fundId: 1,
-      totalValue: 150_000_000,     // $150M fund size (current market)
-      irr: 0.12,                   // Lower IRRs in current market
-      multiple: 1.8,               // Compressed multiples
-      dpi: 0.3,                    // Lower distributions
-      tvpi: 1.2,                   // Current TVPI expectation
+      totalValue: 150_000_000, // $150M fund size (current market)
+      irr: 0.12, // Lower IRRs in current market
+      multiple: 1.8, // Compressed multiples
+      dpi: 0.3, // Lower distributions
+      tvpi: 1.2, // Current TVPI expectation
       deployedCapital: 75_000_000, // 50% deployed
       isDefault: true,
-      isActive: true
+      isActive: true,
     });
 
     // Mock variance reports (clean for testing)
@@ -122,34 +116,26 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       { id: 10, fundId: 1, stage: 'series-a', sector: 'enterprise' },
       // Even fewer later stages
       { id: 11, fundId: 1, stage: 'series-b', sector: 'ai' },
-      { id: 12, fundId: 1, stage: 'series-c+', sector: 'fintech' }
+      { id: 12, fundId: 1, stage: 'series-c+', sector: 'fintech' },
     ]);
 
     // Mock fund size reflecting current market
     db.query.funds.findFirst.mockResolvedValue({
       id: 1,
-      size: 150_000_000 // $150M fund
+      size: 150_000_000, // $150M fund
     });
 
     // Mock insert chain used by drizzle: db.insert(...).values(...)
     db.insert.mockImplementation(() => ({
-      values: vi.fn().mockResolvedValue([{ id: 1 }])
+      values: vi.fn().mockResolvedValue([{ id: 1 }]),
     }));
 
     return db;
   };
 
   beforeAll(() => {
-
     // Initialize services
     monteCarloService = new MonteCarloSimulationService();
-    powerLawDistribution = createVCPowerLawDistribution({
-      failureRate: MARKET_2025_CONFIG.FAILURE_RATE / 100,
-      unicornRate: MARKET_2025_CONFIG.UNICORN_RATE / 100,
-      homeRunRate: MARKET_2025_CONFIG.HOME_RUN_RATE / 100,
-      goodOutcomeRate: MARKET_2025_CONFIG.GOOD_OUTCOME_RATE / 100,
-      modestReturnRate: MARKET_2025_CONFIG.MODEST_RETURN_RATE / 100
-    });
   });
 
   beforeEach(async () => {
@@ -171,43 +157,83 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
             name: 'Seed',
             graduate: MARKET_2025_CONFIG.SERIES_A_GRADUATION_RATE, // 18% - Series A Chasm
             exit: 12, // Early exits due to market conditions
-            months: MARKET_2025_CONFIG.SEED_TO_SERIES_A_MONTHS // 25 months - extended timeline
+            months: MARKET_2025_CONFIG.SEED_TO_SERIES_A_MONTHS, // 25 months - extended timeline
           },
           {
             id: 'series-a',
             name: 'Series A',
             graduate: 35, // Better survival post-chasm
             exit: 25,
-            months: MARKET_2025_CONFIG.SERIES_A_TO_B_MONTHS // 28 months
+            months: MARKET_2025_CONFIG.SERIES_A_TO_B_MONTHS, // 28 months
           },
           {
             id: 'series-b',
             name: 'Series B',
             graduate: 40,
             exit: 30,
-            months: 24
+            months: 24,
           },
           {
             id: 'series-c+',
             name: 'Series C+',
             graduate: 0, // Terminal stage
             exit: 60,
-            months: 36
-          }
+            months: 36,
+          },
         ],
         sectorProfiles: [
-          { id: 'fintech', name: 'FinTech', targetPercentage: 25, description: 'Financial technology' },
-          { id: 'healthtech', name: 'HealthTech', targetPercentage: 20, description: 'Healthcare technology' },
-          { id: 'enterprise', name: 'Enterprise SaaS', targetPercentage: 20, description: 'B2B software' },
+          {
+            id: 'fintech',
+            name: 'FinTech',
+            targetPercentage: 25,
+            description: 'Financial technology',
+          },
+          {
+            id: 'healthtech',
+            name: 'HealthTech',
+            targetPercentage: 20,
+            description: 'Healthcare technology',
+          },
+          {
+            id: 'enterprise',
+            name: 'Enterprise SaaS',
+            targetPercentage: 20,
+            description: 'B2B software',
+          },
           { id: 'ai', name: 'AI/ML', targetPercentage: 15, description: 'Artificial intelligence' },
-          { id: 'climate', name: 'Climate Tech', targetPercentage: 10, description: 'Climate solutions' },
-          { id: 'consumer', name: 'Consumer', targetPercentage: 10, description: 'Consumer products' }
+          {
+            id: 'climate',
+            name: 'Climate Tech',
+            targetPercentage: 10,
+            description: 'Climate solutions',
+          },
+          {
+            id: 'consumer',
+            name: 'Consumer',
+            targetPercentage: 10,
+            description: 'Consumer products',
+          },
         ],
         allocations: [
-          { id: 'new-investments', category: 'New Investments', percentage: 60, description: 'Initial investments' },
-          { id: 'reserves', category: 'Reserves', percentage: 35, description: 'Follow-on reserves' }, // Higher reserves in tough market
-          { id: 'expenses', category: 'Operating Expenses', percentage: 5, description: 'Fund operations' }
-        ]
+          {
+            id: 'new-investments',
+            category: 'New Investments',
+            percentage: 60,
+            description: 'Initial investments',
+          },
+          {
+            id: 'reserves',
+            category: 'Reserves',
+            percentage: 35,
+            description: 'Follow-on reserves',
+          }, // Higher reserves in tough market
+          {
+            id: 'expenses',
+            category: 'Operating Expenses',
+            percentage: 5,
+            description: 'Fund operations',
+          },
+        ],
       };
 
       const strategy = buildInvestmentStrategy(strategyInputs);
@@ -218,7 +244,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       expect(strategy.stages[0].graduationRate).toBe(MARKET_2025_CONFIG.SERIES_A_GRADUATION_RATE);
 
       // Validate graduation + exit rates don't exceed 100%
-      strategy.stages.forEach(stage => {
+      strategy.stages.forEach((stage) => {
         const totalRate = stage.graduationRate + stage.exitRate;
         expect(totalRate).toBeLessThanOrEqual(100);
         expect(stage.remainRate).toBe(100 - totalRate);
@@ -239,7 +265,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 5000,
         timeHorizonYears: 7, // Longer hold periods in current market
         confidenceIntervals: [5, 10, 25, 50, 75, 90, 95],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(simulationParams);
@@ -269,7 +295,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 10000, // Large sample for statistical accuracy
         timeHorizonYears: 6,
         confidenceIntervals: [50, 75, 90, 95, 99],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(simulationParams);
@@ -278,18 +304,24 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       const scenarios = forecast.multiple.scenarios;
 
       // Count outcome categories
-      const failures = scenarios.filter(m => m <= 1.0).length;
-      const modestReturns = scenarios.filter(m => m > 1.0 && m <= 3.0).length;
-      const goodOutcomes = scenarios.filter(m => m > 3.0 && m <= 10.0).length;
-      const homeRuns = scenarios.filter(m => m > 10.0 && m <= 50.0).length;
-      const unicorns = scenarios.filter(m => m > 50.0).length;
+      const failures = scenarios.filter((m) => m <= 1.0).length;
+      const modestReturns = scenarios.filter((m) => m > 1.0 && m <= 3.0).length;
+      const goodOutcomes = scenarios.filter((m) => m > 3.0 && m <= 10.0).length;
+      const homeRuns = scenarios.filter((m) => m > 10.0 && m <= 50.0).length;
+      const unicorns = scenarios.filter((m) => m > 50.0).length;
 
       const totalScenarios = scenarios.length;
 
       // Validate 2024-2025 distribution (with tolerance for statistical variation)
       expect(failures / totalScenarios).toBeCloseTo(MARKET_2025_CONFIG.FAILURE_RATE / 100, 1);
-      expect(modestReturns / totalScenarios).toBeCloseTo(MARKET_2025_CONFIG.MODEST_RETURN_RATE / 100, 1);
-      expect(goodOutcomes / totalScenarios).toBeCloseTo(MARKET_2025_CONFIG.GOOD_OUTCOME_RATE / 100, 1);
+      expect(modestReturns / totalScenarios).toBeCloseTo(
+        MARKET_2025_CONFIG.MODEST_RETURN_RATE / 100,
+        1
+      );
+      expect(goodOutcomes / totalScenarios).toBeCloseTo(
+        MARKET_2025_CONFIG.GOOD_OUTCOME_RATE / 100,
+        1
+      );
       expect(homeRuns / totalScenarios).toBeCloseTo(MARKET_2025_CONFIG.HOME_RUN_RATE / 100, 1);
       expect(unicorns / totalScenarios).toBeCloseTo(MARKET_2025_CONFIG.UNICORN_RATE / 100, 1);
 
@@ -303,12 +335,14 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       // Test with seed-heavy portfolio
       const { db } = await import('../../server/db');
       db.query.portfolioCompanies.findMany.mockResolvedValueOnce([
-        ...Array(10).fill(null).map((_, i) => ({
-          id: i + 1,
-          fundId: 1,
-          stage: 'seed',
-          sector: i % 2 === 0 ? 'fintech' : 'healthtech'
-        }))
+        ...Array(10)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 1,
+            fundId: 1,
+            stage: 'seed',
+            sector: i % 2 === 0 ? 'fintech' : 'healthtech',
+          })),
       ]);
 
       const params: SimulationParameters = {
@@ -316,7 +350,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 3000,
         timeHorizonYears: 5,
         confidenceIntervals: [50, 75, 90],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -329,7 +363,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         expect(stageMetrics.seed.standardDeviation).toBeGreaterThan(stageMetrics.seed.mean * 0.8);
 
         // Failure rate should be high for seed
-        const seedFailures = forecast.multiple.scenarios.filter(m => m <= 1.0).length;
+        const seedFailures = forecast.multiple.scenarios.filter((m) => m <= 1.0).length;
         expect(seedFailures / forecast.multiple.scenarios.length).toBeGreaterThan(0.6);
       }
     });
@@ -343,30 +377,40 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
             name: 'Seed',
             graduate: 18,
             exit: 12,
-            months: 25 // Extended timeline
+            months: 25, // Extended timeline
           },
           {
             id: 'series-a',
             name: 'Series A',
             graduate: 35,
             exit: 25,
-            months: 28 // Extended timeline
+            months: 28, // Extended timeline
           },
           {
             id: 'series-b+',
             name: 'Series B+',
             graduate: 0,
             exit: 60,
-            months: 36
-          }
+            months: 36,
+          },
         ],
         sectorProfiles: [
-          { id: 'tech', name: 'Technology', targetPercentage: 100, description: 'Technology sector' }
+          {
+            id: 'tech',
+            name: 'Technology',
+            targetPercentage: 100,
+            description: 'Technology sector',
+          },
         ],
         allocations: [
-          { id: 'investments', category: 'Investments', percentage: 95, description: 'Investments' },
-          { id: 'expenses', category: 'Expenses', percentage: 5, description: 'Expenses' }
-        ]
+          {
+            id: 'investments',
+            category: 'Investments',
+            percentage: 95,
+            description: 'Investments',
+          },
+          { id: 'expenses', category: 'Expenses', percentage: 5, description: 'Expenses' },
+        ],
       };
 
       const strategy = buildInvestmentStrategy(strategyInputs);
@@ -376,7 +420,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       expect(strategy.validation.allValid).toBe(true);
 
       // Validate that graduation + exit rates are realistic
-      strategy.stages.forEach(stage => {
+      strategy.stages.forEach((stage) => {
         expect(stage.graduationRate + stage.exitRate).toBeLessThanOrEqual(100);
       });
     });
@@ -388,7 +432,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 2000,
         timeHorizonYears: 6,
         confidenceIntervals: [25, 50, 75],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -407,21 +451,21 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 8000, // Large sample for accurate distribution analysis
         timeHorizonYears: 7,
         confidenceIntervals: [1, 5, 25, 50, 75, 95, 99],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
       const scenarios = forecast.multiple.scenarios;
 
       // Validate core power law distribution
-      const failures = scenarios.filter(m => m <= 1.0);
-      const unicorns = scenarios.filter(m => m > 50.0);
-      const homeRuns = scenarios.filter(m => m > 10.0 && m <= 50.0);
+      const failures = scenarios.filter((m) => m <= 1.0);
+      const unicorns = scenarios.filter((m) => m > 50.0);
+      const homeRuns = scenarios.filter((m) => m > 10.0 && m <= 50.0);
 
       // Core distribution validation (allowing for statistical variation)
-      expect(failures.length / scenarios.length).toBeCloseTo(0.70, 1); // 70% ± 10%
-      expect(unicorns.length / scenarios.length).toBeCloseTo(0.01, 1);  // 1% ± 1%
-      expect(homeRuns.length / scenarios.length).toBeCloseTo(0.04, 1);  // 4% ± 1%
+      expect(failures.length / scenarios.length).toBeCloseTo(0.7, 1); // 70% ± 10%
+      expect(unicorns.length / scenarios.length).toBeCloseTo(0.01, 1); // 1% ± 1%
+      expect(homeRuns.length / scenarios.length).toBeCloseTo(0.04, 1); // 4% ± 1%
 
       // Power law characteristics
       expect(forecast.multiple.statistics.skewness).toBeGreaterThan(3); // Highly skewed
@@ -436,7 +480,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 3000,
         timeHorizonYears: 8, // Longer hold periods
         confidenceIntervals: [50, 90],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -447,7 +491,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
 
       // In current market, higher reserve ratios should be recommended
       expect(forecast.reserveOptimization.optimalReserveRatio).toBeGreaterThan(0.3); // >30%
-      expect(forecast.reserveOptimization.optimalReserveRatio).toBeLessThan(0.6);    // <60%
+      expect(forecast.reserveOptimization.optimalReserveRatio).toBeLessThan(0.6); // <60%
 
       // Risk-adjusted metrics should be realistic
       expect(forecast.reserveOptimization.riskAdjustedReturn).toBeDefined();
@@ -460,7 +504,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 4000,
         timeHorizonYears: 6,
         confidenceIntervals: [50, 75, 90],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -490,7 +534,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         { id: 2, fundId: 1, stage: 'series-a', sector: 'healthtech' },
         { id: 3, fundId: 1, stage: 'series-b', sector: 'enterprise' },
         { id: 4, fundId: 1, stage: 'series-c+', sector: 'fintech' },
-        { id: 5, fundId: 1, stage: 'series-c+', sector: 'ai' }
+        { id: 5, fundId: 1, stage: 'series-c+', sector: 'ai' },
       ]);
 
       const params: SimulationParameters = {
@@ -498,7 +542,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 2000,
         timeHorizonYears: 5,
         confidenceIntervals: [50, 90],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -511,7 +555,9 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         expect(stagePerformance['series-c+'].mean).toBeGreaterThan(1.5);
 
         // But lower variance (more mature companies)
-        expect(stagePerformance['series-c+'].standardDeviation).toBeLessThan(stagePerformance['series-c+'].mean);
+        expect(stagePerformance['series-c+'].standardDeviation).toBeLessThan(
+          stagePerformance['series-c+'].mean
+        );
       }
 
       // Overall simulation should handle mixed stages properly
@@ -524,20 +570,20 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         stages: [
           { id: 'seed', name: 'Seed', graduate: 20, exit: 15, months: 24 },
           { id: 'series-a', name: 'Series A', graduate: 30, exit: 20, months: 30 },
-          { id: 'series-c+', name: 'Series C+', graduate: 0, exit: 70, months: 48 }
+          { id: 'series-c+', name: 'Series C+', graduate: 0, exit: 70, months: 48 },
         ],
         sectorProfiles: [
-          { id: 'tech', name: 'Technology', targetPercentage: 100, description: 'Tech' }
+          { id: 'tech', name: 'Technology', targetPercentage: 100, description: 'Tech' },
         ],
         allocations: [
-          { id: 'inv', category: 'Investments', percentage: 100, description: 'All investments' }
-        ]
+          { id: 'inv', category: 'Investments', percentage: 100, description: 'All investments' },
+        ],
       };
 
       const strategy = buildInvestmentStrategy(strategyInputs);
 
       // Validate Series C+ has 0% graduation (terminal stage)
-      const seriesCPlusStage = strategy.stages.find(s => s.id === 'series-c+');
+      const seriesCPlusStage = strategy.stages.find((s) => s.id === 'series-c+');
       expect(seriesCPlusStage?.graduationRate).toBe(0);
 
       // Validate all constraints are met
@@ -554,15 +600,15 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
             name: 'Invalid Stage',
             graduate: 70,
             exit: 50, // Total = 120% > 100%
-            months: 24
-          }
+            months: 24,
+          },
         ],
         sectorProfiles: [
-          { id: 'tech', name: 'Tech', targetPercentage: 100, description: 'Technology' }
+          { id: 'tech', name: 'Tech', targetPercentage: 100, description: 'Technology' },
         ],
         allocations: [
-          { id: 'inv', category: 'Investments', percentage: 100, description: 'Investments' }
-        ]
+          { id: 'inv', category: 'Investments', percentage: 100, description: 'Investments' },
+        ],
       };
 
       const strategy = buildInvestmentStrategy(invalidInputs);
@@ -576,7 +622,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
       const malformedInputs = {
         stages: null,
         sectorProfiles: [],
-        allocations: []
+        allocations: [],
       } as any;
 
       const strategy = buildInvestmentStrategy(malformedInputs);
@@ -595,7 +641,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 1000,
         timeHorizonYears: 5,
         confidenceIntervals: [50],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast = await monteCarloService.generateForecast(params);
@@ -613,7 +659,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 20000, // Large simulation
         timeHorizonYears: 7,
         confidenceIntervals: [50, 90],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const startTime = Date.now();
@@ -630,7 +676,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
         scenarios: 2000,
         timeHorizonYears: 5,
         confidenceIntervals: [25, 50, 75],
-        randomSeed: TEST_SEED
+        randomSeed: TEST_SEED,
       };
 
       const forecast1 = await monteCarloService.generateForecast(params);
@@ -654,7 +700,7 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
           scenarios,
           timeHorizonYears: 6,
           confidenceIntervals: [50],
-          randomSeed: TEST_SEED + i // Different seeds
+          randomSeed: TEST_SEED + i, // Different seeds
         };
 
         const forecast = await monteCarloService.generateForecast(params);
@@ -663,7 +709,8 @@ describe('Monte Carlo 2024-2025 Market Validation Integration', () => {
 
       // Results should be statistically consistent (not wildly different)
       const meanOfMeans = results.reduce((a, b) => a + b, 0) / results.length;
-      const variance = results.reduce((sum, x) => sum + Math.pow(x - meanOfMeans, 2), 0) / results.length;
+      const variance =
+        results.reduce((sum, x) => sum + Math.pow(x - meanOfMeans, 2), 0) / results.length;
       const stdDev = Math.sqrt(variance);
 
       // Standard deviation of means should be reasonable (<20% of mean)
