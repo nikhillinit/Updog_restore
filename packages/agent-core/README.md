@@ -86,7 +86,8 @@ const cached = cache.buildCachedMessages({
 // Cached calls: 3s, $0.03 ← 85% faster, 90% cheaper!
 ```
 
-**Demo**: `npx tsx demo-prompt-cache.ts`
+**Archived demo reference**:
+`archive/2026-q1/package-demos/agent-core/demo-prompt-cache.ts`
 
 ### AI Router (Smart Model Selection)
 
@@ -106,7 +107,8 @@ console.log(decision.confidence); // 0.95
 console.log(decision.reason); // 'Specialized in code analysis...'
 ```
 
-**Demo**: `npx tsx demo-router.ts`
+**Archived demo reference**:
+`archive/2026-q1/package-demos/agent-core/demo-router.ts`
 
 ### Orchestrator (Parallel Task Delegation)
 
@@ -127,12 +129,17 @@ const result = await orchestrator.execute({
 // Automatic task decomposition → 3x faster through parallelization
 ```
 
-**Demo**: `npx tsx demo-orchestrator.ts`
+**Archived demo reference**:
+`archive/2026-q1/package-demos/agent-core/demo-orchestrator.ts`
 
 ### Conversation Memory (Multi-Agent Workflows)
 
 ```typescript
-import { BaseAgent, getThread, buildConversationHistory } from '@povc/agent-core';
+import {
+  BaseAgent,
+  getThread,
+  buildConversationHistory,
+} from '@povc/agent-core';
 
 class AnalyzerAgent extends BaseAgent<AnalyzerInput, AnalyzerOutput> {
   constructor() {
@@ -155,26 +162,27 @@ class AnalyzerAgent extends BaseAgent<AnalyzerInput, AnalyzerOutput> {
 // Agent A analyzes code
 const analyzer = new AnalyzerAgent();
 const result1 = await analyzer.execute({ files: ['test.ts'] }, 'analyze', {
-  files: ['test.ts']
+  files: ['test.ts'],
 });
 
 // Agent B fixes issues (with full context from Agent A)
 const fixer = new FixerAgent();
 const result2 = await fixer.execute({ issues: result1.data.issues }, 'fix', {
-  continuationId: result1.continuationId,  // Continue conversation
-  files: ['test.ts']
+  continuationId: result1.continuationId, // Continue conversation
+  files: ['test.ts'],
 });
 
 // Agent C validates (with context from A + B)
 const validator = new ValidatorAgent();
 const result3 = await validator.execute({ files: ['test.ts'] }, 'validate', {
-  continuationId: result2.continuationId
+  continuationId: result2.continuationId,
 });
 
 // Full conversation history preserved across all agents!
 ```
 
 **Features:**
+
 - Thread-based conversations with UUID tracking
 - Cross-tool continuation (analyzer → fixer → validator)
 - File context preservation with newest-first prioritization
@@ -182,7 +190,8 @@ const result3 = await validator.execute({ files: ['test.ts'] }, 'validate', {
 - Token-aware history with intelligent truncation
 - In-memory or Redis storage backends
 
-**Demo**: `npx tsx demo-conversation-memory.ts`
+**Archived demo reference**:
+`archive/2026-q1/package-demos/agent-core/demo-conversation-memory.ts`
 
 ## Configuration
 

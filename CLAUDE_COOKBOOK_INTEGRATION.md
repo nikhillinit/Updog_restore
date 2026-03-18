@@ -33,7 +33,8 @@ into our Updog project.
 - Enforces project conventions automatically
 - Skill version: Reusable pattern across all refinement tasks
 
-**Demo**: `cd packages/test-repair-agent && npx tsx demo-evaluator-optimizer.ts`
+**Archived demo reference**:
+`archive/2026-q1/package-demos/test-repair-agent/demo-evaluator-optimizer.ts`
 
 ---
 

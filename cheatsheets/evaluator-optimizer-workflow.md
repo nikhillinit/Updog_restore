@@ -7,22 +7,29 @@ last_updated: 2026-01-19
 
 ## Overview
 
-The Evaluator-Optimizer is a powerful iterative refinement pattern where one LLM call generates a response and another evaluates it in a loop until requirements are met. This pattern is particularly effective for tasks that benefit from iterative improvement and clear evaluation criteria.
+The Evaluator-Optimizer is a powerful iterative refinement pattern where one LLM
+call generates a response and another evaluates it in a loop until requirements
+are met. This pattern is particularly effective for tasks that benefit from
+iterative improvement and clear evaluation criteria.
 
 **Location:** `@povc/agent-core` (packages/agent-core/src/EvaluatorOptimizer.ts)
 
 ## When to Use This Workflow
 
 ### Good Fit ✅
+
 - **Clear evaluation criteria** - You can define what "good" looks like
-- **Iterative refinement** - Solutions can be demonstrably improved with feedback
-- **LLM can self-evaluate** - The LLM can provide meaningful feedback on its own output
+- **Iterative refinement** - Solutions can be demonstrably improved with
+  feedback
+- **LLM can self-evaluate** - The LLM can provide meaningful feedback on its own
+  output
 - Code generation with quality requirements
 - Document writing with style guidelines
 - Test case generation with coverage requirements
 - Prompt engineering with performance metrics
 
 ### Not a Good Fit ❌
+
 - Simple one-shot tasks
 - Tasks without clear success criteria
 - Real-time requirements (latency-sensitive)
@@ -31,6 +38,7 @@ The Evaluator-Optimizer is a powerful iterative refinement pattern where one LLM
 ## Core Concepts
 
 ### 1. Generator Function
+
 Generates solutions based on task and context (previous attempts + feedback).
 
 ```typescript
@@ -38,12 +46,13 @@ type GeneratorFunction<T> = (
   task: string,
   context?: string
 ) => Promise<{
-  thoughts: string;  // Reasoning about the solution
-  result: T;         // The actual solution
+  thoughts: string; // Reasoning about the solution
+  result: T; // The actual solution
 }>;
 ```
 
 ### 2. Evaluator Function
+
 Evaluates solutions against criteria and provides feedback.
 
 ```typescript
@@ -57,6 +66,7 @@ type EvaluatorFunction<T> = (
 ```
 
 ### 3. Loop Result
+
 Complete history of the iterative process.
 
 ```typescript
@@ -79,13 +89,13 @@ interface LoopResult<T> {
 import {
   EvaluatorOptimizer,
   createGenerator,
-  createEvaluator
+  createEvaluator,
 } from '@povc/agent-core';
 
 // 1. Configure the workflow
 const workflow = new EvaluatorOptimizer({
   maxIterations: 5,
-  verbose: true
+  verbose: true,
 });
 
 // 2. Define prompts
@@ -139,7 +149,7 @@ const customGenerator: GeneratorFunction<CodeArtifact> = async (
   // Parse response
   return {
     thoughts: extractThoughts(response),
-    result: parseCodeArtifact(response)
+    result: parseCodeArtifact(response),
   };
 };
 ```
@@ -159,13 +169,13 @@ const customEvaluator: EvaluatorFunction<string> = async (
   if (hasTests && hasTypes && hasError) {
     return {
       status: 'PASS',
-      feedback: 'All requirements met'
+      feedback: 'All requirements met',
     };
   }
 
   return {
     status: 'NEEDS_IMPROVEMENT',
-    feedback: `Missing: ${!hasTests ? 'tests ' : ''}${!hasTypes ? 'types ' : ''}${!hasError ? 'error handling' : ''}`
+    feedback: `Missing: ${!hasTests ? 'tests ' : ''}${!hasTypes ? 'types ' : ''}${!hasError ? 'error handling' : ''}`,
   };
 };
 ```
@@ -180,7 +190,7 @@ interface CodeArtifact {
 }
 
 const workflow = new EvaluatorOptimizer<CodeArtifact>({
-  maxIterations: 5
+  maxIterations: 5,
 });
 
 const generator = async (task: string, context?: string) => ({
@@ -188,8 +198,8 @@ const generator = async (task: string, context?: string) => ({
   result: {
     code: generatedCode,
     tests: generatedTests,
-    documentation: generatedDocs
-  }
+    documentation: generatedDocs,
+  },
 });
 
 const evaluator = async (artifact: CodeArtifact, task: string) => {
@@ -198,7 +208,7 @@ const evaluator = async (artifact: CodeArtifact, task: string) => {
 
   return {
     status: allPresent ? 'PASS' : 'NEEDS_IMPROVEMENT',
-    feedback: allPresent ? 'Complete' : 'Missing components'
+    feedback: allPresent ? 'Complete' : 'Missing components',
   };
 };
 ```
@@ -206,6 +216,7 @@ const evaluator = async (artifact: CodeArtifact, task: string) => {
 ## Helper Functions
 
 ### extractXml
+
 Extract content from XML-like tags (useful for parsing LLM responses).
 
 ```typescript
@@ -221,24 +232,26 @@ const code = extractXml(response, 'response');
 ```
 
 ### createGenerator
+
 Create a generator function from a system prompt and LLM call.
 
 ```typescript
 const generator = createGenerator(
   'You are a code generator...',
   llmCall,
-  customParser  // Optional custom parser
+  customParser // Optional custom parser
 );
 ```
 
 ### createEvaluator
+
 Create an evaluator function from a system prompt and LLM call.
 
 ```typescript
 const evaluator = createEvaluator(
   'You are a code reviewer...',
   llmCall,
-  customParser  // Optional custom parser
+  customParser // Optional custom parser
 );
 ```
 
@@ -246,9 +259,9 @@ const evaluator = createEvaluator(
 
 ```typescript
 interface EvaluatorOptimizerConfig {
-  maxIterations?: number;  // Default: 10
-  verbose?: boolean;       // Default: true
-  logger?: Logger;         // Default: new Logger(...)
+  maxIterations?: number; // Default: 10
+  verbose?: boolean; // Default: true
+  logger?: Logger; // Default: new Logger(...)
 }
 ```
 
@@ -288,22 +301,28 @@ Detailed, actionable feedback:
 ```typescript
 const codeGenWorkflow = new EvaluatorOptimizer({ maxIterations: 5 });
 
-const codeGenerator = createGenerator(`
+const codeGenerator = createGenerator(
+  `
 Generate TypeScript code that:
 - Has proper types
 - Includes error handling
 - Has clear variable names
 Format: <thoughts>...</thoughts><response>code</response>
-`, llmCall);
+`,
+  llmCall
+);
 
-const codeEvaluator = createEvaluator(`
+const codeEvaluator = createEvaluator(
+  `
 Evaluate code for:
 1. Type safety
 2. Error handling
 3. Code quality
 4. Edge cases
 Format: <evaluation>STATUS</evaluation><feedback>...</feedback>
-`, llmCall);
+`,
+  llmCall
+);
 
 const result = await codeGenWorkflow.run(
   'Create a function to parse JSON safely',
@@ -317,20 +336,26 @@ const result = await codeGenWorkflow.run(
 ```typescript
 const docWorkflow = new EvaluatorOptimizer({ maxIterations: 3 });
 
-const docGenerator = createGenerator(`
+const docGenerator = createGenerator(
+  `
 Write clear, concise documentation.
 Include: overview, parameters, return value, examples
 Format: <thoughts>...</thoughts><response>markdown</response>
-`, llmCall);
+`,
+  llmCall
+);
 
-const docEvaluator = createEvaluator(`
+const docEvaluator = createEvaluator(
+  `
 Evaluate documentation for:
 1. Clarity
 2. Completeness
 3. Examples
 4. Formatting
 Format: <evaluation>STATUS</evaluation><feedback>...</feedback>
-`, llmCall);
+`,
+  llmCall
+);
 ```
 
 ### Pattern 3: Test Generation
@@ -338,22 +363,28 @@ Format: <evaluation>STATUS</evaluation><feedback>...</feedback>
 ```typescript
 const testWorkflow = new EvaluatorOptimizer({ maxIterations: 4 });
 
-const testGenerator = createGenerator(`
+const testGenerator = createGenerator(
+  `
 Generate comprehensive tests covering:
 - Happy path
 - Edge cases
 - Error conditions
 Format: <thoughts>...</thoughts><response>tests</response>
-`, llmCall);
+`,
+  llmCall
+);
 
-const testEvaluator = createEvaluator(`
+const testEvaluator = createEvaluator(
+  `
 Evaluate test coverage:
 1. All paths tested?
 2. Edge cases covered?
 3. Clear assertions?
 4. Good test names?
 Format: <evaluation>STATUS</evaluation><feedback>...</feedback>
-`, llmCall);
+`,
+  llmCall
+);
 ```
 
 ## Analyzing Results
@@ -380,17 +411,22 @@ result.steps.forEach((step, i) => {
 });
 
 // Track improvement over iterations
-const improvements = result.steps.map(step => ({
+const improvements = result.steps.map((step) => ({
   iteration: step.iteration + 1,
   status: step.evaluation?.status,
-  resultLength: step.generation.result.length
+  resultLength: step.generation.result.length,
 }));
 ```
 
 ## Integration with BaseAgent
 
 ```typescript
-import { BaseAgent, EvaluatorOptimizer, createGenerator, createEvaluator } from '@povc/agent-core';
+import {
+  BaseAgent,
+  EvaluatorOptimizer,
+  createGenerator,
+  createEvaluator,
+} from '@povc/agent-core';
 
 class CodeGenerationAgent extends BaseAgent<string, string> {
   private workflow: EvaluatorOptimizer;
@@ -400,7 +436,7 @@ class CodeGenerationAgent extends BaseAgent<string, string> {
     this.workflow = new EvaluatorOptimizer({
       maxIterations: 5,
       verbose: false,
-      logger: this.logger
+      logger: this.logger,
     });
   }
 
@@ -430,33 +466,40 @@ class CodeGenerationAgent extends BaseAgent<string, string> {
 ## Best Practices
 
 1. **Clear Evaluation Criteria**: Define specific, measurable success criteria
-2. **Actionable Feedback**: Evaluator should provide specific improvement suggestions
+2. **Actionable Feedback**: Evaluator should provide specific improvement
+   suggestions
 3. **Max Iterations**: Set reasonable limits to prevent infinite loops
-4. **Context Management**: The workflow automatically builds context from previous attempts
-5. **Error Handling**: Check `result.success` before using `result.finalSolution`
+4. **Context Management**: The workflow automatically builds context from
+   previous attempts
+5. **Error Handling**: Check `result.success` before using
+   `result.finalSolution`
 6. **Performance**: Consider maxIterations based on latency requirements
 7. **Cost**: Each iteration = 2 LLM calls (generation + evaluation)
 
 ## Troubleshooting
 
 ### Loop Never Passes
+
 - Check evaluation criteria (too strict?)
 - Review feedback quality (actionable?)
 - Increase maxIterations if improvements are happening
 - Check if generator is actually using feedback
 
 ### Loop Passes Too Easily
+
 - Make evaluation criteria more strict
 - Add more specific requirements
 - Use FAIL status for fundamental issues
 
 ### Slow Performance
+
 - Reduce maxIterations
 - Optimize LLM call latency
 - Consider caching for common patterns
 - Use smaller/faster models for evaluation
 
 ### Poor Quality Results
+
 - Improve generator prompt clarity
 - Make evaluation criteria more specific
 - Provide examples in prompts
@@ -464,7 +507,10 @@ class CodeGenerationAgent extends BaseAgent<string, string> {
 
 ## Examples
 
-See `packages/agent-core/examples/evaluator-optimizer-example.ts` for complete working examples:
+See
+`archive/2026-q1/package-demos/agent-core/examples/evaluator-optimizer-example.ts`
+for the archived reference example:
+
 - Basic usage
 - Custom functions
 - Typed content
@@ -482,12 +528,12 @@ describe('MyAgent with EvaluatorOptimizer', () => {
 
     const generator = vi.fn().mockResolvedValue({
       thoughts: 'Test',
-      result: 'code'
+      result: 'code',
     });
 
     const evaluator = vi.fn().mockResolvedValue({
       status: 'PASS',
-      feedback: 'Good'
+      feedback: 'Good',
     });
 
     const result = await workflow.run('task', generator, evaluator);

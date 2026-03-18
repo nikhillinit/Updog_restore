@@ -1,22 +1,21 @@
 # SESSION CONTEXT
 
-**Generated:** 2026-02-19 22:14:20
+**Generated:** 2026-03-18 18:07:17
 
 ## Git Status
 
 - **Branch:** main
-- **Changes:** 0 staged, 23 unstaged, 13 untracked
+- **Changes:** 0 staged, 39 unstaged, 395 untracked
 
 ### Recent commits
 
-- 3562824e chore(ci): remove dead bundle-stats and bundle-check-dynamic
-  references
-- a3b70423 chore(ci): remove test.yml and performance-gates.yml workflows
-- fa193ce0 chore(ci): remove 4 redundant/disabled workflows
+- 4ecca7e9 feat(platform): implement precision hardening and queue observability
+- 123b2990 chore: trim low-risk lint debt
+- 927b1922 fix: repair CI guards and codify learnings
 
 ## Available Assets
 
-- **37** agents | **76** skills | **21** commands | **41** cheatsheets
+- **37** agents | **79** skills | **21** commands | **41** cheatsheets
 
 ## Suggested for this session
 

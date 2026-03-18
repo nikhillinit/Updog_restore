@@ -8,10 +8,10 @@
 import { withThinking } from '@agent-core';
 
 // Before
-class MyAgent extends BaseAgent { }
+class MyAgent extends BaseAgent {}
 
 // After - that's it!
-class MyAgent extends withThinking(BaseAgent) { }
+class MyAgent extends withThinking(BaseAgent) {}
 ```
 
 ## Usage
@@ -19,14 +19,14 @@ class MyAgent extends withThinking(BaseAgent) { }
 ```typescript
 // Simple thinking
 const result = await this.think('Analyze this complex problem...');
-console.log(result.response);      // AI response
-console.log(result.thinking);      // Reasoning process
-console.log(result.cost);          // Cost in USD
+console.log(result.response); // AI response
+console.log(result.thinking); // Reasoning process
+console.log(result.cost); // Cost in USD
 
 // Deep analysis
 const analysis = await this.think('Complex architecture decision...', {
   depth: 'deep',
-  context: 'TypeScript, React, PostgreSQL'
+  context: 'TypeScript, React, PostgreSQL',
 });
 
 // Automatic depth selection
@@ -50,6 +50,7 @@ await this.think(query: string, options?: {
 ```
 
 **Returns:**
+
 ```typescript
 {
   response: string,                   // Final AI response
@@ -98,9 +99,9 @@ Check remaining budget.
 
 ```typescript
 const budget = this.getThinkingBudget();
-console.log(budget.total);      // Total budget ($)
-console.log(budget.spent);      // Amount spent ($)
-console.log(budget.remaining);  // Remaining ($)
+console.log(budget.total); // Total budget ($)
+console.log(budget.spent); // Amount spent ($)
+console.log(budget.remaining); // Remaining ($)
 ```
 
 ### `isThinkingAvailable()`
@@ -115,12 +116,13 @@ const healthy = await this.isThinkingAvailable();
 
 Claude Sonnet 4.5 Pricing: Input $3/M tokens, Output $15/M tokens
 
-| Depth  | Thinking Tokens | Output Tokens | Input Cost | Output Cost | Total Cost |
-|--------|----------------|---------------|------------|-------------|------------|
-| Quick  | ~2,000         | ~1,300        | $0.006     | $0.020      | **~$0.03** |
-| Deep   | ~8,000         | ~5,300        | $0.024     | $0.080      | **~$0.10** |
+| Depth | Thinking Tokens | Output Tokens | Input Cost | Output Cost | Total Cost |
+| ----- | --------------- | ------------- | ---------- | ----------- | ---------- |
+| Quick | ~2,000          | ~1,300        | $0.006     | $0.020      | **~$0.03** |
+| Deep  | ~8,000          | ~5,300        | $0.024     | $0.080      | **~$0.10** |
 
-**Note**: Actual costs vary based on query complexity and response length. These are typical ranges.
+**Note**: Actual costs vary based on query complexity and response length. These
+are typical ranges.
 
 ## Environment Variables
 
@@ -179,9 +181,9 @@ const decision = await this.think('Should we migrate to...');
 
 return {
   decision: this.parseDecision(decision.response),
-  reasoning: decision.thinking,        // Show full reasoning
+  reasoning: decision.thinking, // Show full reasoning
   confidence: decision.thinking.length / 10,
-  cost: decision.cost.total_cost_usd
+  cost: decision.cost.total_cost_usd,
 };
 ```
 
@@ -192,15 +194,15 @@ return {
 ```typescript
 class TestRepairAgent extends withThinking(BaseAgent) {
   async run(failure: TestFailure) {
-    const analysis = await this.think(
-      `Fix this test: ${failure.error}`,
-      { depth: 'deep', context: 'Vitest, React Testing Library' }
-    );
+    const analysis = await this.think(`Fix this test: ${failure.error}`, {
+      depth: 'deep',
+      context: 'Vitest, React Testing Library',
+    });
 
     return {
       fixes: this.parseFixes(analysis.response),
       reasoning: analysis.thinking,
-      cost: analysis.cost.total_cost_usd
+      cost: analysis.cost.total_cost_usd,
     };
   }
 }
@@ -219,7 +221,7 @@ class CodeReviewer extends withThinking(BaseAgent) {
     return {
       approved: review.response.includes('approved'),
       concerns: this.extractConcerns(review.thinking),
-      reasoning: review.thinking
+      reasoning: review.thinking,
     };
   }
 }
@@ -238,7 +240,7 @@ class ChaosEngineer extends withThinking(BaseAgent) {
     return {
       scenario: this.parseScenario(plan.response),
       safety: this.extractSafety(plan.thinking),
-      reasoning: plan.thinking
+      reasoning: plan.thinking,
     };
   }
 }
@@ -266,13 +268,14 @@ Remove `withThinking()` to instantly rollback:
 
 ```typescript
 // Rollback: Remove wrapper
-class MyAgent extends BaseAgent { }
+class MyAgent extends BaseAgent {}
 // Agent works exactly as before
 ```
 
 ## Troubleshooting
 
 ### API not available
+
 ```typescript
 const healthy = await this.isThinkingAvailable();
 if (!healthy) {
@@ -281,6 +284,7 @@ if (!healthy) {
 ```
 
 ### Budget exhausted
+
 ```typescript
 const budget = this.getThinkingBudget();
 if (budget.remaining < estimatedCost) {
@@ -290,6 +294,7 @@ if (budget.remaining < estimatedCost) {
 ```
 
 ### Slow response
+
 - Use `depth: 'quick'` instead of `'deep'`
 - Consider caching results for similar queries
 - Implement timeout handling
@@ -297,9 +302,11 @@ if (budget.remaining < estimatedCost) {
 ## Learn More
 
 - **Full Guide**: `THINKING_MIGRATION_GUIDE.md`
-- **Examples**: `examples/thinking-integration-example.ts`
+- **Archived examples**:
+  `archive/2026-q1/package-demos/agent-core/examples/thinking-integration-example.ts`
 - **API Docs**: `server/routes/interleaved-thinking.ts`
 
 ---
 
-**Ready to integrate?** Just add `withThinking()` and start using `this.think()`!
+**Ready to integrate?** Just add `withThinking()` and start using
+`this.think()`!

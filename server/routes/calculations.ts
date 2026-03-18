@@ -5,7 +5,7 @@ import type { FundModelInputs, PeriodResult } from '@shared/schemas/fund-model';
 import { formatForCSV } from '@shared/lib/decimal-utils';
 // TODO: Issue #309 - Move fund-calc to shared package
 // For now, import from client (ESLint boundary violation - tracked for refactoring)
-// eslint-disable-next-line no-restricted-imports -- Issue #309 tracked for refactoring to shared package
+
 import { runFundModel } from '../../client/src/lib/fund-calc.js';
 
 const router = express.Router();
@@ -15,10 +15,7 @@ const router = express.Router();
  */
 function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'ZodError'
+    typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
 }
 
@@ -51,24 +48,26 @@ function convertToCSV(periodResults: PeriodResult[]): string {
     'nav',
     'tvpi',
     'dpi',
-    'irrAnnualized'
+    'irrAnnualized',
   ].join(',');
 
-  const rows = periodResults.map(period => [
-    period.periodIndex,
-    period.periodStart,
-    period.periodEnd,
-    formatForCSV(period.contributions, 'currency'),
-    formatForCSV(period.investments, 'currency'),
-    formatForCSV(period.managementFees, 'currency'),
-    formatForCSV(period.exitProceeds, 'currency'),
-    formatForCSV(period.distributions, 'currency'),
-    formatForCSV(period.unrealizedPnl, 'currency'),
-    formatForCSV(period.nav, 'currency'),
-    formatForCSV(period.tvpi, 'ratio'),
-    formatForCSV(period.dpi, 'ratio'),
-    formatForCSV(period.irrAnnualized, 'percent')
-  ].join(','));
+  const rows = periodResults.map((period) =>
+    [
+      period.periodIndex,
+      period.periodStart,
+      period.periodEnd,
+      formatForCSV(period.contributions, 'currency'),
+      formatForCSV(period.investments, 'currency'),
+      formatForCSV(period.managementFees, 'currency'),
+      formatForCSV(period.exitProceeds, 'currency'),
+      formatForCSV(period.distributions, 'currency'),
+      formatForCSV(period.unrealizedPnl, 'currency'),
+      formatForCSV(period.nav, 'currency'),
+      formatForCSV(period.tvpi, 'ratio'),
+      formatForCSV(period.dpi, 'ratio'),
+      formatForCSV(period.irrAnnualized, 'percent'),
+    ].join(',')
+  );
 
   return [headers, ...rows].join('\n');
 }
@@ -76,35 +75,35 @@ function convertToCSV(periodResults: PeriodResult[]): string {
 /**
  * POST /api/calculations/export-csv
  */
-router["post"]('/export-csv', async (req: Request, res: Response) => {
+router['post']('/export-csv', async (req: Request, res: Response) => {
   try {
     const inputs: FundModelInputs = FundModelInputsSchema.parse(req.body);
     const outputs = runFundModel(inputs);
     const csv = convertToCSV(outputs.periodResults);
 
-    res["setHeader"]('Content-Type', 'text/csv');
-    res["setHeader"]('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
-    res["status"](200)["send"](csv);
+    res['setHeader']('Content-Type', 'text/csv');
+    res['setHeader']('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
+    res['status'](200)['send'](csv);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
-        details: error.errors
+        details: error.errors,
       });
     }
 
     if (hasMessage(error) && error.message.includes('not yet implemented')) {
-      return res["status"](501)["json"]({
+      return res['status'](501)['json']({
         error: 'not_implemented',
-        message: error.message
+        message: error.message,
       });
     }
 
     console.error('CSV export error:', error);
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'internal_error',
-      message: 'Failed to generate CSV export'
+      message: 'Failed to generate CSV export',
     });
   }
 });
@@ -112,31 +111,31 @@ router["post"]('/export-csv', async (req: Request, res: Response) => {
 /**
  * POST /api/calculations/run
  */
-router["post"]('/run', async (req: Request, res: Response) => {
+router['post']('/run', async (req: Request, res: Response) => {
   try {
     const inputs: FundModelInputs = FundModelInputsSchema.parse(req.body);
     const outputs = runFundModel(inputs);
-    res["status"](200)["json"](outputs);
+    res['status'](200)['json'](outputs);
   } catch (error: unknown) {
     if (isZodError(error)) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
-        details: error.errors
+        details: error.errors,
       });
     }
 
     if (hasMessage(error) && error.message.includes('not yet implemented')) {
-      return res["status"](501)["json"]({
+      return res['status'](501)['json']({
         error: 'not_implemented',
-        message: error.message
+        message: error.message,
       });
     }
 
     console.error('Fund calculation error:', error);
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'internal_error',
-      message: 'Failed to run fund model'
+      message: 'Failed to run fund model',
     });
   }
 });
