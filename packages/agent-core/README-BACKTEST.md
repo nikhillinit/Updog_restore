@@ -59,6 +59,7 @@ console.log(summary);
 ### Pattern Analysis
 
 Evaluate 4 agent patterns:
+
 - **Evaluator-Optimizer**: Self-improving with quality feedback
 - **Router**: Intelligent AI model selection
 - **Orchestrator**: Complex task decomposition
@@ -67,6 +68,7 @@ Evaluate 4 agent patterns:
 ### Visualizations
 
 Pre-formatted chart data for:
+
 - Success rate by pattern (bar chart)
 - Cost savings over time (line chart)
 - Quality score distribution (histogram)
@@ -142,8 +144,8 @@ annualizedROI = (netProfit / developmentCost) × 100
 ### Break-Even
 
 ```typescript
-averageSavingsPerCase = totalSavings / totalCases
-breakEvenCases = developmentCost / averageSavingsPerCase
+averageSavingsPerCase = totalSavings / totalCases;
+breakEvenCases = developmentCost / averageSavingsPerCase;
 ```
 
 ## Chart Integration
@@ -276,14 +278,14 @@ interface BacktestReport {
 
 ## Examples
 
-Run the example script:
+Archived example reference:
 
 ```bash
-cd packages/agent-core
-npx tsx examples/backtest-example.ts
+archive/2026-q1/package-demos/agent-core/examples/backtest-example.ts
 ```
 
 This will:
+
 1. Generate 25 sample backtest cases
 2. Create comprehensive report
 3. Display all output formats
@@ -294,8 +296,10 @@ This will:
 
 - [Full Documentation](./docs/backtest-reporting.md) - Complete guide
 - [Chart Integration](./docs/chart-integration.md) - Visualization examples
-- [Example Report](./examples/sample-backtest-report.md) - Sample markdown output
-- [Example Summary](./examples/sample-executive-summary.txt) - Sample text output
+- [Example Report](./examples/sample-backtest-report.md) - Sample markdown
+  output
+- [Example Summary](./examples/sample-executive-summary.txt) - Sample text
+  output
 
 ## Use Cases
 
@@ -327,8 +331,8 @@ await sendEmail({
   subject: 'Agent Performance Report - January 2025',
   body: reporter.generateExecutiveSummary(report),
   attachments: [
-    { filename: 'report.json', content: reporter.generateJSONReport(report) }
-  ]
+    { filename: 'report.json', content: reporter.generateJSONReport(report) },
+  ],
 });
 ```
 

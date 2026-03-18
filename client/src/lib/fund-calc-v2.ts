@@ -16,11 +16,18 @@
  * - Exit proceeds recycling
  */
 
-import { Decimal } from 'decimal.js';
-import type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';
+import { Decimal } from '@shared/lib/decimal-config';
+import type {
+  ExtendedFundModelInputs,
+  SimulationResult,
+} from '@shared/schemas/extended-fund-model';
 import { calculateManagementFees, type FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateCapitalCall } from '@shared/schemas/capital-call-policy';
-import { calculateRecyclingAvailability, shouldRecycleNow, type RecyclingContext } from '@shared/schemas/recycling-policy';
+import {
+  calculateRecyclingAvailability,
+  shouldRecycleNow,
+  type RecyclingContext,
+} from '@shared/schemas/recycling-policy';
 
 /**
  * Company record in the portfolio
@@ -91,7 +98,7 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
     companies: [],
     activeCompanies: 0,
     exitedCompanies: 0,
-    failedCompanies: 0
+    failedCompanies: 0,
   };
 
   // Deploy companies using StageProfile
@@ -106,7 +113,8 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
   const periods: SimulationResult['periods'] = [];
   const maxMonths = inputs.fundTermMonths;
 
-  for (let month = 0; month <= maxMonths; month += 3) { // TODO: Make period length configurable
+  for (let month = 0; month <= maxMonths; month += 3) {
+    // TODO: Make period length configurable
     state.period = Math.floor(month / 3);
     state.month = month;
 
@@ -128,7 +136,7 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
     moic: finalPeriod.tvpi, // MOIC ≈ TVPI for simple cases
     totalExitValue: state.exitProceeds,
     totalDistributed: state.distributionsToLPs.plus(state.distributionsToGP),
-    fundLifetimeMonths: inputs.fundTermMonths
+    fundLifetimeMonths: inputs.fundTermMonths,
   };
 
   return {
@@ -139,8 +147,8 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
       modelVersion: 'v2.0.0',
       engineVersion: 'deterministic-cohort-v2',
       computedAt: new Date(),
-      computationTimeMs: 0 // TODO: Add timing
-    }
+      computationTimeMs: 0, // TODO: Add timing
+    },
   };
 }
 
@@ -173,7 +181,7 @@ function deployCompaniesV2(inputs: ExtendedFundModelInputs, state: FundState): v
         ownershipPct: stage.roundSize.div(stage.postMoneyValuation),
         exitMonth: null,
         exitValue: new Decimal(0),
-        exitPeriod: null
+        exitPeriod: null,
       };
 
       companies.push(company);
@@ -191,7 +199,7 @@ function deployCompaniesV2(inputs: ExtendedFundModelInputs, state: FundState): v
         ownershipPct: stage.roundSize.div(stage.postMoneyValuation).times(fractional),
         exitMonth: null,
         exitValue: new Decimal(0),
-        exitPeriod: null
+        exitPeriod: null,
       };
 
       companies.push(company);
@@ -230,7 +238,7 @@ function simulatePeriodV2(
     investedCapital: state.investedCapital,
     fairMarketValue: calculatePortfolioFMV(state.companies, inputs), // TODO: Implement FMV
     unrealizedCost: state.investedCapital.minus(state.exitProceeds),
-    currentMonth
+    currentMonth,
   };
 
   const periodFees = calculateManagementFees(inputs.feeProfile, feeContext);
@@ -240,11 +248,11 @@ function simulatePeriodV2(
   // 3. Process Exits
   let periodExitProceeds = new Decimal(0);
 
-  state.companies.forEach(company => {
+  state.companies.forEach((company) => {
     if (company.exitMonth !== null) return; // Already exited
 
     // Find stage definition
-    const stageDef = inputs.stageProfile.stages.find(s => s.stage === company.stage);
+    const stageDef = inputs.stageProfile.stages.find((s) => s.stage === company.stage);
     if (!stageDef) return;
 
     // Check if company exits this period
@@ -291,7 +299,7 @@ function simulatePeriodV2(
       totalExitProceeds: state.exitProceeds,
       totalRecycled: state.recycledFromFees.plus(state.recycledFromProceeds),
       recycledFromFees: state.recycledFromFees,
-      recycledFromProceeds: state.recycledFromProceeds
+      recycledFromProceeds: state.recycledFromProceeds,
     };
 
     const availability = calculateRecyclingAvailability(inputs.recyclingPolicy, recyclingContext);
@@ -306,7 +314,7 @@ function simulatePeriodV2(
 
   // 6. Calculate NAV
   const activeInvestments = state.companies
-    .filter(c => c.exitMonth === null)
+    .filter((c) => c.exitMonth === null)
     .reduce((sum, c) => sum.plus(c.totalInvested), new Decimal(0));
 
   const nav = activeInvestments.plus(state.uninvestedCash);
@@ -337,7 +345,7 @@ function simulatePeriodV2(
     irr: undefined, // TODO: Calculate IRR
     activeCompanies: state.activeCompanies,
     exitedCompanies: state.exitedCompanies,
-    failedCompanies: state.failedCompanies
+    failedCompanies: state.failedCompanies,
   };
 }
 
@@ -347,6 +355,6 @@ function simulatePeriodV2(
  */
 function calculatePortfolioFMV(companies: Company[], inputs: ExtendedFundModelInputs): Decimal {
   return companies
-    .filter(c => c.exitMonth === null)
+    .filter((c) => c.exitMonth === null)
     .reduce((sum, c) => sum.plus(c.totalInvested), new Decimal(0));
 }

@@ -9,7 +9,7 @@ import {
   BacktestReporter,
   BacktestCase,
   BacktestReport,
-  AgentPattern
+  AgentPattern,
 } from '@agent-core';
 ```
 
@@ -25,13 +25,13 @@ const cases: BacktestCase[] = [
     complexity: 6,
     description: 'Fix type mismatch',
     humanTimeMinutes: 45,
-    humanCostUSD: 112.50,
+    humanCostUSD: 112.5,
     agentPattern: 'evaluator-optimizer',
     agentTimeMinutes: 8,
-    agentCostUSD: 2.40,
+    agentCostUSD: 2.4,
     success: true,
-    qualityScore: 92
-  }
+    qualityScore: 92,
+  },
 ];
 
 // 2. Generate report
@@ -46,12 +46,12 @@ const summary = reporter.generateExecutiveSummary(report);
 
 ## Agent Patterns
 
-| Pattern | Use Case | Strengths |
-|---------|----------|-----------|
+| Pattern               | Use Case             | Strengths              |
+| --------------------- | -------------------- | ---------------------- |
 | `evaluator-optimizer` | Self-improving tasks | Quality feedback loops |
-| `router` | Model selection | Cost optimization |
-| `orchestrator` | Complex tasks | Parallel execution |
-| `prompt-cache` | Repetitive tasks | Fast execution |
+| `router`              | Model selection      | Cost optimization      |
+| `orchestrator`        | Complex tasks        | Parallel execution     |
+| `prompt-cache`        | Repetitive tasks     | Fast execution         |
 
 ## Task Types
 
@@ -73,12 +73,12 @@ type TaskType =
 ## Key Metrics
 
 ```typescript
-report.summary.successRate          // % successful
-report.summary.avgQualityScore      // 0-100
-report.summary.avgSpeedup           // vs human
-report.summary.totalCostSavingsUSD  // $$$
-report.summary.annualizedROI        // %
-report.summary.breakEvenCases       // cases to ROI
+report.summary.successRate; // % successful
+report.summary.avgQualityScore; // 0-100
+report.summary.avgSpeedup; // vs human
+report.summary.totalCostSavingsUSD; // $$$
+report.summary.annualizedROI; // %
+report.summary.breakEvenCases; // cases to ROI
 ```
 
 ## Pattern Analysis
@@ -99,19 +99,19 @@ console.log(routerMetrics.routingAccuracy); // % accurate routes
 
 ```typescript
 // Bar chart - Success rate by pattern
-report.charts.successRateByPattern.data
+report.charts.successRateByPattern.data;
 // → [{ label: 'Router', value: 88.5 }, ...]
 
 // Line chart - Cost savings over time
-report.charts.costSavingsOverTime.series[0].data
+report.charts.costSavingsOverTime.series[0].data;
 // → [{ x: '2025-W01', y: 450.00 }, ...]
 
 // Histogram - Quality distribution
-report.charts.qualityDistribution.bins
+report.charts.qualityDistribution.bins;
 // → [{ range: '80-100', count: 18 }, ...]
 
 // Pie chart - Pattern usage
-report.charts.patternUsage.data
+report.charts.patternUsage.data;
 // → [{ label: 'Router', value: 8, percentage: 32 }, ...]
 ```
 
@@ -137,6 +137,7 @@ breakEvenCases = developmentCost / averageSavingsPerCase
 ## Output Formats
 
 ### Markdown
+
 ```typescript
 const md = reporter.generateMarkdownReport(report);
 fs.writeFileSync('report.md', md);
@@ -144,6 +145,7 @@ fs.writeFileSync('report.md', md);
 ```
 
 ### JSON
+
 ```typescript
 const json = reporter.generateJSONReport(report);
 fs.writeFileSync('report.json', json);
@@ -151,6 +153,7 @@ fs.writeFileSync('report.json', json);
 ```
 
 ### Executive Summary
+
 ```typescript
 const summary = reporter.generateExecutiveSummary(report);
 console.log(summary);
@@ -204,16 +207,17 @@ report.recommendations.forEach((rec, i) => {
 
 ## Target Metrics
 
-| Metric | Target | Excellent | Critical |
-|--------|--------|-----------|----------|
-| Success Rate | >80% | >90% | <70% |
-| Quality | >75 | >85 | <65 |
-| Speedup | >3x | >5x | <2x |
-| ROI | >200% | >400% | <100% |
+| Metric       | Target | Excellent | Critical |
+| ------------ | ------ | --------- | -------- |
+| Success Rate | >80%   | >90%      | <70%     |
+| Quality      | >75    | >85       | <65      |
+| Speedup      | >3x    | >5x       | <2x      |
+| ROI          | >200%  | >400%     | <100%    |
 
 ## Common Patterns
 
 ### Weekly Report
+
 ```typescript
 const cases = await fetchLastWeekCases();
 const report = reporter.generateReport(cases, TOTAL_DEV_HOURS);
@@ -221,6 +225,7 @@ await postToSlack(reporter.generateExecutiveSummary(report));
 ```
 
 ### Dashboard
+
 ```typescript
 const { data: report } = useQuery({
   queryKey: ['backtest-report'],
@@ -228,37 +233,42 @@ const { data: report } = useQuery({
     const cases = await fetchLatestCases();
     return reporter.generateReport(cases, DEV_HOURS);
   },
-  refetchInterval: 60000
+  refetchInterval: 60000,
 });
 ```
 
 ### Email
+
 ```typescript
 await sendEmail({
   to: 'stakeholders@company.com',
   subject: 'Agent Report - January 2025',
-  body: reporter.generateExecutiveSummary(report)
+  body: reporter.generateExecutiveSummary(report),
 });
 ```
 
 ## Troubleshooting
 
 ### Low Success Rate
+
 - Review `report.patternAnalysis[pattern].failureReasons`
 - Check task complexity distribution
 - Improve error handling in agents
 
 ### Low Quality
+
 - Add evaluator-optimizer pattern
 - Enhance validation
 - Get code review feedback
 
 ### Poor ROI
+
 - Reduce development time (reuse patterns)
 - Lower agent costs (caching, cheaper models)
 - Increase case volume
 
 ### Low Speedup
+
 - Optimize agent execution
 - Use faster models
 - Implement prompt caching
@@ -284,10 +294,7 @@ async function generateBacktestReport() {
     reporter.generateMarkdownReport(report)
   );
 
-  fs.writeFileSync(
-    'backtest-report.json',
-    reporter.generateJSONReport(report)
-  );
+  fs.writeFileSync('backtest-report.json', reporter.generateJSONReport(report));
 
   // Print summary
   console.log(reporter.generateExecutiveSummary(report));
@@ -306,7 +313,8 @@ async function generateBacktestReport() {
 - `src/BacktestReporter.ts` - Main implementation
 - `docs/backtest-reporting.md` - Full documentation
 - `docs/chart-integration.md` - Visualization examples
-- `examples/backtest-example.ts` - Working example
+- `archive/2026-q1/package-demos/agent-core/examples/backtest-example.ts` -
+  Archived reference example
 - `README-BACKTEST.md` - Complete guide
 
 ## Links
@@ -314,4 +322,4 @@ async function generateBacktestReport() {
 - [Full Documentation](./backtest-reporting.md)
 - [Chart Examples](./chart-integration.md)
 - [Sample Report](../examples/sample-backtest-report.md)
-- [Run Example](../examples/backtest-example.ts)
+- `archive/2026-q1/package-demos/agent-core/examples/backtest-example.ts`

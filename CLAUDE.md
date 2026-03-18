@@ -263,3 +263,43 @@ reference only.
 
 - All 30 cheatsheets organized by category:
   [cheatsheets/INDEX.md](cheatsheets/INDEX.md)
+
+## Babysitter Orchestration
+
+**Profile**: `.a5c/project-profile.json` | **Autonomy**: Semi-autonomous |
+**Methodology**: TDD quality convergence with iterative refinement
+
+### Quick Commands
+
+- `/babysitter:babysit` - Start an orchestrated babysitter run (interactive
+  process selection)
+- `/babysitter:plan` - Plan a babysitter run without executing
+- `/babysitter:resume` - Resume an existing babysitter run
+- `/babysitter:doctor` - Diagnose babysitter run health
+
+### Installed Processes
+
+| Process                     | Description                                       |
+| --------------------------- | ------------------------------------------------- |
+| `gsd/execute`               | Primary workflow for implementing features        |
+| `gsd/verify`                | Post-implementation verification with truth cases |
+| `gsd/plan`                  | Planning and architecture design                  |
+| `gsd/iterative-convergence` | Systematic improvement loops (lint debt, tests)   |
+| `gsd/audit`                 | Codebase audit and quality assessment             |
+| `cradle/project-install`    | Project onboarding and profile management         |
+
+### Recommended Agents
+
+- `code-reviewer` - AI-assisted code review (solo developer workflow)
+- `test-repair` - Autonomous test failure detection and repair
+- `waterfall-specialist` - Waterfall/carry distribution calculations
+- `phoenix-precision-guardian` - Numeric precision in financial calculations
+- `debug-expert` - Complex debugging and root cause analysis
+
+### Project Conventions (Babysitter-Enforced)
+
+- Phoenix truth cases (107/107) must pass before merging calculation changes
+- Pre-push baseline check compiles client/server/shared separately
+- TZ=UTC required for all test runs
+- No emoji in code, docs, or logs
+- Conventional commits (feat:, fix:, refactor:, chore:, docs:, test:)

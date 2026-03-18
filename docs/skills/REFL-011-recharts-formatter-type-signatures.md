@@ -18,26 +18,36 @@ superseded_by: null
 
 ## 1. The Anti-Pattern (The Trap)
 
-**Context:** Recharts Tooltip and Legend components accept formatter callbacks where the `name` parameter can be `undefined` in certain edge cases, but TypeScript defaults suggest it's always a string.
+**Context:** Recharts Tooltip and Legend components accept formatter callbacks
+where the `name` parameter can be `undefined` in certain edge cases, but
+TypeScript defaults suggest it's always a string.
 
 **How to Recognize This Trap:**
-1.  **Error Signal:** `TS2345: Argument of type '(name: string) => string' is not assignable to parameter of type '(name: string | undefined) => string'`
-2.  **Code Pattern:** Using strict `(name: string)` signature for Recharts formatter callbacks:
+
+1.  **Error Signal:**
+    `TS2345: Argument of type '(name: string) => string' is not assignable to parameter of type '(name: string | undefined) => string'`
+2.  **Code Pattern:** Using strict `(name: string)` signature for Recharts
+    formatter callbacks:
     ```typescript
     // ANTI-PATTERN
     <Tooltip formatter={(value, name: string) => formatLabel(name)} />
     ```
-3.  **Mental Model:** Assuming Recharts always provides defined values for all callback parameters. In reality, `name` can be `undefined` when data series lack explicit names.
+3.  **Mental Model:** Assuming Recharts always provides defined values for all
+    callback parameters. In reality, `name` can be `undefined` when data series
+    lack explicit names.
 
-**Financial Impact:** TypeScript errors block builds, causing CI failures and delaying deployments of otherwise valid code changes.
+**Financial Impact:** TypeScript errors block builds, causing CI failures and
+delaying deployments of otherwise valid code changes.
 
 > **DANGER:** Do NOT assume Recharts callback parameters are always defined.
 
 ## 2. The Verified Fix (The Principle)
 
-**Principle:** Match callback signatures to actual Recharts types - always account for optional parameters.
+**Principle:** Match callback signatures to actual Recharts types - always
+account for optional parameters.
 
 **Implementation Pattern:**
+
 1.  Use `string | undefined` for `name` parameter in formatters
 2.  Provide fallback value when `name` is undefined
 3.  Consider using type assertions only as last resort
@@ -69,8 +79,36 @@ const CustomTooltip: TooltipProps['formatter'] = (value, name) => {
 />
 ```
 
+### Value Parameter Pattern (added 2026-03-17)
+
+When the `name` parameter is unused, drop it entirely and type `value` directly:
+
+```typescript
+// ANTI-PATTERN: (value: any, _name: any) => ...
+<Tooltip formatter={(value: any, _name: any) => formatCurrency(value)} />
+
+// FIX: Drop unused params, type value explicitly
+<Tooltip formatter={(value: number) => formatCurrency(value)} />
+```
+
+This eliminates both `no-unsafe-member-access` and `no-explicit-any` warnings.
+The same pattern applies to `Select` `onValueChange` handlers:
+
+```typescript
+// ANTI-PATTERN
+<Select onValueChange={(value: any) => setMetric(value)} />
+
+// FIX
+<Select onValueChange={(value: string) => setMetric(value as MetricType)} />
+```
+
 ## 3. Evidence
 
-*   **Test Coverage:** `tests/regressions/REFL-011.test.ts` validates formatter type signatures
-*   **Source Session:** Jan 8-18 2026 - TypeScript error reduction campaign (119 → 21 errors)
-*   **Files Affected:** Multiple chart components using Recharts Tooltip/Legend formatters
+- **Test Coverage:** `tests/regressions/REFL-011.test.ts` validates formatter
+  type signatures
+- **Source Sessions:**
+  - Jan 8-18 2026 - TypeScript error reduction campaign (119 -> 21 errors)
+  - Mar 17 2026 - Tech debt reduction (tag-performance-analysis.tsx, 4
+    formatters fixed)
+- **Files Affected:** Multiple chart components using Recharts Tooltip/Legend
+  formatters

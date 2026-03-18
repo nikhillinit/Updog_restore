@@ -660,7 +660,8 @@ Overrides)
 
 - `NATIVE-MEMORY-INTEGRATION.md` - Complete integration guide
 - `MIGRATION-NATIVE-MEMORY.md` - Migration from Redis-only
-- `packages/agent-core/demo-native-memory.ts` - Working examples
+- `archive/2026-q1/package-demos/agent-core/demo-native-memory.ts` - Archived
+  reference examples
 - `cheatsheets/agent-memory-integration.md` - Step-by-step enablement guide
 
 ### Project Memory
@@ -1106,7 +1107,8 @@ complete):
 
 - Quick Start: `packages/agent-core/THINKING_QUICK_START.md`
 - Migration Guide: `packages/agent-core/THINKING_MIGRATION_GUIDE.md`
-- Examples: `packages/agent-core/examples/thinking-integration-example.ts`
+- Archived examples:
+  `archive/2026-q1/package-demos/agent-core/examples/thinking-integration-example.ts`
 - Tests: `packages/agent-core/src/__tests__/ThinkingMixin.test.ts`
 
 **Check Readiness**: `node scripts/check-thinking-migration-readiness.mjs`

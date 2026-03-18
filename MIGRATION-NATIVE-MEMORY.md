@@ -5,13 +5,13 @@ last_updated: 2026-01-19
 
 # Migration Guide: Native Memory Tool Integration
 
-**Version**: 1.0.0
-**Date**: 2025-11-05
-**Author**: Claude (Sonnet 4.5)
+**Version**: 1.0.0 **Date**: 2025-11-05 **Author**: Claude (Sonnet 4.5)
 
 ## Overview
 
-This guide helps you migrate from the existing Redis-only conversation memory system to the new hybrid memory system with Claude's native memory tool and cross-conversation pattern learning.
+This guide helps you migrate from the existing Redis-only conversation memory
+system to the new hybrid memory system with Claude's native memory tool and
+cross-conversation pattern learning.
 
 ## What's Changing
 
@@ -21,15 +21,16 @@ This guide helps you migrate from the existing Redis-only conversation memory sy
 // Old system
 const agent = new MyAgent({
   name: 'my-agent',
-  enableConversationMemory: true,  // Redis only
+  enableConversationMemory: true, // Redis only
 });
 
 await agent.execute(input, 'operation', {
-  continuationId: threadId,  // Session memory
+  continuationId: threadId, // Session memory
 });
 ```
 
 **Limitations:**
+
 - ❌ No cross-session learning
 - ❌ No pattern persistence
 - ❌ Manual context truncation
@@ -41,19 +42,20 @@ await agent.execute(input, 'operation', {
 // New system (backward compatible!)
 const agent = new MyAgent({
   name: 'my-agent',
-  enableConversationMemory: true,   // Existing feature (still works)
-  enableNativeMemory: true,          // NEW: Claude's memory tool
-  enablePatternLearning: true,       // NEW: Cross-session learning
-  tenantId: 'user:project',          // NEW: Multi-tenant isolation
+  enableConversationMemory: true, // Existing feature (still works)
+  enableNativeMemory: true, // NEW: Claude's memory tool
+  enablePatternLearning: true, // NEW: Cross-session learning
+  tenantId: 'user:project', // NEW: Multi-tenant isolation
 });
 
 await agent.execute(input, 'operation', {
   continuationId: threadId,
-  tenantId: 'user:project',          // NEW: Explicit tenant
+  tenantId: 'user:project', // NEW: Explicit tenant
 });
 ```
 
 **Benefits:**
+
 - ✅ Cross-session learning (patterns persist)
 - ✅ Automatic context management
 - ✅ Multi-tenant isolation
@@ -86,6 +88,7 @@ const agent = new MyAgent({
 **Action**: Add `enableNativeMemory: true`
 
 **Changes Required**:
+
 1. Update agent config
 2. Set `ENABLE_NATIVE_MEMORY=true` in `.env`
 3. No code changes needed
@@ -98,7 +101,8 @@ const agent = new MyAgent({
 });
 ```
 
-**Impact**: Memory operations now use Claude's native tool (slower writes, persistent reads)
+**Impact**: Memory operations now use Claude's native tool (slower writes,
+persistent reads)
 
 ---
 
@@ -111,6 +115,7 @@ const agent = new MyAgent({
 **Changes Required**:
 
 1. **Update Agent Config**:
+
 ```diff
 const agent = new MyAgent({
   name: 'my-agent',
@@ -122,6 +127,7 @@ const agent = new MyAgent({
 ```
 
 2. **Update Environment Variables**:
+
 ```bash
 # .env
 ENABLE_NATIVE_MEMORY=true
@@ -130,6 +136,7 @@ DEFAULT_TENANT_ID=default
 ```
 
 3. **Update Execution Calls** (if using multi-tenancy):
+
 ```diff
 await agent.execute(input, 'operation', {
   continuationId: threadId,
@@ -138,13 +145,11 @@ await agent.execute(input, 'operation', {
 ```
 
 4. **Initialize Pattern Learning** (optional - for manual pattern management):
+
 ```typescript
 import { PatternLearningEngine, getStorage } from '@agent-core';
 
-const patternEngine = new PatternLearningEngine(
-  getStorage(),
-  'user:project'
-);
+const patternEngine = new PatternLearningEngine(getStorage(), 'user:project');
 
 // Record patterns manually
 await patternEngine.recordPattern(result, context);
@@ -162,11 +167,13 @@ const patterns = await patternEngine.getRelevantPatterns({
 
 ### Step 1: Install Dependencies (if needed)
 
-No new dependencies required! All components are already included in `@agent-core`.
+No new dependencies required! All components are already included in
+`@agent-core`.
 
 ### Step 2: Update Configuration
 
 **Option A: Environment Variables**
+
 ```bash
 # .env
 ENABLE_NATIVE_MEMORY=true
@@ -175,6 +182,7 @@ ENABLE_PATTERN_LEARNING=true
 ```
 
 **Option B: Agent Config**
+
 ```typescript
 const agent = new MyAgent({
   enableNativeMemory: process.env.ENABLE_NATIVE_MEMORY === 'true',
@@ -220,6 +228,7 @@ npm test
 ```
 
 If any fail, check:
+
 1. Agent config is correct
 2. Environment variables are set
 3. Tenant context is properly initialized
@@ -250,6 +259,7 @@ bus.on('pattern_learned', (event) => {
 ### Scenario 1: Single-User Application
 
 **Before:**
+
 ```typescript
 const agent = new TestRepairAgent({
   name: 'test-repair',
@@ -258,12 +268,13 @@ const agent = new TestRepairAgent({
 ```
 
 **After:**
+
 ```typescript
 const agent = new TestRepairAgent({
   name: 'test-repair',
   enableConversationMemory: true,
-  enablePatternLearning: true,  // Learn from past repairs
-  tenantId: 'single-user',       // Fixed tenant ID
+  enablePatternLearning: true, // Learn from past repairs
+  tenantId: 'single-user', // Fixed tenant ID
 });
 ```
 
@@ -272,6 +283,7 @@ const agent = new TestRepairAgent({
 ### Scenario 2: Multi-Tenant SaaS
 
 **Before:**
+
 ```typescript
 function createAgent(userId: string) {
   return new MyAgent({
@@ -282,6 +294,7 @@ function createAgent(userId: string) {
 ```
 
 **After:**
+
 ```typescript
 function createAgent(userId: string, projectId: string) {
   return new MyAgent({
@@ -289,7 +302,7 @@ function createAgent(userId: string, projectId: string) {
     enableConversationMemory: true,
     enableNativeMemory: true,
     enablePatternLearning: true,
-    tenantId: `${userId}:${projectId}`,  // Composite tenant ID
+    tenantId: `${userId}:${projectId}`, // Composite tenant ID
   });
 }
 
@@ -302,6 +315,7 @@ const agent = createAgent('user123', 'project456');
 ### Scenario 3: Express Middleware
 
 **Before:**
+
 ```typescript
 app.use((req, res, next) => {
   req.agent = new MyAgent({
@@ -313,6 +327,7 @@ app.use((req, res, next) => {
 ```
 
 **After:**
+
 ```typescript
 import { TenantContextProvider } from '@agent-core';
 
@@ -369,21 +384,21 @@ If you added tenant context or pattern learning code:
 
 ### Memory Usage
 
-| Component | Before | After | Change |
-|-----------|--------|-------|--------|
-| Redis | ~50KB/thread | ~50KB/thread | No change |
-| Native Memory | N/A | ~10KB/pattern | New |
-| Pattern Storage | N/A | ~5KB/pattern | New |
-| **Total** | ~50KB | ~65KB | +30% |
+| Component       | Before       | After         | Change    |
+| --------------- | ------------ | ------------- | --------- |
+| Redis           | ~50KB/thread | ~50KB/thread  | No change |
+| Native Memory   | N/A          | ~10KB/pattern | New       |
+| Pattern Storage | N/A          | ~5KB/pattern  | New       |
+| **Total**       | ~50KB        | ~65KB         | +30%      |
 
 ### Latency
 
-| Operation | Before | After | Change |
-|-----------|--------|-------|--------|
-| Cache hit | ~1ms | ~1ms | No change |
-| Cache miss | ~50ms | ~50ms | No change |
-| Pattern retrieval | N/A | ~10-30ms | New |
-| Memory tool use | N/A | ~100-200ms | New |
+| Operation         | Before | After      | Change    |
+| ----------------- | ------ | ---------- | --------- |
+| Cache hit         | ~1ms   | ~1ms       | No change |
+| Cache miss        | ~50ms  | ~50ms      | No change |
+| Pattern retrieval | N/A    | ~10-30ms   | New       |
+| Memory tool use   | N/A    | ~100-200ms | New       |
 
 ### Token Usage
 
@@ -402,10 +417,11 @@ With context clearing enabled:
 **Symptom**: Memory operations don't persist
 
 **Solution**:
+
 ```typescript
 // Check configuration
 const response = await askClaude(prompt, {
-  enableMemory: true,  // ← Must be true
+  enableMemory: true, // ← Must be true
   tenantId: 'user:project',
 });
 
@@ -418,11 +434,12 @@ console.log('ENABLE_NATIVE_MEMORY:', process.env.ENABLE_NATIVE_MEMORY);
 **Symptom**: Patterns aren't being recorded
 
 **Solution**:
+
 ```typescript
 // Ensure pattern learning is enabled
 const agent = new MyAgent({
-  enablePatternLearning: true,  // ← Must be true
-  tenantId: 'user:project',     // ← Must be set
+  enablePatternLearning: true, // ← Must be true
+  tenantId: 'user:project', // ← Must be set
 });
 
 // Check storage implementation
@@ -435,13 +452,14 @@ console.log('Storage type:', storage.constructor.name);
 **Symptom**: Users see each other's data
 
 **Solution**:
+
 ```typescript
 // Verify tenant context is set
 await TenantContextProvider.run(
   {
-    tenantId: 'user:project',  // ← Must be unique per user+project
+    tenantId: 'user:project', // ← Must be unique per user+project
     permissions: {
-      canAccessGlobalMemory: false,  // ← Restrict global access
+      canAccessGlobalMemory: false, // ← Restrict global access
     },
   },
   async () => {
@@ -457,16 +475,17 @@ await TenantContextProvider.run(
 **Symptom**: Token costs increased
 
 **Solution**:
+
 ```typescript
 // Enable context clearing
 const response = await askClaude(prompt, {
-  enableContextClearing: true,  // ← Automatic cleanup
+  enableContextClearing: true, // ← Automatic cleanup
 });
 
 // Adjust budget allocation
 const budget = new TokenBudgetManager(8192, {
-  memoryRetrievalPercent: 0.10,  // ← Reduce from 15%
-  patternContextPercent: 0.05,   // ← Reduce from 10%
+  memoryRetrievalPercent: 0.1, // ← Reduce from 15%
+  patternContextPercent: 0.05, // ← Reduce from 10%
 });
 ```
 
@@ -491,8 +510,10 @@ Before deploying to production:
 
 ### Documentation
 
-- [NATIVE-MEMORY-INTEGRATION.md](./NATIVE-MEMORY-INTEGRATION.md) - Complete integration guide
-- [packages/agent-core/demo-native-memory.ts](./packages/agent-core/demo-native-memory.ts) - Working examples
+- [NATIVE-MEMORY-INTEGRATION.md](./NATIVE-MEMORY-INTEGRATION.md) - Complete
+  integration guide
+- `archive/2026-q1/package-demos/agent-core/demo-native-memory.ts` - Archived
+  reference examples
 - [CHANGELOG.md](./CHANGELOG.md) - Recent changes
 
 ### Code Examples
@@ -505,7 +526,8 @@ Before deploying to production:
 ### Support
 
 - Check [TROUBLESHOOTING](#troubleshooting) section above
-- Run demo: `npx ts-node packages/agent-core/demo-native-memory.ts`
+- Archived demo reference:
+  `archive/2026-q1/package-demos/agent-core/demo-native-memory.ts`
 - Review test examples: `packages/agent-core/src/__tests__/`
 
 ---
@@ -537,9 +559,9 @@ npm run build && npm start
 4. Run tests and fix issues (5 min)
 5. Monitor performance and rollback if needed (5 min)
 
-**Recommendation**: Start with Path 2 (native memory only), then upgrade to Path 3 (full pattern learning) once comfortable.
+**Recommendation**: Start with Path 2 (native memory only), then upgrade to Path
+3 (full pattern learning) once comfortable.
 
 ---
 
-**Last Updated**: 2025-11-05
-**Migration Support**: Available until 2026-01-01
+**Last Updated**: 2025-11-05 **Migration Support**: Available until 2026-01-01

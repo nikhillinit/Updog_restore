@@ -1,6 +1,7 @@
 # Backtest Reporting System Architecture
 
-Visual architecture and data flow for the comprehensive backtest reporting system.
+Visual architecture and data flow for the comprehensive backtest reporting
+system.
 
 ## System Overview
 
@@ -445,7 +446,7 @@ packages/agent-core/
 │   └── chart-integration.md       (16KB - Chart examples)
 │
 ├── examples/
-│   ├── backtest-example.ts        (14KB - Working example)
+│   ├── archive/2026-q1/package-demos/agent-core/examples/backtest-example.ts
 │   ├── sample-backtest-report.md  (4KB - Sample output)
 │   └── sample-executive-summary.txt (1.4KB - Sample summary)
 │
@@ -560,13 +561,10 @@ Add Custom Recommendations:
 
 The Backtest Reporting System provides:
 
-✅ **Modular Architecture** - Clean separation of concerns
-✅ **Type Safety** - Full TypeScript coverage
-✅ **Extensibility** - Easy to add features
-✅ **Performance** - Fast processing (<50ms typical)
-✅ **Scalability** - Handles 10,000+ cases
-✅ **Multiple Outputs** - 4 formats for different audiences
-✅ **Rich Visualizations** - 6 chart types
-✅ **Business Value** - ROI and cost analysis
-✅ **Error Handling** - Graceful degradation
-✅ **Documentation** - Comprehensive guides
+✅ **Modular Architecture** - Clean separation of concerns ✅ **Type Safety** -
+Full TypeScript coverage ✅ **Extensibility** - Easy to add features ✅
+**Performance** - Fast processing (<50ms typical) ✅ **Scalability** - Handles
+10,000+ cases ✅ **Multiple Outputs** - 4 formats for different audiences ✅
+**Rich Visualizations** - 6 chart types ✅ **Business Value** - ROI and cost
+analysis ✅ **Error Handling** - Graceful degradation ✅ **Documentation** -
+Comprehensive guides

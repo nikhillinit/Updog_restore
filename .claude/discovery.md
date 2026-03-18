@@ -1,11 +1,13 @@
 # DISCOVERY (auto-generated)
 
-**Confidence:** HIGH **Triggered at:** 2026-02-19 22:15:27
+**Confidence:** HIGH **Triggered at:** 2026-03-18 18:22:05
 
 ## Recommended for this task:
 
 - [DOC] SECURITY.md
-- [COMMAND] /session-start
-- [COMMAND] /session-learnings
+- [COMMAND] /pre-commit-check
+- [CHEATSHEET] cheatsheets/memory-commit-strategy.md
+- [SKILL] writing-plans
+- [SKILL] task_plan
 
 Use these before implementing from scratch.
