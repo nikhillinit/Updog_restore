@@ -18,6 +18,12 @@ import {
 } from './exit-recycling-adapter';
 import exitCases from '../../../docs/exit-recycling.truth-cases.json';
 
+function logExitRecyclingTruthCase(...args: unknown[]): void {
+  if (process.env.EXIT_RECYCLING_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 /**
  * Cast imported JSON to typed array
  */
@@ -194,8 +200,8 @@ describe('Exit Recycling Core Calculations', () => {
     if (!result.schedule) return;
 
     // Verify recycling calculations
-    console.log(`ER-004 totalRecycled: ${result.schedule.totalRecycled}`);
-    console.log(`ER-004 capReached: ${result.schedule.capReached}`);
-    console.log(`ER-004 recyclingByExit:`, result.schedule.recyclingByExit);
+    logExitRecyclingTruthCase(`ER-004 totalRecycled: ${result.schedule.totalRecycled}`);
+    logExitRecyclingTruthCase(`ER-004 capReached: ${result.schedule.capReached}`);
+    logExitRecyclingTruthCase(`ER-004 recyclingByExit:`, result.schedule.recyclingByExit);
   });
 });

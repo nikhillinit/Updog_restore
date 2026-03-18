@@ -33,13 +33,19 @@ interface ContainerState {
 
 let globalState: ContainerState | null = null;
 
+function logTestcontainers(...args: unknown[]): void {
+  if (process.env.TESTCONTAINERS_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 /**
  * Setup PostgreSQL testcontainer with migrations
  *
  * @returns Started PostgreSQL container with connection details
  */
 export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
-  console.log('[testcontainers] Starting PostgreSQL container...');
+  logTestcontainers('[testcontainers] Starting PostgreSQL container...');
 
   const container = await new PostgreSqlContainer('pgvector/pgvector:pg16')
     .withExposedPorts(5432)
@@ -50,7 +56,7 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
     .withStartupTimeout(30000) // 30 second max startup
     .start();
 
-  console.log(`[testcontainers] PostgreSQL started on port ${container.getPort()}`);
+  logTestcontainers(`[testcontainers] PostgreSQL started on port ${container.getPort()}`);
 
   // Run migrations with connection retry logic
   const pool = new Pool({
@@ -67,22 +73,22 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
     const db = drizzle(pool, { schema });
 
     // Create required PostgreSQL extensions BEFORE running migrations
-    console.log('[testcontainers] Creating PostgreSQL extensions...');
+    logTestcontainers('[testcontainers] Creating PostgreSQL extensions...');
     await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;'); // For gen_random_uuid()
     await pool.query('CREATE EXTENSION IF NOT EXISTS vector;'); // For pgvector (agent_memories)
-    console.log('[testcontainers] Extensions created');
+    logTestcontainers('[testcontainers] Extensions created');
 
-    console.log('[testcontainers] Running Drizzle migrations...');
+    logTestcontainers('[testcontainers] Running Drizzle migrations...');
     await migrate(db, {
       migrationsFolder: './migrations',
       migrationsTable: 'drizzle_migrations',
     });
-    console.log('[testcontainers] Drizzle migrations complete');
+    logTestcontainers('[testcontainers] Drizzle migrations complete');
 
     // Apply shared migrations as raw SQL (no Drizzle metadata in shared/migrations)
     const sharedMigrationsDir = './shared/migrations';
     if (existsSync(sharedMigrationsDir)) {
-      console.log('[testcontainers] Applying shared migrations (raw SQL)...');
+      logTestcontainers('[testcontainers] Applying shared migrations (raw SQL)...');
       const sqlFiles = readdirSync(sharedMigrationsDir)
         .filter((f) => f.endsWith('.sql'))
         .sort(); // Ensure order: 0001, 0002, 0003...
@@ -90,13 +96,13 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
       for (const file of sqlFiles) {
         const filePath = join(sharedMigrationsDir, file);
         const sql = readFileSync(filePath, 'utf8');
-        console.log(`[testcontainers] Applying ${file}...`);
+        logTestcontainers(`[testcontainers] Applying ${file}...`);
         await pool.query(sql);
       }
-      console.log(`[testcontainers] Applied ${sqlFiles.length} shared migrations`);
+      logTestcontainers(`[testcontainers] Applied ${sqlFiles.length} shared migrations`);
     }
 
-    console.log('[testcontainers] All migrations complete');
+    logTestcontainers('[testcontainers] All migrations complete');
   } catch (error) {
     console.error('[testcontainers] Migration failed', error);
     throw error;
@@ -113,7 +119,7 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
  * @returns Started Redis container with connection details
  */
 export async function setupTestRedis(): Promise<StartedTestContainer> {
-  console.log('[testcontainers] Starting Redis container...');
+  logTestcontainers('[testcontainers] Starting Redis container...');
 
   const container = await new GenericContainer('redis:7-alpine')
     .withExposedPorts(6379)
@@ -121,7 +127,7 @@ export async function setupTestRedis(): Promise<StartedTestContainer> {
     .withStartupTimeout(10000) // 10 second max startup
     .start();
 
-  console.log(`[testcontainers] Redis started on port ${container.getMappedPort(6379)}`);
+  logTestcontainers(`[testcontainers] Redis started on port ${container.getMappedPort(6379)}`);
 
   return container;
 }
@@ -134,23 +140,23 @@ export async function setupTestRedis(): Promise<StartedTestContainer> {
  */
 export async function setupTestContainers(): Promise<ContainerState> {
   const startTime = Date.now();
-  console.log('[testcontainers] Starting PostgreSQL + Redis in parallel...');
+  logTestcontainers('[testcontainers] Starting PostgreSQL + Redis in parallel...');
 
   // Start both containers in parallel
   const [postgres, redis] = await Promise.all([setupTestDB(), setupTestRedis()]);
 
   const elapsed = Date.now() - startTime;
-  console.log(`[testcontainers] All containers started in ${elapsed}ms`);
+  logTestcontainers(`[testcontainers] All containers started in ${elapsed}ms`);
 
   // Create connection pool for database access
   const pgPool = new Pool({ connectionString: postgres.getConnectionUri() });
 
   // Cleanup function captures current state to avoid race conditions
   const cleanupFn = async () => {
-    console.log('[testcontainers] Cleaning up containers...');
+    logTestcontainers('[testcontainers] Cleaning up containers...');
     await pgPool?.end();
     await Promise.all([postgres?.stop(), redis?.stop()]);
-    console.log('[testcontainers] Cleanup complete');
+    logTestcontainers('[testcontainers] Cleanup complete');
   };
 
   const state: ContainerState = {
@@ -230,11 +236,11 @@ async function waitForPostgres(
     try {
       // Simple query to verify PostgreSQL is ready
       await pool.query('SELECT 1');
-      console.log(`[testcontainers] PostgreSQL ready after ${attempt + 1} attempt(s)`);
+      logTestcontainers(`[testcontainers] PostgreSQL ready after ${attempt + 1} attempt(s)`);
       return;
     } catch (error) {
       const delay = initialDelay * Math.pow(2, attempt);
-      console.log(
+      logTestcontainers(
         `[testcontainers] PostgreSQL not ready (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`
       );
 

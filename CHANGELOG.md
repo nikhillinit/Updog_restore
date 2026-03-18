@@ -635,7 +635,7 @@ and this project adheres to
     - DeepSeek V3.2: $0.00055 input / $0.00219 output
   - **Files Updated**:
     - [.env.local.example](.env.local.example) (lines 134-148)
-    - [claude_code-multi-AI-MCP/credentials.template.json](claude_code-multi-AI-MCP/credentials.template.json)
+    - [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json](archive/2026-q1/unused-code/claude_code-multi-AI-MCP/credentials.template.json)
   - **Verified Compatibility**: All multi-AI orchestrator functions
     (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
     with new model identifiers

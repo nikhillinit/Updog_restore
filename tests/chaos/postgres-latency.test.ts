@@ -15,16 +15,16 @@ import { promisify } from 'util';
 
 // Skip if Toxiproxy infrastructure not available (CI/demo environments)
 const CHAOS_INFRA_AVAILABLE = !process.env.DEMO_CI && !process.env.CI;
-if (!CHAOS_INFRA_AVAILABLE) test.skip('skipped - requires Toxiproxy infrastructure', () => {});
+if (!CHAOS_INFRA_AVAILABLE) {
+  // SKIP: requires local Toxiproxy chaos infrastructure instead of normal CI/demo environments
+  test.skip('skipped - requires Toxiproxy infrastructure', () => {});
+}
 
 const execAsync = promisify(exec);
 
 // Configuration
 const TOXIPROXY_API = 'http://localhost:8474';
 const APP_URL = process.env.APP_URL || 'http://localhost:5000';
-const PG_PROXY_PORT = 5433;
-const REDIS_PROXY_PORT = 6380;
-
 // Toxiproxy client
 class ToxiproxyClient {
   private baseUrl: string;
@@ -246,7 +246,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
         if (response.status === 503) {
           metrics.recordCircuitBreakerOpen();
         }
-      } catch (error) {
+      } catch {
         metrics.recordError();
       }
 
@@ -287,7 +287,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
           circuitBreakerOpened = true;
           break;
         }
-      } catch (error) {
+      } catch {
         // Expected
       }
     }
@@ -346,7 +346,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
           latency: Date.now() - start,
           cached: response.headers['x-cache-hit'] === 'true',
         });
-      } catch (error) {
+      } catch {
         results.push({
           status: 0,
           latency: Date.now() - start,
@@ -388,7 +388,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
             validateStatus: () => true,
           });
           samples.push(Date.now() - start);
-        } catch (error) {
+        } catch {
           samples.push(5000);
         }
       }
@@ -412,7 +412,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
     for (let i = 0; i < 5; i++) {
       try {
         await axios.get(`${APP_URL}/api/funds`, { timeout: 1000 });
-      } catch (error) {
+      } catch {
         // Expected
       }
     }
@@ -431,7 +431,7 @@ describe.skipIf(!CHAOS_INFRA_AVAILABLE)('PostgreSQL Chaos Testing', () => {
           recovered = true;
           break;
         }
-      } catch (error) {
+      } catch {
         // Still recovering
       }
 

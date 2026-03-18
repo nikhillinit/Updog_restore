@@ -79,12 +79,12 @@ Updog_restore codebase
 
 ### AI & Automation
 
-| Topic                      | Primary Source                          | Supporting Sources                          |
-| -------------------------- | --------------------------------------- | ------------------------------------------- |
-| **Available agents**       | `CAPABILITIES.md` (30+ agents)          | `.claude/agents/`                           |
-| **Claude Code workflow**   | `cheatsheets/daily-workflow.md`         | `cheatsheets/claude-code-best-practices.md` |
-| **Multi-AI collaboration** | `docs/MULTI-AI-DEVELOPMENT-WORKFLOW.md` | `claude_code-multi-AI-MCP/`                 |
-| **Prompt improver hook**   | `cheatsheets/prompt-improver-hook.md`   | `CLAUDE.md` (hook section)                  |
+| Topic                      | Primary Source                          | Supporting Sources                                      |
+| -------------------------- | --------------------------------------- | ------------------------------------------------------- |
+| **Available agents**       | `CAPABILITIES.md` (30+ agents)          | `.claude/agents/`                                       |
+| **Claude Code workflow**   | `cheatsheets/daily-workflow.md`         | `cheatsheets/claude-code-best-practices.md`             |
+| **Multi-AI collaboration** | `docs/MULTI-AI-DEVELOPMENT-WORKFLOW.md` | `archive/2026-q1/unused-code/claude_code-multi-AI-MCP/` |
+| **Prompt improver hook**   | `cheatsheets/prompt-improver-hook.md`   | `CLAUDE.md` (hook section)                              |
 
 ---
 

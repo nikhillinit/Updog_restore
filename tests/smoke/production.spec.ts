@@ -11,6 +11,12 @@ const HEALTH_KEY = process.env.HEALTH_KEY || '';
 const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL || '';
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD || '';
 
+function logProductionSmokeDetails(...args: unknown[]): void {
+  if (process.env.PRODUCTION_SMOKE_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 // Timeout configuration for production environment
 test.setTimeout(60000); // 60 seconds for production tests
 
@@ -34,6 +40,7 @@ test.describe('Production Deployment Smoke Tests', () => {
 
     test('should have metrics endpoint (authenticated)', async ({ request }) => {
       if (!HEALTH_KEY) {
+        // SKIP: authenticated metrics coverage requires a deployed health key in the target environment
         test.skip();
       }
 
@@ -193,9 +200,7 @@ test.describe('Production Deployment Smoke Tests', () => {
       // Filter out known benign errors
       const criticalErrors = errors.filter(
         (err) =>
-          !err.includes('favicon') &&
-          !err.includes('analytics') &&
-          !err.includes('third-party')
+          !err.includes('favicon') && !err.includes('analytics') && !err.includes('third-party')
       );
 
       expect(criticalErrors).toHaveLength(0);
@@ -203,6 +208,7 @@ test.describe('Production Deployment Smoke Tests', () => {
   });
 
   test.describe('Critical User Flows', () => {
+    // SKIP: login smoke flow requires a deployed test account in the target environment
     test.skip(
       () => !TEST_USER_EMAIL || !TEST_USER_PASSWORD,
       'Requires TEST_USER_EMAIL and TEST_USER_PASSWORD'
@@ -223,7 +229,7 @@ test.describe('Production Deployment Smoke Tests', () => {
       expect(url).not.toContain('login');
     });
 
-    test('should load dashboard', async ({ page, context }) => {
+    test('should load dashboard', async ({ page }) => {
       // Reuse login session
       await page.goto(`${PRODUCTION_URL}/login`);
       await page.fill('input[type="email"]', TEST_USER_EMAIL);
@@ -303,6 +309,7 @@ test.describe('Production Deployment Smoke Tests', () => {
         const url = page.url();
         expect(url).toContain('/funds/');
       } else {
+        // SKIP: this smoke assertion requires at least one seeded fund in the target environment
         test.skip();
       }
     });
@@ -330,7 +337,9 @@ test.describe('Production Deployment Smoke Tests', () => {
       await page.goto(PRODUCTION_URL);
 
       const metrics = await page.evaluate(() => {
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        const navigation = performance.getEntriesByType(
+          'navigation'
+        )[0] as PerformanceNavigationTiming;
         return {
           domInteractive: navigation.domInteractive,
           domComplete: navigation.domComplete,
@@ -432,7 +441,7 @@ test.describe('Post-Deployment Validation', () => {
       expect(body.version).toBeTruthy();
 
       // Log deployment version
-      console.log(`Deployed version: ${body.version}`);
+      logProductionSmokeDetails(`Deployed version: ${body.version}`);
     }
   });
 

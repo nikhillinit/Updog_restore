@@ -32,7 +32,7 @@ reviews** with zero external dependencies.
 ```
 Codex Agent → MCP Server (external) → AI Providers
                 ↓ (unaudited)
-          claude_code-multi-AI-MCP/
+          archive/2026-q1/unused-code/claude_code-multi-AI-MCP/
 ```
 
 **Issues:**

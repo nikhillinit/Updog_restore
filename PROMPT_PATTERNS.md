@@ -338,7 +338,7 @@ done
 **File Organization:**
 
 ```
-notebooklm-upload/
+archive/2026-q1/unused-code/notebooklm-upload/
 ├── module-name/
 │   ├── 01-overview.md           # High-level concepts (1-2 pages)
 │   ├── 02-architecture.md       # System design (2-3 pages)

@@ -26,7 +26,11 @@ test.describe('LP Reporting Dashboard', () => {
 
     // Check if LP is configured, skip tests if not
     const currentUrl = page.url();
-    if (currentUrl.includes('/fund-setup') || currentUrl.includes('/dashboard') && !currentUrl.includes('/lp/')) {
+    if (
+      currentUrl.includes('/fund-setup') ||
+      (currentUrl.includes('/dashboard') && !currentUrl.includes('/lp/'))
+    ) {
+      // SKIP: LP dashboard assertions require LP routes/configuration instead of redirecting to general app flows
       test.skip();
     }
   });
@@ -49,8 +53,7 @@ test.describe('LP Reporting Dashboard', () => {
 
     // Loading skeleton should appear briefly
     const skeleton = page.locator('.animate-pulse');
-    const hadLoadingState = await skeleton.isVisible() ||
-      (await skeleton.count()) === 0; // May have already loaded
+    const hadLoadingState = (await skeleton.isVisible()) || (await skeleton.count()) === 0; // May have already loaded
 
     expect(hadLoadingState).toBeTruthy();
 
@@ -76,7 +79,9 @@ test.describe('LP Reporting Dashboard', () => {
     const navText = await lpDashboardPage.getSummaryCardValue('Current NAV');
 
     // At least some cards should have values
-    const hasValues = [committedText, calledText, distributedText, navText].some((v) => v && v.includes('$'));
+    const hasValues = [committedText, calledText, distributedText, navText].some(
+      (v) => v && v.includes('$')
+    );
     expect(hasValues).toBeTruthy();
   });
 
@@ -100,7 +105,8 @@ test.describe('LP Reporting Dashboard', () => {
     const performanceActionVisible = await lpDashboardPage.performanceQuickAction.isVisible();
     const reportsActionVisible = await lpDashboardPage.reportsQuickAction.isVisible();
 
-    const hasQuickActions = capitalAccountActionVisible || performanceActionVisible || reportsActionVisible;
+    const hasQuickActions =
+      capitalAccountActionVisible || performanceActionVisible || reportsActionVisible;
     expect(hasQuickActions).toBeTruthy();
   });
 
@@ -132,7 +138,8 @@ test.describe('LP Reporting Dashboard', () => {
 
       // Should navigate to fund detail page
       await page.waitForURL(/\/lp\/fund-detail/, { timeout: 5000 }).catch(() => {});
-      const hasNavigated = page.url().includes('/lp/fund-detail') || page.url().includes('/lp/dashboard');
+      const hasNavigated =
+        page.url().includes('/lp/fund-detail') || page.url().includes('/lp/dashboard');
       expect(hasNavigated).toBeTruthy();
     }
   });
@@ -396,7 +403,8 @@ test.describe('LP Reporting Dashboard', () => {
     const historyCount = await lpDashboardPage.getReportHistoryCount();
 
     // Should have items or show empty state
-    const hasHistoryOrEmpty = historyCount > 0 || await lpDashboardPage.emptyStateMessage.isVisible();
+    const hasHistoryOrEmpty =
+      historyCount > 0 || (await lpDashboardPage.emptyStateMessage.isVisible());
     expect(hasHistoryOrEmpty || !(await lpDashboardPage.hasError())).toBeTruthy();
   });
 
@@ -473,7 +481,8 @@ test.describe('LP Reporting Dashboard', () => {
     await lpDashboardPage.page.waitForTimeout(1000);
 
     // Should show success toast or not crash
-    const hasSuccess = await lpDashboardPage.verifySuccessToast() || !(await lpDashboardPage.hasError());
+    const hasSuccess =
+      (await lpDashboardPage.verifySuccessToast()) || !(await lpDashboardPage.hasError());
     expect(hasSuccess).toBeTruthy();
   });
 

@@ -31,6 +31,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// SKIP: evergreen fund-setup UI coverage remains quarantined pending stabilization triage
 describe.skip('FundSetup - Fund Basics Evergreen Functionality', () => {
   it('should render evergreen toggle switch', () => {
     render(

@@ -6,6 +6,12 @@
 import getPort from 'get-port';
 import type { Express } from 'express';
 
+function logTestEnvironment(...args: unknown[]): void {
+  if (process.env.TEST_ENV_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 interface TestServer {
   app: Express;
   port: number;
@@ -30,14 +36,14 @@ export class TestEnvironment {
   static async getIsolatedServer(testSuite: string): Promise<TestServer> {
     if (!this.instances.has(testSuite)) {
       const port = await getPort({ port: getPort.makeRange(3333, 3400) });
-      
+
       // Dynamic import to avoid circular dependencies
       const { createTestServer } = await import('./test-server');
       const server = await createTestServer(port);
-      
+
       this.instances.set(testSuite, server);
     }
-    
+
     return this.instances.get(testSuite)!;
   }
 
@@ -47,19 +53,19 @@ export class TestEnvironment {
   static async getIsolatedDatabase(testSuite: string): Promise<TestDatabase> {
     if (!this.databases.has(testSuite)) {
       const dbName = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${testSuite}`;
-      
+
       // For PostgreSQL - create isolated test database
       const database: TestDatabase = {
         name: dbName,
         cleanup: async () => {
           // Database cleanup logic
-          console.log(`Cleaning up test database: ${dbName}`);
-        }
+          logTestEnvironment(`Cleaning up test database: ${dbName}`);
+        },
       };
-      
+
       this.databases.set(testSuite, database);
     }
-    
+
     return this.databases.get(testSuite)!;
   }
 
@@ -70,13 +76,13 @@ export class TestEnvironment {
     // Close all test servers
     for (const [testSuite, server] of this.instances.entries()) {
       await server.close();
-      console.log(`Closed test server for: ${testSuite}`);
+      logTestEnvironment(`Closed test server for: ${testSuite}`);
     }
 
     // Cleanup all test databases
     for (const [testSuite, database] of this.databases.entries()) {
       await database.cleanup();
-      console.log(`Cleaned up test database for: ${testSuite}`);
+      logTestEnvironment(`Cleaned up test database for: ${testSuite}`);
     }
 
     this.instances.clear();
@@ -90,7 +96,7 @@ export class TestEnvironment {
     return {
       servers: this.instances.size,
       databases: this.databases.size,
-      healthy: true
+      healthy: true,
     };
   }
 }
@@ -125,7 +131,7 @@ export class TestEnvironmentIsolation {
         process.env[key] = originalValue;
       }
     }
-    
+
     this.originalEnv = {};
   }
 }

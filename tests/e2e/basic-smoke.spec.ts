@@ -24,6 +24,7 @@ test.describe('Basic Smoke Tests', () => {
     } catch (error) {
       // If the server isn't running, skip the test gracefully
       console.error('Server appears to be down, skipping test:', error.message);
+      // SKIP: smoke access check requires a running application instead of a down server
       test.skip();
     }
   });
@@ -73,6 +74,7 @@ test.describe('Basic Smoke Tests', () => {
     } catch (error) {
       console.error(`Reserves demo test failed: ${error.message}`);
       // Skip if the route doesn't exist or component fails
+      // SKIP: reserves demo smoke check only applies when the demo route is available in the target app
       test.skip();
     }
   });

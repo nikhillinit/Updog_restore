@@ -33,6 +33,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// SKIP: fund setup and waterfall UI assertions remain quarantined pending stabilization triage
 describe.skip('Conditional Field Visibility', () => {
   describe('Evergreen Toggle and Fund Life Fields', () => {
     it('should show fund life field when evergreen is OFF', async () => {
@@ -201,6 +202,7 @@ describe.skip('Conditional Field Visibility', () => {
   });
 });
 
+// SKIP: form validation UI assertions remain quarantined pending stabilization triage
 describe.skip('Form Validation Tests', () => {
   describe('Waterfall Validation', () => {
     it('should show error when catch-up rate is less than hurdle rate', () => {

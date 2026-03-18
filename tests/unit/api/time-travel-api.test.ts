@@ -228,6 +228,7 @@ describe('Time-Travel Analytics API', () => {
       expect(response.body).toEqual(mockResult);
     });
 
+    // SKIP: requires full validation middleware stack that this unit harness intentionally mocks out
     it.skip('should handle invalid fund ID', async () => {
       // SKIPPED: Requires full validation middleware stack
       // Validation tested in integration tests
@@ -309,6 +310,7 @@ describe('Time-Travel Analytics API', () => {
       );
     });
 
+    // SKIP: requires full validation middleware stack that this unit harness intentionally mocks out
     it.skip('should handle missing timestamp parameter', async () => {
       // SKIPPED: Requires full validation middleware stack
       // Validation tested in integration tests
@@ -316,6 +318,7 @@ describe('Time-Travel Analytics API', () => {
       // In real implementation, Zod validation would reject missing timestamp
     });
 
+    // SKIP: requires full async error middleware behavior that this unit harness does not exercise
     it.skip('should handle no snapshot found', async () => {
       // SKIPPED: Requires full error handling middleware stack
       // Error propagation is tested in integration tests
@@ -325,22 +328,26 @@ describe('Time-Travel Analytics API', () => {
   });
 
   describe('POST /api/timeline/:fundId/snapshot', () => {
+    // SKIP: requires queue provider integration that is not available in this unit harness
     it.skip('should create snapshot request (dev mode)', async () => {
       // SKIPPED: Requires queue provider integration
       // Skipped: queue provider logic makes this test timeout
       // Snapshot creation requires full integration test environment
     });
 
+    // SKIP: requires full async error middleware behavior that this unit harness does not exercise
     it.skip('should handle fund not found', async () => {
       // SKIPPED: Requires full error handling middleware stack
       // Skipped: asyncHandler middleware is mocked to not properly handle errors
     });
 
+    // SKIP: requires queue provider integration that is not available in this unit harness
     it.skip('should use default values for optional fields', async () => {
       // SKIPPED: Requires queue provider integration
       // Skipped: queue provider logic makes this test timeout
     });
 
+    // SKIP: requires queue provider integration that is not available in this unit harness
     it.skip('should handle queue not available', async () => {
       // SKIPPED: Requires queue provider integration
       // Skipped: queue provider logic makes this test timeout
@@ -390,6 +397,7 @@ describe('Time-Travel Analytics API', () => {
       expect(response.body).toEqual(mockResult);
     });
 
+    // SKIP: requires full validation middleware stack that this unit harness intentionally mocks out
     it.skip('should handle missing timestamp parameters', async () => {
       // SKIPPED: Requires full validation middleware stack
       // Validation tested in integration tests
@@ -397,6 +405,7 @@ describe('Time-Travel Analytics API', () => {
       // In real implementation, Zod validation would reject missing timestamp2
     });
 
+    // SKIP: requires full async error middleware behavior that this unit harness does not exercise
     it.skip('should handle states not found', async () => {
       // SKIPPED: Requires full error handling middleware stack
       // Error propagation is tested in integration tests
@@ -558,6 +567,7 @@ describe('Time-Travel Analytics API', () => {
   });
 
   describe('Error Handling', () => {
+    // SKIP: requires full async error middleware behavior that this unit harness does not exercise
     it.skip('should handle service errors', async () => {
       // SKIPPED: Requires full error handling middleware stack
       // Error propagation is tested in integration tests
@@ -679,6 +689,7 @@ describe('Time-Travel Analytics API', () => {
   });
 
   describe('Query Parameter Edge Cases', () => {
+    // SKIP: requires full validation middleware stack that this unit harness intentionally mocks out
     it.skip('should handle malformed datetime parameters', async () => {
       // SKIPPED: Requires full validation middleware stack
       // Validation tested in integration tests
@@ -736,11 +747,13 @@ describe('Time-Travel Analytics API', () => {
   });
 
   describe('Snapshot Creation Edge Cases', () => {
+    // SKIP: requires validation plus queue provider integration that is not available in this unit harness
     it.skip('should handle maximum description length', async () => {
       // SKIPPED: Requires full validation middleware stack
       // Skipped: queue provider logic makes this test timeout
     });
 
+    // SKIP: requires queue provider integration that is not available in this unit harness
     it.skip('should handle various snapshot types', async () => {
       // SKIPPED: Requires queue provider integration
       // Skipped: queue provider logic makes this test timeout

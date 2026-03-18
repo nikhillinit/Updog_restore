@@ -19,6 +19,7 @@ test.describe('Dashboard Functionality', () => {
 
     // Skip if still redirected to fund-setup (fund fixture should prevent this)
     const currentUrl = page.url();
+    // SKIP: dashboard assertions require an existing fund instead of the fund-setup redirect flow
     test.skip(currentUrl.includes('/fund-setup'), 'Fund setup redirect');
   });
 
@@ -151,9 +152,6 @@ test.describe('Dashboard Functionality', () => {
   });
 
   test('should refresh data when page is reloaded', async () => {
-    // Get initial metrics
-    const initialMetrics = await dashboardPage.getFundMetrics();
-
     // Reload the page
     await dashboardPage.page.reload();
     await dashboardPage.waitForLoadingToComplete();

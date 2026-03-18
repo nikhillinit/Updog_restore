@@ -24,6 +24,10 @@ export interface SeedOptions {
   logger?: (message: string) => void;
 }
 
+const defaultSeedLogger = (message: string): void => {
+  console.warn(message);
+};
+
 const DEFAULT_TABLE_ORDER: Array<keyof typeof schema> = [
   'users',
   'funds',
@@ -115,7 +119,7 @@ export async function seedDatabase(
   fixtures: SeedFixture[],
   options: SeedOptions = {}
 ): Promise<SeedResult> {
-  const logger = options.logger ?? console.log;
+  const logger = options.logger ?? defaultSeedLogger;
   const orderedFixtures = sortFixtures(fixtures);
 
   if (options.dryRun) {
@@ -215,7 +219,7 @@ export async function clearTables(
 ): Promise<void> {
   if (tableNames.length === 0) return;
 
-  const logger = options.logger ?? console.log;
+  const logger = options.logger ?? defaultSeedLogger;
   const pool = new Pool({
     connectionString: container.getConnectionUri(),
     max: 1,

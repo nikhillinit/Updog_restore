@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema } from '../server/validators/fundSchema';
 import type { CompleteFundSetup } from '@shared/types';
 
+// SKIP: evergreen validation cases remain quarantined pending stabilization triage
 describe.skip('Evergreen Fund Validation', () => {
   const baseFundData: CompleteFundSetup = {
     name: 'Test Fund',

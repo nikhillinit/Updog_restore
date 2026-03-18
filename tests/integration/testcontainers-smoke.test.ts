@@ -25,6 +25,13 @@ import {
 import { Pool } from 'pg';
 import Redis from 'ioredis';
 
+function logTestcontainersSmoke(...args: unknown[]): void {
+  if (process.env.TESTCONTAINERS_SMOKE_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
+// SKIP: requires Docker-backed testcontainers infrastructure that is unavailable in standard CI and many local runs
 describe.skip('Testcontainers Infrastructure', () => {
   // TODO: Re-enable when Docker is available
   // Requires: Docker Desktop running
@@ -32,14 +39,14 @@ describe.skip('Testcontainers Infrastructure', () => {
   // Use case: Integration tests requiring PostgreSQL + Redis containers
   beforeAll(async () => {
     // Start containers for this test suite
-    console.log('[smoke-test] Starting testcontainers...');
+    logTestcontainersSmoke('[smoke-test] Starting testcontainers...');
     await setupTestContainers();
-    console.log('[smoke-test] Containers ready');
+    logTestcontainersSmoke('[smoke-test] Containers ready');
   }, 60000); // 60 second timeout for container startup
 
   afterAll(async () => {
     // Clean up containers after tests complete
-    console.log('[smoke-test] Cleaning up containers...');
+    logTestcontainersSmoke('[smoke-test] Cleaning up containers...');
     await cleanupTestContainers();
   });
 

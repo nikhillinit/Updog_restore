@@ -55,6 +55,12 @@ import {
   type ExitRecyclingTruthCase,
 } from './exit-recycling-adapter';
 
+function logTruthCaseSummary(...args: unknown[]): void {
+  if (process.env.TRUTH_CASE_DEBUG === 'true') {
+    console.warn(...args);
+  }
+}
+
 // Phase 1.5: Capital Allocation - tests moved to client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
 // Import type only for load verification
 
@@ -245,7 +251,7 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
     expect(tagSet.has('simple-carry') || tagSet.has('catch-up')).toBe(true);
 
     expect(waterfallTierCases.length).toBeGreaterThan(0);
-    console.log(`Waterfall-Tier: ${waterfallTierCases.length} scenarios validated`);
+    logTruthCaseSummary(`Waterfall-Tier: ${waterfallTierCases.length} scenarios validated`);
   });
 });
 
@@ -284,7 +290,7 @@ describe('Truth Cases: Waterfall-Ledger (Phase 1B - Active)', () => {
     expect(tagSet.has('ledger')).toBe(true);
     expect(tagSet.has('clawback')).toBe(true);
 
-    console.log(`Waterfall-Ledger: ${waterfallLedgerCases.length} scenarios validated`);
+    logTruthCaseSummary(`Waterfall-Ledger: ${waterfallLedgerCases.length} scenarios validated`);
   });
 });
 
@@ -334,7 +340,7 @@ describe('Truth Cases: Fees (Phase 1.3 - Active)', () => {
     expect(tagSet.has('fmv-basis')).toBe(true);
     expect(tagSet.has('edge-case')).toBe(true);
 
-    console.log(`Fees: ${feesCases.length} scenarios validated`);
+    logTruthCaseSummary(`Fees: ${feesCases.length} scenarios validated`);
   });
 });
 
@@ -345,8 +351,10 @@ describe('Truth Cases: Capital Allocation (Phase 1.5 - Load Verification)', () =
     expect(capitalCases).toBeDefined();
     expect(Array.isArray(capitalCases)).toBe(true);
     expect(capitalCases.length).toBe(20);
-    console.log(`Capital Allocation: ${capitalCases.length} scenarios loaded`);
-    console.log('NOTE: Execution tests in client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts');
+    logTruthCaseSummary(`Capital Allocation: ${capitalCases.length} scenarios loaded`);
+    logTruthCaseSummary(
+      'NOTE: Execution tests in client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts'
+    );
   });
 });
 
@@ -390,8 +398,8 @@ describe('Truth Cases: Exit Recycling (Phase 1.4A - Active)', () => {
       },
       {} as Record<string, number>
     );
-    console.log(`Exit Recycling: ${exitCases.length} scenarios validated`);
-    console.log('Category distribution:', categories);
+    logTruthCaseSummary(`Exit Recycling: ${exitCases.length} scenarios validated`);
+    logTruthCaseSummary('Category distribution:', categories);
   });
 });
 
@@ -420,7 +428,7 @@ describe('Truth Cases: Coverage Summary', () => {
     };
 
     // Log for baseline capture
-    console.log('Truth-Case Scenario Counts:', breakdown);
+    logTruthCaseSummary('Truth-Case Scenario Counts:', breakdown);
   });
 
   it('validates Decimal.js infrastructure', () => {
@@ -466,7 +474,7 @@ describe('Truth Cases: Coverage Summary', () => {
     };
 
     // Log tolerance documentation
-    console.log('Decimal.js Tolerance Thresholds:', tolerances);
+    logTruthCaseSummary('Decimal.js Tolerance Thresholds:', tolerances);
 
     // Verify tolerance values are reasonable
     expect(tolerances.waterfall.decimals).toBeGreaterThanOrEqual(2);

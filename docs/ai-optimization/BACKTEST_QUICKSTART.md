@@ -503,7 +503,8 @@ Human advantages:
 ## Support
 
 - **Documentation**: `AI_AGENT_BACKTEST_FRAMEWORK.md`
-- **Examples**: `packages/backtest-framework/examples/`
+- **Archived stub package**:
+  `archive/2026-q1/unused-code/packages/backtest-framework/`
 - **Issues**: Report bugs or request features
 - **Metrics**: View dashboard at `http://localhost:9091/backtest`
 
