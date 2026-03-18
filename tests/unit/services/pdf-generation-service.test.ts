@@ -7,7 +7,7 @@
  *
  * Tests the data transformation logic in report generation:
  * - buildK1ReportData: Tax allocation calculations
- * - buildQuarterlyReportData: NAV, TVPI, DPI calculations
+ * - buildQuarterlyReportData: NAV, TVPI, DPI calculations (metrics REQUIRED)
  * - buildCapitalAccountReportData: Transaction history and running balance
  *
  * @group unit
@@ -20,7 +20,9 @@ import {
   buildK1ReportData,
   buildQuarterlyReportData,
   buildCapitalAccountReportData,
+  validateQuarterlyMetrics,
 } from '../../../server/services/pdf-generation-service';
+import type { ReportMetrics } from '../../../server/services/pdf-generation/types';
 import {
   standardLPData,
   newLPData,
@@ -29,6 +31,45 @@ import {
   multiYearTransactionsLP,
   calculateExpectedTotals,
 } from '../../fixtures/lp-report-fixtures';
+
+// ============================================================================
+// SCENARIO-APPROPRIATE METRICS (no fabricated data)
+// ============================================================================
+
+const standardMetrics: ReportMetrics = {
+  irr: 0.15,
+  tvpi: 1.15,
+  dpi: 0.13,
+  portfolioCompanies: [
+    { name: 'AlphaAI', invested: 675_000, value: 900_000, moic: 1.33 },
+    { name: 'BetaCorp', invested: 562_500, value: 787_500, moic: 1.4 },
+    { name: 'GammaHealth', invested: 450_000, value: 562_500, moic: 1.25 },
+  ],
+};
+
+const earlyStageMetrics: ReportMetrics = {
+  irr: -0.05,
+  tvpi: 0.85,
+  dpi: 0,
+  portfolioCompanies: [
+    { name: 'SeedStart', invested: 2_250_000, value: 1_912_500, moic: 0.85 },
+    { name: 'LaunchPad', invested: 1_350_000, value: 1_215_000, moic: 0.9 },
+  ],
+};
+
+const newLPMetrics: ReportMetrics = {
+  irr: 0,
+  tvpi: 1,
+  dpi: 0,
+  portfolioCompanies: [],
+};
+
+const matureMetrics: ReportMetrics = {
+  irr: 0.25,
+  tvpi: 1.8,
+  dpi: 1.03,
+  portfolioCompanies: [{ name: 'ExitCo', invested: 1_500_000, value: 2_700_000, moic: 1.8 }],
+};
 
 // ============================================================================
 // K-1 REPORT DATA BUILDER TESTS
@@ -175,7 +216,7 @@ describe('buildK1ReportData', () => {
 describe('buildQuarterlyReportData', () => {
   describe('basic functionality', () => {
     it('should build quarterly data with correct fund and LP info', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       expect(result.fundName).toBe('Venture Fund I');
       expect(result.lpName).toBe('Acme Investments LLC');
@@ -185,34 +226,34 @@ describe('buildQuarterlyReportData', () => {
 
     it('should throw error for non-existent fund commitment', () => {
       expect(() => {
-        buildQuarterlyReportData(standardLPData, 999, 'Q3', 2024);
+        buildQuarterlyReportData(standardLPData, 999, 'Q3', 2024, standardMetrics);
       }).toThrow('LP has no commitment to fund 999');
     });
   });
 
   describe('summary calculations', () => {
     it('should calculate totalCommitted from commitment', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       expect(result.summary.totalCommitted).toBe(5_000_000);
     });
 
     it('should calculate totalCalled from capital calls', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
       const expected = calculateExpectedTotals(standardLPData, 1);
 
       expect(result.summary.totalCalled).toBe(expected.contributions);
     });
 
     it('should calculate totalDistributed from distributions', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
       const expected = calculateExpectedTotals(standardLPData, 1);
 
       expect(result.summary.totalDistributed).toBe(expected.distributions);
     });
 
     it('should calculate unfunded commitment correctly', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
       const expectedUnfunded = result.summary.totalCommitted - result.summary.totalCalled;
 
       expect(result.summary.unfunded).toBe(expectedUnfunded);
@@ -221,49 +262,57 @@ describe('buildQuarterlyReportData', () => {
 
   describe('performance metrics', () => {
     it('should calculate positive NAV for LP with net contributions', () => {
-      const result = buildQuarterlyReportData(earlyStageLP, 3, 'Q3', 2024);
+      const result = buildQuarterlyReportData(earlyStageLP, 3, 'Q3', 2024, earlyStageMetrics);
 
       // NAV should be positive when called > distributed
       expect(result.summary.nav).toBeGreaterThan(0);
     });
 
     it('should calculate TVPI greater than or equal to DPI', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       // TVPI includes unrealized value, so should be >= DPI
       expect(result.summary.tvpi).toBeGreaterThanOrEqual(result.summary.dpi);
     });
 
     it('should have DPI of 0 when no distributions', () => {
-      const result = buildQuarterlyReportData(earlyStageLP, 3, 'Q3', 2024);
+      const result = buildQuarterlyReportData(earlyStageLP, 3, 'Q3', 2024, earlyStageMetrics);
 
       expect(result.summary.dpi).toBe(0);
     });
 
     it('should have TVPI of 1 when no capital called', () => {
-      const result = buildQuarterlyReportData(newLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(newLPData, 1, 'Q3', 2024, newLPMetrics);
 
       expect(result.summary.tvpi).toBe(1);
     });
 
     it('should calculate DPI > 1 for mature fund with distributions exceeding calls', () => {
-      const result = buildQuarterlyReportData(matureFundLP, 4, 'Q3', 2024);
+      const result = buildQuarterlyReportData(matureFundLP, 4, 'Q3', 2024, matureMetrics);
 
       // Mature fund: 3M called, 3.1M distributed -> DPI > 1
       expect(result.summary.dpi).toBeGreaterThan(1);
+    });
+
+    it('should use provided metrics directly without fabrication', () => {
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
+
+      expect(result.summary.irr).toBe(standardMetrics.irr);
+      expect(result.summary.tvpi).toBe(standardMetrics.tvpi);
+      expect(result.summary.dpi).toBe(standardMetrics.dpi);
     });
   });
 
   describe('portfolio companies', () => {
     it('should include portfolio companies list', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       expect(result.portfolioCompanies).toBeDefined();
       expect(result.portfolioCompanies.length).toBeGreaterThan(0);
     });
 
     it('should have valid MOIC for each company', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       result.portfolioCompanies.forEach((company) => {
         expect(company.moic).toBeGreaterThan(0);
@@ -271,18 +320,25 @@ describe('buildQuarterlyReportData', () => {
         expect(company.value).toBeGreaterThanOrEqual(0);
       });
     });
+
+    it('should use empty portfolio array when metrics has empty array', () => {
+      const emptyPortfolio = { ...standardMetrics, portfolioCompanies: [] };
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, emptyPortfolio);
+
+      expect(result.portfolioCompanies).toHaveLength(0);
+    });
   });
 
   describe('cash flows', () => {
     it('should include recent cash flows', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       expect(result.cashFlows).toBeDefined();
       expect(result.cashFlows?.length).toBeGreaterThan(0);
     });
 
     it('should format cash flow dates correctly', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       result.cashFlows?.forEach((cf) => {
         expect(cf.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -292,15 +348,22 @@ describe('buildQuarterlyReportData', () => {
     });
 
     it('should have empty cash flows for new LP', () => {
-      const result = buildQuarterlyReportData(newLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(newLPData, 1, 'Q3', 2024, newLPMetrics);
 
       expect(result.cashFlows).toHaveLength(0);
+    });
+
+    it('should include all cash flows without artificial cap', () => {
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
+      const txCount = standardLPData.transactions.filter((t) => t.commitmentId === 101).length;
+
+      expect(result.cashFlows?.length).toBe(txCount);
     });
   });
 
   describe('commentary', () => {
     it('should include fund commentary', () => {
-      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+      const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
 
       expect(result.commentary).toBeDefined();
       expect(result.commentary?.length).toBeGreaterThan(0);
@@ -480,7 +543,7 @@ describe('buildCapitalAccountReportData', () => {
 describe('Data Builder Cross-Cutting Concerns', () => {
   it('should handle same LP data for different report types', () => {
     const k1 = buildK1ReportData(standardLPData, 1, 2024);
-    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
     const capitalAccount = buildCapitalAccountReportData(standardLPData, 1, new Date('2024-12-31'));
 
     // All should have consistent LP/fund names
@@ -491,7 +554,7 @@ describe('Data Builder Cross-Cutting Concerns', () => {
   });
 
   it('should produce consistent contribution totals across report types', () => {
-    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
     const capitalAccount = buildCapitalAccountReportData(standardLPData, 1, new Date('2024-12-31'));
 
     // Total contributions should match
@@ -499,7 +562,7 @@ describe('Data Builder Cross-Cutting Concerns', () => {
   });
 
   it('should produce consistent distribution totals across report types', () => {
-    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
+    const quarterly = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
     const capitalAccount = buildCapitalAccountReportData(standardLPData, 1, new Date('2024-12-31'));
 
     // Total distributions should match
@@ -512,7 +575,7 @@ describe('Data Builder Cross-Cutting Concerns', () => {
 // ============================================================================
 
 describe('buildQuarterlyReportData with ReportMetrics', () => {
-  const realMetrics = {
+  const realMetrics: ReportMetrics = {
     irr: 0.22,
     tvpi: 1.45,
     dpi: 0.38,
@@ -545,34 +608,99 @@ describe('buildQuarterlyReportData with ReportMetrics', () => {
     expect(result.portfolioCompanies[0].name).toBe('AlphaAI');
     expect(result.portfolioCompanies[1].name).toBe('BetaCloud');
   });
+});
 
-  it('should use empty portfolio companies array when metrics has empty array', () => {
-    const emptyMetrics = { ...realMetrics, portfolioCompanies: [] };
-    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, emptyMetrics);
+// ============================================================================
+// FAIL-CLOSED COMPLETENESS VALIDATION TESTS
+// ============================================================================
 
-    expect(result.portfolioCompanies).toHaveLength(0);
+describe('Report completeness validation (fail-closed)', () => {
+  it('should report incomplete when metrics are null', () => {
+    const result = validateQuarterlyMetrics(null);
+
+    expect(result.complete).toBe(false);
+    expect(result.missingFields.length).toBeGreaterThan(0);
+    expect(result.missingFields.map((f) => f.field)).toContain('irr');
+    expect(result.missingFields.map((f) => f.field)).toContain('tvpi');
+    expect(result.missingFields.map((f) => f.field)).toContain('portfolioCompanies');
   });
 
-  it('should fall back to placeholder IRR when metrics undefined', () => {
-    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, undefined);
+  it('should report incomplete when metrics are undefined', () => {
+    const result = validateQuarterlyMetrics(undefined);
 
-    // Placeholder IRR is 0.15
-    expect(result.summary.irr).toBe(0.15);
+    expect(result.complete).toBe(false);
   });
 
-  it('should fall back to placeholder portfolio companies when metrics undefined', () => {
-    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, undefined);
+  it('should report complete when metrics are provided', () => {
+    const result = validateQuarterlyMetrics(standardMetrics);
 
-    // Placeholder has 5 fictional companies
-    expect(result.portfolioCompanies).toHaveLength(5);
-    expect(result.portfolioCompanies[0].name).toBe('TechCo Series B');
+    expect(result.complete).toBe(true);
+    expect(result.missingFields).toHaveLength(0);
   });
 
-  it('should include all cash flows without artificial cap', () => {
-    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024);
-    const txCount = standardLPData.transactions.filter((t) => t.commitmentId === 101).length;
+  it('should include source info for each missing field', () => {
+    const result = validateQuarterlyMetrics(null);
 
-    expect(result.cashFlows?.length).toBe(txCount);
+    result.missingFields.forEach((f) => {
+      expect(f.source).toBeDefined();
+      expect(f.source.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('should reject metrics with NaN irr', () => {
+    const bad = { ...standardMetrics, irr: NaN };
+    const result = validateQuarterlyMetrics(bad);
+
+    expect(result.complete).toBe(false);
+    expect(result.missingFields.map((f) => f.field)).toContain('irr');
+  });
+
+  it('should reject metrics with Infinity tvpi', () => {
+    const bad = { ...standardMetrics, tvpi: Infinity };
+    const result = validateQuarterlyMetrics(bad);
+
+    expect(result.complete).toBe(false);
+    expect(result.missingFields.map((f) => f.field)).toContain('tvpi');
+  });
+
+  it('should accept metrics with zero values (legitimate for early-stage funds)', () => {
+    const early = { irr: 0, tvpi: 0, dpi: 0, portfolioCompanies: [] };
+    const result = validateQuarterlyMetrics(early);
+
+    expect(result.complete).toBe(true);
+    expect(result.missingFields).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// PLACEHOLDER CONSTANT REGRESSION TEST
+// ============================================================================
+
+describe('No placeholder constants in data-builders', () => {
+  it('should not contain fabricated company names in quarterly report', () => {
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, standardMetrics);
+
+    const fabricatedNames = ['TechCo', 'HealthAI', 'FinanceBot', 'CloudScale', 'Other Holdings'];
+    for (const name of fabricatedNames) {
+      const found = result.portfolioCompanies.some((c) => c.name.includes(name));
+      expect(found).toBe(false);
+    }
+  });
+
+  it('should not fall back to hardcoded 15% IRR', () => {
+    // With explicit metrics, IRR should match what we pass, not a fallback
+    const customMetrics = { ...standardMetrics, irr: 0.08 };
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, customMetrics);
+
+    expect(result.summary.irr).toBe(0.08);
+    expect(result.summary.irr).not.toBe(0.15);
+  });
+
+  it('should not fall back to hardcoded 1.15x TVPI multiplier', () => {
+    const customMetrics = { ...standardMetrics, tvpi: 2.5 };
+    const result = buildQuarterlyReportData(standardLPData, 1, 'Q3', 2024, customMetrics);
+
+    expect(result.summary.tvpi).toBe(2.5);
   });
 });
 

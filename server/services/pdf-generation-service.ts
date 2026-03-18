@@ -19,12 +19,20 @@ export type {
 // Data fetchers (async)
 export { fetchLPReportData, prefetchReportMetrics } from './pdf-generation/data-fetchers.js';
 
-// Data builders (sync/pure — stable signatures, 63+ tests)
+// Data builders (sync/pure — stable signatures)
 export {
   buildK1ReportData,
   buildQuarterlyReportData,
   buildCapitalAccountReportData,
 } from './pdf-generation/data-builders.js';
+
+// Completeness validation (fail-closed on missing data)
+export {
+  validateQuarterlyMetrics,
+  ReportDataIncompleteError,
+  REPORT_DATA_INCOMPLETE,
+} from './pdf-generation/completeness.js';
+export type { ReportField, ReportCompletenessResult } from './pdf-generation/completeness.js';
 
 // PDF generators
 import { renderPdfToBuffer } from './pdf-generation/renderer.js';

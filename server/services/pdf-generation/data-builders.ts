@@ -85,43 +85,6 @@ function estimateK1Allocations(distributions: number): K1ReportData['allocations
   };
 }
 
-function resolvePortfolioCompanies(
-  metrics: ReportMetrics | undefined,
-  totalCalled: number
-): QuarterlyReportData['portfolioCompanies'] {
-  if (metrics?.portfolioCompanies) {
-    return metrics.portfolioCompanies;
-  }
-
-  return [
-    { name: 'TechCo Series B', invested: totalCalled * 0.3, value: totalCalled * 0.4, moic: 1.33 },
-    {
-      name: 'HealthAI Series A',
-      invested: totalCalled * 0.25,
-      value: totalCalled * 0.35,
-      moic: 1.4,
-    },
-    {
-      name: 'FinanceBot Seed',
-      invested: totalCalled * 0.15,
-      value: totalCalled * 0.12,
-      moic: 0.8,
-    },
-    {
-      name: 'CloudScale Series C',
-      invested: totalCalled * 0.2,
-      value: totalCalled * 0.25,
-      moic: 1.25,
-    },
-    {
-      name: 'Other Holdings',
-      invested: totalCalled * 0.1,
-      value: totalCalled * 0.13,
-      moic: 1.3,
-    },
-  ];
-}
-
 function buildRunningBalanceRows(fundTransactions: LPReportData['transactions']): {
   rows: CapitalAccountReportData['transactions'];
   endingBalance: number;
@@ -195,13 +158,17 @@ export function buildK1ReportData(
   };
 }
 
-/** Build quarterly report data from LP data */
+/**
+ * Build quarterly report data from LP data.
+ * metrics is REQUIRED — caller must validate availability before calling.
+ * Use validateQuarterlyMetrics() to check before invoking.
+ */
 export function buildQuarterlyReportData(
   lpData: LPReportData,
   fundId: number,
   quarter: string,
   year: number,
-  metrics?: ReportMetrics
+  metrics: ReportMetrics
 ): QuarterlyReportData {
   const commitment = resolveCommitmentOrThrow(lpData, fundId);
   const fundTransactions = getTransactionsForCommitment(
@@ -218,9 +185,7 @@ export function buildQuarterlyReportData(
 
   const unfunded = commitment.commitmentAmount - totalCalled;
 
-  const irr = metrics?.irr ?? 0.15;
-  const tvpi = metrics?.tvpi ?? (totalCalled > 0 ? (totalCalled * 1.15) / totalCalled : 1);
-  const dpi = metrics?.dpi ?? (totalCalled > 0 ? totalDistributed / totalCalled : 0);
+  const { irr, tvpi, dpi } = metrics;
   const nav = totalCalled * tvpi - totalDistributed;
 
   const cashFlows = fundTransactions.map((t) => ({
@@ -228,8 +193,6 @@ export function buildQuarterlyReportData(
     type: t.type === 'capital_call' ? ('contribution' as const) : ('distribution' as const),
     amount: Math.abs(t.amount),
   }));
-
-  const portfolioCompanies = resolvePortfolioCompanies(metrics, totalCalled);
 
   return {
     fundName: commitment.fundName,
@@ -246,7 +209,7 @@ export function buildQuarterlyReportData(
       totalDistributed,
       unfunded,
     },
-    portfolioCompanies,
+    portfolioCompanies: metrics.portfolioCompanies,
     cashFlows,
     commentary: `${commitment.fundName} continues to execute on its investment thesis, focusing on high-growth technology companies. The portfolio is well-diversified across sectors and stages.`,
   };
