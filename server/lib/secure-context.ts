@@ -100,6 +100,7 @@ export async function requireSecureContext(
     }
 
     // Attach verified context to request
+    // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
     req.context = context;
     next();
   } catch (err) {

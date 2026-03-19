@@ -33,6 +33,9 @@ interface IdempotentResponse {
   fingerprint?: string;
 }
 
+type SendBody = Parameters<Response['send']>[0];
+type JsonBody = Parameters<Response['json']>[0];
+
 /**
  * In-memory LRU cache for idempotent responses (fallback when Redis unavailable)
  *
@@ -181,10 +184,11 @@ function stableStringify(obj: unknown): string {
  * Generate hash from request data with stable key ordering
  */
 function generateRequestHash(req: Request): string {
+  const requestBody: unknown = req.body;
   const data = {
     method: req.method,
     path: req.path,
-    body: req.body,
+    body: requestBody,
     userId: req.user?.id,
   };
 
@@ -352,7 +356,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     };
 
     // Override send method
-    res.send = function (body?: any) {
+    res.send = function (body?: SendBody) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
         _responseBody = body;
         responseCaptured = true;
@@ -378,7 +382,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     };
 
     // Override json method
-    res.json = function (body?: any) {
+    res.json = function (body?: JsonBody) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
         _responseBody = body;
         responseCaptured = true;

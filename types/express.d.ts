@@ -10,6 +10,30 @@
 import 'express-serve-static-core';
 import type { UserContext } from '../server/lib/secure-context';
 
+interface RequestLogger {
+  info: (_obj: unknown, msg?: string) => void;
+  error: (_obj: unknown, msg?: string) => void;
+  warn: (_obj: unknown, msg?: string) => void;
+}
+
+interface RequestGuard {
+  sanitizeResponse: (data: unknown) => unknown;
+  injectFaults: <T>(fn: () => T | Promise<T>) => Promise<T>;
+}
+
+interface RUMv2Processor {
+  processMetric: (name: string, value: number, labels: Record<string, unknown>) => boolean;
+  getMetrics: () => Promise<string>;
+}
+
+interface LPProfile {
+  id: number;
+  name: string;
+  email: string;
+  entityType: string;
+  fundIds: number[];
+}
+
 declare global {
   namespace Express {
     /**
@@ -87,22 +111,18 @@ declare global {
         reset: Date;
       };
       /** RUM v2 performance metrics (metrics-rum.ts:102) */
-      rumV2?: {
-        sessionId: string;
-        pageLoadTime?: number;
-        [key: string]: unknown;
-      };
+      rumV2?: RUMv2Processor;
+      /** Engine guard helpers for response sanitization/fault injection */
+      guard?: RequestGuard;
+      /** LP profile loaded by requireLPAccess middleware */
+      lpProfile?: LPProfile;
       /** Audit trail metadata */
       audit?: {
         event: string;
         meta?: Record<string, unknown>;
       };
       /** Request-scoped logger (optional) */
-      log?: {
-        info: (_obj: unknown, msg?: string) => void;
-        error: (_obj: unknown, msg?: string) => void;
-        warn: (_obj: unknown, msg?: string) => void;
-      };
+      log?: RequestLogger;
     }
   }
 }

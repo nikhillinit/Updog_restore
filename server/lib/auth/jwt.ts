@@ -122,6 +122,14 @@ function assignUserFromClaims(req: Request, claims: JWTClaims): void {
   };
 }
 
+function getJwtErrorDetails(err: unknown): { name?: string; message: string } {
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message };
+  }
+
+  return { message: String(err ?? 'Unknown error') };
+}
+
 export const requireAuth = () => async (req: Request, res: Response, next: NextFunction) => {
   const h = req.header('authorization') || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : undefined;
@@ -136,9 +144,8 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     const claims = await verifyAccessTokenAsync(token);
     assignUserFromClaims(req, claims);
     next();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT library error shape not typed
-  } catch (err: any) {
-    console.warn('JWT verification failed', { name: err?.name, message: err?.message });
+  } catch (err: unknown) {
+    console.warn('JWT verification failed', getJwtErrorDetails(err));
     authMetrics.jwtVerificationFailed.inc?.();
     return res.sendStatus(401);
   }
@@ -192,8 +199,7 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
   });
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT payload accepts arbitrary claims
-export function signToken(data: any): string {
+export function signToken(data: string | Buffer | object): string {
   const cfg = getJwtConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {
     algorithm: 'HS256' as Algorithm,

@@ -24,6 +24,19 @@ interface PerformanceThresholds {
   critical: number;
 }
 
+function getRoutePath(route: unknown): string | undefined {
+  if (
+    typeof route === 'object' &&
+    route !== null &&
+    'path' in route &&
+    typeof (route as { path?: unknown }).path === 'string'
+  ) {
+    return route.path;
+  }
+
+  return undefined;
+}
+
 class PerformanceMonitor extends EventEmitter {
   private metrics: PerformanceMetric[] = [];
   private thresholds: Map<string, PerformanceThresholds> = new Map();
@@ -38,49 +51,57 @@ class PerformanceMonitor extends EventEmitter {
   private setupDefaultThresholds() {
     // Monte Carlo simulation thresholds
     this.thresholds.set('monte_carlo_simulation', {
-      normal: 5000,    // 5 seconds
-      slow: 15000,     // 15 seconds
-      critical: 30000  // 30 seconds
+      normal: 5000, // 5 seconds
+      slow: 15000, // 15 seconds
+      critical: 30000, // 30 seconds
     });
 
     // Database operation thresholds
     this.thresholds.set('database_query', {
-      normal: 100,     // 100ms
-      slow: 500,       // 500ms
-      critical: 2000   // 2 seconds
+      normal: 100, // 100ms
+      slow: 500, // 500ms
+      critical: 2000, // 2 seconds
     });
 
     // API endpoint thresholds
     this.thresholds.set('api_request', {
-      normal: 200,     // 200ms
-      slow: 1000,      // 1 second
-      critical: 5000   // 5 seconds
+      normal: 200, // 200ms
+      slow: 1000, // 1 second
+      critical: 5000, // 5 seconds
     });
 
     // Portfolio calculation thresholds
     this.thresholds.set('portfolio_calculation', {
-      normal: 1000,    // 1 second
-      slow: 5000,      // 5 seconds
-      critical: 15000  // 15 seconds
+      normal: 1000, // 1 second
+      slow: 5000, // 5 seconds
+      critical: 15000, // 15 seconds
     });
   }
 
   private setupCleanupTask() {
     // Clean old metrics every hour
-    setInterval(() => {
-      this.cleanOldMetrics();
-    }, 60 * 60 * 1000);
+    setInterval(
+      () => {
+        this.cleanOldMetrics();
+      },
+      60 * 60 * 1000
+    );
   }
 
   private cleanOldMetrics() {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    this.metrics = this.metrics.filter(m => m.timestamp > oneHourAgo);
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    this.metrics = this.metrics.filter((m) => m.timestamp > oneHourAgo);
   }
 
   /**
    * Track a performance metric
    */
-  track(operation: string, duration: number, category: PerformanceMetric['category'], metadata?: Record<string, unknown>) {
+  track(
+    operation: string,
+    duration: number,
+    category: PerformanceMetric['category'],
+    metadata?: Record<string, unknown>
+  ) {
     const threshold = this.thresholds.get(operation) || this.thresholds.get('api_request')!;
 
     let severity: PerformanceMetric['severity'] = 'normal';
@@ -96,7 +117,7 @@ class PerformanceMonitor extends EventEmitter {
       timestamp: Date.now(),
       ...(metadata && { metadata }),
       category,
-      severity
+      severity,
     };
 
     this.metrics.push(metric);
@@ -117,7 +138,10 @@ class PerformanceMonitor extends EventEmitter {
   /**
    * Get performance statistics for an operation
    */
-  getStats(operation?: string, timeWindow?: number): {
+  getStats(
+    operation?: string,
+    timeWindow?: number
+  ): {
     count: number;
     avgDuration: number;
     minDuration: number;
@@ -127,10 +151,10 @@ class PerformanceMonitor extends EventEmitter {
     criticalCount: number;
   } {
     const cutoff = timeWindow ? Date.now() - timeWindow : 0;
-    let filteredMetrics = this.metrics.filter(m => m.timestamp > cutoff);
+    let filteredMetrics = this.metrics.filter((m) => m.timestamp > cutoff);
 
     if (operation) {
-      filteredMetrics = filteredMetrics.filter(m => m.operation === operation);
+      filteredMetrics = filteredMetrics.filter((m) => m.operation === operation);
     }
 
     if (filteredMetrics.length === 0) {
@@ -141,11 +165,11 @@ class PerformanceMonitor extends EventEmitter {
         maxDuration: 0,
         p95Duration: 0,
         slowCount: 0,
-        criticalCount: 0
+        criticalCount: 0,
       };
     }
 
-    const durations = filteredMetrics.map(m => m.duration).sort((a, b) => a - b);
+    const durations = filteredMetrics.map((m) => m.duration).sort((a, b) => a - b);
     const count = durations.length;
     const sum = durations.reduce((a, b) => a + b, 0);
     const p95Index = Math.floor(count * 0.95);
@@ -156,8 +180,8 @@ class PerformanceMonitor extends EventEmitter {
       minDuration: durations[0] ?? 0,
       maxDuration: durations[count - 1] ?? 0,
       p95Duration: durations[p95Index] || 0,
-      slowCount: filteredMetrics.filter(m => m.severity === 'slow').length,
-      criticalCount: filteredMetrics.filter(m => m.severity === 'critical').length
+      slowCount: filteredMetrics.filter((m) => m.severity === 'slow').length,
+      criticalCount: filteredMetrics.filter((m) => m.severity === 'critical').length,
     };
   }
 
@@ -166,7 +190,7 @@ class PerformanceMonitor extends EventEmitter {
    */
   getRecentAlerts(limit: number = 50): PerformanceMetric[] {
     return this.metrics
-      .filter(m => m.severity !== 'normal')
+      .filter((m) => m.severity !== 'normal')
       .slice(-limit)
       .reverse();
   }
@@ -179,16 +203,16 @@ class PerformanceMonitor extends EventEmitter {
       const startTime = performance.now();
       const originalEnd = res.end;
 
-      res.end = function(this: Response, ...args: unknown[]) {
+      res.end = function (this: Response, ...args: unknown[]) {
         const duration = performance.now() - startTime;
-        const operation = `${req.method} ${req.route?.path || req.path}`;
+        const operation = `${req.method} ${getRoutePath(req.route) ?? req.path}`;
 
         monitor.track(operation, duration, 'api', {
           method: req.method,
           path: req.path,
           statusCode: res.statusCode,
           userAgent: req.get('User-Agent'),
-          ip: req.ip
+          ip: req.ip,
         });
 
         return originalEnd.apply(this, args as Parameters<typeof originalEnd>);
@@ -213,7 +237,12 @@ class PerformanceMonitor extends EventEmitter {
         const result = fn(...args);
 
         // Handle both sync and async functions
-        if (result && typeof result === 'object' && 'then' in result && typeof result.then === 'function') {
+        if (
+          result &&
+          typeof result === 'object' &&
+          'then' in result &&
+          typeof result.then === 'function'
+        ) {
           return (result as Promise<unknown>).finally(() => {
             const duration = performance.now() - startTime;
             this.track(operation, duration, category, { args: args.length });
@@ -227,7 +256,7 @@ class PerformanceMonitor extends EventEmitter {
         const duration = performance.now() - startTime;
         this.track(operation, duration, category, {
           args: args.length,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       }
@@ -245,7 +274,7 @@ class PerformanceMonitor extends EventEmitter {
         const duration = performance.now() - startTime;
         this.track(operation, duration, category, metadata);
         return duration;
-      }
+      },
     };
   }
 
@@ -257,7 +286,7 @@ class PerformanceMonitor extends EventEmitter {
     recentMetrics: PerformanceMetric[];
     alerts: PerformanceMetric[];
   } {
-    const operations = [...new Set(this.metrics.map(m => m.operation))];
+    const operations = [...new Set(this.metrics.map((m) => m.operation))];
     const summary: Record<string, unknown> = {};
 
     for (const operation of operations) {
@@ -267,7 +296,7 @@ class PerformanceMonitor extends EventEmitter {
     return {
       summary,
       recentMetrics: this.metrics.slice(-100),
-      alerts: this.getRecentAlerts(20)
+      alerts: this.getRecentAlerts(20),
     };
   }
 }
@@ -285,7 +314,7 @@ export class MonteCarloPerformanceTracker {
     monitor.track('monte_carlo_start', 0, 'monte_carlo', {
       simulationId,
       runs: config['runs'],
-      portfolioSize: config['portfolioSize']
+      portfolioSize: config['portfolioSize'],
     });
   }
 
@@ -296,12 +325,15 @@ export class MonteCarloPerformanceTracker {
     const duration = performance.now() - startTime;
     this.simulationTimers.delete(simulationId);
 
-    const scenarios = results && typeof results['scenarios'] === 'object' && Array.isArray(results['scenarios']) ? results['scenarios'] : [];
+    const scenarios =
+      results && typeof results['scenarios'] === 'object' && Array.isArray(results['scenarios'])
+        ? results['scenarios']
+        : [];
     monitor.track('monte_carlo_simulation', duration, 'monte_carlo', {
       simulationId,
       duration,
       resultCount: scenarios.length,
-      hasError: !results
+      hasError: !results,
     });
   }
 
@@ -309,7 +341,7 @@ export class MonteCarloPerformanceTracker {
     monitor.track('monte_carlo_batch', duration, 'monte_carlo', {
       batchId,
       batchSize,
-      throughput: batchSize / (duration / 1000) // scenarios per second
+      throughput: batchSize / (duration / 1000), // scenarios per second
     });
   }
 
@@ -318,7 +350,7 @@ export class MonteCarloPerformanceTracker {
       heapTotal: memoryUsage.heapTotal,
       heapUsed: memoryUsage.heapUsed,
       external: memoryUsage.external,
-      rss: memoryUsage.rss
+      rss: memoryUsage.rss,
     });
   }
 }
@@ -326,28 +358,24 @@ export class MonteCarloPerformanceTracker {
 export const monteCarloTracker = new MonteCarloPerformanceTracker();
 
 // Database performance tracking
-export function trackDatabaseQuery<T>(
-  queryName: string,
-  queryFn: () => Promise<T>
-): Promise<T> {
+export function trackDatabaseQuery<T>(queryName: string, queryFn: () => Promise<T>): Promise<T> {
   return monitor.trackFunction(queryName, 'database', queryFn)();
 }
 
 // Portfolio calculation tracking
-export function trackPortfolioCalculation<T>(
-  calculationType: string,
-  calculationFn: () => T
-): T {
+export function trackPortfolioCalculation<T>(calculationType: string, calculationFn: () => T): T {
   return monitor.trackFunction(calculationType, 'computation', calculationFn)();
 }
 
 // Performance alert handlers
 monitor.on('performance_alert', (metric: PerformanceMetric) => {
-  console.warn(`🐌 Performance Alert: ${metric.operation} took ${metric.duration}ms (${metric.severity})`);
+  console.warn(
+    `Performance Alert: ${metric.operation} took ${metric.duration}ms (${metric.severity})`
+  );
 
   // Could integrate with external alerting systems here
   if (metric.severity === 'critical') {
-    console.error(`🚨 CRITICAL: ${metric.operation} performance degradation detected!`);
+    console.error(`CRITICAL: ${metric.operation} performance degradation detected!`);
   }
 });
 

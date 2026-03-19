@@ -40,13 +40,13 @@ export class TTLCache<T> {
 
 // Simple in-memory KV adapter for health cache
 export class MemoryKV implements KV {
-  private store = new Map<string, any>();
+  private store = new Map<string, unknown>();
 
   async get<T>(k: string): Promise<T | undefined> {
-    return this.store['get'](k);
+    return this.store['get'](k) as T | undefined;
   }
 
-  async set<T>(k: string, v: T, ttlMs?: number): Promise<void> {
+  async set<T>(k: string, v: T, _ttlMs?: number): Promise<void> {
     this.store['set'](k, v);
     // For memory KV, we could implement native TTL cleanup here if needed
     // But the TTLCache wrapper handles expiration logic

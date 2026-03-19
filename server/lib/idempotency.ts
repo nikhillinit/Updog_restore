@@ -14,6 +14,8 @@ export interface IdempotencyStore {
   del(_key: string): Promise<void>;
 }
 
+type JsonBody = Parameters<Response['json']>[0];
+
 // In-memory store with TTL GC (sufficient for single-process dev/test)
 export function memoryStore(): IdempotencyStore {
   const m = new Map<string, IdemRecord>();
@@ -48,7 +50,8 @@ export function withIdempotency(options?: { ttlSeconds?: number; store?: Idempot
   const store = options?.store ?? memoryStore();
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    const idempotencyKey = req.headers['idempotency-key'] as string;
+    const headerValue = req.headers['idempotency-key'];
+    const idempotencyKey = typeof headerValue === 'string' ? headerValue : undefined;
 
     // Skip if no idempotency key provided
     if (!idempotencyKey) {
@@ -93,12 +96,12 @@ export function withIdempotency(options?: { ttlSeconds?: number; store?: Idempot
 
       // Capture response
       const originalJson = res.json;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Express res.json signature requires any
-      res.json = function (data: any) {
+      res.json = function (data: JsonBody) {
+        const responseBody: unknown = data;
         // Store successful response
         store['set'](idempotencyKey, {
           status: 'succeeded',
-          result: data,
+          result: responseBody,
           updatedAt: Date.now(),
           ttlMs: ttl,
         }).catch(console.error);

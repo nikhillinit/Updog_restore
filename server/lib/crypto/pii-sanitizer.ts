@@ -108,7 +108,7 @@ function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
       sanitized[key] = sanitizeString(value);
     } else if (Array.isArray(value)) {
       // Recursively sanitize arrays
-      sanitized[key] = value.map((item) =>
+      sanitized[key] = value.map((item: unknown): unknown =>
         typeof item === 'object' && item !== null
           ? sanitizeObject(item as Record<string, unknown>)
           : typeof item === 'string'
