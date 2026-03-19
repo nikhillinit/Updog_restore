@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * pLimit – minimal concurrency limiter
  * ------------------------------------
@@ -23,10 +18,10 @@ export default function pLimit(concurrency: number) {
   };
 
   const run = <T>(task: AsyncTask<T>): Promise<T> =>
-    new Promise((res: any, rej: any) => {
+    new Promise<T>((resolve, reject) => {
       const execute = () => {
         active++;
-        task().then(res, rej).finally(next);
+        task().then(resolve, reject).finally(next);
       };
       if (active < concurrency) {
         execute();
@@ -37,4 +32,3 @@ export default function pLimit(concurrency: number) {
 
   return run;
 }
-

@@ -18,17 +18,24 @@ export function normalizeNumber(v: unknown): number {
 // Circular-safe, stable key order serialization
 export function stableSerialize(value: unknown): string {
   const seen = new WeakSet<object>();
-  return JSON.stringify(value, function (_k, v) {
-    if (v && typeof v === 'object') {
-      if (seen.has(v as object)) return '[Circular]';
-      seen.add(v as object);
-      if (!Array.isArray(v)) {
-        const o: Record<string, unknown> = {};
-        for (const k of Object.keys(v as any).sort()) o[k] = (v as any)[k];
-        return o;
+  return JSON.stringify(value, function (_k, rawValue) {
+    const currentValue = rawValue as unknown;
+
+    if (currentValue && typeof currentValue === 'object') {
+      if (seen.has(currentValue)) return '[Circular]';
+      seen.add(currentValue);
+      if (!Array.isArray(currentValue)) {
+        const record = currentValue as Record<string, unknown>;
+        const sorted: Record<string, unknown> = {};
+
+        for (const key of Object.keys(record).sort()) {
+          sorted[key] = record[key];
+        }
+
+        return sorted;
       }
     }
-    return v;
+    return currentValue;
   });
 }
 

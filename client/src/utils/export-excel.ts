@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 interface ExportData {
   portfolioCompanies: Array<{
     name: string;
@@ -35,6 +30,22 @@ export function exportToExcel(data: ExportData, filename: string = 'povc-fund-re
   }
 }
 
+function formatMillions(value: string | undefined): string {
+  if (!value) {
+    return 'N/A';
+  }
+
+  return `$${(parseFloat(value) / 1_000_000).toFixed(1)}M`;
+}
+
+function formatMultiple(currentValuation: string | undefined, investmentAmount: string): string {
+  if (!currentValuation) {
+    return 'N/A';
+  }
+
+  return `${(parseFloat(currentValuation) / parseFloat(investmentAmount)).toFixed(2)}x`;
+}
+
 function generateCSV(data: ExportData): string {
   if (!data || !data.portfolioCompanies) return '';
   
@@ -49,21 +60,20 @@ function generateCSV(data: ExportData): string {
     'Founded Year'
   ];
   
-  const rows = data.portfolioCompanies.map((company: any) => [
+  const rows = data.portfolioCompanies.map((company) => [
     company.name,
     company.sector,
     company.stage,
-    `$${(parseFloat(company.investmentAmount) / 1000000).toFixed(1)}M`,
-    company.currentValuation ? `$${(parseFloat(company.currentValuation) / 1000000).toFixed(1)}M` : 'N/A',
-    company.currentValuation ? `${(parseFloat(company.currentValuation) / parseFloat(company.investmentAmount)).toFixed(2)  }x` : 'N/A',
+    formatMillions(company.investmentAmount),
+    formatMillions(company.currentValuation),
+    formatMultiple(company.currentValuation, company.investmentAmount),
     company.status,
-    company.foundedYear || 'N/A'
+    company.foundedYear || 'N/A',
   ]);
   
   const csvContent = [headers, ...rows]
-    .map(row => row.map(field => `"${field}"`).join(','))
+    .map((row) => row.map((field) => `"${field}"`).join(','))
     .join('\n');
     
   return csvContent;
 }
-

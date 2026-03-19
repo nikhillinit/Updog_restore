@@ -3,6 +3,8 @@
 // Comprehensive array safety utilities for null/undefined handling
 // Enhanced version with additional features for server-side use
 
+import { logger } from '../lib/logger';
+
 /**
  * Type guards for array validation
  */
@@ -24,7 +26,7 @@ export function forEach<T>(
 ): void {
   if (!isSafeArray(array)) {
     if (process.env['NODE_ENV'] === 'development') {
-      console.debug('forEach called on null/undefined array');
+      logger.debug('array helper received nullish input', { helper: 'forEach' });
     }
     return;
   }
@@ -213,7 +215,12 @@ export function forEachWithMetrics<T>(
 
   if (metricName && process.env['NODE_ENV'] === 'development') {
     const duration = performance.now() - start;
-    console.debug(`forEach[${metricName}]: ${duration.toFixed(2)}ms for ${length(array)} items`);
+    logger.debug('array iteration metrics', {
+      helper: 'forEachWithMetrics',
+      metricName,
+      durationMs: Number(duration.toFixed(2)),
+      itemCount: length(array),
+    });
   }
 }
 
