@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Dynamic fund config routes
-
 import type { Express, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
@@ -61,6 +59,8 @@ const draftConfigSchema = z
   })
   .passthrough(); // Allows other fields not defined in the schema
 
+type RequestWithOptionalUser = Request & { user?: { id?: string } };
+
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
 
@@ -104,14 +104,6 @@ export function registerFundConfigRoutes(app: Express) {
         };
         return res['status'](404)['json'](error);
       }
-
-      // Get latest version
-      const latestConfig = await db.query.fundConfigs.findFirst({
-        where: eq(fundConfigs.fundId, fundId),
-        orderBy: desc(fundConfigs.version),
-      });
-
-      const nextVersion = (latestConfig?.version || 0) + 1;
 
       // Save draft (version, isDraft, isPublished use schema defaults)
       const [newConfig] = await db
@@ -217,23 +209,25 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       // Mark previous published versions as not current (simplified)
+      const unpublishedValues: Partial<typeof fundConfigs.$inferInsert> = {
+        isPublished: false,
+        updatedAt: new Date(),
+      };
       await db
         .update(fundConfigs)
-        ['set']({
-          isPublished: false,
-          updatedAt: new Date(),
-        } as any)
+        .set(unpublishedValues)
         .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)));
 
       // Publish the draft (simplified)
+      const publishedValues: Partial<typeof fundConfigs.$inferInsert> = {
+        isPublished: true,
+        isDraft: false,
+        publishedAt: new Date(),
+        updatedAt: new Date(),
+      };
       const [published] = await db
         .update(fundConfigs)
-        ['set']({
-          isPublished: true,
-          isDraft: false,
-          publishedAt: new Date(),
-          updatedAt: new Date(),
-        } as any)
+        .set(publishedValues)
         .where(eq(fundConfigs.id, draft.id))
         .returning();
 
@@ -259,7 +253,8 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       // Log calculation trigger
-      await db.insert(fundEvents).values({
+      const currentUserId = (req as RequestWithOptionalUser).user?.id;
+      const calculationTriggeredEvent: typeof fundEvents.$inferInsert = {
         fundId,
         eventType: 'CALC_TRIGGERED',
         eventTime: new Date(),
@@ -267,9 +262,10 @@ export function registerFundConfigRoutes(app: Express) {
           engines: ['reserve', 'pacing', 'cohort'],
           correlationId,
         },
-        userId: req.user?.id ? parseInt(req.user.id) : undefined,
+        userId: currentUserId ? parseInt(currentUserId, 10) : undefined,
         correlationId,
-      } as any);
+      };
+      await db.insert(fundEvents).values(calculationTriggeredEvent);
 
       res['json']({
         success: true,

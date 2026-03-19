@@ -22,9 +22,6 @@ import { performanceMonitor } from '@/lib/performance-monitor';
 
 // Configuration and constants
 const CALCULATION_VERSION = '1.0.0';
-const MAX_ITERATIONS = 1000;
-const CONVERGENCE_THRESHOLD = 0.001;
-const DEFAULT_RISK_FREE_RATE = 0.02; // 2%
 
 interface CalculationContext {
   startTime: number;
@@ -398,7 +395,7 @@ export class DeterministicReserveEngine {
   private async generateCalculationResult(
     allocations: ReserveAllocationOutput[],
     input: ReserveAllocationInput,
-    moicCalculations: MOICCalculation[]
+    _moicCalculations: MOICCalculation[]
   ): Promise<ReserveCalculationResult> {
     const totalAllocated = allocations.reduce(
       (sum: number, a: ReserveAllocationOutput) => sum + a.recommendedAllocation,
@@ -658,14 +655,14 @@ export class DeterministicReserveEngine {
 
   private generateAllocationRationale(
     calc: MOICCalculation,
-    stageStrategy: StageStrategy | undefined
+    _stageStrategy: StageStrategy | undefined
   ): string {
     return `High allocation score (${calc.allocationScore.toFixed(2)}) based on projected MOIC of ${calc.projectedMOIC.toFixed(1)}x with ${(calc.graduationProbability.toNumber() * 100).toFixed(0)}% graduation probability.`;
   }
 
   private calculateRiskMultiplier(
     company: PortfolioCompany,
-    input: ReserveAllocationInput
+    _input: ReserveAllocationInput
   ): Decimal {
     let multiplier = new Decimal(1);
 
@@ -756,7 +753,7 @@ export class DeterministicReserveEngine {
 
   private calculateRiskAnalysis(
     allocations: ReserveAllocationOutput[],
-    input: ReserveAllocationInput
+    _input: ReserveAllocationInput
   ): ReserveCalculationResult['riskAnalysis'] {
     // Simplified risk analysis
     const avgRiskAdjustedReturn =
@@ -779,7 +776,7 @@ export class DeterministicReserveEngine {
 
   private async calculateScenarioAnalysis(
     allocations: ReserveAllocationOutput[],
-    input: ReserveAllocationInput
+    _input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult['scenarioResults']> {
     const baseValue = allocations.reduce(
       (sum: number, a: ReserveAllocationOutput) => sum + a.expectedValue,

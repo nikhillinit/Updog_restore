@@ -105,28 +105,8 @@ const SECTOR_COLORS = [
   '#6366F1',
 ];
 
-const STAGE_COLORS = ['#1E40AF', '#059669', '#DC2626', '#7C2D12'];
-
-// Mock sector and stage options
-const SECTORS = [
-  'FinTech',
-  'HealthTech',
-  'EdTech',
-  'SaaS',
-  'E-commerce',
-  'Enterprise Software',
-  'Consumer Apps',
-  'AI/ML',
-  'Cybersecurity',
-  'CleanTech',
-];
-
-const STAGES = ['Pre-Seed', 'Seed', 'Series A', 'Series B'];
-
-const GEOGRAPHIES = ['North America', 'Europe', 'Asia-Pacific', 'Other'];
-
 export default function PortfolioConstructor() {
-  const { funds, primaryFund, isLoading: fundsLoading } = useFundData();
+  const { isLoading: fundsLoading } = useFundData() as { isLoading: boolean };
   const queryClient = useQueryClient();
 
   // Strategy state
@@ -305,17 +285,6 @@ export default function PortfolioConstructor() {
     setStrategy((prev) => ({
       ...prev,
       checkSizes: { ...prev.checkSizes, [field]: value },
-    }));
-  };
-
-  const updateAllocation = (
-    type: 'sectorAllocation' | 'stageAllocation' | 'geographicAllocation',
-    key: string,
-    value: number
-  ) => {
-    setStrategy((prev) => ({
-      ...prev,
-      [type]: { ...prev[type], [key]: value },
     }));
   };
 

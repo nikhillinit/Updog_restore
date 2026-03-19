@@ -14,12 +14,20 @@ import {
   type Fund,
   type PortfolioCompany,
   type Investment,
-  type FundBaseline
+  type FundBaseline,
 } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { eq, and } from 'drizzle-orm';
-import { monteCarloSimulationService, type MonteCarloForecast, type SimulationParameters } from './monte-carlo-simulation';
-import { portfolioPerformancePredictorService, type PortfolioPerformanceForecast, type CompanyPerformancePrediction } from './portfolio-performance-predictor';
+import {
+  monteCarloSimulationService,
+  type MonteCarloForecast,
+  type SimulationParameters,
+} from './monte-carlo-simulation';
+import {
+  portfolioPerformancePredictorService,
+  type PortfolioPerformanceForecast,
+  type CompanyPerformancePrediction,
+} from './portfolio-performance-predictor';
 
 /**
  * Portfolio company with loaded investments and calculated total investment
@@ -173,7 +181,11 @@ export interface FundReserveOptimization {
   fundId: number;
   optimizationId: string;
   createdAt: Date;
-  optimizationObjective: 'maximize_irr' | 'minimize_risk' | 'risk_adjusted_return' | 'portfolio_balance';
+  optimizationObjective:
+    | 'maximize_irr'
+    | 'minimize_risk'
+    | 'risk_adjusted_return'
+    | 'portfolio_balance';
 
   // Overall allocation strategy
   fundLevelStrategy: {
@@ -297,7 +309,11 @@ export interface FundReserveOptimization {
  */
 export interface OptimizationConfig {
   fundId: number;
-  optimizationObjective: 'maximize_irr' | 'minimize_risk' | 'risk_adjusted_return' | 'portfolio_balance';
+  optimizationObjective:
+    | 'maximize_irr'
+    | 'minimize_risk'
+    | 'risk_adjusted_return'
+    | 'portfolio_balance';
   timeHorizonYears: number;
   riskTolerance: 'conservative' | 'moderate' | 'aggressive';
 
@@ -340,7 +356,7 @@ export class ReserveOptimizationCalculatorService {
       fundId: config.fundId,
       scenarios: config.optimizationIterations,
       timeHorizonYears: config.timeHorizonYears,
-      confidenceIntervals: [5, 10, 25, 50, 75, 90, 95]
+      confidenceIntervals: [5, 10, 25, 50, 75, 90, 95],
     };
 
     const monteCarloResults = await monteCarloSimulationService.generateForecast(mcParams);
@@ -351,7 +367,7 @@ export class ReserveOptimizationCalculatorService {
       timeHorizonYears: config.timeHorizonYears,
       scenarioCount: Math.min(config.optimizationIterations, 5000), // Limit for performance
       includeDetailedAnalysis: true,
-      confidenceIntervals: [5, 10, 25, 50, 75, 90, 95]
+      confidenceIntervals: [5, 10, 25, 50, 75, 90, 95],
     });
 
     // Get current fund and portfolio state
@@ -422,7 +438,7 @@ export class ReserveOptimizationCalculatorService {
       methodology,
       implementationRoadmap,
       monteCarloResults,
-      portfolioForecast
+      portfolioForecast,
     };
 
     // Store optimization results
@@ -437,17 +453,17 @@ export class ReserveOptimizationCalculatorService {
   private async getCurrentFundState(fundId: number): Promise<FundStateResult> {
     // Get fund basic info
     const fund = await db.query.funds.findFirst({
-      where: eq(portfolioCompanies.fundId, fundId)
+      where: eq(portfolioCompanies.fundId, fundId),
     });
 
     // Get portfolio companies
     const companies = await db.query.portfolioCompanies.findMany({
-      where: eq(portfolioCompanies.fundId, fundId)
+      where: eq(portfolioCompanies.fundId, fundId),
     });
 
     // Get all investments for these companies
     const companyInvestments = await db.query.investments.findMany({
-      where: eq(investments.fundId, fundId)
+      where: eq(investments.fundId, fundId),
     });
 
     // Group investments by company ID
@@ -466,7 +482,7 @@ export class ReserveOptimizationCalculatorService {
         eq(fundBaselines.fundId, fundId),
         eq(fundBaselines.isDefault, true),
         eq(fundBaselines.isActive, true)
-      )
+      ),
     });
 
     // Build companies with investments
@@ -484,7 +500,7 @@ export class ReserveOptimizationCalculatorService {
       companiesWithInvestments.push({
         ...company,
         investments: companyInvs.length > 0 ? companyInvs : null,
-        totalInvestment: companyInvestmentDecimal.toNumber()
+        totalInvestment: companyInvestmentDecimal.toNumber(),
       });
     }
 
@@ -507,7 +523,7 @@ export class ReserveOptimizationCalculatorService {
       currentValuation: currentValuationDecimal.toNumber(),
       currentReserves: currentReservesDecimal.toNumber(),
       reservePercentage: reservePercentageDecimal.toNumber(),
-      portfolioCount: companies.length
+      portfolioCount: companies.length,
     };
   }
 
@@ -525,7 +541,7 @@ export class ReserveOptimizationCalculatorService {
     for (const company of fundState.companies) {
       // Find company in portfolio forecast
       const companyPrediction = portfolioForecast.companyPredictions.find(
-        p => p.companyId === company.id
+        (p) => p.companyId === company.id
       );
 
       if (!companyPrediction) continue;
@@ -556,11 +572,10 @@ export class ReserveOptimizationCalculatorService {
     prediction: CompanyPerformancePrediction,
     config: OptimizationConfig,
     fundState: FundStateResult,
-    monteCarloResults: MonteCarloForecast
+    _monteCarloResults: MonteCarloForecast
   ): CompanyReserveRecommendation {
     // Base allocation using company's expected performance
     const expectedReturn = prediction.expectedExitValue / prediction.investmentAmount - 1;
-    const riskAdjustedReturn = expectedReturn / (prediction.riskMetrics.volatility + 0.01);
 
     // Calculate opportunity score based on multiple factors
     const opportunityScore = this.calculateOpportunityScore(company, prediction, config);
@@ -611,44 +626,55 @@ export class ReserveOptimizationCalculatorService {
         expectedMultiple: prediction.expectedExitMultiple,
         riskScore: riskFactors.overallRisk,
         opportunityScore,
-        strategicImportance: this.calculateStrategicImportance(company, fundState)
+        strategicImportance: this.calculateStrategicImportance(company, fundState),
       },
       riskFactors,
-      rationale
+      rationale,
     };
   }
 
   /**
    * Calculate opportunity score for a company (0-1, higher = better)
    */
-  private calculateOpportunityScore(company: PortfolioCompanyWithInvestments, prediction: CompanyPerformancePrediction, config: OptimizationConfig): number {
+  private calculateOpportunityScore(
+    company: PortfolioCompanyWithInvestments,
+    prediction: CompanyPerformancePrediction,
+    _config: OptimizationConfig
+  ): number {
     let score = toDecimal(0.5); // Base score
 
     // Performance potential (40% weight)
-    const performanceScore = Decimal.min(toDecimal(prediction.expectedExitMultiple).dividedBy(5), 1); // Normalize to 5x max
+    const performanceScore = Decimal.min(
+      toDecimal(prediction.expectedExitMultiple).dividedBy(5),
+      1
+    ); // Normalize to 5x max
     score = score.plus(performanceScore.times(0.4));
 
     // Growth stage bonus (20% weight)
     const stageMultipliers = {
-      'seed': 0.9,
+      seed: 0.9,
       'series-a': 1.0,
       'series-b': 0.8,
       'series-c': 0.6,
-      'later-stage': 0.4
+      'later-stage': 0.4,
     };
-    const stageScore = toDecimal(stageMultipliers[company.stage.toLowerCase() as keyof typeof stageMultipliers] || 0.5);
+    const stageScore = toDecimal(
+      stageMultipliers[company.stage.toLowerCase() as keyof typeof stageMultipliers] || 0.5
+    );
     score = score.plus(stageScore.times(0.2));
 
     // Market/sector attractiveness (20% weight)
     const sectorMultipliers = {
-      'technology': 1.0,
-      'healthcare': 0.9,
-      'fintech': 1.1,
-      'enterprise': 0.8,
-      'consumer': 0.7,
-      'biotech': 1.2
+      technology: 1.0,
+      healthcare: 0.9,
+      fintech: 1.1,
+      enterprise: 0.8,
+      consumer: 0.7,
+      biotech: 1.2,
     };
-    const sectorScore = toDecimal(sectorMultipliers[company.sector.toLowerCase() as keyof typeof sectorMultipliers] || 0.5);
+    const sectorScore = toDecimal(
+      sectorMultipliers[company.sector.toLowerCase() as keyof typeof sectorMultipliers] || 0.5
+    );
     score = score.plus(sectorScore.times(0.2));
 
     // Current performance vs expectations (20% weight)
@@ -666,23 +692,29 @@ export class ReserveOptimizationCalculatorService {
   /**
    * Calculate comprehensive risk factors for a company
    */
-  private calculateCompanyRiskFactors(company: PortfolioCompanyWithInvestments, prediction: CompanyPerformancePrediction, fundState: FundStateResult): CompanyRiskFactors {
+  private calculateCompanyRiskFactors(
+    company: PortfolioCompanyWithInvestments,
+    prediction: CompanyPerformancePrediction,
+    fundState: FundStateResult
+  ): CompanyRiskFactors {
     // Concentration risk - what % of portfolio would this be
-    const concentrationRisk = (company.totalInvestment / fundState.totalInvestment) > 0.15 ? 0.8 : 0.3;
+    const concentrationRisk =
+      company.totalInvestment / fundState.totalInvestment > 0.15 ? 0.8 : 0.3;
 
     // Liquidity risk based on stage and market conditions
     const liquidityRisk = company.stage.includes('seed') ? 0.7 : 0.4;
 
     // Market risk based on sector volatility
     const sectorVolatility = {
-      'technology': 0.6,
-      'healthcare': 0.4,
-      'fintech': 0.7,
-      'enterprise': 0.5,
-      'consumer': 0.6,
-      'biotech': 0.8
+      technology: 0.6,
+      healthcare: 0.4,
+      fintech: 0.7,
+      enterprise: 0.5,
+      consumer: 0.6,
+      biotech: 0.8,
     };
-    const marketRisk = sectorVolatility[company.sector.toLowerCase() as keyof typeof sectorVolatility] || 0.5;
+    const marketRisk =
+      sectorVolatility[company.sector.toLowerCase() as keyof typeof sectorVolatility] || 0.5;
 
     // Execution risk based on company maturity and prediction confidence
     const executionRisk = (1 - prediction.predictionConfidence) * 0.8 + 0.2;
@@ -690,7 +722,8 @@ export class ReserveOptimizationCalculatorService {
     // Competitive risk (simplified model)
     const competitiveRisk = company.sector.toLowerCase().includes('tech') ? 0.7 : 0.5;
 
-    const overallRisk = (concentrationRisk + liquidityRisk + marketRisk + executionRisk + competitiveRisk) / 5;
+    const overallRisk =
+      (concentrationRisk + liquidityRisk + marketRisk + executionRisk + competitiveRisk) / 5;
 
     return {
       concentrationRisk,
@@ -698,7 +731,7 @@ export class ReserveOptimizationCalculatorService {
       marketRisk,
       executionRisk,
       competitiveRisk,
-      overallRisk
+      overallRisk,
     };
   }
 
@@ -717,7 +750,7 @@ export class ReserveOptimizationCalculatorService {
     let allocationPercentage = opportunityScore * 0.3; // Max 30% of reserves per company
 
     // Adjust for risk
-    allocationPercentage *= (1 - riskFactors.overallRisk * 0.5);
+    allocationPercentage *= 1 - riskFactors.overallRisk * 0.5;
 
     // Adjust for fund constraints
     const maxAllowedPercentage = config.constraints.maxConcentrationPerCompany;
@@ -725,8 +758,9 @@ export class ReserveOptimizationCalculatorService {
 
     // Adjust for current position size
     const currentWeight = company.totalInvestment / fundState.totalInvestment;
-    if (currentWeight > 0.1) { // If already large position, reduce additional allocation
-      allocationPercentage *= (1 - currentWeight);
+    if (currentWeight > 0.1) {
+      // If already large position, reduce additional allocation
+      allocationPercentage *= 1 - currentWeight;
     }
 
     // Calculate absolute amount
@@ -738,7 +772,7 @@ export class ReserveOptimizationCalculatorService {
 
     return {
       percentage: allocationPercentage,
-      amount: Math.max(minAmount, Math.min(amount, maxAmount))
+      amount: Math.max(minAmount, Math.min(amount, maxAmount)),
     };
   }
 
@@ -757,14 +791,14 @@ export class ReserveOptimizationCalculatorService {
 
     for (let i = 1; i <= numberOfTranches && remainingAmount > 0; i++) {
       const trancheAmount = remainingAmount / (numberOfTranches - i + 1);
-      const expectedTiming = i * (config.timeHorizonYears * 12 / numberOfTranches);
+      const expectedTiming = i * ((config.timeHorizonYears * 12) / numberOfTranches);
 
       tranches.push({
         tranche: i,
         amount: trancheAmount,
         triggerConditions: this.generateTriggerConditions(company, i),
         expectedTiming,
-        confidenceLevel: Math.max(0.3, prediction.predictionConfidence - (i - 1) * 0.2)
+        confidenceLevel: Math.max(0.3, prediction.predictionConfidence - (i - 1) * 0.2),
       });
 
       remainingAmount -= trancheAmount;
@@ -773,18 +807,21 @@ export class ReserveOptimizationCalculatorService {
     return {
       tranches,
       totalFollowOnCapacity: baseAllocation.amount,
-      expectedUtilization: prediction.exitProbability * 0.8 // Probability-adjusted utilization
+      expectedUtilization: prediction.exitProbability * 0.8, // Probability-adjusted utilization
     };
   }
 
   /**
    * Generate trigger conditions for follow-on tranches
    */
-  private generateTriggerConditions(company: PortfolioCompanyWithInvestments, tranche: number): string[] {
+  private generateTriggerConditions(
+    company: PortfolioCompanyWithInvestments,
+    tranche: number
+  ): string[] {
     const baseConditions = [
       'Company meets agreed milestones',
       'Market conditions remain favorable',
-      'Fund has available reserves'
+      'Fund has available reserves',
     ];
 
     if (tranche === 1) {
@@ -801,7 +838,10 @@ export class ReserveOptimizationCalculatorService {
   /**
    * Calculate strategic importance of a company to the portfolio
    */
-  private calculateStrategicImportance(company: PortfolioCompanyWithInvestments, fundState: FundStateResult): number {
+  private calculateStrategicImportance(
+    company: PortfolioCompanyWithInvestments,
+    fundState: FundStateResult
+  ): number {
     let importance = 0.5; // Base importance
 
     // Sector diversification value
@@ -847,19 +887,19 @@ export class ReserveOptimizationCalculatorService {
       {
         amount: allocation.amount * 0.5,
         expectedOutcome: prediction.expectedExitValue * 0.7,
-        riskProfile: 'Conservative - Lower risk, moderate returns'
+        riskProfile: 'Conservative - Lower risk, moderate returns',
       },
       {
         amount: allocation.amount * 1.5,
         expectedOutcome: prediction.expectedExitValue * 1.2,
-        riskProfile: 'Aggressive - Higher risk, higher potential returns'
-      }
+        riskProfile: 'Aggressive - Higher risk, higher potential returns',
+      },
     ];
 
     return {
       primaryReasons,
       dataConfidence: prediction.predictionConfidence,
-      alternativeAllocations
+      alternativeAllocations,
     };
   }
 
@@ -870,17 +910,20 @@ export class ReserveOptimizationCalculatorService {
     recommendations: CompanyReserveRecommendation[],
     availableReserves: number
   ): void {
-    const totalRecommended = recommendations.reduce((sum: number, rec) => sum + rec.recommendedReserveAmount, 0);
+    const totalRecommended = recommendations.reduce(
+      (sum: number, rec) => sum + rec.recommendedReserveAmount,
+      0
+    );
 
     if (totalRecommended > availableReserves) {
-      const scaleFactor = availableReserves / totalRecommended * 0.9; // Leave 10% buffer
+      const scaleFactor = (availableReserves / totalRecommended) * 0.9; // Leave 10% buffer
 
-      recommendations.forEach(rec => {
+      recommendations.forEach((rec) => {
         rec.recommendedReserveAmount *= scaleFactor;
         rec.recommendedAllocationPercentage *= scaleFactor;
 
         // Update follow-on strategy
-        rec.followOnStrategy.tranches.forEach(tranche => {
+        rec.followOnStrategy.tranches.forEach((tranche) => {
           tranche.amount *= scaleFactor;
         });
         rec.followOnStrategy.totalFollowOnCapacity *= scaleFactor;
@@ -895,10 +938,11 @@ export class ReserveOptimizationCalculatorService {
     config: OptimizationConfig,
     fundState: FundStateResult,
     companyRecommendations: CompanyReserveRecommendation[],
-    monteCarloResults: MonteCarloForecast
+    _monteCarloResults: MonteCarloForecast
   ): FundReserveOptimization['fundLevelStrategy'] {
     const totalRecommendedReserves = companyRecommendations.reduce(
-      (sum: number, rec) => sum + rec.recommendedReserveAmount, 0
+      (sum: number, rec) => sum + rec.recommendedReserveAmount,
+      0
     );
 
     const recommendedTotalReserves = Math.max(
@@ -919,7 +963,7 @@ export class ReserveOptimizationCalculatorService {
       currentReserves: fundState.currentReserves,
       recommendedTotalReserves,
       recommendedReservePercentage: recommendedTotalReserves / fundState.fundSize,
-      optimalDeploymentSchedule
+      optimalDeploymentSchedule,
     };
   }
 
@@ -946,7 +990,7 @@ export class ReserveOptimizationCalculatorService {
         period,
         plannedDeployment,
         cumulativeDeployment,
-        reservesRemaining: totalReserves - cumulativeDeployment
+        reservesRemaining: totalReserves - cumulativeDeployment,
       });
     }
 
@@ -955,23 +999,23 @@ export class ReserveOptimizationCalculatorService {
 
   // Additional helper methods for portfolio insights, risk management, etc.
   private generatePortfolioInsights(
-    config: OptimizationConfig,
-    fundState: FundStateResult,
-    recommendations: CompanyReserveRecommendation[],
-    forecast: PortfolioPerformanceForecast
+    _config: OptimizationConfig,
+    _fundState: FundStateResult,
+    _recommendations: CompanyReserveRecommendation[],
+    _forecast: PortfolioPerformanceForecast
   ): PortfolioInsightsResult {
     // Simplified implementation - in production would be more comprehensive
     return {
       diversificationScore: 0.75,
       concentrationRisks: [],
-      rebalancingOpportunities: []
+      rebalancingOpportunities: [],
     };
   }
 
   private calculateRiskManagement(
-    config: OptimizationConfig,
+    _config: OptimizationConfig,
     fundState: FundStateResult,
-    recommendations: CompanyReserveRecommendation[],
+    _recommendations: CompanyReserveRecommendation[],
     mcResults: MonteCarloForecast
   ): FundReserveOptimization['riskManagement'] {
     return {
@@ -980,76 +1024,123 @@ export class ReserveOptimizationCalculatorService {
       correlationRisks: [],
       liquidityRequirements: {
         emergencyReserve: fundState.fundSize * 0.05,
-        plannedLiquidity: []
-      }
+        plannedLiquidity: [],
+      },
     };
   }
 
   private generatePerformanceProjections(
-    config: OptimizationConfig,
-    fundState: FundStateResult,
-    recommendations: CompanyReserveRecommendation[],
+    _config: OptimizationConfig,
+    _fundState: FundStateResult,
+    _recommendations: CompanyReserveRecommendation[],
     mcResults: MonteCarloForecast,
-    forecast: PortfolioPerformanceForecast
+    _forecast: PortfolioPerformanceForecast
   ): PerformanceProjectionsResult {
     return {
       currentTrajectory: {
         expectedIRR: mcResults.irr.mean,
         expectedMultiple: mcResults.multiple.mean,
-        probabilityOfSuccess: 0.65
+        probabilityOfSuccess: 0.65,
       },
       optimizedTrajectory: {
         expectedIRR: mcResults.irr.mean * 1.15,
         expectedMultiple: mcResults.multiple.mean * 1.1,
         probabilityOfSuccess: 0.75,
-        improvementOverCurrent: 0.15
+        improvementOverCurrent: 0.15,
       },
       scenarioAnalysis: {
-        bullCase: { irr: mcResults.irr.percentiles[90] ?? mcResults.irr.mean * 1.5, multiple: mcResults.multiple.percentiles[90] ?? mcResults.multiple.mean * 1.5, probability: 0.1 },
+        bullCase: {
+          irr: mcResults.irr.percentiles[90] ?? mcResults.irr.mean * 1.5,
+          multiple: mcResults.multiple.percentiles[90] ?? mcResults.multiple.mean * 1.5,
+          probability: 0.1,
+        },
         baseCase: { irr: mcResults.irr.mean, multiple: mcResults.multiple.mean, probability: 0.8 },
-        bearCase: { irr: mcResults.irr.percentiles[10] ?? mcResults.irr.mean * 0.5, multiple: mcResults.multiple.percentiles[10] ?? mcResults.multiple.mean * 0.5, probability: 0.1 }
-      }
+        bearCase: {
+          irr: mcResults.irr.percentiles[10] ?? mcResults.irr.mean * 0.5,
+          multiple: mcResults.multiple.percentiles[10] ?? mcResults.multiple.mean * 0.5,
+          probability: 0.1,
+        },
+      },
     };
   }
 
   private documentMethodology(
     config: OptimizationConfig,
-    mcResults: MonteCarloForecast,
-    forecast: PortfolioPerformanceForecast
+    _mcResults: MonteCarloForecast,
+    _forecast: PortfolioPerformanceForecast
   ): FundReserveOptimization['methodology'] {
     return {
-      algorithmsUsed: ['Monte Carlo Simulation', 'Portfolio Optimization', 'Risk-Adjusted Return Maximization'],
-      dataInputs: ['Historical Performance', 'Variance Reports', 'Market Data', 'Company Financials'],
+      algorithmsUsed: [
+        'Monte Carlo Simulation',
+        'Portfolio Optimization',
+        'Risk-Adjusted Return Maximization',
+      ],
+      dataInputs: [
+        'Historical Performance',
+        'Variance Reports',
+        'Market Data',
+        'Company Financials',
+      ],
       constraints: [
-        { type: 'Concentration', description: 'Max per company', value: config.constraints.maxConcentrationPerCompany },
-        { type: 'Diversification', description: 'Min diversification score', value: config.constraints.minDiversificationScore },
-        { type: 'Liquidity', description: 'Emergency reserves', value: config.constraints.liquidityRequirements }
+        {
+          type: 'Concentration',
+          description: 'Max per company',
+          value: config.constraints.maxConcentrationPerCompany,
+        },
+        {
+          type: 'Diversification',
+          description: 'Min diversification score',
+          value: config.constraints.minDiversificationScore,
+        },
+        {
+          type: 'Liquidity',
+          description: 'Emergency reserves',
+          value: config.constraints.liquidityRequirements,
+        },
       ],
       assumptions: [
         { category: 'Market', assumption: 'Normal market conditions', confidence: 0.7 },
         { category: 'Performance', assumption: 'Historical patterns continue', confidence: 0.8 },
-        { category: 'Risk', assumption: 'Correlation patterns stable', confidence: 0.6 }
-      ]
+        { category: 'Risk', assumption: 'Correlation patterns stable', confidence: 0.6 },
+      ],
     };
   }
 
   private generateImplementationRoadmap(
-    config: OptimizationConfig,
-    recommendations: CompanyReserveRecommendation[],
-    insights: PortfolioInsightsResult,
-    projections: PerformanceProjectionsResult
+    _config: OptimizationConfig,
+    _recommendations: CompanyReserveRecommendation[],
+    _insights: PortfolioInsightsResult,
+    _projections: PerformanceProjectionsResult
   ): FundReserveOptimization['implementationRoadmap'] {
     return {
       immediateActions: [
-        { action: 'Review top 5 reserve recommendations', priority: 'high' as const, timeframe: '1 week', expectedImpact: 0.1 },
-        { action: 'Update investment committee materials', priority: 'medium' as const, timeframe: '2 weeks', expectedImpact: 0.05 }
+        {
+          action: 'Review top 5 reserve recommendations',
+          priority: 'high' as const,
+          timeframe: '1 week',
+          expectedImpact: 0.1,
+        },
+        {
+          action: 'Update investment committee materials',
+          priority: 'medium' as const,
+          timeframe: '2 weeks',
+          expectedImpact: 0.05,
+        },
       ],
       quarterlyMilestones: [
-        { quarter: '2024-Q1', milestones: ['Deploy 25% of recommended reserves'], kpis: [{ metric: 'Reserve utilization', target: 0.25 }] }
+        {
+          quarter: '2024-Q1',
+          milestones: ['Deploy 25% of recommended reserves'],
+          kpis: [{ metric: 'Reserve utilization', target: 0.25 }],
+        },
       ],
       riskMitigations: [
-        { risk: 'Market downturn', mitigation: 'Maintain higher cash reserves', timeline: 'Ongoing' }
-      ]
+        {
+          risk: 'Market downturn',
+          mitigation: 'Maintain higher cash reserves',
+          timeline: 'Ongoing',
+        },
+      ],
     };
   }
 
@@ -1068,8 +1159,8 @@ export class ReserveOptimizationCalculatorService {
       metadata: {
         objective: optimization.optimizationObjective,
         recommendedReserves: optimization.fundLevelStrategy.recommendedTotalReserves,
-        companyCount: optimization.companyRecommendations.length
-      }
+        companyCount: optimization.companyRecommendations.length,
+      },
     });
   }
 }
