@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -19,16 +14,59 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, DollarSign, Target, PieChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import type { DashboardSummary } from '@/types/fund';
 
-interface DualForecastData {
-  fund: any;
-  portfolioCompanies: any[];
-  metrics: any;
-  summary: any;
+const MILLION = 1_000_000;
+
+interface ForecastPoint {
+  month: string;
+  conservative: number;
+  realistic: number;
+  aggressive: number;
+  deployed: number;
+}
+
+interface PortfolioChartPoint {
+  name: string;
+  value: number;
+  investment: number;
+  sector: string;
+  stage: string;
+}
+
+function parseNumericValue(value: string | number | null | undefined): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function formatMillionValue(value: ValueType | undefined): string {
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+
+  if (typeof value === 'number' || typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `$${parsed}M` : `${value}`;
+  }
+
+  return '';
+}
+
+function formatSeriesName(name: NameType | undefined): string {
+  return name === 'value' ? 'Current Value' : 'Investment';
 }
 
 export default function DualForecastDashboard() {
-  const { data: dashboardData, isLoading, error } = useQuery<DualForecastData>({
+  const { data: dashboardData, isLoading, error } = useQuery<DashboardSummary>({
     queryKey: ['/api/dashboard-summary/1'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -76,28 +114,29 @@ export default function DualForecastDashboard() {
 
   // Transform real data for forecasting charts
   const currentMetrics = dashboardData.metrics;
-  const baseValue = parseFloat(currentMetrics?.totalValue || '0');
-  const currentIRR = parseFloat(currentMetrics?.irr || '0');
+  const baseValue = parseNumericValue(currentMetrics?.totalValue);
+  const currentIRR = parseNumericValue(currentMetrics?.irr);
+  const deployedCapital = parseNumericValue(dashboardData.fund.deployedCapital);
 
   // Generate forecast scenarios
-  const generateForecastData = () => {
-    const months = Array.from({ length: 24 }, (_: any, i: any) => {
+  const generateForecastData = (): ForecastPoint[] => {
+    const months = Array.from({ length: 24 }, (_, index) => {
       const date = new Date();
-      date.setMonth(date.getMonth() + i);
+      date.setMonth(date.getMonth() + index);
       return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     });
 
-    return months.map((month: any, i: any) => {
-      const growthFactor = Math.pow(1 + currentIRR / 12, i);
-      const conservativeGrowth = Math.pow(1.15, i / 12); // 15% annual
-      const aggressiveGrowth = Math.pow(1.35, i / 12); // 35% annual
+    return months.map((month, index) => {
+      const growthFactor = Math.pow(1 + currentIRR / 12, index);
+      const conservativeGrowth = Math.pow(1.15, index / 12); // 15% annual
+      const aggressiveGrowth = Math.pow(1.35, index / 12); // 35% annual
       
       return {
         month,
-        conservative: Math.round(baseValue * conservativeGrowth / 1000000), // In millions
-        realistic: Math.round(baseValue * growthFactor / 1000000),
-        aggressive: Math.round(baseValue * aggressiveGrowth / 1000000),
-        deployed: Math.round((parseFloat(dashboardData.fund.deployedCapital) + i * 2000000) / 1000000)
+        conservative: Math.round(baseValue * conservativeGrowth / MILLION), // In millions
+        realistic: Math.round(baseValue * growthFactor / MILLION),
+        aggressive: Math.round(baseValue * aggressiveGrowth / MILLION),
+        deployed: Math.round((deployedCapital + index * 2_000_000) / MILLION)
       };
     });
   };
@@ -105,10 +144,10 @@ export default function DualForecastDashboard() {
   const forecastData = generateForecastData();
 
   // Portfolio allocation data from real API
-  const portfolioData = dashboardData.portfolioCompanies.map(company => ({
+  const portfolioData: PortfolioChartPoint[] = dashboardData.portfolioCompanies.map((company) => ({
     name: company.name,
-    value: Math.round(parseFloat(company.currentValuation) / 1000000),
-    investment: Math.round(parseFloat(company.investmentAmount) / 1000000),
+    value: Math.round(parseNumericValue(company.currentValuation) / MILLION),
+    investment: Math.round(parseNumericValue(company.investmentAmount) / MILLION),
     sector: company.sector,
     stage: company.stage
   }));
@@ -122,7 +161,7 @@ export default function DualForecastDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Current AUM</p>
-                <p className="text-2xl font-bold">${(baseValue / 1000000).toFixed(1)}M</p>
+                <p className="text-2xl font-bold">${(baseValue / MILLION).toFixed(1)}M</p>
               </div>
               <DollarSign className="h-8 w-8 text-blue-600" />
             </div>
@@ -185,7 +224,7 @@ export default function DualForecastDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip formatter={(value: any) => [`$${value}M`, '']} />
+                <Tooltip formatter={(value: ValueType | undefined) => [formatMillionValue(value), '']} />
                 <Legend />
                 <Area
                   type="monotone"
@@ -237,7 +276,10 @@ export default function DualForecastDashboard() {
                 <XAxis dataKey="name" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip 
-                  formatter={(value: any, name: any) => [`$${value}M`, name === 'value' ? 'Current Value' : 'Investment']}
+                  formatter={(value: ValueType | undefined, name: NameType | undefined) => [
+                    formatMillionValue(value),
+                    formatSeriesName(name),
+                  ]}
                 />
                 <Legend />
                 <Bar dataKey="investment" fill="#94a3b8" name="Investment" />
@@ -258,14 +300,14 @@ export default function DualForecastDashboard() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={forecastData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip formatter={(value: any) => [`$${value}M`, 'Deployed Capital']} />
-              <Line
-                type="monotone"
-                dataKey="deployed"
+              <LineChart data={forecastData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
+                <Tooltip formatter={(value: ValueType | undefined) => [formatMillionValue(value), 'Deployed Capital']} />
+                <Line
+                  type="monotone"
+                  dataKey="deployed"
                 stroke="#ef4444"
                 strokeWidth={3}
                 dot={{ r: 4 }}

@@ -32,9 +32,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, Calendar } from 'lucide-react';
+import { TrendingUp, Download, RefreshCw, Calendar } from 'lucide-react';
 import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
-import type { Granularity, GroupByDimension, MetricTrend } from '@shared/types/performance-api';
+import type { Granularity, GroupByDimension } from '@shared/types/performance-api';
 
 // ============================================================================
 // HELPERS
@@ -91,20 +91,8 @@ function getDateRange(timeframe: string): { startDate: string; endDate: string }
 
   return {
     startDate: startDate.toISOString().split('T')[0] ?? '',
-    endDate: new Date().toISOString().split('T')[0] ?? '',
+    endDate: endDate ?? '',
   };
-}
-
-function TrendIcon({ trend }: { trend: MetricTrend }) {
-  switch (trend) {
-    case 'improving':
-      return <TrendingUp className="h-4 w-4 text-green-600" />;
-    case 'declining':
-      return <TrendingDown className="h-4 w-4 text-red-600" />;
-    case 'stable':
-    default:
-      return <Minus className="h-4 w-4 text-gray-500" />;
-  }
 }
 
 // ============================================================================
@@ -289,7 +277,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                   <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(v) => `${v.toFixed(0)}%`} tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(v) => `${Number(v).toFixed(0)}%`} tick={{ fontSize: 12 }} />
                     <Tooltip
                       formatter={(value) => [
                         value !== undefined ? `${Number(value).toFixed(2)}%` : '',
@@ -327,7 +315,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                   <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(v) => `${v?.toFixed(1)}x`} tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(v) => `${Number(v).toFixed(1)}x`} tick={{ fontSize: 12 }} />
                     <Tooltip
                       formatter={(value, name) => [
                         value !== undefined ? `${Number(value).toFixed(2)}x` : '',
@@ -425,7 +413,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                         margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" tickFormatter={(v) => `${v.toFixed(1)}x`} />
+                        <XAxis type="number" tickFormatter={(v) => `${Number(v).toFixed(1)}x`} />
                         <YAxis dataKey="group" type="category" tick={{ fontSize: 12 }} width={90} />
                         <Tooltip
                           formatter={(value) => [
