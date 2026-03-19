@@ -5,8 +5,15 @@
  *
  * Removed from server.ts on 2026-01-22 (Gate 0 security fix)
  */
-import { Router } from "express";
-import { getFlags } from "../../flags";
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { getFlags } from '../../flags';
+
+const router = Router();
 
 // DEPRECATED - Do not use this route
-export const flagsRoute = Router()['get']("/flags", (_req: any, res: any) => res["json"](getFlags()));
+router.get('/flags', (_req: Request, res: Response) => {
+  res.json(getFlags());
+});
+
+export const flagsRoute = router;
