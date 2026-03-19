@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { Suspense, lazy } from 'react';
 
 // Lazy load the recharts bundle
@@ -7,8 +6,11 @@ const RechartsBundle = lazy(() => import('./recharts-bundle'));
 interface LazyChartProps {
   component: string;
   children?: React.ReactNode;
-  [key: string]: any;
+  height?: number;
+  [key: string]: unknown;
 }
+
+type LazyChartVariantProps = Omit<LazyChartProps, 'component'>;
 
 // Loading fallback for charts
 export function ChartSkeleton({ height = 300 }: { height?: number }) {
@@ -52,51 +54,45 @@ export function LazyChart({
   children, 
   ...props 
 }: LazyChartProps) {
-  const Component = React.useMemo(() => {
-    // Map component names to actual imports
-    const componentMap: Record<string, any> = {};
-    return componentMap[component] || RechartsBundle;
-  }, [component]);
-
   return (
     <Suspense fallback={<ChartSkeleton height={height} />}>
-      <Component component={component} {...props}>
+      <RechartsBundle component={component} {...props}>
         {children}
-      </Component>
+      </RechartsBundle>
     </Suspense>
   );
 }
 
 // Export specific lazy-loaded chart components for convenience
-export const LazyLineChart = (props: any) => (
+export const LazyLineChart = (props: LazyChartVariantProps) => (
   <LazyChart component="LineChart" {...props} />
 );
 
-export const LazyBarChart = (props: any) => (
+export const LazyBarChart = (props: LazyChartVariantProps) => (
   <LazyChart component="BarChart" {...props} />
 );
 
-export const LazyAreaChart = (props: any) => (
+export const LazyAreaChart = (props: LazyChartVariantProps) => (
   <LazyChart component="AreaChart" {...props} />
 );
 
-export const LazyPieChart = (props: any) => (
+export const LazyPieChart = (props: LazyChartVariantProps) => (
   <LazyChart component="PieChart" {...props} />
 );
 
-export const LazyComposedChart = (props: any) => (
+export const LazyComposedChart = (props: LazyChartVariantProps) => (
   <LazyChart component="ComposedChart" {...props} />
 );
 
-export const LazyRadarChart = (props: any) => (
+export const LazyRadarChart = (props: LazyChartVariantProps) => (
   <LazyChart component="RadarChart" {...props} />
 );
 
-export const LazyRadialBarChart = (props: any) => (
+export const LazyRadialBarChart = (props: LazyChartVariantProps) => (
   <LazyChart component="RadialBarChart" {...props} />
 );
 
-export const LazyScatterChart = (props: any) => (
+export const LazyScatterChart = (props: LazyChartVariantProps) => (
   <LazyChart component="ScatterChart" {...props} />
 );
 

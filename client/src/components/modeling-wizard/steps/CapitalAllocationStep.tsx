@@ -21,6 +21,7 @@ import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCa
 import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { useEngineComparison } from '@/hooks/useEngineComparison';
 import { FLAGS } from '@/core/flags/featureFlags';
+import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
 import { EngineRecommendationsPanel } from './capital-allocation/EngineRecommendationsPanel';
 import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
@@ -147,7 +148,7 @@ export function CapitalAllocationStep({
   }, [watch, onSave]);
 
   // Engine comparison (behind feature flag)
-  const minimalWizardContext = React.useMemo(
+  const minimalWizardContext = React.useMemo<ModelingWizardContext>(
     () => ({
       steps: {
         generalInfo: {
@@ -161,11 +162,7 @@ export function CapitalAllocationStep({
           investmentPeriod: fundFinancials.investmentPeriod,
         },
         sectorProfiles: { sectorProfiles },
-        capitalAllocation: {
-          initialCheckSize: debouncedFormValues.initialCheckSize,
-          followOnStrategy: debouncedFormValues.followOnStrategy,
-          pacingModel: debouncedFormValues.pacingModel,
-        },
+        capitalAllocation: debouncedFormValues as CapitalAllocationOutput,
       },
       currentStep: 'capitalAllocation' as const,
       currentStepIndex: 2,
@@ -206,7 +203,7 @@ export function CapitalAllocationStep({
   );
 
   const engineState = useEngineComparison({
-    wizardContext: minimalWizardContext as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- minimal context shim
+    wizardContext: minimalWizardContext,
     sectorProfiles,
     capitalAllocation: debouncedFormValues as CapitalAllocationOutput,
   });

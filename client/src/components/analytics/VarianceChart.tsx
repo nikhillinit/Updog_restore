@@ -12,6 +12,7 @@ import {
   ScatterChart,
   Scatter
 } from 'recharts';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from 'date-fns';
@@ -26,6 +27,13 @@ interface VarianceDataPoint {
   timestamp?: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
+
+type ProcessedVarianceDataPoint = VarianceDataPoint & {
+  index: number;
+  absVariance: number;
+  formattedMetric: string;
+  severityColor: string;
+};
 
 interface VarianceChartProps {
   data: VarianceDataPoint[];
@@ -72,7 +80,13 @@ export function VarianceChart({
     }));
   }, [data]);
 
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: VarianceDataPoint & { index: number; absVariance: number; formattedMetric: string; severityColor: string } }>; label?: string }) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: ProcessedVarianceDataPoint }>;
+  }) => {
     if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
@@ -313,7 +327,21 @@ export function VarianceTrendChart({
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [data]);
 
-  const TrendTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { timestamp: number; variance: number; metric: string; formattedDate: string; absVariance: number } }> }) => {
+  const TrendTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{
+      payload: {
+        timestamp: number;
+        variance: number;
+        metric: string;
+        formattedDate: string;
+        absVariance: number;
+      };
+    }>;
+  }) => {
     if (active && payload && payload.length && payload[0]) {
       const data = payload[0].payload;
       return (
@@ -352,7 +380,9 @@ export function VarianceTrendChart({
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
-                tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                tickFormatter={(timestamp: ValueType | NameType) =>
+                  format(new Date(Number(timestamp)), 'MMM dd')
+                }
                 stroke="#6b7280"
                 fontSize={12}
               />

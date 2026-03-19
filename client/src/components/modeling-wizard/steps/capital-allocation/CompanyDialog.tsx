@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * Company Dialog Component
  * Add/Edit company dialog with validation
@@ -56,6 +51,13 @@ const companySchema = z.object({
 });
 
 export type CompanyData = z.infer<typeof companySchema>;
+type CompanyStage = CompanyData['stage'];
+
+const COMPANY_STAGES = ['seed', 'series-a', 'series-b', 'series-c', 'growth'] as const;
+
+function isCompanyStage(value: string): value is CompanyStage {
+  return COMPANY_STAGES.includes(value as CompanyStage);
+}
 
 export interface CompanyDialogProps {
   open: boolean;
@@ -182,7 +184,11 @@ export function CompanyDialog({
               </Label>
               <Select
                 defaultValue={company?.stage || 'seed'}
-                onValueChange={(value) => setValue('stage', value as any)}
+                onValueChange={(value) => {
+                  if (isCompanyStage(value)) {
+                    setValue('stage', value);
+                  }
+                }}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue />

@@ -12,6 +12,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { TrendingUp, Target, Layers, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,12 @@ const STAGE_COLORS = [
   '#F59E0B', // Amber (Series C+)
 ];
 
+interface ChartAmountPayload {
+  payload?: {
+    amount: number;
+  };
+}
+
 export function PortfolioSummary({ sectors, stages, metrics, className }: PortfolioSummaryProps) {
   // Format currency
   const formatCurrency = (value: number) => {
@@ -75,6 +82,15 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
   const formatPercent = (value: number) => {
     return `${(value * 100).toFixed(1)}%`;
   };
+
+  const formatTooltipValue = (
+    value: ValueType,
+    name: NameType,
+    entry: ChartAmountPayload
+  ): [string, string] => [
+    `${Number(value).toFixed(1)}% (${formatCurrency(entry.payload?.amount ?? 0)}M)`,
+    String(name ?? ''),
+  ];
 
   // Prepare chart data
   const sectorData = sectors.map((s) => ({
@@ -199,12 +215,7 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value, name, props) => [
-                    value !== undefined
-                      ? `${Number(value).toFixed(1)}% (${formatCurrency(props?.payload?.amount)}M)`
-                      : '',
-                    name ?? '',
-                  ]}
+                  formatter={formatTooltipValue}
                 />
                 <Legend />
               </PieChart>
@@ -261,12 +272,7 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value, name, props) => [
-                    value !== undefined
-                      ? `${Number(value).toFixed(1)}% (${formatCurrency(props?.payload?.amount)}M)`
-                      : '',
-                    name ?? '',
-                  ]}
+                  formatter={formatTooltipValue}
                 />
                 <Legend />
               </PieChart>

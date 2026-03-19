@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Plus, Info } from 'lucide-react';
@@ -30,14 +30,16 @@ export interface SectorProfilesStepProps {
   onSave: (data: SectorProfilesInput) => void;
 }
 
+const EMPTY_SECTOR_PROFILES: SectorProfilesInput['sectorProfiles'] = [];
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepProps) {
   const {
+    control,
     setValue,
-    watch,
     handleSubmit,
     formState: { errors }
   } = useForm<SectorProfilesInput>({
@@ -68,7 +70,15 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
     }
   });
 
-  const sectorProfiles = watch('sectorProfiles') || [];
+  const watchedSectorProfiles = useWatch({ control, name: 'sectorProfiles' });
+  const sectorProfiles = watchedSectorProfiles ?? EMPTY_SECTOR_PROFILES;
+  const formValues = useWatch({ control });
+  const onSaveRef = React.useRef(onSave);
+  const hasInitializedAutoSave = React.useRef(false);
+
+  React.useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
   // Calculate total allocation
   const totalAllocation = React.useMemo(() => {
@@ -79,13 +89,15 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
 
   // Auto-save on form changes
   React.useEffect(() => {
-    const subscription = watch((value) => {
-      if (sectorProfilesSchema.safeParse(value).success) {
-        onSave(value as SectorProfilesInput);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [watch, onSave]);
+    if (!hasInitializedAutoSave.current) {
+      hasInitializedAutoSave.current = true;
+      return;
+    }
+
+    if (sectorProfilesSchema.safeParse(formValues).success) {
+      onSaveRef.current(formValues as SectorProfilesInput);
+    }
+  }, [formValues]);
 
   const addSectorProfile = () => {
     const newProfile: SectorProfile = {
