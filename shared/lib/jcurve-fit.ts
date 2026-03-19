@@ -6,7 +6,7 @@
  * to target TVPI with robust error handling and fallback strategies.
  */
 
-import { levenbergMarquardt, type ParameterizedFunction } from 'ml-levenberg-marquardt';
+import { levenbergMarquardt } from 'ml-levenberg-marquardt';
 import { gompertz, logistic } from './jcurve-shapes';
 
 export type CurveKind = 'gompertz' | 'logistic';
@@ -19,6 +19,8 @@ export interface FitResult {
   params: number[];
   rmse: number;
 }
+
+type ParameterizedFunction = (params: number[]) => (x: number) => number;
 
 /**
  * Fit TVPI curve to target value using nonlinear least squares

@@ -105,7 +105,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     };
   }
 
-  return buildOutput(input, state, periodResults, allViolations, pacingConfig);
+  return buildOutput(input, state, periodResults, allViolations);
 }
 
 function bucketFlowsIntoPeriods(

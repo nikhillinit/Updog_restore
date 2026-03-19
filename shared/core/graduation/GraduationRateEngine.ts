@@ -294,7 +294,7 @@ export class GraduationRateEngine {
     const projections: CohortProjection[] = [];
 
     // Track each company's stage
-    const companyStages = Array.from<Stage>({ length: initialCompanies }, () => 'seed');
+    const companyStages: Stage[] = Array.from({ length: initialCompanies }, () => 'seed');
 
     for (let q = 0; q < horizonQuarters; q++) {
       let graduates = 0;

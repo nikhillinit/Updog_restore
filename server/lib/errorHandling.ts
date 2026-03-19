@@ -121,7 +121,7 @@ export class UnifiedErrorHandler {
     }
 
     // Determine action
-    const action = this.determineAction(error, enrichedContext);
+    const action = this.determineAction(enrichedContext);
 
     return {
       statusCode: errorResponse.statusCode,

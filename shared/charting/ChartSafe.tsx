@@ -43,7 +43,7 @@ function toNum(value?: FlexibleDimension): number | undefined {
 export function withChartSafe<T extends { height?: FlexibleDimension; width?: FlexibleDimension }>(
   Component: React.ComponentType<T>
 ) {
-  const WrappedComponent: React.ForwardRefRenderFunction<Element, T> = (props, ref) => {
+  const WrappedComponent = (props: T, ref: React.ForwardedRef<Element>) => {
     const { height, width, ...restProps } = props;
 
     const normalizedProps = {
@@ -58,9 +58,9 @@ export function withChartSafe<T extends { height?: FlexibleDimension; width?: Fl
     return <ComponentWithRef ref={ref} {...(normalizedProps as T)} />;
   };
 
-  return React.forwardRef(WrappedComponent) as React.ForwardRefExoticComponent<
-    React.PropsWithoutRef<T> & React.RefAttributes<Element>
-  >;
+  return React.forwardRef(
+    WrappedComponent as unknown as React.ForwardRefRenderFunction<Element, React.PropsWithoutRef<T>>
+  ) as React.ForwardRefExoticComponent<React.PropsWithoutRef<T> & React.RefAttributes<Element>>;
 }
 
 // Export pre-wrapped safe chart components

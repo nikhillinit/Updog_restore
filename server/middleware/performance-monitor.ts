@@ -31,7 +31,7 @@ function getRoutePath(route: unknown): string | undefined {
     'path' in route &&
     typeof (route as { path?: unknown }).path === 'string'
   ) {
-    return route.path;
+    return (route as { path: string }).path;
   }
 
   return undefined;
