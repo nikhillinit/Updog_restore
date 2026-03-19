@@ -12,8 +12,8 @@ interface RedisPingable {
   ping(): Promise<unknown>;
 }
 
-interface RedisConnection extends RedisPingable {
-  quit(): Promise<void>;
+interface RedisConnection {
+  quit(): Promise<unknown>;
   on(event: 'error', listener: (error: unknown) => void): unknown;
 }
 
@@ -49,6 +49,7 @@ function createSocketOptions(tlsEnabled: boolean, keepAlive?: number): RedisSock
 export interface RedisConn {
   conn: RedisConnection;
   mode: 'single' | 'cluster';
+  ping(): Promise<unknown>;
   describe(): string;
   close(): Promise<void>;
 }
@@ -83,6 +84,9 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     return {
       conn: cluster,
       mode: 'cluster',
+      ping: async () => {
+        await cluster.sendCommand(undefined, undefined, ['PING']);
+      },
       describe: () => `cluster(${clusterNodes.join(',')})`,
       close: async () => {
         await cluster.quit();
@@ -107,6 +111,9 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   return {
     conn: client,
     mode: 'single',
+    ping: async () => {
+      await client.ping();
+    },
     describe: () => `single(${cfg.url ?? 'unknown'})`,
     close: async () => {
       await client.quit();
