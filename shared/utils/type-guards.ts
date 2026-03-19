@@ -57,10 +57,7 @@ export function hasProperty<T extends object, K extends PropertyKey>(
   return key in obj;
 }
 
-export function getProperty<T extends object, K extends keyof T>(
-  obj: T,
-  key: K
-): T[K] | undefined {
+export function getProperty<T extends object, K extends keyof T>(obj: T, key: K): T[K] | undefined {
   return obj[key];
 }
 
@@ -121,10 +118,7 @@ export function validateRequired<T>(value: T | undefined | null, paramName: stri
   return value;
 }
 
-export function validateArrayNotEmpty<T>(
-  array: T[] | undefined | null,
-  paramName: string
-): T[] {
+export function validateArrayNotEmpty<T>(array: T[] | undefined | null, paramName: string): T[] {
   const validArray = validateRequired(array, paramName);
   if (!isArray(validArray) || validArray.length === 0) {
     throw new Error(`Parameter '${paramName}' must be a non-empty array`);
@@ -141,15 +135,33 @@ export function safeIndexAccess<T>(
   return obj[key];
 }
 
-export function safeMethodCall<T extends object, K extends keyof T>(
+type MethodKey<T extends object> = {
+  [K in keyof T]: T[K] extends (...args: unknown[]) => unknown ? K : never;
+}[keyof T];
+
+type MethodArgs<T extends object, K extends MethodKey<T>> = T[K] extends (
+  ...args: infer A
+) => unknown
+  ? A
+  : never;
+
+type MethodReturn<T extends object, K extends MethodKey<T>> = T[K] extends (
+  ...args: unknown[]
+) => infer R
+  ? R
+  : never;
+
+export function safeMethodCall<T extends object, K extends MethodKey<T>>(
   obj: T | undefined | null,
   method: K,
-  ...args: T[K] extends (...args: any[]) => any ? Parameters<T[K]> : never[]
-): T[K] extends (...args: any[]) => infer R ? R | undefined : undefined {
+  ...args: MethodArgs<T, K>
+): MethodReturn<T, K> | undefined {
   if (!isDefined(obj) || typeof obj[method] !== 'function') {
-    return undefined as any;
+    return undefined;
   }
-  return (obj[method] as any)(...args);
+
+  const callable = obj[method] as (...callArgs: MethodArgs<T, K>) => MethodReturn<T, K>;
+  return callable(...args);
 }
 
 // Environment variable safe access
@@ -171,8 +183,11 @@ export function safeAwait<T>(
   promise: Promise<T>
 ): Promise<{ success: true; data: T } | { success: false; error: Error }> {
   return promise
-    .then((data: any) => ({ success: true as const, data }))
-    .catch((error: any) => ({ success: false as const, error: error instanceof Error ? error : new Error(String(error)) }));
+    .then((data: T) => ({ success: true as const, data }))
+    .catch((error: unknown) => ({
+      success: false as const,
+      error: error instanceof Error ? error : new Error(String(error)),
+    }));
 }
 
 // Assertion utilities for type narrowing
@@ -185,28 +200,19 @@ export function assertDefined<T>(
   }
 }
 
-export function assertArray<T>(
-  value: unknown,
-  message?: string
-): asserts value is T[] {
+export function assertArray<T>(value: unknown, message?: string): asserts value is T[] {
   if (!isArray(value)) {
     throw new Error(message || 'Value is not an array');
   }
 }
 
-export function assertString(
-  value: unknown,
-  message?: string
-): asserts value is string {
+export function assertString(value: unknown, message?: string): asserts value is string {
   if (!isString(value)) {
     throw new Error(message || 'Value is not a string');
   }
 }
 
-export function assertNumber(
-  value: unknown,
-  message?: string
-): asserts value is number {
+export function assertNumber(value: unknown, message?: string): asserts value is number {
   if (!isNumber(value)) {
     throw new Error(message || 'Value is not a number');
   }

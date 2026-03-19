@@ -179,9 +179,9 @@ export function calibrateToActualCalls(
 
   const result = [...ysSeed];
   const calledCum = cumulativeFromPeriods(calledSoFar);
-  const dpiCum = dpiSoFar
+  const dpiCum: Decimal[] = dpiSoFar
     ? cumulativeFromPeriods(dpiSoFar)
-    : Array(calledCum.length).fill(new Decimal(0));
+    : Array.from({ length: calledCum.length }, () => new Decimal(0));
 
   for (let i = 0; i < Math.min(calledSoFar.length, result.length); i++) {
     const called = calledCum[i + 1];
@@ -189,7 +189,10 @@ export function calibrateToActualCalls(
       const dpiVal = dpiCum[i + 1];
       if (dpiVal) {
         const approxTvpi = 1 + dpiVal.div(called).toNumber();
-        result[i] = approxTvpi || result[i];
+        const existingValue = result[i];
+        if (existingValue !== undefined) {
+          result[i] = approxTvpi || existingValue;
+        }
       }
     }
   }
