@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -24,6 +19,20 @@ interface InvestableCapitalData {
   fundValue: number;
 }
 
+interface AllocationDataPoint {
+  round: string;
+  deployed: number;
+  planned: number;
+  total: number;
+  color: string;
+}
+
+interface DeploymentStatusItem {
+  category: string;
+  amount: number;
+  percentage: number;
+}
+
 export default function InvestableCapitalSummary() {
   // Data for capital deployment tracking
   const capitalData: InvestableCapitalData = {
@@ -37,7 +46,7 @@ export default function InvestableCapitalSummary() {
     fundValue: 97716532
   };
 
-  const allocationData = [
+  const allocationData: AllocationDataPoint[] = [
     {
       round: "Initial Investments",
       deployed: 40000000,
@@ -61,7 +70,7 @@ export default function InvestableCapitalSummary() {
     }
   ];
 
-  const deploymentStatus = [
+  const deploymentStatus: DeploymentStatusItem[] = [
     {
       category: "Deployed",
       amount: capitalData.actual,
@@ -132,7 +141,10 @@ export default function InvestableCapitalSummary() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={allocationData} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(value: number) => `$${(value / 1000000).toFixed(0)}M`}
+                  />
                   <YAxis dataKey="round" type="category" width={100} />
                   <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', '']} />
                   <Bar dataKey="total" fill="#3b82f6" />
@@ -150,8 +162,8 @@ export default function InvestableCapitalSummary() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {deploymentStatus.map((item: any, index: any) => (
-                <div key={index} className="space-y-2">
+              {deploymentStatus.map((item, index) => (
+                <div key={item.category} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{item.category}</span>
                     <span className="text-sm">{formatCurrency(item.amount)}</span>

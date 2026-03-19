@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { PieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
@@ -84,8 +79,6 @@ export default function PortfolioInsights() {
     return `$${value.toLocaleString()}`;
   };
 
-  const totalInvested = coInvestorData.reduce((sum: any, item: any) => sum + item.amount, 0);
-
   return (
     <div className="space-y-6">
       <Card>
@@ -117,8 +110,8 @@ export default function PortfolioInsights() {
                       paddingAngle={2}
                       dataKey="amount"
                     >
-                      {coInvestorData.map((entry: any, index: any) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {coInvestorData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', 'Invested']} />
@@ -127,8 +120,11 @@ export default function PortfolioInsights() {
               </div>
 
               <div className="space-y-2">
-                {coInvestorData.map((investor: any, index: any) => (
-                  <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                {coInvestorData.map((investor) => (
+                  <div
+                    key={investor.name}
+                    className="flex items-center justify-between p-2 rounded-lg bg-gray-50"
+                  >
                     <div className="flex items-center space-x-3">
                       <div 
                         className="w-3 h-3 rounded-full"

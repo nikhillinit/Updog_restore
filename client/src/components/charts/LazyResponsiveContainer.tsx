@@ -1,24 +1,27 @@
 import React, { Suspense } from 'react';
+import type { Props as RechartsResponsiveContainerProps } from 'recharts/types/component/ResponsiveContainer';
 
 // Lazy load ResponsiveContainer only when needed
-const ResponsiveContainer = React.lazy(() => 
-  import('recharts/es6/component/ResponsiveContainer').then(module => ({
-    default: module.ResponsiveContainer
-  }))
-);
-
-// Recharts ResponsiveContainer expects number or percentage string
+type ResponsiveContainerModule = typeof import('recharts/es6/component/ResponsiveContainer');
 type Dimension = number | `${number}%`;
 
-interface LazyResponsiveContainerProps {
+const loadResponsiveContainer = async (): Promise<{
+  default: ResponsiveContainerModule['ResponsiveContainer'];
+}> => {
+  const module: ResponsiveContainerModule = await import('recharts/es6/component/ResponsiveContainer');
+
+  return {
+    default: module.ResponsiveContainer,
+  };
+};
+
+const ResponsiveContainer = React.lazy(loadResponsiveContainer);
+
+interface LazyResponsiveContainerProps
+  extends Omit<RechartsResponsiveContainerProps, 'children' | 'height' | 'width'> {
   width?: Dimension;
   height?: Dimension;
-  aspect?: number;
-  minWidth?: number;
-  minHeight?: number;
-  maxHeight?: number;
-  children: React.ReactElement;
-  className?: string;
+  children: React.ReactNode;
 }
 
 export function LazyResponsiveContainer({
@@ -37,7 +40,7 @@ export function LazyResponsiveContainer({
         <div
           style={{
             width: toCss(width),
-            height: toCss(height)
+            height: toCss(height),
           }}
           className="animate-pulse bg-gray-100 rounded"
         />

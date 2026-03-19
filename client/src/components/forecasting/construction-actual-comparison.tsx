@@ -1,12 +1,32 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowUp, ArrowDown, BarChart3, Activity } from 'lucide-react';
 
+interface ComparisonRow {
+  entryRound: string;
+  constructionAverage: number;
+  actualAverage: number;
+  difference: number;
+  differencePercent: number;
+}
+
+interface EntryRoundSummaryRow {
+  round: string;
+  construction: number;
+  actual: number;
+  projected: number;
+  remaining: number;
+}
+
+interface ComparisonTableProps {
+  data: ComparisonRow[];
+  title: string;
+  description: string;
+}
+
 export function ConstructionActualComparison() {
   // Sample data for construction vs actual comparison
-  const comparisonData = {
+  const comparisonData: Record<string, ComparisonRow[]> = {
     initialChecks: [
       {
         entryRound: 'Seed',
@@ -124,16 +144,8 @@ export function ConstructionActualComparison() {
     ],
   };
 
-  // Investment pacing over time data
-  const pacingData = [
-    { period: '2021', construction: 86, actual: 21, currentForecast: 79 },
-    { period: '2022', construction: 86, actual: 35, currentForecast: 79 },
-    { period: '2023', construction: 86, actual: 21, currentForecast: 79 },
-    { period: 'Total', construction: 86, actual: 21, currentForecast: 79 },
-  ];
-
   // Entry round breakdown
-  const entryRoundData = [
+  const entryRoundData: EntryRoundSummaryRow[] = [
     { round: 'Pre-Seed', construction: 32, actual: 2, projected: 24, remaining: 22 },
     { round: 'Seed', construction: 30, actual: 14, projected: 34, remaining: 20 },
     { round: 'Series A', construction: 24, actual: 5, projected: 21, remaining: 16 },
@@ -162,15 +174,7 @@ export function ConstructionActualComparison() {
     return value > 0 ? 'text-green-600' : 'text-red-600';
   };
 
-  const ComparisonTable = ({
-    data,
-    title,
-    description,
-  }: {
-    data: any[];
-    title: string;
-    description: string;
-  }) => (
+  const ComparisonTable = ({ data, title, description }: ComparisonTableProps) => (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
@@ -189,8 +193,8 @@ export function ConstructionActualComparison() {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
+              {data.map((item) => (
+                <tr key={item.entryRound} className="border-b hover:bg-gray-50">
                   <td className="p-3 font-medium">{item.entryRound}</td>
                   <td className="text-center p-3">{formatCurrency(item.constructionAverage)}</td>
                   <td className="text-center p-3">{formatCurrency(item.actualAverage)}</td>
@@ -258,8 +262,8 @@ export function ConstructionActualComparison() {
                 </tr>
               </thead>
               <tbody>
-                {entryRoundData.map((item, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
+                {entryRoundData.map((item) => (
+                  <tr key={item.round} className="border-b hover:bg-gray-50">
                     <td className="p-3 font-medium">{item.round}</td>
                     <td className="text-center p-3">{item.construction}</td>
                     <td className="text-center p-3">{item.actual}</td>

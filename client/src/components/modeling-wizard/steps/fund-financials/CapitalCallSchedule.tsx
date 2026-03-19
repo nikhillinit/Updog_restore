@@ -39,11 +39,11 @@ export function CapitalCallSchedule({
   onChange
 }: CapitalCallScheduleProps) {
   // Get current schedule pattern for visualization
-  const pattern = React.useMemo(() => {
+  const pattern = React.useMemo<number[]>(() => {
     try {
       return getSchedulePattern(scheduleType, investmentPeriod, customSchedule);
     } catch {
-      return new Array(investmentPeriod).fill(100 / investmentPeriod);
+      return Array.from({ length: investmentPeriod }, () => 100 / investmentPeriod);
     }
   }, [scheduleType, investmentPeriod, customSchedule]);
 
