@@ -83,26 +83,29 @@ export function buildInvestmentStrategy(inputs: StrategyInputs): InvestmentStrat
   }
 
   // Pure computation - no side effects
-  const stages = inputs.stages.map(s => ({
-    id: s.id,
-    name: s.name,
-    graduationRate: s.graduate,
-    exitRate: s.exit,
-    remainRate: Math.max(0, 100 - s.graduate - s.exit)
+  const stages = inputs.stages.map((stage) => ({
+    id: stage.id,
+    name: stage.name,
+    graduationRate: stage.graduate,
+    exitRate: stage.exit,
+    remainRate: Math.max(0, 100 - stage.graduate - stage.exit)
   }));
 
-  const sectorProfiles = inputs.sectorProfiles.map(sp => ({ ...sp }));
-  const allocations = inputs.allocations.map(a => ({ ...a }));
+  const sectorProfiles = inputs.sectorProfiles.map((sectorProfile) => ({ ...sectorProfile }));
+  const allocations = inputs.allocations.map((allocation) => ({ ...allocation }));
 
   // Calculate totals
-  const totalSectorAllocation = sectorProfiles.reduce((sum: any, sector: any) => sum + sector.targetPercentage, 0);
-  const totalAllocation = allocations.reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
+  const totalSectorAllocation = sectorProfiles.reduce(
+    (sum, sector) => sum + sector.targetPercentage,
+    0
+  );
+  const totalAllocation = allocations.reduce((sum, allocation) => sum + allocation.percentage, 0);
 
   // Validation
-  const stageValidation = stages.map((stage: any, i: any) => {
+  const stageValidation = stages.map((stage, index) => {
     if (!stage.name?.trim()) return 'Stage name required';
     if (stage.graduationRate + stage.exitRate > 100) return 'Graduate + Exit must be ≤ 100%';
-    if (i === stages.length - 1 && stage.graduationRate !== 0) return 'Last stage must have 0% graduation';
+    if (index === stages.length - 1 && stage.graduationRate !== 0) return 'Last stage must have 0% graduation';
     return null;
   });
 

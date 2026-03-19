@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +34,8 @@ interface CustomFieldsEditorProps {
   className?: string;
 }
 
+type CustomFieldPrimitiveValue = CustomFieldValue['value'] | undefined;
+
 const COLOR_PRESETS = [
   { value: '#ef4444', label: 'Red' },
   { value: '#f97316', label: 'Orange' },
@@ -70,6 +67,12 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
     return fieldValue?.value;
   };
 
+  const isStringArrayValue = (value: CustomFieldPrimitiveValue): value is string[] =>
+    Array.isArray(value) && value.every((tag) => typeof tag === 'string');
+
+  const isDateLikeValue = (value: CustomFieldPrimitiveValue): value is string | number | Date =>
+    typeof value === 'string' || typeof value === 'number' || value instanceof Date;
+
   const updateFieldValue = (fieldId: string, value: string | number | boolean | Date | string[]) => {
     const updatedValues = values.filter(v => v.fieldId !== fieldId);
     if (value !== undefined && value !== null && value !== '') {
@@ -82,7 +85,8 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
     const tagInput = tagInputs[fieldId]?.trim();
     if (!tagInput) return;
 
-    const currentTags = (getFieldValue(fieldId) as string[]) || [];
+    const fieldValue = getFieldValue(fieldId);
+    const currentTags = isStringArrayValue(fieldValue) ? fieldValue : [];
     if (!currentTags.includes(tagInput)) {
       updateFieldValue(fieldId, [...currentTags, tagInput]);
     }
@@ -90,13 +94,14 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
   };
 
   const removeTag = (fieldId: string, tagToRemove: string) => {
-    const currentTags = (getFieldValue(fieldId) as string[]) || [];
+    const fieldValue = getFieldValue(fieldId);
+    const currentTags = isStringArrayValue(fieldValue) ? fieldValue : [];
     updateFieldValue(fieldId, currentTags.filter((tag: string) => tag !== tagToRemove));
   };
 
-  const handleTagInputKeyPress = (fieldId: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
+  const handleTagInputKeyPress = (fieldId: string, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
       addTag(fieldId);
     }
   };
@@ -110,7 +115,10 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
           <Input
             type="number"
             value={typeof value === 'number' ? value.toString() : ''}
-            onChange={(e: any) => updateFieldValue(field.id, parseFloat(e.target.value) || '')}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const parsedValue = Number.parseFloat(event.target.value);
+              updateFieldValue(field.id, Number.isFinite(parsedValue) ? parsedValue : '');
+            }}
             placeholder="Enter a number"
           />
         );
@@ -118,20 +126,22 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
       case 'text':
         return (
           <Textarea
-            value={(value as string) || ''}
-            onChange={(e: any) => updateFieldValue(field.id, e.target.value)}
+            value={typeof value === 'string' ? value : ''}
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+              updateFieldValue(field.id, event.target.value)
+            }
             placeholder="Enter text"
             rows={2}
           />
         );
 
       case 'tags': {
-        const tags = (value as string[]) || [];
+        const tags = isStringArrayValue(value) ? value : [];
         return (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag: string, index: number) => (
-                <Badge key={index} variant="secondary" className="flex items-center gap-1">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
                   {tag}
                   <X
                     className="h-3 w-3 cursor-pointer hover:text-red-600"
@@ -143,8 +153,12 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
             <div className="flex gap-2">
               <Input
                 value={tagInputs[field.id] || ''}
-                onChange={(e: any) => setTagInputs({ ...tagInputs, [field.id]: e.target.value })}
-                onKeyPress={(e: any) => handleTagInputKeyPress(field.id, e)}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setTagInputs({ ...tagInputs, [field.id]: event.target.value })
+                }
+                onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) =>
+                  handleTagInputKeyPress(field.id, event)
+                }
                 placeholder="Type and press Enter to add tag"
                 className="flex-1"
               />
@@ -166,8 +180,8 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         return (
           <div className="space-y-2">
             <Select
-              value={(value as string) || ''}
-              onValueChange={(selectedColor: any) => updateFieldValue(field.id, selectedColor)}
+              value={typeof value === 'string' ? value : ''}
+              onValueChange={(selectedColor: string) => updateFieldValue(field.id, selectedColor)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a color">
@@ -208,18 +222,20 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
                 className="w-full justify-start text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {value && (typeof value === 'string' || typeof value === 'number' || value instanceof Date) 
-                  ? format(new Date(value), 'PPP') 
+                {value && isDateLikeValue(value)
+                  ? format(new Date(value), 'PPP')
                   : 'Pick a date'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={value && (typeof value === 'string' || typeof value === 'number' || value instanceof Date) 
-                  ? new Date(value) 
+                selected={value && isDateLikeValue(value)
+                  ? new Date(value)
                   : undefined}
-                onSelect={(date: any) => updateFieldValue(field.id, date?.toISOString() || '')}
+                onSelect={(date: Date | undefined) =>
+                  updateFieldValue(field.id, date?.toISOString() ?? '')
+                }
                 initialFocus
               />
             </PopoverContent>
@@ -248,7 +264,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         <CardTitle className="text-base">Custom Fields</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {fields.map((field: any) => (
+        {fields.map((field) => (
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id} className="flex items-center gap-2">
               {field.name}
@@ -261,4 +277,3 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
     </Card>
   );
 }
-
