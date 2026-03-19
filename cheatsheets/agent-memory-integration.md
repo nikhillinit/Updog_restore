@@ -23,10 +23,10 @@ const agent = new YourAgent({
 
 That's it! BaseAgent now auto-initializes:
 
-- ✅ HybridMemoryManager for storage
-- ✅ PatternLearningEngine for learning
-- ✅ ToolHandler for native memory operations
-- ✅ TenantContext for isolation
+- [x] HybridMemoryManager for storage
+- [x] PatternLearningEngine for learning
+- [x] ToolHandler for native memory operations
+- [x] TenantContext for isolation
 
 ## Configuration Options
 
@@ -65,9 +65,9 @@ interface AgentConfig {
 
 BaseAgent **automatically records** patterns in `execute()`:
 
-- ✅ Success patterns on successful execution
-- ✅ Failure patterns on failed execution
-- ✅ Execution context, duration, retry count
+- [x] Success patterns on successful execution
+- [x] Failure patterns on failed execution
+- [x] Execution context, duration, retry count
 
 **No additional code needed!** Just enable `enablePatternLearning: true`.
 
@@ -463,9 +463,10 @@ const agent2 = new Agent({ tenantId: 'user2:project' });
 
 ## See Also
 
-- **CAPABILITIES.md** - "💾 Memory Systems" section
+- **CAPABILITIES.md** - "Memory Systems" section
 - **NATIVE-MEMORY-INTEGRATION.md** - Complete integration guide
-- **packages/agent-core/examples/memory-enabled-agent.ts** - Working example
+- **archive/2026-q1/package-demos/agent-core/examples/memory-enabled-agent.ts**
+  - Archived reference example
 - **packages/agent-core/src/BaseAgent.ts** - Source code reference
 
 ## Migration from Redis-Only
