@@ -10,6 +10,10 @@ import { createClient } from 'redis';
 import { sql } from '../db-serverless';
 import { logger } from './logger.js';
 
+type StageValidationProbeRow = {
+  test_stage?: unknown;
+};
+
 /**
  * Validate STAGE_VALIDATION_MODE environment variable
  *
@@ -113,7 +117,7 @@ export async function validateDatabaseFunction(): Promise<boolean> {
     // Test that normalize_stage() function exists by calling it with a known input
     const result = await sql`SELECT normalize_stage('seed') AS test_stage`;
 
-    const firstRow = result?.[0];
+    const firstRow = (result as StageValidationProbeRow[] | undefined)?.[0];
     if (!firstRow) {
       throw new Error('normalize_stage() returned no results');
     }

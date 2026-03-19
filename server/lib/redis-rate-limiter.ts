@@ -5,6 +5,7 @@
 
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
+import { logger } from './logger.js';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -36,7 +37,7 @@ export class RedisApprovalRateLimiter {
     private config: RateLimiterConfig = {
       maxRequests: 3,
       windowMs: 60000, // 1 minute default
-      keyPrefix: 'rl' // Namespace keys properly
+      keyPrefix: 'rl', // Namespace keys properly
     }
   ) {
     const resolvedRedisUrl = config.redisUrl ?? process.env['REDIS_URL'];
@@ -47,7 +48,7 @@ export class RedisApprovalRateLimiter {
       : createClient({
           url: resolvedRedisUrl as string,
           socket: {
-            connectTimeout: 5000
+            connectTimeout: 5000,
           },
         });
 
@@ -80,7 +81,7 @@ export class RedisApprovalRateLimiter {
         return {1, limit - count, reset_time}
       end
     `;
-    
+
     // Sliding window Lua script (more accurate)
     this.slidingWindowScript = `
       local key = KEYS[1]
@@ -109,15 +110,15 @@ export class RedisApprovalRateLimiter {
         return {1, limit - current - 1, now + window}
       end
     `;
-    
+
     if (this.redis) {
-      this.redis['on']('error', (err: any) => {
+      this.redis['on']('error', (err: unknown) => {
         console.error('Redis rate limiter error:', err);
         this.connected = false;
       });
 
       this.redis['on']('connect', () => {
-        console.log('Redis rate limiter connected');
+        logger.info('Redis rate limiter connected');
         this.connected = true;
       });
     } else {
@@ -147,20 +148,17 @@ export class RedisApprovalRateLimiter {
       this.connected = false;
     }
   }
-  
+
   /**
    * Check if approval creation is allowed
    * Uses atomic Lua scripts to prevent race conditions
    */
-  async canCreateApproval(
-    strategyId: string, 
-    inputsHash: string
-  ): Promise<RateLimitResult> {
+  async canCreateApproval(strategyId: string, inputsHash: string): Promise<RateLimitResult> {
     if (this.useMemory) {
       const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
       const now = Date.now();
       const windowStart = now - this.config.windowMs;
-      const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
+      const timestamps = (this.memoryBuckets.get(key) || []).filter((ts) => ts > windowStart);
       if (timestamps.length >= this.config.maxRequests) {
         const resetAt = timestamps[0]! + this.config.windowMs;
         this.memoryBuckets.set(key, timestamps);
@@ -168,7 +166,7 @@ export class RedisApprovalRateLimiter {
           allowed: false,
           remaining: 0,
           resetAt,
-          retryAfter: Math.ceil((resetAt - now) / 1000)
+          retryAfter: Math.ceil((resetAt - now) / 1000),
         };
       }
       timestamps.push(now);
@@ -176,7 +174,7 @@ export class RedisApprovalRateLimiter {
       return {
         allowed: true,
         remaining: this.config.maxRequests - timestamps.length,
-        resetAt: now + this.config.windowMs
+        resetAt: now + this.config.windowMs,
       };
     }
 
@@ -188,29 +186,25 @@ export class RedisApprovalRateLimiter {
         return {
           allowed: true,
           remaining: this.config.maxRequests - 1,
-          resetAt: Date.now() + this.config.windowMs
+          resetAt: Date.now() + this.config.windowMs,
         };
       }
     }
 
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
-    const ttl = Math.ceil(this.config.windowMs / 1000);
     const identifier = `${now}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      const result = await this.redis!.eval(
-        this.slidingWindowScript,
-        {
-          keys: [key],
-          arguments: [
-            now.toString(),
-            this.config.windowMs.toString(),
-            this.config.maxRequests.toString(),
-            identifier
-          ]
-        }
-      ) as [number, number, number];
+      const result = (await this.redis!.eval(this.slidingWindowScript, {
+        keys: [key],
+        arguments: [
+          now.toString(),
+          this.config.windowMs.toString(),
+          this.config.maxRequests.toString(),
+          identifier,
+        ],
+      })) as [number, number, number];
 
       const [allowed, remaining, resetAt] = result;
 
@@ -219,9 +213,8 @@ export class RedisApprovalRateLimiter {
         allowed: allowed === 1,
         remaining,
         resetAt,
-        ...(retryAfter !== undefined && { retryAfter })
+        ...(retryAfter !== undefined && { retryAfter }),
       };
-
     } catch (error) {
       console.error('Redis rate limit check failed:', error);
 
@@ -229,11 +222,11 @@ export class RedisApprovalRateLimiter {
         allowed: false,
         remaining: 0,
         resetAt: now + this.config.windowMs,
-        retryAfter: Math.ceil(this.config.windowMs / 1000)
+        retryAfter: Math.ceil(this.config.windowMs / 1000),
       };
     }
   }
-  
+
   /**
    * Clear rate limit for a specific key
    * Useful for testing or manual intervention
@@ -264,7 +257,7 @@ export class RedisApprovalRateLimiter {
       const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
       const now = Date.now();
       const windowStart = now - this.config.windowMs;
-      const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
+      const timestamps = (this.memoryBuckets.get(key) || []).filter((ts) => ts > windowStart);
       this.memoryBuckets.set(key, timestamps);
       return {
         count: timestamps.length,
@@ -287,9 +280,7 @@ export class RedisApprovalRateLimiter {
 
     return {
       count,
-      oldestRequest: oldest.length > 0 && oldest[0]
-        ? parseInt(oldest[0].split('-')[0]!)
-        : null
+      oldestRequest: oldest.length > 0 && oldest[0] ? parseInt(oldest[0].split('-')[0]!) : null,
     };
   }
 }
@@ -302,59 +293,55 @@ export class InMemoryRateLimiter {
   private storage = new Map<string, { timestamps: number[]; lastCleanup: number }>();
   private readonly maxStorageSize = 1000;
   private readonly cleanupInterval = 60000; // 1 minute
-  
+
   constructor(
     private maxRequests: number = 3,
     private windowMs: number = 60000
   ) {}
-  
-  canCreateApproval(
-    strategyId: string, 
-    inputsHash: string
-  ): RateLimitResult {
+
+  canCreateApproval(strategyId: string, inputsHash: string): RateLimitResult {
     const key = `rl:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    
+
     // Get existing data
     const data = this.storage['get'](key) || { timestamps: [], lastCleanup: now };
-    
+
     // Filter out expired timestamps
-    data.timestamps = data.timestamps.filter(t => t > windowStart);
-    
+    data.timestamps = data.timestamps.filter((t) => t > windowStart);
+
     if (data.timestamps.length >= this.maxRequests) {
       const oldestTimestamp = Math.min(...data.timestamps);
       const resetAt = oldestTimestamp + this.windowMs;
-      
+
       return {
         allowed: false,
         remaining: 0,
         resetAt,
-        retryAfter: Math.ceil((resetAt - now) / 1000)
+        retryAfter: Math.ceil((resetAt - now) / 1000),
       };
     }
-    
+
     // Add current timestamp
     data.timestamps.push(now);
     data.lastCleanup = now;
     this.storage['set'](key, data);
-    
+
     // Periodic cleanup
-    if (this.storage.size > this.maxStorageSize || 
-        now - data.lastCleanup > this.cleanupInterval) {
+    if (this.storage.size > this.maxStorageSize || now - data.lastCleanup > this.cleanupInterval) {
       this.cleanup(now);
     }
-    
+
     return {
       allowed: true,
       remaining: this.maxRequests - data.timestamps.length,
-      resetAt: now + this.windowMs
+      resetAt: now + this.windowMs,
     };
   }
-  
+
   private cleanup(now: number = Date.now()): void {
     for (const [key, data] of this.storage.entries()) {
-      const validTimestamps = data.timestamps.filter(t => t > now - this.windowMs);
+      const validTimestamps = data.timestamps.filter((t) => t > now - this.windowMs);
       if (validTimestamps.length === 0) {
         this.storage.delete(key);
       } else {
@@ -363,7 +350,7 @@ export class InMemoryRateLimiter {
       }
     }
   }
-  
+
   clear(): void {
     this.storage.clear();
   }
@@ -385,23 +372,20 @@ export async function createRateLimiter(
       const limiterConfig: RateLimiterConfig = {
         maxRequests: config?.maxRequests ?? 3,
         windowMs: config?.windowMs ?? 60000,
-        redisUrl
+        redisUrl,
       };
       if (config?.keyPrefix !== undefined) {
         limiterConfig.keyPrefix = config.keyPrefix;
       }
       const redisLimiter = new RedisApprovalRateLimiter(limiterConfig);
       await redisLimiter.connect();
-      console.log('Using Redis-backed rate limiter');
+      logger.info('Using Redis-backed rate limiter');
       return redisLimiter;
     } catch (error) {
       console.warn('Failed to connect to Redis, falling back to in-memory rate limiter:', error);
     }
   }
 
-  console.log('Using in-memory rate limiter (development mode)');
-  return new InMemoryRateLimiter(
-    config?.maxRequests,
-    config?.windowMs
-  );
+  logger.info('Using in-memory rate limiter (development mode)');
+  return new InMemoryRateLimiter(config?.maxRequests, config?.windowMs);
 }

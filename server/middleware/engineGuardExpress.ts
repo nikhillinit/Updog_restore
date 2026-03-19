@@ -25,12 +25,14 @@ function isFiniteDeep(v: unknown, depth = 0, seen = new WeakSet<object>()): bool
   return true;
 }
 
-// Request augmentation is now centralized in server/types/express.d.ts
+type JsonBody = Parameters<Response['json']>[0];
+
+// Request augmentation is now centralized in types/express.d.ts
 
 export function engineGuardExpress() {
   return (_req: Request, res: Response, next: NextFunction) => {
     const _json = res.json.bind(res);
-    res.json = (body: any) => {
+    res.json = (body: JsonBody) => {
       if (!isFiniteDeep(body)) {
         engineMetrics.nonFinite422.inc?.();
         return res['status'](422).type('application/problem+json')['send']({

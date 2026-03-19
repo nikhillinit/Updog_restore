@@ -33,7 +33,6 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits for GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits
 const KEY_LENGTH = 32; // 256 bits
-const SALT_LENGTH = 16; // 128 bits
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_DIGEST = 'sha256';
 
@@ -50,9 +49,7 @@ async function getDerivedKey(): Promise<Buffer> {
   const envKey = process.env['FIELD_ENCRYPTION_KEY'];
 
   if (!envKey) {
-    throw new Error(
-      'FIELD_ENCRYPTION_KEY environment variable is required for field encryption'
-    );
+    throw new Error('FIELD_ENCRYPTION_KEY environment variable is required for field encryption');
   }
 
   // Check cache first
@@ -71,24 +68,12 @@ async function getDerivedKey(): Promise<Buffer> {
     } else {
       // Treat as passphrase and derive key
       const salt = Buffer.from('lp-field-encryption-salt', 'utf8');
-      derivedKey = await pbkdf2Async(
-        envKey,
-        salt,
-        PBKDF2_ITERATIONS,
-        KEY_LENGTH,
-        PBKDF2_DIGEST
-      );
+      derivedKey = await pbkdf2Async(envKey, salt, PBKDF2_ITERATIONS, KEY_LENGTH, PBKDF2_DIGEST);
     }
   } catch {
     // Decode failed, treat as passphrase
     const salt = Buffer.from('lp-field-encryption-salt', 'utf8');
-    derivedKey = await pbkdf2Async(
-      envKey,
-      salt,
-      PBKDF2_ITERATIONS,
-      KEY_LENGTH,
-      PBKDF2_DIGEST
-    );
+    derivedKey = await pbkdf2Async(envKey, salt, PBKDF2_ITERATIONS, KEY_LENGTH, PBKDF2_DIGEST);
   }
 
   keyCache.set(envKey, derivedKey);

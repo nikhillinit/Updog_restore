@@ -1,6 +1,7 @@
 /**
  * Distributed tracing utilities for deployment and operational monitoring
  */
+import { logger } from './logger.js';
 
 export interface TraceSpan {
   id: string;
@@ -93,10 +94,14 @@ class TracingService {
       ...(fields && { fields }),
     });
 
-    // Also log to console for immediate visibility
-    const logMethod =
-      level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
-    logMethod(`[${span.operationName}:${spanId.slice(0, 8)}] ${message}`, fields || '');
+    const logMessage = `[${span.operationName}:${spanId.slice(0, 8)}] ${message}`;
+    if (level === 'error') {
+      logger.error({ fields }, logMessage);
+    } else if (level === 'warn') {
+      logger.warn({ fields }, logMessage);
+    } else {
+      logger.info({ fields }, logMessage);
+    }
   }
 
   addTags(spanId: string, tags: Record<string, unknown>) {
@@ -183,7 +188,7 @@ class TracingService {
     }
 
     if (cleaned > 0) {
-      console.log(`Cleaned up ${cleaned} old trace spans`);
+      logger.info({ cleaned }, 'Cleaned up old trace spans');
     }
   }
 

@@ -15,5 +15,5 @@
     "ai-utils/**/*.ts",
     "tailwind.config.ts"
   ],
-  "exclude": ["dist", "node_modules", "build", "coverage", "**/*.d.ts"]
+  "exclude": ["dist", "node_modules", "build", "coverage"]
 }

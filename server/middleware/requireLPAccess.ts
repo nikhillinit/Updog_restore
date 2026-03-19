@@ -18,21 +18,6 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { limitedPartners, lpFundCommitments } from '@shared/schema-lp-reporting';
 
-// Extend Express Request type to include LP profile
-declare global {
-  namespace Express {
-    interface Request {
-      lpProfile?: {
-        id: number;
-        name: string;
-        email: string;
-        entityType: string;
-        fundIds: number[]; // Cached list of funds LP has access to
-      };
-    }
-  }
-}
-
 /**
  * Require user to have LP role
  *
@@ -55,9 +40,7 @@ export async function requireLPAccess(
     }
 
     // Check if user has LP role
-    const hasLPRole =
-      req.user.roles?.includes('lp') ||
-      req.user.role === 'lp';
+    const hasLPRole = req.user.roles?.includes('lp') || req.user.role === 'lp';
 
     if (!hasLPRole) {
       res.status(403).json({
@@ -128,6 +111,7 @@ export async function requireLPAccess(
 
     // Attach LP profile with cached fund access list to request
     // All downstream middleware MUST use req.lpProfile.fundIds for authorization checks
+    // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
     req.lpProfile = {
       id: lpProfile.id,
       name: lpProfile.name,
@@ -157,11 +141,7 @@ export async function requireLPAccess(
  * Example usage:
  *   router.get('/lp/funds/:fundId', requireAuth(), requireLPAccess, requireLPFundAccess, handler)
  */
-export function requireLPFundAccess(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function requireLPFundAccess(req: Request, res: Response, next: NextFunction): void {
   // SECURITY: Verify that requireLPAccess was called first
   if (!req.lpProfile) {
     res.status(500).json({
