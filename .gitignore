@@ -164,6 +164,9 @@ playwright-report/
 test-results/
 coverage/
 
+# ESLint wave execution artifacts (ephemeral - regenerated per wave)
+.artifacts/
+
 # Test baseline artifacts (ephemeral - regenerated per run)
 artifacts/test-results.json
 artifacts/test-results-*.json
