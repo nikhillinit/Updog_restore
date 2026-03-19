@@ -15,6 +15,7 @@ import {
   getFlagHistory,
   getCacheStatus,
   activateKillSwitch,
+  type FlagValue,
 } from '../lib/flags.js';
 import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
@@ -247,7 +248,8 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
       ip: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'] ?? 'unknown',
     };
-    await updateFlag(key!, updates as any, userContext, reason!);
+    const flagUpdates: Partial<FlagValue> = updates;
+    await updateFlag(key!, flagUpdates, userContext, reason!);
 
     const newVersion = await getFlagsVersion();
 
