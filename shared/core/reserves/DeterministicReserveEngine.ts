@@ -350,7 +350,7 @@ export class DeterministicReserveEngine {
       }
 
       // Apply risk adjustments
-      const riskMultiplier = this.calculateRiskMultiplier(company, input);
+      const riskMultiplier = this.calculateRiskMultiplier(company);
       const adjustedAllocation = new Decimal(allocation.recommendedAllocation).mul(riskMultiplier);
 
       allocation.recommendedAllocation = adjustedAllocation.toNumber();
@@ -429,7 +429,7 @@ export class DeterministicReserveEngine {
       throw new ReserveCalculationError(
         `Conservation of capital validation failed: ${conservationCheck.message}`,
         'CONSERVATION_ERROR',
-        conservationCheck
+        { ...conservationCheck }
       );
     }
 
@@ -459,8 +459,8 @@ export class DeterministicReserveEngine {
     const expectedPortfolioMOIC = expectedPortfolioValue / totalAllocated || 0;
 
     // Calculate risk metrics
-    const riskAnalysis = this.calculateRiskAnalysis(allocations, input);
-    const scenarioResults = await this.calculateScenarioAnalysis(allocations, input);
+    const riskAnalysis = this.calculateRiskAnalysis(allocations);
+    const scenarioResults = await this.calculateScenarioAnalysis(allocations);
 
     const result: ReserveCalculationResult = {
       inputSummary: {

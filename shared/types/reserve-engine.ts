@@ -272,11 +272,11 @@ export const ERROR_CODES = {
 } as const;
 
 function isValidStrategy(value: unknown): value is NonNullable<FollowOnStrategy['strategy']> {
-  return typeof value === 'string' && VALID_STRATEGIES.includes(value);
+  return typeof value === 'string' && VALID_STRATEGIES.some((strategy) => strategy === value);
 }
 
 function isValidEntryStage(value: unknown): value is ReserveCalculationRequest['entryStage'] {
-  return typeof value === 'string' && VALID_ENTRY_STAGES.includes(value);
+  return typeof value === 'string' && VALID_ENTRY_STAGES.some((stage) => stage === value);
 }
 
 // ============================================================================

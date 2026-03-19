@@ -2,15 +2,19 @@
  * Redis connection helper (single/cluster aware)
  */
 import { parseRedisConfig } from '../../config/redis';
-import type { RedisClientOptions, RedisClientType, RedisClusterType } from 'redis';
+import type { RedisClientOptions } from 'redis';
 import * as fs from 'fs';
 import { logger } from '../logger.js';
 
-type RedisConnection = RedisClientType | RedisClusterType;
 type RedisSocketOptions = NonNullable<RedisClientOptions['socket']>;
 
 interface RedisPingable {
   ping(): Promise<unknown>;
+}
+
+interface RedisConnection extends RedisPingable {
+  quit(): Promise<void>;
+  on(event: 'error', listener: (error: unknown) => void): unknown;
 }
 
 function getErrorMessage(error: unknown): string {

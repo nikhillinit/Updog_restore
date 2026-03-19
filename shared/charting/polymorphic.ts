@@ -37,7 +37,7 @@ export function polymorphicForwardRef<DefaultTag extends ElementType, ExtraProps
   // Double type assertion needed due to TypeScript's strict handling of
   // polymorphic forwardRef generics. The runtime behavior is correct.
   const typedRender = render as unknown as (
-    props: PolymorphicProps<DefaultTag, ExtraProps>,
+    props: React.PropsWithoutRef<PolymorphicProps<DefaultTag, ExtraProps>>,
     ref: ForwardedRef<Element>
   ) => ReactNode;
 

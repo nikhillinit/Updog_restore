@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { FEATURES } from '../config/features';
 import type { RedisConn } from '../lib/redis/cluster';
 import { pingRedis } from '../lib/redis/cluster';
+import { authenticateMetrics } from '../middleware/auth-metrics';
 
 // Initialize default metrics
 client.collectDefaultMetrics();
@@ -15,7 +16,7 @@ export const httpDuration = new client.Histogram({
   name: 'http_request_duration_ms',
   help: 'HTTP request duration in milliseconds',
   labelNames: ['method', 'path', 'status'],
-  buckets: [1, 5, 15, 50, 100, 200, 500, 1000, 2000, 5000]
+  buckets: [1, 5, 15, 50, 100, 200, 500, 1000, 2000, 5000],
 });
 
 export const cacheHits = new client.Counter({
@@ -38,10 +39,15 @@ export const redisLatency = new client.Gauge({
   help: 'Redis ping latency in ms',
 });
 
+function getRequestPath(req: Request): string {
+  const route = req.route as { path?: unknown } | undefined;
+  return typeof route?.path === 'string' ? route.path : req.path;
+}
+
 export function withRequestMetrics() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!FEATURES.metrics) return next();
-    const stop = httpDuration.startTimer({ method: req.method, path: req.route?.path ?? req.path });
+    const stop = httpDuration.startTimer({ method: req.method, path: getRequestPath(req) });
     res['on']('finish', () => stop({ status: String(res.statusCode) }));
     next();
   };
@@ -49,19 +55,16 @@ export function withRequestMetrics() {
 
 export function installMetricsRoute(app: import('express').Express) {
   if (!FEATURES.metrics) return;
-  
-  // Import auth middleware
-  const { authenticateMetrics } = require('../middleware/auth-metrics');
-  
+
   app['get']('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
     res['setHeader']('Content-Type', client.register.contentType);
-    res["send"](await client.register.metrics());
+    res['send'](await client.register.metrics());
   });
 }
 
 export function startRedisHealthProbe(conn?: RedisConn) {
   if (!FEATURES.metrics || !conn) return;
-   
+
   const t = setInterval(async () => {
     const res = await pingRedis(conn.conn);
     if (res.ok) {
