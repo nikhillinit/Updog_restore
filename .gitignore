@@ -250,3 +250,13 @@ cleanup_*.log
 
 # Archive directory for old backups and logs
 _archive/
+
+# Babysitter orchestration state (ephemeral)
+.a5c/
+
+# Skill staging directories (source material, not deployed)
+uiux-skill/
+
+# Claude session artifacts (ephemeral, change every session)
+.claude/session-context.md
+.claude/complexity-checkpoint.md
