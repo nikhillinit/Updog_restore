@@ -21,6 +21,15 @@ import {
   type PortfolioValidationResult,
   type WizardPortfolioCompany,
 } from '@/lib/wizard-calculations';
+import type {
+  GeneralInfoInput,
+  SectorProfilesInput,
+  CapitalAllocationInput,
+  FeesExpensesInput,
+  ExitRecyclingInput,
+  ScenariosInput,
+} from '@/schemas/modeling-wizard.schemas';
+import type { Waterfall } from '@shared/types';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -35,109 +44,29 @@ export type WizardStep =
   | 'waterfall'
   | 'scenarios';
 
-export interface GeneralInfoData {
-  fundName: string;
-  vintageYear: number;
-  fundSize: number;
-  currency: 'USD' | 'EUR' | 'GBP';
-  establishmentDate: string;
-  isEvergreen: boolean;
-  fundLife?: number;
-  investmentPeriod?: number;
-}
-
-export interface SectorProfilesData {
-  sectorProfiles: Array<{
-    id: string;
-    name: string;
-    allocation: number;
-    description?: string;
-  }>;
-  stageAllocations: Array<{
-    stage: string;
-    allocation: number;
-  }>;
-}
-
-export interface CapitalAllocationData {
-  initialCheckSize: number;
-  followOnStrategy: {
-    reserveRatio: number;
-    followOnChecks: {
-      A: number;
-      B: number;
-      C: number;
-    };
-  };
-  pacingModel: {
-    investmentsPerYear: number;
-    deploymentCurve: 'linear' | 'front-loaded' | 'back-loaded';
-  };
+export type GeneralInfoData = GeneralInfoInput;
+export type SectorProfilesData = SectorProfilesInput;
+export type CapitalAllocationData = CapitalAllocationInput & {
   syntheticPortfolio?: WizardPortfolioCompany[];
-}
+};
+export type FeesExpensesData = FeesExpensesInput;
+export type ExitRecyclingData = ExitRecyclingInput;
+export type WaterfallData = Waterfall;
+export type ScenariosData = ScenariosInput;
 
-export interface FeesExpensesData {
-  managementFee: {
-    rate: number;
-    basis: 'committed' | 'called' | 'fmv';
-    stepDown?: {
-      enabled: boolean;
-      afterYear?: number;
-      newRate?: number;
-    };
-  };
-  adminExpenses: {
-    annualAmount: number;
-    growthRate: number;
-  };
-}
-
-export interface ExitRecyclingData {
-  enabled: boolean;
-  recyclingCap?: number;
-  recyclingPeriod?: number;
-  exitRecyclingRate?: number;
-  mgmtFeeRecyclingRate?: number;
-}
-
-export interface WaterfallData {
-  type: 'american' | 'hybrid';
-  preferredReturn: number;
-  catchUp: number;
-  carriedInterest: number;
-  tiers?: Array<{
-    id: string;
-    name: string;
-    threshold: number;
-    gpSplit: number;
-    lpSplit: number;
-  }>;
-}
-
-export interface ScenariosData {
-  scenarioType: 'construction' | 'current_state' | 'comparison';
-  baseCase: {
-    name: string;
-    assumptions: Record<string, unknown>;
-  };
-  scenarios?: Array<{
-    id: string;
-    name: string;
-    assumptions: Record<string, unknown>;
-  }>;
+export interface WizardStepDataMap {
+  generalInfo: GeneralInfoData;
+  sectorProfiles: SectorProfilesData;
+  capitalAllocation: CapitalAllocationData;
+  feesExpenses: FeesExpensesData;
+  exitRecycling: ExitRecyclingData;
+  waterfall: WaterfallData;
+  scenarios: ScenariosData;
 }
 
 export interface ModelingWizardContext {
   // Step data storage
-  steps: {
-    generalInfo?: GeneralInfoData;
-    sectorProfiles?: SectorProfilesData;
-    capitalAllocation?: CapitalAllocationData;
-    feesExpenses?: FeesExpensesData;
-    exitRecycling?: ExitRecyclingData;
-    waterfall?: WaterfallData;
-    scenarios?: ScenariosData;
-  };
+  steps: Partial<WizardStepDataMap>;
 
   // Navigation state
   currentStep: WizardStep;
@@ -205,11 +134,15 @@ export interface ModelingWizardContext {
   autoSaveInterval: number; // milliseconds
 }
 
+type SaveStepEvent = {
+  [TStep in WizardStep]: { type: 'SAVE_STEP'; step: TStep; data: WizardStepDataMap[TStep] };
+}[WizardStep];
+
 export type ModelingWizardEvents =
   | { type: 'NEXT' }
   | { type: 'BACK' }
   | { type: 'GOTO'; step: WizardStep }
-  | { type: 'SAVE_STEP'; step: WizardStep; data: unknown }
+  | SaveStepEvent
   | { type: 'VALIDATE_STEP'; step: WizardStep }
   | { type: 'TOGGLE_SKIP_OPTIONAL'; skip: boolean }
   | { type: 'AUTO_SAVE' }
@@ -239,9 +172,84 @@ const STEP_ORDER: WizardStep[] = [
 
 const OPTIONAL_STEPS: Set<WizardStep> = new Set(['exitRecycling']);
 
+interface PersistedWizardStorage {
+  steps?: Partial<WizardStepDataMap>;
+  currentStep?: WizardStep;
+  completedSteps?: WizardStep[];
+  visitedSteps?: WizardStep[];
+  skipOptionalSteps?: boolean;
+  lastSaved?: number | null;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isWizardStep(value: unknown): value is WizardStep {
+  return typeof value === 'string' && STEP_ORDER.includes(value as WizardStep);
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function parseWizardStepList(value: unknown): WizardStep[] {
+  return Array.isArray(value) ? value.filter(isWizardStep) : [];
+}
+
+function parseStoredSteps(value: unknown): Partial<WizardStepDataMap> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const steps: Partial<WizardStepDataMap> = {};
+
+  for (const step of STEP_ORDER) {
+    const stepData = value[step];
+    if (stepData !== undefined) {
+      steps[step] = stepData as WizardStepDataMap[typeof step];
+    }
+  }
+
+  return steps;
+}
+
+function parseStoredWizardProgress(stored: string): PersistedWizardStorage | null {
+  const parsed = JSON.parse(stored) as unknown;
+
+  if (!isRecord(parsed)) {
+    return null;
+  }
+
+  return {
+    steps: parseStoredSteps(parsed['steps']),
+    currentStep: isWizardStep(parsed['currentStep']) ? parsed['currentStep'] : undefined,
+    completedSteps: parseWizardStepList(parsed['completedSteps']),
+    visitedSteps: parseWizardStepList(parsed['visitedSteps']),
+    skipOptionalSteps:
+      typeof parsed['skipOptionalSteps'] === 'boolean' ? parsed['skipOptionalSteps'] : undefined,
+    lastSaved:
+      typeof parsed['lastSaved'] === 'number' || parsed['lastSaved'] === null
+        ? parsed['lastSaved']
+        : undefined,
+  };
+}
+
+async function readResponseJson(response: Response): Promise<unknown> {
+  return (await response.json()) as unknown;
+}
+
+function getResponseMessage(value: unknown, fallback: string): string {
+  if (isRecord(value) && typeof value['message'] === 'string') {
+    return value['message'];
+  }
+
+  return fallback;
+}
 
 /**
  * Get the index of a step in the wizard flow
@@ -389,15 +397,19 @@ function loadFromStorage(): Partial<ModelingWizardContext> | null {
       return null;
     }
 
-    const data = JSON.parse(stored);
+    const data = parseStoredWizardProgress(stored);
+
+    if (!data) {
+      return null;
+    }
 
     return {
-      steps: data.steps || {},
-      currentStep: data.currentStep || 'generalInfo',
-      completedSteps: new Set(data.completedSteps || []),
-      visitedSteps: new Set(data.visitedSteps || []),
+      steps: data.steps ?? {},
+      currentStep: data.currentStep ?? 'generalInfo',
+      completedSteps: new Set(data.completedSteps ?? []),
+      visitedSteps: new Set(data.visitedSteps ?? []),
       skipOptionalSteps: data.skipOptionalSteps ?? false,
-      lastSaved: data.lastSaved || null,
+      lastSaved: data.lastSaved ?? null,
     };
   } catch (error) {
     console.error('[ModelingWizard] Failed to load from localStorage:', error);
@@ -459,11 +471,11 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
     case 'sectorProfiles': {
       const sectorProfiles = data['sectorProfiles'];
 
-      if (!sectorProfiles || !Array.isArray(sectorProfiles) || sectorProfiles.length === 0) {
+      if (!sectorProfiles || !isUnknownArray(sectorProfiles) || sectorProfiles.length === 0) {
         errors.push('At least one sector profile is required');
       }
       // Check allocations sum to 100%
-      if (Array.isArray(sectorProfiles)) {
+      if (isUnknownArray(sectorProfiles)) {
         const totalAllocation = sectorProfiles.reduce((sum, sp) => {
           return (
             sum + (isRecord(sp) && typeof sp['allocation'] === 'number' ? sp['allocation'] : 0)
@@ -577,11 +589,11 @@ const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardCon
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to submit fund model');
+      const error = await readResponseJson(response);
+      throw new Error(getResponseMessage(error, 'Failed to submit fund model'));
     }
 
-    const result = await response.json();
+    const result = await readResponseJson(response);
 
     return result;
   } catch (error) {
@@ -681,7 +693,7 @@ export const modelingWizardMachine = setup({
 
       if (!portfolio || portfolio.length === 0) {
         // Omit portfolioValidation instead of setting to undefined (exactOptionalPropertyTypes)
-        const { portfolioValidation, ...rest } = context;
+        const { portfolioValidation: _portfolioValidation, ...rest } = context;
         return rest;
       }
 
@@ -719,7 +731,7 @@ export const modelingWizardMachine = setup({
      */
     clearReserveCalculation: assign(({ context }) => {
       // Omit calculations entirely instead of setting nested fields to undefined (exactOptionalPropertyTypes)
-      const { calculations, ...rest } = context;
+      const { calculations: _calculations, ...rest } = context;
       return rest;
     }),
 
