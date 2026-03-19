@@ -11,8 +11,16 @@ import { logger } from '../logger';
 
 const router = Router();
 
+type FundSSEConnection = Response & {
+  eventTypeFilter?: string[];
+};
+
+function asFundSSEConnection(res: Response): FundSSEConnection {
+  return res as FundSSEConnection;
+}
+
 // Store active SSE connections per fund
-const activeConnections = new Map<number, Set<Response>>();
+const activeConnections = new Map<number, Set<FundSSEConnection>>();
 
 // Event types that can be streamed
 export type SSEEventType =
@@ -59,11 +67,11 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
   if (!activeConnections.has(fundId)) {
     activeConnections.set(fundId, new Set());
   }
-  activeConnections.get(fundId)!.add(res);
+  const connection = asFundSSEConnection(res);
+  activeConnections.get(fundId)!.add(connection);
 
   // Store event type filter on the response object
-  (res as any).eventTypeFilter = eventTypes;
-  (res as any).fundId = fundId;
+  connection.eventTypeFilter = eventTypes;
 
   logger.info('SSE connection established', {
     fundId,
@@ -93,7 +101,7 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
     clearInterval(heartbeatInterval);
     const fundConnections = activeConnections.get(fundId);
     if (fundConnections) {
-      fundConnections.delete(res);
+      fundConnections.delete(connection);
       if (fundConnections.size === 0) {
         activeConnections.delete(fundId);
       }
@@ -186,11 +194,7 @@ function sendSSEEvent(res: Response, eventType: string, data: unknown): void {
 /**
  * Broadcast an event to all SSE connections for a fund
  */
-export function broadcastFundEvent(
-  fundId: number,
-  eventType: SSEEventType,
-  data: unknown
-): void {
+export function broadcastFundEvent(fundId: number, eventType: SSEEventType, data: unknown): void {
   const connections = activeConnections.get(fundId);
   if (!connections || connections.size === 0) return;
 
@@ -203,7 +207,7 @@ export function broadcastFundEvent(
 
   connections.forEach((res) => {
     // Check event type filter if set
-    const filter = (res as any).eventTypeFilter as string[] | undefined;
+    const filter = res.eventTypeFilter;
     if (!filter || filter.includes(eventType)) {
       sendSSEEvent(res, eventType, payload);
     }
