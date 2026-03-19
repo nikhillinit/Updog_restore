@@ -71,10 +71,14 @@ export function MobileExecutiveDashboardDemo({
   performanceMode = 'optimized',
 }: MobileExecutiveDashboardDemoProps) {
   const { currentFund, isLoading } = useFundContext();
-  const { viewport, isMobile, isTablet, dimensions } = useResponsiveBreakpoint();
-  const [activeDemo, setActiveDemo] = useState<'executive' | 'charts' | 'ai-integration'>(
-    'executive'
-  );
+  const { viewport, isMobile, isTablet } = useResponsiveBreakpoint();
+  const demoModes = [
+    { id: 'executive', label: 'Executive Dashboard', icon: DollarSign },
+    { id: 'charts', label: 'Mobile Charts', icon: BarChart3 },
+    { id: 'ai-integration', label: 'AI Integration', icon: Brain },
+  ] as const;
+  type DemoMode = (typeof demoModes)[number]['id'];
+  const [activeDemo, setActiveDemo] = useState<DemoMode>('executive');
 
   // Generate demo data based on fund context
   const demoMetrics: MetricCardData[] = React.useMemo(() => {
@@ -403,16 +407,12 @@ export function MobileExecutiveDashboardDemo({
 
         {/* Demo Mode Selector */}
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {[
-            { id: 'executive', label: 'Executive Dashboard', icon: DollarSign },
-            { id: 'charts', label: 'Mobile Charts', icon: BarChart3 },
-            { id: 'ai-integration', label: 'AI Integration', icon: Brain },
-          ].map(({ id, label, icon: Icon }) => (
+          {demoModes.map(({ id, label, icon: Icon }) => (
             <Button
               key={id}
               variant={activeDemo === id ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setActiveDemo(id as any)}
+              onClick={() => setActiveDemo(id)}
               className="whitespace-nowrap"
             >
               <Icon className="w-4 h-4 mr-2" />
