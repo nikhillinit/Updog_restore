@@ -80,6 +80,42 @@ interface DashboardData {
   metrics: DevHealthMetrics;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is JsonRecord =>
+  typeof value === 'object' && value !== null;
+
+const isDashboardOverall = (value: unknown): value is DashboardData['overall'] =>
+  value === 'healthy' || value === 'warning' || value === 'critical';
+
+function parseDashboardData(value: unknown): DashboardData {
+  if (
+    !isRecord(value)
+    || typeof value.timestamp !== 'string'
+    || !isDashboardOverall(value.overall)
+    || !isRecord(value.metrics)
+  ) {
+    throw new Error('Invalid dev dashboard response');
+  }
+
+  return {
+    timestamp: value.timestamp,
+    overall: value.overall,
+    metrics: value.metrics as DevHealthMetrics,
+  };
+}
+
+function parseQuickFixResponse(value: unknown): { success: boolean; message: string } {
+  if (!isRecord(value) || typeof value.success !== 'boolean' || typeof value.message !== 'string') {
+    throw new Error('Invalid quick fix response');
+  }
+
+  return {
+    success: value.success,
+    message: value.message,
+  };
+}
+
 const DevDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +126,8 @@ const DevDashboard: React.FC = () => {
     try {
       const response = await fetch('/api/dev-dashboard/health');
       if (!response.ok) throw new Error('Failed to fetch health data');
-      const newData = await response.json();
+      const payload: unknown = await response.json();
+      const newData = parseDashboardData(payload);
       setData(newData);
       setError(null);
       setLastUpdated(new Date());
@@ -106,7 +143,8 @@ const DevDashboard: React.FC = () => {
       const response = await fetch(`/api/dev-dashboard/fix/${action}`, {
         method: 'POST'
       });
-      const result = await response.json();
+      const payload: unknown = await response.json();
+      const result = parseQuickFixResponse(payload);
 
       if (result.success) {
         // Refresh data after successful fix
