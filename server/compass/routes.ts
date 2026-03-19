@@ -24,6 +24,7 @@ import type {
 } from './types';
 
 const router = Router();
+type RequestWithOptionalUser = Request & { user?: { id?: string } };
 
 /**
  * Health check for Compass service
@@ -104,11 +105,11 @@ router['get']('/portfolio-companies/:id/valuation-context', async (req: Request,
 router['get']('/comps/search', async (req: Request, res: Response) => {
   try {
     const {
-      query,
-      sector,
-      stage,
-      isPublic,
-      limit = 20,
+      query: _query,
+      sector: _sector,
+      stage: _stage,
+      isPublic: _isPublic,
+      limit: _limit = 20,
     } = req.query as unknown as SearchCompsRequest;
 
     // TODO: Implement database search with full-text search
@@ -244,7 +245,7 @@ router['post']('/calculate', async (req: Request, res: Response) => {
 router['post']('/scenarios', async (req: Request, res: Response) => {
   try {
     const { portfolioCompanyId, scenarioName, result } = req.body as SaveScenarioRequest;
-    const userId = req.user?.id || 'system'; // TODO: Get from auth middleware
+    const userId = (req as RequestWithOptionalUser).user?.id || 'system'; // TODO: Get from auth middleware
 
     // Validate request
     if (!portfolioCompanyId || !scenarioName || !result) {
@@ -284,8 +285,8 @@ router['post']('/scenarios', async (req: Request, res: Response) => {
  */
 router['get']('/scenarios', async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id || 'system'; // TODO: Get from auth middleware
-    const { companyId } = req.query;
+    const _userId = (req as RequestWithOptionalUser).user?.id || 'system'; // TODO: Get from auth middleware
+    const { companyId: _companyId } = req.query;
 
     // TODO: Fetch from database
     // const scenarios = await db.query(`
@@ -312,8 +313,8 @@ router['get']('/scenarios', async (req: Request, res: Response) => {
  */
 router['delete']('/scenarios/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const userId = req.user?.id || 'system';
+    const { id: _id } = req.params;
+    const _userId = (req as RequestWithOptionalUser).user?.id || 'system';
 
     // TODO: Soft delete in database
     // await db.query(`
@@ -335,7 +336,11 @@ router['delete']('/scenarios/:id', async (req: Request, res: Response) => {
  */
 router['get']('/portfolio/heatmap', async (req: Request, res: Response) => {
   try {
-    const { fundId, stage, sector } = req.query as unknown as GetPortfolioHeatmapRequest;
+    const {
+      fundId: _fundId,
+      stage: _stage,
+      sector: _sector,
+    } = req.query as unknown as GetPortfolioHeatmapRequest;
 
     // TODO: Fetch all companies and calculate sandbox values
     // This would be a complex query joining multiple tables

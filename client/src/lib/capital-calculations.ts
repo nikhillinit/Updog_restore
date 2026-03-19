@@ -7,7 +7,6 @@
  * - Allocation validation
  */
 
-
 export interface YearlyProjection {
   year: number;
   calledCapital: number;
@@ -30,14 +29,8 @@ export function calculateNetInvestableCapital(
     gpCashCommitment: number;
   }>
 ): number {
-  const totalManagementFees = projections.reduce(
-    (sum, p) => sum + p.managementFeeAfterCashless,
-    0
-  );
-  const totalGPCash = projections.reduce(
-    (sum, p) => sum + p.gpCashCommitment,
-    0
-  );
+  const totalManagementFees = projections.reduce((sum, p) => sum + p.managementFeeAfterCashless, 0);
+  const totalGPCash = projections.reduce((sum, p) => sum + p.gpCashCommitment, 0);
 
   return fundSize - organizationExpense - totalManagementFees - totalGPCash;
 }
@@ -70,7 +63,7 @@ export function validateCapitalAllocation(
     return {
       valid: false,
       error: `Portfolio exceeds net investable capital by ${formatCurrency(excess)}`,
-      excess
+      excess,
     };
   }
   return { valid: true };
@@ -102,7 +95,7 @@ export function getSchedulePattern(
   investmentPeriod: number,
   customSchedule?: Array<{ year: number; percentage: number }>
 ): number[] {
-  const pattern: number[] = new Array(investmentPeriod).fill(0);
+  const pattern = Array.from({ length: investmentPeriod }, () => 0);
 
   switch (type) {
     case 'even':
@@ -122,17 +115,18 @@ export function getSchedulePattern(
         // Default front-loaded: decreasing by ~7-10% each year
         let remaining = 100;
         for (let i = 0; i < investmentPeriod; i++) {
-          const pct = remaining / (investmentPeriod - i) * 1.3;
+          const pct = (remaining / (investmentPeriod - i)) * 1.3;
           pattern[i] = Math.min(pct, remaining);
           remaining -= pattern[i] ?? 0;
         }
       }
       break;
 
-    case 'back-loaded':
+    case 'back-loaded': {
       // Opposite of front-loaded: 10-20-30-40 pattern
       const frontLoaded = getSchedulePattern('front-loaded', investmentPeriod);
       return frontLoaded.reverse();
+    }
 
     case 'custom':
       if (!customSchedule) {
@@ -177,11 +171,7 @@ export function calculateProjections(data: {
 
   // Get capital call schedule pattern
   const scheduleType = data.scheduleType || 'even';
-  const schedule = getSchedulePattern(
-    scheduleType,
-    data.investmentPeriod,
-    data.customSchedule
-  );
+  const schedule = getSchedulePattern(scheduleType, data.investmentPeriod, data.customSchedule);
 
   for (let year = 1; year <= 10; year++) {
     const isInvestmentPeriod = year <= data.investmentPeriod;
@@ -195,16 +185,20 @@ export function calculateProjections(data: {
     }
 
     // Calculate GP commitment split
-    const gpCashCommitment = calledCapital * (data.gpCommitment / 100) * ((100 - data.cashlessSplit) / 100);
-    const gpCashlessCommitment = calledCapital * (data.gpCommitment / 100) * (data.cashlessSplit / 100);
+    const gpCashCommitment =
+      calledCapital * (data.gpCommitment / 100) * ((100 - data.cashlessSplit) / 100);
+    const gpCashlessCommitment =
+      calledCapital * (data.gpCommitment / 100) * (data.cashlessSplit / 100);
 
     // Determine management fee rate (with step-down)
-    const managementFeeRate = (data.stepDownEnabled && year >= (data.stepDownYear || 6))
-      ? (data.stepDownRate || data.managementFeeRate)
-      : data.managementFeeRate;
+    const managementFeeRate =
+      data.stepDownEnabled && year >= (data.stepDownYear || 6)
+        ? data.stepDownRate || data.managementFeeRate
+        : data.managementFeeRate;
 
     // Calculate management fee after cashless capital
-    const managementFeeAfterCashless = (calledCapital - gpCashlessCommitment) * (managementFeeRate / 100);
+    const managementFeeAfterCashless =
+      (calledCapital - gpCashlessCommitment) * (managementFeeRate / 100);
 
     projections.push({
       year,
@@ -212,7 +206,7 @@ export function calculateProjections(data: {
       gpCashCommitment,
       gpCashlessCommitment,
       managementFeeRate,
-      managementFeeAfterCashless
+      managementFeeAfterCashless,
     });
   }
 
