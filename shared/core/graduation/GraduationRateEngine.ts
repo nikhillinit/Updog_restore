@@ -16,8 +16,8 @@ export type Stage = 'seed' | 'series_a' | 'series_b' | 'series_c' | 'exit' | 'fa
 
 export interface TransitionProbabilities {
   graduate: number; // 0-100, probability of advancing to next stage
-  fail: number;     // 0-100, probability of failure
-  remain: number;   // 0-100, probability of staying at current stage
+  fail: number; // 0-100, probability of failure
+  remain: number; // 0-100, probability of staying at current stage
 }
 
 export interface GraduationConfig {
@@ -174,10 +174,7 @@ export class GraduationRateEngine {
    * Stochastic Mode: Samples from the transition distribution using seeded PRNG.
    * Reproducible given the same seed.
    */
-  private sampleTransition(
-    currentStage: Stage,
-    probs: TransitionProbabilities
-  ): TransitionResult {
+  private sampleTransition(currentStage: Stage, probs: TransitionProbabilities): TransitionResult {
     if (!this.prng) {
       throw new Error('PRNG not initialized - stochastic mode requires seed');
     }
@@ -214,10 +211,7 @@ export class GraduationRateEngine {
    * In expectation mode, uses expected values for fractional companies.
    * In stochastic mode, simulates individual companies.
    */
-  projectCohort(
-    initialCompanies: number,
-    horizonQuarters: number
-  ): CohortProjection[] {
+  projectCohort(initialCompanies: number, horizonQuarters: number): CohortProjection[] {
     if (this.config.expectationMode) {
       return this.projectCohortExpectation(initialCompanies, horizonQuarters);
     } else {
@@ -300,7 +294,7 @@ export class GraduationRateEngine {
     const projections: CohortProjection[] = [];
 
     // Track each company's stage
-    const companyStages: Stage[] = Array(initialCompanies).fill('seed');
+    const companyStages = Array.from<Stage>({ length: initialCompanies }, () => 'seed');
 
     for (let q = 0; q < horizonQuarters; q++) {
       let graduates = 0;
@@ -397,9 +391,7 @@ export class GraduationRateEngine {
 
   // Helper methods
 
-  private getTransitionKey(
-    stage: Stage
-  ): 'seedToA' | 'aToB' | 'bToC' | 'cToExit' | null {
+  private getTransitionKey(stage: Stage): 'seedToA' | 'aToB' | 'bToC' | 'cToExit' | null {
     switch (stage) {
       case 'seed':
         return 'seedToA';

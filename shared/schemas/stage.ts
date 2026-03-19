@@ -67,13 +67,20 @@ export const STAGE_LABELS: Record<CanonicalStage, string> = {
 type NoSeparatorStage = 'preseed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_dplus';
 
 /** Legacy format: hyphenated (pre-seed) - used in reserve-engine.contract.ts */
-type HyphenatedStage = 'pre-seed' | 'seed' | 'series-a' | 'series-b' | 'series-c' | 'series-d-plus' | 'late-stage';
+type HyphenatedStage =
+  | 'pre-seed'
+  | 'seed'
+  | 'series-a'
+  | 'series-b'
+  | 'series-c'
+  | 'series-d-plus'
+  | 'late-stage';
 
 /** Legacy format: camelCase (preSeed) - used in wizard-types.ts */
 type CamelCaseStage = 'preSeed' | 'seed' | 'seriesA' | 'seriesB' | 'seriesC' | 'seriesD';
 
 /** Union of all legacy stage formats */
-type LegacyStage = NoSeparatorStage | HyphenatedStage | CamelCaseStage | CanonicalStage;
+export type LegacyStage = NoSeparatorStage | HyphenatedStage | CamelCaseStage | CanonicalStage;
 
 // ============================================================================
 // NORMALIZATION UTILITIES
@@ -129,7 +136,9 @@ const STAGE_NORMALIZATION_MAP: Record<string, CanonicalStage> = {
 export function normalizeStage(stage: string): CanonicalStage {
   const normalized = STAGE_NORMALIZATION_MAP[stage];
   if (!normalized) {
-    throw new Error(`Unknown stage format: "${stage}". Valid stages: ${Object.keys(STAGE_NORMALIZATION_MAP).join(', ')}`);
+    throw new Error(
+      `Unknown stage format: "${stage}". Valid stages: ${Object.keys(STAGE_NORMALIZATION_MAP).join(', ')}`
+    );
   }
   return normalized;
 }
@@ -250,12 +259,7 @@ export const NormalizedStageSchema = z.string().transform((val, ctx) => {
  * Core investment stages (no growth/late_stage)
  * Used by fund-model.ts and similar contexts
  */
-export const CoreStageSchema = z.enum([
-  'seed',
-  'series_a',
-  'series_b',
-  'series_c',
-]);
+export const CoreStageSchema = z.enum(['seed', 'series_a', 'series_b', 'series_c']);
 
 export type CoreStage = z.infer<typeof CoreStageSchema>;
 

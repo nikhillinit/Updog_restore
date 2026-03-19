@@ -113,11 +113,7 @@ export class DeterministicReserveEngine {
       const finalAllocations = await this.applyConstraints(riskAdjustedAllocations, input);
 
       // Generate result
-      const result = await this.generateCalculationResult(
-        finalAllocations,
-        input,
-        moicCalculations
-      );
+      const result = await this.generateCalculationResult(finalAllocations, input);
 
       // Cache result for consistency
       this.calculationCache['set'](cacheKey, result);
@@ -447,8 +443,7 @@ export class DeterministicReserveEngine {
    */
   private async generateCalculationResult(
     allocations: ReserveAllocationOutput[],
-    input: ReserveAllocationInput,
-    moicCalculations: MOICCalculation[]
+    input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult> {
     const totalAllocated = allocations.reduce(
       (sum: number, a: ReserveAllocationOutput) => sum + a.recommendedAllocation,
@@ -687,7 +682,7 @@ export class DeterministicReserveEngine {
       companyId: company.id,
       companyName: company.name,
       recommendedAllocation: allocation.toNumber(),
-      allocationRationale: this.generateAllocationRationale(calc, stageStrategy),
+      allocationRationale: this.generateAllocationRationale(calc),
       priority,
       expectedMOIC: calc.projectedMOIC.toNumber(),
       expectedValue: calc.expectedValue.toNumber(),
@@ -755,17 +750,11 @@ export class DeterministicReserveEngine {
     };
   }
 
-  private generateAllocationRationale(
-    calc: MOICCalculation,
-    stageStrategy: StageStrategy | undefined
-  ): string {
+  private generateAllocationRationale(calc: MOICCalculation): string {
     return `High allocation score (${calc.allocationScore.toFixed(2)}) based on projected MOIC of ${calc.projectedMOIC.toFixed(1)}x with ${(calc.graduationProbability.toNumber() * 100).toFixed(0)}% graduation probability.`;
   }
 
-  private calculateRiskMultiplier(
-    company: PortfolioCompany,
-    input: ReserveAllocationInput
-  ): Decimal {
+  private calculateRiskMultiplier(company: PortfolioCompany): Decimal {
     let multiplier = new Decimal(1);
 
     // Adjust for company age
@@ -862,8 +851,7 @@ export class DeterministicReserveEngine {
   }
 
   private calculateRiskAnalysis(
-    allocations: ReserveAllocationOutput[],
-    input: ReserveAllocationInput
+    allocations: ReserveAllocationOutput[]
   ): ReserveCalculationResult['riskAnalysis'] {
     // Simplified risk analysis
     const avgRiskAdjustedReturn =
@@ -885,8 +873,7 @@ export class DeterministicReserveEngine {
   }
 
   private async calculateScenarioAnalysis(
-    allocations: ReserveAllocationOutput[],
-    input: ReserveAllocationInput
+    allocations: ReserveAllocationOutput[]
   ): Promise<ReserveCalculationResult['scenarioResults']> {
     const baseValue = allocations.reduce(
       (sum: number, a: ReserveAllocationOutput) => sum + a.expectedValue,

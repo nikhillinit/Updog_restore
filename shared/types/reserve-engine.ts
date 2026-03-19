@@ -228,9 +228,7 @@ export function isRateLimitResponse(response: unknown): response is RateLimitRes
 // Type Guards
 // ============================================================================
 
-export function isSuccessResponse<T>(
-  response: ApiResponse<T>
-): response is { success: true } & T {
+export function isSuccessResponse<T>(response: ApiResponse<T>): response is { success: true } & T {
   return response.success === true;
 }
 
@@ -255,11 +253,7 @@ export const VALID_ENTRY_STAGES = [
   'Series D',
 ] as const;
 
-export const VALID_STRATEGIES = [
-  'maintain_ownership',
-  'fixed_amount',
-  'pro_rata',
-] as const;
+export const VALID_STRATEGIES = ['maintain_ownership', 'fixed_amount', 'pro_rata'] as const;
 
 export const VALID_OPTIMIZATION_GOALS = [
   'maximize_deals',
@@ -276,6 +270,14 @@ export const ERROR_CODES = {
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
+
+function isValidStrategy(value: unknown): value is NonNullable<FollowOnStrategy['strategy']> {
+  return typeof value === 'string' && VALID_STRATEGIES.includes(value);
+}
+
+function isValidEntryStage(value: unknown): value is ReserveCalculationRequest['entryStage'] {
+  return typeof value === 'string' && VALID_ENTRY_STAGES.includes(value);
+}
 
 // ============================================================================
 // Validation Functions
@@ -308,7 +310,7 @@ export function validateFollowOnStrategy(data: unknown): data is FollowOnStrateg
     typeof strategy['participationRate'] === 'number' &&
     strategy['participationRate'] >= 0 &&
     strategy['participationRate'] <= 100 &&
-    (!strategy['strategy'] || VALID_STRATEGIES.includes(strategy['strategy'] as any))
+    (strategy['strategy'] === undefined || isValidStrategy(strategy['strategy']))
   );
 }
 
@@ -325,8 +327,7 @@ export function validateReserveCalculationRequest(
     request['totalAllocatedCapital'] >= 0 &&
     typeof request['initialCheckSize'] === 'number' &&
     request['initialCheckSize'] >= 0 &&
-    typeof request['entryStage'] === 'string' &&
-    VALID_ENTRY_STAGES.includes(request['entryStage'] as any) &&
+    isValidEntryStage(request['entryStage']) &&
     Array.isArray(request['stages']) &&
     request['stages'].every(validateStageData) &&
     Array.isArray(request['followOnStrategy']) &&

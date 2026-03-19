@@ -347,7 +347,7 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
   data,
   xKey,
   yKey,
-  sizeKey,
+  sizeKey: _sizeKey,
   series,
   config = {},
   className,
@@ -479,7 +479,7 @@ export const createMigrationWrapper = polymorphicForwardRef<
     AdaptedComponent,
     componentName,
     options = {},
-    as,
+    as: _as,
     ...props
   }: PolymorphicProps<
     T,
@@ -501,13 +501,11 @@ export const createMigrationWrapper = polymorphicForwardRef<
   // Always call the hook, but make the logging conditional inside
   React.useEffect(() => {
     if (options.logMigrationEvents) {
-      console.log(
+      console.warn(
         `Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`
       );
     }
   }, [useAdapted, componentName, options.logMigrationEvents]);
-
-  const Component = as || 'div';
 
   try {
     if (useAdapted) {
