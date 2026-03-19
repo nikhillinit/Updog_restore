@@ -50,6 +50,28 @@ interface OptimizeCallsInput {
   constraints?: CapitalCallConstraints;
 }
 
+type ErrorResponse = {
+  message?: string;
+};
+
+async function readJson<T>(response: Response): Promise<T> {
+  const payload: unknown = await response.json();
+  return payload as T;
+}
+
+function getErrorMessage(payload: unknown, fallback: string): string {
+  if (
+    typeof payload === 'object'
+    && payload !== null
+    && 'message' in payload
+    && typeof (payload as ErrorResponse).message === 'string'
+  ) {
+    return (payload as ErrorResponse).message ?? fallback;
+  }
+
+  return fallback;
+}
+
 /**
  * Hook for analyzing cash flows
  */
@@ -63,11 +85,11 @@ export function useCashFlowAnalysis() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Cash flow analysis failed');
+        const error: unknown = await res.json().catch(() => ({} as unknown));
+        throw new Error(getErrorMessage(error, 'Cash flow analysis failed'));
       }
 
-      return res.json();
+      return readJson<CashFlowAnalysis>(res);
     },
   });
 }
@@ -85,11 +107,11 @@ export function useLiquidityForecast() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Liquidity forecast failed');
+        const error: unknown = await res.json().catch(() => ({} as unknown));
+        throw new Error(getErrorMessage(error, 'Liquidity forecast failed'));
       }
 
-      return res.json();
+      return readJson<LiquidityForecast>(res);
     },
   });
 }
@@ -107,11 +129,11 @@ export function useStressTest() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Stress test failed');
+        const error: unknown = await res.json().catch(() => ({} as unknown));
+        throw new Error(getErrorMessage(error, 'Stress test failed'));
       }
 
-      return res.json();
+      return readJson<StressTestResult>(res);
     },
   });
 }
@@ -129,11 +151,13 @@ export function useOptimizeCapitalCalls() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Capital call optimization failed');
+        const error: unknown = await res.json().catch(() => ({} as unknown));
+        throw new Error(
+          getErrorMessage(error, 'Capital call optimization failed')
+        );
       }
 
-      return res.json();
+      return readJson<OptimizedCapitalCallSchedule>(res);
     },
   });
 }

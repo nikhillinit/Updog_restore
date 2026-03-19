@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUp, FileCheck, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
@@ -74,7 +69,7 @@ export default function RecentActivity({ activities = [] }: RecentActivityProps)
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {activities.map((activity: any) => {
+          {activities.map((activity) => {
             const Icon = getActivityIcon(activity.type);
             const iconColorClass = getActivityColor(activity.type);
             const formattedAmount = formatAmount(activity.amount, activity.type);
@@ -106,4 +101,3 @@ export default function RecentActivity({ activities = [] }: RecentActivityProps)
     </Card>
   );
 }
-

@@ -4,6 +4,7 @@
  */
 
 import { setUnifiedFlag } from '@/core/flags/unifiedClientFlags';
+import { logger } from '@/lib/logger';
 import { metrics } from '@/metrics/reserves-metrics';
 
 interface RolloutStage {
@@ -100,13 +101,13 @@ export class AutomatedRolloutOrchestrator {
   private readonly STABILITY_THRESHOLD = 0.95; // 95% stable metrics required
 
   async orchestrate(flagName: string = 'reserves_v11'): Promise<void> {
-    if (import.meta.env.DEV) console.log('[START] Starting automated rollout orchestration');
+    logger.info('Starting automated rollout orchestration', { flagName });
     this.rolloutStartTime = new Date();
 
     try {
       for (let i = 0; i < this.stages.length; i++) {
         if (this.abortSignal) {
-          if (import.meta.env.DEV) console.log('[ABORT] Rollout aborted by signal');
+          logger.warn('Rollout aborted by signal', { stageIndex: i });
           break;
         }
 
@@ -116,18 +117,22 @@ export class AutomatedRolloutOrchestrator {
         this.currentStage = i;
         this.stageStartTime = new Date();
 
-        if (import.meta.env.DEV) {
-          console.log(`\n[STAGE] Stage ${i + 1}/${this.stages.length}: ${stage.name}`);
-          console.log(`   Target: ${stage.percent}% | Duration: ${stage.duration / 1000}s`);
-        }
+        logger.info('Rollout stage started', {
+          stageIndex: i + 1,
+          stageCount: this.stages.length,
+          stageName: stage.name,
+          targetPercent: stage.percent,
+          durationSeconds: stage.duration / 1000,
+        });
 
         // Enable for percentage
         await this.enableStage(flagName, stage);
 
         // Skip monitoring for immediate stages
         if (stage.duration === 0) {
-          if (import.meta.env.DEV)
-            console.log('   [PASS] Immediate stage - no monitoring required');
+          logger.info('Immediate rollout stage passed without monitoring', {
+            stageName: stage.name,
+          });
           continue;
         }
 
@@ -135,11 +140,16 @@ export class AutomatedRolloutOrchestrator {
         const success = await this.monitorStage(stage);
 
         if (success) {
-          if (import.meta.env.DEV)
-            console.log(`   [PASS] Stage ${stage.name} completed successfully`);
+          logger.info('Rollout stage completed successfully', {
+            stageName: stage.name,
+            targetPercent: stage.percent,
+          });
           await this.recordStageSuccess(stage);
         } else {
-          if (import.meta.env.DEV) console.log(`   [FAIL] Stage ${stage.name} failed criteria`);
+          logger.warn('Rollout stage failed criteria', {
+            stageName: stage.name,
+            targetPercent: stage.percent,
+          });
           await this.handleStageFailure(stage, i);
           break;
         }
@@ -148,7 +158,11 @@ export class AutomatedRolloutOrchestrator {
       // Final report
       await this.generateFinalReport();
     } catch (error) {
-      console.error('Orchestration error:', error);
+      logger.error(
+        'Orchestration error',
+        error instanceof Error ? error : new Error(String(error)),
+        { flagName }
+      );
       await this.emergencyRollback();
       throw error;
     }
@@ -188,15 +202,13 @@ export class AutomatedRolloutOrchestrator {
       const meetsGateCriteria = this.evaluateCriteria(currentMetrics, stage.criteria);
 
       if (!meetsGateCriteria) {
-        if (import.meta.env.DEV) {
-          console.log(`   [WARN] Criteria violation detected at ${new Date().toISOString()}`);
-          console.log(
-            `      Error Rate: ${currentMetrics.errorRate} (max: ${stage.criteria.maxErrorRate})`
-          );
-          console.log(
-            `      P95 Latency: ${currentMetrics.p95Latency}ms (max: ${stage.criteria.maxP95}ms)`
-          );
-        }
+        logger.warn('Rollout criteria violation detected', {
+          detectedAt: new Date().toISOString(),
+          errorRate: currentMetrics.errorRate,
+          maxErrorRate: stage.criteria.maxErrorRate,
+          p95Latency: currentMetrics.p95Latency,
+          maxP95Latency: stage.criteria.maxP95,
+        });
 
         // Check if it's a transient issue
         const isTransient = await this.checkTransientIssue(metricsBuffer);
@@ -210,7 +222,10 @@ export class AutomatedRolloutOrchestrator {
       const progress =
         ((Date.now() - (this.stageStartTime?.getTime() || 0)) / stage.duration) * 100;
       if (progress % 25 < 1) {
-        if (import.meta.env.DEV) console.log(`   [PROGRESS] Progress: ${Math.floor(progress)}%`);
+        logger.debug('Rollout stage progress', {
+          stageName: stage.name,
+          progressPercent: Math.floor(progress),
+        });
       }
 
       // Wait before next poll
@@ -283,8 +298,10 @@ export class AutomatedRolloutOrchestrator {
   }
 
   private async handleStageFailure(stage: RolloutStage, stageIndex: number): Promise<void> {
-    if (import.meta.env.DEV)
-      console.log(`\n[ROLLBACK] Initiating rollback for stage: ${stage.name}`);
+    logger.warn('Initiating rollback for failed stage', {
+      stageName: stage.name,
+      stageIndex,
+    });
 
     // Determine rollback target
     const prevStage = stageIndex > 0 ? this.stages[stageIndex - 1] : null;
@@ -297,12 +314,18 @@ export class AutomatedRolloutOrchestrator {
 
     if (lastMetrics && lastMetrics.errorRate > stage.criteria.maxErrorRate * 10) {
       // Critical failure - immediate full rollback
-      if (import.meta.env.DEV)
-        console.log('   [CRITICAL] Critical failure detected - emergency rollback');
+      logger.error('Critical failure detected during rollout stage', undefined, {
+        stageName: stage.name,
+        errorRate: lastMetrics.errorRate,
+        maxErrorRate: stage.criteria.maxErrorRate,
+      });
       await this.emergencyRollback();
     } else {
       // Staged rollback
-      if (import.meta.env.DEV) console.log(`   [ROLLBACK] Rolling back to ${rollbackTarget}%`);
+      logger.warn('Executing staged rollback', {
+        stageName: stage.name,
+        rollbackTargetPercent: rollbackTarget,
+      });
       await this.stagedRollback(rollbackTarget);
     }
 
@@ -384,10 +407,7 @@ export class AutomatedRolloutOrchestrator {
       timestamp: new Date().toISOString(),
     };
 
-    if (import.meta.env.DEV) {
-      console.log('\n[REPORT] Rollout Complete!');
-      console.log('Final Report:', report);
-    }
+    logger.info('Rollout complete', { report });
 
     // Store report
     localStorage.setItem('rollout_final_report', JSON.stringify(report));
@@ -402,7 +422,7 @@ export class AutomatedRolloutOrchestrator {
       timestamp: new Date().toISOString(),
     };
 
-    console.error('Rollout Failure Report:', report);
+    logger.error('Rollout failure report generated', undefined, { report });
 
     // Send alert
     await this.sendAlert('ROLLOUT_FAILURE', JSON.stringify(report));
