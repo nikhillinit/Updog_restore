@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -23,6 +18,38 @@ import {
   BarChart3,
   Building2
 } from "lucide-react";
+
+type ReturnTheFundTab = 'construction' | 'portfolio' | 'reserves';
+type ChartValue = number | string | Array<number | string>;
+
+const FALLBACK_RETURN_THE_FUND_DATA: ReturnTheFundData = {
+  round: '0.00%',
+  roundPercent: 0,
+  investmentAmount: 0,
+  resultingOwnership: 0,
+  returnTheFund: 0,
+  exitOwnership: 0,
+  exitFMV: 0,
+  exitMOIC: 0,
+};
+
+const isReturnTheFundTab = (value: string): value is ReturnTheFundTab =>
+  value === 'construction' || value === 'portfolio' || value === 'reserves';
+
+const getNumericChartValue = (value: ChartValue): number =>
+  Number(Array.isArray(value) ? (value[0] ?? 0) : value);
+
+const formatOwnershipTick = (value: number | string): string =>
+  `${(Number(value) * 100).toFixed(1)}%`;
+
+const formatReturnTheFundTick = (value: number | string): string =>
+  `$${Number(value)}mm`;
+
+const formatOwnershipTooltip = (value: ChartValue): [string, string] =>
+  [`${getNumericChartValue(value).toFixed(2)}%`, 'Ownership'];
+
+const formatReturnTheFundTooltip = (value: ChartValue): [string, string] =>
+  [`$${getNumericChartValue(value)}mm`, 'Return the Fund'];
 
 interface ReturnTheFundData {
   round: string;
@@ -45,7 +72,7 @@ export default function ReturnTheFundPage() {
   const [selectedInvestment, setSelectedInvestment] = useState<string>("series-a");
   const [selectedRound, _setSelectedRound] = useState<string>("series-b");
   const [reserveAmount, setReserveAmount] = useState<number[]>([375000]);
-  const [activeTab, setActiveTab] = useState<'construction' | 'portfolio' | 'reserves'>('construction');
+  const [activeTab, setActiveTab] = useState<ReturnTheFundTab>('construction');
 
   // Sample Return the Fund data for Series B optimization
   const returnTheFundData: ReturnTheFundData[] = [
@@ -179,7 +206,7 @@ export default function ReturnTheFundPage() {
     { round: "Series E+", ownership: 4.48, returnTheFund: 3348 }
   ];
 
-  const investments = [
+  const investments: Array<{ id: string; name: string; data: OwnershipData[] }> = [
     { id: "series-a", name: "Series A Investments", data: seriesAOwnership },
     { id: "seed", name: "Seed Investments", data: seedOwnership }
   ];
@@ -187,13 +214,7 @@ export default function ReturnTheFundPage() {
   const selectedInvestmentData = investments.find(inv => inv.id === selectedInvestment)?.data || seriesAOwnership;
 
   const currentReserve = reserveAmount[0] ?? 0;
-  const selectedData = returnTheFundData.find(item => item.investmentAmount === currentReserve) ?? returnTheFundData[5] ?? {
-    investmentAmount: 0,
-    resultingOwnership: 0,
-    returnTheFund: 0,
-    exitFMV: 0,
-    exitMOIC: 0,
-  };
+  const selectedData = returnTheFundData.find(item => item.investmentAmount === currentReserve) ?? returnTheFundData[5] ?? FALLBACK_RETURN_THE_FUND_DATA;
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -203,6 +224,12 @@ export default function ReturnTheFundPage() {
 
   const formatReturnTheFund = (value: number) => {
     return `$${value.toFixed(0)}mm`;
+  };
+
+  const handleTabChange = (value: string) => {
+    if (isReturnTheFundTab(value)) {
+      setActiveTab(value);
+    }
   };
 
   return (
@@ -238,7 +265,7 @@ export default function ReturnTheFundPage() {
       </Card>
 
       {/* Analysis Tabs */}
-      <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value as any)}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="construction" className="flex items-center space-x-2">
             <Building2 className="h-4 w-4" />
@@ -295,10 +322,10 @@ export default function ReturnTheFundPage() {
                             <XAxis dataKey="round" />
                             <YAxis 
                               domain={[0, 0.125]}
-                              tickFormatter={(value: any) => `${(value * 100).toFixed(1)}%`}
+                              tickFormatter={formatOwnershipTick}
                             />
                             <Tooltip
-                              formatter={(value) => [value !== undefined ? `${Number(value).toFixed(2)}%` : '', 'Ownership']}
+                              formatter={formatOwnershipTooltip}
                             />
                             <Bar 
                               dataKey="ownership" 
@@ -323,10 +350,10 @@ export default function ReturnTheFundPage() {
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="round" />
                             <YAxis 
-                              tickFormatter={(value: any) => `$${value}mm`}
+                              tickFormatter={formatReturnTheFundTick}
                             />
                             <Tooltip
-                              formatter={(value) => [value !== undefined ? `$${value}mm` : '', 'Return the Fund']}
+                              formatter={formatReturnTheFundTooltip}
                             />
                             <Bar 
                               dataKey="returnTheFund" 
@@ -443,9 +470,9 @@ export default function ReturnTheFundPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {returnTheFundData.slice(0, 8).map((row: any, index: any) => (
+                          {returnTheFundData.slice(0, 8).map((row) => (
                             <tr 
-                              key={index} 
+                              key={row.round}
                               className={`border-b hover:bg-gray-50 ${
                                 row.investmentAmount === currentReserve ? 'bg-blue-50 border-blue-200' : ''
                               }`}

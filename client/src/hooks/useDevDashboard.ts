@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
+import { logger } from '@/lib/logger';
 
 interface DevHealthMetrics {
   typescript: {
@@ -61,9 +62,55 @@ interface DashboardData {
   metrics: DevHealthMetrics;
 }
 
-interface DevDashboardEvent {
-  type: 'metrics_update' | 'build_started' | 'build_completed' | 'build_failed' | 'test_started' | 'test_completed' | 'test_failed';
-  data: any;
+type DashboardOverall = DashboardData['overall'];
+type DevDashboardEventType =
+  | 'metrics_update'
+  | 'build_started'
+  | 'build_completed'
+  | 'build_failed'
+  | 'test_started'
+  | 'test_completed'
+  | 'test_failed';
+
+interface MetricsUpdateEvent {
+  type: 'metrics_update';
+  data: {
+    timestamp: string;
+    overall: DashboardOverall;
+    changedMetrics: string[];
+    metrics: Partial<Pick<DevHealthMetrics, 'typescript' | 'git' | 'devServer'>>;
+    message?: string;
+  };
+}
+
+interface BuildStatusEvent {
+  type: 'build_started' | 'build_completed' | 'build_failed';
+  data: {
+    timestamp: string;
+    duration?: number;
+    errors?: string[];
+    message?: string;
+  };
+}
+
+interface TestStatusEvent {
+  type: 'test_started' | 'test_completed' | 'test_failed';
+  data: {
+    timestamp: string;
+    results?: {
+      passed: number;
+      failed: number;
+      coverage: number;
+    };
+    message?: string;
+  };
+}
+
+type DevDashboardEvent = MetricsUpdateEvent | BuildStatusEvent | TestStatusEvent;
+
+interface QuickFixResponse {
+  success: boolean;
+  message: string;
 }
 
 interface QuickFixAction {
@@ -73,6 +120,104 @@ interface QuickFixAction {
   description: string;
   action: () => Promise<void>;
   isRunning: boolean;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is JsonRecord =>
+  typeof value === 'object' && value !== null;
+
+const isDashboardOverall = (value: unknown): value is DashboardOverall =>
+  value === 'healthy' || value === 'warning' || value === 'critical';
+
+const isDevDashboardEventType = (value: unknown): value is DevDashboardEventType =>
+  value === 'metrics_update'
+  || value === 'build_started'
+  || value === 'build_completed'
+  || value === 'build_failed'
+  || value === 'test_started'
+  || value === 'test_completed'
+  || value === 'test_failed';
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+function parseDashboardData(value: unknown): DashboardData {
+  if (!isRecord(value) || !isDashboardOverall(value.overall) || !isRecord(value.metrics) || typeof value.timestamp !== 'string') {
+    throw new Error('Invalid dev dashboard response');
+  }
+
+  return {
+    timestamp: value.timestamp,
+    overall: value.overall,
+    metrics: value.metrics as DevHealthMetrics,
+  };
+}
+
+function parseQuickFixResponse(value: unknown): QuickFixResponse {
+  if (!isRecord(value) || typeof value.success !== 'boolean' || typeof value.message !== 'string') {
+    throw new Error('Invalid quick fix response');
+  }
+
+  return {
+    success: value.success,
+    message: value.message,
+  };
+}
+
+function parseDevDashboardEvent(value: unknown): DevDashboardEvent | null {
+  if (!isRecord(value) || !isDevDashboardEventType(value.type) || !isRecord(value.data) || typeof value.data.timestamp !== 'string') {
+    return null;
+  }
+
+  if (value.type === 'metrics_update') {
+    if (!isDashboardOverall(value.data.overall) || !isRecord(value.data.metrics)) {
+      return null;
+    }
+
+    return {
+      type: 'metrics_update',
+      data: {
+        timestamp: value.data.timestamp,
+        overall: value.data.overall,
+        changedMetrics: Array.isArray(value.data.changedMetrics)
+          ? value.data.changedMetrics.filter((metric): metric is string => typeof metric === 'string')
+          : [],
+        metrics: value.data.metrics as MetricsUpdateEvent['data']['metrics'],
+        message: typeof value.data.message === 'string' ? value.data.message : undefined,
+      },
+    };
+  }
+
+  if (value.type === 'build_started' || value.type === 'build_completed' || value.type === 'build_failed') {
+    return {
+      type: value.type,
+      data: {
+        timestamp: value.data.timestamp,
+        duration: typeof value.data.duration === 'number' ? value.data.duration : undefined,
+        errors: isStringArray(value.data.errors) ? value.data.errors : undefined,
+        message: typeof value.data.message === 'string' ? value.data.message : undefined,
+      },
+    };
+  }
+
+  return {
+    type: value.type,
+    data: {
+      timestamp: value.data.timestamp,
+      results: isRecord(value.data.results)
+        && typeof value.data.results.passed === 'number'
+        && typeof value.data.results.failed === 'number'
+        && typeof value.data.results.coverage === 'number'
+        ? {
+            passed: value.data.results.passed,
+            failed: value.data.results.failed,
+            coverage: value.data.results.coverage,
+          }
+        : undefined,
+      message: typeof value.data.message === 'string' ? value.data.message : undefined,
+    },
+  };
 }
 
 export const useDevDashboard = () => {
@@ -91,10 +236,11 @@ export const useDevDashboard = () => {
     try {
       const response = await fetch('/api/dev-dashboard/health');
       if (!response.ok) throw new Error('Failed to fetch health data');
-      const newData = await response.json();
+      const payload: unknown = await response.json();
+      const newData = parseDashboardData(payload);
       setData(newData);
       setError(null);
-      setLastUpdated(new Date());
+      setLastUpdated(new Date(newData.timestamp));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -123,7 +269,8 @@ export const useDevDashboard = () => {
         const response = await fetch(`/api/dev-dashboard/fix/${endpoint}`, {
           method: 'POST'
         });
-        const result = await response.json();
+        const payload: unknown = await response.json();
+        const result = parseQuickFixResponse(payload);
 
         if (result.success) {
           // Refresh data after successful fix
@@ -214,28 +361,44 @@ export const useDevDashboard = () => {
 
     socketRef.current.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to dev dashboard WebSocket');
+      logger.debug('Connected to dev dashboard WebSocket');
     });
 
     socketRef.current.on('disconnect', () => {
       setIsConnected(false);
-      console.log('Disconnected from dev dashboard WebSocket');
+      logger.debug('Disconnected from dev dashboard WebSocket');
     });
 
-    socketRef.current.on('dev_dashboard_event', (event: DevDashboardEvent) => {
-      console.log('Received dev dashboard event:', event);
+    socketRef.current.on('dev_dashboard_event', (payload: unknown) => {
+      const event = parseDevDashboardEvent(payload);
+      if (!event) {
+        logger.warn('Ignored invalid dev dashboard event payload');
+        return;
+      }
+
+      logger.debug('Received dev dashboard event', { eventType: event.type });
 
       // Add event to realtime feed
       setRealtimeEvents(prev => [event, ...prev.slice(0, 9)]);
 
       // Update metrics if it's a metrics update
       if (event.type === 'metrics_update') {
-        setData({
-          timestamp: event.data.timestamp,
-          overall: event.data.overall,
-          metrics: event.data.metrics
+        setData((prev) => {
+          if (!prev) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            timestamp: event.data.timestamp,
+            overall: event.data.overall,
+            metrics: {
+              ...prev.metrics,
+              ...event.data.metrics,
+            },
+          };
         });
-        setLastUpdated(new Date());
+        setLastUpdated(new Date(event.data.timestamp));
       }
 
       // Handle build events
