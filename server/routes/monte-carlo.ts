@@ -14,6 +14,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { unifiedMonteCarloService } from '../services/monte-carlo-service-unified';
+import type { UnifiedSimulationConfig } from '../services/monte-carlo-service-unified';
 import type { Request, Response, NextFunction } from 'express';
 import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
@@ -27,6 +28,7 @@ import {
 } from '../queues/simulation-queue';
 import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
 import { getStageValidationMode } from '../lib/stage-validation-mode';
+import { logger } from '../lib/logger';
 // import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
@@ -57,88 +59,179 @@ const simulationConfigSchema = z.object({
   enableFallback: z.boolean().default(true),
 
   // Stage distribution (optional, for portfolio composition)
-  stageDistribution: z.array(
-    z.object({
-      stage: z.string(),
-      weight: z.number().min(0).max(1),
-    })
-  ).optional(),
+  stageDistribution: z
+    .array(
+      z.object({
+        stage: z.string(),
+        weight: z.number().min(0).max(1),
+      })
+    )
+    .optional(),
 });
 
 const batchSimulationSchema = z.object({
   simulations: z.array(simulationConfigSchema).min(1).max(10),
-  enableParallelExecution: z.boolean().default(true)
+  enableParallelExecution: z.boolean().default(true),
 });
 
 const marketEnvironmentSchema = z.object({
   scenario: z.enum(['bull', 'bear', 'neutral']),
   exitMultipliers: z.object({
     mean: z.number().positive(),
-    volatility: z.number().positive()
+    volatility: z.number().positive(),
   }),
   failureRate: z.number().min(0).max(1),
-  followOnProbability: z.number().min(0).max(1)
+  followOnProbability: z.number().min(0).max(1),
 });
 
 const multiEnvironmentSchema = z.object({
   baseConfig: simulationConfigSchema,
-  environments: z.array(marketEnvironmentSchema).min(1).max(5)
+  environments: z.array(marketEnvironmentSchema).min(1).max(5),
 });
+
+type SimulationConfigRequest = z.infer<typeof simulationConfigSchema>;
+type BatchSimulationRequest = z.infer<typeof batchSimulationSchema>;
+type MultiEnvironmentRequest = z.infer<typeof multiEnvironmentSchema>;
+type ValidatedBodyRequest<T> = Request & { validatedBody: T };
 
 // ============================================================================
 // MIDDLEWARE
 // ============================================================================
 
 // Request validation middleware
-const validateRequest = (schema: z.ZodSchema) => {
-  return (req: Request, res: Response, next: Function) => {
+const validateRequest = <T>(schema: z.ZodSchema<T>) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = schema.safeParse(req.body);
       if (!result.success) {
-        return res["status"](400)["json"]({
+        return res['status'](400)['json']({
           error: 'VALIDATION_ERROR',
           message: 'Request validation failed',
-          details: result.error.issues
+          details: result.error.issues,
         });
       }
-      req.body = result.data;
+      (req as ValidatedBodyRequest<T>).validatedBody = result.data;
       next();
-    } catch (error) {
-      res["status"](400)["json"]({
+    } catch {
+      res['status'](400)['json']({
         error: 'VALIDATION_ERROR',
-        message: 'Invalid request format'
+        message: 'Invalid request format',
       });
     }
   };
 };
 
+function getCorrelationId(req: Request, fallbackPrefix: string): string {
+  return (
+    (req.headers['x-correlation-id'] as string | undefined) ?? `${fallbackPrefix}_${Date.now()}`
+  );
+}
+
+function toUnifiedSimulationConfig(config: SimulationConfigRequest): UnifiedSimulationConfig {
+  return {
+    fundId: config.fundId,
+    runs: config.runs,
+    timeHorizonYears: config.timeHorizonYears,
+    ...(config.baselineId ? { baselineId: config.baselineId } : {}),
+    ...(config.portfolioSize !== undefined ? { portfolioSize: config.portfolioSize } : {}),
+    ...(config.deploymentScheduleMonths !== undefined
+      ? { deploymentScheduleMonths: config.deploymentScheduleMonths }
+      : {}),
+    ...(config.randomSeed !== undefined ? { randomSeed: config.randomSeed } : {}),
+    batchSize: config.batchSize,
+    maxConcurrentBatches: config.maxConcurrentBatches,
+    enableResultStreaming: config.enableResultStreaming,
+    memoryThresholdMB: config.memoryThresholdMB,
+    enableGarbageCollection: config.enableGarbageCollection,
+    forceEngine: config.forceEngine,
+    performanceMode: config.performanceMode,
+    enableFallback: config.enableFallback,
+  };
+}
+
+async function buildSimulationConfig(
+  config: SimulationConfigRequest,
+  res: Response,
+  correlationId: string,
+  context: string
+): Promise<{ ok: true; config: UnifiedSimulationConfig } | { ok: false }> {
+  if (config.stageDistribution && config.stageDistribution.length > 0) {
+    const stagePercentages = config.stageDistribution.reduce<Record<string, number>>(
+      (acc, entry) => {
+        acc[entry.stage] = (acc[entry.stage] ?? 0) + entry.weight * 100;
+        return acc;
+      },
+      {}
+    );
+    const { invalidInputs, suggestions, errors } = parseStageDistribution(stagePercentages);
+
+    if (invalidInputs.length > 0) {
+      res.setHeader('X-Stage-Warning', `Unknown stages: ${invalidInputs.join(', ')}`);
+    }
+
+    if (invalidInputs.length > 0 || errors.length > 0) {
+      const mode = await getStageValidationMode();
+
+      logger.warn(
+        { context, correlationId, mode, invalidInputs, errors },
+        '[MONTE_CARLO] Stage distribution validation warning'
+      );
+
+      if (mode === 'enforce') {
+        res['status'](400)['json']({
+          error: 'INVALID_STAGE_DISTRIBUTION',
+          message: 'Unknown investment stage(s) in stageDistribution.',
+          details: {
+            invalid: invalidInputs,
+            suggestions,
+            validStages: [...CANONICAL_STAGES],
+            errors,
+          },
+          correlationId,
+        });
+        return { ok: false };
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    config: toUnifiedSimulationConfig(config),
+  };
+}
+
 // Response guard middleware
 const guardResponse = (req: Request, res: Response, next: NextFunction) => {
-  const originalJson = res.json;
-  (res as unknown as { json: (data: unknown) => Response }).json = function(data: unknown) {
+  const originalJson = res.json.bind(res);
+  res.json = ((data: unknown) => {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
-      const failure = guard as { ok: false; path: string | string[]; value: unknown; reason: string };
-      const correlationId = req.headers['x-correlation-id'] || 'unknown';
-      const failurePath = Array.isArray(failure.path) ? failure.path.join('/') : failure.path;
+      const correlationId = (req.headers['x-correlation-id'] as string | undefined) ?? 'unknown';
 
-      console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failurePath}, Reason: ${failure.reason}`);
+      logger.error(
+        {
+          correlationId,
+          path: guard.path,
+          reason: guard.reason,
+        },
+        '[ENGINE_NONFINITE] Simulation produced invalid numeric values'
+      );
 
-      return res["status"](422)["json"]({
+      return res['status'](422)['json']({
         error: 'ENGINE_NONFINITE',
-        path: failurePath,
-        reason: failure.reason,
+        path: guard.path,
+        reason: guard.reason,
         correlationId,
-        message: 'Simulation produced invalid numeric values'
+        message: 'Simulation produced invalid numeric values',
       });
     }
-    return originalJson.call(this, data);
-  };
+    return originalJson(data);
+  }) as Response['json'];
   next();
 };
 
 // Performance monitoring middleware
-const monitorPerformance = (req: Request, res: Response, next: Function) => {
+const monitorPerformance = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
 
   res['on']('finish', () => {
@@ -150,8 +243,8 @@ const monitorPerformance = (req: Request, res: Response, next: Function) => {
 };
 
 // Apply middleware to all routes
-router["use"](guardResponse);
-router["use"](monitorPerformance);
+router['use'](guardResponse);
+router['use'](monitorPerformance);
 
 // ============================================================================
 // API ENDPOINTS
@@ -161,144 +254,149 @@ router["use"](monitorPerformance);
  * POST /api/monte-carlo/simulate
  * Run a single Monte Carlo simulation
  */
-router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req: Request, res: Response) => {
-  const correlationId = req.headers['x-correlation-id'] as string || `sim_${Date.now()}`;
+router['post'](
+  '/simulate',
+  validateRequest(simulationConfigSchema),
+  async (req: Request, res: Response) => {
+    const correlationId = getCorrelationId(req, 'sim');
 
-  try {
-    // Validate stage distribution if provided in simulation config
-    let normalizedStages: Record<string, number> | null = null;
-    if (req.body.stageDistribution) {
-      const { normalized, invalidInputs, suggestions, isValid, errors } = parseStageDistribution(
-        req.body.stageDistribution
+    try {
+      const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
+      const built = await buildSimulationConfig(parsedRequest, res, correlationId, 'simulate');
+      if (!built.ok) {
+        return;
+      }
+      const simulationConfig = built.config;
+
+      logger.info(
+        { correlationId, runs: simulationConfig.runs, fundId: simulationConfig.fundId },
+        '[MONTE_CARLO] Starting simulation'
       );
 
-      if (invalidInputs.length > 0) {
-        const mode = await getStageValidationMode();
-        // Add warning header for deprecated/invalid stage names
-        res.setHeader('X-Stage-Warning', `Unknown stages: ${invalidInputs.join(', ')}`);
+      const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
 
-        if (mode === 'enforce') {
-          return res["status"](400)["json"]({
-            error: 'INVALID_STAGE_DISTRIBUTION',
-            message: 'Unknown investment stage(s) in stageDistribution.',
-            details: {
-              invalid: invalidInputs,
-              suggestions,
-              validStages: [...CANONICAL_STAGES],
-              errors,
-            },
-            correlationId,
-          });
-        }
-        // In 'warn' mode, log but continue with normalized values
-        console.warn(`[MONTE_CARLO] Unknown stage names in ${correlationId}: ${invalidInputs.join(', ')}`);
-      }
+      logger.info(
+        {
+          correlationId,
+          executionTimeMs: result.executionTimeMs,
+          engineUsed: result.performance.engineUsed,
+        },
+        '[MONTE_CARLO] Completed simulation'
+      );
 
-      normalizedStages = normalized;
+      res['json']({
+        correlationId,
+        ...result,
+        metadata: {
+          version: '3.0-streaming',
+          engineUsed: result.performance.engineUsed,
+          fallbackTriggered: result.performance.fallbackTriggered,
+          memoryUsageMB: result.performance.memoryUsageMB,
+        },
+      });
+    } catch (error) {
+      logger.error({ correlationId, error }, '[MONTE_CARLO] Simulation failed');
+
+      res['status'](500)['json']({
+        error: 'SIMULATION_FAILED',
+        correlationId,
+        message:
+          error instanceof Error ? sanitizeInput(error.message) : 'Simulation execution failed',
+        timestamp: new Date().toISOString(),
+      });
     }
-
-    // Create simulation config with normalized stages if validation passed
-    const simulationConfig = req.body;
-    if (normalizedStages && Object.keys(normalizedStages).length > 0) {
-      (simulationConfig as { stageDistribution?: Record<string, number> }).stageDistribution = normalizedStages;
-    }
-
-    console.log(`[MONTE_CARLO] Starting simulation ${correlationId} with ${simulationConfig.runs} scenarios`);
-
-    const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
-
-    console.log(`[MONTE_CARLO] Completed simulation ${correlationId} in ${result.executionTimeMs}ms using ${result.performance.engineUsed} engine`);
-
-    res["json"]({
-      correlationId,
-      ...result,
-      metadata: {
-        version: '3.0-streaming',
-        engineUsed: result.performance.engineUsed,
-        fallbackTriggered: result.performance.fallbackTriggered,
-        memoryUsageMB: result.performance.memoryUsageMB
-      }
-    });
-
-  } catch (error) {
-    console.error(`[MONTE_CARLO] Simulation ${correlationId} failed:`, error);
-
-    res["status"](500)["json"]({
-      error: 'SIMULATION_FAILED',
-      correlationId,
-      message: error instanceof Error ? sanitizeInput(error.message) : 'Simulation execution failed',
-      timestamp: new Date().toISOString()
-    });
   }
-});
+);
 
 /**
  * POST /api/monte-carlo/simulate/async
  * Queue a simulation for background processing (202 Accepted pattern)
  * Returns immediately with jobId for polling
  */
-router["post"]('/simulate/async', validateRequest(simulationConfigSchema), async (req: Request, res: Response) => {
-  const correlationId = req.headers['x-correlation-id'] as string || `sim_async_${Date.now()}`;
+router['post'](
+  '/simulate/async',
+  validateRequest(simulationConfigSchema),
+  async (req: Request, res: Response) => {
+    const correlationId = getCorrelationId(req, 'sim_async');
 
-  try {
-    // Check if queue is available
-    if (!isQueueInitialized()) {
-      // Fall back to synchronous execution if queue not available
-      console.warn(`[MONTE_CARLO] Queue not initialized, falling back to sync execution for ${correlationId}`);
-
-      const result = await unifiedMonteCarloService.runSimulation(req.body);
-      return res["json"]({
+    try {
+      const parsedRequest = (req as ValidatedBodyRequest<SimulationConfigRequest>).validatedBody;
+      const built = await buildSimulationConfig(
+        parsedRequest,
+        res,
         correlationId,
-        mode: 'sync_fallback',
-        ...result,
-        metadata: {
-          version: '3.0-streaming',
-          engineUsed: result.performance.engineUsed,
-          fallbackTriggered: true,
-          note: 'Queue unavailable, executed synchronously'
-        }
+        'simulate_async'
+      );
+      if (!built.ok) {
+        return;
+      }
+      const simulationConfig = built.config;
+
+      // Check if queue is available
+      if (!isQueueInitialized()) {
+        // Fall back to synchronous execution if queue not available
+        logger.warn(
+          { correlationId },
+          '[MONTE_CARLO] Queue not initialized, falling back to sync execution'
+        );
+
+        const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
+        return res['json']({
+          correlationId,
+          mode: 'sync_fallback',
+          ...result,
+          metadata: {
+            version: '3.0-streaming',
+            engineUsed: result.performance.engineUsed,
+            fallbackTriggered: true,
+            note: 'Queue unavailable, executed synchronously',
+          },
+        });
+      }
+
+      logger.info(
+        { correlationId, runs: simulationConfig.runs, fundId: simulationConfig.fundId },
+        '[MONTE_CARLO] Queuing async simulation'
+      );
+
+      const { jobId, estimatedWaitMs } = await enqueueSimulation({
+        fundId: simulationConfig.fundId,
+        runs: simulationConfig.runs,
+        timeHorizonYears: simulationConfig.timeHorizonYears,
+        baselineId: simulationConfig.baselineId,
+        portfolioSize: simulationConfig.portfolioSize,
+        requestId: correlationId,
+      });
+
+      // Return 202 Accepted with polling information
+      res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);
+      res.setHeader('Retry-After', '5');
+
+      res['status'](202)['json']({
+        correlationId,
+        jobId,
+        status: 'queued',
+        estimatedWaitMs,
+        message: 'Simulation queued for background processing',
+        _links: {
+          self: `/api/monte-carlo/jobs/${jobId}`,
+          poll: `/api/monte-carlo/jobs/${jobId}`,
+          stream: `/api/monte-carlo/jobs/${jobId}/stream`,
+        },
+      });
+    } catch (error) {
+      logger.error({ correlationId, error }, '[MONTE_CARLO] Failed to queue simulation');
+
+      res['status'](500)['json']({
+        error: 'QUEUE_FAILED',
+        correlationId,
+        message:
+          error instanceof Error ? sanitizeInput(error.message) : 'Failed to queue simulation',
+        timestamp: new Date().toISOString(),
       });
     }
-
-    console.log(`[MONTE_CARLO] Queuing async simulation ${correlationId} with ${req.body.runs} scenarios`);
-
-    const { jobId, estimatedWaitMs } = await enqueueSimulation({
-      fundId: req.body.fundId,
-      runs: req.body.runs,
-      timeHorizonYears: req.body.timeHorizonYears,
-      baselineId: req.body.baselineId,
-      portfolioSize: req.body.portfolioSize,
-      requestId: correlationId,
-    });
-
-    // Return 202 Accepted with polling information
-    res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);
-    res.setHeader('Retry-After', '5');
-
-    res["status"](202)["json"]({
-      correlationId,
-      jobId,
-      status: 'queued',
-      estimatedWaitMs,
-      message: 'Simulation queued for background processing',
-      _links: {
-        self: `/api/monte-carlo/jobs/${jobId}`,
-        poll: `/api/monte-carlo/jobs/${jobId}`,
-        stream: `/api/monte-carlo/jobs/${jobId}/stream`,
-      },
-    });
-
-  } catch (error) {
-    console.error(`[MONTE_CARLO] Failed to queue simulation ${correlationId}:`, error);
-
-    res["status"](500)["json"]({
-      error: 'QUEUE_FAILED',
-      correlationId,
-      message: error instanceof Error ? sanitizeInput(error.message) : 'Failed to queue simulation',
-      timestamp: new Date().toISOString()
-    });
   }
-});
+);
 
 /**
  * GET /api/monte-carlo/jobs/:jobId
@@ -308,14 +406,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
     if (!jobId) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'INVALID_JOB_ID',
         message: 'Job ID is required',
       });
     }
 
     if (!isQueueInitialized()) {
-      return res["status"](503)["json"]({
+      return res['status'](503)['json']({
         error: 'QUEUE_UNAVAILABLE',
         message: 'Background job queue is not available',
       });
@@ -324,7 +422,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
     const jobStatus = await getJobStatus(jobId);
 
     if (jobStatus.status === 'unknown') {
-      return res["status"](404)["json"]({
+      return res['status'](404)['json']({
         error: 'JOB_NOT_FOUND',
         message: `Job ${jobId} not found`,
       });
@@ -335,7 +433,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       res.setHeader('Retry-After', '5');
     }
 
-    res["json"]({
+    res['json']({
       jobId,
       ...jobStatus,
       _links: {
@@ -345,9 +443,8 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
           : {}),
       },
     });
-
   } catch (error) {
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'JOB_STATUS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to get job status',
     });
@@ -361,14 +458,14 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
 router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
   const { jobId } = req.params;
   if (!jobId) {
-    return res["status"](400)["json"]({
+    return res['status'](400)['json']({
       error: 'INVALID_JOB_ID',
       message: 'Job ID is required',
     });
   }
 
   if (!isQueueInitialized()) {
-    return res["status"](503)["json"]({
+    return res['status'](503)['json']({
       error: 'QUEUE_UNAVAILABLE',
       message: 'Background job queue is not available',
     });
@@ -408,98 +505,143 @@ router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
  * POST /api/monte-carlo/batch
  * Run multiple simulations in batch
  */
-router["post"]('/batch', validateRequest(batchSimulationSchema), async (req: Request, res: Response) => {
-  const correlationId = req.headers['x-correlation-id'] as string || `batch_${Date.now()}`;
+router['post'](
+  '/batch',
+  validateRequest(batchSimulationSchema),
+  async (req: Request, res: Response) => {
+    const correlationId = getCorrelationId(req, 'batch');
 
-  try {
-    console.log(`[MONTE_CARLO] Starting batch simulation ${correlationId} with ${req.body.simulations.length} configurations`);
-
-    const results = await unifiedMonteCarloService.runBatchSimulations(req.body.simulations);
-
-    const totalExecutionTime = results.reduce((sum, r) => sum + r.executionTimeMs, 0);
-    const engineUsage = results.reduce((acc, r) => {
-      acc[r.performance.engineUsed] = (acc[r.performance.engineUsed] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    console.log(`[MONTE_CARLO] Completed batch simulation ${correlationId} in ${totalExecutionTime}ms`);
-
-    res["json"]({
-      correlationId,
-      results,
-      summary: {
-        totalSimulations: results.length,
-        totalExecutionTimeMs: totalExecutionTime,
-        engineUsage,
-        averageExecutionTimeMs: totalExecutionTime / results.length
+    try {
+      const parsedRequest = (req as ValidatedBodyRequest<BatchSimulationRequest>).validatedBody;
+      const normalizedConfigs: UnifiedSimulationConfig[] = [];
+      for (const [index, config] of parsedRequest.simulations.entries()) {
+        const built = await buildSimulationConfig(config, res, correlationId, `batch[${index}]`);
+        if (!built.ok) {
+          return;
+        }
+        normalizedConfigs.push(built.config);
       }
-    });
 
-  } catch (error) {
-    console.error(`[MONTE_CARLO] Batch simulation ${correlationId} failed:`, error);
+      logger.info(
+        { correlationId, batchSize: normalizedConfigs.length },
+        '[MONTE_CARLO] Starting batch simulation'
+      );
 
-    res["status"](500)["json"]({
-      error: 'BATCH_SIMULATION_FAILED',
-      correlationId,
-      message: error instanceof Error ? sanitizeInput(error.message) : 'Batch simulation execution failed',
-      timestamp: new Date().toISOString()
-    });
+      const results = await unifiedMonteCarloService.runBatchSimulations(normalizedConfigs);
+
+      const totalExecutionTime = results.reduce((sum, r) => sum + r.executionTimeMs, 0);
+      const engineUsage = results.reduce(
+        (acc, r) => {
+          acc[r.performance.engineUsed] = (acc[r.performance.engineUsed] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      logger.info(
+        { correlationId, totalExecutionTimeMs: totalExecutionTime },
+        '[MONTE_CARLO] Completed batch simulation'
+      );
+
+      res['json']({
+        correlationId,
+        results,
+        summary: {
+          totalSimulations: results.length,
+          totalExecutionTimeMs: totalExecutionTime,
+          engineUsage,
+          averageExecutionTimeMs: totalExecutionTime / results.length,
+        },
+      });
+    } catch (error) {
+      logger.error({ correlationId, error }, '[MONTE_CARLO] Batch simulation failed');
+
+      res['status'](500)['json']({
+        error: 'BATCH_SIMULATION_FAILED',
+        correlationId,
+        message:
+          error instanceof Error
+            ? sanitizeInput(error.message)
+            : 'Batch simulation execution failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
-});
+);
 
 /**
  * POST /api/monte-carlo/multi-environment
  * Run simulation across multiple market environments
  */
-router["post"]('/multi-environment', validateRequest(multiEnvironmentSchema), async (req: Request, res: Response) => {
-  const correlationId = req.headers['x-correlation-id'] as string || `multi_${Date.now()}`;
+router['post'](
+  '/multi-environment',
+  validateRequest(multiEnvironmentSchema),
+  async (req: Request, res: Response) => {
+    const correlationId = getCorrelationId(req, 'multi');
 
-  try {
-    console.log(`[MONTE_CARLO] Starting multi-environment simulation ${correlationId} for ${req.body.environments.length} scenarios`);
-
-    const results = await unifiedMonteCarloService.runMultiEnvironmentSimulation(
-      req.body.baseConfig,
-      req.body.environments
-    );
-
-    const environmentSummary = Object.entries(results).map(([scenario, result]) => ({
-      scenario,
-      executionTimeMs: result.executionTimeMs,
-      engineUsed: result.performance.engineUsed,
-      expectedIRR: result.irr.statistics.mean,
-      expectedMultiple: result.multiple.statistics.mean
-    }));
-
-    console.log(`[MONTE_CARLO] Completed multi-environment simulation ${correlationId}`);
-
-    res["json"]({
-      correlationId,
-      results,
-      summary: {
-        environments: environmentSummary,
-        totalEnvironments: req.body.environments.length,
-        comparison: {
-          bestCase: environmentSummary.reduce((best, env) =>
-            env.expectedIRR > best.expectedIRR ? env : best
-          ),
-          worstCase: environmentSummary.reduce((worst, env) =>
-            env.expectedIRR < worst.expectedIRR ? env : worst
-          )
-        }
+    try {
+      const parsedRequest = (req as ValidatedBodyRequest<MultiEnvironmentRequest>).validatedBody;
+      const built = await buildSimulationConfig(
+        parsedRequest.baseConfig,
+        res,
+        correlationId,
+        'multi-environment'
+      );
+      if (!built.ok) {
+        return;
       }
-    });
 
-  } catch (error) {
-    console.error(`[MONTE_CARLO] Multi-environment simulation ${correlationId} failed:`, error);
+      logger.info(
+        { correlationId, environmentCount: parsedRequest.environments.length },
+        '[MONTE_CARLO] Starting multi-environment simulation'
+      );
 
-    res["status"](500)["json"]({
-      error: 'MULTI_ENVIRONMENT_FAILED',
-      correlationId,
-      message: error instanceof Error ? sanitizeInput(error.message) : 'Multi-environment simulation failed',
-      timestamp: new Date().toISOString()
-    });
+      const results = await unifiedMonteCarloService.runMultiEnvironmentSimulation(
+        built.config,
+        parsedRequest.environments
+      );
+
+      const environmentSummary = Object.entries(results).map(([scenario, result]) => ({
+        scenario,
+        executionTimeMs: result.executionTimeMs,
+        engineUsed: result.performance.engineUsed,
+        expectedIRR: result.irr.statistics.mean,
+        expectedMultiple: result.multiple.statistics.mean,
+      }));
+
+      logger.info({ correlationId }, '[MONTE_CARLO] Completed multi-environment simulation');
+
+      res['json']({
+        correlationId,
+        results,
+        summary: {
+          environments: environmentSummary,
+          totalEnvironments: parsedRequest.environments.length,
+          comparison: {
+            bestCase: environmentSummary.reduce((best, env) =>
+              env.expectedIRR > best.expectedIRR ? env : best
+            ),
+            worstCase: environmentSummary.reduce((worst, env) =>
+              env.expectedIRR < worst.expectedIRR ? env : worst
+            ),
+          },
+        },
+      });
+    } catch (error) {
+      logger.error({ correlationId, error }, '[MONTE_CARLO] Multi-environment simulation failed');
+
+      res['status'](500)['json']({
+        error: 'MULTI_ENVIRONMENT_FAILED',
+        correlationId,
+        message:
+          error instanceof Error
+            ? sanitizeInput(error.message)
+            : 'Multi-environment simulation failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/monte-carlo/health
@@ -509,21 +651,21 @@ router['get']('/health', async (req: Request, res: Response) => {
   try {
     const health = await unifiedMonteCarloService.healthCheck();
     const status = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503;
+    const connectionPools = health.connectionPools as Record<string, unknown>;
 
-    res["status"](status)["json"]({
+    res['status'](status)['json']({
       status: health.status,
       timestamp: new Date().toISOString(),
       engines: health.engines,
-      connectionPools: health.connectionPools,
+      connectionPools,
       recommendations: health.recommendations,
-      version: '3.0-streaming'
+      version: '3.0-streaming',
     });
-
   } catch (error) {
-    res["status"](503)["json"]({
+    res['status'](503)['json']({
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Health check failed',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -537,17 +679,16 @@ router['get']('/performance', async (req: Request, res: Response) => {
     const stats = unifiedMonteCarloService.getPerformanceStats();
     const recommendations = unifiedMonteCarloService.getOptimizationRecommendations();
 
-    res["json"]({
+    res['json']({
       statistics: stats,
       recommendations,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'PERFORMANCE_STATS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to retrieve performance statistics',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -559,14 +700,14 @@ router['get']('/performance', async (req: Request, res: Response) => {
 router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
   try {
     const fundId = toNumber(req.params['fundId'], 'Fund ID');
-    const runs = parseInt(req.query['runs'] as string || '1000');
-    const timeHorizonYears = parseInt(req.query['timeHorizonYears'] as string || '8');
-    const engine = req.query['engine'] as 'streaming' | 'traditional' | 'auto' || 'auto';
+    const runs = parseInt((req.query['runs'] as string) || '1000');
+    const timeHorizonYears = parseInt((req.query['timeHorizonYears'] as string) || '8');
+    const engine = (req.query['engine'] as 'streaming' | 'traditional' | 'auto') || 'auto';
 
     if (runs < 100 || runs > 10000) {
-      return res["status"](400)["json"]({
+      return res['status'](400)['json']({
         error: 'INVALID_PARAMETERS',
-        message: 'Runs must be between 100 and 10,000 for GET endpoint'
+        message: 'Runs must be between 100 and 10,000 for GET endpoint',
       });
     }
 
@@ -575,24 +716,23 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
       runs,
       timeHorizonYears,
       forceEngine: engine,
-      batchSize: Math.min(runs, 1000)
+      batchSize: Math.min(runs, 1000),
     };
 
     const result = await unifiedMonteCarloService.runSimulation(config);
 
-    res["json"]({
+    res['json']({
       fundId,
       ...result,
       metadata: {
         quickSimulation: true,
-        engineUsed: result.performance.engineUsed
-      }
+        engineUsed: result.performance.engineUsed,
+      },
     });
-
   } catch (error) {
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'QUICK_SIMULATION_FAILED',
-      message: error instanceof Error ? error.message : 'Quick simulation failed'
+      message: error instanceof Error ? error.message : 'Quick simulation failed',
     });
   }
 });
@@ -601,20 +741,19 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
  * DELETE /api/monte-carlo/cache
  * Clear performance history cache
  */
-router["delete"]('/cache', async (req: Request, res: Response) => {
+router['delete']('/cache', async (req: Request, res: Response) => {
   try {
     // This would need to be implemented in the service
     // await unifiedMonteCarloService.clearCache();
 
-    res["json"]({
+    res['json']({
       message: 'Performance cache cleared',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    res["status"](500)["json"]({
+    res['status'](500)['json']({
       error: 'CACHE_CLEAR_FAILED',
-      message: error instanceof Error ? error.message : 'Failed to clear cache'
+      message: error instanceof Error ? error.message : 'Failed to clear cache',
     });
   }
 });
@@ -624,14 +763,14 @@ router["delete"]('/cache', async (req: Request, res: Response) => {
 // ============================================================================
 
 // Route-specific error handler
-router["use"]((error: Error, req: Request, res: Response, _next: Function) => {
-  console.error('[MONTE_CARLO_ROUTES] Error:', error);
+router['use']((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ error }, '[MONTE_CARLO_ROUTES] Error');
 
-  res["status"](500)["json"]({
+  res['status'](500)['json']({
     error: 'MONTE_CARLO_ERROR',
     message: 'An unexpected error occurred in Monte Carlo simulation',
     timestamp: new Date().toISOString(),
-    correlationId: req.headers['x-correlation-id'] || 'unknown'
+    correlationId: (req.headers['x-correlation-id'] as string | undefined) ?? 'unknown',
   });
 });
 
