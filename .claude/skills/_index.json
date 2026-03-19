@@ -1,6 +1,6 @@
 {
-  "generated": "2026-02-21T19:50:00.594Z",
-  "count": 53,
+  "generated": "2026-03-19T02:38:14.926Z",
+  "count": 55,
   "skills": [
     {
       "name": "ai-model-selection",
@@ -120,6 +120,13 @@
       "format": "subdirectory",
       "status": "ACTIVE",
       "description": "This skill defines patterns for validating financial calculations against Excel models, maintaining truth-case accuracy, and ensuring numerical correctness for IRR, waterfalls, Monte Carlo, and relate"
+    },
+    {
+      "name": "frontend-ui-ux",
+      "path": ".claude/skills/frontend-ui-ux/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Designer-turned-developer who crafts stunning UI/UX even without design mockups"
     },
     {
       "name": "integration-with-other-skills",
@@ -352,6 +359,13 @@
       "format": "subdirectory",
       "status": "ACTIVE",
       "description": "This skill defines the test pyramid strategy for this repository, establishing"
+    },
+    {
+      "name": "ui-design-system",
+      "path": ".claude/skills/ui-design-system/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "UI design system toolkit for Senior UI Designer including design token generation, component documentation, responsive design calculations, and developer handoff tools. Use for creating design systems"
     },
     {
       "name": "ui-ux-pro-max",
