@@ -12,10 +12,12 @@
 
 import { useMachine } from '@xstate/react';
 import { useCallback, useEffect, useMemo } from 'react';
+import type { StateFrom } from 'xstate';
 import {
   modelingWizardMachine,
   type WizardStep,
   type ModelingWizardContext,
+  type WizardStepDataMap,
   STEP_ORDER,
   getNextStep,
   getPreviousStep
@@ -24,6 +26,8 @@ import {
 // ============================================================================
 // TYPES
 // ============================================================================
+
+type ModelingWizardState = StateFrom<typeof modelingWizardMachine>;
 
 export interface UseModelingWizardOptions {
   /**
@@ -56,7 +60,7 @@ export interface UseModelingWizardOptions {
 
 export interface UseModelingWizardReturn {
   // State
-  state: any;
+  state: ModelingWizardState;
   context: ModelingWizardContext;
   currentStep: WizardStep;
   currentStepIndex: number;
@@ -71,8 +75,8 @@ export interface UseModelingWizardReturn {
   goToStep: (step: WizardStep) => void;
 
   // Data management
-  saveStep: (step: WizardStep, data: any) => void;
-  getStepData: <T = any>(step: WizardStep) => T | undefined;
+  saveStep: <TStep extends WizardStep>(step: TStep, data: WizardStepDataMap[TStep]) => void;
+  getStepData: <TStep extends WizardStep>(step: TStep) => WizardStepDataMap[TStep] | undefined;
 
   // Validation
   isStepValid: (step: WizardStep) => boolean;
@@ -180,12 +184,12 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
   // DATA MANAGEMENT
   // ============================================================================
 
-  const saveStep = useCallback((step: WizardStep, data: any) => {
+  const saveStep = useCallback(<TStep extends WizardStep>(step: TStep, data: WizardStepDataMap[TStep]) => {
     send({ type: 'SAVE_STEP', step, data });
   }, [send]);
 
-  const getStepData = useCallback(<T = any>(step: WizardStep): T | undefined => {
-    return context.steps[step] as T | undefined;
+  const getStepData = useCallback(<TStep extends WizardStep>(step: TStep): WizardStepDataMap[TStep] | undefined => {
+    return context.steps[step];
   }, [context.steps]);
 
   // ============================================================================
@@ -345,7 +349,7 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
  */
 export function useCurrentStepComponent(wizard: UseModelingWizardReturn) {
   return useMemo(() => {
-    const stepComponents = {
+    const stepComponents: Record<WizardStep, string> = {
       generalInfo: 'GeneralInfoStep',
       sectorProfiles: 'SectorProfilesStep',
       capitalAllocation: 'CapitalAllocationStep',

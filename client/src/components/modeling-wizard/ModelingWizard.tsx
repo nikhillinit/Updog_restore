@@ -23,6 +23,8 @@ import React from 'react';
 import { useLocation } from 'wouter';
 import { WizardShell } from './WizardShell';
 import { useModelingWizard } from '@/hooks/useModelingWizard';
+import type { GeneralInfoData } from '@/machines/modeling-wizard.machine';
+import type { FundFinancialsOutput } from '@/schemas/modeling-wizard.schemas';
 import {
   GeneralInfoStep,
   SectorProfilesStep,
@@ -70,6 +72,24 @@ export interface ModelingWizardProps {
    * Default: '/dashboard'
    */
   redirectOnComplete?: string;
+}
+
+const DEFAULT_FUND_FINANCIALS: FundFinancialsOutput = {
+  fundSize: 100,
+  orgExpenses: 0,
+  additionalExpenses: [],
+  investmentPeriod: 5,
+  gpCommitment: 1,
+  cashlessSplit: 50,
+  managementFee: { rate: 2, stepDown: { enabled: false } },
+};
+
+function buildFundFinancials(generalInfo?: GeneralInfoData): FundFinancialsOutput {
+  return {
+    ...DEFAULT_FUND_FINANCIALS,
+    fundSize: generalInfo?.fundSize ?? DEFAULT_FUND_FINANCIALS.fundSize,
+    investmentPeriod: generalInfo?.investmentPeriod ?? DEFAULT_FUND_FINANCIALS.investmentPeriod,
+  };
 }
 
 // ============================================================================
@@ -137,6 +157,8 @@ export function ModelingWizard({
   const exitRecyclingData = wizard.getStepData('exitRecycling');
   const waterfallData = wizard.getStepData('waterfall');
   const scenariosData = wizard.getStepData('scenarios');
+  const fundFinancials = buildFundFinancials(generalInfoData);
+  const sectorProfiles = sectorProfilesData?.sectorProfiles ?? [];
 
   return (
     <WizardShell
@@ -179,18 +201,8 @@ export function ModelingWizard({
         <CapitalAllocationStep
           {...(capitalAllocationData !== undefined ? { initialData: capitalAllocationData } : {})}
           onSave={(data) => wizard.saveStep('capitalAllocation', data)}
-          fundFinancials={
-            (wizard as any).getStepData?.('fundFinancials') || {
-              fundSize: 100,
-              investmentPeriod: 5,
-              orgExpenses: 0,
-              additionalExpenses: [],
-              gpCommitment: 1,
-              cashlessSplit: 50,
-              managementFee: { rate: 2, stepDown: { enabled: false } },
-            }
-          }
-          sectorProfiles={(wizard as any).getStepData?.('sectorProfiles')?.sectorProfiles || []}
+          fundFinancials={fundFinancials}
+          sectorProfiles={sectorProfiles}
         />
       )}
 
@@ -207,17 +219,7 @@ export function ModelingWizard({
         <ExitRecyclingStep
           {...(exitRecyclingData !== undefined ? { initialData: exitRecyclingData } : {})}
           onSave={(data) => wizard.saveStep('exitRecycling', data)}
-          fundFinancials={
-            (wizard as any).getStepData?.('fundFinancials') || {
-              fundSize: 100,
-              investmentPeriod: 5,
-              orgExpenses: 0,
-              additionalExpenses: [],
-              gpCommitment: 1,
-              cashlessSplit: 50,
-              managementFee: { rate: 2, stepDown: { enabled: false } },
-            }
-          }
+          fundFinancials={fundFinancials}
         />
       )}
 
