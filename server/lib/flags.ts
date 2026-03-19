@@ -8,6 +8,7 @@ import { ulid } from 'ulid';
 import { flagChanges, flagsState, type FlagChange } from '../../shared/schemas/flags.js';
 import { db } from '../db.js';
 import { eq, desc } from 'drizzle-orm';
+import { logger } from './logger.js';
 
 export interface FlagValue {
   enabled: boolean;
@@ -24,21 +25,6 @@ export interface FlagValue {
 }
 
 export type FlagMap = Record<string, FlagValue>;
-
-interface FlagMetadata {
-  key: string;
-  default: boolean;
-  description: string;
-  owner: string;
-  risk: 'low' | 'medium' | 'high';
-  expiresAt: string;
-  exposeToClient: boolean;
-  environments: {
-    development: boolean;
-    staging: boolean;
-    production: boolean;
-  };
-}
 
 export interface FlagSnapshot {
   version: string;
@@ -58,22 +44,20 @@ export interface UserContext {
 const TTL_MS = 30_000; // 30 seconds
 const LKG_TTL_MS = 5 * 60 * 1000; // 5 minutes Last Known Good
 const FLAG_ENV = process.env['FLAG_ENV'] || process.env['NODE_ENV'] || 'development';
-const CACHE_KEY = `flags:v1:${FLAG_ENV}`;
-const INVALIDATION_KEY = 'flags:changed';
 
 // Global state with versioning and LKG
-let cache: { 
-  ts: number; 
-  flags: FlagMap; 
-  hash: string; 
+let cache: {
+  ts: number;
+  flags: FlagMap;
+  hash: string;
   version: string;
   environment: string;
-} = { 
-  ts: 0, 
-  flags: {}, 
+} = {
+  ts: 0,
+  flags: {},
   hash: '',
   version: ulid(0), // Start with epoch ULID
-  environment: FLAG_ENV
+  environment: FLAG_ENV,
 };
 
 let lastKnownGood: FlagSnapshot | null = null;
@@ -84,7 +68,7 @@ const disabledAll = process.env['FLAGS_DISABLED_ALL'] === '1';
 // Default flag values (safe fallbacks)
 const defaultFlags: FlagMap = {
   'wizard.v1': { enabled: false, exposeToClient: true },
-  'reserves.v1_1': { enabled: false, exposeToClient: false }
+  'reserves.v1_1': { enabled: false, exposeToClient: false },
 };
 
 /**
@@ -140,7 +124,8 @@ function evaluateTargeting(flag: FlagValue, userContext?: UserContext): boolean 
 async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
   try {
     // Try to load from database first
-    const latestState = await db.select()
+    const latestState = await db
+      .select()
       .from(flagsState)
       .where(eq(flagsState.environment, FLAG_ENV))
       .orderBy(desc(flagsState.createdAt))
@@ -153,42 +138,44 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
         flags: state.flags as FlagMap,
         hash: state.flagsHash,
         timestamp: state.createdAt.getTime(),
-        environment: state.environment
+        environment: state.environment,
       };
     }
 
     // Fallback to environment defaults
     const version = generateVersion();
     const envFlags: FlagMap = {
-      'wizard.v1': { 
-        enabled: FLAG_ENV === 'development', 
-        exposeToClient: true 
+      'wizard.v1': {
+        enabled: FLAG_ENV === 'development',
+        exposeToClient: true,
       },
-      'reserves.v1_1': { 
-        enabled: false, 
-        exposeToClient: false 
-      }
+      'reserves.v1_1': {
+        enabled: false,
+        exposeToClient: false,
+      },
     };
 
     const flagsJson = JSON.stringify(envFlags);
     const hash = createHash('sha256').update(flagsJson).digest('hex');
 
     // Store initial state
-    await db.insert(flagsState).values({
-      version,
-      flagsHash: hash,
-      flags: envFlags,
-      environment: FLAG_ENV
-    }).onConflictDoNothing();
+    await db
+      .insert(flagsState)
+      .values({
+        version,
+        flagsHash: hash,
+        flags: envFlags,
+        environment: FLAG_ENV,
+      })
+      .onConflictDoNothing();
 
     return {
       version,
       flags: envFlags,
       hash,
       timestamp: Date.now(),
-      environment: FLAG_ENV
+      environment: FLAG_ENV,
     };
-    
   } catch (error) {
     console.error('Failed to load flags from store:', error);
     return null;
@@ -207,12 +194,12 @@ export async function getFlags(): Promise<FlagSnapshot> {
       flags: {},
       hash: '',
       timestamp: Date.now(),
-      environment: FLAG_ENV
+      environment: FLAG_ENV,
     };
   }
-  
+
   const now = Date.now();
-  
+
   // Check if cache is still valid
   if (now - cache.ts <= TTL_MS && Object.keys(cache.flags).length > 0) {
     return {
@@ -220,47 +207,57 @@ export async function getFlags(): Promise<FlagSnapshot> {
       flags: cache.flags,
       hash: cache.hash,
       timestamp: cache.ts,
-      environment: cache.environment
+      environment: cache.environment,
     };
   }
-  
+
   // Try to load fresh flags
   const freshSnapshot = await loadFlagsFromStore();
-  
+
   if (freshSnapshot) {
+    // eslint-disable-next-line require-atomic-updates -- cache is a module singleton updated as one snapshot
     cache = {
       ts: now,
       flags: freshSnapshot.flags,
       hash: freshSnapshot.hash,
       version: freshSnapshot.version,
-      environment: freshSnapshot.environment
+      environment: freshSnapshot.environment,
     };
-    
+
     // Update Last Known Good
     lastKnownGood = freshSnapshot;
-    
-    console.log(`Flags updated: ${Object.keys(freshSnapshot.flags).length} flags, version: ${freshSnapshot.version}, hash: ${freshSnapshot.hash}`);
+
+    logger.info(
+      {
+        count: Object.keys(freshSnapshot.flags).length,
+        version: freshSnapshot.version,
+        hash: freshSnapshot.hash,
+      },
+      'Flags updated'
+    );
     return freshSnapshot;
   }
-  
+
   // Use Last Known Good if available and not too old
-  if (lastKnownGood && (now - lastKnownGood.timestamp <= LKG_TTL_MS)) {
-    console.warn(`Using Last Known Good flags (${Math.round((now - lastKnownGood.timestamp) / 1000)}s old)`);
+  if (lastKnownGood && now - lastKnownGood.timestamp <= LKG_TTL_MS) {
+    console.warn(
+      `Using Last Known Good flags (${Math.round((now - lastKnownGood.timestamp) / 1000)}s old)`
+    );
     return lastKnownGood;
   }
-  
+
   // Final fallback to defaults
   console.warn('Using default flags - store unavailable and LKG expired');
   const version = generateVersion();
   const flagsJson = JSON.stringify(defaultFlags);
   const hash = createHash('sha256').update(flagsJson).digest('hex').substring(0, 16);
-  
+
   return {
     version,
     flags: defaultFlags,
     hash,
     timestamp: now,
-    environment: process.env['NODE_ENV'] || 'development'
+    environment: process.env['NODE_ENV'] || 'development',
   };
 }
 
@@ -270,12 +267,12 @@ export async function getFlags(): Promise<FlagSnapshot> {
 export async function isEnabled(key: string, userContext?: UserContext): Promise<boolean> {
   const snapshot = await getFlags();
   const flag = snapshot.flags[key];
-  
+
   if (!flag) {
     console.warn(`Flag '${key}' not found, defaulting to false`);
     return false;
   }
-  
+
   // Evaluate targeting rules
   return evaluateTargeting(flag, userContext);
 }
@@ -283,20 +280,22 @@ export async function isEnabled(key: string, userContext?: UserContext): Promise
 /**
  * Get flags safe for client exposure
  */
-export async function getClientFlags(userContext?: UserContext): Promise<{ flags: Record<string, boolean>; version: string; hash: string }> {
+export async function getClientFlags(
+  userContext?: UserContext
+): Promise<{ flags: Record<string, boolean>; version: string; hash: string }> {
   const snapshot = await getFlags();
   const clientFlags: Record<string, boolean> = {};
-  
+
   for (const [key, flag] of Object.entries(snapshot.flags)) {
     if (flag.exposeToClient) {
       clientFlags[key] = evaluateTargeting(flag, userContext);
     }
   }
-  
+
   return {
     flags: clientFlags,
     version: snapshot.version,
-    hash: snapshot.hash
+    hash: snapshot.hash,
   };
 }
 
@@ -328,45 +327,44 @@ export async function updateFlag(
   const snapshot = await getFlags();
   const before = snapshot.flags[key] || null;
   const after = { ...before, ...updates };
-  
+
   // Generate change hash
   const changeData = JSON.stringify({ before, after, actor: user.sub, timestamp: Date.now() });
   const changeHash = createHash('sha256').update(changeData).digest('hex').substring(0, 16);
-  
+
   // Log the change
   const change = {
     key,
-    before: before ? JSON.parse(JSON.stringify(before)) : null,
-    after: JSON.parse(JSON.stringify(after)),
+    before: before ? structuredClone(before) : null,
+    after: structuredClone(after),
     actorSub: user.sub,
     actorEmail: user.email,
     ip: user.ip,
     userAgent: user.userAgent,
     reason,
     changeHash,
-    version: snapshot.version
+    version: snapshot.version,
   };
-  
+
   try {
     await db.insert(flagChanges).values(change);
-    console.log(`Flag '${key}' updated by ${user.email}: ${JSON.stringify(updates)}`);
-    
+    logger.info({ key, actor: user.email, updates }, 'Flag updated');
+
     // Update store with new version
     const newVersion = generateVersion();
     const updatedFlags = { ...snapshot.flags, [key]: after };
     const newHash = createHash('sha256').update(JSON.stringify(updatedFlags)).digest('hex');
-    
+
     // Store new state (atomic with audit log)
     await db.insert(flagsState).values({
       version: newVersion,
       flagsHash: newHash,
       flags: updatedFlags,
-      environment: FLAG_ENV
+      environment: FLAG_ENV,
     });
-    
+
     // Invalidate cache
     cache.ts = 0;
-    
   } catch (error) {
     console.error('Failed to update flag:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -379,11 +377,11 @@ export async function updateFlag(
  */
 export async function getFlagHistory(key?: string): Promise<FlagChange[]> {
   const query = db.select().from(flagChanges);
-  
+
   if (key) {
     query.where(eq(flagChanges.key, key));
   }
-  
+
   return query.orderBy(desc(flagChanges.createdAt)).limit(100);
 }
 
@@ -393,7 +391,7 @@ export async function getFlagHistory(key?: string): Promise<FlagChange[]> {
 export function activateKillSwitch(): void {
   process.env['FLAGS_DISABLED_ALL'] = '1';
   cache.ts = 0; // Force cache refresh
-  console.warn('🚨 KILL SWITCH ACTIVATED - All flags disabled');
+  logger.warn('KILL SWITCH ACTIVATED - All flags disabled');
 }
 
 /**
@@ -403,7 +401,7 @@ export function getCacheStatus(): { age: number; hash: string; flagCount: number
   return {
     age: Date.now() - cache.ts,
     hash: cache.hash,
-    flagCount: Object.keys(cache.flags).length
+    flagCount: Object.keys(cache.flags).length,
   };
 }
 
