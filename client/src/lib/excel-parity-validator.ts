@@ -129,6 +129,26 @@ export interface ParityValidationResult {
   };
 }
 
+type ExpectedAllocation =
+  | {
+      companyId: string;
+      allocation: number;
+    }
+  | {
+      id: string;
+      allocated: number;
+    };
+
+interface NormalizedExpectedAllocation {
+  id: string;
+  allocated: number;
+}
+
+interface ValidationSummary {
+  passed: number;
+  failed: number;
+}
+
 export class ExcelParityValidator {
   private datasets: ParityDataset[] = [];
   private engine: ConstrainedReserveEngine;
@@ -347,13 +367,22 @@ export class ExcelParityValidator {
     }> = [];
 
     // Handle both 'allocateds' (legacy) and 'allocations' field names
-    const expectedAllocationsRaw = expectedOutput.allocateds || expectedOutput.allocations || [];
+    const expectedAllocationsRaw: ExpectedAllocation[] =
+      expectedOutput.allocateds ?? expectedOutput.allocations ?? [];
 
     // Normalize to a common format for processing
-    const expectedAllocations = expectedAllocationsRaw.map((alloc: any) => ({
-      id: alloc.id || alloc.companyId,
-      allocated: alloc.allocated ?? alloc.allocation ?? 0,
-    }));
+    const expectedAllocations: NormalizedExpectedAllocation[] = expectedAllocationsRaw.map(
+      (allocation) =>
+        'id' in allocation
+          ? {
+              id: allocation.id,
+              allocated: allocation.allocated,
+            }
+          : {
+              id: allocation.companyId,
+              allocated: allocation.allocation,
+            }
+    );
 
     for (const expectedAlloc of expectedAllocations) {
       const actualAlloc = result.allocations.find((a) => a.id === expectedAlloc.id);
@@ -423,10 +452,10 @@ export class ExcelParityValidator {
       lines.push('');
     }
 
-    const summary = results.reduce(
-      (acc: any, r: any) => ({
-        passed: acc.passed + (r.passed ? 1 : 0),
-        failed: acc.failed + (r.passed ? 0 : 1),
+    const summary = results.reduce<ValidationSummary>(
+      (accumulator, result) => ({
+        passed: accumulator.passed + (result.passed ? 1 : 0),
+        failed: accumulator.failed + (result.passed ? 0 : 1),
       }),
       { passed: 0, failed: 0 }
     );
