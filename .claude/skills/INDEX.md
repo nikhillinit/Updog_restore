@@ -2,7 +2,7 @@
 
 # Skill Index
 
-**53 skills** discovered across 3 scan patterns.
+**55 skills** discovered across 3 scan patterns.
 
 | Name                               | Format          | Status | Path                                                          |
 | ---------------------------------- | --------------- | ------ | ------------------------------------------------------------- |
@@ -23,6 +23,7 @@
 | documentation-sync                 | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/documentation-sync/SKILL.md`  |
 | extended-thinking-framework        | flat            | ACTIVE | `.claude/skills/extended-thinking-framework.md`               |
 | financial-calc-correctness         | subdirectory    | ACTIVE | `.claude/skills/financial-calc-correctness/SKILL.md`          |
+| frontend-ui-ux                     | subdirectory    | ACTIVE | `.claude/skills/frontend-ui-ux/SKILL.md`                      |
 | integration-with-other-skills      | flat            | ACTIVE | `.claude/skills/integration-with-other-skills.md`             |
 | inversion-thinking                 | flat            | ACTIVE | `.claude/skills/inversion-thinking.md`                        |
 | iterative-improvement              | flat            | ACTIVE | `.claude/skills/iterative-improvement.md`                     |
@@ -56,8 +57,9 @@
 | test-first-change                  | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/test-first-change/SKILL.md`   |
 | test-fixture-generator             | subdirectory    | ACTIVE | `.claude/skills/test-fixture-generator/SKILL.md`              |
 | test-pyramid                       | subdirectory    | ACTIVE | `.claude/skills/test-pyramid/SKILL.md`                        |
+| ui-design-system                   | subdirectory    | ACTIVE | `.claude/skills/ui-design-system/SKILL.md`                    |
 | ui-ux-pro-max                      | subdirectory    | ACTIVE | `.claude/skills/ui-ux-pro-max/SKILL.md`                       |
 | writing-plans                      | flat            | ACTIVE | `.claude/skills/writing-plans.md`                             |
 | xlsx                               | flat            | ACTIVE | `.claude/skills/xlsx.md`                                      |
 
-_Generated: 2026-02-21T19:50:00.601Z_
+_Generated: 2026-03-19T02:38:14.929Z_
