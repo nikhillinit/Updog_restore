@@ -71,7 +71,9 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
   activeConnections.get(fundId)!.add(connection);
 
   // Store event type filter on the response object
-  connection.eventTypeFilter = eventTypes;
+  if (eventTypes) {
+    connection.eventTypeFilter = eventTypes;
+  }
 
   logger.info('SSE connection established', {
     fundId,

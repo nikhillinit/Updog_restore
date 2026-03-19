@@ -26,8 +26,8 @@ function getRumBody(req: Request): RumBody | undefined {
 }
 
 export function sanitizeRumPathname(pathname: string): string {
-  return pathname
-    .split('?')[0]
+  const [pathWithoutQuery = pathname] = pathname.split('?');
+  return pathWithoutQuery
     .replace(UUID_SEGMENT_PATTERN, '/:id')
     .replace(LARGE_NUMERIC_SEGMENT_PATTERN, '/:id');
 }

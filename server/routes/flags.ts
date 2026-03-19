@@ -248,7 +248,13 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
       ip: req.ip ?? 'unknown',
       userAgent: req.headers['user-agent'] ?? 'unknown',
     };
-    const flagUpdates: Partial<FlagValue> = updates;
+    const flagUpdates: Partial<FlagValue> = {
+      ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
+      ...(updates.exposeToClient !== undefined
+        ? { exposeToClient: updates.exposeToClient }
+        : {}),
+      ...(updates.targeting !== undefined ? { targeting: updates.targeting } : {}),
+    };
     await updateFlag(key!, flagUpdates, userContext, reason!);
 
     const newVersion = await getFlagsVersion();
