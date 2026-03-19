@@ -26,6 +26,7 @@ import {
   isQueueInitialized,
   subscribeToJob,
 } from '../queues/simulation-queue';
+import type { SimulationJobData } from '../queues/simulation-queue';
 import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
 import { getStageValidationMode } from '../lib/stage-validation-mode';
 import { logger } from '../lib/logger';
@@ -359,14 +360,19 @@ router['post'](
         '[MONTE_CARLO] Queuing async simulation'
       );
 
-      const { jobId, estimatedWaitMs } = await enqueueSimulation({
+      const simulationJob: SimulationJobData = {
         fundId: simulationConfig.fundId,
         runs: simulationConfig.runs,
         timeHorizonYears: simulationConfig.timeHorizonYears,
-        baselineId: simulationConfig.baselineId,
-        portfolioSize: simulationConfig.portfolioSize,
         requestId: correlationId,
-      });
+        ...(simulationConfig.baselineId !== undefined
+          ? { baselineId: simulationConfig.baselineId }
+          : {}),
+        ...(simulationConfig.portfolioSize !== undefined
+          ? { portfolioSize: simulationConfig.portfolioSize }
+          : {}),
+      };
+      const { jobId, estimatedWaitMs } = await enqueueSimulation(simulationJob);
 
       // Return 202 Accepted with polling information
       res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);

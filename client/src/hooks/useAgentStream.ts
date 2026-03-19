@@ -34,11 +34,13 @@ const parseEventPayload = (event: Event): AgentStreamPayload => {
 const parseErrorPayload = (event: Event): AgentStreamErrorPayload => {
   const payload = parseEventPayload(event);
 
-  if (isRecord(payload) && typeof payload.message === 'string') {
-    return {
-      message: payload.message,
-      code: typeof payload.code === 'string' ? payload.code : undefined,
-    };
+  if (isRecord(payload)) {
+    const message = payload['message'];
+    const code = payload['code'];
+
+    if (typeof message === 'string') {
+      return typeof code === 'string' ? { message, code } : { message };
+    }
   }
 
   throw new Error('Expected stream error payload with message');
