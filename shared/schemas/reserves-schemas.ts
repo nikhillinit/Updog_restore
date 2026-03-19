@@ -16,131 +16,147 @@ export const PercentageSchema = z.number().min(0).max(1);
 export const StageSchema = CanonicalStageSchema;
 export type Stage = CanonicalStage;
 
-export const OutcomeSchema = z.enum(['failure', 'small_exit', 'medium_exit', 'large_exit', 'mega_exit']);
+export const OutcomeSchema = z.enum([
+  'failure',
+  'small_exit',
+  'medium_exit',
+  'large_exit',
+  'mega_exit',
+]);
 
 // Company and Investment Types
-export const PortfolioCompanySchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  sector: z.string().min(1).max(50),
-  currentStage: StageSchema,
-  
-  // Investment details
-  totalInvested: MoneySchema,
-  currentValuation: MoneySchema,
-  ownershipPercentage: PercentageSchema,
-  liquidationPreference: MoneySchema.optional(),
-  
-  // Timeline and status
-  /** Investment date - accepts Date objects or ISO strings, coerces to Date */
-  investmentDate: z.coerce.date(),
-  /** Last funding round date - accepts Date objects or ISO strings, coerces to Date */
-  lastRoundDate: z.coerce.date().optional(),
-  /** Exit date if applicable - accepts Date objects or ISO strings, coerces to Date */
-  exitDate: z.coerce.date().optional(),
-  isActive: z.boolean().default(true),
-  
-  // Performance metrics
-  currentMOIC: z.number().min(0).optional(),
-  estimatedExitValue: MoneySchema.optional(),
-  confidenceLevel: PercentageSchema.default(0.5),
-  
-  // Additional context
-  tags: z.array(z.string()).default([]),
-  notes: z.string().optional(),
-}).strict();
+export const PortfolioCompanySchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100),
+    sector: z.string().min(1).max(50),
+    currentStage: StageSchema,
 
-export const GraduationRateSchema = z.object({
-  fromStage: StageSchema,
-  toStage: StageSchema,
-  probability: PercentageSchema,
-  timeToGraduation: z.number().positive(), // months
-  valuationMultiple: z.number().min(1), // how much valuation increases
-}).strict();
+    // Investment details
+    totalInvested: MoneySchema,
+    currentValuation: MoneySchema,
+    ownershipPercentage: PercentageSchema,
+    liquidationPreference: MoneySchema.optional(),
 
-export const GraduationMatrixSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  rates: z.array(GraduationRateSchema),
-  sector: z.string().optional(), // sector-specific matrix
-  vintage: z.number().optional(), // year-specific adjustments
-}).strict();
+    // Timeline and status
+    /** Investment date - accepts Date objects or ISO strings, coerces to Date */
+    investmentDate: z.coerce.date(),
+    /** Last funding round date - accepts Date objects or ISO strings, coerces to Date */
+    lastRoundDate: z.coerce.date().optional(),
+    /** Exit date if applicable - accepts Date objects or ISO strings, coerces to Date */
+    exitDate: z.coerce.date().optional(),
+    isActive: z.boolean().default(true),
 
-export const StageStrategySchema = z.object({
-  stage: StageSchema,
-  
-  // Investment strategy
-  targetOwnership: PercentageSchema,
-  maxInvestment: MoneySchema,
-  minInvestment: MoneySchema,
-  
-  // Timing strategy
-  followOnProbability: PercentageSchema,
-  reserveMultiple: z.number().min(0).max(10), // multiple of initial investment
-  
-  // Risk parameters
-  failureRate: PercentageSchema,
-  expectedMOIC: z.number().min(0),
-  expectedTimeToExit: z.number().positive(), // months
-  
-  // Portfolio construction
-  maxConcentration: PercentageSchema, // max % of fund in single investment
-  diversificationWeight: z.number().min(0).max(1),
-}).strict();
+    // Performance metrics
+    currentMOIC: z.number().min(0).optional(),
+    estimatedExitValue: MoneySchema.optional(),
+    confidenceLevel: PercentageSchema.default(0.5),
 
-export const ReserveAllocationInputSchema = z.object({
-  // Portfolio context
-  portfolio: z.array(PortfolioCompanySchema),
-  availableReserves: MoneySchema,
-  totalFundSize: MoneySchema,
-  
-  // Strategy parameters
-  graduationMatrix: GraduationMatrixSchema,
-  stageStrategies: z.array(StageStrategySchema),
-  
-  // Constraints
-  maxSingleAllocation: MoneySchema.optional(),
-  minAllocationThreshold: MoneySchema.default(25000),
-  maxPortfolioConcentration: PercentageSchema.default(0.1),
-  
-  // Scenario parameters
-  scenarioType: z.enum(['conservative', 'base', 'optimistic']).default('base'),
-  timeHorizon: z.number().positive().default(84), // months
-  
-  // Feature flags
-  enableDiversification: z.boolean().default(true),
-  enableRiskAdjustment: z.boolean().default(true),
-  enableLiquidationPreferences: z.boolean().default(true),
-}).strict();
+    // Additional context
+    tags: z.array(z.string()).default([]),
+    notes: z.string().optional(),
+  })
+  .strict();
+
+export const GraduationRateSchema = z
+  .object({
+    fromStage: StageSchema,
+    toStage: StageSchema,
+    probability: PercentageSchema,
+    timeToGraduation: z.number().positive(), // months
+    valuationMultiple: z.number().min(1), // how much valuation increases
+  })
+  .strict();
+
+export const GraduationMatrixSchema = z
+  .object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    rates: z.array(GraduationRateSchema),
+    sector: z.string().optional(), // sector-specific matrix
+    vintage: z.number().optional(), // year-specific adjustments
+  })
+  .strict();
+
+export const StageStrategySchema = z
+  .object({
+    stage: StageSchema,
+
+    // Investment strategy
+    targetOwnership: PercentageSchema,
+    maxInvestment: MoneySchema,
+    minInvestment: MoneySchema,
+
+    // Timing strategy
+    followOnProbability: PercentageSchema,
+    reserveMultiple: z.number().min(0).max(10), // multiple of initial investment
+
+    // Risk parameters
+    failureRate: PercentageSchema,
+    expectedMOIC: z.number().min(0),
+    expectedTimeToExit: z.number().positive(), // months
+
+    // Portfolio construction
+    maxConcentration: PercentageSchema, // max % of fund in single investment
+    diversificationWeight: z.number().min(0).max(1),
+  })
+  .strict();
+
+export const ReserveAllocationInputSchema = z
+  .object({
+    // Portfolio context
+    portfolio: z.array(PortfolioCompanySchema),
+    availableReserves: MoneySchema,
+    totalFundSize: MoneySchema,
+
+    // Strategy parameters
+    graduationMatrix: GraduationMatrixSchema,
+    stageStrategies: z.array(StageStrategySchema),
+
+    // Constraints
+    maxSingleAllocation: MoneySchema.optional(),
+    minAllocationThreshold: MoneySchema.default(25000),
+    maxPortfolioConcentration: PercentageSchema.default(0.1),
+
+    // Scenario parameters
+    scenarioType: z.enum(['conservative', 'base', 'optimistic']).default('base'),
+    timeHorizon: z.number().positive().default(84), // months
+
+    // Feature flags
+    enableDiversification: z.boolean().default(true),
+    enableRiskAdjustment: z.boolean().default(true),
+    enableLiquidationPreferences: z.boolean().default(true),
+  })
+  .strict();
 
 export const ReserveAllocationOutputSchema = z.object({
   companyId: z.string().uuid(),
   companyName: z.string(),
-  
+
   // Allocation details
   recommendedAllocation: MoneySchema,
   allocationRationale: z.string(),
   priority: z.number().min(1).max(100), // 1 = highest priority
-  
+
   // Expected outcomes
   expectedMOIC: z.number().min(0),
   expectedValue: MoneySchema,
   riskAdjustedReturn: z.number(),
-  
+
   // Portfolio impact
   newOwnership: PercentageSchema,
   portfolioWeight: PercentageSchema,
   concentrationRisk: z.enum(['low', 'medium', 'high']),
-  
+
   // Timing and staging
   recommendedStage: StageSchema,
   timeToDeployment: z.number().positive(), // months
   followOnPotential: PercentageSchema,
-  
+
   // Risk factors
   riskFactors: z.array(z.string()),
   mitigationStrategies: z.array(z.string()),
-  
+
   // Supporting data
   calculationMetadata: z.object({
     graduationProbability: PercentageSchema,
@@ -159,11 +175,11 @@ export const ReserveCalculationResultSchema = z.object({
     totalAllocated: MoneySchema,
     allocationEfficiency: PercentageSchema,
   }),
-  
+
   // Allocations
   allocations: z.array(ReserveAllocationOutputSchema),
   unallocatedReserves: MoneySchema,
-  
+
   // Portfolio metrics
   portfolioMetrics: z.object({
     expectedPortfolioMOIC: z.number().min(0),
@@ -172,7 +188,7 @@ export const ReserveCalculationResultSchema = z.object({
     concentrationRisk: z.enum(['low', 'medium', 'high']),
     averageTimeToExit: z.number().positive(),
   }),
-  
+
   // Risk analysis
   riskAnalysis: z.object({
     portfolioRisk: z.enum(['low', 'medium', 'high']),
@@ -180,11 +196,11 @@ export const ReserveCalculationResultSchema = z.object({
     riskMitigationActions: z.array(z.string()),
     stressTestResults: z.object({
       downside10: z.number(), // 10th percentile outcome
-      upside90: z.number(),   // 90th percentile outcome
+      upside90: z.number(), // 90th percentile outcome
       expectedValue: z.number(),
     }),
   }),
-  
+
   // Scenario analysis
   scenarioResults: z.object({
     conservative: z.object({
@@ -203,7 +219,7 @@ export const ReserveCalculationResultSchema = z.object({
       probability: PercentageSchema,
     }),
   }),
-  
+
   // Calculation metadata
   metadata: z.object({
     /** Timestamp of calculation - accepts Date objects or ISO strings, coerces to Date */
@@ -226,37 +242,43 @@ export const ExcelParityInputSchema = z.object({
     managementFees: MoneySchema,
     carriedInterest: MoneySchema,
   }),
-  
-  companyData: z.array(z.object({
-    companyName: z.string(),
-    invested: MoneySchema,
-    currentValue: MoneySchema,
-    distributed: MoneySchema,
-    moic: z.number().min(0),
-    irr: z.number(),
-  })),
-  
-  timeline: z.array(z.object({
-    quarter: z.string().regex(/^\d{4}Q[1-4]$/),
-    navValue: MoneySchema,
-    distributions: MoneySchema,
-    calls: MoneySchema,
-    dpi: z.number().min(0),
-    tvpi: z.number().min(0),
-    irr: z.number(),
-  })),
+
+  companyData: z.array(
+    z.object({
+      companyName: z.string(),
+      invested: MoneySchema,
+      currentValue: MoneySchema,
+      distributed: MoneySchema,
+      moic: z.number().min(0),
+      irr: z.number(),
+    })
+  ),
+
+  timeline: z.array(
+    z.object({
+      quarter: z.string().regex(/^\d{4}Q[1-4]$/),
+      navValue: MoneySchema,
+      distributions: MoneySchema,
+      calls: MoneySchema,
+      dpi: z.number().min(0),
+      tvpi: z.number().min(0),
+      irr: z.number(),
+    })
+  ),
 });
 
 export const ExcelParityOutputSchema = z.object({
-  comparisonResults: z.array(z.object({
-    metric: z.string(),
-    excelValue: z.number(),
-    webAppValue: z.number(),
-    percentageDrift: z.number(),
-    withinTolerance: z.boolean(),
-    tolerance: z.number().default(0.01), // 1%
-  })),
-  
+  comparisonResults: z.array(
+    z.object({
+      metric: z.string(),
+      excelValue: z.number(),
+      webAppValue: z.number(),
+      percentageDrift: z.number(),
+      withinTolerance: z.boolean(),
+      tolerance: z.number().default(0.01), // 1%
+    })
+  ),
+
   overallParity: z.object({
     totalMetricsCompared: z.number(),
     metricsWithinTolerance: z.number(),
@@ -264,7 +286,7 @@ export const ExcelParityOutputSchema = z.object({
     maxDrift: z.number(),
     passesParityTest: z.boolean(),
   }),
-  
+
   detailedBreakdown: z.object({
     navComparison: z.object({
       match: z.boolean(),
@@ -290,16 +312,18 @@ export const ExcelParityOutputSchema = z.object({
 });
 
 // Feature Flag Schemas
-export const FeatureFlagSchema = z.object({
-  enableNewReserveEngine: z.boolean().default(false),
-  enableParityTesting: z.boolean().default(true),
-  enableRiskAdjustments: z.boolean().default(true),
-  enableScenarioAnalysis: z.boolean().default(true),
-  enableAdvancedDiversification: z.boolean().default(false),
-  enableLiquidationPreferences: z.boolean().default(true),
-  enablePerformanceLogging: z.boolean().default(true),
-  maxCalculationTimeMs: z.number().positive().default(5000),
-}).strict();
+export const FeatureFlagSchema = z
+  .object({
+    enableNewReserveEngine: z.boolean().default(false),
+    enableParityTesting: z.boolean().default(true),
+    enableRiskAdjustments: z.boolean().default(true),
+    enableScenarioAnalysis: z.boolean().default(true),
+    enableAdvancedDiversification: z.boolean().default(false),
+    enableLiquidationPreferences: z.boolean().default(true),
+    enablePerformanceLogging: z.boolean().default(true),
+    maxCalculationTimeMs: z.number().positive().default(5000),
+  })
+  .strict();
 
 // Type exports (inferred from schemas)
 export type PortfolioCompany = z.infer<typeof PortfolioCompanySchema>;
@@ -400,7 +424,7 @@ export class ReserveCalculationError extends Error {
   constructor(
     message: string,
     public code: string,
-    public context?: Record<string, any>
+    public context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ReserveCalculationError';
@@ -421,139 +445,155 @@ export class ParityValidationError extends Error {
 // ===== Additional exports from reserves-schema.ts =====
 
 // Company schema with validation rules
-export const CompanySchema = z.object({
-  id: z.string().min(1, 'Company ID is required'),
-  name: z.string().min(1, 'Company name is required'),
-  invested_cents: z.number()
-    .int('Investment must be in integer cents')
-    .nonnegative('Investment cannot be negative')
-    .max(Number.MAX_SAFE_INTEGER, 'Investment exceeds maximum safe integer'),
-  exit_moic_bps: z.number()
-    .int('Exit MOIC must be in basis points')
-    .nonnegative('Exit MOIC cannot be negative')
-    .max(1000000, 'Exit MOIC exceeds reasonable bounds (100x)'),
-  stage: z.string().optional(),
-  sector: z.string().optional(),
-  ownership_pct: z.number()
-    .min(0, 'Ownership cannot be negative')
-    .max(1, 'Ownership cannot exceed 100%')
-    .optional(),
-  metadata: z.record(z.unknown()).optional()
-}).strict();
+export const CompanySchema = z
+  .object({
+    id: z.string().min(1, 'Company ID is required'),
+    name: z.string().min(1, 'Company name is required'),
+    invested_cents: z
+      .number()
+      .int('Investment must be in integer cents')
+      .nonnegative('Investment cannot be negative')
+      .max(Number.MAX_SAFE_INTEGER, 'Investment exceeds maximum safe integer'),
+    exit_moic_bps: z
+      .number()
+      .int('Exit MOIC must be in basis points')
+      .nonnegative('Exit MOIC cannot be negative')
+      .max(1000000, 'Exit MOIC exceeds reasonable bounds (100x)'),
+    stage: z.string().optional(),
+    sector: z.string().optional(),
+    ownership_pct: z
+      .number()
+      .min(0, 'Ownership cannot be negative')
+      .max(1, 'Ownership cannot exceed 100%')
+      .optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
 
 // Cap policy schemas
-export const FixedCapPolicySchema = z.object({
-  kind: z.literal('fixed_percent'),
-  default_percent: z.number()
-    .min(0, 'Cap percentage cannot be negative')
-    .max(10, 'Cap percentage exceeds reasonable bounds (1000%)')
-    .optional()
-}).strict();
+export const FixedCapPolicySchema = z
+  .object({
+    kind: z.literal('fixed_percent'),
+    default_percent: z
+      .number()
+      .min(0, 'Cap percentage cannot be negative')
+      .max(10, 'Cap percentage exceeds reasonable bounds (1000%)')
+      .optional(),
+  })
+  .strict();
 
-export const StageBasedCapPolicySchema = z.object({
-  kind: z.literal('stage_based'),
-  default_percent: z.number()
-    .min(0, 'Default cap percentage cannot be negative')
-    .max(10, 'Default cap percentage exceeds reasonable bounds')
-    .optional(),
-  stage_caps: z.record(
-    z.string(),
-    z.number().min(0).max(10)
-  ).optional()
-}).strict();
+export const StageBasedCapPolicySchema = z
+  .object({
+    kind: z.literal('stage_based'),
+    default_percent: z
+      .number()
+      .min(0, 'Default cap percentage cannot be negative')
+      .max(10, 'Default cap percentage exceeds reasonable bounds')
+      .optional(),
+    stage_caps: z.record(z.string(), z.number().min(0).max(10)).optional(),
+  })
+  .strict();
 
-export const CustomCapPolicySchema = z.object({
-  kind: z.literal('custom'),
-  custom_fn: z.function()
-    .args(CompanySchema)
-    .returns(z.number())
-    .optional()
-}).strict();
+export const CustomCapPolicySchema = z
+  .object({
+    kind: z.literal('custom'),
+    custom_fn: z.function().args(CompanySchema).returns(z.number()).optional(),
+  })
+  .strict();
 
 export const CapPolicySchema = z.discriminatedUnion('kind', [
   FixedCapPolicySchema,
   StageBasedCapPolicySchema,
-  CustomCapPolicySchema
+  CustomCapPolicySchema,
 ]);
 
 // Reserves configuration schema
-export const ReservesConfigSchema = z.object({
-  reserve_bps: z.number()
-    .int('Reserve percentage must be in basis points')
-    .min(0, 'Reserve percentage cannot be negative')
-    .max(10000, 'Reserve percentage cannot exceed 100%'),
-  remain_passes: z.union([z.literal(0), z.literal(1)]),
-  cap_policy: CapPolicySchema,
-  audit_level: z.enum(['basic', 'detailed', 'debug'])
-}).strict();
+export const ReservesConfigSchema = z
+  .object({
+    reserve_bps: z
+      .number()
+      .int('Reserve percentage must be in basis points')
+      .min(0, 'Reserve percentage cannot be negative')
+      .max(10000, 'Reserve percentage cannot exceed 100%'),
+    remain_passes: z.union([z.literal(0), z.literal(1)]),
+    cap_policy: CapPolicySchema,
+    audit_level: z.enum(['basic', 'detailed', 'debug']),
+  })
+  .strict();
 
 // Reserves input schema
-export const ReservesInputSchema = z.object({
-  companies: z.array(CompanySchema)
-    .min(0, 'Companies array cannot be null')
-    .max(10000, 'Too many companies (max 10,000)'),
-  fund_size_cents: z.number()
-    .int('Fund size must be in integer cents')
-    .nonnegative('Fund size cannot be negative')
-    .max(Number.MAX_SAFE_INTEGER, 'Fund size exceeds maximum safe integer'),
-  quarter_index: z.number()
-    .int('Quarter index must be an integer')
-    .min(1900 * 4, 'Quarter index before year 1900')
-    .max(2100 * 4 + 3, 'Quarter index after year 2100')
-}).strict();
+export const ReservesInputSchema = z
+  .object({
+    companies: z
+      .array(CompanySchema)
+      .min(0, 'Companies array cannot be null')
+      .max(10000, 'Too many companies (max 10,000)'),
+    fund_size_cents: z
+      .number()
+      .int('Fund size must be in integer cents')
+      .nonnegative('Fund size cannot be negative')
+      .max(Number.MAX_SAFE_INTEGER, 'Fund size exceeds maximum safe integer'),
+    quarter_index: z
+      .number()
+      .int('Quarter index must be an integer')
+      .min(1900 * 4, 'Quarter index before year 1900')
+      .max(2100 * 4 + 3, 'Quarter index after year 2100'),
+  })
+  .strict();
 
 // Allocation decision schema
-export const AllocationDecisionSchema = z.object({
-  company_id: z.string().min(1),
-  planned_cents: z.number()
-    .int()
-    .nonnegative()
-    .max(Number.MAX_SAFE_INTEGER),
-  reason: z.string(),
-  cap_cents: z.number()
-    .int()
-    .nonnegative(),
-  iteration: z.number()
-    .int()
-    .positive()
-    .max(10)
-}).strict();
+export const AllocationDecisionSchema = z
+  .object({
+    company_id: z.string().min(1),
+    planned_cents: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    reason: z.string(),
+    cap_cents: z.number().int().nonnegative(),
+    iteration: z.number().int().positive().max(10),
+  })
+  .strict();
 
 // Reserves output schema
-export const ReservesOutputSchema = z.object({
-  allocations: z.array(AllocationDecisionSchema),
-  remaining_cents: z.number()
-    .int()
-    .nonnegative(),
-  metadata: z.object({
-    total_available_cents: z.number().int().nonnegative(),
-    total_allocated_cents: z.number().int().nonnegative(),
-    companies_funded: z.number().int().nonnegative(),
-    max_iterations: z.number().int().positive(),
-    conservation_check: z.boolean(),
-    exit_moic_ranking: z.array(z.string())
-  }).strict()
-}).strict();
+export const ReservesOutputSchema = z
+  .object({
+    allocations: z.array(AllocationDecisionSchema),
+    remaining_cents: z.number().int().nonnegative(),
+    metadata: z
+      .object({
+        total_available_cents: z.number().int().nonnegative(),
+        total_allocated_cents: z.number().int().nonnegative(),
+        companies_funded: z.number().int().nonnegative(),
+        max_iterations: z.number().int().positive(),
+        conservation_check: z.boolean(),
+        exit_moic_ranking: z.array(z.string()),
+      })
+      .strict(),
+  })
+  .strict();
 
 // Reserves result schema
-export const ReservesResultSchema = z.object({
-  ok: z.boolean(),
-  data: ReservesOutputSchema.optional(),
-  error: z.string().optional(),
-  warnings: z.array(z.string()).optional(),
-  metrics: z.object({
-    duration_ms: z.number().nonnegative(),
-    company_count: z.number().int().nonnegative(),
-    policy_type: z.string()
-  }).strict().optional()
-}).strict();
+export const ReservesResultSchema = z
+  .object({
+    ok: z.boolean(),
+    data: ReservesOutputSchema.optional(),
+    error: z.string().optional(),
+    warnings: z.array(z.string()).optional(),
+    metrics: z
+      .object({
+        duration_ms: z.number().nonnegative(),
+        company_count: z.number().int().nonnegative(),
+        policy_type: z.string(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
 
 // Request schema for API endpoints
 export const CalculateReservesRequestSchema = z.object({
   input: ReservesInputSchema,
   config: ReservesConfigSchema,
   userId: z.string().optional(),
-  requestId: z.string().optional()
+  requestId: z.string().optional(),
 });
 
 // Type exports for v11 compatibility

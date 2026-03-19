@@ -4,6 +4,8 @@
  * Each team can implement their module independently using these contracts
  */
 
+import { createHash } from 'node:crypto';
+
 // ============================================================
 // STEP 2: CONCURRENCY SAFETY (Team A)
 // ============================================================
@@ -11,19 +13,31 @@
 export interface ConcurrencyManager {
   // Optimistic concurrency control
   checkRowVersion(_fundId: number, _expectedVersion: string): Promise<boolean>;
-  updateWithVersion(_fundId: number, _data: Record<string, unknown>, _currentVersion: string): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
+  updateWithVersion(
+    _fundId: number,
+    _data: Record<string, unknown>,
+    _currentVersion: string
+  ): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
 
   // Advisory locking for calculations
-  acquireCalcLock(_fundId: number, timeout?: number): Promise<{ acquired: boolean; lockId?: string }>;
+  acquireCalcLock(
+    _fundId: number,
+    timeout?: number
+  ): Promise<{ acquired: boolean; lockId?: string }>;
   releaseCalcLock(_lockId: string): Promise<void>;
 
   // Idempotency handling
   checkIdempotency(_key: string): Promise<{ exists: boolean; result?: unknown }>;
-  storeIdempotentResult(_key: string, _fundId: number, _paramsHash: string, _result: unknown): Promise<void>;
+  storeIdempotentResult(
+    _key: string,
+    _fundId: number,
+    _paramsHash: string,
+    _result: unknown
+  ): Promise<void>;
 }
 
 // ============================================================
-// STEP 3: MULTI-TENANCY (Team B)  
+// STEP 3: MULTI-TENANCY (Team B)
 // ============================================================
 
 export interface TenancyManager {
@@ -56,11 +70,19 @@ export interface VersionManager {
   getWasmBinary(_version: string, _engineType: string): Promise<Buffer>;
 
   // Migration handling
-  migrateParams(_fromVersion: string, _toVersion: string, _params: Record<string, unknown>): Promise<Record<string, unknown>>;
+  migrateParams(
+    _fromVersion: string,
+    _toVersion: string,
+    _params: Record<string, unknown>
+  ): Promise<Record<string, unknown>>;
   canRunVersion(_version: string): Promise<{ allowed: boolean; reason?: string }>;
 
   // A/B testing
-  runComparison(_engineType: string, _params: Record<string, unknown>, _versions: string[]): Promise<ComparisonResult>;
+  runComparison(
+    _engineType: string,
+    _params: Record<string, unknown>,
+    _versions: string[]
+  ): Promise<ComparisonResult>;
 }
 
 export interface ComparisonResult {
@@ -77,10 +99,10 @@ export interface EncryptionManager {
   // Envelope encryption
   encryptField(value: string, _orgId: string): Promise<EncryptedField>;
   decryptField(_encrypted: EncryptedField, _requesterRole: string): Promise<string | null>;
-  
+
   // Key rotation
   rotateOrgKeys(_orgId: string): Promise<{ rotated: number; failed: number }>;
-  
+
   // Access control
   canAccessPII(_userId: string, _field: string, _purpose: string): Promise<boolean>;
   logPIIAccess(_userId: string, _field: string, _entityId: string): Promise<void>;
@@ -162,32 +184,36 @@ export interface ParallelSystemIntegration {
  */
 export class ReservesV11System {
   constructor(private integration: ParallelSystemIntegration) {}
-  
+
   async calculateWithFullProtection(
     fundId: number,
     params: Record<string, unknown>,
     context: { userId: string; orgId: string }
   ): Promise<unknown> {
     // Step 1: Check idempotency
-    const idempotencyKey = `${context.userId  }:${  JSON.stringify(params)}`;
+    const idempotencyKey = `${context.userId}:${JSON.stringify(params)}`;
     const cached = await this.integration.concurrency.checkIdempotency(idempotencyKey);
     if (cached.exists) return cached.result;
-    
+
     // Step 2: Acquire calculation lock
     const lock = await this.integration.concurrency.acquireCalcLock(fundId);
     if (!lock.acquired) throw new Error('Fund is currently being calculated');
-    
+
     try {
       // Step 3: Set tenant context
       await this.integration.tenancy.setTenantContext(null, context.orgId, fundId.toString());
-      
+
       // Step 4: Resolve flags
-      const flags = await this.integration.tenancy.resolveFlags(context.userId, fundId.toString(), context.orgId);
-      
+      const flags = await this.integration.tenancy.resolveFlags(
+        context.userId,
+        fundId.toString(),
+        context.orgId
+      );
+
       // Step 5: Get appropriate version
       const version = await this.integration.versioning.getActiveVersion('reserves');
       const wasm = await this.integration.versioning.getWasmBinary(version, 'reserves');
-      
+
       // Step 6: Log calculation start
       await this.integration.audit.logCalculation({
         fundId,
@@ -195,12 +221,12 @@ export class ReservesV11System {
         calcVersion: version,
         inputHash: this.hashParams(params),
         flagsHash: this.hashParams(flags),
-        actor: context.userId
+        actor: context.userId,
       });
-      
+
       // Step 7: Run calculation (placeholder for actual WASM execution)
       const result = await this.runWasmCalculation(wasm, params, flags);
-      
+
       // Step 8: Store idempotent result
       await this.integration.concurrency.storeIdempotentResult(
         idempotencyKey,
@@ -208,7 +234,7 @@ export class ReservesV11System {
         this.hashParams(params),
         result
       );
-      
+
       return result;
     } finally {
       if (lock.lockId) {
@@ -216,13 +242,17 @@ export class ReservesV11System {
       }
     }
   }
-  
+
   private hashParams(_params: Record<string, unknown>): string {
     // Implement stable JSON stringify and SHA-256 hash
     return 'hash_placeholder';
   }
 
-  private async runWasmCalculation(_wasm: Buffer, _params: Record<string, unknown>, _flags: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async runWasmCalculation(
+    _wasm: Buffer,
+    _params: Record<string, unknown>,
+    _flags: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     // Placeholder for actual WASM execution
     return { success: true };
   }
@@ -238,31 +268,32 @@ export class ReservesV11System {
 export class QuickWins {
   // Approval signer uniqueness
   static validateUniqueSigners(approvals: Array<{ partnerId: string }>): boolean {
-    const signers = new Set(approvals.map(a => a.partnerId));
+    const signers = new Set(approvals.map((a) => a.partnerId));
     return signers.size >= 2;
   }
-  
+
   // Canonical JSON hashing
   static canonicalHash(obj: Record<string, unknown>): string {
-    const crypto = require('crypto');
     const sorted = JSON.stringify(obj, Object.keys(obj).sort());
-    return crypto.createHash('sha256').update(sorted).digest('hex');
+    return createHash('sha256').update(sorted).digest('hex');
   }
-  
+
   // Rate limiting
   static async rateLimit(_key: string, _maxRequests: number, _windowMs: number): Promise<boolean> {
     // Simple in-memory rate limiter (replace with Redis in production)
-    const now = Date.now();
     // Implementation would track requests per key
     return true;
   }
-  
+
   // Worker cleanup on timeout
-  static setupWorkerTimeout(worker: { terminate: () => void; on: (event: string, callback: () => void) => void }, timeoutMs: number): void {
+  static setupWorkerTimeout(
+    worker: { terminate: () => void; on: (event: string, callback: () => void) => void },
+    timeoutMs: number
+  ): void {
     const timeout = setTimeout(() => {
       worker.terminate();
     }, timeoutMs);
 
-    worker['on']('exit', () => clearTimeout(timeout));
+    worker.on('exit', () => clearTimeout(timeout));
   }
 }

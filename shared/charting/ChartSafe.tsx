@@ -11,7 +11,7 @@ import {
   BarChart,
   ScatterChart,
   PieChart,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from 'recharts';
 
 // Flexible dimension type that accepts numbers or numeric strings
@@ -23,16 +23,16 @@ type FlexibleDimension = number | `${number}` | `${number}%` | `${number}px`;
  */
 function toNum(value?: FlexibleDimension): number | undefined {
   if (value == null) return undefined;
-  
+
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : undefined;
   }
-  
+
   if (typeof value === 'string') {
     const numericValue = parseFloat(value);
     return Number.isFinite(numericValue) ? numericValue : undefined;
   }
-  
+
   return undefined;
 }
 
@@ -43,23 +43,22 @@ function toNum(value?: FlexibleDimension): number | undefined {
 export function withChartSafe<T extends { height?: FlexibleDimension; width?: FlexibleDimension }>(
   Component: React.ComponentType<T>
 ) {
-  // Type assertion needed due to TypeScript's strict handling of forwardRef generics
-  // The runtime behavior is correct; we're just satisfying the type checker
-  const WrappedComponent = (props: T, ref: React.ForwardedRef<Element>) => {
+  const WrappedComponent: React.ForwardRefRenderFunction<Element, T> = (props, ref) => {
     const { height, width, ...restProps } = props;
 
     const normalizedProps = {
       ...restProps,
       height: toNum(height),
-      width: toNum(width)
+      width: toNum(width),
     };
+    const ComponentWithRef = Component as React.ComponentType<
+      T & { ref?: React.ForwardedRef<Element> }
+    >;
 
-    return <Component ref={ref} {...(normalizedProps as T)} />;
+    return <ComponentWithRef ref={ref} {...(normalizedProps as T)} />;
   };
 
-  // Double assertion needed: forwardRef expects PropsWithoutRef<T> but we use T directly
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return React.forwardRef(WrappedComponent as any) as React.ForwardRefExoticComponent<
+  return React.forwardRef(WrappedComponent) as React.ForwardRefExoticComponent<
     React.PropsWithoutRef<T> & React.RefAttributes<Element>
   >;
 }

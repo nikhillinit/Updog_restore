@@ -3,24 +3,18 @@
  * Eliminates the need for @ts-expect-error comments around polymorphic components
  */
 
-import type {
-  ComponentPropsWithoutRef,
-  ElementType,
-  ForwardedRef,
-  ReactNode} from 'react';
-import {
-  forwardRef
-} from 'react';
+import type { ComponentPropsWithoutRef, ElementType, ForwardedRef, ReactNode } from 'react';
+import { forwardRef } from 'react';
 
 /**
  * Utility type for polymorphic component props
  */
-export type PolymorphicProps<T extends ElementType, P> =
-  P & Omit<ComponentPropsWithoutRef<T>, keyof P | 'as'> & { as?: T };
+export type PolymorphicProps<T extends ElementType, P> = P &
+  Omit<ComponentPropsWithoutRef<T>, keyof P | 'as'> & { as?: T };
 
 /**
  * Higher-order function for creating type-safe polymorphic components with forwardRef
- * 
+ *
  * Usage:
  * ```ts
  * const MyComponent = polymorphicForwardRef<'div', { variant: string }>(
@@ -34,10 +28,7 @@ export type PolymorphicProps<T extends ElementType, P> =
  * );
  * ```
  */
-export function polymorphicForwardRef<
-  DefaultTag extends ElementType,
-  ExtraProps = {}
->(
+export function polymorphicForwardRef<DefaultTag extends ElementType, ExtraProps = {}>(
   render: <T extends ElementType = DefaultTag>(
     props: PolymorphicProps<T, ExtraProps>,
     ref: ForwardedRef<Element>
@@ -45,8 +36,12 @@ export function polymorphicForwardRef<
 ) {
   // Double type assertion needed due to TypeScript's strict handling of
   // polymorphic forwardRef generics. The runtime behavior is correct.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return forwardRef(render as any) as <T extends ElementType = DefaultTag>(
+  const typedRender = render as unknown as (
+    props: PolymorphicProps<DefaultTag, ExtraProps>,
+    ref: ForwardedRef<Element>
+  ) => ReactNode;
+
+  return forwardRef(typedRender) as <T extends ElementType = DefaultTag>(
     props: PolymorphicProps<T, ExtraProps> & { ref?: ForwardedRef<Element> }
   ) => ReactNode;
 }
@@ -55,13 +50,8 @@ export function polymorphicForwardRef<
  * Simplified polymorphic component creator without forwardRef
  * Use when ref forwarding is not needed
  */
-export function createPolymorphicComponent<
-  DefaultTag extends ElementType,
-  ExtraProps = {}
->(
-  render: <T extends ElementType = DefaultTag>(
-    props: PolymorphicProps<T, ExtraProps>
-  ) => ReactNode
+export function createPolymorphicComponent<DefaultTag extends ElementType, ExtraProps = {}>(
+  render: <T extends ElementType = DefaultTag>(props: PolymorphicProps<T, ExtraProps>) => ReactNode
 ) {
   return render as <T extends ElementType = DefaultTag>(
     props: PolymorphicProps<T, ExtraProps>
@@ -87,19 +77,23 @@ export type ExtractDefaultElement<T> = T extends ElementType ? T : 'div';
 /**
  * Utility for creating strongly-typed component variants
  */
-export type PolymorphicVariantProps<
-  T extends ElementType,
-  V extends string
-> = PolymorphicProps<T, { variant: V }>;
+export type PolymorphicVariantProps<T extends ElementType, V extends string> = PolymorphicProps<
+  T,
+  { variant: V }
+>;
 
 /**
  * Helper type for component props with required children
  */
-export type PolymorphicPropsWithChildren<T extends ElementType, P = {}> = 
-  PolymorphicProps<T, P & { children: ReactNode }>;
+export type PolymorphicPropsWithChildren<T extends ElementType, P = {}> = PolymorphicProps<
+  T,
+  P & { children: ReactNode }
+>;
 
 /**
  * Helper type for component props with optional children
  */
-export type PolymorphicPropsWithOptionalChildren<T extends ElementType, P = {}> = 
-  PolymorphicProps<T, P & { children?: ReactNode }>;
+export type PolymorphicPropsWithOptionalChildren<T extends ElementType, P = {}> = PolymorphicProps<
+  T,
+  P & { children?: ReactNode }
+>;

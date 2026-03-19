@@ -282,8 +282,6 @@ export function projectDistributions(
       schedule.push(targetDistributions);
     } else {
       // J-curve: slow start, rapid growth in harvest phase
-      const progress = q / fundLifeQuarters;
-
       // Gompertz curve (asymmetric S-curve)
       const a = 1.0; // Upper asymptote
       const b = 0.95; // Displacement

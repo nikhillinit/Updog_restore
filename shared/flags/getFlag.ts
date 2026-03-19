@@ -9,8 +9,6 @@ import type { FlagKey, FlagRecord } from '../generated/flag-types.js';
 import { FLAG_DEFINITIONS, FLAG_DEFAULTS } from '../generated/flag-defaults.js';
 import { ALL_FLAG_KEYS } from '../generated/flag-types.js';
 
-const ENV_PREFIX = '';
-
 /**
  * Parse boolean from various string representations
  */
@@ -52,7 +50,10 @@ function getEnvValue(key: FlagKey): boolean | null {
  */
 function getEnvironmentDefault(key: FlagKey): boolean {
   const def = FLAG_DEFINITIONS[key];
-  const env = (process.env['NODE_ENV'] || 'development') as 'development' | 'staging' | 'production';
+  const env = (process.env['NODE_ENV'] || 'development') as
+    | 'development'
+    | 'staging'
+    | 'production';
   return def.environments[env] ?? def.default;
 }
 
@@ -83,10 +84,7 @@ export function getAllFlags(): FlagRecord {
 /**
  * Check if a flag is enabled with dependency resolution
  */
-export function isFlagEnabled(
-  key: FlagKey,
-  options?: { checkDependencies?: boolean }
-): boolean {
+export function isFlagEnabled(key: FlagKey, options?: { checkDependencies?: boolean }): boolean {
   const value = getFlag(key);
 
   if (options?.checkDependencies && value) {
