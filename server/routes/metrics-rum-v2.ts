@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as client from 'prom-client';
+import { sanitizeRumPathname } from './metrics-rum.guard.js';
 
 // Create dedicated registry for RUM v2 metrics
 const rumV2Registry = new client.Registry();
@@ -90,6 +91,16 @@ const routeCardinality = new Map<string, Set<string>>();
 const MAX_ROUTES_PER_DAY = parseInt(process.env['RUM_MAX_ROUTES'] || '1000');
 const MAX_LABELS_PER_ROUTE = parseInt(process.env['RUM_MAX_LABELS'] || '50');
 
+function getLabelString(labels: Record<string, unknown>, key: string, fallback: string): string {
+  const value = labels[key];
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+function getLabelTimestamp(labels: Record<string, unknown>): number {
+  const timestamp = labels['timestamp'];
+  return typeof timestamp === 'number' ? timestamp : Date.now();
+}
+
 // Reset daily at midnight
 setInterval(
   () => {
@@ -126,7 +137,7 @@ export function checkCardinality(pathname: string, labels: Record<string, string
 
   // Calculate and update label budget
   const totalLabels = Array.from(routeCardinality.values()).reduce(
-    (sum: any, set: any) => sum + set.size,
+    (sum, labelSet) => sum + labelSet.size,
     0
   );
   const maxTotalLabels = MAX_ROUTES_PER_DAY * MAX_LABELS_PER_ROUTE;
@@ -135,7 +146,7 @@ export function checkCardinality(pathname: string, labels: Record<string, string
   rumLabelBudgetUsed.labels({ dimension: 'total' })['set'](budgetUsed);
   rumLabelBudgetUsed
     .labels({ dimension: 'routes' })
-    ['set']((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
+    .set((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
 
   return true;
 }
@@ -150,9 +161,11 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
 
   // Attach v2 processing to request
   req.rumV2 = {
-    processMetric: (name: string, value: number, labels: Record<string, any>) => {
-      const { pathname = '/', rating = 'unknown', navigationType = 'navigate' } = labels;
-      const timestamp = labels['timestamp'] || Date.now();
+    processMetric: (name: string, value: number, labels: Record<string, unknown>) => {
+      const pathname = getLabelString(labels, 'pathname', '/');
+      const rating = getLabelString(labels, 'rating', 'unknown');
+      const navigationType = getLabelString(labels, 'navigationType', 'navigate');
+      const timestamp = getLabelTimestamp(labels);
 
       // 1. Validate replay window
       const replayValidation = validateReplayWindow(timestamp);
@@ -170,7 +183,7 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
       }
 
       // 3. Check cardinality budget
-      const sanitizedPath = pathname.split('?')[0].replace(/\/[a-f0-9-]{36}/gi, '/:id');
+      const sanitizedPath = sanitizeRumPathname(pathname);
       if (!checkCardinality(sanitizedPath, { rating, navigationType })) {
         rumIngestRejectedTotal.labels({ reason: 'label_budget' }).inc();
         return false;
