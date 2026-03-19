@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * Async iteration utilities to replace problematic forEach patterns
  */
@@ -19,6 +14,9 @@ export interface ProcessingOptions {
   delayBetweenBatches?: number;
 }
 
+const toError = (value: unknown): Error =>
+  value instanceof Error ? value : new Error(String(value));
+
 /**
  * Process an array of items with proper async handling
  * @param items Array of items to process
@@ -30,11 +28,11 @@ export async function processAsync<T>(
   processor: (_item: T, _index: number) => Promise<void>,
   options: ProcessingOptions = {}
 ): Promise<void> {
-  const { 
-    parallel = false, 
+  const {
+    parallel = false,
     batchSize = 10, 
     continueOnError = false,
-    delayBetweenBatches = 0
+    delayBetweenBatches = 0,
   } = options;
   
   if (!Array.isArray(items) || items.length === 0) {
@@ -45,16 +43,16 @@ export async function processAsync<T>(
     if (batchSize >= items.length) {
       // Process all items in parallel
       if (continueOnError) {
-        const results = await Promise.allSettled(items.map((item: any, index: any) => processor(item, index)));
+        const results = await Promise.allSettled(items.map((item, index) => processor(item, index)));
         // Handle errors from Promise.allSettled
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result && result['status'] === 'rejected') {
-            logger.error(`Failed to process item ${i}:`, result['reason']);
+          if (result && result.status === 'rejected') {
+            logger.error(`Failed to process item ${i}:`, toError(result.reason));
           }
         }
       } else {
-        await Promise.all(items.map((item: any, index: any) => processor(item, index)));
+        await Promise.all(items.map((item, index) => processor(item, index)));
       }
     } else {
       // Process in batches
@@ -93,18 +91,18 @@ async function processBatches<T>(
     try {
       if (continueOnError) {
         const results = await Promise.allSettled(
-          batch.map((item: any, batchIndex: any) => processor(item, batchStart + batchIndex))
+          batch.map((item, batchIndex) => processor(item, batchStart + batchIndex))
         );
 
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result && result['status'] === 'rejected') {
-            logger.error(`Failed to process item ${batchStart + i}:`, result['reason']);
+          if (result && result.status === 'rejected') {
+            logger.error(`Failed to process item ${batchStart + i}:`, toError(result.reason));
           }
         }
       } else {
         await Promise.all(
-          batch.map((item: any, batchIndex: any) => processor(item, batchStart + batchIndex))
+          batch.map((item, batchIndex) => processor(item, batchStart + batchIndex))
         );
       }
     } catch (error) {
@@ -140,7 +138,11 @@ export async function forEachAsync<T>(
   }
   
   if (withMetrics && items.length > 100) {
-    console.info(`[async-metrics] forEachAsync: ${items.length} items in ${(performance.now() - start).toFixed(1)}ms`);
+    logger.debug('async iteration metrics', {
+      helper: 'forEachAsync',
+      itemCount: items.length,
+      durationMs: Number((performance.now() - start).toFixed(1)),
+    });
   }
 }
 
@@ -172,7 +174,7 @@ export async function mapAsync<T, R>(
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const batchResults = await Promise.all(
-        batch.map((item: any, batchIndex: any) => callback(item, i + batchIndex, items))
+        batch.map((item, batchIndex) => callback(item, i + batchIndex, items))
       );
       results.push(...batchResults);
       
@@ -194,8 +196,12 @@ export async function mapAsync<T, R>(
   }
   
   if (withMetrics && items.length > 100) {
-    const mode = parallel ? 'parallel' : 'sequential';
-    console.info(`[async-metrics] mapAsync (${mode}): ${items.length} items in ${(performance.now() - start).toFixed(1)}ms`);
+    logger.debug('async iteration metrics', {
+      helper: 'mapAsync',
+      mode: parallel ? 'parallel' : 'sequential',
+      itemCount: items.length,
+      durationMs: Number((performance.now() - start).toFixed(1)),
+    });
   }
   
   return results;
@@ -212,7 +218,10 @@ export async function filterAsync<T>(
   if (!Array.isArray(items)) return [];
 
   const results = await mapAsync(items, predicate);
-  return items.filter((_: any, index: any) => results[index] === true);
+  return items.filter((_, index) => {
+    const shouldKeep = results[index];
+    return shouldKeep === true;
+  });
 }
 
 /**
@@ -303,19 +312,18 @@ export const examples = {
 
   // Batched processing (balanced)
   batched: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
-    await processAsync(items, processor, { 
-      parallel: true, 
-      batchSize: 5, 
-      delayBetweenBatches: 100 
+    await processAsync(items, processor, {
+      parallel: true,
+      batchSize: 5,
+      delayBetweenBatches: 100,
     });
   },
 
   // Error-resilient processing
   resilient: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
-    await processAsync(items, processor, { 
-      parallel: true, 
-      continueOnError: true 
+    await processAsync(items, processor, {
+      parallel: true,
+      continueOnError: true,
     });
-  }
+  },
 };
-

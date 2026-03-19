@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { logger } from '../lib/logger';
 
 interface RenderMetrics {
   componentName: string;
@@ -23,21 +24,21 @@ class PerformanceBaseline {
    */
   trackRender(componentName: string, renderTime: number) {
     // Get or initialize render times array
-    const times = this.renderTimes['get'](componentName) || [];
+    const times = this.renderTimes.get(componentName) || [];
     times.push(renderTime);
-    this.renderTimes['set'](componentName, times);
+    this.renderTimes.set(componentName, times);
     
     // Update metrics
-    const existing = this.metrics['get'](componentName);
+    const existing = this.metrics.get(componentName);
     const renderCount = (existing?.renderCount || 0) + 1;
     
-    this.metrics['set'](componentName, {
+    this.metrics.set(componentName, {
       componentName,
       renderCount,
-      averageRenderTime: times.reduce((a: any, b: any) => a + b, 0) / times.length,
+      averageRenderTime: times.reduce((total, value) => total + value, 0) / times.length,
       maxRenderTime: Math.max(...times),
       minRenderTime: Math.min(...times),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
   
@@ -45,7 +46,7 @@ class PerformanceBaseline {
    * Get metrics for a specific component
    */
   getMetrics(componentName: string): RenderMetrics | undefined {
-    return this.metrics['get'](componentName);
+    return this.metrics.get(componentName);
   }
   
   /**
@@ -81,7 +82,7 @@ class PerformanceBaseline {
     const improvements: string[] = [];
     
     for (const baselineMetric of baseline) {
-      const current = this.metrics['get'](baselineMetric.componentName);
+      const current = this.metrics.get(baselineMetric.componentName);
       if (!current) continue;
       
       // Check for render count regression (>10% increase)
@@ -143,7 +144,10 @@ export function useRenderCounter(componentName: string) {
     
     // Log every 10 renders to avoid spam
     if (renderCount.current % 10 === 0) {
-      console.debug(`[Render Count] ${componentName}: ${renderCount.current} renders`);
+      logger.debug('render count milestone', {
+        componentName,
+        renderCount: renderCount.current,
+      });
     }
   });
   
@@ -153,15 +157,21 @@ export function useRenderCounter(componentName: string) {
 // Export for use in tests
 export type { RenderMetrics };
 
+declare global {
+  interface Window {
+    __performanceBaseline?: PerformanceBaseline;
+  }
+}
+
 // Helper for running baseline collection
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as any).__performanceBaseline = performanceBaseline;
+  window.__performanceBaseline = performanceBaseline;
   
   // Log metrics on page unload
   window.addEventListener('beforeunload', () => {
     const metrics = performanceBaseline.getAllMetrics();
     if (metrics.length > 0) {
-      console.log('[Performance Baseline]', metrics);
+      logger.info('performance baseline snapshot', { metrics });
     }
   });
 }
