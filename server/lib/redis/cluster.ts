@@ -2,10 +2,48 @@
  * Redis connection helper (single/cluster aware)
  */
 import { parseRedisConfig } from '../../config/redis';
+import type { RedisClientOptions, RedisClientType, RedisClusterType } from 'redis';
 import * as fs from 'fs';
+import { logger } from '../logger.js';
+
+type RedisConnection = RedisClientType | RedisClusterType;
+type RedisSocketOptions = NonNullable<RedisClientOptions['socket']>;
+
+interface RedisPingable {
+  ping(): Promise<unknown>;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function createSocketOptions(tlsEnabled: boolean, keepAlive?: number): RedisSocketOptions {
+  const baseOptions = {
+    reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
+    connectTimeout: 5000,
+    ...(keepAlive !== undefined ? { keepAlive } : {}),
+  };
+
+  if (!tlsEnabled) {
+    return baseOptions;
+  }
+
+  return {
+    ...baseOptions,
+    tls: true,
+    ...(process.env['REDIS_CA_PATH'] ? { ca: fs.readFileSync(process.env['REDIS_CA_PATH']) } : {}),
+    ...(process.env['REDIS_CERT_PATH']
+      ? { cert: fs.readFileSync(process.env['REDIS_CERT_PATH']) }
+      : {}),
+    ...(process.env['REDIS_KEY_PATH']
+      ? { key: fs.readFileSync(process.env['REDIS_KEY_PATH']) }
+      : {}),
+    ...(process.env['REDIS_SERVERNAME'] ? { servername: process.env['REDIS_SERVERNAME'] } : {}),
+  };
+}
 
 export interface RedisConn {
-  conn: any; // RedisClientType or RedisClusterType
+  conn: RedisConnection;
   mode: 'single' | 'cluster';
   describe(): string;
   close(): Promise<void>;
@@ -21,84 +59,43 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     if (!cfg.nodes?.length) {
       throw new Error('Redis cluster mode requires nodes');
     }
-    
-    const tlsEnabled = cfg.tls || false;
-    const socketOptions: any = {
-      reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
-      connectTimeout: 5000
-    };
 
-    // Add TLS configuration if enabled
-    if (tlsEnabled) {
-      socketOptions.tls = true;
-      if (process.env['REDIS_CA_PATH']) {
-        socketOptions.ca = fs.readFileSync(process.env['REDIS_CA_PATH']);
-      }
-      if (process.env['REDIS_CERT_PATH']) {
-        socketOptions.cert = fs.readFileSync(process.env['REDIS_CERT_PATH']);
-      }
-      if (process.env['REDIS_KEY_PATH']) {
-        socketOptions.key = fs.readFileSync(process.env['REDIS_KEY_PATH']);
-      }
-      if (process.env['REDIS_SERVERNAME']) {
-        socketOptions.servername = process.env['REDIS_SERVERNAME'];
-      }
-    }
-    
+    const clusterNodes = cfg.nodes;
+    const tlsEnabled = cfg.tls ?? false;
+    const socketOptions = createSocketOptions(tlsEnabled);
     const cluster = createCluster({
-      rootNodes: cfg.nodes.map(node => ({ 
-        url: `redis${tlsEnabled ? 's' : ''}://${node}` 
+      rootNodes: clusterNodes.map((node) => ({
+        url: `redis${tlsEnabled ? 's' : ''}://${node}`,
       })),
-      defaults: { socket: socketOptions }
+      defaults: { socket: socketOptions },
     });
 
-    cluster['on']('error', (err: any) => {
-       
-      console.error('[redis-cluster] error:', err?.message);
+    cluster.on('error', (err: unknown) => {
+      logger.error({ error: getErrorMessage(err) }, '[redis-cluster] error');
     });
 
     await cluster.connect();
-    
+
     return {
       conn: cluster,
       mode: 'cluster',
-      describe: () => `cluster(${cfg.nodes!.join(',')})`,
-      close: async () => { await cluster['quit'](); }
+      describe: () => `cluster(${clusterNodes.join(',')})`,
+      close: async () => {
+        await cluster.quit();
+      },
     };
   }
 
   // Single node
-  const socketOptions: any = {
-    reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
-    connectTimeout: 5000,
-    keepAlive: 1
-  };
-
-  // Add TLS if URL starts with rediss://
-  if (cfg.url?.startsWith('rediss://')) {
-    socketOptions.tls = true;
-    if (process.env['REDIS_CA_PATH']) {
-      socketOptions.ca = fs.readFileSync(process.env['REDIS_CA_PATH']);
-    }
-    if (process.env['REDIS_CERT_PATH']) {
-      socketOptions.cert = fs.readFileSync(process.env['REDIS_CERT_PATH']);
-    }
-    if (process.env['REDIS_KEY_PATH']) {
-      socketOptions.key = fs.readFileSync(process.env['REDIS_KEY_PATH']);
-    }
-    if (process.env['REDIS_SERVERNAME']) {
-      socketOptions.servername = process.env['REDIS_SERVERNAME'];
-    }
-  }
+  const socketOptions = createSocketOptions(cfg.url?.startsWith('rediss://') ?? false, 1);
 
   const client = createClient({
     ...(cfg.url !== undefined ? { url: cfg.url } : {}),
-    socket: socketOptions
+    socket: socketOptions,
   });
 
-  client['on']('error', (err: any) => {
-     
-    console.error('[redis] error:', err?.message);
+  client.on('error', (err: unknown) => {
+    logger.error({ error: getErrorMessage(err) }, '[redis] error');
   });
 
   await client.connect();
@@ -106,17 +103,21 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   return {
     conn: client,
     mode: 'single',
-    describe: () => `single(${cfg.url})`,
-    close: async () => { await client['quit'](); }
+    describe: () => `single(${cfg.url ?? 'unknown'})`,
+    close: async () => {
+      await client.quit();
+    },
   };
 }
 
-export async function pingRedis(conn: any): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
+export async function pingRedis(
+  conn: RedisPingable
+): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
   try {
     const start = Date.now();
-    await conn['ping']();
+    await conn.ping();
     return { ok: true, latencyMs: Date.now() - start };
   } catch (err) {
-    return { ok: false, error: (err as Error)?.message };
+    return { ok: false, error: getErrorMessage(err) };
   }
 }

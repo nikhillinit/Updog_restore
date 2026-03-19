@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Generic error handling patterns
-
 /**
  * Consolidated error handling patterns
  * Unified approach to error management across the application
@@ -14,9 +12,10 @@ import {
   isRateLimitError,
   isValidationError,
 } from '../types/errors.js';
-import { createErrorBody } from './apiError.js';
+import { createErrorBody, type ApiErrorBody } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
+import { logger } from './logger.js';
 
 // Error severity levels
 export enum ErrorSeverity {
@@ -41,13 +40,46 @@ const defaultConfig: ErrorHandlingConfig = {
   sensitiveFields: ['password', 'token', 'secret', 'key', 'authorization'],
 };
 
+const severityRanks: Record<ErrorSeverity, number> = {
+  [ErrorSeverity.LOW]: 0,
+  [ErrorSeverity.MEDIUM]: 1,
+  [ErrorSeverity.HIGH]: 2,
+  [ErrorSeverity.CRITICAL]: 3,
+};
+
+type ErrorAction = 'retry' | 'escalate' | 'ignore';
+type ErrorMetadata = Record<string, unknown>;
+
+interface ErrorHandlingResult {
+  statusCode: number;
+  response: ApiErrorBody;
+  severity: ErrorSeverity;
+  action: ErrorAction;
+}
+
+interface ErrorWithHandlingResult extends Error {
+  handlingResult?: ErrorHandlingResult;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 // Enhanced error context
 interface ErrorContext {
   requestId?: string;
   userId?: string;
   operation?: string;
   component?: string;
-  metadata?: Record<string, any>;
+  metadata?: ErrorMetadata;
   timestamp: number;
   severity: ErrorSeverity;
   retryable: boolean;
@@ -65,12 +97,7 @@ export class UnifiedErrorHandler {
   async handleError(
     error: Error,
     context: Partial<ErrorContext> = {}
-  ): Promise<{
-    statusCode: number;
-    response: any;
-    severity: ErrorSeverity;
-    action: 'retry' | 'escalate' | 'ignore';
-  }> {
+  ): Promise<ErrorHandlingResult> {
     // Enrich context
     const enrichedContext: ErrorContext = {
       timestamp: Date.now(),
@@ -106,7 +133,7 @@ export class UnifiedErrorHandler {
 
   // Express middleware wrapper
   middleware() {
-    return async (err: any, req: Request, res: Response, _next: NextFunction) => {
+    return async (err: unknown, req: Request, res: Response, _next: NextFunction) => {
       const context: Partial<ErrorContext> = {
         ...(req.requestId != null && { requestId: req.requestId }),
         ...(req.user?.id != null && { userId: req.user.id }),
@@ -122,13 +149,16 @@ export class UnifiedErrorHandler {
       };
 
       try {
-        const result = await this.handleError(err, context);
+        const result = await this.handleError(toError(err), context);
 
         if (!res.headersSent) {
           res['status'](result.statusCode)['json'](result.response);
         }
       } catch (handlingError) {
-        console.error('Error in error handler:', handlingError);
+        logger.error(
+          { error: getErrorMessage(handlingError), requestId: context.requestId },
+          'Error in error handler'
+        );
 
         if (!res.headersSent) {
           res['status'](500)['json']({
@@ -203,7 +233,7 @@ export class UnifiedErrorHandler {
   private createErrorResponse(
     error: Error,
     context: ErrorContext
-  ): { statusCode: number; body: any } {
+  ): { statusCode: number; body: ApiErrorBody } {
     let statusCode = 500;
     let message = 'Internal Server Error';
     let code = 'INTERNAL_ERROR';
@@ -241,12 +271,14 @@ export class UnifiedErrorHandler {
   }
 
   // Determine action to take
-  private determineAction(error: Error, context: ErrorContext): 'retry' | 'escalate' | 'ignore' {
-    if (context.retryable && context.severity <= ErrorSeverity.MEDIUM) {
+  private determineAction(context: ErrorContext): ErrorAction {
+    const severityRank = severityRanks[context.severity];
+
+    if (context.retryable && severityRank <= severityRanks[ErrorSeverity.MEDIUM]) {
       return 'retry';
     }
 
-    if (context.severity >= ErrorSeverity.HIGH) {
+    if (severityRank >= severityRanks[ErrorSeverity.HIGH]) {
       return 'escalate';
     }
 
@@ -265,9 +297,9 @@ export class UnifiedErrorHandler {
           throw error;
         })
         .catch((metricErr) => {
-          console.debug(
-            '[ErrorHandler] Failed to track database error metric:',
-            metricErr?.message || metricErr
+          logger.warn(
+            { error: getErrorMessage(metricErr) },
+            '[ErrorHandler] Failed to track database error metric'
           );
         });
     }
@@ -278,9 +310,9 @@ export class UnifiedErrorHandler {
           throw error;
         })
         .catch((metricErr) => {
-          console.debug(
-            '[ErrorHandler] Failed to track idempotency error metric:',
-            metricErr?.message || metricErr
+          logger.warn(
+            { error: getErrorMessage(metricErr) },
+            '[ErrorHandler] Failed to track idempotency error metric'
           );
         });
     }
@@ -311,7 +343,10 @@ export class UnifiedErrorHandler {
         // In production, send to external error tracking (Sentry, etc.)
         this.sendToExternalTracking(error, context);
       } catch (captureError) {
-        console.error('Failed to capture error asynchronously:', captureError);
+        logger.error(
+          { error: getErrorMessage(captureError) },
+          'Failed to capture error asynchronously'
+        );
       }
     });
   }
@@ -319,52 +354,62 @@ export class UnifiedErrorHandler {
   // Send to external error tracking
   private sendToExternalTracking(error: Error, context: ErrorContext) {
     // Implementation would integrate with Sentry, Bugsnag, etc.
-    // For now, just console.error for visibility
+    // For now, send through the shared logger for visibility.
     if (this.config.notifyOnSeverity.includes(context.severity)) {
-      console.error(`[${context.severity.toUpperCase()}] ${error.name}: ${error.message}`, {
-        context: this.sanitizeForLogging(context),
-        stack: error.stack,
-      });
+      logger.error(
+        {
+          severity: context.severity.toUpperCase(),
+          errorName: error.name,
+          errorMessage: error.message,
+          context: this.sanitizeForLogging(context),
+          stack: error.stack,
+        },
+        'External error tracking placeholder'
+      );
     }
   }
 
   // Sanitize context for logging
-  private sanitizeForLogging(context: ErrorContext): Partial<ErrorContext> {
+  private sanitizeForLogging(context: ErrorContext): ErrorContext {
     const sanitized = { ...context };
 
     if (sanitized.metadata) {
-      sanitized.metadata = this.removeSensitiveFields(sanitized.metadata);
+      sanitized.metadata = this.sanitizeMetadata(sanitized.metadata);
     }
 
     return sanitized;
   }
 
   // Remove sensitive fields
-  private removeSensitiveFields(obj: any): any {
-    if (!obj || typeof obj !== 'object') return obj;
-
-    const sanitized = { ...obj };
-
-    for (const field of this.config.sensitiveFields) {
-      if (field in sanitized) {
-        sanitized[field] = '[REDACTED]';
-      }
+  private removeSensitiveFields(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((entry) => this.removeSensitiveFields(entry));
     }
 
-    // Recursively sanitize nested objects
-    for (const [key, value] of Object.entries(sanitized)) {
-      if (typeof value === 'object' && value !== null) {
-        sanitized[key] = this.removeSensitiveFields(value);
-      }
+    if (!isRecord(value)) {
+      return value;
+    }
+
+    const sanitized: Record<string, unknown> = {};
+
+    for (const [key, entry] of Object.entries(value)) {
+      sanitized[key] = this.config.sensitiveFields.includes(key)
+        ? '[REDACTED]'
+        : this.removeSensitiveFields(entry);
     }
 
     return sanitized;
   }
 
+  private sanitizeMetadata(metadata: ErrorMetadata): ErrorMetadata {
+    const sanitized = this.removeSensitiveFields(metadata);
+    return isRecord(sanitized) ? sanitized : {};
+  }
+
   // Sanitize context in place
   private sanitizeContext(context: ErrorContext) {
     if (context.metadata) {
-      context.metadata = this.removeSensitiveFields(context.metadata);
+      context.metadata = this.sanitizeMetadata(context.metadata);
     }
   }
 }
@@ -380,14 +425,11 @@ export async function handleAsyncError<T>(
   try {
     return await operation();
   } catch (error) {
-    const handlingResult = await globalErrorHandler.handleError(
-      error instanceof Error ? error : new Error(String(error)),
-      context
-    );
+    const handlingResult = await globalErrorHandler.handleError(toError(error), context);
 
     // Re-throw with enhanced context
-    const enhancedError = error instanceof Error ? error : new Error(String(error));
-    (enhancedError as any).handlingResult = handlingResult;
+    const enhancedError: ErrorWithHandlingResult = toError(error);
+    enhancedError.handlingResult = handlingResult;
     throw enhancedError;
   }
 }
@@ -420,10 +462,10 @@ export class ErrorCircuitBreaker {
     } catch (error) {
       this.onFailure();
 
-      const handlingResult = await this.monitor.handleError(
-        error instanceof Error ? error : new Error(String(error)),
-        { ...context, component: 'circuit-breaker' }
-      );
+      const handlingResult = await this.monitor.handleError(toError(error), {
+        ...context,
+        component: 'circuit-breaker',
+      });
 
       if (
         handlingResult.action === 'retry' &&
