@@ -17,6 +17,17 @@ import type {
   GroupByDimension,
 } from '@shared/types/performance-api';
 
+type ApiErrorResponse = { message?: string };
+
+async function readJson<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>;
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const errorData = (await response.json().catch(() => ({}))) as ApiErrorResponse;
+  return errorData.message || fallback;
+}
+
 // ============================================================================
 // TIMESERIES HOOK
 // ============================================================================
@@ -67,11 +78,12 @@ export function usePerformanceTimeseries(options: UsePerformanceTimeseriesOption
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch timeseries`);
+        throw new Error(
+          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch timeseries`)
+        );
       }
 
-      return response.json();
+      return readJson<TimeseriesResponse>(response);
     },
     enabled: enabled && !!fundId && !!startDate && !!endDate,
     staleTime: 60_000, // 1 minute
@@ -129,11 +141,12 @@ export function usePerformanceBreakdown(options: UsePerformanceBreakdownOptions)
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch breakdown`);
+        throw new Error(
+          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch breakdown`)
+        );
       }
 
-      return response.json();
+      return readJson<BreakdownResponse>(response);
     },
     enabled: enabled && !!fundId,
     staleTime: 60_000,
@@ -191,11 +204,12 @@ export function usePerformanceComparison(options: UsePerformanceComparisonOption
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch comparison`);
+        throw new Error(
+          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch comparison`)
+        );
       }
 
-      return response.json();
+      return readJson<ComparisonResponse>(response);
     },
     enabled: enabled && !!fundId && dates.length > 0,
     staleTime: 60_000,

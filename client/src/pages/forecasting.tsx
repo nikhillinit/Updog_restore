@@ -1,9 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,23 +15,82 @@ import {
   Calendar,
   DollarSign
 } from "lucide-react";
+import type { Fund } from "@/contexts/FundContext";
+
+interface ForecastingFund {
+  id: number;
+  name: string;
+  size: number;
+  investableCapital: number;
+}
+
+interface ProjectedRound {
+  round: string;
+  graduationRate: number;
+  checkSize: number;
+  ownership: string;
+}
+
+interface RiskWeightedScenario {
+  probability: number;
+  exitMOIC: number;
+  proceeds: number;
+}
+
+interface PortfolioCompanyForecast {
+  company: string;
+  currentRound: string;
+  historicalRounds: string[];
+  projectedRounds: ProjectedRound[];
+  riskWeightedScenarios: {
+    downside: RiskWeightedScenario;
+    base: RiskWeightedScenario;
+    upside: RiskWeightedScenario;
+  };
+  expectedProceeds: number;
+  expectedMOIC: number;
+  reserveEfficiency: number;
+}
+
+interface ForecastingData {
+  portfolioCompanies: PortfolioCompanyForecast[];
+  fundLevel: {
+    totalExpectedProceeds: number;
+    totalInvested: number;
+    fundLevelMOIC: number;
+    averageReserveEfficiency: number;
+  };
+  investmentCycle: number;
+  monthlyInvestmentRate: number;
+  totalDeals: number;
+}
+
+const DEFAULT_FUND: ForecastingFund = {
+  id: 1,
+  name: "Press On Ventures Fund I",
+  size: 55_000_000,
+  investableCapital: 50_000_000,
+};
 
 export default function ForecastingPage() {
-  const { data: funds } = useQuery({
+  const { data: funds } = useQuery<Fund[]>({
     queryKey: ["/api/funds"],
   });
 
   // Use first fund or default data
-  const fund = (Array.isArray(funds) ? funds[0]! : null) || {
-    id: "1",
-    name: "Press On Ventures Fund I",
-    size: 55000000,
-    investableCapital: 50000000
-  };
+  const selectedFund = Array.isArray(funds) && funds.length > 0 ? funds[0] : null;
+  const fund: ForecastingFund = selectedFund
+    ? {
+        id: selectedFund.id,
+        name: selectedFund.name,
+        size: selectedFund.size,
+        investableCapital: selectedFund.size,
+      }
+    : DEFAULT_FUND;
 
   // Enhanced Deal-Level + Fund-Level Forecasting with Current Forecast Logic
-  const generateDealLevelForecasts = () => {
-    const portfolioCompanies = [
+  const generateDealLevelForecasts = (): ForecastingData => {
+    const portfolioCompanies: PortfolioCompanyForecast[] = [
       {
         company: "TechCorp",
         currentRound: "Series A",
@@ -75,17 +128,23 @@ export default function ForecastingPage() {
     ];
 
     // Fund-Level Aggregation from Deal-Level Forecasts
-    const totalExpectedProceeds = portfolioCompanies.reduce((sum: any, co: any) => sum + co.expectedProceeds, 0);
-    const totalInvested = portfolioCompanies.reduce((sum: any, _co: any) => sum + 4500000, 0); // Sample invested amounts
+    const totalExpectedProceeds = portfolioCompanies.reduce(
+      (sum, company) => sum + company.expectedProceeds,
+      0
+    );
+    const totalInvested = portfolioCompanies.reduce((sum) => sum + 4_500_000, 0); // Sample invested amounts
     const fundLevelMOIC = totalExpectedProceeds / totalInvested;
-    
+    const averageReserveEfficiency =
+      portfolioCompanies.reduce((sum, company) => sum + company.reserveEfficiency, 0) /
+      portfolioCompanies.length;
+     
     return {
       portfolioCompanies,
       fundLevel: {
         totalExpectedProceeds,
         totalInvested,
         fundLevelMOIC,
-        averageReserveEfficiency: portfolioCompanies.reduce((sum: any, co: any) => sum + co.reserveEfficiency, 0) / portfolioCompanies.length
+        averageReserveEfficiency,
       },
       investmentCycle: 36, // months
       monthlyInvestmentRate: 1.2, // deals per month
@@ -209,7 +268,7 @@ export default function ForecastingPage() {
         <TabsContent value="flow-model">
           <PortfolioFlowChart 
             fundData={{
-              id: fund.id,
+              id: String(fund.id),
               name: fund.name,
               totalDeals: forecastingData.totalDeals,
               monthlyInvestmentRate: forecastingData.monthlyInvestmentRate
@@ -221,7 +280,7 @@ export default function ForecastingPage() {
         <TabsContent value="allocation-model">
           <AllocationModeling 
             fundData={{
-              id: fund.id,
+              id: String(fund.id),
               name: fund.name,
               size: fund.size,
               investableCapital: fund.investableCapital

@@ -17,6 +17,17 @@ import type {
 } from '@shared/types';
 import { useFundContext } from '@/contexts/FundContext';
 
+type ApiErrorResponse = { message?: string };
+
+async function readJson<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>;
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const errorData = (await response.json().catch(() => ({}))) as ApiErrorResponse;
+  return errorData.message || fallback;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -157,13 +168,12 @@ export function useCohortAnalysis(
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to run cohort analysis`
+          await readErrorMessage(response, `HTTP ${response.status}: Failed to run cohort analysis`)
         );
       }
 
-      return response.json();
+      return readJson<CohortAnalyzeResponse>(response);
     },
     enabled: enabled && !!fundId,
     staleTime: 60_000, // Consider data fresh for 1 minute
@@ -200,13 +210,15 @@ export function useUnmappedSectors(
       const response = await fetch(`/api/cohorts/unmapped?${params.toString()}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to fetch unmapped sectors`
+          await readErrorMessage(
+            response,
+            `HTTP ${response.status}: Failed to fetch unmapped sectors`
+          )
         );
       }
 
-      return response.json();
+      return readJson<UnmappedSectorsResponse>(response);
     },
     enabled: !!fundId,
     staleTime: 30_000,
@@ -251,13 +263,15 @@ export function useCohortDefinitions(
       const response = await fetch(`/api/cohorts/definitions?${params.toString()}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to fetch cohort definitions`
+          await readErrorMessage(
+            response,
+            `HTTP ${response.status}: Failed to fetch cohort definitions`
+          )
         );
       }
 
-      return response.json();
+      return readJson<CohortDefinitionsResponse>(response);
     },
     enabled: !!fundId,
     staleTime: 60_000,
@@ -291,15 +305,17 @@ export function useUpsertSectorMappings(): UseMutationResult<
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to update sector mappings`
+          await readErrorMessage(
+            response,
+            `HTTP ${response.status}: Failed to update sector mappings`
+          )
         );
       }
 
-      return response.json();
+      return readJson<BulkMappingsResult>(response);
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (_data, _variables) => {
       // Invalidate related queries
       if (fundId) {
         queryClient.invalidateQueries({
@@ -358,13 +374,15 @@ export function useCreateCohortDefinition(): UseMutationResult<
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to create cohort definition`
+          await readErrorMessage(
+            response,
+            `HTTP ${response.status}: Failed to create cohort definition`
+          )
         );
       }
 
-      return response.json();
+      return readJson<CohortDefinition>(response);
     },
     onSuccess: () => {
       // Invalidate definitions query
@@ -410,13 +428,19 @@ export function useSeedCohortData(): UseMutationResult<
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to seed cohort data`
+          await readErrorMessage(response, `HTTP ${response.status}: Failed to seed cohort data`)
         );
       }
 
-      return response.json();
+      return readJson<{
+        message: string;
+        fundId: number;
+        taxonomyVersion: string;
+        sectorsCreated: number;
+        mappingsCreated: number;
+        definitionsCreated: number;
+      }>(response);
     },
     onSuccess: () => {
       // Invalidate all cohort queries
