@@ -66,7 +66,7 @@ export function startRedisHealthProbe(conn?: RedisConn) {
   if (!FEATURES.metrics || !conn) return;
 
   const t = setInterval(async () => {
-    const res = await pingRedis(conn.conn);
+    const res = await pingRedis(conn);
     if (res.ok) {
       redisUp['set'](1);
       if (typeof res.latencyMs === 'number') redisLatency['set'](res.latencyMs);
