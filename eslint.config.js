@@ -104,6 +104,7 @@ export default [
       '.venv/**',
       'archive/**',
       'artifacts/**',
+      '.artifacts/**', // ESLint wave execution tooling scripts
       '.a5c/**',
       'code-reviewer/**',
       'dev-automation/**',
