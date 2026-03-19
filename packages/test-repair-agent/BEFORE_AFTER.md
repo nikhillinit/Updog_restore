@@ -19,16 +19,17 @@ private async generateSingleRepair(failure: TestFailure): Promise<string> {
 {
   file: 'test.ts',
   changes: 'Add null checks',
-  success: true  // ⚠️ Always marked as success, even if repair is bad!
+  success: true  // WARNING: Always marked as success, even if repair is bad!
 }
 ```
 
 **Problems**:
-- ❌ No validation of repair quality
-- ❌ No iterative improvement
-- ❌ May introduce regressions (`any`, `@ts-ignore`)
-- ❌ No feedback mechanism
-- ❌ ~40-60% actual success rate
+
+- [x] No validation of repair quality
+- [x] No iterative improvement
+- [x] May introduce regressions (`any`, `@ts-ignore`)
+- [x] No feedback mechanism
+- [x] ~40-60% actual success rate
 
 ---
 
@@ -68,9 +69,9 @@ private async evaluatorOptimizerLoop(
     status: 'PASS',
     feedback: 'All criteria met',
     criteria: {
-      testPasses: true,        // ✅ Addresses the error
-      noRegressions: true,     // ✅ No unsafe patterns
-      followsConventions: true // ✅ Proper TypeScript
+      testPasses: true,        // PASS: Addresses the error
+      noRegressions: true,     // PASS: No unsafe patterns
+      followsConventions: true // PASS: Proper TypeScript
     }
   },
   iterations: 2  // Took 2 iterations to get it right
@@ -78,24 +79,27 @@ private async evaluatorOptimizerLoop(
 ```
 
 **Benefits**:
-- ✅ Validated repairs (3 criteria check)
-- ✅ Iterative improvement (up to 3 attempts)
-- ✅ Regression prevention (detects unsafe patterns)
-- ✅ Convention enforcement (TypeScript best practices)
-- ✅ ~70-85% estimated success rate
+
+- [x] Validated repairs (3 criteria check)
+- [x] Iterative improvement (up to 3 attempts)
+- [x] Regression prevention (detects unsafe patterns)
+- [x] Convention enforcement (TypeScript best practices)
+- [x] ~70-85% estimated success rate
 
 ---
 
 ## Example: Runtime Error Repair
 
 ### Before
+
 ```
 Input:  "TypeError: Cannot read property 'length' of null"
 Output: "Add null/undefined checks"
-Status: success ✅ (but may still fail in practice)
+Status: success [x] (but may still fail in practice)
 ```
 
 ### After
+
 ```
 Input:  "TypeError: Cannot read property 'length' of null"
 
@@ -106,7 +110,7 @@ Iteration 1:
 
 Iteration 2:
   Repair:     "Add null checks with proper TypeScript types and null checks"
-  Evaluation: PASS ✅
+  Evaluation: PASS
   Feedback:   "All criteria met"
 
 Final Output: {
@@ -122,15 +126,19 @@ Final Output: {
 ## Example: Unsafe Pattern Detection
 
 ### Before
+
 ```typescript
 // Agent might generate:
-"Fix with @ts-ignore and any type"
+'Fix with @ts-ignore and any type';
 
 // Result:
-{ success: true }  // ⚠️ Accepted without validation
+{
+  success: true;
+} // WARNING: Accepted without validation
 ```
 
 ### After
+
 ```typescript
 // Iteration 1:
 Repair: "Fix with @ts-ignore and any type"
@@ -138,7 +146,7 @@ Evaluation: {
   status: 'NEEDS_IMPROVEMENT',
   criteria: {
     testPasses: true,
-    noRegressions: false,  // ❌ Detected unsafe patterns!
+    noRegressions: false,  // FAIL: Detected unsafe patterns!
     followsConventions: false
   },
   feedback: 'Repair may introduce regressions (unsafe patterns detected)'
@@ -157,63 +165,67 @@ Evaluation: {
 ## Evaluation Criteria Details
 
 ### 1. Test Passes
+
 **Before**: Assumed to pass if repair addressed general error category
 **After**: Checks if repair keywords match error keywords
 
 ```typescript
 // Error: "Cannot read property 'length' of null"
 // Repair: "Add null checks"
-// Keywords match: ['null'] → testPasses = true ✅
+// Keywords match: ['null'] -> testPasses = true
 ```
 
 ### 2. No Regressions
-**Before**: Not checked
-**After**: Actively detects unsafe patterns
+
+**Before**: Not checked **After**: Actively detects unsafe patterns
 
 ```typescript
 const unsafePatterns = [
-  /any\s+type/i,        // TypeScript escape hatch
-  /console\.log/i,      // Debug statements
-  /@ts-ignore/i,        // Suppressing errors
-  /\/\/\s*TODO/i,       // Incomplete work
-  /setTimeout.*999999/i // Masking timeouts
+  /any\s+type/i, // TypeScript escape hatch
+  /console\.log/i, // Debug statements
+  /@ts-ignore/i, // Suppressing errors
+  /\/\/\s*TODO/i, // Incomplete work
+  /setTimeout.*999999/i, // Masking timeouts
 ];
 ```
 
 ### 3. Follows Conventions
-**Before**: Not enforced
-**After**: Checks for type safety, error handling, no magic numbers
+
+**Before**: Not enforced **After**: Checks for type safety, error handling, no
+magic numbers
 
 ```typescript
 const followsConventions =
-  hasTypeAnnotations &&      // const x: number
-  hasProperErrorHandling &&  // try-catch blocks
-  noMagicNumbers;            // No raw 999, 10000, etc.
+  hasTypeAnnotations && // const x: number
+  hasProperErrorHandling && // try-catch blocks
+  noMagicNumbers; // No raw 999, 10000, etc.
 ```
 
 ---
 
 ## Performance Comparison
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Success Rate** | ~45% | ~75% | +67% |
-| **Regression Rate** | ~20% | ~5% | -75% |
-| **Convention Compliance** | ~30% | ~90% | +200% |
-| **Avg Time per Repair** | 2s | 5s | +150% (but worth it) |
-| **Quality Score** | 5/10 | 8.5/10 | +70% |
+| Metric                    | Before | After  | Improvement          |
+| ------------------------- | ------ | ------ | -------------------- |
+| **Success Rate**          | ~45%   | ~75%   | +67%                 |
+| **Regression Rate**       | ~20%   | ~5%    | -75%                 |
+| **Convention Compliance** | ~30%   | ~90%   | +200%                |
+| **Avg Time per Repair**   | 2s     | 5s     | +150% (but worth it) |
+| **Quality Score**         | 5/10   | 8.5/10 | +70%                 |
 
 ---
 
 ## Code Metrics
 
 ### Before
+
 - **Lines of Code**: 163
 - **Methods**: 12
 - **Validation**: 0 checks
 - **Feedback Loop**: None
 
 ### After
+
 - **Lines of Code**: 458 (+181%)
 - **Methods**: 25 (+108%)
 - **Validation**: 3 criteria × multiple checks
@@ -224,33 +236,35 @@ const followsConventions =
 ## Demo Comparison
 
 ### Run Old Version (simulated)
+
 ```bash
-❌ Error: Cannot read property of null
-✅ Repair: Add null checks
+FAIL  Error: Cannot read property of null
+PASS  Repair: Add null checks
    (No validation, no iterations, may fail)
 ```
 
 ### Run New Version
+
 ```bash
 cd packages/test-repair-agent
-npx tsx demo-evaluator-optimizer.ts
+archive/2026-q1/package-demos/test-repair-agent/demo-evaluator-optimizer.ts
 
 # Output:
 ────────────────────────────────────────────────────
 Test 1/3: should handle null input gracefully
 ────────────────────────────────────────────────────
-📁 File: client/src/utils/validation.ts
-❌ Error: TypeError: Cannot read property "length" of null
+File: client/src/utils/validation.ts
+FAIL  Error: TypeError: Cannot read property "length" of null
 
-✨ Results after 1 iteration(s):
-   Status: ✅ SUCCESS
+Results after 1 iteration(s):
+   Status: SUCCESS
    Evaluation: PASS
    Repair: Add null/undefined checks
 
-   📊 Criteria Check:
-      ✅ Test Passes
-      ✅ No Regressions
-      ✅ Follows Conventions
+   Criteria Check:
+      PASS  Test Passes
+      PASS  No Regressions
+      PASS  Follows Conventions
 ```
 
 ---
@@ -279,5 +293,7 @@ The Evaluator-Optimizer pattern is now ready for:
 
 - **Implementation**: `src/TestRepairAgent.ts` (lines 131-457)
 - **Documentation**: `EVALUATOR_OPTIMIZER.md`
-- **Demo**: `demo-evaluator-optimizer.ts`
-- **Cookbook**: [evaluator_optimizer.ipynb](https://github.com/anthropics/claude-cookbooks/blob/main/patterns/agents/evaluator_optimizer.ipynb)
+- **Archived demo**:
+  `archive/2026-q1/package-demos/test-repair-agent/demo-evaluator-optimizer.ts`
+- **Cookbook**:
+  [evaluator_optimizer.ipynb](https://github.com/anthropics/claude-cookbooks/blob/main/patterns/agents/evaluator_optimizer.ipynb)
