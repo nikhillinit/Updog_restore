@@ -17,12 +17,6 @@
  * @module server/routes/lp-api
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-// NOTE: Error handling uses untyped `error` objects for logging.
-// This is a pre-existing pattern throughout the codebase.
-// TODO: Create typed error handling utility (Issue #TBD)
-
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { requireAuth } from '../lib/auth/jwt';
@@ -53,6 +47,7 @@ import { lpAuditLogger } from '../services/lp-audit-logger';
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { enforceSchemaIsolation, handleSchemaViolation } from '../middleware/schema-isolation';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -779,15 +774,16 @@ router.post(
             ...(config.templateId && { templateId: config.templateId }),
             ...(config.metadata && { metadata: config.metadata }),
           });
-          console.log(
-            `[LP-API] Queued report ${reportId}, jobId: ${jobId}, wait: ${estimatedWaitMs}ms`
+          logger.info(
+            { reportId, jobId, estimatedWaitMs, lpId, reportType: config.reportType },
+            '[LP-API] queued report generation'
           );
         } catch (queueError) {
           console.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
           // Report is still created in pending state, can be retried
         }
       } else {
-        console.log(`[LP-API] Report queue unavailable, report ${reportId} will remain pending`);
+        logger.info({ reportId, lpId }, '[LP-API] report queue unavailable, leaving report pending');
       }
 
       res.setHeader('Content-Type', 'application/json');
@@ -1188,7 +1184,10 @@ router.put(
 
       // TODO: Persist settings to database
       // For now, just validate and echo back
-      console.log(`[LP-API] Settings update for LP ${lpId}:`, sanitizeForLogging(settings));
+      logger.info(
+        { lpId, settings: sanitizeForLogging(settings) },
+        '[LP-API] settings update'
+      );
 
       // SECURITY: Log settings change for audit
       await lpAuditLogger.logSettingsUpdate(lpId, req.user?.id, req);

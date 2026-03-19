@@ -2,6 +2,7 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import { Router } from 'express';
+import type { RequestHandler } from 'express';
 import { requireAuth, requireRole } from '../../lib/auth/jwt';
 import { asyncHandler } from '../../middleware/async';
 import { adminRateLimiter } from '../../middleware/rate-limit';
@@ -40,6 +41,7 @@ router.use(
     next();
   })
 );
-router.use('/', serverAdapter.getRouter());
+const bullBoardRouter = serverAdapter.getRouter() as unknown as RequestHandler;
+router.use('/', bullBoardRouter);
 
 export default router;

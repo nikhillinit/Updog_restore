@@ -251,7 +251,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   try {
     const dbHealthy = await storage['ping']();
     checks.database = dbHealthy ? 'ok' : 'fail';
-  } catch (error: unknown) {
+  } catch {
     checks.database = 'fail';
   }
 
@@ -312,7 +312,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     await storage.getAllFunds();
     detailed.database = 'ok';
     detailed.metrics['dbLatencyMs'] = Date.now() - start;
-  } catch (error: unknown) {
+  } catch {
     detailed.database = 'fail';
   }
 

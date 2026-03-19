@@ -16,6 +16,7 @@ import { metricsAggregator } from '../services/metrics-aggregator';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber, NumberParseError } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { logger } from '../lib/logger.js';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -85,15 +86,16 @@ router['get'](
 
       // Log skipCache usage for operational visibility
       if (skipCache) {
-        console.info(
-          JSON.stringify({
+        logger.info(
+          {
             event: 'metrics.skipCache',
             user: req.user?.id || 'unknown',
             fundId,
             ip: req.ip,
             reason: req.query['reason'] || 'manual',
             timestamp: new Date().toISOString(),
-          })
+          },
+          'metrics skipCache override'
         );
       }
 

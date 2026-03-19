@@ -14,6 +14,7 @@ import { asyncHandler } from '../middleware/async';
 import { transaction } from '../db/pg-circuit';
 import type { PoolClient } from 'pg';
 import { db } from '../db';
+import { logger } from '../lib/logger.js';
 import { portfolioCompanies } from '@shared/schema';
 import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
@@ -560,8 +561,14 @@ router['get'](
 
     // Log request metrics
     const duration = Date.now() - startTime;
-    console.log(
-      `[${requestId}] GET /api/funds/${fundId}/companies - ${companies.length} results in ${duration}ms`
+    logger.info(
+      {
+        requestId,
+        fundId,
+        companyCount: companies.length,
+        durationMs: duration,
+      },
+      'allocations company list served'
     );
 
     return res['status'](200)['json'](response);
