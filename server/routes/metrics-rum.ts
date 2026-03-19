@@ -3,6 +3,7 @@ import { Router } from 'express';
 import express from 'express';
 import * as client from 'prom-client';
 import { z } from 'zod';
+import { logger } from '../lib/logger.js';
 
 // Create dedicated registry for RUM metrics
 const rumRegistry = new client.Registry();
@@ -94,10 +95,14 @@ function getHistogram(name: string): client.Histogram | null {
   }
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
 export const metricsRumRouter = Router();
 
 // Import guards
-import { rumPrivacyGuard } from './metrics-rum.guard.js';
+import { rumPrivacyGuard, sanitizeRumPathname } from './metrics-rum.guard.js';
 import { rumV2Enhancement, rumCircuitBreaker } from './metrics-rum-v2.js';
 
 // Apply privacy guard to all RUM routes
@@ -139,13 +144,16 @@ metricsRumRouter.post(
             return res['status'](204)['end']();
           }
         } catch (circuitError) {
-          console.error('[RUM v2] Circuit breaker triggered:', circuitError);
+          logger.warn(
+            { error: getErrorMessage(circuitError) },
+            '[RUM v2] Circuit breaker triggered'
+          );
           // Fall through to legacy processing
         }
       }
 
       // Sanitize pathname to prevent cardinality explosion
-      const sanitizedPath = pathname?.split('?')?.[0]?.replace(/\/[a-f0-9-]{36}/gi, '/:id') ?? '/';
+      const sanitizedPath = sanitizeRumPathname(pathname ?? '/');
 
       // Get the appropriate histogram
       const histogram = getHistogram(name);
@@ -163,14 +171,17 @@ metricsRumRouter.post(
 
         // Log in development
         if (process.env['NODE_ENV'] === 'development') {
-          console.log(`[RUM] ${name}: ${value}ms (${rating}) - ${sanitizedPath}`);
+          logger.info(
+            { metricName: name, pathname: sanitizedPath, rating, value },
+            '[RUM] metric received'
+          );
         }
       }
 
       // Always return 204 No Content for beacon requests
       res['status'](204)['end']();
-    } catch (error) {
-      console.error('Error processing RUM metric:', error);
+    } catch (error: unknown) {
+      logger.error({ error: getErrorMessage(error) }, 'Error processing RUM metric');
       // Still return 204 to prevent beacon retries
       res['status'](204)['end']();
     }
@@ -185,8 +196,11 @@ metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
     .then((metrics) => {
       res['send'](metrics);
     })
-    .catch((err) => {
-      res['status'](500)['json']({ error: 'Failed to generate metrics', message: err.message });
+    .catch((error: unknown) => {
+      res['status'](500)['json']({
+        error: 'Failed to generate metrics',
+        message: getErrorMessage(error),
+      });
     });
 });
 
@@ -216,11 +230,9 @@ metricsRumRouter['get']('/metrics/rum/health', async (req: Request, res: Respons
   }
 
   // Get synthetic beacon count
-  const syntheticCount = await syntheticBeaconCounter['get']();
-  const syntheticTotal = syntheticCount.values.reduce(
-    (sum: any, v: any) => sum + (v.value || 0),
-    0
-  );
+  const syntheticCount: { values: Array<{ value: number }> } =
+    await syntheticBeaconCounter['get']();
+  const syntheticTotal = syntheticCount.values.reduce((sum, metric) => sum + metric.value, 0);
 
   res['json']({
     status: 'healthy',

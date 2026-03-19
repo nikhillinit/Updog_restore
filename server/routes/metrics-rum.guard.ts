@@ -8,6 +8,29 @@ const ORIGINS = (process.env['RUM_ORIGIN_ALLOWLIST'] || '')
   .filter(Boolean);
 const SAMPLE = Number(process.env['RUM_SAMPLE_RATE'] || '0.2'); // 20% default sampling
 const RUM_PATH_PREFIX = '/metrics/rum';
+const UUID_SEGMENT_PATTERN = /\/[a-f0-9-]{36}/gi;
+const LARGE_NUMERIC_SEGMENT_PATTERN = /\/\d{5,}/g;
+
+type RumBody = Record<string, unknown> & {
+  error?: boolean;
+  pathname?: string;
+  rating?: string;
+};
+
+function getRumBody(req: Request): RumBody | undefined {
+  if (typeof req.body !== 'object' || req.body === null || Array.isArray(req.body)) {
+    return undefined;
+  }
+
+  return req.body as RumBody;
+}
+
+export function sanitizeRumPathname(pathname: string): string {
+  return pathname
+    .split('?')[0]
+    .replace(UUID_SEGMENT_PATTERN, '/:id')
+    .replace(LARGE_NUMERIC_SEGMENT_PATTERN, '/:id');
+}
 
 function isRumRequest(req: Request): boolean {
   return req.path === RUM_PATH_PREFIX || req.path.startsWith(`${RUM_PATH_PREFIX}/`);
@@ -56,9 +79,10 @@ export function rumSamplingGuard(req: Request, res: Response, next: NextFunction
 
   // Client can opt-in to force sampling
   const force = req['get']('x-rum-sample') === '1';
+  const body = getRumBody(req);
 
   // Always sample errors
-  const isError = req.body?.rating === 'poor' || req.body?.error === true;
+  const isError = body?.rating === 'poor' || body?.error === true;
 
   if (force || isError || Math.random() < SAMPLE) {
     return next();
@@ -77,7 +101,7 @@ export const rumLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many metrics sent, please try again later',
-  skip: (_req: any) => {
+  skip: () => {
     // Skip rate limiting in development
     return process.env['NODE_ENV'] === 'development';
   },
@@ -91,12 +115,12 @@ export function rumPrivacyGuard(req: Request, res: Response, next: NextFunction)
   res['setHeader']('Cache-Control', 'no-store');
 
   // Strip accidental PII fields from body
-  if (typeof req.body === 'object' && req.body) {
+  const body = getRumBody(req);
+  if (body) {
     const piiFields = [
       'userEmail',
       'userName',
       'email',
-      'name',
       'accountNumber',
       'ssn',
       'creditCard',
@@ -107,17 +131,14 @@ export function rumPrivacyGuard(req: Request, res: Response, next: NextFunction)
     ];
 
     piiFields.forEach((field) => {
-      delete req.body[field];
-      delete req.body[field.toLowerCase()];
-      delete req.body[field.toUpperCase()];
+      delete body[field];
+      delete body[field.toLowerCase()];
+      delete body[field.toUpperCase()];
     });
 
     // Sanitize pathname to remove potential IDs
-    if (req.body.pathname) {
-      // Replace UUIDs with :id
-      req.body.pathname = req.body.pathname
-        .replace(/\/[a-f0-9-]{36}/gi, '/:id')
-        .replace(/\/\d{5,}/g, '/:id'); // Replace long numeric IDs
+    if (typeof body.pathname === 'string') {
+      body.pathname = sanitizeRumPathname(body.pathname);
     }
   }
 
