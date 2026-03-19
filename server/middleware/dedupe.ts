@@ -5,16 +5,17 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
+import { logger } from '../lib/logger.js';
 
 interface DedupeOptions {
-  ttl?: number;                    // TTL in seconds (default: 300 = 5 minutes)
-  prefix?: string;                 // Redis key prefix (default: 'dedupe')
-  methods?: string[];              // HTTP methods to dedupe (default: ['POST', 'PUT'])
-  skipPaths?: string[];            // Paths to skip deduplication
-  includeHeaders?: string[];       // Headers to include in hash
-  memoryFallback?: boolean;        // Use memory if Redis unavailable
-  useSingleflight?: boolean;       // Use singleflight for in-flight dedup
-  hashAlgorithm?: string;          // Hash algorithm (default: 'sha256')
+  ttl?: number; // TTL in seconds (default: 300 = 5 minutes)
+  prefix?: string; // Redis key prefix (default: 'dedupe')
+  methods?: string[]; // HTTP methods to dedupe (default: ['POST', 'PUT'])
+  skipPaths?: string[]; // Paths to skip deduplication
+  includeHeaders?: string[]; // Headers to include in hash
+  memoryFallback?: boolean; // Use memory if Redis unavailable
+  useSingleflight?: boolean; // Use singleflight for in-flight dedup
+  hashAlgorithm?: string; // Hash algorithm (default: 'sha256')
 }
 
 interface DedupedResponse {
@@ -29,43 +30,43 @@ interface DedupedResponse {
 class MemoryDedupeStore {
   private store = new Map<string, { data: DedupedResponse; expiry: number }>();
   private readonly maxSize = 500;
-  
+
   set(key: string, data: DedupedResponse, ttl: number): void {
     // Cleanup expired entries
     this.cleanup();
-    
+
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
       if (firstKey) this.store.delete(firstKey);
     }
-    
-    const expiry = Date.now() + (ttl * 1000);
+
+    const expiry = Date.now() + ttl * 1000;
     this.store['set'](key, { data, expiry });
   }
-  
+
   get(key: string): DedupedResponse | null {
     const entry = this.store['get'](key);
-    
+
     if (!entry) {
       return null;
     }
-    
+
     if (Date.now() > entry.expiry) {
       this.store.delete(key);
       return null;
     }
-    
+
     // Increment request count
     entry.data.requestCount++;
-    
+
     return entry.data;
   }
-  
+
   delete(key: string): void {
     this.store.delete(key);
   }
-  
+
   cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.store.entries()) {
@@ -74,11 +75,11 @@ class MemoryDedupeStore {
       }
     }
   }
-  
+
   clear(): void {
     this.store.clear();
   }
-  
+
   size(): number {
     return this.store.size;
   }
@@ -99,7 +100,7 @@ function generateDedupeKey(req: Request, options: DedupeOptions): string {
     query: req.query,
     body: req.body,
   };
-  
+
   // Include specific headers if configured
   if (options.includeHeaders && options.includeHeaders.length > 0) {
     parts['headers'] = {} as Record<string, unknown>;
@@ -116,7 +117,7 @@ function generateDedupeKey(req: Request, options: DedupeOptions): string {
   if (userId) {
     parts['userId'] = userId;
   }
-  
+
   const data = JSON.stringify(parts);
   return crypto
     .createHash(options.hashAlgorithm || 'sha256')
@@ -134,7 +135,7 @@ async function storeResponse(
 ): Promise<void> {
   const redisKey = `${options.prefix}:${key}`;
   const ttl = options.ttl || 300;
-  
+
   try {
     // Try Redis first
     if (redisClient) {
@@ -158,30 +159,30 @@ async function retrieveResponse(
   options: DedupeOptions
 ): Promise<DedupedResponse | null> {
   const redisKey = `${options.prefix}:${key}`;
-  
+
   try {
     // Try Redis first
     if (redisClient) {
       const cached = await redisClient['get'](redisKey);
       if (cached) {
-        const response = JSON.parse(cached);
+        const response = JSON.parse(cached) as DedupedResponse;
         response.requestCount = (response.requestCount || 0) + 1;
-        
+
         // Update count in Redis
         await redisClient.setex(redisKey, options.ttl || 300, JSON.stringify(response));
-        
+
         return response;
       }
     }
   } catch (error: unknown) {
     console.warn('[Dedupe] Failed to retrieve from Redis:', error);
   }
-  
+
   // Fallback to memory if enabled
   if (options.memoryFallback) {
     return memoryStore['get'](key);
   }
-  
+
   return null;
 }
 
@@ -199,54 +200,59 @@ export function dedupe(options: DedupeOptions = {}) {
     useSingleflight: options.useSingleflight !== false,
     hashAlgorithm: options.hashAlgorithm || 'sha256',
   };
-  
+
   return async (req: Request, res: Response, next: NextFunction) => {
     // Skip if method not configured for deduplication
     if (!config.methods.includes(req.method)) {
       return next();
     }
-    
+
     // Skip if path is excluded
-    if (config.skipPaths.some(path => req.path.startsWith(path))) {
+    if (config.skipPaths.some((path) => req.path.startsWith(path))) {
       return next();
     }
-    
+
     // Generate deduplication key
     const key = generateDedupeKey(req, config);
-    
+
     // Check for existing response
     const cached = await retrieveResponse(key, config);
-    
+
     if (cached) {
       // Return cached response
-      console.log(`[Dedupe] Returning cached response for request hash: ${key.substring(0, 8)}...`);
-      
+      logger.info(
+        '[Dedupe] Returning cached response for request hash: %s...',
+        key.substring(0, 8)
+      );
+
       res['setHeader']('X-Request-Dedup', 'true');
       res['setHeader']('X-Dedup-Count', String(cached.requestCount));
       res['setHeader']('X-Dedup-Key', key.substring(0, 8));
-      
+
       // Restore headers
       Object.entries(cached.headers).forEach(([name, value]) => {
-        if (!name.toLowerCase().startsWith('x-request-dedup') && 
-            !name.toLowerCase().startsWith('x-dedup')) {
+        if (
+          !name.toLowerCase().startsWith('x-request-dedup') &&
+          !name.toLowerCase().startsWith('x-dedup')
+        ) {
           res['setHeader'](name, value);
         }
       });
-      
-      return res["status"](cached.statusCode)["json"](cached.body);
+
+      return res['status'](cached.statusCode)['json'](cached.body);
     }
-    
+
     // Use singleflight pattern for in-flight deduplication
     if (config.useSingleflight && inflightRequests.has(key)) {
-      console.log(`[Dedupe] Request in-flight, waiting for completion: ${key.substring(0, 8)}...`);
+      logger.info('[Dedupe] Request in-flight, waiting for completion: %s...', key.substring(0, 8));
 
       try {
-        const result = await inflightRequests['get'](key) as DedupedResponse;
+        const result = (await inflightRequests['get'](key)) as DedupedResponse;
 
         res['setHeader']('X-Request-Dedup', 'inflight');
         res['setHeader']('X-Dedup-Key', key.substring(0, 8));
 
-        return res["status"](result.statusCode)["json"](result.body);
+        return res['status'](result.statusCode)['json'](result.body);
       } catch (error: unknown) {
         // If in-flight request failed, proceed normally
         console.error('[Dedupe] In-flight request failed:', error);
@@ -270,15 +276,15 @@ export function dedupe(options: DedupeOptions = {}) {
     const originalSend = res.send;
     const originalJson = res.json;
 
-    let responseBody: unknown;
+    let _responseBody: unknown;
     let responseCaptured = false;
-    
+
     // Override send method
-    res.send = function(body?: unknown) {
+    res.send = function (body?: unknown) {
       if (!responseCaptured && [200, 201].includes(res.statusCode)) {
-        responseBody = body;
+        _responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: DedupedResponse = {
           statusCode: res.statusCode,
@@ -287,7 +293,7 @@ export function dedupe(options: DedupeOptions = {}) {
           timestamp: Date.now(),
           requestCount: 1,
         };
-        
+
         storeResponse(key, response, config).catch((error: unknown) => {
           console.error('[Dedupe] Failed to cache response:', error);
         });
@@ -308,9 +314,9 @@ export function dedupe(options: DedupeOptions = {}) {
     };
 
     // Override json method
-    res.json = function(body?: unknown) {
+    res.json = function (body?: unknown) {
       if (!responseCaptured && [200, 201].includes(res.statusCode)) {
-        responseBody = body;
+        _responseBody = body;
         responseCaptured = true;
 
         // Store response asynchronously
@@ -325,7 +331,7 @@ export function dedupe(options: DedupeOptions = {}) {
         storeResponse(key, response, config).catch((error: unknown) => {
           console.error('[Dedupe] Failed to cache response:', error);
         });
-        
+
         // Resolve in-flight promise
         if (config.useSingleflight) {
           resolveInflight!(response);
@@ -336,11 +342,11 @@ export function dedupe(options: DedupeOptions = {}) {
         rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
         inflightRequests.delete(key);
       }
-      
+
       res['setHeader']('X-Dedup-Key', key.substring(0, 8));
       return originalJson.call(this, body);
     };
-    
+
     // Clean up in-flight on error
     if (config.useSingleflight) {
       res['on']('finish', () => {
@@ -350,7 +356,7 @@ export function dedupe(options: DedupeOptions = {}) {
         }
       });
     }
-    
+
     next();
   };
 }
@@ -361,7 +367,7 @@ export function dedupe(options: DedupeOptions = {}) {
 export function clearDedupeCache(): void {
   memoryStore.clear();
   inflightRequests.clear();
-  console.log('[Dedupe] Memory cache and in-flight requests cleared');
+  logger.info('[Dedupe] Memory cache and in-flight requests cleared');
 }
 
 /**
@@ -380,7 +386,7 @@ export function getDedupeStats() {
  * Express route handler for deduplication status
  */
 export function dedupeStatusHandler(req: Request, res: Response) {
-  res["json"]({
+  res['json']({
     status: 'active',
     stats: getDedupeStats(),
     timestamp: new Date().toISOString(),

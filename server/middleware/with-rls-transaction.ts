@@ -5,13 +5,14 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { db, pool as dbPool } from '../db.js';
+import { logger } from '../lib/logger.js';
 import type { UserContext } from '../lib/secure-context.js';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 
 export interface RLSRequest extends Request {
   context?: UserContext;
-  tx?: any;
-  pgClient?: any;
+  tx?: typeof db;
+  pgClient?: PoolClient;
 }
 
 /**
@@ -72,8 +73,10 @@ export function withRLSTransaction() {
       await client.query(`SET LOCAL idle_in_transaction_session_timeout = '30s'`);
 
       // Attach client and transaction-aware db to request
+      // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
       req.pgClient = client;
-      req.tx = db; // This should be wrapped with the client
+      // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
+      req.tx = db;
 
       // Track transaction completion
       let transactionCompleted = false;
@@ -143,8 +146,13 @@ export async function verifyRLSContext(req: RLSRequest): Promise<{
     throw new Error('No active RLS transaction');
   }
 
-  const result = await req.pgClient.query(`
-    SELECT 
+  const result = await req.pgClient.query<{
+    current_user: string;
+    current_org: string;
+    current_fund: string;
+    current_role: string;
+  }>(`
+    SELECT
       current_setting('app.current_user', true) as current_user,
       current_setting('app.current_org', true) as current_org,
       current_setting('app.current_fund', true) as current_fund,
@@ -159,7 +167,7 @@ export async function verifyRLSContext(req: RLSRequest): Promise<{
  */
 export async function executeInRLSContext<T>(
   req: RLSRequest,
-  queryFn: (_client: any) => Promise<T>
+  queryFn: (_client: PoolClient) => Promise<T>
 ): Promise<T> {
   if (!req.pgClient) {
     throw new Error('No active RLS transaction - ensure withRLSTransaction middleware is applied');
@@ -184,7 +192,7 @@ export async function checkFundAccess(req: RLSRequest, fundId: string): Promise<
     [fundId]
   );
 
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
@@ -194,10 +202,10 @@ export function logRLSContext(req: RLSRequest, prefix: string = ''): void {
   if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG_RLS'] === 'true') {
     verifyRLSContext(req)
       .then((context) => {
-        console.log(`${prefix} RLS Context:`, context);
+        logger.debug({ prefix, context }, 'RLS Context');
       })
       .catch((err) => {
-        console.error(`${prefix} Failed to get RLS context:`, err);
+        logger.error({ prefix, err }, 'Failed to get RLS context');
       });
   }
 }

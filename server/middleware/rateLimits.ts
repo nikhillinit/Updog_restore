@@ -7,6 +7,7 @@ import RedisStore from 'rate-limit-redis';
 import Redis from 'ioredis';
 import type { Request, Response, NextFunction } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
+import { logger } from '../lib/logger.js';
 
 // Extended request type for user/requestId context
 interface ExtendedRequest {
@@ -22,13 +23,13 @@ let redisClient: Redis | null = null;
 if (process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
   try {
     redisClient = new Redis(process.env['REDIS_URL']);
-    console.log('[RateLimit] Connected to Redis for distributed rate limiting');
+    logger.info('[RateLimit] Connected to Redis for distributed rate limiting');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn('[RateLimit] Redis unavailable, falling back to memory store:', errorMessage);
+    logger.warn('[RateLimit] Redis unavailable, falling back to memory store: %s', errorMessage);
   }
 } else if (process.env['REDIS_URL'] === 'memory://') {
-  console.log('[RateLimit] Memory mode detected, using in-memory rate limiting');
+  logger.info('[RateLimit] Memory mode detected, using in-memory rate limiting');
 }
 
 /**
