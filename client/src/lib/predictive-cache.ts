@@ -3,6 +3,7 @@
  * Uses access patterns to prefetch and optimize cache performance
  */
 
+import { logger } from '@/lib/logger';
 import { metrics } from '@/metrics/reserves-metrics';
 import type { ReservesInput, ReservesConfig, ReservesResult } from '@shared/types/reserves-v11';
 
@@ -31,6 +32,11 @@ interface BatchRequest {
   rejecter: (_error: Error) => void;
 }
 
+type ReservesCalculator = (
+  _input: ReservesInput,
+  _config: ReservesConfig
+) => Promise<ReservesResult>;
+
 export class IntelligentReservesCache {
   private cache = new Map<string, CacheEntry>();
   private accessPatterns = new Map<string, AccessPattern>();
@@ -56,12 +62,10 @@ export class IntelligentReservesCache {
 
   async get(
     key: string,
-    calculator: (_input: ReservesInput, config: ReservesConfig) => Promise<ReservesResult>,
+    calculator: ReservesCalculator,
     input: ReservesInput,
     config: ReservesConfig
   ): Promise<ReservesResult> {
-    const startTime = performance.now();
-
     try {
       // Check cache
       const cached = this.getFromCache(key);
@@ -110,9 +114,9 @@ export class IntelligentReservesCache {
     key: string,
     input: ReservesInput,
     config: ReservesConfig,
-    calculator: Function
+    calculator: ReservesCalculator
   ): Promise<ReservesResult> {
-    return new Promise((resolve: any, reject: any) => {
+    return new Promise<ReservesResult>((resolve, reject) => {
       // Add to batch queue
       this.batchQueue.push({
         key,
@@ -140,7 +144,7 @@ export class IntelligentReservesCache {
     });
   }
 
-  private async processBatch(calculator: Function): Promise<void> {
+  private async processBatch(calculator: ReservesCalculator): Promise<void> {
     const batch = this.batchQueue.splice(0, this.BATCH_SIZE);
     this.batchTimer = null;
 
@@ -150,12 +154,12 @@ export class IntelligentReservesCache {
 
     try {
       // Process batch in parallel
-      const promises = batch.map(async (request: any) => {
+      const promises = batch.map(async (request) => {
         try {
           const result = await calculator(request.input, request.config);
 
           // Cache result
-          this['set'](request.key, result, request.input, request.config);
+          this.set(request.key, result, request.input, request.config);
 
           request.resolver(result);
         } catch (error) {
@@ -167,7 +171,10 @@ export class IntelligentReservesCache {
 
       metrics.recordBatchProcessing(batch.length, performance.now() - startTime);
     } catch (error) {
-      console.error('Batch processing error:', error);
+      logger.error(
+        'Predictive cache batch processing failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
 
       // Reject all pending requests
       batch.forEach((request) => {
@@ -274,11 +281,11 @@ export class IntelligentReservesCache {
       }
     });
 
-    this.accessPatterns['set'](key, pattern);
+    this.accessPatterns.set(key, pattern);
   }
 
-  private updateAccessPattern(key: string, input: ReservesInput, config: ReservesConfig): void {
-    const pattern = this.accessPatterns['get'](key) || {
+  private updateAccessPattern(key: string, _input: ReservesInput, _config: ReservesConfig): void {
+    const pattern = this.accessPatterns.get(key) || {
       key,
       frequency: 1,
       relatedKeys: new Set(),
@@ -294,7 +301,7 @@ export class IntelligentReservesCache {
       }
     }
 
-    this.accessPatterns['set'](key, pattern);
+    this.accessPatterns.set(key, pattern);
   }
 
   private areSimilar(key1: string, key2: string): boolean {
@@ -316,11 +323,11 @@ export class IntelligentReservesCache {
 
   private async triggerPrefetch(
     key: string,
-    calculator: Function,
+    calculator: ReservesCalculator,
     baseInput: ReservesInput,
     baseConfig: ReservesConfig
   ): Promise<void> {
-    const pattern = this.accessPatterns['get'](key);
+    const pattern = this.accessPatterns.get(key);
 
     if (!pattern || pattern.frequency < this.PREFETCH_THRESHOLD) {
       return;
@@ -347,23 +354,8 @@ export class IntelligentReservesCache {
     if (toPrefetch.length === 0) return;
 
     // Prefetch in background
-    setTimeout(async () => {
-      if (import.meta.env.DEV) console.log(`Prefetching ${toPrefetch.length} related calculations`);
-
-      for (const prefetchKey of toPrefetch) {
-        try {
-          // Generate variations of input for prefetch
-          const variations = this.generateInputVariations(baseInput, baseConfig);
-
-          for (const [varInput, varConfig] of variations) {
-            const result = await calculator(varInput, varConfig);
-            const varKey = this.generateKey(varInput, varConfig);
-            this['set'](varKey, result, varInput, varConfig);
-          }
-        } catch (error) {
-          console.debug('Prefetch error:', error);
-        }
-      }
+    globalThis.setTimeout(() => {
+      void this.prefetchCalculations(toPrefetch, baseInput, baseConfig, calculator);
     }, 0);
   }
 
@@ -405,6 +397,35 @@ export class IntelligentReservesCache {
     variations.push([input, { ...config, remain_passes: config.remain_passes === 0 ? 1 : 0 }]);
 
     return variations.slice(0, 3); // Limit prefetch
+  }
+
+  private async prefetchCalculations(
+    toPrefetch: string[],
+    baseInput: ReservesInput,
+    baseConfig: ReservesConfig,
+    calculator: ReservesCalculator
+  ): Promise<void> {
+    if (import.meta.env.DEV) {
+      logger.debug('Predictive cache prefetch triggered', {
+        candidateCount: toPrefetch.length,
+      });
+    }
+
+    for (const _prefetchKey of toPrefetch) {
+      try {
+        const variations = this.generateInputVariations(baseInput, baseConfig);
+
+        for (const [varInput, varConfig] of variations) {
+          const result = await calculator(varInput, varConfig);
+          const varKey = this.generateKey(varInput, varConfig);
+          this.set(varKey, result, varInput, varConfig);
+        }
+      } catch (error) {
+        logger.debug('Predictive cache prefetch failed', {
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 
   private generateKey(input: ReservesInput, config: ReservesConfig): string {
