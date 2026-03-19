@@ -15,6 +15,14 @@ import {
 
 const router = Router();
 
+interface GraduationProjectBody {
+  initialCompanies?: number;
+  horizonQuarters?: number;
+  config?: GraduationConfig;
+  expectationMode?: boolean;
+  seed?: number;
+}
+
 /**
  * POST /api/graduation/project
  * Project a cohort through stage transitions
@@ -22,13 +30,15 @@ const router = Router();
 router.post(
   '/project',
   asyncHandler(async (req: Request, res: Response) => {
+    const body: GraduationProjectBody =
+      typeof req.body === 'object' && req.body !== null ? (req.body as GraduationProjectBody) : {};
     const {
       initialCompanies = 20,
       horizonQuarters = 16,
       config,
       expectationMode = true,
       seed = 42,
-    } = req.body;
+    } = body;
 
     // Validate inputs
     if (typeof initialCompanies !== 'number' || initialCompanies < 1) {
