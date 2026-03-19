@@ -4,7 +4,15 @@
  */
 
 import fetch, { AbortError } from 'node-fetch';
-import type { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions, ReservePrediction } from './ports.js';
+import type { RequestInit, Response } from 'node-fetch';
+import type {
+  PortfolioCompany,
+  MarketConditions,
+  PredictionExplanation,
+  ReserveDecision,
+  ReserveEngineOptions,
+  ReservePrediction,
+} from './ports.js';
 import { logger } from '../../lib/logger.js';
 
 export interface MLServiceConfig {
@@ -34,6 +42,34 @@ export interface MLPredictRequest {
   confidenceLevel?: number;
 }
 
+type HealthCheckResponse = { status: string; modelLoaded: boolean };
+type TrainModelResponse = { modelVersion: string; rows: number };
+type ExplanationMethod = PredictionExplanation['method'];
+type TopFactor = NonNullable<PredictionExplanation['topFactors']>[number];
+
+interface MlPredictResponse {
+  modelVersion: string;
+  prediction: {
+    recommendedReserve: number;
+    perRound?: Record<string, number>;
+    confidence?: { low: number; high: number };
+    notes?: string[];
+  };
+  explanation?: {
+    method: string;
+    details: Record<string, unknown>;
+  };
+  latencyMs?: number;
+}
+
+const EXPLANATION_METHODS: readonly ExplanationMethod[] = [
+  'rules',
+  'shap',
+  'permutation',
+  'feature_importance',
+  'hybrid',
+] as const;
+
 export class MlClient {
   private config: MLServiceConfig;
 
@@ -51,16 +87,19 @@ export class MlClient {
     try {
       const res = await this.fetchWithTimeout('/health', { method: 'GET' });
       if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
-      return await res["json"]() as { status: string; modelLoaded: boolean };
+      return await this.readJson<HealthCheckResponse>(res);
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'ML service health check failed');
+      logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'ML service health check failed'
+      );
       throw error;
     }
   }
 
   async trainModel(request: MLTrainingRequest): Promise<{ modelVersion: string; rows: number }> {
     const startTime = Date.now();
-    
+
     try {
       const res = await this.fetchWithTimeout('/train', {
         method: 'POST',
@@ -72,28 +111,34 @@ export class MlClient {
         throw new Error(`Training failed: ${res.status} ${res.statusText}`);
       }
 
-      const result = await res["json"]() as { modelVersion: string; rows: number };
-      
-      logger.info({
-        modelVersion: result.modelVersion,
-        trainingRows: result.rows,
-        durationMs: Date.now() - startTime,
-      }, 'ML model training completed');
+      const result = await this.readJson<TrainModelResponse>(res);
+
+      logger.info(
+        {
+          modelVersion: result.modelVersion,
+          trainingRows: result.rows,
+          durationMs: Date.now() - startTime,
+        },
+        'ML model training completed'
+      );
 
       return result;
     } catch (error) {
-      logger.error({
-        error: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - startTime,
-        trainingRows: request.rows.length,
-      }, 'ML model training failed');
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          durationMs: Date.now() - startTime,
+          trainingRows: request.rows.length,
+        },
+        'ML model training failed'
+      );
       throw error;
     }
   }
 
   async predict(
-    company: PortfolioCompany, 
-    market: MarketConditions, 
+    company: PortfolioCompany,
+    market: MarketConditions,
     opts: ReserveEngineOptions = {}
   ): Promise<ReserveDecision> {
     const startTime = Date.now();
@@ -107,7 +152,7 @@ export class MlClient {
     try {
       const res = await this.fetchWithRetry('/predict', {
         method: 'POST',
-        headers: { 
+        headers: {
           'content-type': 'application/json',
           'x-request-id': opts.requestId || '',
         },
@@ -118,20 +163,7 @@ export class MlClient {
         throw new Error(`ML prediction failed: ${res.status} ${res.statusText}`);
       }
 
-      const body = await res["json"]() as {
-        modelVersion: string;
-        prediction: {
-          recommendedReserve: number;
-          perRound?: Record<string, number>;
-          confidence?: { low: number; high: number };
-          notes?: string[];
-        };
-        explanation?: {
-          method: string;
-          details: Record<string, unknown>;
-        };
-        latencyMs?: number;
-      };
+      const body = await this.readJson<MlPredictResponse>(res);
 
       // Build prediction with conditional optional properties
       const prediction: ReservePrediction = {
@@ -150,35 +182,41 @@ export class MlClient {
         prediction,
         engineType: 'ml',
         engineVersion: body.modelVersion,
-        latencyMs: body.latencyMs ?? (Date.now() - startTime),
+        latencyMs: body.latencyMs ?? Date.now() - startTime,
       };
       if (body.explanation !== undefined) {
         decision.explanation = {
-          method: body.explanation.method as 'rules' | 'shap' | 'permutation' | 'feature_importance' | 'hybrid',
+          method: this.toExplanationMethod(body.explanation.method),
           details: body.explanation.details,
           topFactors: this.extractTopFactors(body.explanation.details),
         };
       }
 
-      logger.debug({
-        companyId: company.id,
-        recommendedReserve: decision.prediction.recommendedReserve,
-        latencyMs: decision.latencyMs,
-        modelVersion: decision.engineVersion,
-      }, 'ML prediction completed');
+      logger.debug(
+        {
+          companyId: company.id,
+          recommendedReserve: decision.prediction.recommendedReserve,
+          latencyMs: decision.latencyMs,
+          modelVersion: decision.engineVersion,
+        },
+        'ML prediction completed'
+      );
 
       return decision;
     } catch (error) {
-      logger.error({
-        companyId: company.id,
-        error: error instanceof Error ? error.message : String(error),
-        latencyMs: Date.now() - startTime,
-      }, 'ML prediction failed');
+      logger.error(
+        {
+          companyId: company.id,
+          error: error instanceof Error ? error.message : String(error),
+          latencyMs: Date.now() - startTime,
+        },
+        'ML prediction failed'
+      );
       throw error;
     }
   }
 
-  private async fetchWithTimeout(path: string, options: any): Promise<any> {
+  private async fetchWithTimeout(path: string, options: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
@@ -198,7 +236,7 @@ export class MlClient {
     }
   }
 
-  private async fetchWithRetry(path: string, options: any): Promise<Response> {
+  private async fetchWithRetry(path: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.config.retries; attempt++) {
@@ -206,32 +244,49 @@ export class MlClient {
         return await this.fetchWithTimeout(path, options);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         if (attempt < this.config.retries) {
           const delay = this.config.backoffMs * Math.pow(2, attempt);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          logger.warn({ 
-            attempt: attempt + 1, 
-            maxRetries: this.config.retries,
-            delayMs: delay,
-            error: lastError.message 
-          }, 'Retrying ML service request');
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
+          logger.warn(
+            {
+              attempt: attempt + 1,
+              maxRetries: this.config.retries,
+              delayMs: delay,
+              error: lastError.message,
+            },
+            'Retrying ML service request'
+          );
         }
       }
     }
 
-    throw lastError;
+    throw lastError ?? new Error('ML service request failed');
   }
 
-  private extractTopFactors(details: Record<string, unknown>): Array<{ factor: string; importance: number; direction: 'positive' | 'negative' }> {
+  private async readJson<T>(response: Response): Promise<T> {
+    return (await response.json()) as T;
+  }
+
+  private toExplanationMethod(method: string): ExplanationMethod {
+    return isExplanationMethod(method) ? method : 'feature_importance';
+  }
+
+  private extractTopFactors(details: Record<string, unknown>): TopFactor[] {
     return Object.entries(details)
-      .filter(([_, value]) => typeof value === 'number')
-      .map(([factor, importance]) => ({
-        factor,
-        importance: Math.abs(importance as number),
-        direction: ((importance as number) >= 0 ? 'positive' : 'negative') as 'positive' | 'negative',
-      }))
-      .sort((a: any, b: any) => b.importance - a.importance)
+      .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+      .map(
+        ([factor, importance]): TopFactor => ({
+          factor,
+          importance: Math.abs(importance),
+          direction: importance >= 0 ? 'positive' : 'negative',
+        })
+      )
+      .sort((a, b) => b.importance - a.importance)
       .slice(0, 5); // Top 5 factors
   }
+}
+
+function isExplanationMethod(value: string): value is ExplanationMethod {
+  return EXPLANATION_METHODS.includes(value as ExplanationMethod);
 }

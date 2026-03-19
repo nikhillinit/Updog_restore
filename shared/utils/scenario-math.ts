@@ -8,6 +8,16 @@
 import Decimal from '@shared/lib/decimal-config';
 import type { ScenarioCase, WeightedSummary, ProbabilityValidation } from '../types/scenario';
 
+type WeightedScenarioRow = {
+  probability: number;
+  investment: number;
+  follow_ons: number;
+  exit_proceeds: number;
+  exit_valuation: number;
+  moic?: number;
+  months_to_exit?: number;
+};
+
 // ============================================================================
 // Safe Math Operations
 // ============================================================================
@@ -90,7 +100,7 @@ export function weighted<T extends { probability: number }>(
  * Includes MOIC calculation
  */
 export function calculateWeightedSummary(cases: ScenarioCase[]): WeightedSummary {
-  const weightedValues = weighted(cases as any);
+  const weightedValues = weighted(cases.map(toWeightedScenarioRow));
 
   // Calculate weighted MOIC
   const moic = safeDiv(weightedValues['exit_proceeds'] || 0, weightedValues['investment'] || 0);
@@ -103,6 +113,20 @@ export function calculateWeightedSummary(cases: ScenarioCase[]): WeightedSummary
     exit_valuation: weightedValues['exit_valuation'] || 0,
     ...(weightedValues['months_to_exit'] !== undefined
       ? { months_to_exit: weightedValues['months_to_exit'] }
+      : {}),
+  };
+}
+
+function toWeightedScenarioRow(scenarioCase: ScenarioCase): WeightedScenarioRow {
+  return {
+    probability: scenarioCase.probability,
+    investment: scenarioCase.investment,
+    follow_ons: scenarioCase.follow_ons,
+    exit_proceeds: scenarioCase.exit_proceeds,
+    exit_valuation: scenarioCase.exit_valuation,
+    ...(scenarioCase.moic !== undefined ? { moic: scenarioCase.moic } : {}),
+    ...(scenarioCase.months_to_exit !== undefined
+      ? { months_to_exit: scenarioCase.months_to_exit }
       : {}),
   };
 }

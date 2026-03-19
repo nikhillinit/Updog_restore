@@ -9,19 +9,20 @@ export const optionalProp = <K extends string, V>(
   key: K,
   value: V | undefined
 ): Record<K, V> | Record<string, never> => {
-  return value !== undefined ? { [key]: value } as Record<K, V> : {};
+  return value !== undefined ? ({ [key]: value } as Record<K, V>) : {};
 };
 
 /**
  * Multiple optional properties helper
  */
-export const optionalProps = <T extends Record<string, unknown>>(
-  props: { [K in keyof T]: T[K] | undefined }
-): Partial<T> => {
+export const optionalProps = <T extends Record<string, unknown>>(props: {
+  [K in keyof T]: T[K] | undefined;
+}): Partial<T> => {
   const result: Partial<T> = {};
-  for (const [key, value] of Object.entries(props)) {
+  for (const key of Object.keys(props) as Array<keyof T>) {
+    const value = props[key];
     if (value !== undefined) {
-      (result as any)[key] = value;
+      result[key] = value;
     }
   }
   return result;
