@@ -20,12 +20,11 @@ export interface GuardOptions {
   maxBreadth?: number;
 }
 
-const isPlainObject = (v: unknown) =>
-  Object.prototype.toString.call(v) === '[object Object]';
+const isPlainObject = (v: unknown) => Object.prototype.toString.call(v) === '[object Object]';
 
 const isTypedArray = (v: unknown) =>
   typeof ArrayBuffer !== 'undefined' &&
-  ArrayBuffer.isView(v as any) &&
+  ArrayBuffer.isView(v as ArrayBufferView) &&
   Object.prototype.toString.call(v) !== '[object DataView]';
 
 /** Returns true if v is a number and non-finite (NaN, +∞, -∞). */
@@ -33,10 +32,7 @@ const isNonFiniteNumber = (v: unknown) =>
   typeof v === 'number' && (!Number.isFinite(v) || Number.isNaN(v));
 
 /** Deeply verifies that there are no non-finite numbers (NaN/±Infinity) in the value. */
-export function assertFiniteDeep(
-  input: unknown,
-  opts: GuardOptions = {},
-): GuardResult {
+export function assertFiniteDeep(input: unknown, opts: GuardOptions = {}): GuardResult {
   const maxDepth = opts.maxDepth ?? 50;
   const maxBreadth = opts.maxBreadth ?? 200;
 
@@ -103,7 +99,7 @@ export function assertFiniteDeep(
 
       if (o instanceof Map) {
         let i = 0;
-        o.forEach((val: any, k: any) => {
+        o.forEach((val: unknown, k: unknown) => {
           if (i++ > maxBreadth) {
             return;
           }
@@ -121,7 +117,7 @@ export function assertFiniteDeep(
 
       if (o instanceof Set) {
         let i = 0;
-        o.forEach((val: any) => {
+        o.forEach((val: unknown) => {
           if (i < maxBreadth) {
             stack.push({ v: val, path: `${path}.(set:${i})`, depth: depth + 1 });
           }
@@ -155,14 +151,16 @@ export function assertFiniteDeep(
 }
 
 /** Throws an Error with path & reason if non-finite is found. */
-export function assertFiniteDeepOrThrow(
-  input: unknown,
-  opts?: GuardOptions,
-): void {
+export function assertFiniteDeepOrThrow(input: unknown, opts?: GuardOptions): void {
   const res = assertFiniteDeep(input, opts);
   if (!res.ok) {
     // TypeScript needs explicit type narrowing here
-    const failureResult = res as { ok: false; path: string; value: unknown; reason: GuardFailureReason };
+    const failureResult = res as {
+      ok: false;
+      path: string;
+      value: unknown;
+      reason: GuardFailureReason;
+    };
     const { path, reason, value } = failureResult;
     const v = typeof value === 'number' ? String(value) : '[complex]';
     throw new Error(`Non-finite guard failed at ${path} (${reason}): ${v}`);

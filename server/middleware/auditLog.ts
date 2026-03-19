@@ -107,8 +107,9 @@ async function logAuditEntry(entry: InsertAuditLog) {
     if (hasInsertAuditLog(storage)) {
       await storage.insertAuditLog(entry);
     } else {
-      // Fallback: direct console logging for development
-      console.log('AUDIT:', JSON.stringify(entry));
+      // Fallback: structured logging for development
+      const { logger: auditLogger } = await import('../lib/logger.js');
+      auditLogger.info({ entry }, 'AUDIT');
     }
   } catch (error) {
     console.error('Failed to persist audit log:', error);

@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
+import { logger } from '../lib/logger.js';
 
 interface IdempotencyOptions {
   ttl?: number; // TTL in seconds (default: 300 = 5 minutes)
@@ -166,9 +167,10 @@ function stableStringify(obj: unknown): string {
     return `[${obj.map(stableStringify).join(',')}]`;
   }
 
-  const sortedKeys = Object.keys(obj).sort();
+  const record = obj as Record<string, unknown>;
+  const sortedKeys = Object.keys(record).sort();
   const pairs = sortedKeys.map((key) => {
-    const value = (obj as any)[key];
+    const value = record[key];
     return `${JSON.stringify(key)}:${stableStringify(value)}`;
   });
 
@@ -229,7 +231,7 @@ async function retrieveResponse(
     if (redisClient) {
       const cached = await redisClient['get'](redisKey);
       if (cached) {
-        return JSON.parse(cached);
+        return JSON.parse(cached) as IdempotentResponse;
       }
     }
   } catch (error) {
@@ -286,7 +288,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
       }
 
       // Return cached response
-      console.log(`[Idempotency] Returning cached response for key: ${key}`);
+      logger.info('[Idempotency] Returning cached response for key: %s', key);
 
       res['setHeader']('Idempotency-Replay', 'true');
       res['setHeader']('Idempotency-Key', key);
@@ -335,7 +337,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     const originalJson = res.json;
     const requestFingerprint = generateRequestHash(req);
 
-    let responseBody: any;
+    let _responseBody: unknown;
     let responseCaptured = false;
 
     // Clean up lock when response completes or fails
@@ -352,7 +354,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     // Override send method
     res.send = function (body?: any) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
-        responseBody = body;
+        _responseBody = body;
         responseCaptured = true;
 
         // Store response asynchronously with fingerprint
@@ -378,7 +380,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
     // Override json method
     res.json = function (body?: any) {
       if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
-        responseBody = body;
+        _responseBody = body;
         responseCaptured = true;
 
         // Store response asynchronously with fingerprint
@@ -414,7 +416,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
  */
 export function clearIdempotencyCache(): void {
   memoryStore.clear();
-  console.log('[Idempotency] Memory cache cleared');
+  logger.info('[Idempotency] Memory cache cleared');
 }
 
 /**

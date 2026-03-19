@@ -12,6 +12,12 @@ export interface PreconditionRequest extends Request {
   etag?: string;
 }
 
+interface HttpError extends Error {
+  status: number;
+  code: string;
+  details?: Record<string, unknown>;
+}
+
 /**
  * Generate a weak ETag from a value
  */
@@ -45,15 +51,15 @@ export function parseETag(etag: string | undefined): string {
 export function requireIfMatch() {
   return (req: PreconditionRequest, res: Response, next: NextFunction) => {
     const ifMatch = req.headers['if-match'] as string | undefined;
-    
+
     if (!ifMatch) {
-      return res["status"](428)["json"]({
+      return res.status(428).json({
         error: 'precondition_required',
         message: 'If-Match header is required for this operation',
-        code: 'PRECONDITION_REQUIRED'
+        code: 'PRECONDITION_REQUIRED',
       });
     }
-    
+
     // Parse and store the If-Match value
     req.ifMatch = parseETag(ifMatch);
     next();
@@ -67,21 +73,21 @@ export function requireIfMatch() {
 export function checkIfNoneMatch(getCurrentETag: (_req: Request) => string | Promise<string>) {
   return async (req: PreconditionRequest, res: Response, next: NextFunction) => {
     const ifNoneMatch = req.headers['if-none-match'] as string | undefined;
-    
+
     if (!ifNoneMatch) {
       return next();
     }
-    
+
     const currentETag = await getCurrentETag(req);
+    // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
     req.etag = currentETag;
-    
+
     if (parseETag(ifNoneMatch) === parseETag(currentETag)) {
-      // Content hasn't changed, return 304
-      res['setHeader']('ETag', currentETag);
-      res['setHeader']('Cache-Control', 'private, must-revalidate');
-      return res["status"](304)["end"]();
+      res.setHeader('ETag', currentETag);
+      res.setHeader('Cache-Control', 'private, must-revalidate');
+      return res.status(304).end();
     }
-    
+
     next();
   };
 }
@@ -90,25 +96,27 @@ export function checkIfNoneMatch(getCurrentETag: (_req: Request) => string | Pro
  * Assert that the provided ETag matches the current version
  * Throws 412 Precondition Failed if mismatch
  */
-export function assertNotModified(currentVersion: string, providedVersion: string | undefined): void {
+export function assertNotModified(
+  currentVersion: string,
+  providedVersion: string | undefined
+): void {
   if (!providedVersion) {
-    const error: any = new Error('Precondition Required');
-    error.status = 428;
-    error.code = 'PRECONDITION_REQUIRED';
+    const error = Object.assign(new Error('Precondition Required'), {
+      status: 428,
+      code: 'PRECONDITION_REQUIRED',
+    }) as HttpError;
     throw error;
   }
-  
+
   const current = parseETag(currentVersion);
   const provided = parseETag(providedVersion);
-  
+
   if (current !== provided) {
-    const error: any = new Error('Precondition Failed');
-    error.status = 412;
-    error.code = 'PRECONDITION_FAILED';
-    error.details = {
-      current: currentVersion,
-      provided: providedVersion
-    };
+    const error = Object.assign(new Error('Precondition Failed'), {
+      status: 412,
+      code: 'PRECONDITION_FAILED',
+      details: { current: currentVersion, provided: providedVersion },
+    }) as HttpError;
     throw error;
   }
 }
@@ -116,26 +124,30 @@ export function assertNotModified(currentVersion: string, providedVersion: strin
 /**
  * Set ETag and cache headers on response
  */
-export function setETagHeaders(res: Response, etag: string, options?: {
-  maxAge?: number;
-  private?: boolean;
-  mustRevalidate?: boolean;
-}): void {
+export function setETagHeaders(
+  res: Response,
+  etag: string,
+  options?: {
+    maxAge?: number;
+    private?: boolean;
+    mustRevalidate?: boolean;
+  }
+): void {
   const opts = {
     maxAge: 0,
     private: true,
     mustRevalidate: true,
-    ...options
+    ...options,
   };
-  
-  res['setHeader']('ETag', etag);
-  
-  const cacheDirectives = [];
+
+  res.setHeader('ETag', etag);
+
+  const cacheDirectives: string[] = [];
   if (opts.private) cacheDirectives.push('private');
   if (opts.maxAge > 0) cacheDirectives.push(`max-age=${opts.maxAge}`);
   if (opts.mustRevalidate) cacheDirectives.push('must-revalidate');
-  
-  res['setHeader']('Cache-Control', cacheDirectives.join(', '));
+
+  res.setHeader('Cache-Control', cacheDirectives.join(', '));
 }
 
 /**
@@ -157,40 +169,41 @@ export function conditionalRequest(options: {
 }) {
   return async (req: PreconditionRequest, res: Response, next: NextFunction) => {
     const currentETag = await options.getETag(req);
+    // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
     req.etag = currentETag;
-    
+
     // Check If-None-Match (for GET requests)
     const ifNoneMatch = req.headers['if-none-match'] as string | undefined;
     if (ifNoneMatch && req.method === 'GET') {
       if (parseETag(ifNoneMatch) === parseETag(currentETag)) {
-        res['setHeader']('ETag', currentETag);
-        return res["status"](304)["end"]();
+        res.setHeader('ETag', currentETag);
+        return res.status(304).end();
       }
     }
-    
+
     // Check If-Match (for mutating requests)
     const ifMatch = req.headers['if-match'] as string | undefined;
     if (ifMatch || options.requireMatch) {
       if (!ifMatch && options.requireMatch) {
-        return res["status"](428)["json"]({
+        return res.status(428).json({
           error: 'precondition_required',
-          message: 'If-Match header is required'
+          message: 'If-Match header is required',
         });
       }
-      
+
       if (ifMatch && parseETag(ifMatch) !== parseETag(currentETag)) {
-        return res["status"](412)["json"]({
+        return res.status(412).json({
           error: 'precondition_failed',
           message: 'Resource has been modified',
-          current: currentETag
+          current: currentETag,
         });
       }
     }
-    
+
     // Store parsed values for handler use
     if (ifMatch) req.ifMatch = parseETag(ifMatch);
     if (ifNoneMatch) req.ifNoneMatch = parseETag(ifNoneMatch);
-    
+
     next();
   };
 }
@@ -199,23 +212,23 @@ export function conditionalRequest(options: {
  * Error handler for precondition failures
  */
 export function handlePreconditionError(
-  err: any,
-  req: Request,
+  err: Error & Partial<HttpError>,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void {
   if (err.status === 428) {
-    res["status"](428)["json"]({
+    res.status(428).json({
       error: 'precondition_required',
       message: err.message || 'Precondition required',
-      code: err.code || 'PRECONDITION_REQUIRED'
+      code: err.code || 'PRECONDITION_REQUIRED',
     });
   } else if (err.status === 412) {
-    res["status"](412)["json"]({
+    res.status(412).json({
       error: 'precondition_failed',
       message: err.message || 'Precondition failed',
       code: err.code || 'PRECONDITION_FAILED',
-      details: err.details
+      details: err.details,
     });
   } else {
     next(err);
