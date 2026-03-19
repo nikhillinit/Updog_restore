@@ -5,16 +5,23 @@
 
 import { reserveDecisions } from '@schema';
 import { db } from '../../db.js';
-import type { 
-  ReserveEnginePort, 
-  PortfolioCompany, 
-  MarketConditions, 
+import type {
+  ReserveEnginePort,
+  PortfolioCompany,
+  MarketConditions,
   ReserveDecision,
   ReserveEngineOptions,
-  PredictionExplanation 
+  PredictionExplanation,
 } from './ports.js';
 import type { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine.js';
 import type { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine.js';
+import {
+  DEFAULT_GRADUATION_MATRIX,
+  DEFAULT_STAGE_STRATEGIES,
+  type PortfolioCompany as ReservePortfolioCompany,
+  type ReserveAllocationInput,
+} from '@shared/schemas/reserves-schemas';
+import { normalizeStage } from '@shared/schemas/stage';
 import type { MlClient } from './mlClient.js';
 import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
@@ -59,18 +66,18 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
   ) {}
 
   async compute(
-    company: PortfolioCompany, 
-    market: MarketConditions, 
+    company: PortfolioCompany,
+    market: MarketConditions,
     opts: ReserveEngineOptions = {}
   ): Promise<ReserveDecision> {
     const startTime = Date.now();
     const requestId = opts.requestId ?? nanoid();
-    
+
     this.metrics.totalRequests++;
 
     // Determine engine mode based on feature flags and A/B testing
     const engineMode = this.determineEngineMode(company, opts);
-    
+
     let decision: ReserveDecision;
     let fallbackUsed = false;
 
@@ -80,12 +87,12 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
           decision = await this.runMlEngine(company, market, opts);
           this.metrics.mlRequests++;
           break;
-          
+
         case 'hybrid':
           decision = await this.runHybridEngine(company, market, opts);
           this.metrics.hybridRequests++;
           break;
-          
+
         case 'rules':
         default:
           decision = await this.runRulesEngine(company, market, opts);
@@ -93,11 +100,14 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
           break;
       }
     } catch (error) {
-      logger.warn({
-        companyId: company.id,
-        engineMode,
-        error: error instanceof Error ? error.message : String(error),
-      }, 'Primary engine failed, falling back to rules');
+      logger.warn(
+        {
+          companyId: company.id,
+          engineMode,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Primary engine failed, falling back to rules'
+      );
 
       if (this.config.fallbackOnError) {
         decision = await this.runRulesEngine(company, market, opts);
@@ -120,11 +130,14 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
 
     // Log decision to database if enabled
     if (this.config.logAllDecisions) {
-      await this.logDecision(company, market, decision, opts).catch(error => {
-        logger.error({ 
-          companyId: company.id, 
-          error: error instanceof Error ? error.message : String(error) 
-        }, 'Failed to log reserve decision');
+      await this.logDecision(company, market, decision, opts).catch((error) => {
+        logger.error(
+          {
+            companyId: company.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to log reserve decision'
+        );
       });
     }
 
@@ -144,7 +157,10 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     return decision;
   }
 
-  private determineEngineMode(company: PortfolioCompany, opts: ReserveEngineOptions): 'ml' | 'rules' | 'hybrid' {
+  private determineEngineMode(
+    company: PortfolioCompany,
+    opts: ReserveEngineOptions
+  ): 'ml' | 'rules' | 'hybrid' {
     // Check if ML is disabled globally
     if (!this.config.useMl) return 'rules';
 
@@ -169,19 +185,19 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     let hash = 0;
     for (let i = 0; i < companyId.length; i++) {
       const char = companyId.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash) % 100;
   }
 
   private async runMlEngine(
-    company: PortfolioCompany, 
-    market: MarketConditions, 
+    company: PortfolioCompany,
+    market: MarketConditions,
     opts: ReserveEngineOptions
   ): Promise<ReserveDecision> {
     const decision = await this.mlClient.predict(company, market, opts);
-    
+
     // Enhance decision with additional context
     decision.prediction.notes = [
       ...(decision.prediction.notes || []),
@@ -193,16 +209,16 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
   }
 
   private async runRulesEngine(
-    company: PortfolioCompany, 
-    market: MarketConditions, 
-    opts: ReserveEngineOptions
+    company: PortfolioCompany,
+    market: MarketConditions,
+    _opts: ReserveEngineOptions
   ): Promise<ReserveDecision> {
     // Convert to format expected by existing engines
     const reserveInput = this.convertToReserveInput(company, market);
-    
+
     // Use DeterministicReserveEngine for sophisticated calculations
     const result = await this.deterministicEngine.calculateOptimalReserveAllocation(reserveInput);
-    
+
     // Convert back to our standardized format
     const decision: ReserveDecision = {
       prediction: {
@@ -234,8 +250,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
   }
 
   private async runHybridEngine(
-    company: PortfolioCompany, 
-    market: MarketConditions, 
+    company: PortfolioCompany,
+    market: MarketConditions,
     opts: ReserveEngineOptions
   ): Promise<ReserveDecision> {
     // Run both engines in parallel
@@ -263,10 +279,10 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     // Combine predictions using weighted average
     const mlWeight = this.config.mlWeight;
     const rulesWeight = 1 - mlWeight;
-    
-    const combinedReserve = 
-      (ml.prediction.recommendedReserve * mlWeight) + 
-      (rules.prediction.recommendedReserve * rulesWeight);
+
+    const combinedReserve =
+      ml.prediction.recommendedReserve * mlWeight +
+      rules.prediction.recommendedReserve * rulesWeight;
 
     const combinedExplanation: PredictionExplanation = {
       method: 'hybrid',
@@ -280,8 +296,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
         rulesExplanation: rules.explanation?.details,
       },
       topFactors: [
-        ...(ml.explanation?.topFactors || []).map(f => ({ ...f, source: 'ml' as const })),
-        ...(rules.explanation?.topFactors || []).map(f => ({ ...f, source: 'rules' as const })),
+        ...(ml.explanation?.topFactors || []).map((f) => ({ ...f, source: 'ml' as const })),
+        ...(rules.explanation?.topFactors || []).map((f) => ({ ...f, source: 'rules' as const })),
       ].slice(0, 8),
     };
 
@@ -305,8 +321,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
           `Hybrid prediction: ${(mlWeight * 100).toFixed(0)}% ML, ${(rulesWeight * 100).toFixed(0)}% Rules`,
           `ML: ${ml.prediction.recommendedReserve.toLocaleString()}`,
           `Rules: ${rules.prediction.recommendedReserve.toLocaleString()}`,
-          ...ml.prediction.notes || [],
-          ...rules.prediction.notes || [],
+          ...(ml.prediction.notes || []),
+          ...(rules.prediction.notes || []),
         ],
       },
       explanation: combinedExplanation,
@@ -317,19 +333,40 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     return hybridDecision;
   }
 
-  private convertToReserveInput(company: PortfolioCompany, market: MarketConditions): any {
-    // Convert our standardized format to what DeterministicReserveEngine expects
+  private convertToReserveInput(
+    company: PortfolioCompany,
+    market: MarketConditions
+  ): ReserveAllocationInput {
+    const reserveCompany: ReservePortfolioCompany = {
+      id: company.id,
+      name: company.name,
+      sector: company.sector ?? 'general',
+      currentStage: normalizeStage(company.stage),
+      totalInvested: company.invested,
+      currentValuation: Math.max(company.invested, company.invested * (company.exitMoic ?? 1)),
+      ownershipPercentage: company.ownership,
+      investmentDate: company.entryDate ? new Date(company.entryDate) : new Date(market.asOfDate),
+      ...(company.lastRoundDate ? { lastRoundDate: new Date(company.lastRoundDate) } : {}),
+      isActive: true,
+      ...(company.exitMoic !== undefined ? { currentMOIC: company.exitMoic } : {}),
+      confidenceLevel: 0.5,
+      tags: [],
+    };
+
     return {
-      portfolio: [company],
+      portfolio: [reserveCompany],
       availableReserves: company.invested * 2, // Example: 2x initial investment
       totalFundSize: company.invested * 10, // Example: company is 10% of fund
-      marketConditions: market,
+      graduationMatrix: DEFAULT_GRADUATION_MATRIX,
+      stageStrategies: DEFAULT_STAGE_STRATEGIES,
+      maxSingleAllocation: company.invested * 3,
+      minAllocationThreshold: 50000,
+      maxPortfolioConcentration: 0.1,
       scenarioType: 'base' as const,
-      constraints: {
-        maxPerCompany: company.invested * 3,
-        maxPerStage: company.invested * 5,
-        minCheck: 50000,
-      },
+      timeHorizon: 84,
+      enableDiversification: true,
+      enableRiskAdjustment: true,
+      enableLiquidationPreferences: true,
     };
   }
 
@@ -340,12 +377,10 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     opts: ReserveEngineOptions
   ): Promise<void> {
     // Convert to date strings for the date columns
-    const periodStartDate = opts.periodStart 
-      ? new Date(opts.periodStart) 
+    const periodStartDate = opts.periodStart
+      ? new Date(opts.periodStart)
       : new Date(market.asOfDate);
-    const periodEndDate = opts.periodEnd 
-      ? new Date(opts.periodEnd) 
-      : new Date(market.asOfDate);
+    const periodEndDate = opts.periodEnd ? new Date(opts.periodEnd) : new Date(market.asOfDate);
 
     const insertData = {
       fundId: company.fundId,
@@ -368,7 +403,7 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       latencyMs: decision.latencyMs || null,
       userId: opts.userId || null,
     };
-    
+
     await db.insert(reserveDecisions).values(insertData);
   }
 
