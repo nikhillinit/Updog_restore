@@ -15,12 +15,11 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { db } from '../db/index.js';
-import { scenarios } from '@shared/schema';
-import { inArray } from 'drizzle-orm';
+import { q } from '../db/index.js';
 import { ComparisonService } from '../services/comparison-service.js';
 import type { ScenarioDatabaseRow } from '../services/comparison-service.js';
-import { createClient } from 'redis';
+import { createClient, type RedisClientType } from 'redis';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -37,7 +36,8 @@ function requireFeatureFlag(_req: Request, res: Response, next: NextFunction) {
     return res.status(501).json({
       success: false,
       error: 'NOT_IMPLEMENTED',
-      message: 'Scenario comparison feature is not enabled. Set ENABLE_SCENARIO_COMPARISON=true to enable.',
+      message:
+        'Scenario comparison feature is not enabled. Set ENABLE_SCENARIO_COMPARISON=true to enable.',
     });
   }
   next();
@@ -50,17 +50,102 @@ router.use(requireFeatureFlag);
 // Redis Client Setup
 // ============================================================================
 
-let redis: ReturnType<typeof createClient> | null = null;
+type RedisClient = RedisClientType | null;
 
-async function getRedisClient() {
+interface ScenarioLookupRow {
+  id: string;
+  name: string;
+}
+
+interface ScenarioCaseLookupRow {
+  scenario_id: string;
+  probability: string | number;
+  investment: string | number;
+  follow_ons: string | number;
+  exit_proceeds: string | number;
+  exit_valuation: string | number;
+  months_to_exit: number | null;
+}
+
+let redis: RedisClient = null;
+
+async function getRedisClient(): Promise<RedisClient> {
   if (!redis && process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
     redis = createClient({ url: process.env['REDIS_URL'] });
-    await redis.connect().catch((err) => {
-      console.error('[scenario-comparison] Redis connect failed; comparisons will not be cached', err);
+    await redis.connect().catch((err: unknown) => {
+      logger.warn(
+        { error: err instanceof Error ? err.message : String(err) },
+        '[scenario-comparison] Redis connect failed; comparisons will not be cached'
+      );
       redis = null;
     });
   }
   return redis;
+}
+
+async function loadScenarioRows(allScenarioIds: string[]): Promise<{
+  scenarios: ScenarioLookupRow[];
+  cases: ScenarioCaseLookupRow[];
+}> {
+  const [scenarioRows, caseRows] = await Promise.all([
+    q<ScenarioLookupRow>(
+      `
+        SELECT id, name
+        FROM scenarios
+        WHERE id = ANY($1::uuid[])
+      `,
+      [allScenarioIds]
+    ),
+    q<ScenarioCaseLookupRow>(
+      `
+        SELECT
+          scenario_id,
+          probability,
+          investment,
+          follow_ons,
+          exit_proceeds,
+          exit_valuation,
+          months_to_exit
+        FROM scenario_cases
+        WHERE scenario_id = ANY($1::uuid[])
+      `,
+      [allScenarioIds]
+    ),
+  ]);
+
+  return {
+    scenarios: scenarioRows,
+    cases: caseRows,
+  };
+}
+
+function toScenarioDatabaseRows(
+  scenarioRows: ScenarioLookupRow[],
+  caseRows: ScenarioCaseLookupRow[]
+): ScenarioDatabaseRow[] {
+  const casesByScenarioId = caseRows.reduce<Record<string, ScenarioDatabaseRow['cases']>>(
+    (acc, row) => {
+      const cases = acc[row.scenario_id] ?? [];
+      cases.push({
+        probability: Number(row.probability),
+        investment: Number(row.investment),
+        follow_ons: Number(row.follow_ons),
+        exit_proceeds: Number(row.exit_proceeds),
+        exit_valuation: Number(row.exit_valuation),
+        ...(row.months_to_exit != null ? { months_to_exit: row.months_to_exit } : {}),
+      });
+      acc[row.scenario_id] = cases;
+      return acc;
+    },
+    {}
+  );
+
+  return scenarioRows.map((scenario) => ({
+    id: scenario.id,
+    name: scenario.name,
+    scenario_type: 'deal_level',
+    cases: casesByScenarioId[scenario.id] ?? [],
+  }));
 }
 
 // ============================================================================
@@ -68,35 +153,37 @@ async function getRedisClient() {
 // ============================================================================
 
 // Simplified schemas for MVP (ephemeral comparisons only)
-const CreateComparisonRequestSchema = z.object({
-  fundId: z.number().int().positive(),
-  baseScenarioId: z.string().uuid(),
-  comparisonScenarioIds: z
-    .array(z.string().uuid())
-    .min(1, 'At least one comparison scenario required')
-    .max(5, 'Maximum 5 comparison scenarios allowed'),
-  comparisonMetrics: z
-    .array(
-      z.enum([
-        'moic',
-        'irr',
-        'tvpi',
-        'dpi',
-        'total_investment',
-        'follow_ons',
-        'exit_proceeds',
-        'exit_valuation',
-        'gross_multiple',
-        'net_irr',
-        'gross_irr',
-        'total_to_lps',
-        'projected_fund_value',
-        'weighted_summary',
-      ])
-    )
-    .min(1, 'At least one metric required')
-    .default(['moic', 'total_investment', 'exit_proceeds']),
-}).strict(); // .strict() prevents extra fields for security
+const CreateComparisonRequestSchema = z
+  .object({
+    fundId: z.number().int().positive(),
+    baseScenarioId: z.string().uuid(),
+    comparisonScenarioIds: z
+      .array(z.string().uuid())
+      .min(1, 'At least one comparison scenario required')
+      .max(5, 'Maximum 5 comparison scenarios allowed'),
+    comparisonMetrics: z
+      .array(
+        z.enum([
+          'moic',
+          'irr',
+          'tvpi',
+          'dpi',
+          'total_investment',
+          'follow_ons',
+          'exit_proceeds',
+          'exit_valuation',
+          'gross_multiple',
+          'net_irr',
+          'gross_irr',
+          'total_to_lps',
+          'projected_fund_value',
+          'weighted_summary',
+        ])
+      )
+      .min(1, 'At least one metric required')
+      .default(['moic', 'total_investment', 'exit_proceeds']),
+  })
+  .strict(); // .strict() prevents extra fields for security
 
 const GetComparisonParamsSchema = z.object({
   comparisonId: z.string().uuid(),
@@ -161,17 +248,12 @@ router.post(
       // Build list of all scenario IDs
       const allScenarioIds = [validated.baseScenarioId, ...validated.comparisonScenarioIds];
 
-      // Fetch scenarios from database with cases
-      const scenariosFromDb = await db.query.scenarios.findMany({
-        where: inArray(scenarios.id, allScenarioIds),
-        with: {
-          cases: true,
-        },
-      });
+      // Fetch scenarios and cases explicitly to avoid unresolved relation typing.
+      const { scenarios: scenarioRows, cases: caseRows } = await loadScenarioRows(allScenarioIds);
 
       // Validate all scenarios found
-      if (scenariosFromDb.length !== allScenarioIds.length) {
-        const foundIds = scenariosFromDb.map((s: typeof scenariosFromDb[number]) => s.id);
+      if (scenarioRows.length !== allScenarioIds.length) {
+        const foundIds = scenarioRows.map((scenario) => scenario.id);
         const missingIds = allScenarioIds.filter((id) => !foundIds.includes(id));
         return res.status(404).json({
           success: false,
@@ -179,26 +261,11 @@ router.post(
         });
       }
 
-      // Transform to service format (Drizzle returns camelCase fields)
-      type ScenarioWithCases = typeof scenariosFromDb[number];
-      type CaseType = ScenarioWithCases['cases'][number];
-      const scenariosForService: ScenarioDatabaseRow[] = scenariosFromDb.map((s: ScenarioWithCases) => ({
-        id: s.id,
-        name: s.name,
-        scenario_type: 'deal_level', // Hard-coded for MVP (all scenarios are deal-level)
-        cases: s.cases.map((c: CaseType) => ({
-          probability: Number(c.probability),
-          investment: Number(c.investment),
-          follow_ons: Number(c.followOns),
-          exit_proceeds: Number(c.exitProceeds),
-          exit_valuation: Number(c.exitValuation),
-          ...(c.monthsToExit != null && { months_to_exit: c.monthsToExit }),
-        })),
-      }));
+      const scenariosForService = toScenarioDatabaseRows(scenarioRows, caseRows);
 
       // Initialize comparison service with Redis
       const redisClient = await getRedisClient();
-      const comparisonService = new ComparisonService(redisClient as any);
+      const comparisonService = new ComparisonService(redisClient);
 
       // Perform comparison
       const result = await comparisonService.compareScenarios(
@@ -269,7 +336,7 @@ router.get(
 
       // Initialize comparison service with Redis
       const redisClient = await getRedisClient();
-      const comparisonService = new ComparisonService(redisClient as any);
+      const comparisonService = new ComparisonService(redisClient);
 
       // Retrieve cached comparison
       const cached = await comparisonService.getComparison(comparisonId);
