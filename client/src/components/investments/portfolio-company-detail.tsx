@@ -80,12 +80,6 @@ interface SectorProfile {
   };
 }
 
-interface ProRataSettings {
-  resolveProRata: boolean;
-  customReserve?: number;
-  targetOwnership?: number;
-}
-
 interface ReserveRanking {
   companyName: string;
   dealLevelTVPI: number;
@@ -200,46 +194,6 @@ const SECTOR_PROFILE: SectorProfile = {
   }
 };
 
-// Auto-generated financing path with graduation rates
-const generateFinancingPath = (initialValuation: number, currentRound: string) => {
-  const path = [];
-  let currentVal = initialValuation;
-  
-  if (currentRound === 'Capital Calls') {
-    // Series A projection (65% graduation rate)
-    currentVal *= SECTOR_PROFILE.valuationStepUps.seedToA;
-    path.push({
-      round: 'Series A',
-      graduationRate: SECTOR_PROFILE.graduationRates.seedToA,
-      preMoney: currentVal,
-      roundSize: SECTOR_PROFILE.roundSizes.seriesA,
-      postMoney: currentVal + SECTOR_PROFILE.roundSizes.seriesA
-    });
-    
-    // Series B projection (75% graduation rate from A)
-    currentVal = (currentVal + SECTOR_PROFILE.roundSizes.seriesA) * SECTOR_PROFILE.valuationStepUps.aToB;
-    path.push({
-      round: 'Series B',
-      graduationRate: SECTOR_PROFILE.graduationRates.aToB,
-      preMoney: currentVal,
-      roundSize: SECTOR_PROFILE.roundSizes.seriesB,
-      postMoney: currentVal + SECTOR_PROFILE.roundSizes.seriesB
-    });
-    
-    // Series C projection (70% graduation rate from B)
-    currentVal = (currentVal + SECTOR_PROFILE.roundSizes.seriesB) * SECTOR_PROFILE.valuationStepUps.bToC;
-    path.push({
-      round: 'Series C',
-      graduationRate: SECTOR_PROFILE.graduationRates.bToC,
-      preMoney: currentVal,
-      roundSize: SECTOR_PROFILE.roundSizes.seriesC,
-      postMoney: currentVal + SECTOR_PROFILE.roundSizes.seriesC
-    });
-  }
-  
-  return path;
-};
-
 // Calculate optimal reserves with efficiency curve analysis
 const calculateOptimalReserves = (
   currentOwnership: number,
@@ -254,7 +208,6 @@ const calculateOptimalReserves = (
   for (let percent = 0; percent <= 25; percent += 2.5) {
     const investment = (percent / 100) * roundSize;
     const postMoney = preMoney + roundSize;
-    const newShares = investment / (postMoney / (roundSize / investment));
     const resultingOwnership = currentOwnership + (investment / postMoney) * 100;
     
     // Exit calculations

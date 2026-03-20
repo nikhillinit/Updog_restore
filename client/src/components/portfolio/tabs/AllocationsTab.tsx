@@ -111,7 +111,7 @@ export function AllocationsTab() {
   const enrichedColumns = columns.map((col) => ({
     ...col,
     column: {
-      toggleSorting: (desc?: boolean) => {
+      toggleSorting: () => {
         if (col.accessorKey) {
           handleSort(col.accessorKey);
         }
