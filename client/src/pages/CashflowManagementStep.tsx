@@ -44,9 +44,8 @@ export default function CashflowManagementStep() {
   const fundExpenses = useFundSelector(s => s.fundExpenses);
 
   // Actions
-  const { addFundExpense, updateFundExpense, removeFundExpense } = useFundActions(s => ({
+  const { addFundExpense, removeFundExpense } = useFundActions(s => ({
     addFundExpense: s.addFundExpense,
-    updateFundExpense: s.updateFundExpense,
     removeFundExpense: s.removeFundExpense,
   }));
 
@@ -132,10 +131,6 @@ export default function CashflowManagementStep() {
     });
   };
 
-  const handleUpdateExpense = (id: string, field: keyof FundExpense, value: any) => {
-    updateFundExpense(id, { [field]: value });
-  };
-
   const handleRemoveExpense = (id: string) => {
     removeFundExpense(id);
   };
@@ -212,7 +207,7 @@ export default function CashflowManagementStep() {
                   </Alert>
                 ) : (
                   <div className="space-y-3">
-                    {fundExpenses.map((expense, index) => (
+                    {fundExpenses.map((expense, _index) => (
                       <div key={expense.id} className="flex items-center gap-4 p-3 border border-[#E0D8D1] rounded-xl">
                         <div className="flex-1">
                           <div className="font-poppins font-medium text-[#292929]">{expense.category}</div>
