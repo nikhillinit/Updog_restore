@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,41 +30,12 @@ const ChartSkeleton = () => (
   </div>
 );
 
-// Sample analytics data
-const performanceMetrics = [
-  { metric: 'IRR', current: 28.4, benchmark: 24.5, target: 25.0 },
-  { metric: 'Multiple', current: 2.85, benchmark: 2.2, target: 2.5 },
-  { metric: 'DPI', current: 1.45, benchmark: 1.2, target: 1.5 },
-  { metric: 'TVPI', current: 2.85, benchmark: 2.1, target: 2.5 },
-];
-
-const quarterlyMetrics = [
-  { quarter: 'Q1 2023', irr: 22.1, multiple: 2.1, deploymentRate: 45 },
-  { quarter: 'Q2 2023', irr: 24.8, multiple: 2.3, deploymentRate: 58 },
-  { quarter: 'Q3 2023', irr: 26.4, multiple: 2.6, deploymentRate: 65 },
-  { quarter: 'Q4 2023', irr: 28.4, multiple: 2.85, deploymentRate: 72 },
-];
-
-const sectorPerformance = [
-  { sector: 'Fintech', irr: 32.1, multiple: 3.2, companies: 8, totalInvested: 28.5 },
-  { sector: 'Healthcare', irr: 28.7, multiple: 2.8, companies: 6, totalInvested: 22.1 },
-  { sector: 'SaaS', irr: 25.3, multiple: 2.4, companies: 7, totalInvested: 18.9 },
-  { sector: 'Enterprise', irr: 22.9, multiple: 2.1, companies: 3, totalInvested: 12.5 },
-];
-
 const riskMetrics = [
   { category: 'Market Risk', score: 7.2, benchmark: 6.5 },
   { category: 'Concentration Risk', score: 5.8, benchmark: 7.0 },
   { category: 'Liquidity Risk', score: 4.3, benchmark: 5.5 },
   { category: 'Operational Risk', score: 6.1, benchmark: 6.2 },
   { category: 'Technology Risk', score: 8.1, benchmark: 7.8 },
-];
-
-const cohortComparison = [
-  { vintage: '2020', year1: 15, year2: 28, year3: 42, year4: 45 },
-  { vintage: '2021', year1: 12, year2: 24, year3: 35, year4: null },
-  { vintage: '2022', year1: 18, year2: 32, year3: null, year4: null },
-  { vintage: '2023', year1: 22, year2: null, year3: null, year4: null },
 ];
 
 export default function Analytics() {
@@ -83,8 +49,8 @@ export default function Analytics() {
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         <div className="animate-pulse space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_: any, i: any) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -275,8 +241,8 @@ export default function Analytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {riskMetrics.map((metric: any, index: any) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {riskMetrics.map((metric) => (
+                    <div key={metric.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-800">{metric.category}</p>
                         <p className="text-sm text-gray-600">Score: {metric.score}/10</p>
@@ -445,4 +411,3 @@ export default function Analytics() {
     </main>
   );
 }
-
