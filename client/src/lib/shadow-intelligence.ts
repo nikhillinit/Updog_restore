@@ -31,6 +31,13 @@ export interface DivergenceAnalysis {
   };
 }
 
+interface BusinessImpactSummary {
+  totalDifference: number;
+  percentDifference: number;
+  affectedCompanies: string[];
+  largestDiff: { id: string; amount: number };
+}
+
 export class ShadowIntelligence {
   private readonly ROUNDING_TOLERANCE = 1; // 1 cent
   private readonly CRITICAL_IMPACT_THRESHOLD = 1000; // $10
@@ -124,7 +131,7 @@ export class ShadowIntelligence {
     return true;
   }
 
-  private calculateBusinessImpact(v1: ReservesResult, v11: ReservesResult) {
+  private calculateBusinessImpact(v1: ReservesResult, v11: ReservesResult): BusinessImpactSummary {
     const v1Allocations = v1.data?.allocations || [];
     const v11Allocations = v11.data?.allocations || [];
 
@@ -139,8 +146,8 @@ export class ShadowIntelligence {
     const allCompanies = new Set([...v1Map.keys(), ...v11Map.keys()]);
 
     for (const companyId of allCompanies) {
-      const v1Amount = v1Map['get'](companyId) || 0;
-      const v11Amount = v11Map['get'](companyId) || 0;
+      const v1Amount = v1Map.get(companyId) ?? 0;
+      const v11Amount = v11Map.get(companyId) ?? 0;
       const diff = Math.abs(v11Amount - v1Amount);
 
       if (diff > this.ROUNDING_TOLERANCE) {
@@ -167,7 +174,7 @@ export class ShadowIntelligence {
   private categorizeDivergence(
     v1: ReservesResult,
     v11: ReservesResult,
-    impact: any
+    impact: BusinessImpactSummary
   ): DivergenceType {
     // Rounding differences
     if (impact.totalDifference <= this.ROUNDING_TOLERANCE * impact.affectedCompanies.length) {
@@ -193,7 +200,7 @@ export class ShadowIntelligence {
     return 'logic';
   }
 
-  private assessSeverity(impact: any, type: DivergenceType): Severity {
+  private assessSeverity(impact: BusinessImpactSummary, type: DivergenceType): Severity {
     // Critical: Large business impact or errors
     if (impact.totalDifference > this.CRITICAL_IMPACT_THRESHOLD * 100 || type === 'error') {
       return 'critical';
@@ -213,7 +220,7 @@ export class ShadowIntelligence {
     return !result.data.metadata.conservation_check;
   }
 
-  private isExpectedImprovement(type: DivergenceType, impact: any): boolean {
+  private isExpectedImprovement(type: DivergenceType, impact: BusinessImpactSummary): boolean {
     // Improvements are expected
     if (type === 'improvement') return true;
 
@@ -223,7 +230,7 @@ export class ShadowIntelligence {
     return false;
   }
 
-  private canAutoApprove(impact: any, type: DivergenceType): boolean {
+  private canAutoApprove(impact: BusinessImpactSummary, type: DivergenceType): boolean {
     // Auto-approve tiny differences
     if (impact.totalDifference <= this.AUTO_APPROVE_THRESHOLD) return true;
 
@@ -290,14 +297,16 @@ export class ShadowIntelligence {
   private recordAnalysis(analysis: DivergenceAnalysis): void {
     // Record pattern frequency
     const pattern = analysis.details.pattern;
-    this.patterns['set'](pattern, (this.patterns['get'](pattern) || 0) + 1);
+    this.patterns.set(pattern, (this.patterns.get(pattern) ?? 0) + 1);
 
     // Record metrics
     metrics.recordDivergence(analysis.divergenceType, analysis.severity);
 
     // Log for analysis
     if (analysis.severity !== 'info') {
-      if (import.meta.env.DEV) console.log('Shadow divergence detected:', analysis);
+      if (import.meta.env.DEV) {
+        console.warn('Shadow divergence detected:', analysis);
+      }
     }
   }
 
