@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Fund Overview Dashboard
  *
@@ -48,6 +47,11 @@ const pieChartData = [
 ];
 
 // Removed hardcoded COLORS - now using getChartColor() from chart-theme
+
+type SectorLabelProps = {
+  name?: string | number;
+  percent?: number;
+};
 
 export default function FundOverview() {
   const { currentFund } = useFundContext();
@@ -175,8 +179,7 @@ export default function FundOverview() {
                     outerRadius={90} 
                     paddingAngle={2} 
                     dataKey="value"
-                    label={(props: any) => {
-                      // Handle the case where props.percent might be undefined
+                    label={(props: SectorLabelProps) => {
                       const percent = props.percent ?? 0;
                       const name = props.name ?? '';
                       return `${name} ${(percent * 100).toFixed(0)}%`;

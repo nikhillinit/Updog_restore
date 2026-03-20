@@ -43,12 +43,6 @@ const LazyPerformanceChart = React.lazy(() =>
   }))
 );
 
-const LazyResponsiveContainer = React.lazy(() =>
-  import('@/components/charts/LazyResponsiveContainer').then(module => ({
-    default: module.LazyResponsiveContainer
-  }))
-);
-
 // Executive KPIs - the 4 most critical metrics for C-level
 interface ExecutiveKPI {
   id: string;
@@ -511,7 +505,7 @@ export function ExecutiveDashboard({
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-slate-200 rounded w-1/3"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[...Array(4)].map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-32 bg-slate-200 rounded"></div>
             ))}
           </div>
