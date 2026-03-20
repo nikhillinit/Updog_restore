@@ -60,3 +60,11 @@ contracts.
 | Docker    | `dist/index.js`        | `npm run build`      | `node dist/index.js` | registerRoutes() |
 | Railway   | `dist/index.js`        | `npm run build:prod` | `node dist/index.js` | registerRoutes() |
 | Vercel    | `api/*.ts`             | `npm run build:web`  | Vercel runtime       | makeApp()        |
+
+## Release-Support Matrix (Phase 0B, 2026-03-20)
+
+| Surface                                | Status                     |
+| -------------------------------------- | -------------------------- |
+| `registerRoutes()` runtime surface     | supported                  |
+| `server/app.ts` / `api/[[...slug]].ts` | intentionally out of scope |
+| `api/funds.ts`                         | intentionally out of scope |

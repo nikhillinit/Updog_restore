@@ -76,3 +76,41 @@ Response 200: Fund[] Response 500: { error, message }
 
 Response 200: Fund Response 400: { error, message } (invalid ID) Response 404: {
 error, message } (not found) Response 500: { error, message }
+
+## Phase 0B Achieved (2026-03-20)
+
+### Changes Applied
+
+1. **Idempotency import fix**: `server/routes/funds.ts` changed from named
+   import (`{ idempotency }` -- the factory) to default import (`idempotency` --
+   the pre-called middleware). POST /api/funds now receives real idempotency
+   middleware instead of the factory function.
+
+2. **Calculate path correction**: `server/routes/funds.ts` changed route
+   declaration from `/api/funds/calculate` to `/funds/calculate`. Since the
+   router is mounted at `/api`, this corrects the resolved path from
+   `/api/api/funds/calculate` (bug) to `/api/funds/calculate` (intended).
+
+3. **Inline POST removal**: The shadowed inline `POST /api/funds` handler at
+   `server/routes.ts` (previously at line 189) was deleted. The router-owned
+   handler in `server/routes/funds.ts` is now the sole POST owner.
+
+4. **Inline GET handlers preserved**: `GET /api/funds` and `GET /api/funds/:id`
+   remain as inline handlers in `server/routes.ts` -- they are load-bearing
+   because the funds router does not provide equivalent reads.
+
+### Post-Cutover State
+
+| Endpoint             | Method | Canonical Owner               | File             | Surface        |
+| -------------------- | ------ | ----------------------------- | ---------------- | -------------- |
+| /api/funds           | GET    | server/routes.ts inline       | routes.ts        | registerRoutes |
+| /api/funds/:id       | GET    | server/routes.ts inline       | routes.ts        | registerRoutes |
+| /api/funds           | POST   | server/routes/funds.ts router | funds.ts         | registerRoutes |
+| /api/funds/calculate | POST   | server/routes/funds.ts router | funds.ts (fixed) | registerRoutes |
+
+### Release-Surface Verification
+
+- `registerRoutes()` surface: changed (inline POST removed, calculate prefix
+  fixed, idempotency import fixed)
+- Non-authoritative surfaces: unchanged (no modifications to `server/app.ts`,
+  `api/[[...slug]].ts`, or `api/funds.ts`)
