@@ -227,6 +227,11 @@ export default [
               message:
                 "Use '@/core/flags/unifiedClientFlags' or '@/core/flags/flagAdapter' instead. '@/lib/feature-flags' is deprecated.",
             },
+            {
+              name: '@/lib/map-fund-store-to-payload',
+              message:
+                "Use '@/adapters/fund-store-adapters' (fundStoreToCreateV1 / fundStoreToDraftWriteV1) instead.",
+            },
           ],
         },
       ],

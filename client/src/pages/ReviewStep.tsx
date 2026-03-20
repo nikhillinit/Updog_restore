@@ -16,7 +16,8 @@ import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
-import { mapFundStoreToCreatePayload } from '@/lib/map-fund-store-to-payload';
+import { fundStore } from '@/stores/fundStore';
+import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { createFund, normalizeCreateFundResponse } from '@/services/funds';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
@@ -27,6 +28,30 @@ interface SummarySection {
 }
 
 type SubmitState = 'idle' | 'submitting' | 'saving-draft' | 'error';
+
+/** Save full wizard config as draft via PUT /api/funds/:id/draft */
+async function saveDraft(fundId: number): Promise<void> {
+  const storeState = fundStore.getState();
+  const draftPayload = fundStoreToDraftWriteV1(storeState);
+
+  const response = await fetch(`/api/funds/${fundId}/draft`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draftPayload),
+  });
+
+  if (!response.ok) {
+    // Parse structured error from server (FundErrorV1 shape)
+    type ErrorBody = {
+      error?: string;
+      code?: string;
+      issues?: Array<{ path: (string | number)[]; message: string }>;
+    };
+    const errBody = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
+    const msg = errBody.error || `Draft save failed (HTTP ${response.status})`;
+    throw new Error(msg);
+  }
+}
 
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
@@ -47,6 +72,8 @@ export default function ReviewStep() {
 
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Track created fund ID for retry logic (skip POST, retry PUT only)
+  const [createdFundId, setCreatedFundId] = useState<number | null>(null);
 
   // Build summary from fundStore state
   const sections = useMemo<SummarySection[]>(() => {
@@ -142,46 +169,41 @@ export default function ReviewStep() {
   const handleCreate = useCallback(async () => {
     if (submitState === 'submitting' || submitState === 'saving-draft') return;
 
+    // Retry guard: if POST succeeded but draft failed, skip POST and retry draft only
+    if (createdFundId) {
+      setSubmitState('saving-draft');
+      setSubmitError(null);
+      try {
+        await saveDraft(createdFundId);
+
+        await queryClient.invalidateQueries({ queryKey: ['funds'] });
+        setLocation('/');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Draft save failed';
+        setSubmitError(message);
+        setSubmitState('error');
+      }
+      return;
+    }
+
     setSubmitState('submitting');
     setSubmitError(null);
 
     try {
-      // Build payload from fundStore
-      const payload = mapFundStoreToCreatePayload({
-        fundName,
-        fundSize,
-        managementFeeRate,
-        carriedInterest,
-        vintageYear,
-        establishmentDate,
-      });
+      // Build canonical create payload from fundStore
+      const storeState = fundStore.getState();
+      const payload = fundStoreToCreateV1(storeState);
 
       // Create fund via API (idempotent + deduped)
       const raw = await createFund({ ...payload });
       const fund = normalizeCreateFundResponse(raw);
 
-      // Save full wizard config as draft (sequential, before navigate)
+      // Store fund ID for retry logic before attempting draft save
+      setCreatedFundId(fund.id);
+
+      // Save full wizard config as draft (all 30+ fields)
       setSubmitState('saving-draft');
-      try {
-        await fetch(`/api/funds/${fund.id}/draft`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fundName,
-            fundSize,
-            managementFeeRate,
-            carriedInterest,
-            vintageYear,
-            fundLife,
-            establishmentDate,
-            stages,
-            waterfallType,
-            recyclingEnabled,
-          }),
-        });
-      } catch (draftErr) {
-        console.warn('Draft save failed (fund was created successfully):', draftErr);
-      }
+      await saveDraft(fund.id);
 
       // Invalidate funds cache so dashboard sees the new fund
       await queryClient.invalidateQueries({ queryKey: ['funds'] });
@@ -209,16 +231,12 @@ export default function ReviewStep() {
     }
   }, [
     submitState,
+    createdFundId,
     fundName,
     fundSize,
     managementFeeRate,
     carriedInterest,
     vintageYear,
-    establishmentDate,
-    fundLife,
-    stages,
-    waterfallType,
-    recyclingEnabled,
     queryClient,
     setCurrentFund,
     setLocation,

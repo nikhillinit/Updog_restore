@@ -1,15 +1,12 @@
- 
- 
- 
- 
- 
 import type { Response } from 'express';
 
-export type ApiErrorBody = { 
-  error: string; 
-  code?: string; 
+export type ApiErrorBody = {
+  error: string;
+  code?: string;
   requestId?: string;
   retryAfter?: number;
+  /** Zod validation issues -- path is (string | number)[] matching queryClient.ts:78 */
+  issues?: Array<{ path: (string | number)[]; message: string }>;
 };
 
 /**
@@ -37,9 +34,9 @@ export function sendApiError(res: Response, status: number, body: ApiErrorBody) 
   // Always include error code
   const finalBody = {
     ...body,
-    code: body.code ?? httpCodeToAppCode(status)
+    code: body.code ?? httpCodeToAppCode(status),
   };
-  res.type('application/json')["status"](status)["json"](finalBody);
+  res.type('application/json')['status'](status)['json'](finalBody);
 }
 
 /**
@@ -49,6 +46,6 @@ export function createErrorBody(message: string, requestId?: string, code?: stri
   return {
     error: message,
     ...(code && { code }),
-    ...(requestId && { requestId })
+    ...(requestId && { requestId }),
   };
 }

@@ -147,9 +147,6 @@ function finalizePayload(payload: Json): FundPayload {
       });
     }
 
-    // Version tag enables non-breaking evolution
-    if (!p.modelVersion) p.modelVersion = 'reserves-ev1';
-
     return p;
   } catch {
     return payload as FundPayload; // never block on "safety"; better to ship the payload than throw here

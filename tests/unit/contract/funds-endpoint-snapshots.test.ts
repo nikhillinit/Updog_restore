@@ -122,6 +122,27 @@ describe('POST /api/funds contract snapshot', () => {
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
   });
+
+  it('accepts canonical payload with size=0 (provisional)', async () => {
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-size-zero-01')
+      .send({ name: 'Zero Size Fund', size: 0 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('success', true);
+    expect(res.body.data).toHaveProperty('name', 'Zero Size Fund');
+  });
+
+  it('returns 400 FUND_NO_MARKERS when neither name nor basics present', async () => {
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-no-markers-01')
+      .send({ fundSize: 50_000_000 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('code', 'FUND_NO_MARKERS');
+  });
 });
 
 describe('GET /api/funds contract snapshot', () => {
