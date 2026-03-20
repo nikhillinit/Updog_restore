@@ -126,7 +126,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
     if (!analytics.cashFlowAnalysis) return [];
 
     const expenses = Object.entries(analytics.cashFlowAnalysis.byType)
-      .filter(([type, amount]) => amount < 0)
+      .filter(([_type, amount]) => amount < 0)
       .map(([type, amount]) => ({
         type: type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
         amount: Math.abs(amount / 1000000),
@@ -135,15 +135,6 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
 
     return expenses;
   }, [analytics.cashFlowAnalysis]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 1,
-    }).format(value * 1000000);
-  };
 
   const formatCurrencyShort = (value: number) => {
     if (value >= 1) return `$${value.toFixed(1)}M`;
