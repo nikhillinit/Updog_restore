@@ -1,5 +1,4 @@
 import type { Express, Request, Response } from 'express';
-import { z } from 'zod';
 import { db } from '../db';
 import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -50,21 +49,15 @@ function ensureProducerQueuesRegistered(): void {
   }
 }
 
-// Zod schema for draft validation. This ensures data passed to background
-// jobs conforms to the limits of downstream AI/ML models.
-const draftConfigSchema = z
-  .object({
-    strategy: z.string().max(256, 'Strategy must be 256 characters or less').optional(),
-    // Add any other text fields from the draft body that are used by the engines.
-  })
-  .passthrough(); // Allows other fields not defined in the schema
+import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { sendApiError } from '../lib/apiError';
 
 type RequestWithOptionalUser = Request & { user?: { id?: string } };
 
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
 
-  // Save draft configuration
+  // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
   app.put('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
       let fundId: number;
@@ -81,15 +74,14 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      // Validate the request body against the schema
-      const validation = draftConfigSchema.safeParse(req.body);
+      // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
+      const validation = FundDraftWriteV1Schema.safeParse(req.body);
       if (!validation.success) {
-        const error: ApiError = {
-          error: 'Validation failed',
-          message: 'Draft configuration is invalid.',
-          details: validation.error.flatten(),
-        };
-        return res['status'](400)['json'](error);
+        return sendApiError(res, 400, {
+          error: 'Draft configuration is invalid',
+          code: 'DRAFT_VALIDATION_ERROR',
+          issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+        });
       }
 
       // Check if fund exists
@@ -105,16 +97,66 @@ export function registerFundConfigRoutes(app: Express) {
         return res['status'](404)['json'](error);
       }
 
-      // Save draft (version, isDraft, isPublished use schema defaults)
-      const [newConfig] = await db
-        .insert(fundConfigs)
-        .values({
-          fundId,
-          config: req.body,
-        })
-        .returning();
+      // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
+      const existingDraft = await db.query.fundConfigs.findFirst({
+        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
+        orderBy: desc(fundConfigs.version),
+      });
 
-      // Log event (simplified insert with required fields only)
+      const fieldCount = Object.keys(validation.data).length;
+      let savedConfig;
+
+      if (existingDraft) {
+        const priorFieldCount = existingDraft.config
+          ? Object.keys(existingDraft.config as Record<string, unknown>).length
+          : 0;
+        console.warn('draft-save', { fundId, fieldCount, priorFieldCount });
+
+        const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
+          config: validation.data,
+          updatedAt: new Date(),
+        };
+        const [updated] = await db
+          .update(fundConfigs)
+          .set(updateValues)
+          .where(eq(fundConfigs.id, existingDraft.id))
+          .returning();
+        savedConfig = updated;
+      } else {
+        console.warn('draft-save', { fundId, fieldCount });
+
+        try {
+          const [inserted] = await db
+            .insert(fundConfigs)
+            .values({
+              fundId,
+              config: validation.data,
+            })
+            .returning();
+          savedConfig = inserted;
+        } catch (insertErr) {
+          // Unique constraint race: retry as UPDATE targeting isDraft=true
+          const retryDraft = await db.query.fundConfigs.findFirst({
+            where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
+          });
+          if (retryDraft) {
+            const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
+              config: validation.data,
+              updatedAt: new Date(),
+            };
+            const [updated] = await db
+              .update(fundConfigs)
+              .set(retryValues)
+              .where(eq(fundConfigs.id, retryDraft.id))
+              .returning();
+            savedConfig = updated;
+          } else {
+            throw insertErr;
+          }
+        }
+      }
+
+      // Log event
       await db.insert(fundEvents).values({
         fundId,
         eventType: 'DRAFT_SAVED',
@@ -123,7 +165,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res['json']({
         success: true,
-        data: newConfig,
+        data: savedConfig,
         message: 'Draft saved successfully',
       });
     } catch (error) {

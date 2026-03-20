@@ -13,26 +13,27 @@ import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
 import { storage } from '../storage';
 
+import { sendApiError } from '../lib/apiError';
+import { detectPostFormat, parseCanonical } from '../adapters/fund-create-adapter';
+
 const router = Router();
 
-// Schema for creating a fund with full configuration
+/**
+ * @deprecated Use FundCreateV1Schema (canonical format) for new callers.
+ * Retained for legacy-basics format support during migration.
+ */
 const CreateFundSchema = z.object({
-  // Basic fund information
   name: z.string().min(1, 'Fund name is required'),
   size: z.number().positive('Fund size must be positive'),
-  managementFee: z.number().min(0).max(0.1).default(0.02), // 0-10%, default 2%
-  carryPercentage: z.number().min(0).max(0.5).default(0.2), // 0-50%, default 20%
+  managementFee: z.number().min(0).max(0.1).default(0.02),
+  carryPercentage: z.number().min(0).max(0.5).default(0.2),
   vintageYear: z
     .number()
     .int()
     .min(2000)
     .max(2100)
     .default(() => new Date().getFullYear()),
-
-  // Optional: Engine calculation results from the modeling wizard
   engineResults: engineResultsSchema.nullable().optional(),
-
-  // Optional: Legacy wizard format support
   basics: z
     .object({
       name: z.string().min(1),
@@ -61,6 +62,68 @@ const FundCalculationSchema = z.object({
 type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 
 router['post']('/funds', idempotency, async (req: Request, res: Response) => {
+  const format = detectPostFormat(req.body);
+
+  // Unknown format -- reject
+  if (format === 'unknown') {
+    return sendApiError(res, 400, {
+      error: 'Request must include either a top-level "name" (canonical) or "basics" (legacy) key',
+      code: 'FUND_NO_MARKERS',
+    });
+  }
+
+  // Canonical format (FundCreateV1)
+  if (format === 'canonical') {
+    const parsed = parseCanonical(req.body);
+    if (!parsed.ok) {
+      return sendApiError(res, 400, {
+        error: 'Validation failed',
+        code: 'FUND_CREATE_VALIDATION_ERROR',
+        issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+      });
+    }
+
+    try {
+      const data = parsed.data;
+      const fundData = {
+        name: data.name,
+        size: String(data.size),
+        managementFee: String(data.managementFee),
+        carryPercentage: String(data.carryPercentage),
+        vintageYear: data.vintageYear,
+        ...(data.engineResults != null && { engineResults: data.engineResults }),
+      };
+
+      const fund = await storage.createFund(fundData);
+      console.warn('create-canonical', { fundId: fund.id });
+
+      res['status'](201);
+      return res['json']({
+        success: true,
+        data: {
+          id: fund.id,
+          name: fund.name,
+          size: fund.size,
+          managementFee: fund.managementFee,
+          carryPercentage: fund.carryPercentage,
+          vintageYear: fund.vintageYear,
+          status: fund.status,
+          engineResults: fund.engineResults ?? null,
+          createdAt: fund.createdAt,
+        },
+        message: 'Fund created successfully',
+      });
+    } catch (error) {
+      console.error('Fund creation error:', error);
+      res['status'](500);
+      return res['json']({
+        error: 'Failed to create fund',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  // Legacy-basics format (existing behavior)
   const parsed = CreateFundSchema.safeParse(req.body);
   if (!parsed.success) {
     res['status'](400);
@@ -68,7 +131,6 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
   }
 
   try {
-    // Extract fund data - support both direct and legacy wizard formats
     const data = parsed.data;
     const size = data.size || data.basics?.size || 0;
     const managementFee = data.managementFee ?? 0.02;
@@ -82,8 +144,8 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
       ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
-    // Persist fund using storage abstraction (DatabaseStorage or MemStorage)
     const fund = await storage.createFund(fundData);
+    console.warn('create-legacy-basics', { fundId: fund.id });
 
     res['status'](201);
     return res['json']({
