@@ -37,13 +37,6 @@ interface MOICMetric {
   stage: string;
 }
 
-interface MOICComparison {
-  metric: string;
-  question: string;
-  calculation: string;
-  category: 'performance' | 'planning';
-}
-
 export default function MOICAnalysisPage() {
   const [selectedCompany, setSelectedCompany] = useState("all");
   const [_selectedView, _setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
@@ -181,72 +174,11 @@ export default function MOICAnalysisPage() {
     }
   ];
 
-  const moicTypes: MOICComparison[] = [
-    {
-      metric: "Current MOIC",
-      question: "What is the return on $1 of investment so far?",
-      calculation: "Unrealized FMV today + Realized Proceeds / Total Investment to Date",
-      category: "performance"
-    },
-    {
-      metric: "Current MOIC on Initial",
-      question: "What is the return on $1 of initial investment so far?",
-      calculation: "Current Share Price / Purchase Price at Entry Round",
-      category: "performance"
-    },
-    {
-      metric: "Current MOIC on Deployed Reserves",
-      question: "What is the return on $1 of follow-on investments so far?",
-      calculation: "Current Share Price / Weighted Average Follow-On Share Price",
-      category: "performance"
-    },
-    {
-      metric: "Exit MOIC",
-      question: "What is the expected return on $1 of investment?",
-      calculation: "Expected Exit Proceeds / Expected Total Invested Capital By Exit",
-      category: "planning"
-    },
-    {
-      metric: "Exit MOIC on Initial",
-      question: "What is the expected return on $1 of initial investment?",
-      calculation: "Expected Exit Share Price / Purchase Price at Entry Round",
-      category: "planning"
-    },
-    {
-      metric: "Exit MOIC on Follow-Ons",
-      question: "What is the expected return on $1 of follow-on investment?",
-      calculation: "Expected Exit Share Price / Weighted Average Follow-On Share Price",
-      category: "planning"
-    },
-    {
-      metric: "Exit MOIC on Planned Reserves",
-      question: "What is the expected return on $1 of future follow-on investment?",
-      calculation: "Expected Exit Share Price / Weighted Average Follow-On Share Price",
-      category: "planning"
-    }
-  ];
-
-  const chartData = moicData.map(company => ({
-    name: company.company,
-    currentMOIC: company.currentMOIC,
-    exitMOIC: company.exitMOIC,
-    exitMOICOnPlannedReserves: company.exitMOICOnPlannedReserves,
-    currentMOICOnInitial: company.currentMOICOnInitial,
-    exitMOICOnInitial: company.exitMOICOnInitial
-  }));
-
   const getMOICColor = (moic: number) => {
     if (moic >= 3.0) return 'text-green-600';
     if (moic >= 2.0) return 'text-blue-600';
     if (moic >= 1.0) return 'text-yellow-600';
     return 'text-red-500';
-  };
-
-  const getMOICBadgeVariant = (moic: number) => {
-    if (moic >= 3.0) return 'default';
-    if (moic >= 2.0) return 'secondary';
-    if (moic >= 1.0) return 'outline';
-    return 'destructive';
   };
 
   const filteredData = selectedCompany === "all" ? moicData : moicData.filter(d => d.company === selectedCompany);
@@ -448,4 +380,3 @@ export default function MOICAnalysisPage() {
     </div>
   );
 }
-

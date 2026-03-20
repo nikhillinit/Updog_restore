@@ -1,9 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import React from 'react';
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,27 +11,12 @@ interface WaterfallStepProps {
 
 
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
-  // Type-safe field updates using waterfall helper
-  const handleChange = (field: string, value: any) => {
-    const updated = applyWaterfallChange(data, field, value);
-    onChange(updated);
-  };
-
-
   const handleCarryVestingChange = (field: 'cliffYears' | 'vestingYears', value: number) => {
     const updated = applyWaterfallChange(data, 'carryVesting', {
       ...data.carryVesting,
       [field]: value
     });
     onChange(updated);
-  };
-
-  const formatPercentage = (decimal: number) => {
-    return (decimal * 100).toFixed(1);
-  };
-
-  const parsePercentage = (percentageString: string) => {
-    return parseFloat(percentageString) / 100 || 0;
   };
 
   return (
@@ -87,7 +66,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
               <Label className="text-base font-medium">Cliff Period</Label>
               <Select 
                 value={data.carryVesting.cliffYears.toString()} 
-                onValueChange={(value: any) => handleCarryVestingChange('cliffYears', parseInt(value))}
+                onValueChange={(value) => handleCarryVestingChange('cliffYears', Number.parseInt(value, 10))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select cliff" />
@@ -109,7 +88,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
               <Label className="text-base font-medium">Vesting Period</Label>
               <Select 
                 value={data.carryVesting.vestingYears.toString()} 
-                onValueChange={(value: any) => handleCarryVestingChange('vestingYears', parseInt(value))}
+                onValueChange={(value) => handleCarryVestingChange('vestingYears', Number.parseInt(value, 10))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select vesting" />
