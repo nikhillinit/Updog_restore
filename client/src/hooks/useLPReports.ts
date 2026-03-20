@@ -16,6 +16,28 @@ import type {
   ReportType,
 } from '@shared/types/lp-api';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(payload: unknown): string | undefined {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return undefined;
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (text.trim() === '') {
+    return null;
+  }
+
+  return JSON.parse(text) as unknown;
+}
+
 // ============================================================================
 // LIST HOOK
 // ============================================================================
@@ -61,11 +83,11 @@ export function useLPReports(options: UseLPReportsOptions = {}) {
       const response = await fetch(`/api/lp/reports?lpId=${lpId}&${params.toString()}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch reports`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch reports`);
       }
 
-      return response.json();
+      return (await readJsonResponse(response)) as ReportListResponse;
     },
     enabled: enabled && !!lpId,
     staleTime: 60_000, // 1 minute
@@ -114,11 +136,11 @@ export function useGenerateLPReport() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to generate report`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to generate report`);
       }
 
-      return response.json();
+      return (await readJsonResponse(response)) as ReportGenerationResponse;
     },
     onSuccess: () => {
       // Invalidate reports list to show the new report
@@ -169,11 +191,11 @@ export function useLPReportStatus(options: UseLPReportStatusOptions) {
       const response = await fetch(`/api/lp/reports/${reportId}/status?lpId=${lpId}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch report status`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch report status`);
       }
 
-      return response.json();
+      return (await readJsonResponse(response)) as GeneratedReport;
     },
     enabled: enabled && !!lpId && !!reportId,
     refetchInterval: (query) => {
@@ -215,8 +237,8 @@ export function useDownloadLPReport() {
       const response = await fetch(`/api/lp/reports/${reportId}/download?lpId=${lpId}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to download report`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to download report`);
       }
 
       return response.blob();
