@@ -1,16 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 // Deterministic in-flight registry with dedupe, capacity, timeout, and cleanup
-type Entry<T> = {
-  promise: Promise<T>;
+type Entry = {
+  promise: Promise<unknown>;
   controllers: Set<AbortController>;
   createdAt: number;
 };
 
-const inflight = new Map<string, Entry<any>>();
+const inflight = new Map<string, Entry>();
 let totalInflight = 0;
 const waiters: Array<() => void> = [];
 
@@ -31,7 +26,7 @@ function wakeOne() {
   if (w) w();
 }
 function waitForSlot(): Promise<void> {
-  return new Promise((resolve: any) => waiters.push(resolve));
+  return new Promise((resolve) => waiters.push(resolve));
 }
 
 function anySignal(signals: AbortSignal[]): AbortSignal {
@@ -39,8 +34,8 @@ function anySignal(signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1 && first) return first;
   const controller = new AbortController();
   const onAbort = () => controller.abort();
-  signals.forEach((s: any) => s.addEventListener('abort', onAbort, { once: true }));
-  if (signals.some((s: any) => s.aborted)) controller.abort();
+  signals.forEach((signal) => signal.addEventListener('abort', onAbort, { once: true }));
+  if (signals.some((signal) => signal.aborted)) controller.abort();
   return controller.signal;
 }
 
@@ -50,9 +45,9 @@ export function isInFlight(hash: string): boolean {
 
 export function cancelInFlight(hash: string): boolean {
   const key = nsKey(hash);
-  const e = inflight['get'](key);
-  if (!e) return false;
-  e.controllers.forEach((c: any) => c.abort());
+  const entry = inflight.get(key);
+  if (!entry) return false;
+  entry.controllers.forEach((controller) => controller.abort());
   inflight.delete(key);
   totalInflight = Math.max(0, totalInflight - 1);
   wakeOne();
@@ -79,8 +74,8 @@ export async function startInFlight<T>(
   const dedupe = opts.dedupe !== false;
 
   if (dedupe) {
-    const existing = inflight['get'](key);
-    if (existing) return existing.promise;
+    const existing = inflight.get(key);
+    if (existing) return existing.promise as Promise<T>;
   }
 
   // Capacity gating
@@ -113,7 +108,7 @@ export async function startInFlight<T>(
     }
   })();
 
-  inflight['set'](key, {
+  inflight.set(key, {
     promise: p,
     controllers: new Set([local]),
     createdAt: Date.now(),
