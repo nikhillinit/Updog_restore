@@ -63,7 +63,7 @@ function isDifferent(
   const wasmMap = new Map(wasmData.allocations.map((a) => [a.company_id, a.planned_cents]));
 
   for (const [id, tsCents] of tsMap) {
-    const wasmCents = wasmMap['get'](id);
+    const wasmCents = wasmMap.get(id);
     if (wasmCents === undefined || Math.abs(tsCents - wasmCents) > epsilonCents) {
       return true;
     }
@@ -77,6 +77,10 @@ export type ReservesCalculator = (
   input: ReservesInput,
   config: ReservesConfig
 ) => Promise<ReservesResult>;
+
+function sumInvestedCents(companies: Company[]): number {
+  return companies.reduce((sum, company) => sum + (company.invested_cents ?? 0), 0);
+}
 
 /**
  * Get the appropriate reserves calculator based on feature flags and user
@@ -159,7 +163,7 @@ export async function calculateReservesWithFlags(
 
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: sumInvestedCents(companies),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3),
   };
 
@@ -179,12 +183,12 @@ export async function calculateReservesWithFlags(
 /**
  * Migration helper - gradually move users from old to new engine
  */
-export async function migrateReservesCalculation(
-  legacyResult: any,
+export async function migrateReservesCalculation<TLegacy>(
+  legacyResult: TLegacy,
   companies: Company[],
   config: ReservesConfig,
   userId?: string
-): Promise<any> {
+): Promise<TLegacy | ReservesResult> {
   // Check if user is in migration cohort
   const shouldMigrate = isUnifiedFlagEnabled('reserves_v11', userId);
 
@@ -196,7 +200,7 @@ export async function migrateReservesCalculation(
   const calculator = await getReservesCalculator(userId);
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: sumInvestedCents(companies),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3),
   };
 
