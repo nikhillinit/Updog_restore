@@ -1,9 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,7 +96,7 @@ export default function KPISubmission() {
                           <td key={period} className="border border-gray-300 p-1">
                             <Input
                               value={value}
-                              onChange={(e: any) => handleKPIChange(period, e.target.value)}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => handleKPIChange(period, e.currentTarget.value)}
                               className="border-0 bg-blue-50 text-right"
                               placeholder="$0"
                             />
@@ -121,7 +116,7 @@ export default function KPISubmission() {
                 <Textarea
                   id="comments"
                   value={kpiData.comments}
-                  onChange={(e: any) => setKpiData(prev => ({ ...prev, comments: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setKpiData(prev => ({ ...prev, comments: e.currentTarget.value }))}
                   placeholder="Enter any additional comments or context about the data..."
                   className="min-h-24"
                 />
@@ -151,7 +146,7 @@ export default function KPISubmission() {
                 {uploadedFiles.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
-                    {uploadedFiles.map((file: any, index: any) => (
+                    {uploadedFiles.map((file, index) => (
                       <div key={index} className="flex items-center space-x-2">
                         <Badge variant="outline" className="text-green-600 border-green-200">
                           {file}
