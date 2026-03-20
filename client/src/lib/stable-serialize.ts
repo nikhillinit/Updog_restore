@@ -1,33 +1,43 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * Canonical JSON serialization for stable hashing
  * - Sorts object keys for deterministic ordering
  * - Handles circular references
  * - Ensures consistent hash regardless of key order
  */
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isAbortSignal(value: EventTarget | null): value is AbortSignal {
+  return value instanceof AbortSignal;
+}
+
+function getAbortReason(signal: AbortSignal): unknown {
+  return signal.reason as unknown;
+}
+
 export function stableSerialize(input: unknown): string {
-  const seen = new WeakSet();
+  const seen = new WeakSet<Record<string, unknown>>();
 
-  const sortKeys = (v: any): any => {
-    if (v && typeof v === 'object') {
-      if (seen.has(v)) return null; // break cycles
-      seen.add(v);
+  const sortKeys = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(sortKeys);
+    }
 
-      if (Array.isArray(v)) return v.map(sortKeys);
+    if (isObjectRecord(value)) {
+      if (seen.has(value)) return null; // break cycles
+      seen.add(value);
 
       // Sort keys for deterministic ordering
-      return Object.keys(v)
+      return Object.keys(value)
         .sort()
-        .reduce((acc: any, k) => {
-          acc[k] = sortKeys(v[k]);
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = sortKeys(value[key]);
           return acc;
         }, {});
     }
-    return v;
+
+    return value;
   };
 
   return JSON.stringify(sortKeys(input));
@@ -54,22 +64,30 @@ export function stableHash(payload: unknown): string {
  * - Preserves abort reasons
  */
 export function composeSignal(...signals: (AbortSignal | undefined)[]): AbortSignal {
-  const active = signals.filter(Boolean) as AbortSignal[];
+  const active = signals.filter((signal): signal is AbortSignal => signal !== undefined);
   
   // Short-circuit if any signal already aborted
-  if (active.some(s => s.aborted)) {
-    const reason = active.find(s => s.aborted)?.reason ?? new DOMException('Aborted', 'AbortError');
+  if (active.some((signal) => signal.aborted)) {
+    const reason =
+      active.find((signal) => signal.aborted)
+        ? getAbortReason(active.find((signal) => signal.aborted) as AbortSignal)
+        : new DOMException('Aborted', 'AbortError');
     const c = new AbortController();
     c.abort(reason);
     return c.signal;
   }
   
   const c = new AbortController();
-  const onAbort = (e: Event) => c.abort((e.target as AbortSignal).reason);
+  const onAbort = (event: Event) => {
+    c.abort(
+      isAbortSignal(event.target)
+        ? event.target.reason
+        : new DOMException('Aborted', 'AbortError')
+    );
+  };
   
   // Add listeners with cleanup
-  active.forEach(s => s.addEventListener('abort', onAbort, { once: true }));
+  active.forEach((signal) => signal.addEventListener('abort', onAbort, { once: true }));
   
   return c.signal;
 }
-

@@ -14,6 +14,16 @@ import type { ExtendedFundModelInputs } from '@shared/schemas/extended-fund-mode
 import type { FundModelInputs, Stage } from '@shared/schemas/fund-model';
 import type { StageType } from '@shared/schemas/stage-profile';
 
+function createStageNumberRecord(): Record<Stage, number> {
+  return {
+    seed: 0,
+    series_a: 0,
+    series_b: 0,
+    series_c: 0,
+    growth: 0,
+  };
+}
+
 /**
  * Convert ExtendedFundModelInputs to legacy FundModelInputs
  *
@@ -49,29 +59,29 @@ export function adaptToLegacySchema(extended: ExtendedFundModelInputs): FundMode
   });
 
   // Extract average check sizes
-  const averageCheckSizes: Record<Stage, number> = {} as any;
+  const averageCheckSizes = createStageNumberRecord();
   extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     averageCheckSizes[legacyStage] = stage.roundSize.toNumber();
   });
 
   // Extract graduation rates (convert from cumulative to per-period if needed)
-  const graduationRates: Record<Stage, number> = {} as any;
+  const graduationRates = createStageNumberRecord();
   extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     graduationRates[legacyStage] = stage.graduationRate.toNumber();
   });
 
   // Extract exit rates
-  const exitRates: Record<Stage, number> = {} as any;
+  const exitRates = createStageNumberRecord();
   extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     exitRates[legacyStage] = stage.exitRate.toNumber();
   });
 
   // Extract months to graduate/exit
-  const monthsToGraduate: Record<Stage, number> = {} as any;
-  const monthsToExit: Record<Stage, number> = {} as any;
+  const monthsToGraduate = createStageNumberRecord();
+  const monthsToExit = createStageNumberRecord();
   extended.stageProfile.stages.forEach((stage) => {
     const legacyStage = stageMap[stage.stage];
     monthsToGraduate[legacyStage] = stage.monthsToGraduate;
