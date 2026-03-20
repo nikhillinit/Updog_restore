@@ -167,9 +167,6 @@ export function ComparisonDeltaTable({
               {Object.entries(metricsByName).map(([metricName, metrics]) => {
                 const firstMetric = metrics[0];
                 const baseValue = firstMetric?.baseValue ?? 0;
-                const isSignificant =
-                  Math.abs(firstMetric?.percentageDelta ?? 0) / 100 >=
-                  highlightThreshold;
 
                 return (
                   <TableRow key={metricName}>
