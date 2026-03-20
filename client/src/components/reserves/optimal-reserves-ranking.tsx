@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,9 +39,6 @@ interface OptimalReservesRankingProps {
 }
 
 export default function OptimalReservesRanking({ className }: OptimalReservesRankingProps) {
-  const [_sortBy, _setSortBy] = useState<'rank' | 'moic' | 'planned' | 'deployed'>('rank');
-  const [filterStage, _setFilterStage] = useState<string>('all');
-
   // Sample reserves ranking data using probability-weighted reserve allocation methodology
   const reserveRankings: ReserveRanking[] = [
     {
@@ -173,12 +169,6 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
     return 'bg-red-500';
   };
 
-  const filteredRankings = filterStage === 'all' 
-    ? reserveRankings 
-    : reserveRankings.filter(item => item.stage === filterStage);
-
-  const stages = ['all', ...Array.from(new Set(reserveRankings.map(item => item.stage)))];
-
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
@@ -195,7 +185,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-lg px-4 py-2">
-              {filteredRankings.length} Companies
+              {reserveRankings.length} Companies
             </Badge>
           </div>
         </CardHeader>
@@ -260,7 +250,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
                 </tr>
               </thead>
               <tbody>
-                {filteredRankings.map((ranking) => (
+                {reserveRankings.map((ranking) => (
                   <tr key={ranking.company} className="border-b hover:bg-gray-50">
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
