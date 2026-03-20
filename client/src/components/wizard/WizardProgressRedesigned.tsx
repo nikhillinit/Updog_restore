@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import React from 'react';
 import { OctagonalPowerIcon } from '@/components/ui/OctagonalPowerIcon';
 
@@ -21,7 +16,7 @@ interface WizardProgressProps {
 
 export function WizardProgressRedesigned({ steps, currentStep, completedSteps }: WizardProgressProps) {
   const currentIndex = steps.findIndex(step => step.id === currentStep);
-  const progress = ((currentIndex + 1) / steps.length) * 100;
+  const progress = steps.length > 0 ? ((currentIndex + 1) / steps.length) * 100 : 0;
 
   return (
     <div className="bg-pov-gray px-6 py-6">
@@ -37,10 +32,9 @@ export function WizardProgressRedesigned({ steps, currentStep, completedSteps }:
 
       {/* Steps */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-        {steps.map((step: any, index: any) => {
+        {steps.map((step, _index) => {
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = step.id === currentStep;
-          const isUpcoming = index > currentIndex;
           
           let iconState: 'active' | 'upcoming' | 'completed';
           if (isCompleted) iconState = 'completed';
@@ -81,4 +75,3 @@ export function WizardProgressRedesigned({ steps, currentStep, completedSteps }:
     </div>
   );
 }
-

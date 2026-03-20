@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -18,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { computeReservesFromGraduation, type FundDataForReserves } from "@/core/reserves/computeReservesFromGraduation";
 import { Calculator, TrendingUp, Target, AlertTriangle } from "lucide-react";
 
+type GraduationRates = FundDataForReserves["graduationRates"];
+type GraduationStage = keyof GraduationRates;
 interface Scenario {
   name: string;
   description: string;
@@ -27,7 +24,7 @@ interface Scenario {
 
 export default function GraduationReservesDemo() {
   const [selectedScenario, setSelectedScenario] = useState<number>(0);
-  
+
   const scenarios: Scenario[] = [
     {
       name: "Conservative VC",
@@ -82,11 +79,14 @@ export default function GraduationReservesDemo() {
     }
   ];
 
-  const currentScenario = scenarios[selectedScenario];
-  const result = currentScenario ? computeReservesFromGraduation(currentScenario.fundData) : null;
+  const currentScenario = scenarios[selectedScenario] ?? scenarios[0];
+  const result = computeReservesFromGraduation(currentScenario.fundData);
+  const graduationRateEntries = Object.entries(currentScenario.fundData.graduationRates) as Array<
+    [GraduationStage, GraduationRates[GraduationStage]]
+  >;
   
   // Calculate comparison data for all scenarios
-  const comparisonData = scenarios.map((scenario: any, _index: any) => {
+  const comparisonData = scenarios.map((scenario) => {
     const scenarioResult = computeReservesFromGraduation(scenario.fundData);
     return {
       name: scenario.name,
@@ -139,7 +139,7 @@ export default function GraduationReservesDemo() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {scenarios.map((scenario: any, index: any) => (
+            {scenarios.map((scenario, index) => (
               <Button
                 key={index}
                 variant={selectedScenario === index ? "default" : "outline"}
@@ -165,7 +165,7 @@ export default function GraduationReservesDemo() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center">
               <Target className="w-5 h-5 mr-2 text-green-600" />
-              {currentScenario?.name ?? 'Scenario'} Results
+              {currentScenario.name} Results
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -218,10 +218,10 @@ export default function GraduationReservesDemo() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(currentScenario?.fundData?.graduationRates ?? {}).map(([stage, rates]) => (
+              {graduationRateEntries.map(([stage, rates]) => (
                 <div key={stage} className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
-                    {stage === 'seedToA' ? 'Seed → Series A' : 
+                <div className="text-sm font-semibold text-gray-700 mb-2">
+                    {stage === 'seedToA' ? 'Seed → Series A' :
                      stage === 'aToB' ? 'Series A → Series B' : 'Series B → Series C'}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
@@ -262,7 +262,7 @@ export default function GraduationReservesDemo() {
                 <YAxis yAxisId="left" label={{ value: 'Reserves ($M)', angle: -90, position: 'insideLeft' }} />
                 <YAxis yAxisId="right" orientation="right" label={{ value: 'Reserve Ratio (%)', angle: 90, position: 'insideRight' }} />
                 <Tooltip
-                  formatter={(value, name) => {
+                  formatter={(value: number | string, name: string | number | undefined) => {
                     if (name === 'reserveRatio') return [value !== undefined ? `${value}%` : '', 'Reserve Ratio'];
                     return [value !== undefined ? `$${value}M` : '', name ?? ''];
                   }}
@@ -326,4 +326,3 @@ export default function GraduationReservesDemo() {
     </div>
   );
 }
-
