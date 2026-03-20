@@ -4,7 +4,6 @@ import { createServer, type Server } from 'http';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { z } from 'zod';
 import { storage } from './storage';
 import {
   insertPortfolioCompanySchema,
@@ -181,51 +180,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch fund',
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
-
-  app.post('/api/funds', async (req: Request, res: Response) => {
-    try {
-      // For now, validate only the basic fund fields that can be stored
-      // TODO: Add support for storing investment strategy, exit recycling, and waterfall
-      const basicFundSchema = z.object({
-        name: z.string().min(1),
-        size: z.number().positive(),
-        deployedCapital: z.number().nonnegative().optional(),
-        managementFee: z.number().min(0).max(1),
-        carryPercentage: z.number().min(0).max(1),
-        vintageYear: z.number().int().min(2000).max(2030),
-      });
-
-      const result = basicFundSchema.safeParse(req.body);
-      if (!result.success) {
-        const error: ApiError = {
-          error: 'Invalid fund data',
-          message: 'Fund validation failed',
-          details: { validationErrors: result.error.issues },
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      // Convert to format expected by storage layer
-      const basicFundData = {
-        name: result.data.name,
-        size: result.data.size.toString(),
-        deployedCapital: (result.data.deployedCapital || 0).toString(),
-        managementFee: result.data.managementFee.toString(),
-        carryPercentage: result.data.carryPercentage.toString(),
-        vintageYear: result.data.vintageYear,
-        status: 'active',
-      };
-
-      const fund = await storage.createFund(basicFundData);
-      res['status'](201)['json'](fund);
-    } catch (error) {
-      const apiError: ApiError = {
-        error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create fund',
       };
       res['status'](500)['json'](apiError);
     }

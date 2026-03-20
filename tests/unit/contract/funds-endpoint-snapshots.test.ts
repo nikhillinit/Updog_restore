@@ -1,32 +1,22 @@
 /**
  * Contract Snapshot Tests for /api/funds endpoints
  *
- * Phase 0A deliverable: captures request/response contracts before any
- * router rewrite, dedupe, or owner cutover.
+ * Phase 0B: validates post-cutover state where the router in
+ * server/routes/funds.ts is the sole POST /api/funds owner on the
+ * registerRoutes() surface. The inline POST handler has been removed.
  *
- * These tests document the CURRENT behavior of the /api/funds handlers on the
- * canonical registerRoutes() surface. The app is assembled manually to match
- * the production mount topology (routes.ts:47-48 + inline handlers at :138-232)
- * without importing all 30+ route modules.
+ * App assembly mirrors the production mount topology:
+ * - routes/funds.ts mounted at /api (routes.ts:47-48)
+ * - inline GET handlers remain load-bearing (routes.ts:138-187)
  *
- * NOTE: The idempotency middleware on routes/funds.ts:63 is invoked as a
- * factory-without-call (`idempotency` instead of `idempotency()`). In
- * production this is a no-op (the returned middleware is never executed by
- * Express). Tests reproduce this same behavior.
+ * Phase 0A note: the idempotency import was fixed from named (factory)
+ * to default (pre-called middleware), so the mock is no longer needed.
  */
 
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 import request from 'supertest';
-
-// The idempotency middleware is a factory that returns middleware, but
-// routes/funds.ts passes it without calling it (idempotency instead of
-// idempotency()). Express then calls the factory as middleware, which returns
-// a function without calling next(). Mock it to pass through.
-vi.mock('../../../server/middleware/idempotency', () => ({
-  idempotency: (_req: Request, _res: Response, next: NextFunction) => next(),
-}));
 
 let app: express.Express;
 
@@ -74,39 +64,60 @@ beforeAll(async () => {
 describe('POST /api/funds contract snapshot', () => {
   it('returns 201 with { success, data, message } wrapper for valid payload', async () => {
     const payload = {
-      name: 'Snapshot Test Fund',
+      name: 'Snapshot Valid Fund',
       size: 100_000_000,
       managementFee: 0.02,
       carryPercentage: 0.2,
       vintageYear: 2026,
     };
 
-    const res = await request(app).post('/api/funds').send(payload);
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-valid-fund-01')
+      .send(payload);
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('success', true);
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('message');
     expect(res.body.data).toHaveProperty('id');
-    expect(res.body.data).toHaveProperty('name', 'Snapshot Test Fund');
+    expect(res.body.data).toHaveProperty('name', 'Snapshot Valid Fund');
     expect(res.body.data).toHaveProperty('size');
     expect(res.body.data).toHaveProperty('managementFee');
     expect(res.body.data).toHaveProperty('carryPercentage');
     expect(res.body.data).toHaveProperty('vintageYear');
-
-    // FINDING: DatabaseMock does not populate schema defaults (status, createdAt).
-    // The handler reads fund.status and fund.createdAt from the storage return,
-    // but the mock's insert().values().returning() only includes explicitly
-    // inserted fields. In production with Postgres, RETURNING * includes defaults.
-    // These fields will be undefined in the response under test mock:
-    //   - status (schema default: 'active')
-    //   - createdAt (schema default: now())
-    // This gap should be addressed when Phase 2 tightens the storage contract.
     expect(res.body.data.engineResults).toBeNull();
   });
 
+  it('does not return the deleted raw-fund response shape', async () => {
+    const payload = {
+      name: 'Snapshot Shape Check Fund',
+      size: 50_000_000,
+      managementFee: 0.02,
+      carryPercentage: 0.2,
+      vintageYear: 2026,
+    };
+
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-shape-check-01')
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    // The deleted inline handler returned the raw Fund object at top level.
+    // The router handler wraps it in { success, data, message }.
+    expect(res.body).toHaveProperty('success', true);
+    expect(res.body).toHaveProperty('data');
+    // Raw fund shape would have 'name' at top level, not nested under 'data'
+    expect(res.body).not.toHaveProperty('name');
+    expect(res.body).not.toHaveProperty('size');
+  });
+
   it('returns 400 with error for invalid payload', async () => {
-    const res = await request(app).post('/api/funds').send({ name: '', size: -1 });
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-invalid-01')
+      .send({ name: '', size: -1 });
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
@@ -123,14 +134,7 @@ describe('GET /api/funds contract snapshot', () => {
 });
 
 describe('GET /api/funds/:id contract snapshot', () => {
-  // FINDING: The inline GET handler (routes.ts:151) expects numeric IDs
-  // (parseInt/toNumber), but the DatabaseMock returns UUID strings from
-  // createFund. In production with Postgres, fund IDs are serial integers.
-  // Under test mock, created fund IDs are UUIDs which fail the numeric parse.
-  // This documents the ID type contract mismatch between storage backends.
-
   it('returns 200 with fund object for numeric ID that exists in mock', async () => {
-    // The DatabaseMock seeds fund ID 1 in setupDefaultData
     const res = await request(app).get('/api/funds/1');
 
     expect(res.status).toBe(200);
@@ -153,18 +157,18 @@ describe('GET /api/funds/:id contract snapshot', () => {
   });
 });
 
-describe('POST /api/funds/calculate reachability', () => {
-  it('documents whether /api/funds/calculate is reachable', async () => {
+describe('POST /api/funds/calculate reachability (post-cutover)', () => {
+  it('is reachable at /api/funds/calculate after prefix fix', async () => {
     const res = await request(app).post('/api/funds/calculate').send({ fundSize: 100_000_000 });
 
-    // Document actual behavior -- may be 404 due to /api/api/ prefix bug
-    console.log(`POST /api/funds/calculate -> ${res.status}`);
+    // After fixing /api/funds/calculate -> /funds/calculate in the router,
+    // mounted at /api, this resolves to /api/funds/calculate correctly.
+    expect(res.status).toBeLessThan(400);
   });
 
-  it('documents whether /api/api/funds/calculate is the actual path', async () => {
+  it('returns 404 at the old double-prefix path /api/api/funds/calculate', async () => {
     const res = await request(app).post('/api/api/funds/calculate').send({ fundSize: 100_000_000 });
 
-    // Document actual behavior
-    console.log(`POST /api/api/funds/calculate -> ${res.status}`);
+    expect(res.status).toBe(404);
   });
 });

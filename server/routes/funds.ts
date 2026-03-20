@@ -2,7 +2,7 @@
 
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { idempotency } from '../middleware/idempotency';
+import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
@@ -111,7 +111,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
   }
 });
 
-router['post']('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
+router['post']('/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const dto = FundCalculationSchema.parse(req.body as FundCalculationDTO);
     const idemHeader = String(req.header('Idempotency-Key') || '');
