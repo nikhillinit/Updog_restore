@@ -5,6 +5,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
 import type { UpdateAllocationPayload } from '../types';
 
+interface ApiErrorBody {
+  message?: string;
+}
+
 interface UpdateAllocationsOptions {
   onSuccess?: () => void;
   onError?: (error: Error) => void;
@@ -14,8 +18,8 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
   const { fundId } = useFundContext();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (updates: UpdateAllocationPayload) => {
+  return useMutation<void, Error, UpdateAllocationPayload>({
+    mutationFn: async (updates) => {
       if (!fundId) {
         throw new Error('Fund ID is required');
       }
@@ -27,7 +31,7 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
 
         // Handle optimistic locking conflict
         if (response.status === 409) {
@@ -37,9 +41,9 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
         throw new Error(errorData.message || 'Failed to update allocation');
       }
 
-      return response.json();
+      await response.text();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate and refetch allocations
       queryClient.invalidateQueries({ queryKey: ['allocations', 'latest', fundId] });
       options?.onSuccess?.();

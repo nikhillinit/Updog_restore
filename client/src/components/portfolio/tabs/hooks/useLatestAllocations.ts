@@ -5,6 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
 import type { AllocationsResponse } from '../types';
 
+interface ApiErrorBody {
+  message?: string;
+}
+
 export function useLatestAllocations() {
   const { fundId } = useFundContext();
 
@@ -18,11 +22,11 @@ export function useLatestAllocations() {
       const response = await fetch(`/api/funds/${fundId}/allocations/latest`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
         throw new Error(errorData.message || 'Failed to fetch allocations');
       }
 
-      return response.json();
+      return response.json() as Promise<AllocationsResponse>;
     },
     enabled: !!fundId,
     staleTime: 1000 * 60 * 5, // 5 minutes
