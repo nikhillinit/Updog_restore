@@ -21,6 +21,18 @@ interface ValidationInput {
   output: CAEngineOutput;
 }
 
+function getErrorMessage(response: unknown, fallback: string): string {
+  if (typeof response === 'object' && response !== null && 'message' in response) {
+    const message = (response as { message?: unknown }).message;
+
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 /**
  * Hook for calculating capital allocation
  */
@@ -34,11 +46,13 @@ export function useCapitalAllocation() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Capital allocation calculation failed');
+        const errorBody: unknown = await res.json().catch(() => ({}));
+        throw new Error(
+          getErrorMessage(errorBody, 'Capital allocation calculation failed')
+        );
       }
 
-      return res.json();
+      return (await res.json()) as CAEngineOutput;
     },
   });
 }
@@ -56,11 +70,13 @@ export function useCapitalAllocationValidation() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Capital allocation validation failed');
+        const errorBody: unknown = await res.json().catch(() => ({}));
+        throw new Error(
+          getErrorMessage(errorBody, 'Capital allocation validation failed')
+        );
       }
 
-      return res.json();
+      return (await res.json()) as ValidationResult;
     },
   });
 }

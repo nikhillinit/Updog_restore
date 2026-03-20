@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
 
@@ -37,7 +32,7 @@ export function WizardProgress({ steps, currentStep, completedSteps }: WizardPro
 
       {/* Steps */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-        {steps.map((step: any, index: any) => {
+        {steps.map((step, index) => {
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = step.id === currentStep;
           const isPast = index < currentIndex;
@@ -93,4 +88,3 @@ export function WizardProgress({ steps, currentStep, completedSteps }: WizardPro
     </div>
   );
 }
-

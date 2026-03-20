@@ -57,7 +57,7 @@ export function FundProvider({ children }: FundProviderProps) {
     data: funds,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<Fund[]>({
     queryKey: ['/api/funds'],
     enabled: true,
     retry: false, // Don't retry failed requests in demo mode

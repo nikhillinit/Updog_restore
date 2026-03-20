@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 // PacingEngine.ts - Type-safe fund deployment pacing engine
 
 import type {
@@ -20,6 +15,13 @@ import { PRNG } from '@shared/utils/prng';
 
 // Seeded PRNG instance for deterministic calculations
 const prng = new PRNG(123); // Fixed seed for determinism
+
+type MarketCondition = PacingInput['marketCondition'];
+type MarketAdjustment = {
+  early: number;
+  mid: number;
+  late: number;
+};
 
 /** Validate and parse pacing input with Zod */
 function validatePacingInput(input: unknown): PacingInput {
@@ -53,17 +55,17 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
   const { fundSize, deploymentQuarter, marketCondition } = input;
   
   // Market condition adjustments
-  const marketAdjustments: Record<string, { early: number; mid: number; late: number }> = {
+  const marketAdjustments: Record<MarketCondition, MarketAdjustment> = {
     'bull': { early: 1.3, mid: 1.1, late: 0.8 },    // Front-loaded in bull markets
     'bear': { early: 0.7, mid: 0.9, late: 1.2 },    // Back-loaded in bear markets  
     'neutral': { early: 1.0, mid: 1.0, late: 1.0 }  // Even distribution
   };
   
-  const defaultAdjustment = { early: 1.0, mid: 1.0, late: 1.0 };
+  const defaultAdjustment: MarketAdjustment = { early: 1.0, mid: 1.0, late: 1.0 };
   const adjustment = marketAdjustments[marketCondition] ?? defaultAdjustment;
   const baseAmount = fundSize / 8; // 8 quarters deployment
 
-  return Array.from({ length: 8 }, (_: any, i: any) => {
+  return Array.from({ length: 8 }, (_, i) => {
     const quarter = deploymentQuarter + i;
     let multiplier: number;
 
@@ -100,7 +102,7 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   const ruleBased = calculateRuleBasedPacing(input);
   
   // Simulate ML enhancement with trend analysis
-  return map(ruleBased, (item: any, _index: any) => {
+  return map(ruleBased, (item) => {
     // ML adjusts based on simulated market trends and fund performance - using deterministic PRNG
     const trendAdjustment = 0.85 + (prng.next() * 0.3); // 0.85 to 1.15
     const mlEnhancedDeployment = item.deployment * trendAdjustment;
@@ -146,7 +148,7 @@ export function generatePacingSummary(input: PacingInput): PacingSummary {
   const deployments = PacingEngine(input);
   
   const totalQuarters = deployments.length;
-  const totalDeployment = reduce(deployments, (sum: any, d: any) => sum + d.deployment, 0);
+  const totalDeployment = reduce(deployments, (sum, deployment) => sum + deployment.deployment, 0);
   const avgQuarterlyDeployment = totalQuarters > 0 ? totalDeployment / totalQuarters : 0;
   
   return {
@@ -158,4 +160,3 @@ export function generatePacingSummary(input: PacingInput): PacingSummary {
     generatedAt: new Date(),
   };
 }
-
