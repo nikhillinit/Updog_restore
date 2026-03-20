@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +16,8 @@ import {
   DollarSign,
   Target,
   Briefcase,
-  ArrowUpRight
+  ArrowUpRight,
+  type LucideIcon
 } from "lucide-react";
 
 interface ReportItem {
@@ -30,7 +26,7 @@ interface ReportItem {
   description: string;
   recommended: boolean;
   category: 'investment' | 'fund';
-  icon: any;
+  icon: LucideIcon;
 }
 
 const reportItems: ReportItem[] = [
@@ -153,7 +149,7 @@ export default function Reports() {
         <div className="animate-pulse space-y-8">
           <div className="h-20 bg-gray-200 rounded-xl"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.from({ length: 6 }).map((_: any, i: any) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
@@ -169,9 +165,6 @@ export default function Reports() {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     setGeneratingReport(null);
-    
-    // In a real implementation, this would trigger the report generation
-    console.log(`Generating report: ${reportId}`);
   };
 
   const filteredReports = reportItems.filter(report => 
@@ -299,7 +292,7 @@ export default function Reports() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {investmentReports.map((report: any) => (
+              {investmentReports.map((report) => (
                 <ReportCard key={report.id} report={report} />
               ))}
             </div>
@@ -319,7 +312,7 @@ export default function Reports() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {fundReports.map((report: any) => (
+              {fundReports.map((report) => (
                 <ReportCard key={report.id} report={report} />
               ))}
             </div>
@@ -327,7 +320,7 @@ export default function Reports() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredReports.map((report: any) => (
+          {filteredReports.map((report) => (
             <ReportCard key={report.id} report={report} />
           ))}
         </div>
