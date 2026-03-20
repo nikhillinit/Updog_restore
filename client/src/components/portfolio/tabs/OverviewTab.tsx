@@ -6,7 +6,7 @@
  * - Mobile (<768px): SwipeableMetricCards + Card layout
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
 import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
@@ -52,19 +52,78 @@ interface Portfolio {
   lastFundingAmount: number;
 }
 
-// Hook to detect mobile viewport
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
-}
+const PORTFOLIO_COMPANIES: Portfolio[] = [
+  {
+    id: '1',
+    company: 'FinanceAI',
+    sector: 'FinTech',
+    stage: 'Series A',
+    investmentDate: '2023-03-15',
+    initialInvestment: 2000000,
+    currentValue: 5600000,
+    ownershipPercent: 8.5,
+    moic: 2.8,
+    status: 'active',
+    lastFunding: 'Series B',
+    lastFundingAmount: 15000000,
+  },
+  {
+    id: '2',
+    company: 'HealthLink',
+    sector: 'HealthTech',
+    stage: 'Seed',
+    investmentDate: '2022-11-08',
+    initialInvestment: 1500000,
+    currentValue: 4200000,
+    ownershipPercent: 12.3,
+    moic: 2.8,
+    status: 'active',
+    lastFunding: 'Series A',
+    lastFundingAmount: 8000000,
+  },
+  {
+    id: '3',
+    company: 'DataStream',
+    sector: 'Enterprise SaaS',
+    stage: 'Series B',
+    investmentDate: '2023-01-22',
+    initialInvestment: 3500000,
+    currentValue: 8900000,
+    ownershipPercent: 5.2,
+    moic: 2.54,
+    status: 'active',
+    lastFunding: 'Series C',
+    lastFundingAmount: 25000000,
+  },
+  {
+    id: '4',
+    company: 'RetailBot',
+    sector: 'Consumer',
+    stage: 'Seed',
+    investmentDate: '2022-06-12',
+    initialInvestment: 1000000,
+    currentValue: 0,
+    ownershipPercent: 15.8,
+    moic: 0,
+    status: 'written-off',
+    lastFunding: 'Seed',
+    lastFundingAmount: 2500000,
+  },
+  {
+    id: '5',
+    company: 'CryptoSecure',
+    sector: 'FinTech',
+    stage: 'Series A',
+    investmentDate: '2021-09-03',
+    initialInvestment: 2500000,
+    currentValue: 12500000,
+    ownershipPercent: 6.7,
+    moic: 5.0,
+    status: 'exited',
+    lastFunding: 'Series B',
+    lastFundingAmount: 20000000,
+  },
+];
 
 // Empty state component with CTA
 function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
@@ -165,87 +224,12 @@ function PortfolioCard({ company, onView }: { company: Portfolio; onView: () => 
 }
 
 export function OverviewTab() {
-  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSector, setFilterSector] = useState('all');
 
-  // Sample portfolio data (will be replaced with real data from FundContext)
-  const portfolioCompanies: Portfolio[] = [
-    {
-      id: '1',
-      company: 'FinanceAI',
-      sector: 'FinTech',
-      stage: 'Series A',
-      investmentDate: '2023-03-15',
-      initialInvestment: 2000000,
-      currentValue: 5600000,
-      ownershipPercent: 8.5,
-      moic: 2.8,
-      status: 'active',
-      lastFunding: 'Series B',
-      lastFundingAmount: 15000000,
-    },
-    {
-      id: '2',
-      company: 'HealthLink',
-      sector: 'HealthTech',
-      stage: 'Seed',
-      investmentDate: '2022-11-08',
-      initialInvestment: 1500000,
-      currentValue: 4200000,
-      ownershipPercent: 12.3,
-      moic: 2.8,
-      status: 'active',
-      lastFunding: 'Series A',
-      lastFundingAmount: 8000000,
-    },
-    {
-      id: '3',
-      company: 'DataStream',
-      sector: 'Enterprise SaaS',
-      stage: 'Series B',
-      investmentDate: '2023-01-22',
-      initialInvestment: 3500000,
-      currentValue: 8900000,
-      ownershipPercent: 5.2,
-      moic: 2.54,
-      status: 'active',
-      lastFunding: 'Series C',
-      lastFundingAmount: 25000000,
-    },
-    {
-      id: '4',
-      company: 'RetailBot',
-      sector: 'Consumer',
-      stage: 'Seed',
-      investmentDate: '2022-06-12',
-      initialInvestment: 1000000,
-      currentValue: 0,
-      ownershipPercent: 15.8,
-      moic: 0,
-      status: 'written-off',
-      lastFunding: 'Seed',
-      lastFundingAmount: 2500000,
-    },
-    {
-      id: '5',
-      company: 'CryptoSecure',
-      sector: 'FinTech',
-      stage: 'Series A',
-      investmentDate: '2021-09-03',
-      initialInvestment: 2500000,
-      currentValue: 12500000,
-      ownershipPercent: 6.7,
-      moic: 5.0,
-      status: 'exited',
-      lastFunding: 'Series B',
-      lastFundingAmount: 20000000,
-    },
-  ];
-
   const filteredCompanies = useMemo(() => {
-    return portfolioCompanies.filter((company) => {
+    return PORTFOLIO_COMPANIES.filter((company) => {
       const matchesSearch =
         company.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
         company.sector.toLowerCase().includes(searchTerm.toLowerCase());
@@ -256,10 +240,10 @@ export function OverviewTab() {
   }, [searchTerm, filterStatus, filterSector]);
 
   const portfolioMetrics = useMemo(() => {
-    const activeCompanies = portfolioCompanies.filter((c) => c.status === 'active');
-    const totalInvested = portfolioCompanies.reduce((sum, c) => sum + c.initialInvestment, 0);
-    const totalValue = portfolioCompanies.reduce((sum, c) => sum + c.currentValue, 0);
-    const nonWrittenOff = portfolioCompanies.filter((c) => c.status !== 'written-off');
+    const activeCompanies = PORTFOLIO_COMPANIES.filter((c) => c.status === 'active');
+    const totalInvested = PORTFOLIO_COMPANIES.reduce((sum, c) => sum + c.initialInvestment, 0);
+    const totalValue = PORTFOLIO_COMPANIES.reduce((sum, c) => sum + c.currentValue, 0);
+    const nonWrittenOff = PORTFOLIO_COMPANIES.filter((c) => c.status !== 'written-off');
     const averageMOIC =
       nonWrittenOff.length > 0
         ? nonWrittenOff.reduce((sum, c) => sum + c.moic, 0) / nonWrittenOff.length
@@ -267,9 +251,9 @@ export function OverviewTab() {
     const returnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
 
     return {
-      totalCompanies: portfolioCompanies.length,
+      totalCompanies: PORTFOLIO_COMPANIES.length,
       activeCompanies: activeCompanies.length,
-      exitedCompanies: portfolioCompanies.filter((c) => c.status === 'exited').length,
+      exitedCompanies: PORTFOLIO_COMPANIES.filter((c) => c.status === 'exited').length,
       totalInvested,
       totalValue,
       averageMOIC,
@@ -345,7 +329,7 @@ export function OverviewTab() {
     // TODO: navigate to company detail
   };
 
-  const isEmpty = portfolioCompanies.length === 0;
+  const isEmpty = PORTFOLIO_COMPANIES.length === 0;
 
   return (
     <div className="space-y-6">

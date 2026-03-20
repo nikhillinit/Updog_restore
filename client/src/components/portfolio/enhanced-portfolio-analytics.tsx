@@ -40,12 +40,20 @@ interface AnalyticsView {
   tags: string[];
 }
 
+interface ChartConfig {
+  type: AnalyticsView['chartType'];
+  title: string;
+  xAxis: string;
+  yAxis: string;
+  filters: AnalyticsView['filters'];
+}
+
 export default function EnhancedPortfolioAnalytics() {
   const { currentFund } = useFundContext();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [savedViews, setSavedViews] = useState<AnalyticsView[]>([]);
-  const [currentChartConfig, setCurrentChartConfig] = useState({
-    type: 'bar' as 'bar' | 'line' | 'pie' | 'area',
+  const [currentChartConfig, setCurrentChartConfig] = useState<ChartConfig>({
+    type: 'bar',
     title: 'Revenue by Company',
     xAxis: 'name',
     yAxis: 'revenue',
@@ -104,7 +112,7 @@ export default function EnhancedPortfolioAnalytics() {
     setSavedViews(sampleViews);
   }, []);
 
-  const handleChartConfigChange = (config: any) => {
+  const handleChartConfigChange = (config: ChartConfig) => {
     setCurrentChartConfig(config);
   };
 

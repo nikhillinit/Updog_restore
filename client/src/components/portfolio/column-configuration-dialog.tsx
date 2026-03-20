@@ -425,7 +425,7 @@ type ColumnConfigurationDialogProps = {
 };
 
 export default function ColumnConfigurationDialog({
-  selectedColumns,
+  selectedColumns: _selectedColumns,
   onColumnsChange,
 }: ColumnConfigurationDialogProps) {
   const [searchTerm, setSearchTerm] = useState('');
