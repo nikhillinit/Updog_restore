@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -30,6 +28,18 @@ import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
 import ShareConfigModal from '@/components/sharing/ShareConfigModal';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 
+type SectorDatum = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+type PerformanceDatum = {
+  quarter: string;
+  value: number;
+  growth: number;
+};
+
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
   const [timeframe, setTimeframe] = useState('12m');
@@ -39,6 +49,8 @@ export default function ModernDashboard() {
   const handleCreateShare = async (
     config: CreateShareLinkRequest
   ): Promise<{ shareUrl: string; shareId: string }> => {
+    void config;
+
     // Simulate API call
     const shareId = 'demo-share-123';
     const shareUrl = `${window.location.origin}/shared/${shareId}`;
@@ -60,8 +72,8 @@ export default function ModernDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_: any, i: any) => (
-                <div key={i} className="h-32 bg-pov-white rounded-lg shadow-card"></div>
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="h-32 bg-pov-white rounded-lg shadow-card"></div>
               ))}
             </div>
             <div className="h-96 bg-pov-white rounded-lg shadow-card"></div>
@@ -84,14 +96,14 @@ export default function ModernDashboard() {
     deploymentRate: 68,
   };
 
-  const sectorData = [
+  const sectorData: SectorDatum[] = [
     { name: 'FinTech', value: 35, color: '#292929' },
     { name: 'HealthTech', value: 28, color: '#E0D8D1' },
     { name: 'Enterprise SaaS', value: 22, color: '#10B981' },
     { name: 'Consumer', value: 15, color: '#F59E0B' },
   ];
 
-  const performanceData = [
+  const performanceData: PerformanceDatum[] = [
     { quarter: 'Q1 23', value: 125000000, growth: 0 },
     { quarter: 'Q2 23', value: 145000000, growth: 16 },
     { quarter: 'Q3 23', value: 178000000, growth: 23 },
@@ -264,10 +276,10 @@ export default function ModernDashboard() {
                       <YAxis
                         stroke="#666"
                         fontSize={12}
-                        tickFormatter={(value: any) => `$${value / 1000000}M`}
+                        tickFormatter={(value: number) => `$${value / 1000000}M`}
                       />
                       <Tooltip
-                        formatter={(value: any) => [
+                        formatter={(value: number) => [
                           `$${(value / 1000000).toFixed(1)}M`,
                           'Portfolio Value',
                         ]}
@@ -319,12 +331,12 @@ export default function ModernDashboard() {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {sectorData.map((entry: any, index: any) => (
+                        {sectorData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: any) => [`${value}%`, 'Allocation']}
+                        formatter={(value: number) => [`${value}%`, 'Allocation']}
                         contentStyle={{
                           backgroundColor: '#FFFFFF',
                           border: '1px solid #E0D8D1',
@@ -335,7 +347,7 @@ export default function ModernDashboard() {
                   </ResponsiveContainer>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                  {sectorData.map((sector: any, index: any) => (
+                  {sectorData.map((sector, index) => (
                     <div key={index} className="flex items-center space-x-2">
                       <div
                         className="w-3 h-3 rounded-full"
