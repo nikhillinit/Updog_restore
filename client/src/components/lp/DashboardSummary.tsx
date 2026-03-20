@@ -68,10 +68,6 @@ export default function DashboardSummary({ metrics, isLoading }: DashboardSummar
     ? metrics.totalCalled / metrics.totalCommitted
     : 0;
 
-  const distributedPercent = metrics.totalCalled > 0
-    ? metrics.totalDistributed / metrics.totalCalled
-    : 0;
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Total Committed */}
