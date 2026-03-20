@@ -1,26 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { api } from '@/lib';
 
+type FundMode = 'construction' | 'current';
+
 // Local state for UI toggle
 interface ToggleStore {
-  mode: 'construction' | 'current';
+  mode: FundMode;
   isTransitioning: boolean;
-  setMode: (mode: 'construction' | 'current') => void;
+  setMode: (mode: FundMode) => void;
   setTransitioning: (transitioning: boolean) => void;
 }
 
 const useToggleStore = create<ToggleStore>()(subscribeWithSelector(
-  (set, get): ToggleStore => ({
+  (set): ToggleStore => ({
     mode: 'current' as const,
     isTransitioning: false,
-    setMode: (mode: 'construction' | 'current') => set({ mode }),
+    setMode: (mode: FundMode) => set({ mode }),
     setTransitioning: (transitioning: boolean) => set({ isTransitioning: transitioning }),
   })
 ));
@@ -28,16 +25,20 @@ const useToggleStore = create<ToggleStore>()(subscribeWithSelector(
 // API response with pre-computed delta
 interface FundStateResponse {
   fundId: number;
-  mode: 'construction' | 'current';
-  state: any;
+  mode: FundMode;
+  state: unknown;
   delta?: {
     capitalLeft: number;
     irr: number;
     tvpi: number;
     companiesCount: number;
   };
-  patch?: any[]; // Immer patches for efficient updates
+  patch?: unknown[]; // Immer patches for efficient updates
   checksum: string;
+}
+
+interface ToggleMutationContext {
+  previousMode: FundMode;
 }
 
 export function useFundToggle(fundId: number) {
@@ -60,12 +61,12 @@ export function useFundToggle(fundId: number) {
   });
 
   // Toggle mutation with optimistic updates
-  const toggleMutation = useMutation({
-    mutationFn: async (newMode: 'construction' | 'current') => {
+  const toggleMutation = useMutation<FundStateResponse, Error, FundMode, ToggleMutationContext>({
+    mutationFn: async (newMode: FundMode) => {
       // API returns the delta for UI to render immediately
       return api.post<FundStateResponse>(`/funds/${fundId}/toggle`, { mode: newMode });
     },
-    onMutate: async (newMode: 'construction' | 'current') => {
+    onMutate: async (newMode: FundMode) => {
       setTransitioning(true);
       setMode(newMode);
 
@@ -75,14 +76,14 @@ export function useFundToggle(fundId: number) {
       // Return context for rollback
       return { previousMode: mode };
     },
-    onError: (err: any, newMode: 'construction' | 'current', context: any) => {
+    onError: (_error, _newMode, context) => {
       // Rollback on error
       if (context?.previousMode) {
         setMode(context.previousMode);
       }
       setTransitioning(false);
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data) => {
       // Update cache with new data
       queryClient.setQueryData(['fund', fundId, data.mode], data);
       setTransitioning(false);
@@ -118,7 +119,7 @@ export function useFundToggle(fundId: number) {
 
   return {
     ...uiState,
-    toggle: (newMode: 'construction' | 'current') => {
+    toggle: (newMode: FundMode) => {
       if (newMode !== mode && !isTransitioning) {
         toggleMutation.mutate(newMode);
       }
@@ -140,7 +141,7 @@ export function useFundToggle(fundId: number) {
 // Subscribe to mode changes for analytics
 useToggleStore.subscribe(
   (state: ToggleStore) => state.mode,
-  (mode: 'construction' | 'current') => {
+  (mode: FundMode) => {
     // Track mode changes
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'fund_mode_toggle', {
@@ -150,4 +151,3 @@ useToggleStore.subscribe(
     }
   }
 );
-

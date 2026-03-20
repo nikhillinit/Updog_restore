@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * Feature flags with runtime + build-time controls
  * 
@@ -14,14 +9,41 @@
  * - VITE_USE_FUND_STORE env var (defaults to true)
  */
 
+interface FeatureFlags {
+  useFundStore: boolean;
+}
+
+interface FeatureDebugSnapshot {
+  useFundStore: {
+    active: boolean;
+    runtime: boolean | 'not set';
+    buildTime: string | 'not set';
+  };
+}
+
+interface WindowFeatureDebugApi {
+  features: FeatureFlags;
+  debugFeatures: () => FeatureDebugSnapshot;
+}
+
+declare global {
+  interface Window {
+    __features?: WindowFeatureDebugApi;
+  }
+}
+
 const getRuntimeFlag = (flagName: string): boolean | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
   try {
     // Check query params first
-    const qp = new URLSearchParams(window.location.search)['get'](`ff_${flagName}`);
+    const qp = new URLSearchParams(window.location.search).get(`ff_${flagName}`);
     if (qp === '0' || qp === '1') return qp === '1';
     
     // Check localStorage fallback
-    const ls = localStorage.getItem(`ff_${flagName}`);
+    const ls = window.localStorage.getItem(`ff_${flagName}`);
     if (ls === '0' || ls === '1') return ls === '1';
   } catch (e) {
     // Safe fallback if localStorage/URL parsing fails
@@ -31,14 +53,11 @@ const getRuntimeFlag = (flagName: string): boolean | undefined => {
 };
 
 const getEnvVar = (name: string): string | undefined => {
-  try {
-    return (import.meta as any).env?.[name];
-  } catch {
-    return undefined;
-  }
+  const value = (import.meta.env as Record<string, unknown>)[name];
+  return typeof value === 'string' ? value : undefined;
 };
 
-export const features = {
+export const features: FeatureFlags = {
   /**
    * Use centralized FundStore vs legacy context
    * 
@@ -54,18 +73,20 @@ export const features = {
 /**
  * Helper for debugging feature flags
  */
-export const debugFeatures = () => {
-  console.table({
+export const debugFeatures = (): FeatureDebugSnapshot => {
+  const snapshot: FeatureDebugSnapshot = {
     useFundStore: {
       active: features.useFundStore,
       runtime: getRuntimeFlag('useFundStore') ?? 'not set',
       buildTime: getEnvVar('VITE_USE_FUND_STORE') ?? 'not set'
     }
-  });
+  };
+
+  console.warn('Feature flag snapshot', snapshot);
+  return snapshot;
 };
 
 // Development helper - expose to window in dev mode
-if (getEnvVar('NODE_ENV') === 'development' || getEnvVar('VITE_DEV') === 'true') {
-  (window as any).__features = { features, debugFeatures };
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.__features = { features, debugFeatures };
 }
-

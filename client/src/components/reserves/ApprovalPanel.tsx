@@ -73,6 +73,28 @@ interface ApprovalDetails extends Approval {
   isApproved: boolean;
 }
 
+interface PendingApprovalsResponse {
+  total: number;
+  approvals: Approval[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  return text ? (JSON.parse(text) as unknown) : null;
+}
+
+function getApprovalCount(response: PendingApprovalsResponse | undefined): number {
+  return response?.total ?? 0;
+}
+
+function getPendingApprovalItems(response: PendingApprovalsResponse | undefined): Approval[] {
+  return response?.approvals ?? [];
+}
+
 export function ApprovalPanel() {
   const [selectedApproval, setSelectedApproval] = useState<string | null>(null);
   const [showSignDialog, setShowSignDialog] = useState(false);
@@ -83,38 +105,40 @@ export function ApprovalPanel() {
   const queryClient = useQueryClient();
 
   // Fetch pending approvals
-  const { data: pendingApprovals, isLoading } = useQuery({
+  const { data: pendingApprovals, isLoading } = useQuery<PendingApprovalsResponse>({
     queryKey: ['reserve-approvals', 'pending'],
-    queryFn: async () => {
+    queryFn: async (): Promise<PendingApprovalsResponse> => {
       const response = await fetch('/api/v1/reserve-approvals?status=pending');
       if (!response.ok) throw new Error('Failed to fetch approvals');
-      return response.json();
+      const payload = await readJsonResponse(response);
+      return (isRecord(payload) ? payload : {}) as PendingApprovalsResponse;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch specific approval details
-  const { data: approvalDetails } = useQuery({
+  const { data: approvalDetails } = useQuery<ApprovalDetails | null>({
     queryKey: ['reserve-approval', selectedApproval],
-    queryFn: async () => {
+    queryFn: async (): Promise<ApprovalDetails | null> => {
       if (!selectedApproval) return null;
       const response = await fetch(`/api/v1/reserve-approvals/${selectedApproval}`);
       if (!response.ok) throw new Error('Failed to fetch approval details');
-      return response.json() as Promise<ApprovalDetails>;
+      const payload = await readJsonResponse(response);
+      return (isRecord(payload) ? payload : null) as ApprovalDetails | null;
     },
     enabled: !!selectedApproval,
   });
 
   // Sign approval mutation
   const signMutation = useMutation({
-    mutationFn: async ({ id, code }: { id: string; code?: string }) => {
+    mutationFn: async ({ id, code }: { id: string; code?: string }): Promise<void> => {
       const response = await fetch(`/api/v1/reserve-approvals/${id}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verificationCode: code }),
       });
       if (!response.ok) throw new Error('Failed to sign approval');
-      return response.json();
+      await readJsonResponse(response);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-approvals'] });
@@ -126,14 +150,14 @@ export function ApprovalPanel() {
 
   // Reject approval mutation
   const rejectMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+    mutationFn: async ({ id, reason }: { id: string; reason: string }): Promise<void> => {
       const response = await fetch(`/api/v1/reserve-approvals/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
       });
       if (!response.ok) throw new Error('Failed to reject approval');
-      return response.json();
+      await readJsonResponse(response);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reserve-approvals'] });
@@ -205,7 +229,7 @@ export function ApprovalPanel() {
         <CardContent>
           <Tabs defaultValue="pending" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pending">Pending ({pendingApprovals?.total || 0})</TabsTrigger>
+              <TabsTrigger value="pending">Pending ({getApprovalCount(pendingApprovals)})</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
@@ -213,10 +237,10 @@ export function ApprovalPanel() {
             <TabsContent value="pending" className="space-y-4">
               {isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading approvals...</div>
-              ) : pendingApprovals?.approvals?.length === 0 ? (
+              ) : getPendingApprovalItems(pendingApprovals).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No pending approvals</div>
               ) : (
-                pendingApprovals?.approvals?.map((approval: Approval) => (
+                getPendingApprovalItems(pendingApprovals).map((approval) => (
                   <Card
                     key={approval.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
