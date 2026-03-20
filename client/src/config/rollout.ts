@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Deterministic feature rollout with stable user bucketing
  *
@@ -99,6 +97,36 @@ function stableUserId(): string {
   }
 }
 
+function getRolloutEnvValue(envKey: string): string | undefined {
+  const env = import.meta.env as unknown as Record<string, unknown>;
+  const envValue = env[envKey];
+  return typeof envValue === 'string' ? envValue : undefined;
+}
+
+const rolloutFeatures = [
+  'USE_FUND_STORE',
+  'USE_FUND_STORE_VALIDATION',
+  'USE_FUND_STORE_TELEMETRY',
+] as const;
+
+type RolloutFeature = (typeof rolloutFeatures)[number];
+
+interface RolloutDebugEntry {
+  userId: string;
+  bucket: number;
+  rolloutPct: string;
+  enabled: boolean;
+}
+
+type RolloutDebugSnapshot = Record<RolloutFeature, RolloutDebugEntry>;
+
+interface RolloutDebugApi {
+  inRollout: typeof inRollout;
+  getUserBucket: typeof getUserBucket;
+  debugRollouts: typeof debugRollouts;
+  stableUserId: () => string;
+}
+
 /**
  * Check if user is in a feature rollout
  *
@@ -110,7 +138,7 @@ export function inRollout(featureEnvName: string, defaultPct = 100): boolean {
   try {
     // Get rollout percentage from environment
     const envKey = `VITE_${featureEnvName}_ROLLOUT`;
-    const envValue = (import.meta as any).env?.[envKey];
+    const envValue = getRolloutEnvValue(envKey);
     const pct = Number(envValue ?? defaultPct);
 
     // Validate percentage
@@ -130,8 +158,8 @@ export function inRollout(featureEnvName: string, defaultPct = 100): boolean {
     const bucket = fnv1a(userId + featureEnvName) % 100;
 
     return bucket < pct;
-  } catch (e) {
-    console.warn(`Rollout check failed for ${featureEnvName}:`, e);
+  } catch (error) {
+    console.warn(`Rollout check failed for ${featureEnvName}:`, error);
     return defaultPct >= 100; // Fail open to default
   }
 }
@@ -143,7 +171,7 @@ export function getUserBucket(featureEnvName: string): number {
   try {
     const userId = stableUserId();
     return fnv1a(userId + featureEnvName) % 100;
-  } catch (e) {
+  } catch {
     return -1; // Error state
   }
 }
@@ -151,35 +179,52 @@ export function getUserBucket(featureEnvName: string): number {
 /**
  * Debug helper - shows rollout status for all features
  */
-export function debugRollouts() {
+export function debugRollouts(): RolloutDebugSnapshot {
   const userId = stableUserId();
-  const features = ['USE_FUND_STORE', 'USE_FUND_STORE_VALIDATION', 'USE_FUND_STORE_TELEMETRY'];
+  const snapshot = rolloutFeatures.reduce<RolloutDebugSnapshot>(
+    (acc, feature) => {
+      const envKey = `VITE_${feature}_ROLLOUT`;
+      const envValue = getRolloutEnvValue(envKey);
 
-  console.table(
-    features.reduce(
-      (acc: any, feature: any) => {
-        const envKey = `VITE_${feature}_ROLLOUT`;
-        const envValue = (import.meta as any).env?.[envKey];
-        const bucket = getUserBucket(feature);
-        const inFeature = inRollout(feature);
-
-        acc[feature] = {
-          userId: `${userId.substring(0, 8)}...`,
-          bucket,
-          rolloutPct: envValue || 'default',
-          enabled: inFeature,
-        };
-        return acc;
+      acc[feature] = {
+        userId: `${userId.substring(0, 8)}...`,
+        bucket: getUserBucket(feature),
+        rolloutPct: envValue ?? 'default',
+        enabled: inRollout(feature),
+      };
+      return acc;
+    },
+    {
+      USE_FUND_STORE: {
+        userId: '',
+        bucket: -1,
+        rolloutPct: 'default',
+        enabled: false,
       },
-      {} as Record<string, any>
-    )
+      USE_FUND_STORE_VALIDATION: {
+        userId: '',
+        bucket: -1,
+        rolloutPct: 'default',
+        enabled: false,
+      },
+      USE_FUND_STORE_TELEMETRY: {
+        userId: '',
+        bucket: -1,
+        rolloutPct: 'default',
+        enabled: false,
+      },
+    }
   );
+
+  console.warn('Rollout status snapshot', snapshot);
+  return snapshot;
 }
 
 // Development helper - expose to window
-if ((import.meta as any).env?.NODE_ENV === 'development') {
+if (import.meta.env.MODE === 'development') {
   if (typeof window !== 'undefined') {
-    (window as any).__rollouts = {
+    const debugWindow = window as Window & { __rollouts?: RolloutDebugApi };
+    debugWindow.__rollouts = {
       inRollout,
       getUserBucket,
       debugRollouts,
