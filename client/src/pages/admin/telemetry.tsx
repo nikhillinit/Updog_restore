@@ -1,10 +1,54 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useEffect, useState } from 'react';
 import { readTelemetry, type TelemetryEvent } from '../../lib/telemetry';
+
+interface TelemetryDisplayEvent {
+  category?: string;
+  eventName: string;
+  key: string;
+  meta?: Record<string, unknown>;
+  ok?: boolean;
+  timestampMs: number;
+}
+
+function getLegacyNumberField(event: TelemetryEvent, key: string): number | undefined {
+  const value = event[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function getLegacyStringField(event: TelemetryEvent, key: string): string | undefined {
+  const value = event[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getLegacyBooleanField(event: TelemetryEvent, key: string): boolean | undefined {
+  const value = event[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function getLegacyMetaField(event: TelemetryEvent): Record<string, unknown> | undefined {
+  const value = event['meta'];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+}
+
+function toTelemetryDisplayEvent(event: TelemetryEvent, index: number): TelemetryDisplayEvent {
+  const legacyTimestamp = getLegacyNumberField(event, 't');
+  const parsedTimestamp = Date.parse(event.timestamp);
+  const timestampMs =
+    legacyTimestamp ?? (Number.isNaN(parsedTimestamp) ? 0 : parsedTimestamp);
+  const category = getLegacyStringField(event, 'category');
+
+  return {
+    category,
+    eventName: event.event,
+    key: `${timestampMs}-${index}-${event.event}`,
+    meta: getLegacyMetaField(event),
+    ok: getLegacyBooleanField(event, 'ok'),
+    timestampMs,
+  };
+}
 
 /**
  * Live telemetry dashboard for monitoring deployments
@@ -20,6 +64,7 @@ import { readTelemetry, type TelemetryEvent } from '../../lib/telemetry';
 export default function TelemetryDashboard() {
   const [events, setEvents] = useState<TelemetryEvent[]>(() => readTelemetry());
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const displayEvents = events.map(toTelemetryDisplayEvent);
 
   useEffect(() => {
     // Listen for new telemetry events (same tab)
@@ -47,17 +92,17 @@ export default function TelemetryDashboard() {
 
   // Calculate stats
   const now = Date.now();
-  const last24h = events.filter(e => now - (e['t'] as number) < 24 * 60 * 60 * 1000);
-  const lastHour = events.filter(e => now - (e['t'] as number) < 60 * 60 * 1000);
+  const last24h = displayEvents.filter(e => now - e.timestampMs < 24 * 60 * 60 * 1000);
+  const lastHour = displayEvents.filter(e => now - e.timestampMs < 60 * 60 * 1000);
 
-  const migrations = events.filter(e => e['category'] === 'migration');
-  const errors = events.filter(e => e['category'] === 'error');
-  const features = events.filter(e => e['category'] === 'feature');
+  const migrations = displayEvents.filter(e => e.category === 'migration');
+  const errors = displayEvents.filter(e => e.category === 'error');
+  const features = displayEvents.filter(e => e.category === 'feature');
 
-  const migrationSuccess = migrations.filter(e => e['ok'] !== false).length;
-  const migrationErrors = migrations.filter(e => e['ok'] === false).length;
+  const migrationSuccess = migrations.filter(e => e.ok !== false).length;
+  const migrationErrors = migrations.filter(e => e.ok === false).length;
 
-  const recentErrors = errors.filter(e => now - (e['t'] as number) < 60 * 60 * 1000);
+  const recentErrors = errors.filter(e => now - e.timestampMs < 60 * 60 * 1000);
   const errorRate = lastHour.length > 0 ? (recentErrors.length / lastHour.length) * 100 : 0;
 
   return (
@@ -83,7 +128,7 @@ export default function TelemetryDashboard() {
           <div className="text-2xl font-bold text-green-600">{features.length}</div>
           <div className="text-gray-600">Feature Events</div>
           <div className="text-sm text-gray-500 mt-1">
-            Last 24h: {last24h.filter(e => e['category'] === 'feature').length}
+            Last 24h: {last24h.filter(e => e.category === 'feature').length}
           </div>
         </div>
         
@@ -120,32 +165,32 @@ export default function TelemetryDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {events.slice(-20).reverse().map((event: any, idx: any) => (
-                <div key={`${event['t']}-${idx}`} className="px-6 py-4 hover:bg-gray-50">
+              {displayEvents.slice(-20).reverse().map((event) => (
+                <div key={event.key} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-2 h-2 rounded-full ${
-                        event['category'] === 'error' ? 'bg-red-500' :
-                        event['category'] === 'migration' ? 'bg-blue-500' :
+                        event.category === 'error' ? 'bg-red-500' :
+                        event.category === 'migration' ? 'bg-blue-500' :
                         'bg-green-500'
                       }`} />
                       <span className="font-medium text-gray-900">
-                        [{event['category']}] {event.event}
+                        [{event.category ?? 'unknown'}] {event.eventName}
                       </span>
-                      {event['ok'] === false && (
+                      {event.ok === false && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           Failed
                         </span>
                       )}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {new Date(event['t']).toLocaleTimeString()}
+                      {new Date(event.timestampMs).toLocaleTimeString()}
                     </div>
                   </div>
-                  {event['meta'] && Object.keys(event['meta']).length > 0 && (
+                  {event.meta && Object.keys(event.meta).length > 0 && (
                     <div className="mt-2 text-sm text-gray-600 ml-5">
                       <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(event['meta'], null, 2)}
+                        {JSON.stringify(event.meta, null, 2)}
                       </pre>
                     </div>
                   )}
@@ -187,4 +232,3 @@ export default function TelemetryDashboard() {
     </div>
   );
 }
-
