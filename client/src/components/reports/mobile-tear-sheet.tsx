@@ -1,9 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -82,6 +77,13 @@ interface MobileTearSheetProps {
   };
   onCommentaryUpdate: (_newCommentary: string) => void;
   onExport: () => void;
+}
+
+interface TearSheetContact {
+  name: string;
+  role: string;
+  initial: string;
+  color: string;
 }
 
 export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExport }: MobileTearSheetProps) {
@@ -248,7 +250,7 @@ export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExpor
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {tearSheet.contacts.map((contact: any, idx: any) => (
+              {tearSheet.contacts.map((contact: TearSheetContact, idx: number) => (
                 <div key={idx} className="flex items-center space-x-3 p-2 rounded-lg bg-gray-50">
                   <div className={`w-10 h-10 rounded-full ${contact.color} text-white text-sm flex items-center justify-center font-medium`}>
                     {contact.initial}
@@ -280,7 +282,7 @@ export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExpor
             </AccordionTrigger>
             <AccordionContent>
               <div className="flex flex-wrap gap-2 pt-2">
-                {tearSheet.data.boardComposition.map((member: any, idx: any) => (
+                {tearSheet.data.boardComposition.map((member: string, idx: number) => (
                   <Badge key={idx} variant="secondary" className="text-xs">
                     {member}
                   </Badge>
@@ -296,7 +298,7 @@ export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExpor
             </AccordionTrigger>
             <AccordionContent>
               <div className="flex flex-wrap gap-2 pt-2">
-                {tearSheet.data.coInvestors.map((investor: any, idx: any) => (
+                {tearSheet.data.coInvestors.map((investor: string, idx: number) => (
                   <Badge key={idx} variant="outline" className="text-xs">
                     {investor}
                   </Badge>
@@ -344,7 +346,7 @@ export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExpor
               <div className="space-y-3">
                 <Textarea
                   value={commentaryDraft}
-                  onChange={(e: any) => setCommentaryDraft(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCommentaryDraft(e.target.value)}
                   placeholder="Enter your commentary..."
                   rows={6}
                   className="text-sm"
