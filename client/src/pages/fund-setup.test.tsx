@@ -54,7 +54,7 @@ vi.mock('@/components/ui/input', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-  Button: React.forwardRef<HTMLButtonElement, any>(({ className, variant, size, children, ...props }, ref) => (
+  Button: React.forwardRef<HTMLButtonElement, any>(({ className, children, ...props }, ref) => (
     <button ref={ref} className={className} {...props}>
       {children}
     </button>
