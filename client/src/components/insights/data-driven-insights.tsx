@@ -13,15 +13,12 @@ import {
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
-import { useFundContext } from '@/contexts/FundContext';
 
 interface DataDrivenInsightsProps {
   className?: string;
 }
 
 export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
-  const { currentFund } = useFundContext();
-
   // Sample data for the six workflows
   const workflowInsights = {
     currentForecast: {

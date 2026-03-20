@@ -16,33 +16,6 @@ interface HeaderProps {
   };
 }
 
-const moduleConfig = {
-  dashboard: {
-    title: "Fund Dashboard",
-    description: "Comprehensive overview of fund performance and metrics"
-  },
-  'fund-setup': {
-    title: "Fund Setup",
-    description: "Configure fund parameters and investment strategy"
-  },
-  portfolio: {
-    title: "Portfolio Management", 
-    description: "Manage portfolio companies and track performance"
-  },
-  'financial-modeling': {
-    title: "Financial Modeling",
-    description: "Cohort analysis and financial projections"
-  },
-  analytics: {
-    title: "Analytics & Insights",
-    description: "Advanced analytics and performance insights"
-  },
-  reports: {
-    title: "Reports & Documentation", 
-    description: "Generate comprehensive fund reports"
-  }
-};
-
 export default function Header({ currentModule }: HeaderProps) {
   const { currentFund } = useFundContext();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -141,4 +114,3 @@ export default function Header({ currentModule }: HeaderProps) {
     </>
   );
 }
-
