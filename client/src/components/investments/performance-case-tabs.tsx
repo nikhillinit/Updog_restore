@@ -202,8 +202,6 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
     }
   ];
 
-  const currentCase = performanceCases.find(c => c.id === activeCase) || performanceCases[0]!;
-
   const handleLiqPrefs = (performanceCase: PerformanceCase) => {
     setSelectedCase(performanceCase);
     setShowLiqPrefsDialog(true);

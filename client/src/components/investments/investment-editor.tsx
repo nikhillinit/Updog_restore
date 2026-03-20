@@ -70,7 +70,7 @@ export default function InvestmentEditor({
   entryRound,
   onComplete,
 }: InvestmentEditorProps) {
-  const { currentFund } = useFundContext();
+  const { currentFund: _currentFund } = useFundContext();
   const [investment, setInvestment] = useState<InvestmentData>({
     id: 'new-investment',
     name: '',
