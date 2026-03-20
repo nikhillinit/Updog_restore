@@ -2,13 +2,14 @@ import React from 'react';
 
 type ToastType = 'success' | 'error' | 'info';
 type Toast = { id: string; type: ToastType; message: string; at: number; ttl: number };
+type ToastAddDetail = Pick<Toast, 'message' | 'type' | 'ttl'>;
 
 const MAX_TOASTS = 3;
 const DEFAULT_TTL = 3000;
 const bus = new EventTarget();
 
 export function pushToast(message: string, type: ToastType = 'info', ttl = DEFAULT_TTL) {
-  bus.dispatchEvent(new CustomEvent('toast:add', { detail: { message, type, ttl } }));
+  bus.dispatchEvent(new CustomEvent<ToastAddDetail>('toast:add', { detail: { message, type, ttl } }));
 }
 export const toastSuccess = (m: string) => pushToast(m, 'success');
 export const toastError = (m: string) => pushToast(m, 'error');
@@ -19,7 +20,7 @@ export function ToastViewport() {
 
   React.useEffect(() => {
     function onAdd(e: Event) {
-      const { message, type, ttl } = (e as CustomEvent).detail as { message: string; type: ToastType; ttl: number };
+      const { message, type, ttl } = (e as CustomEvent<ToastAddDetail>).detail;
       const t: Toast = { id: Math.random().toString(36).slice(2), type, message, at: Date.now(), ttl };
       setToasts((prev) => {
         const next = [...prev, t];
@@ -27,8 +28,8 @@ export function ToastViewport() {
       });
       setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== t.id)), ttl);
     }
-    bus.addEventListener('toast:add', onAdd as any);
-    return () => bus.removeEventListener('toast:add', onAdd as any);
+    bus.addEventListener('toast:add', onAdd);
+    return () => bus.removeEventListener('toast:add', onAdd);
   }, []);
 
   if (!toasts.length) return null;

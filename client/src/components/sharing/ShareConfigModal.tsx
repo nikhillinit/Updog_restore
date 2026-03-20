@@ -16,12 +16,19 @@ import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 
+type ShareAccessLevel = CreateShareLinkRequest['accessLevel'];
+
 interface ShareConfigModalProps {
   fundId: string;
   fundName: string;
   onCreateShare: (config: CreateShareLinkRequest) => Promise<{ shareUrl: string; shareId: string }>;
   children?: React.ReactNode;
 }
+
+const SHARE_ACCESS_LEVELS = ['view_only', 'view_with_details', 'collaborator'] as const satisfies readonly ShareAccessLevel[];
+
+const isShareAccessLevel = (value: string): value is ShareAccessLevel =>
+  SHARE_ACCESS_LEVELS.includes(value as ShareAccessLevel);
 
 export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   fundId,
@@ -141,7 +148,12 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               </Label>
               <Select
                 value={config.accessLevel}
-                onValueChange={(value) => setConfig(prev => ({ ...prev, accessLevel: value as any }))}
+                onValueChange={(value) => {
+                  if (!isShareAccessLevel(value)) {
+                    return;
+                  }
+                  setConfig((prev) => ({ ...prev, accessLevel: value }));
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
