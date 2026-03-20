@@ -10,6 +10,28 @@ import { useQuery } from '@tanstack/react-query';
 import { useLPContext } from '@/contexts/LPContext';
 import type { LPPerformanceResponse, LPPerformanceQuery } from '@shared/types/lp-api';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(payload: unknown): string | undefined {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return undefined;
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (text.trim() === '') {
+    return null;
+  }
+
+  return JSON.parse(text) as unknown;
+}
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -64,11 +86,11 @@ export function useLPPerformance(options: UseLPPerformanceOptions) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch performance`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch performance`);
       }
 
-      return response.json();
+      return (await readJsonResponse(response)) as LPPerformanceResponse;
     },
     enabled: enabled && !!lpId && !!fundId,
     staleTime: 300_000, // 5 minutes
@@ -123,11 +145,11 @@ export function useLPHoldings(options: UseLPHoldingsOptions) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch holdings`);
+        const errorData = await readJsonResponse(response).catch(() => null);
+        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch holdings`);
       }
 
-      return response.json();
+      return (await readJsonResponse(response)) as LPHoldingsResponse;
     },
     enabled: enabled && !!lpId && !!fundId,
     staleTime: 300_000, // 5 minutes

@@ -13,6 +13,28 @@ import type {
   CapitalAccountQuery,
 } from '@shared/types/lp-api';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(payload: unknown): string | undefined {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return undefined;
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (text.trim() === '') {
+    return null;
+  }
+
+  return JSON.parse(text) as unknown;
+}
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -51,33 +73,34 @@ export function useLPCapitalAccount(options: UseLPCapitalAccountOptions = {}) {
 
   const queryClient = useQueryClient();
 
+  const fetchCapitalAccount = async (cursor?: string): Promise<CapitalAccountResponse> => {
+    if (!lpId) {
+      throw new Error('No LP ID available');
+    }
+
+    const params = new URLSearchParams();
+    if (fundId) params.append('fundId', fundId.toString());
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (types && types.length > 0) params.append('types', types.join(','));
+    if (cursor) params.append('cursor', cursor);
+    params.append('limit', limit.toString());
+    params.append('sortBy', sortBy);
+    params.append('sortOrder', sortOrder);
+
+    const response = await fetch(`/api/lp/capital-account?lpId=${lpId}&${params.toString()}`);
+
+    if (!response.ok) {
+      const errorData = await readJsonResponse(response).catch(() => null);
+      throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch capital account`);
+    }
+
+    return (await readJsonResponse(response)) as CapitalAccountResponse;
+  };
+
   const query = useQuery<CapitalAccountResponse, Error>({
     queryKey: ['lp-capital-account', lpId, fundId, startDate, endDate, types, sortBy, sortOrder, limit],
-    queryFn: async () => {
-      if (!lpId) {
-        throw new Error('No LP ID available');
-      }
-
-      const params = new URLSearchParams();
-      if (fundId) params.append('fundId', fundId.toString());
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      if (types && types.length > 0) params.append('types', types.join(','));
-      params.append('limit', limit.toString());
-      params.append('sortBy', sortBy);
-      params.append('sortOrder', sortOrder);
-
-      const response = await fetch(
-        `/api/lp/capital-account?lpId=${lpId}&${params.toString()}`
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch capital account`);
-      }
-
-      return response.json();
-    },
+    queryFn: async () => fetchCapitalAccount(),
     enabled: enabled && !!lpId,
     staleTime: 60_000, // 1 minute
     gcTime: 300_000, // 5 minutes
@@ -89,34 +112,9 @@ export function useLPCapitalAccount(options: UseLPCapitalAccountOptions = {}) {
   const fetchNextPage = async () => {
     if (query.data?.pagination.hasMore && query.data?.pagination.cursor) {
       const nextCursor = query.data.pagination.cursor;
-      await queryClient.fetchQuery({
+      await queryClient.fetchQuery<CapitalAccountResponse>({
         queryKey: ['lp-capital-account', lpId, fundId, startDate, endDate, types, sortBy, sortOrder, limit, nextCursor],
-        queryFn: async () => {
-          if (!lpId) {
-            throw new Error('No LP ID available');
-          }
-
-          const params = new URLSearchParams();
-          if (fundId) params.append('fundId', fundId.toString());
-          if (startDate) params.append('startDate', startDate);
-          if (endDate) params.append('endDate', endDate);
-          if (types && types.length > 0) params.append('types', types.join(','));
-          params.append('cursor', nextCursor);
-          params.append('limit', limit.toString());
-          params.append('sortBy', sortBy);
-          params.append('sortOrder', sortOrder);
-
-          const response = await fetch(
-            `/api/lp/capital-account?lpId=${lpId}&${params.toString()}`
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch next page`);
-          }
-
-          return response.json();
-        },
+        queryFn: async () => fetchCapitalAccount(nextCursor),
       });
     }
   };
