@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -21,7 +16,8 @@ import {
   Clock,
   Globe,
   Users,
-  HelpCircle
+  HelpCircle,
+  type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +27,18 @@ import { BRANDING } from '@/config/branding';
 interface ExpandableSidebarProps {
   activeModule: string;
   onModuleChange: (_module: string) => void;
+}
+
+interface NavigationItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface NavigationSection {
+  title: string;
+  icon: LucideIcon;
+  items: NavigationItem[];
 }
 
 const NAVIGATION_STRUCTURE = {
@@ -71,18 +79,21 @@ const NAVIGATION_STRUCTURE = {
       { id: 'collaborate', label: 'Collaborate', icon: Users }
     ]
   }
-};
+} satisfies Record<string, NavigationSection>;
+
+type NavigationSectionKey = keyof typeof NAVIGATION_STRUCTURE;
+type NavigationSectionEntry = [NavigationSectionKey, (typeof NAVIGATION_STRUCTURE)[NavigationSectionKey]];
 
 export default function ExpandableSidebar({ activeModule, onModuleChange }: ExpandableSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+  const [expandedSections, setExpandedSections] = useState<Partial<Record<NavigationSectionKey, boolean>>>({
     fund: true,
     tools: true
   });
   const [_location, _setLocation] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
-  const toggleSection = (sectionKey: string) => {
+  const toggleSection = (sectionKey: NavigationSectionKey) => {
     setExpandedSections(prev => ({
       ...prev,
       [sectionKey]: !prev[sectionKey]
@@ -163,7 +174,7 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
         {isExpanded && <Separator className="bg-gray-800 mb-4" />}
 
         {/* Main Navigation Sections */}
-        {Object.entries(NAVIGATION_STRUCTURE).map(([sectionKey, section]) => (
+        {(Object.entries(NAVIGATION_STRUCTURE) as NavigationSectionEntry[]).map(([sectionKey, section]) => (
           <div key={sectionKey} className="mb-4">
             {isExpanded && (
               <button
@@ -186,7 +197,7 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
             {/* Section Items */}
             {(isExpanded ? expandedSections[sectionKey] : true) && (
               <div className={cn("space-y-1", isExpanded && "ml-2")}>
-                {section.items.map((item: any) => {
+                {section.items.map((item) => {
                   const isActive = activeModule === item.id;
                   const isDisabled = needsSetup && item.id !== 'fund-setup';
                   
