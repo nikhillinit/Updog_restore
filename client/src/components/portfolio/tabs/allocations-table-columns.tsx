@@ -10,14 +10,14 @@ import type { AllocationCompany } from './types';
 
 export interface ColumnDef<T> {
   id: string;
-  header: string | ((props: { column: Column<T> }) => React.ReactNode);
+  header: string | ((props: { column: Column }) => React.ReactNode);
   accessorKey?: keyof T;
   cell?: (props: { row: { original: T } }) => React.ReactNode;
   sortable?: boolean;
 }
 
-export interface Column<T> {
-  toggleSorting: (desc?: boolean) => void;
+export interface Column {
+  toggleSorting: () => void;
 }
 
 export const createAllocationsColumns = (
