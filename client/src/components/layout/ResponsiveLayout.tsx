@@ -273,7 +273,7 @@ export function ResponsiveContainer({
   enableVirtualScrolling = false,
   lazyLoadThreshold = 100
 }: ResponsiveContainerProps) {
-  const { isMobile, isTablet, dimensions } = useResponsiveBreakpoint();
+  const { isMobile, dimensions } = useResponsiveBreakpoint();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(true);
 
