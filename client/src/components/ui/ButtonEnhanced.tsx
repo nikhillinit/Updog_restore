@@ -1,10 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -130,7 +124,6 @@ const ButtonEnhanced = React.forwardRef<HTMLButtonElement, ButtonEnhancedProps>(
     className,
     variant,
     size,
-    asChild = false,
     loading = false,
     loadingText,
     leftIcon,
@@ -164,8 +157,6 @@ const ButtonEnhanced = React.forwardRef<HTMLButtonElement, ButtonEnhancedProps>(
 
       onClick?.(e);
     };
-
-    const Comp = asChild ? Slot : "button";
 
     return (
       <Button
@@ -268,6 +259,12 @@ export function ButtonGroup({
   variant?: ButtonEnhancedProps['variant'];
   size?: ButtonEnhancedProps['size'];
 }) {
+  type ButtonGroupChildProps = {
+    className?: string;
+    variant?: ButtonEnhancedProps['variant'];
+    size?: ButtonEnhancedProps['size'];
+  };
+
   return (
     <div
       className={cn(
@@ -278,8 +275,8 @@ export function ButtonGroup({
       role="group"
     >
       {React.Children.map(children, (child, index) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as any, {
+        if (React.isValidElement<ButtonGroupChildProps>(child)) {
+          return React.cloneElement(child, {
             className: cn(
               child.props.className,
               "rounded-none border-0",

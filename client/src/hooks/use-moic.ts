@@ -13,6 +13,18 @@ interface RankedInvestment {
   rank: number;
 }
 
+function getErrorMessage(response: unknown, fallback: string): string {
+  if (typeof response === 'object' && response !== null && 'message' in response) {
+    const message = (response as { message?: unknown }).message;
+
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 /**
  * Hook for calculating portfolio MOIC summary
  */
@@ -26,11 +38,11 @@ export function useMOICCalculation() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'MOIC calculation failed');
+        const errorBody: unknown = await res.json().catch(() => ({}));
+        throw new Error(getErrorMessage(errorBody, 'MOIC calculation failed'));
       }
 
-      return res.json();
+      return (await res.json()) as PortfolioMOICSummary;
     },
   });
 }
@@ -48,11 +60,11 @@ export function useMOICRanking() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'MOIC ranking failed');
+        const errorBody: unknown = await res.json().catch(() => ({}));
+        throw new Error(getErrorMessage(errorBody, 'MOIC ranking failed'));
       }
 
-      return res.json();
+      return (await res.json()) as RankedInvestment[];
     },
   });
 }
