@@ -189,6 +189,7 @@ describe('ScenarioSelector', () => {
 
       // The base scenario should be excluded from comparison options
       // (it should only appear in the base selector)
+      expect(hasScenarioA).toBe(false);
     }
   });
 });

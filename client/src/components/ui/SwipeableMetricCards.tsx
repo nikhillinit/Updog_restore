@@ -28,7 +28,7 @@ export interface MetricCardData {
   change: string;
   trend: 'up' | 'down' | 'stable';
   severity: 'success' | 'warning' | 'critical' | 'neutral';
-  icon: React.ElementType;
+  icon: React.ElementType<{ className?: string }>;
   metadata?: Record<string, unknown>;
 }
 
@@ -307,29 +307,47 @@ export function SwipeableMetricCards({
 
   // Touch events
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     e.preventDefault();
     handlePointerDown(e.touches[0]!.clientX);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     handlePointerMove(e.touches[0]!.clientX);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     handlePointerUp(e.changedTouches[0]!.clientX);
   };
 
   // Mouse events for desktop
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     e.preventDefault();
     handlePointerDown(e.clientX);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     handlePointerMove(e.clientX);
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
+    if (!enableSwipeNavigation) {
+      return;
+    }
     handlePointerUp(e.clientX);
   };
 
@@ -420,7 +438,9 @@ export function SwipeableMetricCards({
         className={cn(
           "flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory",
           "touch-pan-x select-none",
-          isDragging ? "cursor-grabbing" : "cursor-grab"
+          enableSwipeNavigation
+            ? (isDragging ? "cursor-grabbing" : "cursor-grab")
+            : "cursor-default"
         )}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -430,6 +450,9 @@ export function SwipeableMetricCards({
         onMouseUp={isDragging ? handleMouseUp : undefined}
         onMouseLeave={isDragging ? handleMouseUp : undefined}
         onKeyDown={(e) => {
+          if (!enableSwipeNavigation) {
+            return;
+          }
           if (e.key === 'ArrowLeft') {
             e.preventDefault();
             goToPrevious();

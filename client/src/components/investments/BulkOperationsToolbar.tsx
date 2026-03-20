@@ -24,25 +24,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit3, Trash2, Tag, CheckCircle, X, AlertTriangle } from 'lucide-react';
 
-interface Investment {
-  id: string;
-  company_name: string;
-  status: 'Active' | 'Exited' | 'Written Off';
-  stage: string;
-  sector: string;
-  tags?: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic investment fields from various sources
-  [key: string]: any;
-}
-
-interface BulkOperationsToolbarProps {
-  selectedInvestments: Investment[];
-  onClearSelection: () => void;
-  onBulkUpdate: (updates: Partial<Investment>) => Promise<void>;
-  onBulkDelete: (ids: string[]) => Promise<void>;
-  onBulkTag: (ids: string[], tags: string[]) => Promise<void>;
-}
-
 const INVESTMENT_STAGES = [
   'Pre-Seed',
   'Seed',
@@ -52,14 +33,14 @@ const INVESTMENT_STAGES = [
   'Series D+',
   'Growth',
   'Exit',
-];
+] as const;
 const INVESTMENT_STATUSES = [
   'Active',
   'Exited',
   'Written Off',
   'Under Review',
   'Follow-on Required',
-];
+] as const;
 const SECTORS = [
   'Technology',
   'Healthcare',
@@ -69,7 +50,36 @@ const SECTORS = [
   'Energy',
   'Real Estate',
   'Other',
-];
+] as const;
+
+type InvestmentStatus = (typeof INVESTMENT_STATUSES)[number];
+type InvestmentStage = (typeof INVESTMENT_STAGES)[number];
+type InvestmentSector = (typeof SECTORS)[number];
+
+interface Investment {
+  id: string;
+  company_name: string;
+  status: InvestmentStatus;
+  stage: string;
+  sector: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+interface BulkEditForm {
+  status?: InvestmentStatus;
+  stage?: InvestmentStage;
+  sector?: InvestmentSector;
+  notes?: string;
+}
+
+interface BulkOperationsToolbarProps {
+  selectedInvestments: Investment[];
+  onClearSelection: () => void;
+  onBulkUpdate: (updates: Partial<Investment>) => Promise<void>;
+  onBulkDelete: (ids: string[]) => Promise<void>;
+  onBulkTag: (ids: string[], tags: string[]) => Promise<void>;
+}
 
 export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   selectedInvestments,
@@ -81,7 +91,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<Investment>>({});
+  const [editForm, setEditForm] = useState<BulkEditForm>({});
   const [newTags, setNewTags] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -94,10 +104,24 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   const handleBulkEdit = async () => {
     setIsLoading(true);
     try {
-      // Remove empty/undefined values
-      const cleanedUpdates = Object.fromEntries(
-        Object.entries(editForm).filter(([_, value]) => value !== undefined && value !== '')
-      );
+      const cleanedUpdates: Partial<Investment> = {};
+
+      if (editForm.status !== undefined) {
+        cleanedUpdates.status = editForm.status;
+      }
+
+      if (editForm.stage !== undefined) {
+        cleanedUpdates.stage = editForm.stage;
+      }
+
+      if (editForm.sector !== undefined) {
+        cleanedUpdates.sector = editForm.sector;
+      }
+
+      const notes = editForm.notes?.trim();
+      if (notes) {
+        cleanedUpdates.notes = notes;
+      }
 
       await onBulkUpdate(cleanedUpdates);
       setIsEditModalOpen(false);
@@ -169,7 +193,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Status</Label>
                     <Select
                       value={editForm.status || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value as InvestmentStatus }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -188,7 +212,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Stage</Label>
                     <Select
                       value={editForm.stage || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, stage: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, stage: value as InvestmentStage }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select stage" />
@@ -207,7 +231,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Sector</Label>
                     <Select
                       value={editForm.sector || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, sector: value }))}
+                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, sector: value as InvestmentSector }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select sector" />
@@ -225,7 +249,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                   <div>
                     <Label>Notes (append to existing)</Label>
                     <Textarea
-                      value={editForm['notes'] || ''}
+                      value={editForm.notes ?? ''}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
                       placeholder="Additional notes to append"
                       rows={3}
