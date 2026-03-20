@@ -23,7 +23,7 @@ export function KpiDashboard({ fundId }: KpiDashboardProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-4 gap-4">
-        {[...Array(8)].map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="animate-pulse">
             <div className="h-24 bg-gray-200 rounded" />
           </div>
@@ -186,7 +186,7 @@ export function HistoricalKpiComparison({ fundId }: KpiDashboardProps) {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Quarterly Performance</h3>
       <div className="grid grid-cols-4 gap-4">
-        {quarters.map((quarter, idx) => (
+        {quarters.map((quarter) => (
           <QuarterCard key={quarter} fundId={fundId} quarter={quarter} />
         ))}
       </div>

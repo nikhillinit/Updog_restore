@@ -41,7 +41,7 @@ export default function DynamicFundHeader() {
   const { currentFund } = useFundContext();
 
   // Fetch real-time fund metrics from calculated-metrics endpoint
-  const { data: metrics, isLoading } = useQuery<FundMetrics>({
+  const { data: metrics } = useQuery<FundMetrics>({
     queryKey: ['/api/funds', currentFund?.id, 'calculated-metrics'],
     enabled: !!currentFund?.id && !FLAGS.ENABLE_SELECTOR_KPIS, // Only fetch if not using compact header
     refetchInterval: 30000, // Refresh every 30 seconds
