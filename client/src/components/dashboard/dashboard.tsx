@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable custom/no-hardcoded-fund-metrics -- Demo dashboard with sample data */
 
 import { BarChart } from 'recharts/es6/chart/BarChart';
@@ -22,10 +21,18 @@ import { Label } from '@/components/ui/label';
 import { TrendingUp, Building2, Target } from 'lucide-react';
 import PortfolioConcentration from './portfolio-concentration';
 
+type DashboardViewType = 'construction' | 'current';
+type DashboardTab = 'fund' | 'performance' | 'exits' | 'rounds' | 'lp' | 'insights' | 'visualizer';
+
+const formatMillionsTick = (value: number | string): string => {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  return `$${(numericValue / 1000000).toFixed(0)}M`;
+};
+
 export default function Dashboard() {
   const { currentFund, isLoading } = useFundContext();
-  const [viewType, setViewType] = useState('construction'); // construction | current
-  const [activeTab, setActiveTab] = useState('fund');
+  const [viewType, setViewType] = useState<DashboardViewType>('construction');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('fund');
 
   if (isLoading || !currentFund) {
     return (
@@ -211,7 +218,7 @@ export default function Dashboard() {
                 <XAxis dataKey="name" tick={{ fill: '#292929' }} />
                 <YAxis
                   tick={{ fill: '#292929' }}
-                  tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`}
+                  tickFormatter={formatMillionsTick}
                 />
                 <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
                 <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
@@ -292,7 +299,7 @@ export default function Dashboard() {
             <ComposedChart data={capitalCallsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
-              <YAxis tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
+              <YAxis tickFormatter={formatMillionsTick} />
               <Bar dataKey="amount" fill="#3b82f6" name="In Period" />
               <Line
                 type="monotone"
@@ -371,7 +378,7 @@ export default function Dashboard() {
               <Switch
                 id="view-toggle"
                 checked={viewType === 'current'}
-                onCheckedChange={(checked: any) =>
+                onCheckedChange={(checked: boolean) =>
                   setViewType(checked ? 'current' : 'construction')
                 }
               />
