@@ -1,11 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { Card, CardContent } from "@/components/ui/card";
 import { DollarSign, TrendingUp, Building, Percent } from "lucide-react";
 import type { FundMetrics } from "@/types/fund";
+
+type MetricIcon = "dollar" | "trending" | "building" | "percent";
+type MetricColor = "blue" | "cyan" | "green" | "orange";
+
+type DashboardMetric = Omit<FundMetrics, "icon" | "color"> & {
+  icon: MetricIcon;
+  color: MetricColor;
+};
+
+const SKELETON_CARD_KEYS = [0, 1, 2, 3] as const;
 
 interface MetricCardsProps {
   fundData?: {
@@ -25,7 +30,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
   if (!fundData) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {Array.from({ length: 4 }).map((_: any, index: any) => (
+        {SKELETON_CARD_KEYS.map((index) => (
           <Card key={index} className="animate-pulse">
             <CardContent className="pt-6">
               <div className="h-20 bg-gray-200 rounded"></div>
@@ -36,7 +41,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
     );
   }
 
-  const metrics: FundMetrics[] = [
+  const metrics: DashboardMetric[] = [
     {
       label: "Total Fund Size",
       value: `$${(parseFloat(fundData.fund.size) / 1000000).toFixed(0)}M`,
@@ -71,7 +76,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
     }
   ];
 
-  const getIcon = (iconType: string) => {
+  const getIcon = (iconType: MetricIcon) => {
     switch (iconType) {
       case 'dollar': return DollarSign;
       case 'trending': return TrendingUp;
@@ -81,7 +86,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
     }
   };
 
-  const getIconColor = (color: string) => {
+  const getIconColor = (color: MetricColor) => {
     switch (color) {
       case 'blue': return 'text-blue-500 bg-blue-50';
       case 'cyan': return 'text-cyan-500 bg-cyan-50';
@@ -93,7 +98,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {metrics.map((metric: any, index: any) => {
+      {metrics.map((metric, index) => {
         const Icon = getIcon(metric.icon);
         const iconColorClass = getIconColor(metric.color);
         
@@ -128,4 +133,3 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
     </div>
   );
 }
-
