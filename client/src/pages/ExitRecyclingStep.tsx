@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +12,7 @@ interface ExitRecyclingStepProps {
 }
 
 export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepProps) {
-  const handleChange = (field: keyof ExitRecycling, value: any) => {
+  const handleChange = <K extends keyof ExitRecycling>(field: K, value: ExitRecycling[K]) => {
     onChange({
       ...data,
       [field]: value
@@ -50,7 +45,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
             <Switch
               data-testid="step-4-recycling-enabled"
               checked={data.enabled}
-              onCheckedChange={(checked: any) => handleChange('enabled', checked)}
+              onCheckedChange={(checked) => handleChange('enabled', checked)}
             />
           </div>
 
@@ -67,7 +62,9 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                       min="0"
                       max="100"
                       value={data.recyclePercentage}
-                      onChange={(e: any) => handleChange('recyclePercentage', parseFloat(e.target.value) || 0)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleChange('recyclePercentage', parseFloat(e.currentTarget.value) || 0)
+                      }
                       className="pr-8"
                       placeholder="0"
                     />
@@ -92,7 +89,9 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                       type="number"
                       min="0"
                       value={data.maxRecycleAmount || ''}
-                      onChange={(e: any) => handleChange('maxRecycleAmount', parseFloat(e.target.value) || undefined)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleChange('maxRecycleAmount', parseFloat(e.currentTarget.value) || undefined)
+                      }
                       className="pl-8"
                       placeholder="No limit"
                     />
@@ -108,7 +107,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                 <Label className="text-base font-medium">Recycling Window</Label>
                 <Select 
                   value={data.recycleWindowMonths.toString()} 
-                  onValueChange={(value: any) => handleChange('recycleWindowMonths', parseInt(value))}
+                  onValueChange={(value: string) => handleChange('recycleWindowMonths', parseInt(value))}
                 >
                   <SelectTrigger className="max-w-xs">
                     <SelectValue placeholder="Select window" />
@@ -140,7 +139,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                     </div>
                     <Switch
                       checked={data.restrictToSameSector}
-                      onCheckedChange={(checked: any) => handleChange('restrictToSameSector', checked)}
+                      onCheckedChange={(checked) => handleChange('restrictToSameSector', checked)}
                     />
                   </div>
 
@@ -153,7 +152,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                     </div>
                     <Switch
                       checked={data.restrictToSameStage}
-                      onCheckedChange={(checked: any) => handleChange('restrictToSameStage', checked)}
+                      onCheckedChange={(checked) => handleChange('restrictToSameStage', checked)}
                     />
                   </div>
                 </div>
