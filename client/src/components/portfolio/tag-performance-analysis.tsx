@@ -40,6 +40,12 @@ interface TagPerformance {
   performance: 'excellent' | 'good' | 'average' | 'poor';
 }
 
+interface TagChartDatum {
+  name: string;
+  value: number;
+  display: string;
+}
+
 // Mock data for tag performance analysis
 const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
   {
@@ -167,7 +173,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
     return `$${value.toLocaleString()}`;
   };
 
-  const getChartData = () => {
+  const getChartData = (): TagChartDatum[] => {
     return MOCK_TAG_PERFORMANCE.map((tag) => ({
       name: tag.tag,
       value:
@@ -202,6 +208,15 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
       default:
         return 'Invested to Date';
     }
+  };
+
+  const chartData = getChartData();
+
+  const formatTooltip = (value: number | string): [string, string] => {
+    const displayValue =
+      chartData.find((datum) => datum.value === value)?.display ?? String(value);
+
+    return [displayValue, getMetricLabel()];
   };
 
   // Removed hardcoded COLORS - now using getChartColor() from chart-theme
@@ -254,24 +269,19 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
                 <BarChart
-                  data={getChartData()}
+                  data={chartData}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />
-                  <Tooltip
-                    formatter={(value) => [
-                      getChartData().find((d) => d.value === value)?.display || value,
-                      getMetricLabel(),
-                    ]}
-                  />
+                  <Tooltip formatter={formatTooltip} />
                   <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
               ) : (
                 <PieChart>
                   <Pie
-                    data={getChartData()}
+                    data={chartData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -280,16 +290,11 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {getChartData().map((_entry: unknown, index: number) => (
+                    {chartData.map((_entry: unknown, index: number) => (
                       <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value) => [
-                      getChartData().find((d) => d.value === value)?.display || value,
-                      getMetricLabel(),
-                    ]}
-                  />
+                  <Tooltip formatter={formatTooltip} />
                 </PieChart>
               )}
             </ResponsiveContainer>
