@@ -51,7 +51,7 @@ function getCoverageStatus(percentage: number): {
 
 export function CoverageIndicator({
   coverage,
-  scope = 'analysis',
+  scope: _scope = 'analysis',
   compact = false,
 }: CoverageIndicatorProps) {
   const overallCoverage = coverage.overallPct;
@@ -204,7 +204,6 @@ export function CoverageBadge({
   coverage: CoverageSummaryType;
 }) {
   const overall = coverage.overallPct;
-  const status = getCoverageStatus(overall);
 
   return (
     <Badge

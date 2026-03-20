@@ -3,7 +3,6 @@
  
  
  
-import React from 'react';
 import { format } from 'date-fns/format';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +37,7 @@ interface TimelineSliderProps {
 export function TimelineSlider({
   events,
   currentTime,
-  onTimeChange,
+  onTimeChange: _onTimeChange,
   width = 800,
   height = 120,
   className,
@@ -59,4 +58,3 @@ export function TimelineSlider({
     </div>
   );
 }
-
