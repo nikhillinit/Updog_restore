@@ -366,4 +366,23 @@ export function registerFundConfigRoutes(app: Express) {
       res['status'](500)['json'](apiError);
     }
   });
+
+  // GET /api/funds/:id/results -- Phase 3 results read model
+  app.get('/api/funds/:id/results', async (req, res) => {
+    const idParam = Number(req.params['id']);
+    if (!Number.isFinite(idParam) || idParam <= 0 || !Number.isInteger(idParam)) {
+      return res.status(400).json({ error: 'Invalid fund ID' });
+    }
+    try {
+      const { fundResultsReadService } = await import('../services/fund-results-read-service');
+      const results = await fundResultsReadService.getResults(idParam);
+      if (!results) {
+        return res.status(404).json({ error: 'Fund not found' });
+      }
+      return res.json(results);
+    } catch (err) {
+      console.error('[fund-results] Error:', err);
+      return res.status(500).json({ error: 'Failed to read fund results' });
+    }
+  });
 }
