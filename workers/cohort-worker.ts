@@ -1,4 +1,4 @@
-import { mapAsync } from "../../utils/async-iteration";
+import { mapAsync } from '../../utils/async-iteration';
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { resilientLimit } from '../client/src/utils/resilientLimit';
@@ -12,33 +12,34 @@ const connection = {
 // refactor(async): Replace forEach with controlled concurrency + circuit breaker
 const processCohortCompanies = async (companies: any[]) => {
   const limit = resilientLimit({
-    concurrency: 2,       // Max 2 concurrent company analyses
-    maxFailures: 3,       // Circuit breaker after 3 failures
-    resetOnSuccess: true  // Reset failure count on success
+    concurrency: 2, // Max 2 concurrent company analyses
+    maxFailures: 3, // Circuit breaker after 3 failures
+    resetOnSuccess: true, // Reset failure count on success
   });
-  
+
   // Batch increment counter for this operation
   const migrationCount = 1; // Number of forEach patterns replaced in this function
-  
+
   try {
     const results = await Promise.all(
-      await mapAsync(companies, company => 
+      await mapAsync(companies, (company) =>
         limit(async () => {
           // Simulate cohort analysis per company
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
           return {
             ...company,
             cohortScore: Math.random() * 100,
             analysisComplete: true,
-            processedAt: new Date().toISOString()
+            processedAt: new Date().toISOString(),
           };
-        }))
+        })
+      )
     );
-    
+
     // Track successful async forEach replacement
     asyncRepl.inc({ file: 'cohort-worker.ts' }, migrationCount);
-    
+
     return results;
   } catch (error) {
     logger.error('Cohort company processing failed:', error);
@@ -47,30 +48,35 @@ const processCohortCompanies = async (companies: any[]) => {
 };
 
 export const cohortWorker = new Worker(
-  'cohort:calc',
+  'cohort-calc',
   async (job) => {
-    const { fundId, correlationId } = job.data;
-    
+    const { fundId, correlationId, runId, configId, configVersion } = job.data;
+
     logger.info('Processing cohort analysis', { fundId, correlationId, jobId: job.id });
-    
+
     // Simulate portfolio companies for cohort analysis
     const mockCompanies = [
       { id: 'comp-1', name: 'TechStart Inc', stage: 'Series A' },
       { id: 'comp-2', name: 'DataFlow LLC', stage: 'Seed' },
       { id: 'comp-3', name: 'AI Solutions Corp', stage: 'Series B' },
     ];
-    
+
     // Process companies with controlled concurrency
     const processedCompanies = await processCohortCompanies(mockCompanies);
-    
+
     return {
       fundId,
       companies: processedCompanies,
       cohortMetrics: {
         totalCompanies: processedCompanies.length,
-        avgCohortScore: processedCompanies.reduce((sum, c) => sum + c.cohortScore, 0) / processedCompanies.length,
-        completionRate: 100
+        avgCohortScore:
+          processedCompanies.reduce((sum, c) => sum + c.cohortScore, 0) / processedCompanies.length,
+        completionRate: 100,
       },
+      // Run attribution (passed through for snapshot writes when cohort adds them)
+      ...(runId != null && { runId }),
+      ...(configId != null && { configId }),
+      ...(configVersion != null && { configVersion }),
       calculatedAt: new Date(),
     };
   },

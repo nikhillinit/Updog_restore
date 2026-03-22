@@ -1,10 +1,9 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
 import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, max } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';
-import { v4 as uuidv4 } from 'uuid';
 import { toNumber, NumberParseError } from '@shared/number';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
@@ -123,13 +122,21 @@ export function registerFundConfigRoutes(app: Express) {
           .returning();
         savedConfig = updated;
       } else {
-        console.warn('draft-save', { fundId, fieldCount });
+        // No active draft: allocate next version (MAX(version)+1)
+        const [versionResult] = await db
+          .select({ maxVersion: max(fundConfigs.version) })
+          .from(fundConfigs)
+          .where(eq(fundConfigs.fundId, fundId));
+        const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
+
+        console.warn('draft-save', { fundId, fieldCount, nextVersion });
 
         try {
           const [inserted] = await db
             .insert(fundConfigs)
             .values({
               fundId,
+              version: nextVersion,
               config: validation.data,
             })
             .returning();
@@ -218,7 +225,7 @@ export function registerFundConfigRoutes(app: Express) {
     }
   });
 
-  // Publish configuration
+  // Publish configuration (delegates to FundPersistenceService)
   app.post('/api/funds/:id/publish', async (req: Request, res: Response) => {
     try {
       let fundId: number;
@@ -234,88 +241,33 @@ export function registerFundConfigRoutes(app: Express) {
         }
         throw err;
       }
-      const correlationId = uuidv4();
 
-      // Get latest draft
-      const draft = await db.query.fundConfigs.findFirst({
-        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        orderBy: desc(fundConfigs.version),
-      });
-
-      if (!draft) {
-        const error: ApiError = {
-          error: 'No draft to publish',
-          message: 'Create a draft configuration first',
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      // Mark previous published versions as not current (simplified)
-      const unpublishedValues: Partial<typeof fundConfigs.$inferInsert> = {
-        isPublished: false,
-        updatedAt: new Date(),
-      };
-      await db
-        .update(fundConfigs)
-        .set(unpublishedValues)
-        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)));
-
-      // Publish the draft (simplified)
-      const publishedValues: Partial<typeof fundConfigs.$inferInsert> = {
-        isPublished: true,
-        isDraft: false,
-        publishedAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const [published] = await db
-        .update(fundConfigs)
-        .set(publishedValues)
-        .where(eq(fundConfigs.id, draft.id))
-        .returning();
-
-      // Log publish event (simplified)
-      await db.insert(fundEvents).values({
-        fundId,
-        eventType: 'PUBLISHED',
-        eventTime: new Date(),
-      });
-
-      // Queue calculation jobs
-      const jobOptions = {
-        removeOnComplete: true,
-        removeOnFail: false,
-      };
-
-      if (reserveQueue && pacingQueue && cohortQueue) {
-        await Promise.all([
-          reserveQueue.add('calculate', { fundId, correlationId }, jobOptions),
-          pacingQueue.add('calculate', { fundId, correlationId }, jobOptions),
-          cohortQueue.add('calculate', { fundId, correlationId }, jobOptions),
-        ]);
-      }
-
-      // Log calculation trigger
       const currentUserId = (req as RequestWithOptionalUser).user?.id;
-      const calculationTriggeredEvent: typeof fundEvents.$inferInsert = {
+      const userId = currentUserId ? parseInt(currentUserId, 10) : undefined;
+
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+      const result = await fundPersistenceService.publishDraft(
         fundId,
-        eventType: 'CALC_TRIGGERED',
-        eventTime: new Date(),
-        payload: {
-          engines: ['reserve', 'pacing', 'cohort'],
-          correlationId,
-        },
-        userId: currentUserId ? parseInt(currentUserId, 10) : undefined,
-        correlationId,
-      };
-      await db.insert(fundEvents).values(calculationTriggeredEvent);
+        { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+        userId
+      );
 
       res['json']({
         success: true,
-        data: published,
+        data: result.published,
         message: 'Configuration published and calculations queued',
-        correlationId,
+        correlationId: result.correlationId,
+        runId: result.run.id,
+        dispatchState: result.run.dispatchState,
       });
     } catch (error) {
+      if (error instanceof Error && error.message === 'No draft to publish') {
+        const apiError: ApiError = {
+          error: 'No draft to publish',
+          message: 'Create a draft configuration first',
+        };
+        return res['status'](400)['json'](apiError);
+      }
       console.error('Publish error:', error);
       const apiError: ApiError = {
         error: 'Failed to publish configuration',

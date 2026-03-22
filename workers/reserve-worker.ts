@@ -40,7 +40,7 @@ async function retryWithBackoff<T>(
 export const reserveWorker = new Worker(
   'reserve-calc',
   async (job) => {
-    const { fundId, correlationId } = job.data;
+    const { fundId, correlationId, runId, configId, configVersion } = job.data;
 
     logger.info('Processing reserve calculation', { fundId, correlationId, jobId: job.id });
 
@@ -109,7 +109,7 @@ export const reserveWorker = new Worker(
         // Generate reserve calculations
         const reserves = generateReserveSummary(fundId, portfolio);
 
-        // Write snapshot to database
+        // Write snapshot to database (with run attribution if available)
         const [snapshot] = await db
           .insert(fundSnapshots)
           .values({
@@ -118,6 +118,10 @@ export const reserveWorker = new Worker(
             payload: reserves as unknown as Record<string, unknown>,
             calcVersion: process.env.ALG_RESERVE_VERSION || '1.0.0',
             correlationId,
+            snapshotTime: new Date(),
+            ...(runId != null && { runId }),
+            ...(configId != null && { configId }),
+            ...(configVersion != null && { configVersion }),
             metadata: {
               portfolioCount: portfolio.length,
               engineRuntime: performance.now() - startTime,
