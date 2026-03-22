@@ -5,9 +5,8 @@ last_updated: 2026-01-19
 
 # Safety Check Report - Phase 1 Integration
 
-**Date**: 2025-10-03
-**Branch**: `demo-tomorrow`
-**Status**: ✅ **SAFE TO PROCEED**
+**Date**: 2025-10-03 **Branch**: `demo-tomorrow` **Status**: ✅ **SAFE TO
+PROCEED**
 
 ---
 
@@ -23,6 +22,7 @@ Last Commit: f6f4cd5 feat: comprehensive platform restructure with AI-driven arc
 **Status**: Correct branch, recent commits show active development.
 
 **Working Directory**:
+
 ```
 Modified: .claude/settings.local.json (local config only)
 Untracked:
@@ -34,13 +34,15 @@ Untracked:
   - shared/contracts/kpi-raw-facts.contract.ts
 ```
 
-**Analysis**: All new files are **untracked** and isolated. No risk to existing code.
+**Analysis**: All new files are **untracked** and isolated. No risk to existing
+code.
 
 ---
 
 ### **2. Environment Flag Safety** ✅
 
 **Current State**:
+
 ```bash
 .env: No Vite flags present ✅
 .env.local: No Vite flags present ✅
@@ -48,6 +50,7 @@ Untracked:
 ```
 
 **Starter Kit `.env.example` Flags** (⚠️ WARNING - Not Deployed):
+
 ```env
 VITE_NEW_IA=true                    # ⚠️ Would enable new 5-route IA
 VITE_ENABLE_SELECTOR_KPIS=true      # ⚠️ Would enable KPI selectors
@@ -56,10 +59,11 @@ VITE_ENABLE_OPERATIONS_HUB=false    # Safe (disabled)
 VITE_ENABLE_LP_REPORTING=false      # Safe (disabled)
 ```
 
-**✅ CONFIRMED**: These flags are in `.env.example` **ONLY** (documentation/template).
-**✅ NOT ACTIVE** in current environment.
+**✅ CONFIRMED**: These flags are in `.env.example` **ONLY**
+(documentation/template). **✅ NOT ACTIVE** in current environment.
 
 **Deployment Safety**:
+
 - ✅ No risk if `.env.example` is committed (it's a template)
 - ⚠️ DO NOT copy `.env.example` to `.env` or `.env.local` in demo/production
 - ✅ Vercel deployment ignores `.env.example`
@@ -71,6 +75,7 @@ VITE_ENABLE_LP_REPORTING=false      # Safe (disabled)
 **Active Navigation Items** (from `sidebar.tsx:36-63`):
 
 Currently showing **25 menu items**:
+
 ```
 1. Dashboard
 2. Portfolio
@@ -103,6 +108,7 @@ Currently showing **25 menu items**:
 **✅ CONFIRMED**: Still using **old navigation structure** (not 5-route IA).
 
 **New IA Routes** (from starter kit `ia.ts`):
+
 ```
 1. Overview
 2. Portfolio
@@ -111,26 +117,30 @@ Currently showing **25 menu items**:
 5. Report
 ```
 
-**✅ SAFE**: New 5-route IA is **NOT ACTIVE** - starter kit files not yet integrated.
+**✅ SAFE**: New 5-route IA is **NOT ACTIVE** - starter kit files not yet
+integrated.
 
 ---
 
 ### **4. KPI Header State** ✅
 
 **Current Fund Page** (from `App.tsx:16-23`):
+
 ```tsx
-const Dashboard = React.lazy(() => import("@/pages/dashboard"));
-const Portfolio = React.lazy(() => import("@/pages/portfolio"));
-const Investments = React.lazy(() => import("@/pages/investments"));
+const Dashboard = React.lazy(() => import('@/pages/dashboard'));
+const Portfolio = React.lazy(() => import('@/pages/portfolio'));
+const Investments = React.lazy(() => import('@/pages/investments'));
 ```
 
 **Header Component**: `DynamicFundHeader` (line 13)
 
-**✅ CONFIRMED**: Using existing header, **NOT** starter kit `HeaderKpis` component.
+**✅ CONFIRMED**: Using existing header, **NOT** starter kit `HeaderKpis`
+component.
 
 **Starter Kit Header** (not yet integrated):
+
 ```tsx
-// Default Parameters/src/components/overview/HeaderKpis.tsx
+// docs/archive/2025-q4/default-parameters/src/components/overview/HeaderKpis.tsx
 export const HeaderKpis: React.FC<{ data?: FundKpis }> = ({ data }) => {
   const kpis = data ?? MOCK; // Uses mocks by default
   // ...
@@ -165,6 +175,7 @@ Required settings:
 ### **2. Default Flags to FALSE** ✅ CONFIRMED
 
 **Recommended `.env.production` (for Vercel)**:
+
 ```env
 # Phase 1 Feature Flags - ALL DISABLED BY DEFAULT
 VITE_NEW_IA=false
@@ -177,6 +188,7 @@ VITE_ENABLE_LP_REPORTING=false
 **Current State**: No production env file exists yet ✅
 
 **Action Before Demo Deploy**:
+
 1. Create `.env.production` with all flags set to `false`
 2. Add to Vercel environment variables (if using)
 3. Test in preview deployment first
@@ -188,6 +200,7 @@ VITE_ENABLE_LP_REPORTING=false
 **Run these checks in deployed demo environment**:
 
 #### Navigation Test:
+
 ```
 ❓ Question: Does the sidebar show 20+ menu items?
 ✅ Expected: YES (old nav still active)
@@ -195,6 +208,7 @@ VITE_ENABLE_LP_REPORTING=false
 ```
 
 #### KPI Header Test:
+
 ```
 ❓ Question: Does the fund page show the original DynamicFundHeader?
 ✅ Expected: YES (existing header)
@@ -202,6 +216,7 @@ VITE_ENABLE_LP_REPORTING=false
 ```
 
 #### Flag Verification:
+
 ```bash
 # In browser console on deployed demo:
 console.log(import.meta.env.VITE_NEW_IA);
@@ -228,14 +243,17 @@ console.log(import.meta.env.VITE_NEW_IA);
 ## 🚨 Rollback Plan (If Needed)
 
 ### **Instant Rollback** (Environment Variables):
+
 ```bash
 # Set in Vercel or .env.production:
 VITE_NEW_IA=false
 VITE_ENABLE_SELECTOR_KPIS=false
 ```
+
 **Effect**: Instantly disables all new features, reverts to old nav/header.
 
 ### **Code Rollback** (Git):
+
 ```bash
 # If integration PR is merged and causing issues:
 git revert <commit-sha>
@@ -247,6 +265,7 @@ git push --force origin demo-tomorrow  # ⚠️ Use with caution
 ```
 
 ### **File Removal** (Surgical):
+
 ```bash
 # Remove only integrated files:
 git rm client/src/adapters/kpiAdapter.ts
@@ -262,6 +281,7 @@ git commit -m "rollback: remove Phase 1 integration files"
 **Risk Level**: 🟢 **LOW**
 
 **Reasons**:
+
 1. ✅ All new files are **untracked** (not yet committed)
 2. ✅ No Vite flags active in current environment
 3. ✅ Old navigation still rendering (25 items)
@@ -273,7 +293,9 @@ git commit -m "rollback: remove Phase 1 integration files"
 **Blockers**: None
 
 **Warnings**:
-- ⚠️ Starter kit `.env.example` has `VITE_NEW_IA=true` - do **NOT** copy to production
+
+- ⚠️ Starter kit `.env.example` has `VITE_NEW_IA=true` - do **NOT** copy to
+  production
 - ⚠️ Enable branch protection before integration
 - ⚠️ Test in preview deployment before demo
 
@@ -284,6 +306,7 @@ git commit -m "rollback: remove Phase 1 integration files"
 **Recommendation**: ✅ **YES - SAFE TO PROCEED**
 
 **Suggested Workflow**:
+
 1. Create integration PR from current untracked files
 2. Enable branch protection on `demo-tomorrow`
 3. Test in Vercel preview deployment
@@ -298,6 +321,5 @@ git commit -m "rollback: remove Phase 1 integration files"
 
 ---
 
-**Signed Off By**: Claude Code AI Agent
-**Date**: 2025-10-03
-**Status**: Safety check complete ✅
+**Signed Off By**: Claude Code AI Agent **Date**: 2025-10-03 **Status**: Safety
+check complete ✅

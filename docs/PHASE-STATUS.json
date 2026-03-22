@@ -50,6 +50,12 @@
       "completedAt": "2026-01-05T08:04:04.928Z",
       "commit": "bfd78d93b4ac67780776daf0932b199e1fbd9ea5",
       "message": "test(phase2): add BullMQ worker integration tests\n\nCompletes Task 10 of Phase 2: Scenario Generation Engine\n\nIntegration tests verify:\n- Job processing with various configurations\n- Large scenario generation (10K scenarios)\n- Reproducibility across multiple runs\n- Error handling for invalid configurations\n- Concurrent job processing\n- Queue management and job removal\n\nKey features:\n- Handles BullMQ serialization of Uint8Array as Buffer-like objects\n- Normalizes compressed matrix data for decompression\n- Tests with Redis queue and worker lifecycle\n- Validates job states and completion\n\nAll 9 integration tests passing\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+    },
+    {
+      "id": "Phase 0B",
+      "completedAt": "2026-03-20T11:39:37.413Z",
+      "commit": "6cbf5c766a71654c84a7abb873b8fb7d1b2d87b2",
+      "message": "fix: complete Phase 0B /api/funds owner cutover\n\n- Fix idempotency import in funds.ts (named→default, factory→pre-called middleware)\n- Fix calculate mount prefix (/api/funds/calculate→/funds/calculate) to eliminate double /api/api/ prefix\n- Remove shadowed inline POST /api/funds handler from routes.ts\n- Update contract tests for post-cutover state (16 assertions, no mocks)\n- Add registerRoutes() boot-path smoke proof\n- Update endpoint-ownership.md and ADR with Phase 0B achieved state\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
     }
   ],
   "lastUpdated": "2025-12-26T18:00:00.000Z",

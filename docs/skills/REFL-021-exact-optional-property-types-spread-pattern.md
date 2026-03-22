@@ -4,11 +4,11 @@ id: REFL-021
 title: exactOptionalPropertyTypes Requires Spread Pattern
 status: DRAFT
 date: 2026-02-16
-version: 1
+version: 2
 severity: medium
 wizard_steps: []
-error_codes: [TS2375, TS2412]
-components: [typescript, state, client, server]
+error_codes: [TS2375, TS2412, TS2769]
+components: [typescript, state, client, server, drizzle]
 keywords:
   [
     exactOptionalPropertyTypes,
@@ -113,6 +113,43 @@ client/server/shared separately and catches TS2412. Always trust the baseline
 over local tsc.
 
 **Source:** `server/services/monte-carlo-orchestrator.ts:85`, fixed 2026-02-24.
+
+## Service-Layer Type Mismatch Variant (TS2769)
+
+When a service interface uses `Record<string, unknown>` for a field that maps to
+a Drizzle schema column typed with `$type<SpecificType>()`, the spread pattern
+alone doesn't help -- the type itself is wrong:
+
+```typescript
+// ANTI-PATTERN: service interface uses generic Record
+export interface CreateFundInput {
+  engineResults?: Record<string, unknown> | null; // too broad
+}
+
+// Drizzle column is typed:
+engineResults: jsonb('engine_results').$type<EngineResults>();
+
+// TS2769 on insert even with spread:
+await tx.insert(funds).values({
+  ...(input.engineResults != null && { engineResults: input.engineResults }),
+  //                                   ^^ Record<string, unknown> != EngineResults
+});
+```
+
+```typescript
+// FIX: match the service interface type to the schema column type
+import type { EngineResults } from '@shared/schemas/engine-results-schema';
+
+export interface CreateFundInput {
+  engineResults?: EngineResults | null; // matches schema column type
+}
+```
+
+**Key insight:** The spread pattern handles the `undefined` vs absent
+distinction. But when the _value type itself_ doesn't match the column type, you
+need to fix the interface -- not add more spreading.
+
+**Source:** `server/services/fund-persistence-service.ts:66`, fixed 2026-03-21.
 
 ## Related
 

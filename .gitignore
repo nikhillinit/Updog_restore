@@ -263,3 +263,13 @@ uiux-skill/
 # Claude session artifacts (ephemeral, change every session)
 .claude/session-context.md
 .claude/complexity-checkpoint.md
+
+# Generated local analysis artifacts
+/meta.json
+/current-lint-state.json
+/eslint-report.json
+/eslint-suppress-report.json
+/eslint-errors.json
+/dev/null
+/dev/null.css
+*.cpuprofile

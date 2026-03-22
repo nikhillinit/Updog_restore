@@ -10,9 +10,6 @@
  * @module server/routes/lp-distributions
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { requireAuth } from '../lib/auth/jwt';
