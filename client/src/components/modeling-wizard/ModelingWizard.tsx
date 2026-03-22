@@ -114,22 +114,12 @@ export function ModelingWizard({
       // Call user callback
       onComplete?.();
 
-      // Store wizard step data for the results page to reconstruct engine output
-      try {
-        const wizardData = {
-          generalInfo: data.steps.generalInfo,
-          sectorProfiles: data.steps.sectorProfiles,
-          capitalAllocation: data.steps.capitalAllocation,
-          scenarios: data.steps.scenarios,
-        };
-        sessionStorage.setItem('wizard-completion-data', JSON.stringify(wizardData));
-      } catch {
-        // Silent -- results page will show empty state if storage fails
-      }
-
-      // Redirect to results page after short delay to show success message
+      // Navigate to the concrete fund results page using the ID captured
+      // by the XState machine from the POST /api/funds response.
+      // Falls back to /fund-setup if the ID was not captured (Zod parse failed).
+      const fundId = data.createdFundId;
       setTimeout(() => {
-        navigate('/fund-model-results/latest');
+        navigate(fundId != null ? `/fund-model-results/${fundId}` : '/fund-setup');
       }, 1500);
     },
     onError: (error) => {

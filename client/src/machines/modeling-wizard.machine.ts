@@ -12,6 +12,7 @@
  */
 
 import { setup, assign, fromPromise } from 'xstate';
+import { z } from 'zod';
 import {
   calculateReservesForWizard,
   validateWizardPortfolio,
@@ -128,6 +129,9 @@ export interface ModelingWizardContext {
   // API state
   submissionError: string | null;
   submissionRetryCount: number;
+
+  /** Fund ID returned by POST /api/funds on successful submission. */
+  createdFundId: number | null;
 
   // Configuration
   skipOptionalSteps: boolean;
@@ -563,6 +567,9 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
 
   return errors;
 }
+
+/** Zod schema for extracting fund ID from POST /api/funds response */
+const fundIdResponseSchema = z.object({ data: z.object({ id: z.number() }) });
 
 /**
  * Submit fund model to API
@@ -1013,6 +1020,20 @@ export const modelingWizardMachine = setup({
     })),
 
     /**
+     * Capture the fund ID from a successful POST /api/funds response.
+     * Uses Zod safe-parse so a malformed response degrades to null
+     * instead of crashing the machine.
+     */
+    assignCreatedFundId: assign(({ event }) => {
+      // XState v5 types the action event as the machine events union;
+      // the actual runtime value for onDone carries .output from the actor.
+      const parsed = fundIdResponseSchema.safeParse((event as Record<string, unknown>)['output']);
+      return {
+        createdFundId: parsed.success ? parsed.data.data.id : null,
+      };
+    }),
+
+    /**
      * Reset wizard to initial state
      */
     resetWizard: assign(() => createInitialContext({ skipOptionalSteps: false })),
@@ -1255,7 +1276,7 @@ export const modelingWizardMachine = setup({
             input: ({ context }) => context,
             onDone: {
               target: '#modelingWizard.completed',
-              actions: ['clearProgress', 'clearSubmissionError'],
+              actions: ['assignCreatedFundId', 'clearProgress', 'clearSubmissionError'],
             },
             onError: {
               target: 'submissionError',
@@ -1348,6 +1369,7 @@ function createInitialContext(
     targetStep: null,
     submissionError: null,
     submissionRetryCount: 0,
+    createdFundId: null,
     skipOptionalSteps,
     autoSaveInterval: input.autoSaveInterval ?? 30000, // 30 seconds default
   } as ModelingWizardContext;
