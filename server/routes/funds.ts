@@ -11,8 +11,8 @@ import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
-import { storage } from '../storage';
 
+import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { detectPostFormat, parseCanonical } from '../adapters/fund-create-adapter';
 
@@ -85,7 +85,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
 
     try {
       const data = parsed.data;
-      const fundData = {
+      const fundInput = {
         name: data.name,
         size: String(data.size),
         managementFee: String(data.managementFee),
@@ -94,7 +94,8 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
         ...(data.engineResults != null && { engineResults: data.engineResults }),
       };
 
-      const fund = await storage.createFund(fundData);
+      // Atomic create: fund + initial draft in one transaction
+      const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
       console.warn('create-canonical', { fundId: fund.id });
 
       res['status'](201);
@@ -135,7 +136,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
     const size = data.size || data.basics?.size || 0;
     const managementFee = data.managementFee ?? 0.02;
     const carryPercentage = data.carryPercentage ?? 0.2;
-    const fundData = {
+    const fundInput = {
       name: data.name || data.basics?.name || '',
       size: String(size),
       managementFee: String(managementFee),
@@ -144,7 +145,8 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
       ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
-    const fund = await storage.createFund(fundData);
+    // Atomic create: fund + initial draft in one transaction
+    const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
     console.warn('create-legacy-basics', { fundId: fund.id });
 
     res['status'](201);

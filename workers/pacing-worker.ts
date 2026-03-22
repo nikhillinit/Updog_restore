@@ -26,12 +26,23 @@ interface PacingJobData {
   correlationId: string;
   marketCondition?: 'bull' | 'bear' | 'neutral';
   deploymentQuarter?: number;
+  runId?: number;
+  configId?: number;
+  configVersion?: number;
 }
 
 export const pacingWorker = new Worker<PacingJobData>(
-  'pacing:calc',
+  'pacing-calc',
   async (job) => {
-    const { fundId, correlationId, marketCondition = 'neutral', deploymentQuarter = 1 } = job.data;
+    const {
+      fundId,
+      correlationId,
+      marketCondition = 'neutral',
+      deploymentQuarter = 1,
+      runId,
+      configId,
+      configVersion,
+    } = job.data;
 
     logger.info('Processing pacing calculation', { fundId, correlationId, jobId: job.id });
 
@@ -68,7 +79,8 @@ export const pacingWorker = new Worker<PacingJobData>(
 
         // Insert into pacing_history (handle conflicts by updating)
         for (const history of historyInserts) {
-          await db.insert(pacingHistory)
+          await db
+            .insert(pacingHistory)
             .values(history)
             .onConflictDoUpdate({
               target: [pacingHistory.fundId, pacingHistory.quarter],
@@ -79,21 +91,27 @@ export const pacingWorker = new Worker<PacingJobData>(
             });
         }
 
-        // Write snapshot to database
-        const [snapshot] = await db.insert(fundSnapshots).values({
-          fundId,
-          type: 'PACING',
-          payload: pacingSummary as unknown as Record<string, unknown>,
-          calcVersion: process.env.ALG_PACING_VERSION || '1.0.0',
-          correlationId,
-          snapshotTime: new Date(),
-          metadata: {
-            totalQuarters: pacingSummary.totalQuarters,
-            avgQuarterlyDeployment: pacingSummary.avgQuarterlyDeployment,
-            marketCondition: pacingSummary.marketCondition,
-            engineRuntime: performance.now() - startTime,
-          },
-        }).returning();
+        // Write snapshot to database (with run attribution if available)
+        const [snapshot] = await db
+          .insert(fundSnapshots)
+          .values({
+            fundId,
+            type: 'PACING',
+            payload: pacingSummary as unknown as Record<string, unknown>,
+            calcVersion: process.env.ALG_PACING_VERSION || '1.0.0',
+            correlationId,
+            snapshotTime: new Date(),
+            ...(runId != null && { runId }),
+            ...(configId != null && { configId }),
+            ...(configVersion != null && { configVersion }),
+            metadata: {
+              totalQuarters: pacingSummary.totalQuarters,
+              avgQuarterlyDeployment: pacingSummary.avgQuarterlyDeployment,
+              marketCondition: pacingSummary.marketCondition,
+              engineRuntime: performance.now() - startTime,
+            },
+          })
+          .returning();
 
         // Record metrics
         metrics.recordSnapshotWrite('PACING', true);
