@@ -241,7 +241,8 @@ Export table as CSV for LP reporting
 
 ## 📚 Reference Materials
 
-- **PDF Example**: `Default Parameters/Capital Allocation Example.pdf`
+- **PDF Example**:
+  `docs/archive/2025-q4/default-parameters/Capital Allocation Example.pdf`
 - **AI Analysis**: Gemini deep-think output (see conversation)
 - **Current Implementation**: `client/src/pages/CapitalStructureStep.tsx`
 

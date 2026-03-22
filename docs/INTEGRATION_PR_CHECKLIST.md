@@ -5,45 +5,60 @@ last_updated: 2026-01-19
 
 # Phase 1 Foundations Integration - PR Checklist
 
-**PR Title**: `feat: Phase 1 Foundations - KPI Selectors + 5-Route IA + Flag System`
+**PR Title**:
+`feat: Phase 1 Foundations - KPI Selectors + 5-Route IA + Flag System`
 
 **Target Branch**: `demo-tomorrow` → `main`
 
-**Executive Summary**: Integrates Phase 1 Foundations Starter Kit with comprehensive contract system. Enables demo-ready KPI header, 5-route IA consolidation, and unified feature flag system while maintaining backward compatibility.
+**Executive Summary**: Integrates Phase 1 Foundations Starter Kit with
+comprehensive contract system. Enables demo-ready KPI header, 5-route IA
+consolidation, and unified feature flag system while maintaining backward
+compatibility.
 
 ---
 
 ## ✅ Changes Included
 
 ### 1. **Contract System** (Raw Facts API)
+
 - [x] `shared/contracts/kpi-raw-facts.contract.ts` - API returns ONLY raw facts
-- [x] `client/src/adapters/kpiAdapter.ts` - Maps Zod responses to selector inputs
+- [x] `client/src/adapters/kpiAdapter.ts` - Maps Zod responses to selector
+      inputs
 - [x] Decision: Client-side KPI computation (pure selectors)
 - [x] Recycling/Waterfall fields feature-flagged (OFF by default)
 
 ### 2. **Feature Flag Unification**
-- [x] `client/src/core/flags/flagAdapter.ts` - Maps ENV flags to comprehensive system
+
+- [x] `client/src/core/flags/flagAdapter.ts` - Maps ENV flags to comprehensive
+      system
 - [x] Single source of truth: `shared/feature-flags/flag-definitions.ts`
 - [x] ENV variables (`VITE_NEW_IA`, etc.) proxy to flag system
 - [x] Dependency checking preserved
 
 ### 3. **KPI Selector Integration**
-- [x] Starter kit selectors in `Default Parameters/src/core/selectors/fundKpis.ts`
+
+- [x] Starter kit selectors in
+      `docs/archive/2025-q4/default-parameters/src/core/selectors/fundKpis.ts`
 - [x] Integration with existing `client/src/hooks/useFundKpis.ts`
 - [x] TanStack Query data flow: API → Adapter → Selectors → UI
 - [x] As-of date support
 
 ### 4. **5-Route IA Consolidation**
-- [x] Routes defined in `Default Parameters/src/core/routes/ia.ts`
+
+- [x] Routes defined in
+      `docs/archive/2025-q4/default-parameters/src/core/routes/ia.ts`
 - [ ] TODO: Update router with soft redirects
 - [ ] TODO: Add deprecation banners to legacy routes
 - [ ] TODO: Move Cap Table to Company detail tabs
 
 ### 5. **Brand Tokens**
-- [x] `Default Parameters/src/styles/brand-tokens.css` - Inter/Poppins + neutral palette
+
+- [x] `docs/archive/2025-q4/default-parameters/src/styles/brand-tokens.css` -
+      Inter/Poppins + neutral palette
 - [ ] TODO: Import in `client/src/main.tsx`
 
 ### 6. **Reserve Engine Handshake**
+
 - [ ] TODO: Wire existing reserve call to `POST /api/reserve-optimization`
 - [ ] TODO: Surface rationale strings in Model → Reserves tab
 - [ ] TODO: Add feature flag gate: `enable_reserve_engine`
@@ -53,6 +68,7 @@ last_updated: 2026-01-19
 ## 🔄 Integration Steps (Safe, Reversible)
 
 ### **Step 1: Copy Starter Kit Files** (5 min)
+
 ```bash
 # From Default Parameters folder:
 cp -r src/core client/src/
@@ -62,6 +78,7 @@ cp src/styles/brand-tokens.css client/src/styles/
 ```
 
 ### **Step 2: Update Path Aliases** (2 min)
+
 ```typescript
 // vite.config.ts (ADD @core alias)
 resolve: {
@@ -74,6 +91,7 @@ resolve: {
 ```
 
 ### **Step 3: Enable Feature Flags** (1 min)
+
 ```env
 # .env.local
 VITE_NEW_IA=true
@@ -84,12 +102,14 @@ VITE_ENABLE_LP_REPORTING=false
 ```
 
 ### **Step 4: Import Brand Tokens** (1 min)
+
 ```typescript
 // client/src/main.tsx (ADD import)
 import './styles/brand-tokens.css';
 ```
 
 ### **Step 5: Wire KPI Header to Overview** (10 min)
+
 ```tsx
 // client/src/pages/fund.tsx (UPDATE at line 85)
 import { HeaderKpis } from '@/components/overview/HeaderKpis';
@@ -104,11 +124,7 @@ export function FundPage() {
 
   return (
     <div className="fund-page">
-      {isLoading ? (
-        <div>Loading KPIs...</div>
-      ) : (
-        <HeaderKpis data={kpis} />
-      )}
+      {isLoading ? <div>Loading KPIs...</div> : <HeaderKpis data={kpis} />}
       {/* Rest of overview page */}
     </div>
   );
@@ -116,6 +132,7 @@ export function FundPage() {
 ```
 
 ### **Step 6: Add Legacy Route Redirects** (15 min)
+
 ```tsx
 // client/src/App.tsx or router file
 import { OLD_TO_NEW_REDIRECTS } from '@core/routes/ia';
@@ -123,22 +140,24 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { Navigate } from 'react-router-dom';
 
 // In your router configuration:
-{Object.entries(OLD_TO_NEW_REDIRECTS).map(([oldPath, newPath]) => (
-  <Route
-    key={oldPath}
-    path={oldPath}
-    element={
-      useFeatureFlag('enable_route_redirects') ? (
-        <Navigate to={newPath} replace />
-      ) : (
-        <>
-          <DeprecationBanner newRoute={newPath} />
-          {/* Render old component */}
-        </>
-      )
-    }
-  />
-))}
+{
+  Object.entries(OLD_TO_NEW_REDIRECTS).map(([oldPath, newPath]) => (
+    <Route
+      key={oldPath}
+      path={oldPath}
+      element={
+        useFeatureFlag('enable_route_redirects') ? (
+          <Navigate to={newPath} replace />
+        ) : (
+          <>
+            <DeprecationBanner newRoute={newPath} />
+            {/* Render old component */}
+          </>
+        )
+      }
+    />
+  ));
+}
 ```
 
 ---
@@ -146,6 +165,7 @@ import { Navigate } from 'react-router-dom';
 ## 🧪 Testing Checklist
 
 ### **Manual Testing**
+
 - [ ] Visit `/fund` - KPI header displays with real data
 - [ ] Check as-of date renders correctly
 - [ ] Toggle `VITE_NEW_IA=false` - old header still works
@@ -154,6 +174,7 @@ import { Navigate } from 'react-router-dom';
 - [ ] Verify brand tokens applied (Inter headings, Poppins body)
 
 ### **Automated Testing**
+
 - [ ] Run starter kit KPI selector tests: `npm test fundKpis`
 - [ ] Run critical fixtures against selectors:
   ```bash
@@ -165,6 +186,7 @@ import { Navigate } from 'react-router-dom';
   ```
 
 ### **Integration Testing**
+
 - [ ] Test `/api/funds/:id/kpis` endpoint returns raw facts (not computed KPIs)
 - [ ] Verify adapter transforms API response correctly
 - [ ] Confirm selectors produce correct DPI/TVPI/IRR from raw facts
@@ -175,20 +197,26 @@ import { Navigate } from 'react-router-dom';
 ## 🚨 Rollback Plan
 
 **Instant Rollback** (via flags):
+
 ```env
 # .env.local
 VITE_NEW_IA=false
 VITE_ENABLE_SELECTOR_KPIS=false
 ```
+
 All changes hidden; old system active.
 
 **Partial Rollback** (disable specific features):
+
 ```typescript
 // shared/feature-flags/flag-definitions.ts
-enable_kpi_selectors: { enabled: false } // Just disable selectors, keep IA
+enable_kpi_selectors: {
+  enabled: false;
+} // Just disable selectors, keep IA
 ```
 
 **Full Rollback** (revert PR):
+
 ```bash
 git revert <commit-sha>
 git push origin main
@@ -199,18 +227,21 @@ git push origin main
 ## 📊 Success Metrics
 
 **Demo Readiness**:
+
 - ✅ KPI header renders with real data (no mocks)
 - ✅ 5 routes visible in navigation
 - ✅ Brand consistency (Inter/Poppins, neutral palette)
 - ✅ Legacy routes redirect gracefully
 
 **Technical Quality**:
+
 - ✅ All critical fixtures pass (Fee Basis Transition, Recycling, Waterfall)
 - ✅ Zero breaking changes to existing code
 - ✅ Feature flags control all new behavior
 - ✅ Type safety maintained (no `any` types)
 
 **Performance**:
+
 - ✅ KPI calculations < 100ms (pure selectors, memoized)
 - ✅ TanStack Query caching (5min stale, 10min gc)
 - ✅ No bundle size regression (code-split heavy modules)
@@ -220,18 +251,21 @@ git push origin main
 ## 📝 Post-Merge Tasks
 
 ### **Week 1 (Post-Demo)**
+
 - [ ] Add comprehensive test suite for critical fixtures
 - [ ] Implement backend `/api/funds/:id/kpis` endpoint (raw facts only)
 - [ ] Add error boundaries per route
 - [ ] Implement Cap Table tab migration
 
 ### **Week 2-3**
+
 - [ ] Layer in fee basis variants to selectors
 - [ ] Add recycling denominator handling
 - [ ] Implement waterfall calculation logic
 - [ ] Enable `enable_route_redirects` for hard cutover
 
 ### **Week 4-6**
+
 - [ ] Remove legacy routes from codebase
 - [ ] Comprehensive E2E test suite (Playwright)
 - [ ] Performance audit and optimization
@@ -242,7 +276,8 @@ git push origin main
 ## 🔗 References
 
 - **Executive Feedback**: See user message on normalization decisions
-- **Multi-AI Consensus**: All agents recommend Option A (adopt now, layer incrementally)
+- **Multi-AI Consensus**: All agents recommend Option A (adopt now, layer
+  incrementally)
 - **Starter Kit Location**: `C:\dev\Updog_restore\Default Parameters\`
 - **Comprehensive Contracts**: `shared/contracts/kpi-selector.contract.ts`
 - **Critical Fixtures**: `tests/fixtures/kpi-critical-fixtures.ts`
@@ -253,6 +288,7 @@ git push origin main
 ## ✅ Approval Checklist
 
 **Before Merging**:
+
 - [ ] All files copied to correct locations
 - [ ] Path aliases updated in `vite.config.ts` and `tsconfig.json`
 - [ ] Feature flags enabled in `.env.local`
@@ -264,12 +300,14 @@ git push origin main
 - [ ] Rollback plan tested
 
 **Sign-Off**:
-- [ ] Solo Developer: ____________ (Date: ______)
+
+- [ ] Solo Developer: ****\_\_\_\_**** (Date: **\_\_**)
 - [ ] Stakeholder Demo Ready: Yes / No
 
 ---
 
 **Notes**:
+
 - This PR implements Steps 1-3 of the 6-step merge plan
 - Steps 4-6 (Reserve Engine, Brand Pass, Tests) are follow-up PRs
 - All changes are feature-flagged and reversible
