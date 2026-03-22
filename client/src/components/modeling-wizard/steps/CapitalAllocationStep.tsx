@@ -196,6 +196,7 @@ export function CapitalAllocationStep({
       targetStep: null,
       submissionError: null,
       submissionRetryCount: 0,
+      createdFundId: null,
       skipOptionalSteps: false,
       autoSaveInterval: 30000,
     }),
