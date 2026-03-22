@@ -327,4 +327,43 @@ export function registerFundConfigRoutes(app: Express) {
       res['status'](500)['json'](apiError);
     }
   });
+
+  // Get fund lifecycle state (two-axis: config + calculation)
+  app['get']('/api/funds/:id/state', async (req: Request, res: Response) => {
+    try {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message,
+          };
+          return res['status'](400)['json'](error);
+        }
+        throw err;
+      }
+
+      const { fundStateReadService } = await import('../services/fund-state-read-service');
+      const state = await fundStateReadService.getState(fundId);
+
+      if (!state) {
+        const error: ApiError = {
+          error: 'Fund not found',
+          message: `No fund exists with ID: ${fundId}`,
+        };
+        return res['status'](404)['json'](error);
+      }
+
+      res['json'](state);
+    } catch (error) {
+      console.error('Fund state read error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to read fund state',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      res['status'](500)['json'](apiError);
+    }
+  });
 }
