@@ -13,15 +13,44 @@
 
 import { db } from '../db';
 import { funds, fundSnapshots } from '@shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 import { fundStateReadService } from './fund-state-read-service';
 import { mapReserveSnapshot, mapPacingSnapshot } from './fund-results-mappers';
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
+import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type { ReserveSummary, PacingSummary } from '@shared/types';
 
 /** Unavailable section helper */
 function unavailable(reason: string) {
   return { status: 'unavailable' as const, reason };
+}
+
+/** Pending section helper */
+function pending(reason: string) {
+  return { status: 'pending' as const, reason };
+}
+
+/** Failed section helper */
+function failed(reason: string) {
+  return { status: 'failed' as const, reason };
+}
+
+function missingSectionForLifecycle(lifecycle: FundStateReadV1) {
+  const { status, lastError } = lifecycle.calculationState;
+
+  if (status === 'not_requested') {
+    return pending('Calculations not yet requested');
+  }
+
+  if (status === 'submitted' || status === 'calculating') {
+    return pending('Calculations are still in progress');
+  }
+
+  if (status === 'failed') {
+    return failed(lastError ?? 'Calculation failed before results were produced');
+  }
+
+  return unavailable('No calculation results available');
 }
 
 export class FundResultsReadService {
@@ -57,12 +86,20 @@ export class FundResultsReadService {
     }
 
     // 5. Load snapshot sections with two-tier query (Decision 9)
-    const reserveSection = await this.loadSection(fundId, 'RESERVE', publishedVersion, (payload) =>
-      mapReserveSnapshot(payload as ReserveSummary, Number(fund.size))
+    const reserveSection = await this.loadSection(
+      fundId,
+      'RESERVE',
+      publishedVersion,
+      (payload) => mapReserveSnapshot(payload as ReserveSummary, Number(fund.size)),
+      lifecycle
     );
 
-    const pacingSection = await this.loadSection(fundId, 'PACING', publishedVersion, (payload) =>
-      mapPacingSnapshot(payload as PacingSummary)
+    const pacingSection = await this.loadSection(
+      fundId,
+      'PACING',
+      publishedVersion,
+      (payload) => mapPacingSnapshot(payload as PacingSummary),
+      lifecycle
     );
 
     return {
@@ -87,13 +124,14 @@ export class FundResultsReadService {
   /**
    * Two-tier snapshot query:
    * Tier 1: attributed snapshot matching publishedVersion
-   * Tier 2: legacy fallback (any snapshot for this fund+type)
+   * Tier 2: legacy fallback (unattributed snapshot for this fund+type)
    */
   private async loadSection<T>(
     fundId: number,
     snapshotType: string,
     publishedVersion: number | null,
-    mapper: (payload: Record<string, unknown>) => T
+    mapper: (payload: Record<string, unknown>) => T,
+    lifecycle: FundStateReadV1
   ) {
     // Tier 1: attributed snapshot for published config version
     let snapshot = null;
@@ -110,10 +148,14 @@ export class FundResultsReadService {
       });
     }
 
-    // Tier 2: legacy fallback (unattributed, latest by createdAt)
-    if (!snapshot) {
+    // Tier 2: legacy fallback only when lifecycle derivation proved legacy evidence.
+    if (!snapshot && lifecycle.calculationState.legacyEvidence) {
       snapshot = await db.query.fundSnapshots.findFirst({
-        where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, snapshotType)),
+        where: and(
+          eq(fundSnapshots.fundId, fundId),
+          eq(fundSnapshots.type, snapshotType),
+          isNull(fundSnapshots.configVersion)
+        ),
         orderBy: desc(fundSnapshots.createdAt),
       });
 
@@ -123,14 +165,15 @@ export class FundResultsReadService {
     }
 
     if (!snapshot) {
-      return unavailable('No calculation results available');
+      return missingSectionForLifecycle(lifecycle);
     }
 
     const payload = mapper(snapshot.payload as Record<string, unknown>);
 
     return {
       status: 'available' as const,
-      calculatedAt: snapshot.snapshotTime?.toISOString() ?? null,
+      calculatedAt:
+        snapshot.snapshotTime?.toISOString() ?? snapshot.createdAt?.toISOString() ?? null,
       source: 'fund_snapshots' as const,
       legacyEvidence,
       payload,

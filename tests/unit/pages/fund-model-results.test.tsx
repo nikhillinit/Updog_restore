@@ -191,8 +191,8 @@ describe('FundModelResultsPage (server-backed)', () => {
         ...readyResponse(),
         status: 'calculating',
         sections: {
-          reserve: { status: 'pending', reason: 'Calculation in progress' },
-          pacing: { status: 'pending', reason: 'Calculation in progress' },
+          reserve: { status: 'pending', reason: 'Calculations are still in progress' },
+          pacing: { status: 'pending', reason: 'Calculations not yet requested' },
           scorecard: { status: 'unavailable', reason: 'No authoritative source' },
           scenarios: { status: 'unavailable', reason: 'No authoritative source' },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
@@ -206,6 +206,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     // Status indicator for non-ready top-level
     expect(screen.getByText(/Status: calculating/)).toBeInTheDocument();
+    expect(screen.getByText('Calculations are still in progress')).toBeInTheDocument();
+    expect(screen.getByText('Calculations not yet requested')).toBeInTheDocument();
   });
 
   // -- No fabricated data --
