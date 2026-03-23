@@ -903,20 +903,32 @@ general boundary cleanup ahead of Phase 4.
 
 1. Resolve inline versus mounted fund-route duplication.
 2. Normalize route path conventions in `routes/funds.ts`.
-3. Remove client-import violations using an explicit replacement table:
+3. Keep the canonical funds ownership table as a machine-checked manifest. For a
+   single maintainer, a checked TypeScript manifest plus contract tests is
+   sufficient; a broader CI system can remain follow-on hardening.
+4. Remove client-import violations using an explicit replacement table:
    - current import
    - target shared module
    - missing extraction work
    - validation required after replacement
-4. Prove that wizard submission now succeeds end to end on the authoritative
+5. Add a focused boundary regression guard for the normalized Phase 4 files if
+   full-repo lint remains too noisy to act as the primary signal.
+6. Prove that wizard submission now succeeds end to end on the authoritative
    runtime path.
-5. Prove that persisted data reads back through the chosen results model.
+7. Prove that persisted data reads back through the chosen results model.
+8. Keep any temporary compatibility adapter on an explicit removal condition.
+   For the current funds create flow, the legacy `basics` acceptance path must
+   be deleted once the wizard emits canonical `FundCreateV1` directly and before
+   a second public write DTO revision is introduced.
 
 ### Exit criteria
 
 - duplicate fund-route ownership is removed
+- route ownership manifest exists for the canonical funds surface and remains
+  aligned with contract tests
 - route prefixes are internally consistent
 - boundary imports have named shared replacements
+- focused boundary regression protection exists for the normalized Phase 4 files
 - wizard submit and readback work end to end
 
 ## Follow-On Hardening (Out Of Critical Path)
@@ -935,7 +947,8 @@ and harden ownership drift prevention if still needed.
 
 ### Required work
 
-1. Promote the endpoint ownership table into a route ownership manifest.
+1. Extend the existing route ownership manifest into broader CI/runtime-surface
+   drift checks.
 2. Add CI checks for ownership and runtime-surface drift.
 3. Register `liquidity` and `capital-allocation` only after `funds` is proven
    working.
@@ -943,7 +956,7 @@ and harden ownership drift prevention if still needed.
 
 ### Exit criteria
 
-- route ownership manifest exists
+- route ownership manifest covers the hardened surfaces
 - CI drift protection exists
 - `funds` is already working before secondary route rollout
 
@@ -958,15 +971,15 @@ and harden ownership drift prevention if still needed.
 
 ## Phase Acceptance And Rollback
 
-| Phase | Business acceptance check                                                                                                                            | Rollback trigger                                                                                                                                                  |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0A`  | ADR, release-support matrix, ownership table, and snapshots make the supported `/api/funds` path and contract explicit without behavior change.      | Stop before cutover if deployment targets, supported surfaces, or the canonical POST contract cannot be stated unambiguously.                                     |
-| `0B`  | Supported runtime surfaces resolve `POST /api/funds` through the chosen owner or explicit proxy path and preserve the router-owned wrapper contract. | Revert the cutover if smoke tests fail, the wrapper contract drifts, or a release-supported surface remains ambiguous.                                            |
-| `1`   | Current wizard submit payload and canonical DTO both normalize into the same write contract.                                                         | Stop before client cutover if legacy acceptance requires unbounded shapes, schema overlap remains ambiguous, or field ownership is unclear.                       |
-| `2A`  | A created fund round-trips with the full intended payload persisted at its authoritative write-home with no dropped fields.                          | Revert persistence changes if rich wizard fields still drop on write or multi-table writes cannot be made atomic or explicitly compensating.                      |
-| `2B`  | Persisted config state and calculation/read state are truthful, explicit, and non-conflated.                                                         | Revert lifecycle/read-field changes if state ownership cannot be made explicit or authoritative reads still depend on `engineResults`.                            |
-| `3`   | Submit, refresh, and results reload show the same persisted state with no fabricated financial outputs.                                              | Revert results cutover if session storage remains the truth source, refreshed results diverge from initial load, or pending/config-only fallback is not truthful. |
-| `4`   | Normalized routes and shared replacements preserve submit and read-back behavior end to end.                                                         | Revert normalization if route dedupe changes the payload contract or a supported runtime path regresses.                                                          |
+| Phase | Business acceptance check                                                                                                                            | Rollback trigger                                                                                                                                                                                                                                             |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0A`  | ADR, release-support matrix, ownership table, and snapshots make the supported `/api/funds` path and contract explicit without behavior change.      | Stop before cutover if deployment targets, supported surfaces, or the canonical POST contract cannot be stated unambiguously.                                                                                                                                |
+| `0B`  | Supported runtime surfaces resolve `POST /api/funds` through the chosen owner or explicit proxy path and preserve the router-owned wrapper contract. | Revert the cutover if smoke tests fail, the wrapper contract drifts, or a release-supported surface remains ambiguous.                                                                                                                                       |
+| `1`   | Current wizard submit payload and canonical DTO both normalize into the same write contract.                                                         | Stop before client cutover if legacy acceptance requires unbounded shapes, schema overlap remains ambiguous, or field ownership is unclear.                                                                                                                  |
+| `2A`  | A created fund round-trips with the full intended payload persisted at its authoritative write-home with no dropped fields.                          | Revert persistence changes if rich wizard fields still drop on write or multi-table writes cannot be made atomic or explicitly compensating.                                                                                                                 |
+| `2B`  | Persisted config state and calculation/read state are truthful, explicit, and non-conflated.                                                         | Revert lifecycle/read-field changes if state ownership cannot be made explicit or authoritative reads still depend on `engineResults`.                                                                                                                       |
+| `3`   | Submit, refresh, and results reload show the same persisted state with no fabricated financial outputs.                                              | Revert results cutover if session storage remains the truth source, refreshed results diverge from initial load, or pending/config-only fallback is not truthful.                                                                                            |
+| `4`   | Normalized routes and shared replacements preserve submit and read-back behavior end to end.                                                         | Revert the affected checkpoint if canonical endpoint snapshots drift, the ownership manifest no longer matches the supported runtime, a normalized file reimports `client/` runtime logic, or create -> readback stops returning the authored fund identity. |
 
 ## Validation And Gates
 
