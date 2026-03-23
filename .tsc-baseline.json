@@ -87,7 +87,7 @@
         "client/src/pages/return-the-fund.tsx:TS2322:c06ad7a7"
       ],
       "total": 82,
-      "lastUpdated": "2026-03-20T11:45:44.333Z"
+      "lastUpdated": "2026-03-23T05:06:14.772Z"
     },
     "server": {
       "errors": [
@@ -101,11 +101,11 @@
         "server/routes/flags.ts:TS2375:1b3046db"
       ],
       "total": 8,
-      "lastUpdated": "2026-03-20T11:45:44.333Z"
+      "lastUpdated": "2026-03-23T05:06:14.772Z"
     }
   },
   "totalErrors": 90,
-  "timestamp": "2026-03-20T11:45:44.333Z",
+  "timestamp": "2026-03-23T05:06:14.772Z",
   "buildMode": "per-project",
-  "elapsedMs": 27697
+  "elapsedMs": 21999
 }
