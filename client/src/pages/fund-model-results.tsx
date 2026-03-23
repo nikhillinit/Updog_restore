@@ -151,7 +151,7 @@ function SectionRenderer({ title, section }: SectionRendererProps) {
     <div className="bg-beige-50 rounded-lg border border-beige-200 p-6">
       <h2 className="text-lg font-medium text-charcoal-400 mb-2">{title}</h2>
       <p className="text-sm text-charcoal-500 font-poppins">
-        {section.status === 'pending' ? 'Calculation in progress...' : ''}
+        {section.status === 'pending' ? section.reason || 'Calculation in progress...' : ''}
         {section.status === 'unavailable' ? section.reason || 'Not available' : ''}
         {section.status === 'failed'
           ? `Calculation failed: ${section.reason || 'Unknown error'}`
