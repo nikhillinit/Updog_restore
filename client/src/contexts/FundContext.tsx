@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
 
 export interface Fund {
@@ -52,6 +53,15 @@ export function FundProvider({ children }: FundProviderProps) {
   const [fundId, setFundId] = useState<number | null>(null);
   const [demoModeInitialized, setDemoModeInitialized] = useState(false);
 
+  // Detect route-based fund ID on /fund-model-results/:fundId
+  const [location] = useLocation();
+  const routeFundId = React.useMemo(() => {
+    const match = location.match(/^\/fund-model-results\/(\d+)(?:[/?#]|$)/);
+    if (!match?.[1]) return null;
+    const parsed = Number(match[1]);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }, [location]);
+
   // Fetch fund data
   const {
     data: funds,
@@ -66,13 +76,23 @@ export function FundProvider({ children }: FundProviderProps) {
   // Update current fund when funds data changes
   useEffect(() => {
     if (funds && Array.isArray(funds) && funds.length > 0) {
-      if (fundId) {
+      const preferredFundId = routeFundId ?? fundId;
+
+      if (preferredFundId) {
         // Find specific fund by ID
-        const fund = funds.find((f: Fund) => f.id === fundId);
+        const fund = funds.find((f: Fund) => f.id === preferredFundId);
         if (fund) {
           setCurrentFund(fund);
+          if (fundId !== fund.id) {
+            setFundId(fund.id);
+          }
         } else {
-          // Fallback to first fund if ID not found
+          // On route-addressed results pages, do not overwrite the identity with
+          // an unrelated "first fund". Let the route-specific page resolve truth.
+          if (routeFundId != null) {
+            return;
+          }
+
           setCurrentFund(funds[0]!);
           setFundId(funds[0]!.id);
         }
@@ -90,7 +110,7 @@ export function FundProvider({ children }: FundProviderProps) {
         setDemoModeInitialized(true);
       }
     }
-  }, [funds, fundId, isLoading, error, demoModeInitialized]);
+  }, [funds, fundId, routeFundId, isLoading, error, demoModeInitialized]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
     setCurrentFund(fund);
@@ -102,7 +122,7 @@ export function FundProvider({ children }: FundProviderProps) {
   };
 
   const hasResolvedFunds = Array.isArray(funds) && funds.length > 0;
-  const awaitingResolvedFundSelection = hasResolvedFunds && !currentFund;
+  const awaitingResolvedFundSelection = hasResolvedFunds && !currentFund && routeFundId == null;
 
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
@@ -111,7 +131,7 @@ export function FundProvider({ children }: FundProviderProps) {
     isLoading ||
     awaitingResolvedFundSelection ||
     (!currentFund && !demoModeInitialized && (!!error || !funds));
-  const needsSetup = !isInitializing && !currentFund;
+  const needsSetup = !isInitializing && !currentFund && routeFundId == null;
 
   const value: FundContextType = {
     currentFund,
