@@ -3,11 +3,11 @@
  *
  * Phase 0B: validates that POST /api/funds has exactly one owner on the
  * registerRoutes() surface -- the router in server/routes/funds.ts.
- * The shadowed inline POST handler has been removed from routes.ts.
+ * Phase 4 extends that normalization so GET /api/funds and GET /api/funds/:id
+ * are also router-owned.
  *
  * App assembly mirrors production mount topology:
- * - routes/funds.ts mounted at /api (routes.ts:47-48)
- * - inline GET handlers (routes.ts:138-187) remain load-bearing
+ * - routes/funds.ts mounted at /api (routes.ts:40-41)
  *
  * The idempotency import was fixed (default export = pre-called middleware),
  * so the factory mock is no longer needed.
@@ -15,53 +15,65 @@
 
 import { afterAll, describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
-import type { Request, Response } from 'express';
 import request from 'supertest';
+import {
+  fundsEndpointKey,
+  supportedCanonicalFundsEndpoints,
+} from '../../../server/contracts/funds-endpoint-ownership';
 
 let app: express.Express;
+
+describe('funds endpoint ownership manifest', () => {
+  it('declares one supported canonical owner per endpoint on registerRoutes', () => {
+    const canonicalEntries = supportedCanonicalFundsEndpoints.map(
+      ({ method, path, runtimeSurface, ownerModule }) => ({
+        method,
+        path,
+        runtimeSurface,
+        ownerModule,
+      })
+    );
+
+    expect(canonicalEntries).toEqual([
+      {
+        method: 'GET',
+        path: '/api/funds',
+        runtimeSurface: 'registerRoutes',
+        ownerModule: 'server/routes/funds.ts',
+      },
+      {
+        method: 'GET',
+        path: '/api/funds/:id',
+        runtimeSurface: 'registerRoutes',
+        ownerModule: 'server/routes/funds.ts',
+      },
+      {
+        method: 'POST',
+        path: '/api/funds',
+        runtimeSurface: 'registerRoutes',
+        ownerModule: 'server/routes/funds.ts',
+      },
+      {
+        method: 'POST',
+        path: '/api/funds/calculate',
+        runtimeSurface: 'registerRoutes',
+        ownerModule: 'server/routes/funds.ts',
+      },
+    ]);
+
+    const keys = supportedCanonicalFundsEndpoints.map(fundsEndpointKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
 
 beforeAll(async () => {
   app = express();
   app.set('trust proxy', false);
   app.use(express.json({ limit: '1mb' }));
 
-  // Mount funds router at /api (same as routes.ts:47-48)
+  // Mount funds router at /api (same as routes.ts:40-41)
   const fundRoutes = await import('../../../server/routes/funds');
   app.use('/api', fundRoutes.default);
-
-  const { storage } = await import('../../../server/storage');
-
-  // Inline GET handlers (same as routes.ts:138-187)
-  app.get('/api/funds', async (_req: Request, res: Response) => {
-    try {
-      const funds = await storage.getAllFunds();
-      res.json(funds);
-    } catch {
-      res.status(500).json({ error: 'Database query failed', message: 'Internal error' });
-    }
-  });
-
-  app.get('/api/funds/:id', async (req: Request, res: Response) => {
-    try {
-      const idParam = req.params['id'];
-      const id = Number(idParam);
-      if (Number.isNaN(id) || id <= 0) {
-        return res
-          .status(400)
-          .json({ error: 'Invalid fund ID', message: `Invalid ID: ${idParam}` });
-      }
-      const fund = await storage.getFund(id);
-      if (!fund) {
-        return res.status(404).json({ error: 'Fund not found', message: `No fund with ID ${id}` });
-      }
-      res.json(fund);
-    } catch {
-      res.status(500).json({ error: 'Database query failed', message: 'Internal error' });
-    }
-  });
-
-  // No inline POST /api/funds -- removed in Phase 0B cutover.
-  // The router handler at funds.ts is now the sole POST owner.
 });
 
 describe('POST /api/funds route ownership (post-cutover)', () => {
@@ -102,7 +114,7 @@ describe('POST /api/funds route ownership (post-cutover)', () => {
 });
 
 describe('GET /api/funds route ownership (post-cutover)', () => {
-  it('inline handler at routes.ts is still reachable', async () => {
+  it('router handler at funds.ts is reachable without inline assembly', async () => {
     const res = await request(app).get('/api/funds');
 
     expect(res.status).toBe(200);
@@ -111,7 +123,7 @@ describe('GET /api/funds route ownership (post-cutover)', () => {
 });
 
 describe('GET /api/funds/:id route ownership (post-cutover)', () => {
-  it('inline handler at routes.ts is still reachable', async () => {
+  it('router handler at funds.ts is reachable without inline assembly', async () => {
     const res = await request(app).get('/api/funds/1');
 
     expect(res.status).toBe(200);
@@ -134,22 +146,29 @@ describe('POST /api/funds/calculate mount prefix (post-cutover)', () => {
 });
 
 /**
- * Authoritative-runtime smoke proof (Phase 0B mandatory).
+ * Authoritative-runtime smoke proof (Phase 0B + Phase 4).
  *
- * Boots the real registerRoutes() path to prove POST /api/funds ownership
- * on the actual production surface. This is intentionally narrow: it only
- * asserts the POST contract, not the full 30+ route set.
+ * Boots the real registerRoutes() path to prove endpoint ownership on the
+ * actual production surface for all four canonical funds endpoints.
  */
 describe('registerRoutes() smoke proof', () => {
   let smokeServer: import('http').Server | undefined;
+  let smokeApp: express.Express;
+
+  beforeAll(async () => {
+    smokeApp = express();
+    smokeApp.set('trust proxy', false);
+    smokeApp.use(express.json({ limit: '1mb' }));
+
+    const { registerRoutes } = await import('../../../server/routes');
+    smokeServer = await registerRoutes(smokeApp);
+  }, 15_000);
 
   afterAll(async () => {
     const serverToClose = smokeServer;
     smokeServer = undefined;
 
     if (serverToClose?.listening) {
-      // registerRoutes() returns an http.Server that may not be listening.
-      // close() throws if not listening, so guard against that.
       await new Promise<void>((resolve, reject) => {
         serverToClose.close((err) => (err ? reject(err) : resolve()));
       });
@@ -157,13 +176,6 @@ describe('registerRoutes() smoke proof', () => {
   });
 
   it('POST /api/funds returns 201 with router-owned wrapper on real boot path', async () => {
-    const smokeApp = express();
-    smokeApp.set('trust proxy', false);
-    smokeApp.use(express.json({ limit: '1mb' }));
-
-    const { registerRoutes } = await import('../../../server/routes');
-    smokeServer = await registerRoutes(smokeApp);
-
     const payload = {
       name: 'Smoke Proof Boot Fund',
       size: 75_000_000,
@@ -181,5 +193,35 @@ describe('registerRoutes() smoke proof', () => {
     expect(res.body).toHaveProperty('success', true);
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('message');
-  }, 15_000);
+  });
+
+  it('GET /api/funds returns 200 with array on real boot path', async () => {
+    const res = await request(smokeApp).get('/api/funds');
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('POST -> GET /api/funds/:id round-trips on real boot path', async () => {
+    const createRes = await request(smokeApp)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'smoke-proof-boot-detail-01')
+      .send({
+        name: 'Smoke Proof Detail Fund',
+        size: 80_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+      });
+
+    expect(createRes.status).toBe(201);
+    const createdId = createRes.body.data.id;
+    expect(typeof createdId).toBe('number');
+
+    const detailRes = await request(smokeApp).get(`/api/funds/${createdId}`);
+
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body).toHaveProperty('id', createdId);
+    expect(detailRes.body).toHaveProperty('name', 'Smoke Proof Detail Fund');
+  });
 });
