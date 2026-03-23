@@ -1,7 +1,7 @@
 import { mapAsync } from '../../utils/async-iteration';
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
-import { resilientLimit } from '../client/src/utils/resilientLimit';
+import { resilientLimit } from '@shared/utils/resilientLimit';
 import { asyncRepl } from '../server/metrics';
 
 const connection = {

@@ -11,15 +11,9 @@ import {
   insertInvestmentSchema,
   type Activity,
 } from '@shared/schema';
-// TODO: Issue #309 - Move core engines to shared package
-// These engines are used by scaffold routes (/api/reserves, /api/pacing, /api/cohorts)
-// For now, import from client (ESLint boundary violation - tracked for refactoring)
-
-import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
-
-import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine.js';
-
-import { generateCohortSummary } from '../client/src/core/cohorts/CohortEngine.js';
+import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
+import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
+import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
 import { toNumber, NumberParseError } from '@shared/number';
@@ -131,58 +125,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     next();
-  });
-
-  // Fund routes - Type-safe error responses
-  app['get']('/api/funds', async (req: Request, res: Response) => {
-    try {
-      const funds = await storage.getAllFunds();
-      res['json'](funds);
-    } catch (error) {
-      const apiError: ApiError = {
-        error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch funds',
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
-
-  app['get']('/api/funds/:id', async (req: Request, res: Response) => {
-    try {
-      const idParam = req.params['id'];
-      const id = toNumber(idParam, 'ID');
-
-      if (id <= 0) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${idParam}`,
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      const fund = await storage.getFund(id);
-      if (!fund) {
-        const error: ApiError = {
-          error: 'Fund not found',
-          message: `No fund exists with ID: ${id}`,
-        };
-        return res['status'](404)['json'](error);
-      }
-      res['json'](fund);
-    } catch (error) {
-      if (error instanceof NumberParseError) {
-        const apiError: ApiError = {
-          error: 'Invalid fund ID',
-          message: error.message,
-        };
-        return res['status'](400)['json'](apiError);
-      }
-      const apiError: ApiError = {
-        error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch fund',
-      };
-      res['status'](500)['json'](apiError);
-    }
   });
 
   // Portfolio company routes - Type-safe with query validation

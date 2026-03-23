@@ -15,15 +15,9 @@
 
 import type { ProjectedMetrics } from '@shared/types/metrics';
 import type { Fund, PortfolioCompany } from '@shared/schema';
-// TODO: Issue #309 - Move core engines to shared package
-// These engines contain deterministic calculation logic used by both client and server
-// For now, import from client (ESLint boundary violation - tracked for refactoring)
-
-import { generateReserveSummary } from '../../client/src/core/reserves/ReserveEngine.js';
-
-import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine.js';
-
-import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
+import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
+import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
+import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
 import type {
   ReserveCompanyInput,
   ReserveSummary,

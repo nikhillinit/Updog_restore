@@ -1,8 +1,7 @@
 import { Worker } from 'bullmq';
 import { db } from '../server/db';
-import { fundConfigs, fundSnapshots, portfolioCompanies } from '@shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
-import { ReserveEngine, generateReserveSummary } from '../client/src/core/reserves/ReserveEngine';
+import { fundSnapshots } from '@shared/schema';
+import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
