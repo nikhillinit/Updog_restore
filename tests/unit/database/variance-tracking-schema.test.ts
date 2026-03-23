@@ -72,7 +72,7 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('string'); // UUID
+      expect(typeof result.id).toBe('number'); // serial
     });
 
     it('should enforce baseline_type enum constraint', async () => {
@@ -345,7 +345,7 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('string'); // UUID
+      expect(typeof result.id).toBe('number'); // serial
     });
 
     it('should enforce valid report_type enum', async () => {
@@ -543,7 +543,7 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('string'); // UUID
+      expect(typeof result.id).toBe('number'); // serial
     });
 
     it('should enforce valid severity enum', async () => {
@@ -679,7 +679,7 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('string'); // UUID
+      expect(typeof result.id).toBe('number'); // serial
     });
 
     it('should enforce valid rule_type enum', async () => {
