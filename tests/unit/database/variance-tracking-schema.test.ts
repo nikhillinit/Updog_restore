@@ -12,6 +12,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { testDb } from '../../helpers/test-database';
 import { createSandbox } from '../../setup/test-infrastructure';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 describe('Variance Tracking Database Schema', () => {
   let db: any;
   let sandbox: any;
@@ -72,7 +74,8 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce baseline_type enum constraint', async () => {
@@ -345,7 +348,8 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid report_type enum', async () => {
@@ -543,7 +547,8 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid severity enum', async () => {
@@ -679,7 +684,8 @@ describe('Variance Tracking Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid rule_type enum', async () => {

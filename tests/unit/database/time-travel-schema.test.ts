@@ -12,6 +12,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { testDb } from '../../helpers/test-database';
 import { createSandbox } from '../../setup/test-infrastructure';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 describe('Time-Travel Analytics Database Schema', () => {
   let db: any;
   let sandbox: any;
@@ -81,7 +83,8 @@ describe('Time-Travel Analytics Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid snapshot_type enum', async () => {
@@ -418,7 +421,8 @@ describe('Time-Travel Analytics Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid comparison_type enum', async () => {
@@ -546,7 +550,8 @@ describe('Time-Travel Analytics Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid event_type enum', async () => {
@@ -746,7 +751,8 @@ describe('Time-Travel Analytics Database Schema', () => {
       );
 
       expect(result.id).toBeDefined();
-      expect(typeof result.id).toBe('number'); // serial
+      expect(typeof result.id).toBe('string');
+      expect(result.id).toMatch(UUID_PATTERN);
     });
 
     it('should enforce valid restoration_type enum', async () => {
