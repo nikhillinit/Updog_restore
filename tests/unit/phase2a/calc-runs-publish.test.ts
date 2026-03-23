@@ -135,11 +135,12 @@ describe('FundPersistenceService.publishDraft', () => {
 // ============================================================================
 
 describe('Publish idempotency', () => {
-  it('service checks for pending/dispatched runs when no draft', async () => {
+  it('service reuses pending, partial, and dispatched runs when no draft remains', async () => {
     const fs = await import('fs/promises');
     const source = await fs.readFile('server/services/fund-persistence-service.ts', 'utf-8');
-    expect(source).toContain("dispatchState, 'pending'");
-    expect(source).toContain("dispatchState, 'dispatched'");
+    expect(source).toContain("dispatchState === 'pending'");
+    expect(source).toContain("dispatchState === 'partial'");
+    expect(source).toContain("dispatchState !== 'dispatched'");
   });
 });
 
