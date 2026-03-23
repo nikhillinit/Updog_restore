@@ -1427,15 +1427,14 @@ class DatabaseMock {
   }
 
   /**
-   * Generate mock ID (UUID format for compatibility)
+   * Auto-incrementing serial counter for mock IDs.
+   * All schema tables use serial('id') primary keys.
+   * Starts at 1000 to avoid collisions with preseeded rows (ids 1-5).
    */
-  private generateId(): string {
-    // Generate a UUID v4 format for compatibility with tests
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  private _nextSerialId = 1000;
+
+  private generateId(): number {
+    return this._nextSerialId++;
   }
 
   /**

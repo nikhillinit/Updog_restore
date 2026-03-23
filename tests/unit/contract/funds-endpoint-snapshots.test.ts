@@ -3,11 +3,11 @@
  *
  * Phase 0B: validates post-cutover state where the router in
  * server/routes/funds.ts is the sole POST /api/funds owner on the
- * registerRoutes() surface. The inline POST handler has been removed.
+ * registerRoutes() surface. Phase 4 extends that ownership to the canonical
+ * GET endpoints as well.
  *
  * App assembly mirrors the production mount topology:
- * - routes/funds.ts mounted at /api (routes.ts:47-48)
- * - inline GET handlers remain load-bearing (routes.ts:138-187)
+ * - routes/funds.ts mounted at /api (routes.ts:40-41)
  *
  * Phase 0A note: the idempotency import was fixed from named (factory)
  * to default (pre-called middleware), so the mock is no longer needed.
@@ -15,49 +15,39 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
-import type { Request, Response } from 'express';
 import request from 'supertest';
+import {
+  fundsEndpointKey,
+  supportedCanonicalFundsEndpoints,
+} from '../../../server/contracts/funds-endpoint-ownership';
 
 let app: express.Express;
+
+const snapshotCoverageKeys = [
+  fundsEndpointKey({ method: 'GET', path: '/api/funds', runtimeSurface: 'registerRoutes' }),
+  fundsEndpointKey({ method: 'GET', path: '/api/funds/:id', runtimeSurface: 'registerRoutes' }),
+  fundsEndpointKey({ method: 'POST', path: '/api/funds', runtimeSurface: 'registerRoutes' }),
+  fundsEndpointKey({
+    method: 'POST',
+    path: '/api/funds/calculate',
+    runtimeSurface: 'registerRoutes',
+  }),
+].sort();
 
 beforeAll(async () => {
   app = express();
   app.set('trust proxy', false);
   app.use(express.json({ limit: '1mb' }));
 
-  // Mount funds router at /api (same as routes.ts:47-48)
+  // Mount funds router at /api (same as routes.ts:40-41)
   const fundRoutes = await import('../../../server/routes/funds');
   app.use('/api', fundRoutes.default);
+});
 
-  // Mount inline GET handlers (same as routes.ts:138-187)
-  const { storage } = await import('../../../server/storage');
-
-  app.get('/api/funds', async (_req: Request, res: Response) => {
-    try {
-      const funds = await storage.getAllFunds();
-      res.json(funds);
-    } catch {
-      res.status(500).json({ error: 'Database query failed', message: 'Internal error' });
-    }
-  });
-
-  app.get('/api/funds/:id', async (req: Request, res: Response) => {
-    try {
-      const idParam = req.params['id'];
-      const id = Number(idParam);
-      if (Number.isNaN(id) || id <= 0) {
-        return res
-          .status(400)
-          .json({ error: 'Invalid fund ID', message: `Invalid ID: ${idParam}` });
-      }
-      const fund = await storage.getFund(id);
-      if (!fund) {
-        return res.status(404).json({ error: 'Fund not found', message: `No fund with ID ${id}` });
-      }
-      res.json(fund);
-    } catch {
-      res.status(500).json({ error: 'Database query failed', message: 'Internal error' });
-    }
+describe('funds endpoint ownership manifest coverage', () => {
+  it('keeps snapshot coverage aligned with the supported canonical manifest', () => {
+    const manifestKeys = supportedCanonicalFundsEndpoints.map(fundsEndpointKey).sort();
+    expect(snapshotCoverageKeys).toEqual(manifestKeys);
   });
 });
 
@@ -142,6 +132,58 @@ describe('POST /api/funds contract snapshot', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('code', 'FUND_NO_MARKERS');
+  });
+
+  it('creates a fund that becomes visible through the canonical GET list endpoint', async () => {
+    const postRes = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-round-trip-01')
+      .send({
+        name: 'Snapshot Round Trip Fund',
+        size: 65_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+      });
+
+    expect(postRes.status).toBe(201);
+    expect(postRes.body).toHaveProperty('data.id');
+
+    const createdId = String(postRes.body.data.id);
+    const getRes = await request(app).get('/api/funds');
+
+    expect(getRes.status).toBe(200);
+
+    const createdFund = (getRes.body as Array<Record<string, unknown>>).find(
+      (fund) => String(fund['id']) === createdId
+    );
+
+    expect(createdFund).toBeTruthy();
+    expect(createdFund).toHaveProperty('name', 'Snapshot Round Trip Fund');
+    expect(Number(createdFund?.['size'])).toBe(65_000_000);
+  });
+
+  it('creates a fund retrievable by numeric ID through the canonical GET detail endpoint', async () => {
+    const postRes = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-detail-readback-01')
+      .send({
+        name: 'Detail Readback Fund',
+        size: 42_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+      });
+
+    expect(postRes.status).toBe(201);
+    const createdId = postRes.body.data.id;
+    expect(typeof createdId).toBe('number');
+
+    const detailRes = await request(app).get(`/api/funds/${createdId}`);
+
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body).toHaveProperty('id', createdId);
+    expect(detailRes.body).toHaveProperty('name', 'Detail Readback Fund');
   });
 });
 
