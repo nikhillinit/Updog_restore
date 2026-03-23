@@ -75,6 +75,13 @@ export default function ReviewStep() {
   // Track created fund ID for retry logic (skip POST, retry PUT only)
   const [createdFundId, setCreatedFundId] = useState<number | null>(null);
 
+  const navigateToResults = useCallback(
+    (fundId: number) => {
+      setLocation(`/fund-model-results/${fundId}`);
+    },
+    [setLocation]
+  );
+
   // Build summary from fundStore state
   const sections = useMemo<SummarySection[]>(() => {
     return [
@@ -177,7 +184,7 @@ export default function ReviewStep() {
         await saveDraft(createdFundId);
 
         await queryClient.invalidateQueries({ queryKey: ['funds'] });
-        setLocation('/');
+        navigateToResults(createdFundId);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Draft save failed';
         setSubmitError(message);
@@ -222,8 +229,8 @@ export default function ReviewStep() {
         updatedAt: new Date().toISOString(),
       });
 
-      // Navigate to dashboard
-      setLocation('/');
+      // Land on the canonical results route for the created fund.
+      navigateToResults(fund.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create fund';
       setSubmitError(message);
@@ -239,7 +246,7 @@ export default function ReviewStep() {
     vintageYear,
     queryClient,
     setCurrentFund,
-    setLocation,
+    navigateToResults,
   ]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {

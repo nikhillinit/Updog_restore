@@ -11,8 +11,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Mock dependencies before importing component
+const mockSetLocation = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/fund-setup?step=7', vi.fn()],
+  useLocation: () => ['/fund-setup?step=7', mockSetLocation],
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,9 +22,10 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }));
 
+const mockSetCurrentFund = vi.fn();
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
-    setCurrentFund: vi.fn(),
+    setCurrentFund: mockSetCurrentFund,
   }),
 }));
 
@@ -92,6 +94,8 @@ const mockFetch = vi.fn();
 describe('ReviewStep draft failure handling', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    mockSetLocation.mockReset();
+    mockSetCurrentFund.mockReset();
     // Restore createFund implementation (restoreAllMocks wipes it)
     mockCreateFund.mockReset().mockResolvedValue({
       success: true,
@@ -157,5 +161,71 @@ describe('ReviewStep draft failure handling', () => {
     expect(mockCreateFund).toHaveBeenCalledTimes(1);
     // Draft fetch was called once (and failed)
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockSetLocation).not.toHaveBeenCalled();
+  });
+
+  it('navigates to the concrete results route after successful create + draft save', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
+
+    const { default: ReviewStep } = await import('@/pages/ReviewStep');
+    render(<ReviewStep />);
+
+    const button = screen.getByTestId('create-fund-button');
+    await userEvent.click(button);
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
+    });
+
+    expect(mockCreateFund).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockSetCurrentFund).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 42,
+        name: 'Test Fund',
+      })
+    );
+  });
+
+  it('retries draft save without repeating POST and then navigates to results', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Draft DB error' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      });
+
+    const { default: ReviewStep } = await import('@/pages/ReviewStep');
+    render(<ReviewStep />);
+
+    const button = screen.getByTestId('create-fund-button');
+    await userEvent.click(button);
+
+    // First attempt: draft fails
+    await waitFor(() => {
+      expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
+    });
+
+    // Retry
+    const retryButton = screen.getByTestId('create-fund-button');
+    await userEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
+    });
+
+    // POST was called only once (retry skips POST)
+    expect(mockCreateFund).toHaveBeenCalledTimes(1);
+    // Draft fetch was called twice (fail + retry)
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });
