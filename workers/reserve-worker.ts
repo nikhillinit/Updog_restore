@@ -7,6 +7,11 @@ import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
 import type { ReserveCompanyInput } from '@shared/types';
+import {
+  isFinalAttempt,
+  markCalcRunCompletedIfReady,
+  markCalcRunFailed,
+} from '../server/services/calc-run-tracking';
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -140,6 +145,10 @@ export const reserveWorker = new Worker(
           avgConfidence: reserves.avgConfidence,
         });
 
+        if (runId != null) {
+          await markCalcRunCompletedIfReady(runId);
+        }
+
         return {
           fundId,
           snapshotId: snapshot.id,
@@ -159,6 +168,10 @@ export const reserveWorker = new Worker(
           fundId: fundId.toString(),
           errorType: err.name,
         });
+
+        if (runId != null && isFinalAttempt(job)) {
+          await markCalcRunFailed(runId, err.message);
+        }
 
         // Re-throw for BullMQ retry handling
         throw error;

@@ -9,7 +9,7 @@
  */
 
 import { db } from '../db';
-import { funds, fundConfigs, fundEvents, calcRuns } from '@shared/schema';
+import { funds, fundConfigs, fundEvents, calcRuns, fundSnapshots } from '@shared/schema';
 import { eq, and, max } from 'drizzle-orm';
 import type { Fund, FundConfig, CalcRun, DispatchState } from '@shared/schema/fund';
 import type { EngineResults } from '@shared/schemas/engine-results-schema';
@@ -43,6 +43,18 @@ export interface PublishResult {
   published: FundConfig;
   run: CalcRun;
   correlationId: string;
+}
+
+class NoPublishableDraftError extends Error {
+  constructor() {
+    super('No draft to publish');
+  }
+}
+
+class PublishDraftRaceLostError extends Error {
+  constructor() {
+    super('Draft was already published by another request');
+  }
 }
 
 // ============================================================================
@@ -138,118 +150,115 @@ export class FundPersistenceService {
     const correlationId = generateUuid();
     const engines = ['reserve', 'pacing', 'cohort'];
 
-    // Find active draft
-    const draft = await db.query.fundConfigs.findFirst({
-      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-      orderBy: (configs, { desc }) => desc(configs.version),
-    });
+    try {
+      const created = await db.transaction(async (tx) => {
+        const draft = await tx.query.fundConfigs.findFirst({
+          where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
+          orderBy: (configs, { desc }) => desc(configs.version),
+        });
 
-    // Idempotency: no draft -> check for pending/partial run
-    if (!draft) {
-      const existingRun = await db.query.calcRuns.findFirst({
-        where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.dispatchState, 'pending')),
-      });
+        if (!draft) {
+          throw new NoPublishableDraftError();
+        }
 
-      if (existingRun) {
-        // Re-dispatch with deterministic jobIds (BullMQ dedup)
-        await this.dispatchCalcJobs(existingRun, queues);
-        return {
-          published: (await db.query.fundConfigs.findFirst({
-            where: eq(fundConfigs.id, existingRun.configId),
-          }))!,
-          run: existingRun,
-          correlationId: existingRun.correlationId,
-        };
-      }
+        await tx
+          .update(fundConfigs)
+          .set({ isPublished: false, updatedAt: new Date() })
+          .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)));
 
-      // Check for already-dispatched run
-      const dispatchedRun = await db.query.calcRuns.findFirst({
-        where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.dispatchState, 'dispatched')),
-      });
+        const [pub] = await tx
+          .update(fundConfigs)
+          .set({
+            isPublished: true,
+            isDraft: false,
+            publishedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(and(eq(fundConfigs.id, draft.id), eq(fundConfigs.isDraft, true)))
+          .returning();
 
-      if (dispatchedRun) {
-        return {
-          published: (await db.query.fundConfigs.findFirst({
-            where: eq(fundConfigs.id, dispatchedRun.configId),
-          }))!,
-          run: dispatchedRun,
-          correlationId: dispatchedRun.correlationId,
-        };
-      }
+        if (!pub) {
+          throw new PublishDraftRaceLostError();
+        }
 
-      throw new Error('No draft to publish');
-    }
+        const [newRun] = await tx
+          .insert(calcRuns)
+          .values({
+            fundId,
+            configId: draft.id,
+            configVersion: draft.version,
+            correlationId,
+            engines,
+            dispatchState: 'pending',
+            requestedAt: new Date(),
+          })
+          .returning();
 
-    // Transaction: publish draft + create calcRun
-    const { published, run } = await db.transaction(async (tx) => {
-      // Unpublish old published head
-      await tx
-        .update(fundConfigs)
-        .set({ isPublished: false, updatedAt: new Date() })
-        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)));
+        if (!newRun) throw new Error('Failed to create calcRun');
 
-      // Publish the draft
-      const [pub] = await tx
-        .update(fundConfigs)
-        .set({
-          isPublished: true,
-          isDraft: false,
-          publishedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(fundConfigs.id, draft.id))
-        .returning();
-
-      if (!pub) throw new Error('Failed to publish draft');
-
-      // Insert calcRun (dispatchState='pending')
-      const [newRun] = await tx
-        .insert(calcRuns)
-        .values({
+        await tx.insert(fundEvents).values({
           fundId,
-          configId: draft.id,
-          configVersion: draft.version,
+          eventType: 'PUBLISHED',
+          eventTime: new Date(),
           correlationId,
-          engines,
-          dispatchState: 'pending',
-          requestedAt: new Date(),
-        })
-        .returning();
+        });
 
-      if (!newRun) throw new Error('Failed to create calcRun');
+        await tx.insert(fundEvents).values({
+          fundId,
+          eventType: 'CALC_TRIGGERED',
+          eventTime: new Date(),
+          payload: { engines, correlationId },
+          ...(userId != null && { userId }),
+          correlationId,
+        });
 
-      // Insert PUBLISHED event
-      await tx.insert(fundEvents).values({
-        fundId,
-        eventType: 'PUBLISHED',
-        eventTime: new Date(),
-        correlationId,
+        return { published: pub, run: newRun };
       });
 
-      // Insert CALC_TRIGGERED event
-      await tx.insert(fundEvents).values({
-        fundId,
-        eventType: 'CALC_TRIGGERED',
-        eventTime: new Date(),
-        payload: { engines, correlationId },
-        ...(userId != null && { userId }),
-        correlationId,
-      });
+      const dispatchedRun = await this.dispatchCalcJobs(created.run, queues);
+      return { published: created.published, run: dispatchedRun, correlationId };
+    } catch (error) {
+      if (
+        !(error instanceof NoPublishableDraftError || error instanceof PublishDraftRaceLostError)
+      ) {
+        throw error;
+      }
 
-      return { published: pub, run: newRun };
-    });
+      const existing = await this.loadExistingPublishRun(fundId);
+      if (!existing) {
+        throw new Error('No draft to publish');
+      }
 
-    // After commit: dispatch queue jobs
-    await this.dispatchCalcJobs(run, queues);
+      const run =
+        existing.run.dispatchState === 'pending' || existing.run.dispatchState === 'partial'
+          ? await this.dispatchCalcJobs(existing.run, queues, { redispatchExistingRun: true })
+          : existing.run;
 
-    return { published, run, correlationId };
+      return {
+        published: existing.published,
+        run,
+        correlationId: run.correlationId,
+      };
+    }
   }
 
   /**
    * Dispatch calculation jobs with deterministic jobIds.
    * BullMQ natively rejects duplicate jobIds, making re-dispatch idempotent.
    */
-  private async dispatchCalcJobs(run: CalcRun, queues: PublishQueues): Promise<void> {
+  private async dispatchCalcJobs(
+    run: CalcRun,
+    queues: PublishQueues,
+    options: { redispatchExistingRun?: boolean } = {}
+  ): Promise<CalcRun> {
+    const targetEngines = await this.getDispatchTargets(
+      run,
+      options.redispatchExistingRun === true
+    );
+    if (targetEngines.length === 0) {
+      return run;
+    }
+
     const jobData = {
       fundId: run.fundId,
       correlationId: run.correlationId,
@@ -263,18 +272,24 @@ export class FundPersistenceService {
       removeOnFail: false,
     };
 
-    const engineQueues: Array<{ engine: string; queue: Queue | null }> = [
-      { engine: 'reserve', queue: queues.reserve },
-      { engine: 'pacing', queue: queues.pacing },
-      { engine: 'cohort', queue: queues.cohort },
-    ];
+    const queueByEngine: Record<string, Queue | null> = {
+      reserve: queues.reserve,
+      pacing: queues.pacing,
+      cohort: queues.cohort,
+    };
 
     let dispatched = 0;
     let failed = 0;
     let lastError: string | null = null;
 
-    for (const { engine, queue } of engineQueues) {
-      if (!queue) continue;
+    for (const engine of targetEngines) {
+      const queue = queueByEngine[engine] ?? null;
+      if (!queue) {
+        failed++;
+        lastError = `No queue configured for ${engine} calculations`;
+        continue;
+      }
+
       try {
         const jobId = `run:${run.id}:${engine}`;
         await queue.add('calculate', jobData, { ...jobOptions, jobId });
@@ -292,11 +307,8 @@ export class FundPersistenceService {
       newState = 'dispatched';
     } else if (dispatched > 0 && failed > 0) {
       newState = 'partial';
-    } else if (dispatched === 0 && failed > 0) {
-      newState = 'failed';
     } else {
-      // No queues available (all null) -- mark dispatched (no-op in dev)
-      newState = 'dispatched';
+      newState = 'failed';
     }
 
     const updateValues: Record<string, unknown> = {
@@ -312,7 +324,73 @@ export class FundPersistenceService {
       updateValues['lastError'] = lastError;
     }
 
-    await db.update(calcRuns).set(updateValues).where(eq(calcRuns.id, run.id));
+    const [updatedRun] = await db
+      .update(calcRuns)
+      .set(updateValues)
+      .where(eq(calcRuns.id, run.id))
+      .returning();
+
+    return updatedRun ?? ({ ...run, ...updateValues } as CalcRun);
+  }
+
+  private async loadExistingPublishRun(
+    fundId: number
+  ): Promise<{ published: FundConfig; run: CalcRun } | null> {
+    const published = await db.query.fundConfigs.findFirst({
+      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)),
+      orderBy: (configs, { desc }) => desc(configs.version),
+    });
+
+    if (!published) {
+      return null;
+    }
+
+    const run = await db.query.calcRuns.findFirst({
+      where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.configVersion, published.version)),
+      orderBy: (runs, { desc }) => desc(runs.requestedAt),
+    });
+
+    if (!run) {
+      return null;
+    }
+
+    if (
+      run.dispatchState !== 'pending' &&
+      run.dispatchState !== 'partial' &&
+      run.dispatchState !== 'dispatched'
+    ) {
+      return null;
+    }
+
+    return { published, run };
+  }
+
+  private async getDispatchTargets(
+    run: CalcRun,
+    redispatchExistingRun: boolean
+  ): Promise<string[]> {
+    if (!redispatchExistingRun || run.dispatchState !== 'partial') {
+      return run.engines;
+    }
+
+    const snapshots = await db.query.fundSnapshots.findMany({
+      where: eq(fundSnapshots.runId, run.id),
+      columns: {
+        type: true,
+      },
+    });
+
+    const snapshotTypes = new Set(snapshots.map((snapshot) => snapshot.type));
+    const targets: string[] = [];
+
+    if (run.engines.includes('reserve') && !snapshotTypes.has('RESERVE')) {
+      targets.push('reserve');
+    }
+    if (run.engines.includes('pacing') && !snapshotTypes.has('PACING')) {
+      targets.push('pacing');
+    }
+
+    return targets;
   }
 }
 

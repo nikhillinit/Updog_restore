@@ -1,13 +1,19 @@
 import { Worker } from 'bullmq';
 import { db } from '../server/db';
 import { funds, fundSnapshots, pacingHistory } from '@shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
 import { getConfig } from '../server/config';
 import type { PacingInput } from '@shared/types';
+import {
+  isFinalAttempt,
+  markCalcRunCompletedIfReady,
+  markCalcRunFailed,
+} from '../server/services/calc-run-tracking';
+import { resolvePacingFundSize } from './pacing-worker-support';
 
 // Exit early if in demo mode
 const config = getConfig();
@@ -61,7 +67,7 @@ export const pacingWorker = new Worker<PacingJobData>(
 
         // Prepare pacing input
         const pacingInput: PacingInput = {
-          fundSize: parseFloat(fund.size),
+          fundSize: await resolvePacingFundSize({ fundId, configId, configVersion }),
           deploymentQuarter,
           marketCondition,
         };
@@ -134,6 +140,10 @@ export const pacingWorker = new Worker<PacingJobData>(
           avgQuarterlyDeployment: pacingSummary.avgQuarterlyDeployment,
         });
 
+        if (runId != null) {
+          await markCalcRunCompletedIfReady(runId);
+        }
+
         return {
           fundId,
           snapshotId: snapshot.id,
@@ -152,6 +162,13 @@ export const pacingWorker = new Worker<PacingJobData>(
           errorType: (error as Error).name,
         });
 
+        if (runId != null && isFinalAttempt(job)) {
+          await markCalcRunFailed(
+            runId,
+            error instanceof Error ? error.message : 'Pacing calculation failed'
+          );
+        }
+
         throw error;
       }
     });
@@ -159,6 +176,11 @@ export const pacingWorker = new Worker<PacingJobData>(
   {
     connection,
     concurrency: 5,
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000,
+    },
     removeOnComplete: {
       age: 3600,
       count: 100,
