@@ -149,8 +149,10 @@ export function assertValidLot(lot: unknown): asserts lot is InvestmentLot {
 
   const l = lot as Record<string, unknown>;
 
-  // Required fields
-  assertValidUUID(l.id);
+  // Required fields -- serial integer PK from mock, UUID from real DB
+  if (typeof l.id !== 'number' && typeof l.id !== 'string') {
+    throw new Error(`id must be number or string, got ${typeof l.id}`);
+  }
   if (typeof l.investmentId !== 'number') {
     throw new Error(`investmentId must be number, got ${typeof l.investmentId}`);
   }

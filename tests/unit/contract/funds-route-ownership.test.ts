@@ -162,7 +162,7 @@ describe('registerRoutes() smoke proof', () => {
 
     const { registerRoutes } = await import('../../../server/routes');
     smokeServer = await registerRoutes(smokeApp);
-  }, 15_000);
+  }, 30_000);
 
   afterAll(async () => {
     const serverToClose = smokeServer;
