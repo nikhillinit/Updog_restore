@@ -34,6 +34,7 @@ import { databaseMock } from '../../helpers/database-mock';
 
 import {
   assertValidLot,
+  assertValidUUID,
   assertBigIntEquals,
   generateIdempotencyKey,
 } from '../../utils/portfolio-test-utils';
@@ -71,8 +72,7 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
       assertBigIntEquals(lot.costBasisCents, data.costBasisCents);
       expect(lot.version).toBe(BigInt(1));
       expect(lot.idempotencyKey).toBe(data.idempotencyKey);
-      expect(lot.id).toBeDefined();
-      expect(typeof lot.id === 'number' || typeof lot.id === 'string').toBe(true);
+      assertValidUUID(lot.id);
       expect(lot.createdAt).toBeInstanceOf(Date);
       expect(lot.updatedAt).toBeInstanceOf(Date);
     });

@@ -20,6 +20,7 @@
  * - Unique constraint errors now include code, constraint, and table properties
  */
 
+import { randomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 import type { SQL } from 'drizzle-orm';
 
@@ -89,6 +90,47 @@ interface CallHistoryEntry {
   params?: unknown[];
   result: unknown;
 }
+
+type MockIdStrategy = 'serial' | 'uuid';
+
+interface DrizzleColumnLike {
+  columnType?: string;
+}
+
+const DRIZZLE_COLUMNS = Symbol.for('drizzle:Columns');
+const SERIAL_ID_START = 1000;
+const SERIAL_ID_TABLES = new Set([
+  'activities',
+  'calc_runs',
+  'capital_activities',
+  'companies',
+  'custom_fields',
+  'custom_fieldvalues',
+  'deal_opportunities',
+  'due_diligence_items',
+  'financial_projections',
+  'fund_distributions',
+  'fund_events',
+  'fund_metrics',
+  'fund_snapshots',
+  'fundconfigs',
+  'funds',
+  'investments',
+  'limited_partners',
+  'lp_capital_accounts',
+  'lp_distributions',
+  'lp_fund_commitments',
+  'lp_performance_snapshots',
+  'market_research',
+  'pacing_history',
+  'pipeline_activities',
+  'pipeline_stages',
+  'portfoliocompanies',
+  'report_templates',
+  'reserve_strategies',
+  'scoring_models',
+  'users',
+]);
 
 class DatabaseMock {
   private mockData = new Map<string, MockQueryResult[]>();
@@ -570,7 +612,7 @@ class DatabaseMock {
     if (normalizedQuery.startsWith('insert')) {
       // Handle INSERT queries
       const tableName = this.extractTableName(normalizedQuery, 'insert');
-      const id = this.generateId();
+      const id = this.generateIdForTable(tableName);
 
       this._nextParamIndex = 0;
       const insertedRow = {
@@ -730,8 +772,7 @@ class DatabaseMock {
     const tableName = this.getTableNameFromObject(table);
     return {
       values: vi.fn((data: Record<string, unknown>) => {
-        // Generate ID if not provided (for UUID tables)
-        const id = data.id || this.generateId();
+        const id = data.id ?? this.generateIdForTable(tableName, table);
         const result = { ...data, id };
 
         // Add to mock data
@@ -749,7 +790,7 @@ class DatabaseMock {
           onConflictDoUpdate: vi.fn((_config: unknown) => chain),
         };
       }),
-      execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }])),
+      execute: vi.fn(() => Promise.resolve([{ id: this.generateIdForTable(tableName, table) }])),
     };
   });
 
@@ -1427,14 +1468,53 @@ class DatabaseMock {
   }
 
   /**
-   * Auto-incrementing serial counter for mock IDs.
-   * All schema tables use serial('id') primary keys.
+   * Auto-incrementing counter for serial-backed mock IDs.
    * Starts at 1000 to avoid collisions with preseeded rows (ids 1-5).
    */
-  private _nextSerialId = 1000;
+  private _nextSerialId = SERIAL_ID_START;
 
-  private generateId(): number {
+  private generateSerialId(): number {
     return this._nextSerialId++;
+  }
+
+  private generateIdForTable(tableName: string, table?: unknown): string | number {
+    return this.resolveIdStrategy(tableName, table) === 'serial'
+      ? this.generateSerialId()
+      : randomUUID();
+  }
+
+  private resolveIdStrategy(tableName: string, table?: unknown): MockIdStrategy {
+    const idColumn = this.getIdColumn(table);
+
+    if (idColumn?.columnType === 'PgUUID') {
+      return 'uuid';
+    }
+
+    if (idColumn?.columnType?.includes('Serial')) {
+      return 'serial';
+    }
+
+    return SERIAL_ID_TABLES.has(tableName) ? 'serial' : 'uuid';
+  }
+
+  private getIdColumn(table: unknown): DrizzleColumnLike | null {
+    if (!table || typeof table !== 'object') {
+      return null;
+    }
+
+    const tableRecord = table as Record<PropertyKey, unknown>;
+    const columns = tableRecord[DRIZZLE_COLUMNS];
+
+    if (!columns || typeof columns !== 'object') {
+      return null;
+    }
+
+    const idColumn = (columns as Record<string, unknown>)['id'];
+    if (!idColumn || typeof idColumn !== 'object') {
+      return null;
+    }
+
+    return idColumn as DrizzleColumnLike;
   }
 
   /**
@@ -2284,6 +2364,7 @@ class DatabaseMock {
    */
   clearMockData(): void {
     this.mockData.clear();
+    this._nextSerialId = SERIAL_ID_START;
     this.setupDefaultData();
   }
 
