@@ -58,7 +58,7 @@ function calculateRuleBasedAllocation(company: ReserveCompanyInput): ReserveOutp
     allocation *= 0.8;
   }
 
-  let confidence = ConfidenceLevel.COLD_START;
+  let confidence: number = ConfidenceLevel.COLD_START;
   if (stage && sector) confidence += 0.2;
   if (ownership > 0) confidence += 0.15;
   if (invested > 1_000_000) confidence += 0.1;
