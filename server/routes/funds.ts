@@ -6,11 +6,14 @@ import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
+import type { ApiError } from '@shared/types';
+import { toNumber, NumberParseError } from '@shared/number';
 import { hashPayload } from '../lib/hash';
 import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
+import { storage } from '../storage';
 
 import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
@@ -60,6 +63,59 @@ const FundCalculationSchema = z.object({
   fundSize: z.coerce.number().positive().int().default(100_000_000),
 });
 type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
+
+router['get']('/funds', async (_req: Request, res: Response) => {
+  try {
+    const funds = await storage.getAllFunds();
+    return res['json'](funds);
+  } catch (error) {
+    const apiError: ApiError = {
+      error: 'Database query failed',
+      message: error instanceof Error ? error.message : 'Failed to fetch funds',
+    };
+    return res['status'](500)['json'](apiError);
+  }
+});
+
+router['get']('/funds/:id', async (req: Request, res: Response) => {
+  try {
+    const idParam = req.params['id'];
+    const id = toNumber(idParam, 'ID');
+
+    if (id <= 0) {
+      const error: ApiError = {
+        error: 'Invalid fund ID',
+        message: `Fund ID must be a positive integer, received: ${idParam}`,
+      };
+      return res['status'](400)['json'](error);
+    }
+
+    const fund = await storage.getFund(id);
+    if (!fund) {
+      const error: ApiError = {
+        error: 'Fund not found',
+        message: `No fund exists with ID: ${id}`,
+      };
+      return res['status'](404)['json'](error);
+    }
+
+    return res['json'](fund);
+  } catch (error) {
+    if (error instanceof NumberParseError) {
+      const apiError: ApiError = {
+        error: 'Invalid fund ID',
+        message: error.message,
+      };
+      return res['status'](400)['json'](apiError);
+    }
+
+    const apiError: ApiError = {
+      error: 'Database query failed',
+      message: error instanceof Error ? error.message : 'Failed to fetch fund',
+    };
+    return res['status'](500)['json'](apiError);
+  }
+});
 
 router['post']('/funds', idempotency, async (req: Request, res: Response) => {
   const format = detectPostFormat(req.body);

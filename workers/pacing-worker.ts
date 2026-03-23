@@ -2,7 +2,7 @@ import { Worker } from 'bullmq';
 import { db } from '../server/db';
 import { funds, fundSnapshots, pacingHistory } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine';
+import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
