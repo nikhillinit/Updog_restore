@@ -20,6 +20,15 @@ export const SectionUnavailableSchema = z
   .object({
     status: z.enum(['pending', 'unavailable', 'failed']),
     reason: z.string(),
+    reasonCode: z
+      .enum([
+        'NO_PUBLISHED_CONFIG',
+        'CALCULATION_PENDING',
+        'STALE_EVIDENCE',
+        'INVALID_PUBLISHED_CONFIG',
+        'NO_AUTHORITATIVE_SOURCE',
+      ])
+      .optional(),
   })
   .strict();
 
@@ -60,6 +69,54 @@ export const PacingResultsSectionSchema = z
   })
   .strict();
 
+/** Per-field source-tagged fact for scorecard provenance tracking */
+const SourcedNumber = (source: string) =>
+  z.object({ value: z.number(), source: z.literal(source) }).strict();
+const SourcedString = (source: string) =>
+  z.object({ value: z.string(), source: z.literal(source) }).strict();
+
+/** Section payload: truthful overview assembled from persisted evidence */
+export const ScorecardPayloadSchema = z
+  .object({
+    fundName: SourcedString('funds'),
+    fundSize: SourcedNumber('funds'),
+    vintageYear: SourcedNumber('funds').optional(),
+    reserveRatio: SourcedNumber('fund_snapshots').optional(),
+    avgConfidence: SourcedNumber('fund_snapshots').optional(),
+    yearsToFullDeploy: SourcedNumber('fund_snapshots').optional(),
+    lastCalculatedAt: SourcedString('fund_state').optional(),
+  })
+  .strict();
+
+/** Section payload: published waterfall setup summary */
+export const WaterfallSetupSectionSchema = z
+  .object({
+    view: z.literal('setup-summary'),
+    type: z.enum(['american', 'hybrid']),
+    tierCount: z.number().int().nonnegative(),
+    tiers: z.array(
+      z
+        .object({
+          name: z.string(),
+          preferredReturn: z.number().nullable(),
+          catchUp: z.number().nullable(),
+          gpSplit: z.number(),
+          lpSplit: z.number(),
+          condition: z.enum(['irr', 'moic', 'none']).nullable(),
+          conditionValue: z.number().nullable(),
+        })
+        .strict()
+    ),
+    recyclingEnabled: z.boolean().nullable(),
+    recyclingType: z.enum(['exits', 'fees', 'both']).nullable(),
+    recyclingCap: z.number().nullable(),
+    recyclingPeriod: z.number().nullable(),
+    exitRecyclingRate: z.number().nullable(),
+    mgmtFeeRecyclingRate: z.number().nullable(),
+    allowFutureRecycling: z.boolean().nullable(),
+  })
+  .strict();
+
 /**
  * Generic available-section wrapper. Takes a payload schema and returns
  * a strict object schema with status, metadata, and the typed payload.
@@ -87,6 +144,29 @@ const PacingSectionSchema = z.union([
   SectionUnavailableSchema,
 ]);
 
+const ScorecardSectionSchema = z.union([
+  z
+    .object({
+      status: z.literal('available'),
+      payload: ScorecardPayloadSchema,
+    })
+    .strict(),
+  SectionUnavailableSchema,
+]);
+
+const WaterfallSectionSchema = z.union([
+  z
+    .object({
+      status: z.literal('available'),
+      source: z.literal('fund_config'),
+      configVersion: z.number().int(),
+      publishedAt: z.string().nullable(),
+      payload: WaterfallSetupSectionSchema,
+    })
+    .strict(),
+  SectionUnavailableSchema,
+]);
+
 /** Top-level fund results read DTO */
 export const FundResultsReadV1Schema = z
   .object({
@@ -104,10 +184,9 @@ export const FundResultsReadV1Schema = z
       .object({
         reserve: ReserveSectionSchema,
         pacing: PacingSectionSchema,
-        // Phase 3: these sections can only be unavailable
-        scorecard: SectionUnavailableSchema,
+        scorecard: ScorecardSectionSchema,
         scenarios: SectionUnavailableSchema,
-        waterfall: SectionUnavailableSchema,
+        waterfall: WaterfallSectionSchema,
       })
       .strict(),
   })
@@ -118,4 +197,6 @@ export const FundResultsReadV1Schema = z
 export type SectionUnavailable = z.infer<typeof SectionUnavailableSchema>;
 export type ReserveResultsSection = z.infer<typeof ReserveResultsSectionSchema>;
 export type PacingResultsSection = z.infer<typeof PacingResultsSectionSchema>;
+export type ScorecardPayload = z.infer<typeof ScorecardPayloadSchema>;
+export type WaterfallSetupSection = z.infer<typeof WaterfallSetupSectionSchema>;
 export type FundResultsReadV1 = z.infer<typeof FundResultsReadV1Schema>;

@@ -108,19 +108,72 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
   });
 
+  it('renders waterfall setup section when the server returns published config data', async () => {
+    const resp = readyResponse();
+    resp.sections.waterfall = {
+      status: 'available',
+      source: 'fund_config',
+      configVersion: 1,
+      publishedAt: '2026-03-20T12:00:00.000Z',
+      payload: {
+        view: 'setup-summary',
+        type: 'american',
+        tierCount: 1,
+        tiers: [
+          {
+            name: 'Tier 1',
+            preferredReturn: 0.08,
+            catchUp: null,
+            gpSplit: 20,
+            lpSplit: 80,
+            condition: 'irr',
+            conditionValue: 0.08,
+          },
+        ],
+        recyclingEnabled: true,
+        recyclingType: 'both',
+        recyclingCap: 25,
+        recyclingPeriod: 24,
+        exitRecyclingRate: 0.5,
+        mgmtFeeRecyclingRate: 0.25,
+        allowFutureRecycling: false,
+      },
+    };
+    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
+    });
+    expect(screen.getByText('American')).toBeInTheDocument();
+    expect(screen.getByText('GP 20% / LP 80%')).toBeInTheDocument();
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+  });
+
   // -- Unavailable sections --
 
-  it('renders unavailable reason text for scorecard section', async () => {
+  it('renders overview section with typed scorecard facts', async () => {
     fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      // scorecard, scenarios, waterfall all show this reason
-      const matches = screen.getAllByText(/No authoritative source/i);
-      expect(matches.length).toBe(3);
+      expect(screen.getByText('Overview')).toBeInTheDocument();
     });
-    // Scorecard heading is present
-    expect(screen.getByText('Fund Scorecard')).toBeInTheDocument();
+    // Typed fact tiles render formatted values
+    expect(screen.getByText('$100M')).toBeInTheDocument();
+    expect(screen.getByText('40.0%')).toBeInTheDocument(); // reserveRatio
+    expect(screen.getByText('5 yrs')).toBeInTheDocument(); // yearsToFullDeploy
+  });
+
+  it('renders unavailable reason text for scenarios and waterfall sections', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      // scenarios and waterfall show the raw reason text
+      const matches = screen.getAllByText(/No authoritative source/i);
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it('renders unavailable reason for reserve when no snapshot exists', async () => {
@@ -135,6 +188,41 @@ describe('FundModelResultsPage (server-backed)', () => {
     await waitFor(() => {
       expect(screen.getByText(/No calculation results available/i)).toBeInTheDocument();
     });
+  });
+
+  it('renders stale-evidence copy from reasonCode', async () => {
+    const resp = readyResponse();
+    resp.sections.reserve = {
+      status: 'pending',
+      reason: 'A newer configuration was published. Request recalculation to update.',
+      reasonCode: 'STALE_EVIDENCE',
+    };
+    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/A newer configuration was published\. Request recalculation to update\./i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('renders configuration issue label for invalid published config failures', async () => {
+    const resp = readyResponse();
+    resp.sections.waterfall = {
+      status: 'failed',
+      reason: 'Published config is invalid',
+      reasonCode: 'INVALID_PUBLISHED_CONFIG',
+    };
+    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Configuration issue:/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/The published configuration has validation issues\./i)
+    ).toBeInTheDocument();
   });
 
   // -- /latest route --
@@ -193,7 +281,11 @@ describe('FundModelResultsPage (server-backed)', () => {
         sections: {
           reserve: { status: 'pending', reason: 'Calculations are still in progress' },
           pacing: { status: 'pending', reason: 'Calculations not yet requested' },
-          scorecard: { status: 'unavailable', reason: 'No authoritative source' },
+          scorecard: {
+            status: 'pending',
+            reason: 'Calculations have not produced results yet',
+            reasonCode: 'CALCULATION_PENDING',
+          },
           scenarios: { status: 'unavailable', reason: 'No authoritative source' },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
         },
@@ -206,8 +298,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     // Status indicator for non-ready top-level
     expect(screen.getByText(/Status: calculating/)).toBeInTheDocument();
-    expect(screen.getByText('Calculations are still in progress')).toBeInTheDocument();
-    expect(screen.getByText('Calculations not yet requested')).toBeInTheDocument();
+    expect(screen.getByText(/Calculations are still in progress/)).toBeInTheDocument();
+    expect(screen.getByText(/Calculations not yet requested/)).toBeInTheDocument();
   });
 
   // -- No fabricated data --
@@ -240,7 +332,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       expect(screen.getByText('Test Fund')).toBeInTheDocument();
     });
     expect(screen.getByText(/Vintage 2024/)).toBeInTheDocument();
-    expect(screen.getByText(/\$100M/)).toBeInTheDocument();
+    // $100M appears in both header and overview card
+    const sizeMatches = screen.getAllByText(/\$100M/);
+    expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
   });
 
   // -- Legacy evidence --
@@ -326,7 +420,18 @@ function readyResponse() {
           deployments: [],
         },
       },
-      scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
+      scorecard: {
+        status: 'available' as const,
+        payload: {
+          fundName: { value: 'Test Fund', source: 'funds' },
+          fundSize: { value: 100_000_000, source: 'funds' },
+          vintageYear: { value: 2024, source: 'funds' },
+          reserveRatio: { value: 0.4, source: 'fund_snapshots' },
+          avgConfidence: { value: 0.85, source: 'fund_snapshots' },
+          yearsToFullDeploy: { value: 5, source: 'fund_snapshots' },
+          lastCalculatedAt: { value: '2026-03-20T12:30:00.000Z', source: 'fund_state' },
+        },
+      },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
     },

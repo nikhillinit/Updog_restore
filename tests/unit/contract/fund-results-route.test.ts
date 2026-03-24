@@ -79,15 +79,20 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body.sections.reserve.reason).toBeTruthy();
   });
 
-  it('scorecard, scenarios, waterfall are always unavailable', async () => {
-    const res = await request(app).get('/api/funds/1/results');
+  it('accepts widened Track A section variants at the route boundary', async () => {
+    const { fundResultsReadService } =
+      await import('../../../server/services/fund-results-read-service');
+    vi.mocked(fundResultsReadService.getResults).mockResolvedValue(validTrackAResponse());
 
-    expect(res.body.sections.scorecard.status).toBe('unavailable');
+    const res = await request(app).get('/api/funds/1/results');
+    const { FundResultsReadV1Schema } = await import('@shared/contracts/fund-results-v1.contract');
+    const parsed = FundResultsReadV1Schema.safeParse(res.body);
+
+    expect(res.status).toBe(200);
+    expect(parsed.success).toBe(true);
+    expect(res.body.sections.scorecard.status).toBe('available');
     expect(res.body.sections.scenarios.status).toBe('unavailable');
-    expect(res.body.sections.waterfall.status).toBe('unavailable');
-    expect(res.body.sections.scorecard).toHaveProperty('reason');
-    expect(res.body.sections.scenarios).toHaveProperty('reason');
-    expect(res.body.sections.waterfall).toHaveProperty('reason');
+    expect(res.body.sections.waterfall.status).toBe('available');
   });
 
   // ── Error paths ──
@@ -217,6 +222,56 @@ function validReadyResponse() {
       scorecard: { status: 'unavailable' as const, reason: 'No authoritative source' },
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
+    },
+  };
+}
+
+function validTrackAResponse() {
+  return {
+    ...validReadyResponse(),
+    sections: {
+      ...validReadyResponse().sections,
+      scorecard: {
+        status: 'available' as const,
+        payload: {
+          fundName: { value: 'Test Fund', source: 'funds' as const },
+          fundSize: { value: 100_000_000, source: 'funds' as const },
+          vintageYear: { value: 2024, source: 'funds' as const },
+          reserveRatio: { value: 0.4, source: 'fund_snapshots' as const },
+          avgConfidence: { value: 0.85, source: 'fund_snapshots' as const },
+          yearsToFullDeploy: { value: 5, source: 'fund_snapshots' as const },
+          lastCalculatedAt: { value: '2026-03-20T12:30:00.000Z', source: 'fund_state' as const },
+        },
+      },
+      waterfall: {
+        status: 'available' as const,
+        source: 'fund_config' as const,
+        configVersion: 1,
+        publishedAt: '2026-03-20T12:00:00.000Z',
+        payload: {
+          view: 'setup-summary' as const,
+          type: 'american' as const,
+          tierCount: 1,
+          tiers: [
+            {
+              name: 'Tier 1',
+              preferredReturn: 0.08,
+              catchUp: null,
+              gpSplit: 20,
+              lpSplit: 80,
+              condition: 'irr' as const,
+              conditionValue: 0.08,
+            },
+          ],
+          recyclingEnabled: true,
+          recyclingType: 'both' as const,
+          recyclingCap: 25,
+          recyclingPeriod: 24,
+          exitRecyclingRate: 0.5,
+          mgmtFeeRecyclingRate: 0.25,
+          allowFutureRecycling: false,
+        },
+      },
     },
   };
 }
