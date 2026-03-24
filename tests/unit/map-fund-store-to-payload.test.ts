@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
+// Keep direct compatibility coverage on the legacy module until it is removed.
 import {
   mapFundStoreToCreatePayload,
   type FundStoreSnapshot,
-} from '@/lib/map-fund-store-to-payload';
+} from '../../client/src/lib/map-fund-store-to-payload';
 
 describe('mapFundStoreToCreatePayload', () => {
   it('maps a fully populated state correctly', () => {

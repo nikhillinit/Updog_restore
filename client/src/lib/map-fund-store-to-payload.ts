@@ -1,4 +1,5 @@
 // client/src/lib/map-fund-store-to-payload.ts
+// Deprecated compatibility mapper. Prefer '@/adapters/fund-store-adapters' for new code.
 
 export interface CreateFundPayload {
   name: string;
