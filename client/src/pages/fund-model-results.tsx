@@ -16,7 +16,11 @@ import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
+import type {
+  FundResultsReadV1,
+  ScorecardPayload,
+  WaterfallSetupSection,
+} from '@shared/contracts/fund-results-v1.contract';
 
 // ============================================================================
 // TYPES
@@ -122,15 +126,175 @@ function useFundResults(fundId: string | null): FetchState {
 }
 
 // ============================================================================
+// REASON CODE COPY
+// ============================================================================
+
+const REASON_COPY: Record<string, string> = {
+  NO_PUBLISHED_CONFIG: 'Publish your fund configuration to see this section.',
+  CALCULATION_PENDING: 'Results are being calculated. Check back shortly.',
+  STALE_EVIDENCE: 'A newer configuration was published. Request recalculation to update.',
+  INVALID_PUBLISHED_CONFIG: 'The published configuration has validation issues.',
+  NO_AUTHORITATIVE_SOURCE: 'This section is not yet available for your fund.',
+};
+
+function reasonCopyFor(section: { [key: string]: unknown }): string {
+  // Bracket notation required: TS4111 with noPropertyAccessFromIndexSignature
+  const code = typeof section['reasonCode'] === 'string' ? section['reasonCode'] : undefined;
+  const reason = typeof section['reason'] === 'string' ? section['reason'] : undefined;
+  if (code && REASON_COPY[code]) {
+    return REASON_COPY[code];
+  }
+  return reason ?? 'Not available';
+}
+
+// ============================================================================
+// OVERVIEW (SCORECARD) CARD
+// ============================================================================
+
+function OverviewCard({ payload }: { payload: ScorecardPayload }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <FactTile label="Fund Size" value={`$${(payload.fundSize.value / 1_000_000).toFixed(0)}M`} />
+      {payload.vintageYear && (
+        <FactTile label="Vintage Year" value={String(payload.vintageYear.value)} />
+      )}
+      {payload.reserveRatio && (
+        <FactTile
+          label="Reserve Ratio"
+          value={`${(payload.reserveRatio.value * 100).toFixed(1)}%`}
+        />
+      )}
+      {payload.avgConfidence && (
+        <FactTile
+          label="Avg Confidence"
+          value={`${(payload.avgConfidence.value * 100).toFixed(0)}%`}
+        />
+      )}
+      {payload.yearsToFullDeploy && (
+        <FactTile label="Years to Full Deploy" value={`${payload.yearsToFullDeploy.value} yrs`} />
+      )}
+      {payload.lastCalculatedAt && (
+        <FactTile
+          label="Last Calculated"
+          value={new Date(payload.lastCalculatedAt.value).toLocaleDateString()}
+        />
+      )}
+    </div>
+  );
+}
+
+function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <FactTile label="Structure" value={capitalize(payload.type)} />
+        <FactTile label="Tiers" value={String(payload.tierCount)} />
+        <FactTile
+          label="Recycling"
+          value={
+            payload.recyclingEnabled == null
+              ? 'Not set'
+              : payload.recyclingEnabled
+                ? 'Enabled'
+                : 'Disabled'
+          }
+        />
+        <FactTile
+          label="Recycling Type"
+          value={payload.recyclingType ? capitalize(payload.recyclingType) : 'Not set'}
+        />
+      </div>
+
+      <div className="space-y-3">
+        {payload.tiers.map((tier, index) => (
+          <div key={`${tier.name}-${index}`} className="rounded-md border border-beige-200 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-charcoal">{tier.name}</p>
+                <p className="text-sm text-charcoal-500 font-poppins">
+                  GP {tier.gpSplit}% / LP {tier.lpSplit}%
+                </p>
+              </div>
+              {tier.condition && tier.condition !== 'none' && tier.conditionValue != null && (
+                <p className="text-sm text-charcoal-500 font-poppins">
+                  {tier.condition.toUpperCase()} hurdle {tier.conditionValue}
+                </p>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <FactTile
+                label="Preferred Return"
+                value={tier.preferredReturn != null ? percent(tier.preferredReturn) : 'Not set'}
+              />
+              <FactTile
+                label="Catch-up"
+                value={tier.catchUp != null ? percent(tier.catchUp) : 'Not set'}
+              />
+              <FactTile
+                label="Recycling Cap"
+                value={
+                  payload.recyclingCap != null ? percentPoints(payload.recyclingCap) : 'Not set'
+                }
+              />
+              <FactTile
+                label="Future Recycling"
+                value={
+                  payload.allowFutureRecycling == null
+                    ? 'Not set'
+                    : payload.allowFutureRecycling
+                      ? 'Allowed'
+                      : 'Not allowed'
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function percent(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function percentPoints(value: number) {
+  return `${value}%`;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function FactTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-beige-50 rounded-md p-3">
+      <p className="text-xs text-charcoal-400 font-poppins">{label}</p>
+      <p className="text-lg font-medium text-charcoal">{value}</p>
+    </div>
+  );
+}
+
+// ============================================================================
 // SECTION RENDERER
 // ============================================================================
 
 interface SectionRendererProps {
   title: string;
-  section: { status: string; reason?: string; payload?: unknown; legacyEvidence?: boolean };
+  // Accept the Zod-inferred union types: each section is a discriminated union
+  // of available/unavailable/pending/failed variants with different shapes
+  section: {
+    status: string;
+    reason?: string | undefined;
+    reasonCode?: string | undefined;
+    payload?: unknown | undefined;
+    legacyEvidence?: boolean | undefined;
+    [key: string]: unknown;
+  };
+  renderPayload?: (payload: unknown) => React.ReactNode;
 }
 
-function SectionRenderer({ title, section }: SectionRendererProps) {
+function SectionRenderer({ title, section, renderPayload }: SectionRendererProps) {
   if (section.status === 'available') {
     return (
       <div className="bg-white rounded-lg border border-beige-200 p-6">
@@ -140,22 +304,33 @@ function SectionRenderer({ title, section }: SectionRendererProps) {
             Based on previous calculation (legacy data)
           </p>
         )}
-        <pre className="text-sm text-charcoal-600 whitespace-pre-wrap font-mono">
-          {JSON.stringify(section.payload, null, 2)}
-        </pre>
+        {renderPayload ? (
+          renderPayload(section.payload)
+        ) : (
+          <pre className="text-sm text-charcoal-600 whitespace-pre-wrap font-mono">
+            {JSON.stringify(section.payload, null, 2)}
+          </pre>
+        )}
       </div>
     );
   }
+
+  const statusLabel =
+    section.status === 'failed'
+      ? section.reasonCode === 'INVALID_PUBLISHED_CONFIG'
+        ? 'Configuration issue'
+        : 'Calculation failed'
+      : section.status === 'pending'
+        ? 'Pending'
+        : '';
+  const copy = reasonCopyFor(section);
 
   return (
     <div className="bg-beige-50 rounded-lg border border-beige-200 p-6">
       <h2 className="text-lg font-medium text-charcoal-400 mb-2">{title}</h2>
       <p className="text-sm text-charcoal-500 font-poppins">
-        {section.status === 'pending' ? section.reason || 'Calculation in progress...' : ''}
-        {section.status === 'unavailable' ? section.reason || 'Not available' : ''}
-        {section.status === 'failed'
-          ? `Calculation failed: ${section.reason || 'Unknown error'}`
-          : ''}
+        {statusLabel ? `${statusLabel}: ` : ''}
+        {copy}
       </p>
     </div>
   );
@@ -228,7 +403,6 @@ function ErrorState({ message }: { message: string }) {
 
 function FundModelResultsPage() {
   const [, params] = useRoute('/fund-model-results/:fundId');
-  const [, navigate] = useLocation();
   const fundId = params?.fundId ?? null;
 
   // Hook must be called unconditionally (React rules of hooks)
@@ -273,9 +447,13 @@ function FundModelResultsPage() {
         <SectionRenderer title="Deployment Pacing" section={results.sections.pacing} />
       </FadeInSection>
 
-      {/* Scorecard section */}
+      {/* Overview (scorecard) section */}
       <FadeInSection>
-        <SectionRenderer title="Fund Scorecard" section={results.sections.scorecard} />
+        <SectionRenderer
+          title="Overview"
+          section={results.sections.scorecard}
+          renderPayload={(p) => <OverviewCard payload={p as ScorecardPayload} />}
+        />
       </FadeInSection>
 
       {/* Scenarios section */}
@@ -285,7 +463,11 @@ function FundModelResultsPage() {
 
       {/* Waterfall section */}
       <FadeInSection>
-        <SectionRenderer title="Waterfall Distribution" section={results.sections.waterfall} />
+        <SectionRenderer
+          title="Waterfall Setup"
+          section={results.sections.waterfall}
+          renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
+        />
       </FadeInSection>
     </div>
   );
