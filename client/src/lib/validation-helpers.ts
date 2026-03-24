@@ -9,6 +9,16 @@
 
 import { isDefined, isValidNumber, isNonEmptyString } from './type-guards';
 
+function parseSanitizedNumber(value: string): number | null {
+  const sanitized = value.replace(/[,$%]/g, '').trim();
+  if (!sanitized) {
+    return null;
+  }
+
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Validates and ensures a value is a safe number for financial calculations
  * @param value The value to validate
@@ -21,8 +31,8 @@ export function ensureFinancialNumber(value: unknown, fallback: number = 0): num
   }
 
   if (typeof value === 'string' && isNonEmptyString(value)) {
-    const parsed = parseFloat(value.replace(/[,$%]/g, ''));
-    return isValidNumber(parsed) ? parsed : fallback;
+    const parsed = parseSanitizedNumber(value);
+    return parsed != null && isValidNumber(parsed) ? parsed : fallback;
   }
 
   return fallback;

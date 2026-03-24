@@ -81,6 +81,16 @@ interface ResolutionContext {
   granularity: VintageGranularity;
 }
 
+function parseInvestmentAmount(amount: string | null): number | null {
+  const normalized = amount?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Builds resolution context from input data
  */
@@ -287,7 +297,7 @@ export function getResolvedInvestments(input: ResolutionInput): ResolvedInvestme
       resolvedVintageKey: vintageResolution.resolvedVintageKey,
       vintageSource: vintageResolution.vintageSource,
       investmentDate: investment.investmentDate,
-      investmentAmount: investment.amount ? parseFloat(investment.amount) : null,
+      investmentAmount: parseInvestmentAmount(investment.amount),
       stage: investment.round,
     });
   }
