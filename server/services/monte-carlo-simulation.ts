@@ -478,7 +478,15 @@ export class MonteCarloSimulationService {
 
     // Convert to SimulationResult format
     const simulationResults: Record<string, SimulationResult> = {};
-    for (const [metric, values] of Object.entries(results)) {
+    const metrics: Array<keyof SimulationResultArrays> = [
+      'totalValue',
+      'irr',
+      'multiple',
+      'dpi',
+      'tvpi',
+    ];
+    for (const metric of metrics) {
+      const values = results[metric];
       simulationResults[metric] = this.calculateSimulationResult(
         metric,
         values,
@@ -614,8 +622,8 @@ export class MonteCarloSimulationService {
    */
   private async analyzePortfolioScenarios(
     params: SimulationParameters,
-    baseline: FundBaseline,
-    simulationResults: Record<string, SimulationResult>
+    _baseline: FundBaseline,
+    _simulationResults: Record<string, SimulationResult>
   ) {
     // Get portfolio composition
     const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({

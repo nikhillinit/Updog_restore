@@ -74,11 +74,7 @@ function lerp(a: number, b: number, t: number): number {
 /**
  * Determine trend direction based on metric semantics
  */
-function determineTrend(
-  metric: string,
-  values: number[],
-  change: number
-): MetricTrend {
+function determineTrend(metric: string, values: number[], change: number): MetricTrend {
   // Small threshold for "stable"
   const threshold = 0.02; // 2% change
 
@@ -165,7 +161,7 @@ export class PerformanceCalculator {
       .orderBy(fundMetrics.metricDate);
 
     // Create lookup map for database metrics
-    const metricsMap = new Map<string, typeof dbMetrics[0]>();
+    const metricsMap = new Map<string, (typeof dbMetrics)[0]>();
     for (const m of dbMetrics) {
       const dateKey = new Date(m.metricDate).toISOString().split('T')[0];
       if (dateKey) metricsMap.set(dateKey, m);
@@ -174,7 +170,6 @@ export class PerformanceCalculator {
     // Build timeseries with interpolation
     const result: TimeseriesPoint[] = [];
     let prevPoint: TimeseriesPoint | null = null;
-    let nextDbIndex = 0;
 
     for (let i = 0; i < datePoints.length; i++) {
       const date = datePoints[i] ?? '';
@@ -196,10 +191,9 @@ export class PerformanceCalculator {
         };
         result.push(point);
         prevPoint = point;
-        nextDbIndex = i + 1;
       } else if (prevPoint) {
         // Find next database point for interpolation
-        let nextPoint: typeof dbMetrics[0] | null = null;
+        let nextPoint: (typeof dbMetrics)[0] | null = null;
         for (let j = i + 1; j < datePoints.length; j++) {
           const nextDateKey = datePoints[j];
           if (nextDateKey) {
@@ -227,21 +221,9 @@ export class PerformanceCalculator {
                 Number(nextPoint.totalValue) || 0,
                 t
               ),
-              irr: lerp(
-                prevPoint.actual.irr || 0,
-                Number(nextPoint.irr) || 0,
-                t
-              ),
-              tvpi: lerp(
-                prevPoint.actual.tvpi || 0,
-                Number(nextPoint.tvpi) || 0,
-                t
-              ),
-              dpi: lerp(
-                prevPoint.actual.dpi || 0,
-                Number(nextPoint.dpi) || 0,
-                t
-              ),
+              irr: lerp(prevPoint.actual.irr || 0, Number(nextPoint.irr) || 0, t),
+              tvpi: lerp(prevPoint.actual.tvpi || 0, Number(nextPoint.tvpi) || 0, t),
+              dpi: lerp(prevPoint.actual.dpi || 0, Number(nextPoint.dpi) || 0, t),
             } as Partial<ActualMetrics>,
             _source: 'interpolated',
           };
@@ -280,7 +262,9 @@ export class PerformanceCalculator {
         }
         for (const key of metricSet) {
           if (key in point.actual) {
-            (filtered as Record<string, unknown>)[key] = (point.actual as Record<string, unknown>)[key];
+            (filtered as Record<string, unknown>)[key] = (point.actual as Record<string, unknown>)[
+              key
+            ];
           }
         }
         point.actual = filtered;
@@ -400,10 +384,7 @@ export class PerformanceCalculator {
     const breakdown: BreakdownGroup[] = [];
 
     for (const [groupName, group] of groups) {
-      const moic =
-        group.totalDeployed > 0
-          ? group.currentValue / group.totalDeployed
-          : 0;
+      const moic = group.totalDeployed > 0 ? group.currentValue / group.totalDeployed : 0;
 
       // Sum distributions for this group
       let groupDistributions = 0;
@@ -427,9 +408,7 @@ export class PerformanceCalculator {
         irr,
         unrealizedGain: group.currentValue - group.totalDeployed,
         percentOfPortfolio:
-          totalDeployedSum > 0
-            ? (group.totalDeployed / totalDeployedSum) * 100
-            : 0,
+          totalDeployedSum > 0 ? (group.totalDeployed / totalDeployedSum) * 100 : 0,
       });
     }
 
@@ -437,10 +416,7 @@ export class PerformanceCalculator {
     breakdown.sort((a, b) => b.moic - a.moic);
 
     // Calculate portfolio-level IRR
-    const totalDistributions = distributions.reduce(
-      (sum, d) => sum + Number(d.amount),
-      0
-    );
+    const totalDistributions = distributions.reduce((sum, d) => sum + Number(d.amount), 0);
     const portfolioIRR = calculateSimpleIRR(
       totalDeployedSum,
       totalCurrentValue,
@@ -486,12 +462,7 @@ export class PerformanceCalculator {
           multiple: fundMetrics.multiple,
         })
         .from(fundMetrics)
-        .where(
-          and(
-            eq(fundMetrics.fundId, fundId),
-            lte(fundMetrics.metricDate, new Date(date))
-          )
-        )
+        .where(and(eq(fundMetrics.fundId, fundId), lte(fundMetrics.metricDate, new Date(date))))
         .orderBy(desc(fundMetrics.metricDate))
         .limit(1);
 
@@ -536,9 +507,7 @@ export class PerformanceCalculator {
         const lastVal = values[values.length - 1] ?? 0;
         const absoluteChange = lastVal - firstVal;
         const percentChange =
-          firstVal !== 0
-            ? ((lastVal - firstVal) / Math.abs(firstVal)) * 100
-            : 0;
+          firstVal !== 0 ? ((lastVal - firstVal) / Math.abs(firstVal)) * 100 : 0;
 
         deltas.push({
           metric: metricKey,

@@ -14,12 +14,9 @@
 import { MonteCarloEngine } from './monte-carlo-engine';
 import type { StreamingConfig } from './streaming-monte-carlo-engine';
 import { StreamingMonteCarloEngine } from './streaming-monte-carlo-engine';
-import { databasePoolManager } from './database-pool-manager';
-import type {
-  SimulationConfig,
-  SimulationResults,
-  MarketEnvironment
-} from './monte-carlo-engine';
+import { databasePoolManager, type PoolMetrics } from './database-pool-manager';
+import { logger } from '../lib/logger';
+import type { SimulationConfig, SimulationResults, MarketEnvironment } from './monte-carlo-engine';
 
 // Re-export types for external consumption
 export type { MarketEnvironment, SimulationConfig, SimulationResults };
@@ -71,22 +68,30 @@ export class UnifiedMonteCarloService {
     this.traditionalEngine = new MonteCarloEngine();
     this.streamingEngine = new StreamingMonteCarloEngine();
     this.streamingEnabled = this.shouldEnableStreaming();
-    console.log(`[monte-carlo] streaming enabled: ${this.streamingEnabled}`);
+    logger.info(
+      { streamingEnabled: this.streamingEnabled },
+      '[monte-carlo] streaming engine availability'
+    );
 
     if (this.streamingEnabled) {
-      this.initializePooling().catch(error => {
-        console.warn('Streaming Monte Carlo pool initialization failed, falling back to traditional engine:', error instanceof Error ? error.message : error);
+      this.initializePooling().catch((error) => {
+        console.warn(
+          'Streaming Monte Carlo pool initialization failed, falling back to traditional engine:',
+          error instanceof Error ? error.message : error
+        );
         this.streamingEnabled = false;
       });
     } else {
-      console.log('Streaming Monte Carlo disabled for this environment');
+      logger.info('Streaming Monte Carlo disabled for this environment');
     }
   }
 
   /**
    * Main simulation method with intelligent engine selection
    */
-  async runSimulation(config: UnifiedSimulationConfig): Promise<SimulationResults & { performance: PerformanceMetrics }> {
+  async runSimulation(
+    config: UnifiedSimulationConfig
+  ): Promise<SimulationResults & { performance: PerformanceMetrics }> {
     const startTime = Date.now();
     const selectionCriteria = await this.buildSelectionCriteria(config);
 
@@ -105,15 +110,18 @@ export class UnifiedMonteCarloService {
         }
         result = await this.executeTraditionalSimulation(config);
       }
-
     } catch (error) {
       // Fallback logic
       if (config.enableFallback !== false && selectedEngine === 'streaming') {
-        console.warn(`Streaming engine failed, falling back to traditional: ${error instanceof Error ? error.message : error}`);
+        console.warn(
+          `Streaming engine failed, falling back to traditional: ${error instanceof Error ? error.message : error}`
+        );
         fallbackTriggered = true;
         result = await this.executeTraditionalSimulation(config);
       } else if (config.enableFallback !== false && selectedEngine === 'traditional') {
-        console.warn(`Traditional engine failed, falling back to streaming: ${error instanceof Error ? error.message : error}`);
+        console.warn(
+          `Traditional engine failed, falling back to streaming: ${error instanceof Error ? error.message : error}`
+        );
         fallbackTriggered = true;
         result = await this.executeStreamingSimulation(config);
       } else {
@@ -136,23 +144,25 @@ export class UnifiedMonteCarloService {
 
     return {
       ...result,
-      performance
+      performance,
     };
   }
 
   /**
    * Batch simulation for multiple configurations
    */
-  async runBatchSimulations(configs: UnifiedSimulationConfig[]): Promise<Array<SimulationResults & { performance: PerformanceMetrics }>> {
+  async runBatchSimulations(
+    configs: UnifiedSimulationConfig[]
+  ): Promise<Array<SimulationResults & { performance: PerformanceMetrics }>> {
     // Optimize batch execution based on total workload
     const totalScenarios = configs.reduce((sum, config) => sum + config.runs, 0);
     const shouldUseStreaming = totalScenarios > this.STREAMING_THRESHOLD_SCENARIOS;
 
     if (shouldUseStreaming) {
       // Use streaming engine for all simulations in batch
-      return Promise.all(configs.map(config =>
-        this.runSimulation({ ...config, forceEngine: 'streaming' })
-      ));
+      return Promise.all(
+        configs.map((config) => this.runSimulation({ ...config, forceEngine: 'streaming' }))
+      );
     } else {
       // Parallel execution with traditional engine
       const batchSize = Math.min(configs.length, 4); // Limit concurrency
@@ -160,9 +170,7 @@ export class UnifiedMonteCarloService {
 
       for (let i = 0; i < configs.length; i += batchSize) {
         const batch = configs.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(config => this.runSimulation(config))
-        );
+        const batchResults = await Promise.all(batch.map((config) => this.runSimulation(config)));
         results.push(...batchResults);
       }
 
@@ -183,14 +191,14 @@ export class UnifiedMonteCarloService {
     const streamingConfig: UnifiedSimulationConfig = {
       ...baseConfig,
       forceEngine: 'streaming',
-      batchSize: Math.max(500, Math.floor(baseConfig.runs / 20)) // Smaller batches for multiple environments
+      batchSize: Math.max(500, Math.floor(baseConfig.runs / 20)), // Smaller batches for multiple environments
     };
 
     for (const environment of environments) {
       const envConfig = {
         ...streamingConfig,
         // Modify config based on market environment
-        runs: this.adjustRunsForEnvironment(baseConfig.runs, environment)
+        runs: this.adjustRunsForEnvironment(baseConfig.runs, environment),
       };
 
       results[environment.scenario] = await this.runSimulation(envConfig);
@@ -213,33 +221,42 @@ export class UnifiedMonteCarloService {
         preferredEngine: 'streaming',
         optimalBatchSize: 1000,
         memoryUsagePattern: 'unknown',
-        recommendations: ['Run more simulations to gather performance data']
+        recommendations: ['Run more simulations to gather performance data'],
       };
     }
 
-    const streamingMetrics = this.performanceHistory.filter(p => p.engineUsed === 'streaming');
-    const traditionalMetrics = this.performanceHistory.filter(p => p.engineUsed === 'traditional');
+    const streamingMetrics = this.performanceHistory.filter((p) => p.engineUsed === 'streaming');
+    const traditionalMetrics = this.performanceHistory.filter(
+      (p) => p.engineUsed === 'traditional'
+    );
 
-    const streamingAvgSpeed = streamingMetrics.length > 0
-      ? streamingMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) / streamingMetrics.length
-      : 0;
+    const streamingAvgSpeed =
+      streamingMetrics.length > 0
+        ? streamingMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) /
+          streamingMetrics.length
+        : 0;
 
-    const traditionalAvgSpeed = traditionalMetrics.length > 0
-      ? traditionalMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) / traditionalMetrics.length
-      : 0;
+    const traditionalAvgSpeed =
+      traditionalMetrics.length > 0
+        ? traditionalMetrics.reduce((sum, m) => sum + m.scenariosPerSecond, 0) /
+          traditionalMetrics.length
+        : 0;
 
     const preferredEngine = streamingAvgSpeed > traditionalAvgSpeed ? 'streaming' : 'traditional';
 
     const recommendations: string[] = [];
 
     if (streamingMetrics.length > 0) {
-      const avgMemoryUsage = streamingMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0) / streamingMetrics.length;
+      const avgMemoryUsage =
+        streamingMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0) / streamingMetrics.length;
       if (avgMemoryUsage > 200) {
         recommendations.push('Consider reducing batch size to optimize memory usage');
       }
     }
 
-    const fallbackRate = this.performanceHistory.filter(p => p.fallbackTriggered).length / this.performanceHistory.length;
+    const fallbackRate =
+      this.performanceHistory.filter((p) => p.fallbackTriggered).length /
+      this.performanceHistory.length;
     if (fallbackRate > 0.1) {
       recommendations.push('High fallback rate detected - consider system resource optimization');
     }
@@ -248,7 +265,7 @@ export class UnifiedMonteCarloService {
       preferredEngine,
       optimalBatchSize: this.calculateOptimalBatchSize(),
       memoryUsagePattern: this.analyzeMemoryPattern(),
-      recommendations
+      recommendations,
     };
   }
 
@@ -261,37 +278,43 @@ export class UnifiedMonteCarloService {
       traditional: boolean;
       streaming: boolean;
     };
-    connectionPools: any;
+    connectionPools: Record<string, PoolMetrics>;
     recommendations: string[];
   }> {
     const checks = {
       traditional: false,
-      streaming: false
+      streaming: false,
     };
 
     // Test traditional engine
     try {
       // Simple test configuration
-      const testConfig: SimulationConfig = {
+      const _testConfig: SimulationConfig = {
         fundId: 1,
         runs: 10,
         timeHorizonYears: 1,
-        randomSeed: 12345
+        randomSeed: 12345,
       };
 
       // This would need a test method in the original engine
       checks.traditional = true;
     } catch (error) {
-      console.warn('Traditional engine health check failed:', error instanceof Error ? error.message : error);
+      console.warn(
+        'Traditional engine health check failed:',
+        error instanceof Error ? error.message : error
+      );
     }
 
     // Test streaming engine
     try {
       const streamingStats = this.streamingEngine.getStreamingStats();
-      const connectionStats = this.streamingEngine.getConnectionStats();
+      this.streamingEngine.getConnectionStats();
       checks.streaming = streamingStats !== null;
     } catch (error) {
-      console.warn('Streaming engine health check failed:', error instanceof Error ? error.message : error);
+      console.warn(
+        'Streaming engine health check failed:',
+        error instanceof Error ? error.message : error
+      );
     }
 
     // Check connection pools
@@ -313,7 +336,7 @@ export class UnifiedMonteCarloService {
       status,
       engines: checks,
       connectionPools,
-      recommendations
+      recommendations,
     };
   }
 
@@ -340,15 +363,20 @@ export class UnifiedMonteCarloService {
         maxConnections: 8,
         idleTimeoutMs: 30000,
         connectionTimeoutMs: 5000,
-        enableMetrics: true
+        enableMetrics: true,
       });
     } catch (error) {
-      console.warn('Failed to create streaming Monte Carlo pool, disabling streaming engine:', error instanceof Error ? error.message : error);
+      console.warn(
+        'Failed to create streaming Monte Carlo pool, disabling streaming engine:',
+        error instanceof Error ? error.message : error
+      );
       this.streamingEnabled = false;
     }
   }
 
-  private async buildSelectionCriteria(config: UnifiedSimulationConfig): Promise<EngineSelectionCriteria> {
+  private async buildSelectionCriteria(
+    config: UnifiedSimulationConfig
+  ): Promise<EngineSelectionCriteria> {
     const memUsage = process.memoryUsage();
     const availableMemoryMB = (memUsage.heapTotal - memUsage.heapUsed) / (1024 * 1024);
 
@@ -359,7 +387,7 @@ export class UnifiedMonteCarloService {
       scenarioCount: config.runs,
       availableMemoryMB,
       systemLoad,
-      enginePreference: config.forceEngine || 'auto'
+      enginePreference: config.forceEngine || 'auto',
     };
   }
 
@@ -390,7 +418,9 @@ export class UnifiedMonteCarloService {
     return 'traditional';
   }
 
-  private async executeStreamingSimulation(config: UnifiedSimulationConfig): Promise<SimulationResults> {
+  private async executeStreamingSimulation(
+    config: UnifiedSimulationConfig
+  ): Promise<SimulationResults> {
     return await this.streamingEngine.runStreamingSimulation(config);
   }
 
@@ -413,9 +443,8 @@ export class UnifiedMonteCarloService {
     const memoryUsageMB = memUsage.heapUsed / (1024 * 1024);
 
     // Get connection pool stats if using streaming
-    const connectionPoolStats = engineUsed === 'streaming'
-      ? databasePoolManager.getAllMetrics()
-      : null;
+    const connectionPoolStats =
+      engineUsed === 'streaming' ? databasePoolManager.getAllMetrics() : null;
 
     // Generate selection reason
     let selectionReason = 'Auto-selected based on ';
@@ -436,7 +465,7 @@ export class UnifiedMonteCarloService {
       scenariosPerSecond,
       connectionPoolStats,
       fallbackTriggered,
-      selectionReason
+      selectionReason,
     };
   }
 
@@ -461,7 +490,7 @@ export class UnifiedMonteCarloService {
   }
 
   private calculateOptimalBatchSize(): number {
-    const streamingMetrics = this.performanceHistory.filter(p => p.engineUsed === 'streaming');
+    const streamingMetrics = this.performanceHistory.filter((p) => p.engineUsed === 'streaming');
 
     if (streamingMetrics.length === 0) return 1000;
 
@@ -480,7 +509,9 @@ export class UnifiedMonteCarloService {
   private analyzeMemoryPattern(): string {
     if (this.performanceHistory.length === 0) return 'unknown';
 
-    const avgMemoryUsage = this.performanceHistory.reduce((sum, m) => sum + m.memoryUsageMB, 0) / this.performanceHistory.length;
+    const avgMemoryUsage =
+      this.performanceHistory.reduce((sum, m) => sum + m.memoryUsageMB, 0) /
+      this.performanceHistory.length;
 
     if (avgMemoryUsage < 100) return 'low';
     if (avgMemoryUsage < 300) return 'moderate';
@@ -493,10 +524,15 @@ export class UnifiedMonteCarloService {
   getPerformanceStats() {
     return {
       totalSimulations: this.performanceHistory.length,
-      streamingUsage: this.performanceHistory.filter(p => p.engineUsed === 'streaming').length,
-      traditionalUsage: this.performanceHistory.filter(p => p.engineUsed === 'traditional').length,
-      averageExecutionTime: this.performanceHistory.reduce((sum, p) => sum + p.executionTimeMs, 0) / this.performanceHistory.length,
-      fallbackRate: this.performanceHistory.filter(p => p.fallbackTriggered).length / this.performanceHistory.length
+      streamingUsage: this.performanceHistory.filter((p) => p.engineUsed === 'streaming').length,
+      traditionalUsage: this.performanceHistory.filter((p) => p.engineUsed === 'traditional')
+        .length,
+      averageExecutionTime:
+        this.performanceHistory.reduce((sum, p) => sum + p.executionTimeMs, 0) /
+        this.performanceHistory.length,
+      fallbackRate:
+        this.performanceHistory.filter((p) => p.fallbackTriggered).length /
+        this.performanceHistory.length,
     };
   }
 

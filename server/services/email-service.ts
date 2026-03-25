@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../lib/logger';
 
 // Email provider types
 export type EmailProvider = 'console' | 'smtp' | 'sendgrid';
@@ -63,6 +64,35 @@ export interface EmailService {
   sendBatch(messages: EmailMessage[]): Promise<SendResult[]>;
 }
 
+interface SMTPTransporter {
+  sendMail(opts: unknown): Promise<{ messageId: string }>;
+}
+
+interface NodemailerModule {
+  createTransport(options: {
+    host?: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user?: string;
+      pass?: string;
+    };
+  }): SMTPTransporter;
+}
+
+interface SendGridResponse {
+  headers: { 'x-message-id': string };
+}
+
+interface SendGridClient {
+  setApiKey(apiKey: string): void;
+  send(message: unknown): Promise<[SendGridResponse]>;
+}
+
+interface SendGridModule {
+  default: SendGridClient;
+}
+
 // Event emitter for email events (testing, monitoring)
 class EmailEventEmitter extends EventEmitter {
   emitSent(message: EmailMessage, result: SendResult) {
@@ -96,18 +126,20 @@ class ConsoleEmailService implements EmailService {
 
     const toAddresses = Array.isArray(message.to) ? message.to : [message.to];
 
-    console.log('\n========== EMAIL (Console Provider) ==========');
-    console.log(`From: ${this.from}`);
-    console.log(`To: ${toAddresses.map((a) => `${a.name || ''} <${a.email}>`).join(', ')}`);
-    console.log(`Subject: ${message.subject}`);
-    console.log(`Template: ${message.templateId || 'none'}`);
-    if (message.text) {
-      console.log(`Text:\n${message.text.slice(0, 200)}${message.text.length > 200 ? '...' : ''}`);
-    }
-    if (message.attachments?.length) {
-      console.log(`Attachments: ${message.attachments.map((a) => a.filename).join(', ')}`);
-    }
-    console.log('===============================================\n');
+    logger.info(
+      {
+        provider: 'console',
+        from: this.from,
+        to: toAddresses.map((a) => ({ email: a.email, name: a.name ?? '' })),
+        subject: message.subject,
+        templateId: message.templateId ?? 'none',
+        previewText: message.text
+          ? `${message.text.slice(0, 200)}${message.text.length > 200 ? '...' : ''}`
+          : undefined,
+        attachments: message.attachments?.map((a) => a.filename),
+      },
+      '[email-service] Email captured by console provider'
+    );
 
     const result: SendResult = {
       success: true,
@@ -132,28 +164,30 @@ class ConsoleEmailService implements EmailService {
  */
 class SMTPEmailService implements EmailService {
   private config: EmailConfig;
-  private transporter: unknown = null;
+  private transporter: SMTPTransporter | null = null;
 
   constructor(config: EmailConfig) {
     this.config = config;
   }
 
-  private async getTransporter(): Promise<unknown> {
+  private async getTransporter(): Promise<SMTPTransporter> {
     if (this.transporter) return this.transporter;
 
     // Lazy import nodemailer (optional dependency)
     try {
       // @ts-expect-error - nodemailer is an optional dependency
-      const nodemailer = await import('nodemailer');
-      this.transporter = nodemailer.createTransport({
-        host: this.config.smtpHost,
+      const nodemailer = (await import('nodemailer')) as unknown as NodemailerModule;
+      const auth = {
+        ...(this.config.smtpUser ? { user: this.config.smtpUser } : {}),
+        ...(this.config.smtpPass ? { pass: this.config.smtpPass } : {}),
+      };
+      const transportConfig = {
         port: this.config.smtpPort || 587,
         secure: this.config.smtpSecure ?? false,
-        auth: {
-          user: this.config.smtpUser,
-          pass: this.config.smtpPass,
-        },
-      });
+        auth,
+        ...(this.config.smtpHost ? { host: this.config.smtpHost } : {}),
+      };
+      this.transporter = nodemailer.createTransport(transportConfig);
       return this.transporter;
     } catch {
       throw new Error('nodemailer not installed. Run: npm install nodemailer');
@@ -164,9 +198,7 @@ class SMTPEmailService implements EmailService {
     const timestamp = new Date();
 
     try {
-      const transporter = (await this.getTransporter()) as {
-        sendMail: (opts: unknown) => Promise<{ messageId: string }>;
-      };
+      const transporter = await this.getTransporter();
 
       const toAddresses = Array.isArray(message.to) ? message.to : [message.to];
 
@@ -215,21 +247,21 @@ class SMTPEmailService implements EmailService {
  */
 class SendGridEmailService implements EmailService {
   private config: EmailConfig;
-  private sgMail: unknown = null;
+  private sgMail: SendGridClient | null = null;
 
   constructor(config: EmailConfig) {
     this.config = config;
   }
 
-  private async getClient(): Promise<unknown> {
+  private async getClient(): Promise<SendGridClient> {
     if (this.sgMail) return this.sgMail;
 
     // Lazy import SendGrid (optional dependency)
     try {
       // @ts-expect-error - @sendgrid/mail is an optional dependency
-      const sgMail = await import('@sendgrid/mail');
-      sgMail.default.setApiKey(this.config.sendgridApiKey || '');
-      this.sgMail = sgMail.default;
+      const sendGridModule = (await import('@sendgrid/mail')) as unknown as SendGridModule;
+      sendGridModule.default.setApiKey(this.config.sendgridApiKey || '');
+      this.sgMail = sendGridModule.default;
       return this.sgMail;
     } catch {
       throw new Error('@sendgrid/mail not installed. Run: npm install @sendgrid/mail');
@@ -240,9 +272,7 @@ class SendGridEmailService implements EmailService {
     const timestamp = new Date();
 
     try {
-      const sgMail = (await this.getClient()) as {
-        send: (msg: unknown) => Promise<[{ headers: { 'x-message-id': string } }]>;
-      };
+      const sgMail = await this.getClient();
 
       const toAddresses = Array.isArray(message.to) ? message.to : [message.to];
 
@@ -256,8 +286,7 @@ class SendGridEmailService implements EmailService {
         dynamicTemplateData: message.templateData,
         attachments: message.attachments?.map((a) => ({
           filename: a.filename,
-          content:
-            typeof a.content === 'string' ? a.content : a.content.toString('base64'),
+          content: typeof a.content === 'string' ? a.content : a.content.toString('base64'),
           type: a.contentType,
           disposition: 'attachment',
         })),

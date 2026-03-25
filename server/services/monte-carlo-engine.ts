@@ -18,6 +18,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
+import { logger } from '../lib/logger';
 import { logMonteCarloOperation, logMonteCarloError } from '../utils/logger.js';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 import { PRNG } from '@shared/utils/prng';
@@ -30,8 +31,13 @@ import { PRNG } from '@shared/utils/prng';
 const DEFAULT_RUNS = process.env['DEMO_MODE'] === 'true' ? 2_000 : 10_000;
 const MAX_RUNS = process.env['DEMO_MODE'] === 'true' ? 5_000 : 50_000;
 
-console.log(
-  `[Monte Carlo] Mode: ${process.env['DEMO_MODE'] === 'true' ? 'DEMO' : 'PRODUCTION'}, Default runs: ${DEFAULT_RUNS}, Max runs: ${MAX_RUNS}`
+logger.info(
+  {
+    mode: process.env['DEMO_MODE'] === 'true' ? 'DEMO' : 'PRODUCTION',
+    defaultRuns: DEFAULT_RUNS,
+    maxRuns: MAX_RUNS,
+  },
+  '[Monte Carlo] Engine configuration'
 );
 
 // ============================================================================
@@ -529,8 +535,13 @@ export class MonteCarloEngine {
     const cappedRuns = Math.min(runs, MAX_RUNS);
 
     if (cappedRuns < runs) {
-      console.log(
-        `[Monte Carlo] Capped runs from ${runs} to ${cappedRuns} (mode: ${process.env['DEMO_MODE'] ? 'demo' : 'prod'})`
+      logger.info(
+        {
+          requestedRuns: runs,
+          cappedRuns,
+          mode: process.env['DEMO_MODE'] ? 'demo' : 'prod',
+        },
+        '[Monte Carlo] Simulation runs capped'
       );
       config.runs = cappedRuns;
     }
@@ -1117,11 +1128,15 @@ export async function exampleUsage(): Promise<void> {
     });
 
     // Performance metrics are now automatically tracked within the engine
-    console.log(`\nPerformance Summary:`);
-    console.log(`   Execution Time: ${results.executionTimeMs}ms`);
-    console.log(`   Scenarios Generated: ${results.irr.scenarios.length}`);
-    console.log(
-      `   Throughput: ${(results.irr.scenarios.length / (results.executionTimeMs / 1000)).toFixed(1)} scenarios/sec`
+    logger.info(
+      {
+        executionTimeMs: results.executionTimeMs,
+        scenariosGenerated: results.irr.scenarios.length,
+        throughputPerSecond: Number(
+          (results.irr.scenarios.length / (results.executionTimeMs / 1000)).toFixed(1)
+        ),
+      },
+      '[Monte Carlo] Performance summary'
     );
   } catch (error) {
     logMonteCarloError('Simulation failed', config.fundId, error as Error, {

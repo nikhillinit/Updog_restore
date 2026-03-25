@@ -32,6 +32,7 @@ import {
   portfolioCompanies,
   investments,
 } from '@shared/schema';
+import { logger } from '../lib/logger';
 
 // =============================================================================
 // NOTION API SERVICE
@@ -589,11 +590,14 @@ export class NotionService {
             // Note: Notion sync metadata would require schema changes to store
           })
           .where(eq(portfolioCompanies.id, existing.id));
-        console.log('[notion-service] Updated portfolio company:', companyData.name);
+        logger.info(
+          { companyName: companyData.name },
+          '[notion-service] Updated portfolio company'
+        );
       } else {
-        console.log(
-          '[notion-service] Portfolio company from Notion needs manual linking:',
-          companyData.name
+        logger.info(
+          { companyName: companyData.name },
+          '[notion-service] Portfolio company from Notion needs manual linking'
         );
         // Don't auto-create - just log for manual review
         // Companies should be created through the normal workflow
@@ -636,12 +640,15 @@ export class NotionService {
       }
 
       // Log for manual review - investments should be linked to existing companies
-      console.log('[notion-service] Investment data from Notion:', {
-        company: investmentData.companyName,
-        amount: investmentData.amount,
-        round: investmentData.round,
-        date: investmentData.date,
-      });
+      logger.info(
+        {
+          company: investmentData.companyName,
+          amount: investmentData.amount,
+          round: investmentData.round,
+          date: investmentData.date,
+        },
+        '[notion-service] Investment data from Notion'
+      );
 
       // Find matching company
       const [company] = await db
@@ -673,12 +680,15 @@ export class NotionService {
               // Note: Notion sync metadata would require schema changes to store
             })
             .where(eq(investments.id, existing.id));
-          console.log('[notion-service] Updated investment for:', investmentData.companyName);
+          logger.info(
+            { companyName: investmentData.companyName },
+            '[notion-service] Updated investment'
+          );
         }
       } else {
-        console.log(
-          '[notion-service] Company not found for investment:',
-          investmentData.companyName
+        logger.info(
+          { companyName: investmentData.companyName },
+          '[notion-service] Company not found for investment'
         );
       }
     } catch (error) {
@@ -719,12 +729,15 @@ export class NotionService {
       }
 
       // Log KPI data for processing
-      console.log('[notion-service] KPI data from Notion:', {
-        company: kpiData.companyName,
-        metric: kpiData.metric,
-        value: kpiData.value,
-        period: kpiData.period,
-      });
+      logger.info(
+        {
+          company: kpiData.companyName,
+          metric: kpiData.metric,
+          value: kpiData.value,
+          period: kpiData.period,
+        },
+        '[notion-service] KPI data from Notion'
+      );
 
       // KPIs would typically be stored in a separate kpis table
       // For now, log for manual review or future implementation
@@ -771,12 +784,15 @@ export class NotionService {
       }
 
       // Log board report data for processing
-      console.log('[notion-service] Board report from Notion:', {
-        company: reportData.companyName,
-        date: reportData.reportDate,
-        type: reportData.reportType,
-        status: reportData.status,
-      });
+      logger.info(
+        {
+          company: reportData.companyName,
+          date: reportData.reportDate,
+          type: reportData.reportType,
+          status: reportData.status,
+        },
+        '[notion-service] Board report from Notion'
+      );
 
       // Board reports would typically be stored in a separate table
       // For now, log for manual review or future implementation
@@ -905,7 +921,7 @@ export class NotionService {
             updatedAt: new Date(),
           })
           .where(eq(notionConnections.workspaceId, connection.workspaceId));
-        console.log('[notion-service] Updated connection:', connection.workspaceId);
+        logger.info({ workspaceId: connection.workspaceId }, '[notion-service] Updated connection');
       } else {
         // Insert new connection - map domain type to DB schema
         await db.insert(notionConnections).values({
@@ -921,7 +937,7 @@ export class NotionService {
           lastSyncAt: connection.lastSyncAt ?? null,
           metadata: null,
         });
-        console.log('[notion-service] Created connection:', connection.workspaceId);
+        logger.info({ workspaceId: connection.workspaceId }, '[notion-service] Created connection');
       }
     } catch (error) {
       console.error(
@@ -982,7 +998,10 @@ export class NotionService {
         completedAt: job.completedAt ?? null,
         metadata: job.metadata ?? null,
       });
-      console.log('[notion-service] Created sync job for connection:', job.connectionId);
+      logger.info(
+        { connectionId: job.connectionId },
+        '[notion-service] Created sync job for connection'
+      );
     } catch (error) {
       console.error(
         '[notion-service] Failed to save sync job:',
@@ -1041,7 +1060,10 @@ export class NotionService {
             updatedAt: new Date(),
           })
           .where(eq(notionPortfolioConfigs.companyId, companyIdNum));
-        console.log('[notion-service] Updated portfolio config for company:', config.companyId);
+        logger.info(
+          { companyId: config.companyId },
+          '[notion-service] Updated portfolio config for company'
+        );
       } else {
         // Insert new config
         await db.insert(notionPortfolioConfigs).values({
@@ -1052,7 +1074,10 @@ export class NotionService {
           automationRules: dbAutomationRules,
           communicationSettings: dbCommunicationSettings,
         });
-        console.log('[notion-service] Created portfolio config for company:', config.companyId);
+        logger.info(
+          { companyId: config.companyId },
+          '[notion-service] Created portfolio config for company'
+        );
       }
     } catch (error) {
       console.error(

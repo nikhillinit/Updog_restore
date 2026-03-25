@@ -14,6 +14,7 @@ import { db } from '../db';
 import type { RedisClientType } from 'redis';
 import { scenarioMatrices } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { logger } from '../lib/logger';
 
 /**
  * Invalidation parameters
@@ -60,10 +61,14 @@ export class CacheInvalidationService {
     const duration = Date.now() - startTime;
 
     // Audit log
-    console.log(
-      `[CacheInvalidation] ${params.scope} invalidation - ` +
-        `Redis: ${redisCount}, PostgreSQL: ${postgresCount}, ` +
-        `Reason: ${params.reason || 'N/A'}`
+    logger.info(
+      {
+        scope: params.scope,
+        redisCount,
+        postgresCount,
+        reason: params.reason || 'N/A',
+      },
+      '[CacheInvalidation] Invalidation complete'
     );
 
     return {

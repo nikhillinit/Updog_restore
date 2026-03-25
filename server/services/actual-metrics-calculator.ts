@@ -15,6 +15,7 @@
  */
 
 import { storage } from '../storage';
+import { logger } from '../lib/logger';
 import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
@@ -62,9 +63,8 @@ export class ActualMetricsCalculator {
     const tvpi = totalCalled.gt(0) ? totalValue.div(totalCalled) : new Decimal(0);
 
     // DPI: null semantics when no distributions recorded (avoids misleading 0.00x)
-    const dpi = totalCalled.gt(0) && totalDistributions.gt(0)
-      ? totalDistributions.div(totalCalled)
-      : null; // null = "N/A" in UI, not zero
+    const dpi =
+      totalCalled.gt(0) && totalDistributions.gt(0) ? totalDistributions.div(totalCalled) : null; // null = "N/A" in UI, not zero
 
     const rvpi = totalCalled.gt(0) ? currentNAV.div(totalCalled) : new Decimal(0);
 
@@ -78,7 +78,8 @@ export class ActualMetricsCalculator {
     const deploymentRate = totalCommitted.gt(0)
       ? totalDeployed.div(totalCommitted).mul(100)
       : new Decimal(0);
-    const averageCheckSize = totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
+    const averageCheckSize =
+      totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
     // Calculate fund age (approximate using vintage year)
     const fundAgeMonths = fund.vintageYear
@@ -112,7 +113,9 @@ export class ActualMetricsCalculator {
    * Calculate current Net Asset Value from portfolio companies
    * Only requires status and currentValuation fields
    */
-  private calculateNAV(companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]): Decimal {
+  private calculateNAV(
+    companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]
+  ): Decimal {
     return companies
       .filter((c) => c.status === 'active')
       .reduce((sum, company) => {
@@ -182,7 +185,10 @@ export class ActualMetricsCalculator {
    */
   private xirr(cashflows: CashFlow[]): Decimal | null {
     if (cashflows.length < 2) {
-      console.debug('[XIRR] Insufficient cashflows for calculation:', cashflows.length);
+      logger.debug(
+        { cashflowCount: cashflows.length },
+        '[XIRR] Insufficient cashflows for calculation'
+      );
       return null; // Cannot calculate with < 2 cashflows
     }
 
@@ -215,13 +221,16 @@ export class ActualMetricsCalculator {
 
       // Prevent infinite loops with unrealistic rates
       if (rate.lt(-0.99) || rate.gt(10)) {
-        console.debug('[XIRR] Rate diverged to unrealistic value:', rate.toString());
+        logger.debug({ rate: rate.toString() }, '[XIRR] Rate diverged to unrealistic value');
         return null; // Cannot converge - rate is unrealistic
       }
     }
 
     // Did not converge within max iterations - return last estimate with warning
-    console.debug('[XIRR] Did not converge within max iterations, returning estimate:', rate.toString());
+    logger.debug(
+      { rate: rate.toString() },
+      '[XIRR] Did not converge within max iterations, returning estimate'
+    );
     return rate;
   }
 

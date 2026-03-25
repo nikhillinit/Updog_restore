@@ -3,6 +3,7 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { fundDistributions } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
+import { logger } from '../lib/logger';
 
 /**
  * Calculated fund metrics interface
@@ -117,9 +118,9 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
     // Log for observability but don't fail - distributions are optional
     const errorMsg = error instanceof Error ? error.message : String(error);
     if (errorMsg.includes('does not exist') || errorMsg.includes('relation')) {
-      console.debug('[fund-metrics] Distributions table not yet created, using empty array');
+      logger.debug('[fund-metrics] Distributions table not yet created, using empty array');
     } else {
-      console.warn('[fund-metrics] Failed to fetch distributions:', errorMsg);
+      logger.warn({ error: errorMsg }, '[fund-metrics] Failed to fetch distributions');
     }
     distributions = [];
   }
@@ -148,46 +149,37 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
 
   // Count active investments
   // Active means company status is 'active', 'growing', 'scaling', etc. (not exited)
-  const activeInvestments = portfolioCompanies.filter(company => {
+  const activeInvestments = portfolioCompanies.filter((company) => {
     const status = company.status?.toLowerCase() || '';
     return status !== 'exited' && status !== 'closed' && status !== 'liquidated';
   }).length;
 
   // Count exited investments
-  const exited = portfolioCompanies.filter(company => {
+  const exited = portfolioCompanies.filter((company) => {
     const status = company.status?.toLowerCase() || '';
     return status === 'exited' || status === 'closed' || status === 'liquidated';
   }).length;
 
   // Calculate average check size
   // Average initial investment amount per company
-  const avgCheckSize = portfolioCompanies.length > 0
-    ? totalInvested / portfolioCompanies.length
-    : 0;
+  const avgCheckSize =
+    portfolioCompanies.length > 0 ? totalInvested / portfolioCompanies.length : 0;
 
   // Calculate Multiple on Invested Capital (MOIC)
   // MOIC = Total Value / Total Invested
-  const moic = totalInvested > 0
-    ? totalValue / totalInvested
-    : 0;
+  const moic = totalInvested > 0 ? totalValue / totalInvested : 0;
 
   // Calculate DPI (Distributions to Paid-In)
   // DPI = Total Distributions / Total Invested (Paid-In Capital)
-  const dpi = totalInvested > 0
-    ? totalDistributions / totalInvested
-    : 0;
+  const dpi = totalInvested > 0 ? totalDistributions / totalInvested : 0;
 
   // Calculate TVPI (Total Value to Paid-In)
   // TVPI = (Total Distributions + Residual Value) / Paid-In Capital
-  const tvpi = totalInvested > 0
-    ? (totalDistributions + totalValue) / totalInvested
-    : 0;
+  const tvpi = totalInvested > 0 ? (totalDistributions + totalValue) / totalInvested : 0;
 
   // Calculate deployment rate
   // Percentage of committed capital that has been deployed
-  const deploymentRate = totalCommitted > 0
-    ? (totalInvested / totalCommitted) * 100
-    : 0;
+  const deploymentRate = totalCommitted > 0 ? (totalInvested / totalCommitted) * 100 : 0;
 
   // Calculate remaining capital
   const remainingCapital = totalCommitted - totalInvested;

@@ -59,7 +59,10 @@ export class CircuitBreaker<T> {
     return this.executeWithCircuitBreaker(op, fb);
   }
 
-  private async executeWithCircuitBreaker<R>(operation: () => Promise<R>, fallback: () => Promise<R>): Promise<R> {
+  private async executeWithCircuitBreaker<R>(
+    operation: () => Promise<R>,
+    fallback: () => Promise<R>
+  ): Promise<R> {
     const start = Date.now();
     this.totalRequests++;
 
@@ -79,7 +82,11 @@ export class CircuitBreaker<T> {
       const concOK = this.halfOpenRequests < (this.options.maxHalfOpenRequests ?? 3);
       if (!rateOK || !concOK) {
         this.fallbackCount++;
-        const ev: ProbeDeniedEvent = { rateLimited: !rateOK, concurrencyLimited: !concOK, timestamp: Date.now() };
+        const ev: ProbeDeniedEvent = {
+          rateLimited: !rateOK,
+          concurrencyLimited: !concOK,
+          timestamp: Date.now(),
+        };
         this.emitter.emit('probeDenied', ev);
         return fallback();
       }
@@ -88,7 +95,11 @@ export class CircuitBreaker<T> {
     }
 
     try {
-      const result = await this.withTimeout(operation(), this.options.operationTimeout ?? 5000, 'operation');
+      const result = await this.withTimeout(
+        operation(),
+        this.options.operationTimeout ?? 5000,
+        'operation'
+      );
       this.successCount++;
       this.recordLatency(Date.now() - start);
       await this.handleSuccess();
@@ -143,7 +154,11 @@ export class CircuitBreaker<T> {
     }
   }
 
-  private async transitionState(from: CircuitState[] | CircuitState, to: CircuitState, reason: string): Promise<boolean> {
+  private async transitionState(
+    from: CircuitState[] | CircuitState,
+    to: CircuitState,
+    reason: string
+  ): Promise<boolean> {
     return this.stateLock.runExclusive(async () => {
       const allow = Array.isArray(from) ? from : [from];
       if (!allow.includes(this.state)) return false;
@@ -182,14 +197,16 @@ export class CircuitBreaker<T> {
   }
 
   private async withTimeout<R>(p: Promise<R>, ms: number, label: string): Promise<R> {
-    let to: NodeJS.Timeout;
-    const timeout = new Promise<never>((_: any, reject: any) => {
-      to = setTimeout(() => reject(new Error(`Timeout (${label}) after ${ms}ms`)), ms);
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error(`Timeout (${label}) after ${ms}ms`)), ms);
     });
     try {
       return await Promise.race([p, timeout]);
     } finally {
-      clearTimeout(to!);
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     }
   }
 
@@ -198,9 +215,15 @@ export class CircuitBreaker<T> {
     if (!a?.enabled) return;
     const successRate = this.totalRequests > 0 ? this.successCount / this.totalRequests : 1;
     if (successRate > 0.95) {
-      this.effectiveFailureThreshold = Math.min(a.max, Math.round(this.effectiveFailureThreshold * (1 + a.rate)));
+      this.effectiveFailureThreshold = Math.min(
+        a.max,
+        Math.round(this.effectiveFailureThreshold * (1 + a.rate))
+      );
     } else if (successRate < 0.8) {
-      this.effectiveFailureThreshold = Math.max(a.min, Math.round(this.effectiveFailureThreshold * (1 - a.rate)));
+      this.effectiveFailureThreshold = Math.max(
+        a.min,
+        Math.round(this.effectiveFailureThreshold * (1 - a.rate))
+      );
     }
   }
 
@@ -210,8 +233,12 @@ export class CircuitBreaker<T> {
   }
 
   // Public API
-  onStateChange(listener: (_e: StateChangeEvent) => void) { this.emitter['on']('stateChange', listener); }
-  getState(): CircuitState { return this.state; }
+  onStateChange(listener: (_e: StateChangeEvent) => void) {
+    this.emitter['on']('stateChange', listener);
+  }
+  getState(): CircuitState {
+    return this.state;
+  }
   getMetrics() {
     const successRate = this.totalRequests ? this.successCount / this.totalRequests : 0;
     return {
@@ -222,7 +249,7 @@ export class CircuitBreaker<T> {
       successRate,
       effectiveThreshold: this.effectiveFailureThreshold,
       currentBackoffMs: this.resetBackoffMs,
-      isHealthy: this.state === 'CLOSED' && successRate > 0.95
+      isHealthy: this.state === 'CLOSED' && successRate > 0.95,
     };
   }
 }

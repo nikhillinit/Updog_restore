@@ -1,4 +1,3 @@
-import type Redis from 'ioredis';
 import { logger } from '../lib/logger';
 
 /**
@@ -25,6 +24,21 @@ export interface CacheConfig {
   maxEntries: number;
 }
 
+export interface RedisCacheClient {
+  get(key: string): Promise<string | null>;
+  setex(key: string, seconds: number, value: string): Promise<unknown>;
+  scan(
+    cursor: string,
+    matchLiteral: 'MATCH',
+    pattern: string,
+    countLiteral: 'COUNT',
+    count: number
+  ): Promise<[string, string[]]>;
+  del(...keys: string[]): Promise<number>;
+  info(section: 'memory'): Promise<string>;
+  dbsize(): Promise<number>;
+}
+
 export const DEFAULT_CACHE_CONFIG: CacheConfig = {
   ttlSeconds: {
     summary: 5 * 60, // 5 minutes
@@ -38,12 +52,44 @@ export const DEFAULT_CACHE_CONFIG: CacheConfig = {
 };
 
 export class LPReportingCache {
-  private redis: Redis;
-  private config: CacheConfig;
+  private readonly redis: RedisCacheClient;
+  private readonly config: CacheConfig;
 
-  constructor(redis: Redis, config: Partial<CacheConfig> = {}) {
+  constructor(redis: RedisCacheClient, config: Partial<CacheConfig> = {}) {
     this.redis = redis;
     this.config = { ...DEFAULT_CACHE_CONFIG, ...config };
+  }
+
+  private parseCachedValue<T = unknown>(cached: string): T {
+    return JSON.parse(cached) as unknown as T;
+  }
+
+  private async getOrFetch<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    ttl: number,
+    tags: string[],
+    hitMessage: string,
+    errorMessage: string,
+    logContext: Record<string, unknown>
+  ): Promise<T> {
+    try {
+      const cached = await this.redis.get(key);
+      if (cached !== null) {
+        logger.debug(logContext, hitMessage);
+        return this.parseCachedValue<T>(cached);
+      }
+
+      const data = await fetchFn();
+      if (data !== null && data !== undefined) {
+        await this.set(key, data, ttl, tags);
+      }
+
+      return data;
+    } catch (error) {
+      logger.error({ ...logContext, error }, errorMessage);
+      return fetchFn();
+    }
   }
 
   // =========================================================================
@@ -55,34 +101,17 @@ export class LPReportingCache {
    * Key: lp:{lpId}:summary
    * Tags: lp:{lpId}:summary, lp:{lpId}:*
    */
-  async getLPSummary(
-    lpId: string,
-    fetchFn: () => Promise<unknown>
-  ): Promise<unknown> {
+  async getLPSummary(lpId: string, fetchFn: () => Promise<unknown>): Promise<unknown> {
     const key = `lp:${lpId}:summary`;
-
-    try {
-      // Try cache first
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ lpId }, 'Cache hit: LP summary');
-        return JSON.parse(cached);
-      }
-
-      // Cache miss: fetch and store
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['summary'] ?? 300, [
-          `lp:${lpId}:summary`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ lpId, error }, 'Cache error in getLPSummary');
-      // Fallback to direct fetch on cache error
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['summary'] ?? 300,
+      [`lp:${lpId}:summary`, `lp:${lpId}:*`],
+      'Cache hit: LP summary',
+      'Cache error in getLPSummary',
+      { lpId }
+    );
   }
 
   // =========================================================================
@@ -105,27 +134,15 @@ export class LPReportingCache {
     const dateRange = `${startDate.toISOString()}:${endDate.toISOString()}`;
     const fundStr = fundIds.join(',') || 'all';
     const key = `lp:${lpId}:capital-activity:${fundStr}:${dateRange}`;
-
-    try {
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ lpId, commitmentId }, 'Cache hit: Capital activities');
-        return JSON.parse(cached);
-      }
-
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['capitalActivity'] ?? 600, [
-          `lp:${lpId}:capital-activity`,
-          `commitment:${commitmentId}:*`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ lpId, error }, 'Cache error in getCapitalActivities');
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['capitalActivity'] ?? 600,
+      [`lp:${lpId}:capital-activity`, `commitment:${commitmentId}:*`, `lp:${lpId}:*`],
+      'Cache hit: Capital activities',
+      'Cache error in getCapitalActivities',
+      { lpId, commitmentId }
+    );
   }
 
   // =========================================================================
@@ -143,27 +160,15 @@ export class LPReportingCache {
     fetchFn: () => Promise<unknown>
   ): Promise<unknown> {
     const key = `lp:${lpId}:fund:${fundId}:performance`;
-
-    try {
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ lpId, fundId }, 'Cache hit: Fund performance');
-        return JSON.parse(cached);
-      }
-
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['performance'] ?? 600, [
-          `fund:${fundId}:performance`,
-          `lp:${lpId}:performance`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ lpId, fundId, error }, 'Cache error in getFundPerformance');
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['performance'] ?? 600,
+      [`fund:${fundId}:performance`, `lp:${lpId}:performance`, `lp:${lpId}:*`],
+      'Cache hit: Fund performance',
+      'Cache error in getFundPerformance',
+      { lpId, fundId }
+    );
   }
 
   /**
@@ -171,31 +176,17 @@ export class LPReportingCache {
    * Key: lp:{lpId}:performance:aggregate
    * Tags: lp:{lpId}:performance
    */
-  async getAggregatePerformance(
-    lpId: string,
-    fetchFn: () => Promise<unknown>
-  ): Promise<unknown> {
+  async getAggregatePerformance(lpId: string, fetchFn: () => Promise<unknown>): Promise<unknown> {
     const key = `lp:${lpId}:performance:aggregate`;
-
-    try {
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ lpId }, 'Cache hit: Aggregate performance');
-        return JSON.parse(cached);
-      }
-
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['performance'] ?? 600, [
-          `lp:${lpId}:performance`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ lpId, error }, 'Cache error in getAggregatePerformance');
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['performance'] ?? 600,
+      [`lp:${lpId}:performance`, `lp:${lpId}:*`],
+      'Cache hit: Aggregate performance',
+      'Cache error in getAggregatePerformance',
+      { lpId }
+    );
   }
 
   // =========================================================================
@@ -213,27 +204,15 @@ export class LPReportingCache {
     fetchFn: () => Promise<unknown>
   ): Promise<unknown> {
     const key = `lp:${lpId}:fund:${fundId}:holdings`;
-
-    try {
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ lpId, fundId }, 'Cache hit: Pro-rata holdings');
-        return JSON.parse(cached);
-      }
-
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['holdings'] ?? 3600, [
-          `fund:${fundId}:holdings`,
-          `lp:${lpId}:holdings`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ lpId, fundId, error }, 'Cache error in getProRataHoldings');
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['holdings'] ?? 3600,
+      [`fund:${fundId}:holdings`, `lp:${lpId}:holdings`, `lp:${lpId}:*`],
+      'Cache hit: Pro-rata holdings',
+      'Cache error in getProRataHoldings',
+      { lpId, fundId }
+    );
   }
 
   // =========================================================================
@@ -255,26 +234,15 @@ export class LPReportingCache {
   ): Promise<unknown> {
     const dateRange = `${startDate.toISOString()}:${endDate.toISOString()}`;
     const key = `lp:${lpId}:commitment:${commitmentId}:timeseries:${granularity}:${dateRange}`;
-
-    try {
-      const cached = await this.redis['get'](key);
-      if (cached) {
-        logger.debug({ commitmentId, granularity }, 'Cache hit: Performance timeseries');
-        return JSON.parse(cached);
-      }
-
-      const data = await fetchFn();
-      if (data) {
-        await this.set(key, data, this.config.ttlSeconds['timeseries'] ?? 3600, [
-          `commitment:${commitmentId}:timeseries`,
-          `lp:${lpId}:*`,
-        ]);
-      }
-      return data;
-    } catch (error) {
-      logger.error({ commitmentId, error }, 'Cache error in getPerformanceTimeseries');
-      return fetchFn();
-    }
+    return this.getOrFetch(
+      key,
+      fetchFn,
+      this.config.ttlSeconds['timeseries'] ?? 3600,
+      [`commitment:${commitmentId}:timeseries`, `lp:${lpId}:*`],
+      'Cache hit: Performance timeseries',
+      'Cache error in getPerformanceTimeseries',
+      { commitmentId, granularity }
+    );
   }
 
   // =========================================================================
@@ -290,18 +258,18 @@ export class LPReportingCache {
       // Scan for keys matching pattern
       const cursor = '0';
       const keysToDelete: string[] = [];
-      let scan = await this.redis['scan'](cursor, 'MATCH', pattern, 'COUNT', 100);
+      let scan = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
 
       while (true) {
         const [newCursor, keys] = scan;
         keysToDelete.push(...keys);
 
         if (newCursor === '0') break;
-        scan = await this.redis['scan'](newCursor, 'MATCH', pattern, 'COUNT', 100);
+        scan = await this.redis.scan(newCursor, 'MATCH', pattern, 'COUNT', 100);
       }
 
       if (keysToDelete.length > 0) {
-        await this.redis['del'](...keysToDelete);
+        await this.redis.del(...keysToDelete);
         logger.info({ pattern, count: keysToDelete.length }, 'Invalidated cache by tag');
       }
       return keysToDelete.length;
@@ -377,22 +345,17 @@ export class LPReportingCache {
    * Set cache value with tags
    * Tags allow bulk invalidation
    */
-  private async set(
-    key: string,
-    value: unknown,
-    ttl: number,
-    tags: string[] = []
-  ): Promise<void> {
+  private async set(key: string, value: unknown, ttl: number, tags: string[] = []): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
 
       // Set main key with TTL
-      await this.redis['setex'](key, ttl, serialized);
+      await this.redis.setex(key, ttl, serialized);
 
       // Set tag references (with longer TTL than data)
       for (const tag of tags) {
         const tagKey = `tag:${tag}`;
-        await this.redis['setex'](
+        await this.redis.setex(
           tagKey,
           Math.max(ttl * 2, 24 * 60 * 60), // At least 24h
           '1'
@@ -410,8 +373,8 @@ export class LPReportingCache {
    */
   async get(key: string): Promise<unknown | null> {
     try {
-      const value = await this.redis['get'](key);
-      return value ? JSON.parse(value) : null;
+      const value = await this.redis.get(key);
+      return value ? this.parseCachedValue(value) : null;
     } catch (error) {
       logger.error({ key, error }, 'Error getting cache');
       return null;
@@ -423,7 +386,7 @@ export class LPReportingCache {
    */
   async delete(key: string): Promise<boolean> {
     try {
-      const result = await this.redis['del'](key);
+      const result = await this.redis.del(key);
       return result > 0;
     } catch (error) {
       logger.error({ key, error }, 'Error deleting cache');
@@ -440,14 +403,14 @@ export class LPReportingCache {
     memoryUsage: string;
   }> {
     try {
-      const info = await this.redis['info']('memory');
-      const dbSize = await this.redis['dbsize']();
+      const info = await this.redis.info('memory');
+      const dbSize = await this.redis.dbsize();
 
       // Parse memory info
-      const memoryUsageLine = info.split('\n').find((line: string) => line.includes('used_memory:'));
-      const memoryBytes = memoryUsageLine
-        ? parseInt(memoryUsageLine.split(':')[1], 10)
-        : 0;
+      const memoryUsageLine = info.split('\n').find((line) => line.startsWith('used_memory:'));
+      const memoryValue = memoryUsageLine?.split(':')[1] ?? '0';
+      const parsedMemoryBytes = Number.parseInt(memoryValue, 10);
+      const memoryBytes = Number.isNaN(parsedMemoryBytes) ? 0 : parsedMemoryBytes;
 
       return {
         cacheSize: memoryBytes,
@@ -464,6 +427,9 @@ export class LPReportingCache {
 /**
  * Factory function to create cache instance
  */
-export function createLPCache(redis: Redis, config?: Partial<CacheConfig>): LPReportingCache {
+export function createLPCache(
+  redis: RedisCacheClient,
+  config?: Partial<CacheConfig>
+): LPReportingCache {
   return new LPReportingCache(redis, config);
 }

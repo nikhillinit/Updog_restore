@@ -818,8 +818,6 @@ export class PortfolioOptimizationService {
    * Map optimization session to results format
    */
   private mapSessionToResults(session: OptimizationSession): OptimizationResults {
-    const config = session.optimizationConfig as Record<string, unknown> | undefined;
-
     const result: OptimizationResults = {
       sessionId: session.id,
       status: session.status,

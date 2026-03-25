@@ -337,7 +337,7 @@ export class ProjectedMetricsCalculator {
     const quarters = 12; // 3 years
     const perQuarter = remainingCapital / quarters;
 
-    return Array(quarters).fill(perQuarter);
+    return Array<number>(quarters).fill(perQuarter);
   }
 
   /**

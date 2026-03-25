@@ -20,6 +20,7 @@
 // ============================================================================
 
 import { normalizeInvestmentStage, type InvestmentStage } from '../utils/stage-utils';
+import { logger } from '../lib/logger';
 
 // ============================================================================
 // TELEMETRY & OBSERVABILITY
@@ -42,15 +43,15 @@ const telemetry = {
  * Emit telemetry event (would connect to Prometheus in production)
  */
 function emitMetric(name: string, value: number, labels?: Record<string, string>) {
-  // Log to structured logs (would be ingested by observability stack)
-  console.log(
-    JSON.stringify({
+  logger.info(
+    {
       type: 'metric',
       name,
       value,
       timestamp: new Date().toISOString(),
       labels: labels || {},
-    })
+    },
+    '[power-law-distribution] metric'
   );
 }
 

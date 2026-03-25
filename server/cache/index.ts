@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Cache adapter generic types
- 
- 
- 
- 
 /**
- * Resilient Cache System with Graceful Redis Fallback
- * Eliminates Redis connection failures in development
+ * Resilient Cache System with Graceful Redis Fallback.
+ *
+ * Uses Redis when available and falls back to the bounded in-memory cache
+ * for development or degraded runtime scenarios.
  */
+
+import { logger } from '../lib/logger';
+import { BoundedMemoryCache } from './memory.js';
 
 export interface Cache {
   get(_key: string): Promise<string | null>;
@@ -15,110 +15,133 @@ export interface Cache {
   close(): Promise<void>;
 }
 
-// Use the bounded memory cache implementation
-import { BoundedMemoryCache } from './memory.js';
+interface RedisClientLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<unknown>;
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
+  del(key: string): Promise<number>;
+  quit(): Promise<unknown>;
+  ping(): Promise<unknown>;
+  connect(): Promise<void>;
+  on(event: 'error', listener: (error: Error) => void): void;
+  on(event: 'reconnecting', listener: () => void): void;
+}
+
+interface RedisClientOptions {
+  lazyConnect: boolean;
+  maxRetriesPerRequest: number;
+  retryDelayOnFailover: number;
+  connectTimeout: number;
+}
+
+interface RedisModule {
+  default: new (url: string, options: RedisClientOptions) => RedisClientLike;
+}
 
 class RedisCache implements Cache {
-  constructor(private redis: any) {}
+  constructor(private readonly redis: RedisClientLike) {}
 
   async get(key: string): Promise<string | null> {
-    return (await this.redis['get'](key)) ?? null;
+    return (await this.redis.get(key)) ?? null;
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     if (ttlSeconds) {
       await this.redis.setex(key, ttlSeconds, value);
-    } else {
-      await this.redis['set'](key, value);
+      return;
     }
+
+    await this.redis.set(key, value);
   }
 
   async del(key: string): Promise<void> {
-    await this.redis['del'](key);
+    await this.redis.del(key);
   }
 
   async close(): Promise<void> {
-    await this.redis['quit']();
+    await this.redis.quit();
   }
 }
 
 let lastRedisWarning = 0;
-const REDIS_WARNING_THROTTLE = 60000; // 1 minute
+const REDIS_WARNING_THROTTLE = 60_000;
+let cacheInstance: Cache | null = null;
+let cacheInstancePromise: Promise<Cache> | null = null;
 
-function throttledWarn(message: string) {
+function throttledWarn(message: string): void {
   const now = Date.now();
   if (now - lastRedisWarning > REDIS_WARNING_THROTTLE) {
-    console.warn(`[cache] ${message}`);
+    logger.warn({ cacheBackend: 'redis' }, `[cache] ${message}`);
     lastRedisWarning = now;
   }
 }
 
+function timeoutReject(message: string, timeoutMs: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+}
+
 export async function buildCache(): Promise<Cache> {
   const url = process.env['REDIS_URL'];
-  
-  // Explicit memory cache mode
+
   if (!url || url.startsWith('memory://')) {
-    console.log('[cache] Using bounded in-memory cache (development mode)');
+    logger.info('[cache] Using bounded in-memory cache (development mode)');
     return new BoundedMemoryCache();
   }
 
   try {
-    const { default: IORedis } = await import('ioredis');
-    const redis = new IORedis(url, { 
-      lazyConnect: true, 
+    const redisModule = (await import('ioredis')) as unknown as RedisModule;
+    const redis = new redisModule.default(url, {
+      lazyConnect: true,
       maxRetriesPerRequest: 1,
       retryDelayOnFailover: 100,
-      connectTimeout: 800
+      connectTimeout: 800,
     });
 
-    // Test Redis availability with timeout
-    await Promise.race([
-      redis.connect(),
-      new Promise((_: any, reject: any) => 
-        setTimeout(() => reject(new Error('Redis connection timeout')), 800)
-      )
-    ]);
+    await Promise.race([redis.connect(), timeoutReject('Redis connection timeout', 800)]);
 
-    // Verify with ping
-    await Promise.race([
-      redis['ping'](),
-      new Promise((_: any, reject: any) => 
-        setTimeout(() => reject(new Error('Redis ping timeout')), 500)
-      )
-    ]);
+    await Promise.race([redis.ping(), timeoutReject('Redis ping timeout', 500)]);
 
-    console.log('[cache] Connected to Redis successfully');
-    
-    // Handle Redis errors gracefully in production
-    redis['on']('error', (err: Error) => {
-      throttledWarn(`Redis error: ${err.message}`);
+    logger.info('[cache] Connected to Redis successfully');
+
+    redis.on('error', (error: Error) => {
+      throttledWarn(`Redis error: ${error.message}`);
     });
 
-    redis['on']('reconnecting', () => {
+    redis.on('reconnecting', () => {
       throttledWarn('Redis reconnecting...');
     });
 
     return new RedisCache(redis);
-
   } catch (error) {
-    throttledWarn(`Redis unavailable, falling back to bounded memory cache: ${(error as Error).message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throttledWarn(`Redis unavailable, falling back to bounded memory cache: ${message}`);
     return new BoundedMemoryCache();
   }
 }
 
-// Global cache instance
-let cacheInstance: Cache | null = null;
-
 export async function getCache(): Promise<Cache> {
-  if (!cacheInstance) {
-    cacheInstance = await buildCache();
+  if (cacheInstance) {
+    return cacheInstance;
   }
-  return cacheInstance;
+
+  if (!cacheInstancePromise) {
+    cacheInstancePromise = buildCache().then((cache) => {
+      cacheInstance = cache;
+      return cache;
+    });
+  }
+
+  return cacheInstancePromise;
 }
 
 export async function closeCache(): Promise<void> {
-  if (cacheInstance) {
-    await cacheInstance.close();
-    cacheInstance = null;
+  const activeCache = cacheInstance;
+  cacheInstance = null;
+  cacheInstancePromise = null;
+
+  if (activeCache) {
+    await activeCache.close();
   }
 }
