@@ -212,8 +212,6 @@ export class GraduationRateEngine {
     initialCompanies: number,
     horizonQuarters: number
   ): CohortProjection[] {
-    const projections: CohortProjection[] = [];
-
     if (this.config.expectationMode) {
       return this.projectCohortExpectation(initialCompanies, horizonQuarters);
     } else {
@@ -296,7 +294,7 @@ export class GraduationRateEngine {
     const projections: CohortProjection[] = [];
 
     // Track each company's stage
-    const companyStages: Stage[] = Array(initialCompanies).fill('seed');
+    const companyStages: Stage[] = Array.from({ length: initialCompanies }, () => 'seed');
 
     for (let q = 0; q < horizonQuarters; q++) {
       let graduates = 0;

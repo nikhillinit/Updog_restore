@@ -68,6 +68,30 @@ describe('toFundCreationPayload (characterization)', () => {
     expect(result.basics).toBe(basics);
   });
 
+  it('uses deterministic fallback stage ids and names for invalid stage entries', () => {
+    const result = toFundCreationPayload({
+      stages: [
+        null,
+        { graduate: 25, exit: 10, months: 18 },
+      ],
+    });
+
+    expect(result.strategy.stages[0]).toEqual({
+      id: 'stage-1',
+      name: 'Stage 1',
+      graduate: 0,
+      exit: 0,
+      months: 1,
+    });
+    expect(result.strategy.stages[1]).toEqual({
+      id: 'stage-2',
+      name: 'Stage 2',
+      graduate: 25,
+      exit: 10,
+      months: 18,
+    });
+  });
+
   it('generates default basics when not provided', () => {
     const result = toFundCreationPayload({ stages: [] });
     expect(result.basics).toBeDefined();

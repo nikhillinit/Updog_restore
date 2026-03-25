@@ -144,6 +144,30 @@ describe('Reserves v1.1 Calculation Engine', () => {
       expect(result.data!.remaining_cents).toBe(0);
       expect(result.data!.metadata.conservation_check).toBe(true);
     });
+
+    it('honors an explicit zero cap percent instead of falling back to defaults', () => {
+      const input: ReservesInput = {
+        companies: mockCompanies,
+        fund_size_cents: 3500000,
+        quarter_index: getCurrentQuarterIndex(),
+      };
+
+      const config: ReservesConfig = {
+        reserve_bps: 3000,
+        remain_passes: 0,
+        cap_policy: {
+          kind: 'fixed_percent',
+          default_percent: 0,
+        },
+        audit_level: 'basic',
+      };
+
+      const result = calculateReservesSafe(input, config);
+
+      expect(result.ok).toBe(true);
+      expect(result.data!.allocations).toEqual([]);
+      expect(result.data!.remaining_cents).toBe(result.data!.metadata.total_available_cents);
+    });
   });
 
   describe('Edge Cases', () => {

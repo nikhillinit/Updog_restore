@@ -163,7 +163,7 @@ function deployCompaniesV2(inputs: ExtendedFundModelInputs, state: FundState): v
   const totalCompanies = inputs.stageProfile.initialPortfolioSize;
 
   // Distribute companies across stages based on stage allocations
-  inputs.stageProfile.stages.forEach((stage, stageIdx) => {
+  inputs.stageProfile.stages.forEach((stage) => {
     // Calculate companies for this stage (can be fractional!)
     const stageCompanies = totalCompanies.div(inputs.stageProfile.stages.length);
 
@@ -236,7 +236,7 @@ function simulatePeriodV2(
     calledCapitalCumulative: state.calledCapital,
     calledCapitalNetOfReturns: state.calledCapital.minus(state.distributionsToLPs),
     investedCapital: state.investedCapital,
-    fairMarketValue: calculatePortfolioFMV(state.companies, inputs), // TODO: Implement FMV
+    fairMarketValue: calculatePortfolioFMV(state.companies), // TODO: Implement FMV
     unrealizedCost: state.investedCapital.minus(state.exitProceeds),
     currentMonth,
   };
@@ -353,7 +353,7 @@ function simulatePeriodV2(
  * Calculate fair market value of portfolio
  * TODO: Implement proper FMV marking
  */
-function calculatePortfolioFMV(companies: Company[], inputs: ExtendedFundModelInputs): Decimal {
+function calculatePortfolioFMV(companies: Company[]): Decimal {
   return companies
     .filter((c) => c.exitMonth === null)
     .reduce((sum, c) => sum.plus(c.totalInvested), new Decimal(0));

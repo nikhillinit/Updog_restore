@@ -198,7 +198,7 @@ export interface FeeImpactResult {
 export function calculateManagementFees(
   config: ManagementFeeConfig
 ): YearlyFee[] {
-  const { fundSize, feeRate, basis, fundTerm, stepDown } = config;
+  const { fundSize, feeRate, fundTerm, stepDown } = config;
   const fees: YearlyFee[] = [];
   let cumulative = 0;
 

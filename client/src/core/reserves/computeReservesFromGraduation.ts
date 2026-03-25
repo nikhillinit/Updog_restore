@@ -41,6 +41,7 @@ export type ReservesResult = {
 };
 
 const q = (months: number) => Math.max(1, Math.ceil(months / 3));
+const createQuarterSeries = (horizon: number): number[] => Array.from({ length: horizon }, () => 0);
 
 export function computeReservesFromGraduation(f: FundDataForReserves): ReservesResult {
   const errors: string[] = [];
@@ -79,7 +80,7 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
   const deploymentQuarters =
     f.deploymentQuarters ?? Math.ceil(f.targetCompanies / perQuarter);
 
-  const seedNewCosByQuarter: number[] = Array(horizon).fill(0);
+  const seedNewCosByQuarter = createQuarterSeries(horizon);
   let companiesRemaining = f.targetCompanies;
   for (let i = 0; i < deploymentQuarters && companiesRemaining > 0; i++) {
     const take = Math.min(perQuarter, companiesRemaining);
@@ -89,14 +90,14 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
     companiesRemaining -= take;
   }
 
-  const AByQuarter: number[] = Array(horizon).fill(0);
-  const BByQuarter: number[] = Array(horizon).fill(0);
-  const CByQuarter: number[] = Array(horizon).fill(0);
+  const AByQuarter = createQuarterSeries(horizon);
+  const BByQuarter = createQuarterSeries(horizon);
+  const CByQuarter = createQuarterSeries(horizon);
 
   // v1.1: Track remain companies for retry attempts
-  const seedRemainByQuarter: number[] = Array(horizon).fill(0);
-  const ARemainByQuarter: number[] = Array(horizon).fill(0);
-  const BRemainByQuarter: number[] = Array(horizon).fill(0);
+  const seedRemainByQuarter = createQuarterSeries(horizon);
+  const ARemainByQuarter = createQuarterSeries(horizon);
+  const BRemainByQuarter = createQuarterSeries(horizon);
 
   const tA = q(f.graduationRates.seedToA.months);
   const tB = q(f.graduationRates.aToB.months);
@@ -219,4 +220,3 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
     assumptions: { perQuarter, deploymentQuarters },
   };
 }
-

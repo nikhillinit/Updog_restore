@@ -52,9 +52,9 @@ export interface TimelineRecord {
   entityType?: string;
   eventType?: string;
   type?: string;
-  metadata?: any;
-  payload?: any;
-  state?: any;
+  metadata?: unknown;
+  payload?: unknown;
+  state?: unknown;
   eventCount?: number;
   stateHash?: string;
   createdAt: Date;
@@ -71,7 +71,7 @@ export interface TimelineEvent {
 export interface TimelineSnapshot {
   id: number;
   snapshotTime: Date;
-  state: any;
+  state: unknown;
   eventCount: number | null;
   stateHash: string | null;
   fundId: number;
