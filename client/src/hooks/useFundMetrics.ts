@@ -27,6 +27,18 @@ interface UseFundMetricsOptions {
   refetchInterval?: number;
 }
 
+function readErrorMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as { message?: unknown }).message === 'string'
+  ) {
+    return (payload as { message: string }).message;
+  }
+
+  return undefined;
+}
+
 /**
  * Main hook for accessing unified fund metrics
  *
@@ -73,11 +85,13 @@ export function useFundMetrics(
       const response = await fetch(url);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch metrics`);
+        const errorData: unknown = await response.json().catch(() => null);
+        throw new Error(
+          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch metrics`
+        );
       }
 
-      return response.json();
+      return response.json() as Promise<UnifiedFundMetrics>;
     },
     enabled: enabled && !!fundId,
     staleTime: 60_000, // Consider data fresh for 1 minute

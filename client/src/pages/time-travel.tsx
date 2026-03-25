@@ -58,7 +58,7 @@ export default function TimeTravelPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentViewTime, setCurrentViewTime] = useState<string>('');
   const [createSnapshotDialogOpen, setCreateSnapshotDialogOpen] = useState(false);
-  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [, setRestoreDialogOpen] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<number | null>(null);
   const [confirmationCode, setConfirmationCode] = useState('');
 
@@ -77,7 +77,6 @@ export default function TimeTravelPage() {
   const {
     data: pointInTimeData,
     isLoading: pointInTimeLoading,
-    error: pointInTimeError
   } = usePointInTimeState(
     currentFund?.id || 0,
     currentViewTime || new Date().toISOString(),
@@ -87,7 +86,6 @@ export default function TimeTravelPage() {
   const {
     data: comparisonData,
     isLoading: comparisonLoading,
-    error: comparisonError
   } = useStateComparison(
     currentFund?.id || 0,
     selectedTimestamp1,
@@ -143,7 +141,7 @@ export default function TimeTravelPage() {
 
       setCreateSnapshotDialogOpen(false);
       refetchTimeline();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to create snapshot. Please try again.",
@@ -172,7 +170,7 @@ export default function TimeTravelPage() {
       setSelectedSnapshotId(null);
       setConfirmationCode('');
       refetchTimeline();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to restore snapshot. Please check your confirmation code.",

@@ -64,10 +64,10 @@ export function formatQuarter(qt: QuarterTime): string {
 export function parseQuarter(str: string): QuarterTime | null {
   const match = str.match(/Q([1-4])\s+(\d{4})/);
   if (!match) return null;
-  
+
   return {
     quarter: parseInt(match[1]!) as 1 | 2 | 3 | 4,
-    year: parseInt(match[2]!)
+    year: parseInt(match[2]!),
   };
 }
 
@@ -83,23 +83,32 @@ export function getQuartersInRange(range: QuarterRange): QuarterTime[] {
   const startIndex = toQuarterIndex(range.start);
   const endIndex = toQuarterIndex(range.end);
   const quarters: QuarterTime[] = [];
-  
+
   for (let i = startIndex; i <= endIndex; i++) {
     quarters.push(fromQuarterIndex(i));
   }
-  
+
   return quarters;
 }
 
 // Validation
-export function isValidQuarter(qt: any): qt is QuarterTime {
+function isQuarterShape(qt: unknown): qt is { year: number; quarter: number } {
   return (
     typeof qt === 'object' &&
     qt !== null &&
-    typeof qt.year === 'number' &&
+    typeof (qt as { year?: unknown }).year === 'number' &&
+    typeof (qt as { quarter?: unknown }).quarter === 'number'
+  );
+}
+
+export function isValidQuarter(qt: unknown): qt is QuarterTime {
+  if (!isQuarterShape(qt)) {
+    return false;
+  }
+
+  return (
     qt.year >= 1900 &&
     qt.year <= 2100 &&
-    typeof qt.quarter === 'number' &&
     qt.quarter >= 1 &&
     qt.quarter <= 4
   );

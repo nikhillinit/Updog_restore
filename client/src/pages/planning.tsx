@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useFundContext } from '@/contexts/FundContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import OptimalReservesRanking from '@/components/reserves/optimal-reserves-ranking';
@@ -58,8 +56,6 @@ interface InvestmentRound {
 }
 
 export default function Planning() {
-  const { currentFund } = useFundContext();
-  const queryClient = useQueryClient();
   const [selectedCase, setSelectedCase] = useState('default');
   const [showFMVDialog, setShowFMVDialog] = useState(false);
   const [selectedRound, setSelectedRound] = useState<InvestmentRound | null>(null);

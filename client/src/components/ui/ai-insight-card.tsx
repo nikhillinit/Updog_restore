@@ -53,10 +53,7 @@ interface AIInsightCardProps {
 
 // AI insight generation based on Monte Carlo results
 function generateInsights(
-  results: MonteCarloResult[],
-  portfolioSize: number,
-  fundSize: number,
-  timeHorizon: number
+  results: MonteCarloResult[]
 ): PortfolioInsight[] {
   const insights: PortfolioInsight[] = [];
 
@@ -186,15 +183,12 @@ const categoryConfig = {
 
 export function AIInsightCard({
   results = [],
-  portfolioSize = 25,
-  fundSize = 100000000,
-  timeHorizon = 10,
   insights: providedInsights,
   className,
   variant = 'default'
 }: AIInsightCardProps) {
   // Generate insights from Monte Carlo results if not provided
-  const insights = providedInsights || generateInsights(results, portfolioSize, fundSize, timeHorizon);
+  const insights = providedInsights || generateInsights(results);
 
   if (insights.length === 0) {
     return (

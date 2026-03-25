@@ -118,10 +118,6 @@ export default function PortfolioConstruction() {
     const followOnReserveCapital = numberOfDeals * totalFollowOnPerDeal;
     
     // Verification: ensure all capital is deployed - core portfolio construction principle
-    const totalCapitalDeployed = initialInvestmentCapital + followOnReserveCapital;
-    const capitalUtilization = (totalCapitalDeployed / totalInvestableCapital) * 100;
-    const unusedCapital = totalInvestableCapital - totalCapitalDeployed;
-    
     const avgInitialCheck = initialCheckSizeActual;
     const seedPostMoney = params.seedPreMoney + params.seedRoundSize;
     const avgOwnership = (avgInitialCheck / seedPostMoney) * 100;
@@ -419,10 +415,10 @@ export default function PortfolioConstruction() {
                     <BarChart data={allocationData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                      <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
+                      <YAxis tickFormatter={(value: number | string) => formatCurrency(Number(value))} />
                       <Tooltip
                         formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', "Amount"]}
-                        labelFormatter={(label: any) => `Category: ${label}`}
+                        labelFormatter={(label: number | string) => `Category: ${String(label)}`}
                       />
                       <Bar dataKey="value" fill="#3b82f6" />
                     </BarChart>
@@ -521,7 +517,7 @@ export default function PortfolioConstruction() {
                   <BarChart data={graduationData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
-                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: number | string) => formatCurrency(Number(value))} />
                     <Tooltip
                       formatter={(value, name) => [
                         value !== undefined ? formatCurrency(Number(value)) : '',
@@ -569,7 +565,7 @@ export default function PortfolioConstruction() {
                   <BarChart data={returnWaterfallData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" />
-                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: number | string) => formatCurrency(Number(value))} />
                     <Tooltip
                       formatter={(value) => [value !== undefined ? formatCurrency(Number(value)) : '', "Amount"]}
                     />

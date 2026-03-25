@@ -38,9 +38,9 @@ export function LegacyRouteRedirector() {
       const target = `${newPath}${location.search}${location.hash}`;
 
       // Log in development
-      if (import.meta.env?.DEV) {
-        console.info(`[LegacyRouteRedirector] ${currentPath} → ${target}`);
-      }
+        if (import.meta.env?.DEV) {
+          console.warn(`[LegacyRouteRedirector] ${currentPath} → ${target}`);
+        }
 
       // Idempotent redirect (replace: true prevents history pollution)
       navigate(target, { replace: true });

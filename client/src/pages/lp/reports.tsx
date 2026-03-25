@@ -19,11 +19,11 @@ import type { ReportType, ReportFormat } from '@shared/types/lp-api';
 // ============================================================================
 
 export default function LPReports() {
-  const { data: reportsData, isLoading } = useLPReports({ limit: 20 });
+  const { data: reportsData } = useLPReports({ limit: 20 });
   const { mutate: generateReport, isPending } = useGenerateLPReport();
 
   const [selectedType, setSelectedType] = useState<ReportType>('quarterly_statement');
-  const [selectedFormat, setSelectedFormat] = useState<ReportFormat>('pdf');
+  const [selectedFormat] = useState<ReportFormat>('pdf');
 
   const handleGenerate = () => {
     generateReport({

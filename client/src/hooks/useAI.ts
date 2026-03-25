@@ -21,6 +21,114 @@ export interface AskAllAIsArgs {
   tags?: string[];
 }
 
+interface AIUsageResponse {
+  calls_today: number;
+  limit: number;
+  remaining: number;
+  total_cost_usd: number;
+}
+
+const MODEL_NAMES: ReadonlySet<ModelName> = new Set(['claude', 'gpt', 'gemini', 'deepseek']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parseJsonPayload(text: string): unknown {
+  return text === '' ? null : (JSON.parse(text) as unknown);
+}
+
+function readErrorMessage(payload: unknown, fallback: string): string {
+  if (isRecord(payload) && typeof payload['error'] === 'string') {
+    return payload['error'];
+  }
+
+  return fallback;
+}
+
+function parseUsagePayload(payload: unknown): AIResponse['usage'] | undefined {
+  if (!isRecord(payload)) {
+    return undefined;
+  }
+
+  const promptTokens = asNumber(payload['prompt_tokens']);
+  const completionTokens = asNumber(payload['completion_tokens']);
+  const totalTokens = asNumber(payload['total_tokens']);
+
+  if (
+    promptTokens === undefined ||
+    completionTokens === undefined ||
+    totalTokens === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: totalTokens,
+  };
+}
+
+function parseAIResponseItem(payload: unknown): AIResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid AI response item');
+  }
+
+  const model = payload['model'];
+  if (typeof model !== 'string' || !MODEL_NAMES.has(model as ModelName)) {
+    throw new Error('Invalid AI response item');
+  }
+
+  return {
+    model,
+    text: typeof payload['text'] === 'string' ? payload['text'] : undefined,
+    error: typeof payload['error'] === 'string' ? payload['error'] : undefined,
+    usage: parseUsagePayload(payload['usage']),
+    cost_usd: asNumber(payload['cost_usd']),
+    elapsed_ms: asNumber(payload['elapsed_ms']),
+  };
+}
+
+function parseAIResults(payload: unknown): AIResponse[] {
+  if (!isRecord(payload) || !Array.isArray(payload['results'])) {
+    throw new Error('Invalid AI response');
+  }
+
+  return payload['results'].map((item) => parseAIResponseItem(item));
+}
+
+function parseUsage(payload: unknown): AIUsageResponse {
+  if (!isRecord(payload)) {
+    throw new Error('Invalid AI usage response');
+  }
+
+  const callsToday = asNumber(payload['calls_today']);
+  const limit = asNumber(payload['limit']);
+  const remaining = asNumber(payload['remaining']);
+  const totalCostUsd = asNumber(payload['total_cost_usd']);
+
+  if (
+    callsToday === undefined ||
+    limit === undefined ||
+    remaining === undefined ||
+    totalCostUsd === undefined
+  ) {
+    throw new Error('Invalid AI usage response');
+  }
+
+  return {
+    calls_today: callsToday,
+    limit,
+    remaining,
+    total_cost_usd: totalCostUsd,
+  };
+}
+
 export function useAskAllAIs() {
   const queryClient = useQueryClient();
 
@@ -33,12 +141,11 @@ export function useAskAllAIs() {
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || 'AI request failed');
+        const errorPayload = parseJsonPayload(await res.text());
+        throw new Error(readErrorMessage(errorPayload, 'AI request failed'));
       }
 
-      const data = await res.json();
-      return data.results as AIResponse[];
+      return parseAIResults(parseJsonPayload(await res.text()));
     },
     onSuccess: () => {
       // Invalidate usage stats to show updated count
@@ -53,12 +160,7 @@ export function useAIUsage() {
     queryFn: async () => {
       const res = await fetch('/api/ai/usage');
       if (!res.ok) throw new Error('Failed to fetch usage');
-      return res.json() as Promise<{
-        calls_today: number;
-        limit: number;
-        remaining: number;
-        total_cost_usd: number;
-      }>;
+      return parseUsage(parseJsonPayload(await res.text()));
     },
     refetchInterval: 60000, // Refresh every minute
   });

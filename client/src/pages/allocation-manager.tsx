@@ -77,7 +77,6 @@ export default function AllocationManager() {
     ];
 
     // Calculate exact number of deals to deploy ALL capital (with decimals)
-    let remainingCapital = totalInvestableCapital;
     const calculatedAllocations = stages.map((stage) => {
       const stagePercentage = stage.name === 'Pre-Seed' ? 0.27 : stage.name === 'Seed' ? 0.4 : 0.33;
       const stageCapital = totalInvestableCapital * stagePercentage;
@@ -113,8 +112,6 @@ export default function AllocationManager() {
         stage.graduationRate * 5.0 + // Graduated companies
         stage.exitRate * 2.5 + // Early exits
         (1 - stage.graduationRate - stage.exitRate) * 0.2; // Write-offs
-
-      remainingCapital -= stageCapital;
 
       return {
         id: stage.name.toLowerCase().replace(' ', '-'),

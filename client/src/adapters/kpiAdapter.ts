@@ -8,7 +8,7 @@
  */
 
 import type { z } from 'zod';
-import type { KPIResponseSchema } from '@shared/contracts/kpi-selector.contract';
+import { KPIResponseSchema } from '@shared/contracts/kpi-selector.contract';
 import type { FundRawData } from '@/core/types/fund';
 
 type KPIApiResponse = z.infer<typeof KPIResponseSchema>;
@@ -52,7 +52,6 @@ export function isValidKpiResponse(
   data: unknown
 ): data is KPIApiResponse {
   try {
-    const { KPIResponseSchema } = require('@shared/contracts/kpi-selector.contract');
     KPIResponseSchema.parse(data);
     return true;
   } catch {

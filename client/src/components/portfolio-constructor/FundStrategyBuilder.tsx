@@ -110,7 +110,6 @@ const defaultBuckets: AllocationBucket[] = [
 export function FundStrategyBuilder({
   portfolioState,
   onUpdate,
-  isCalculating,
 }: FundStrategyBuilderProps) {
   const [buckets, setBuckets] = useState<AllocationBucket[]>(defaultBuckets);
   const [selectedCategory, setSelectedCategory] = useState<

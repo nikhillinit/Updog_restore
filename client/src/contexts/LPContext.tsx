@@ -40,6 +40,18 @@ interface LPProviderProps {
   lpId?: number;
 }
 
+function readErrorMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as { message?: unknown }).message === 'string'
+  ) {
+    return (payload as { message: string }).message;
+  }
+
+  return undefined;
+}
+
 export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
   const [lpProfile, setLPProfile] = useState<LPProfile | null>(null);
   const [selectedFundId, setSelectedFundId] = useState<number | null>(null);
@@ -87,11 +99,13 @@ export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
       const response = await fetch(`/api/lp/profile?lpId=${lpId}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch LP profile`);
+        const errorData: unknown = await response.json().catch(() => null);
+        throw new Error(
+          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch LP profile`
+        );
       }
 
-      return response.json();
+      return response.json() as Promise<LPProfileResponse>;
     },
     enabled: true,
     staleTime: 300_000, // 5 minutes

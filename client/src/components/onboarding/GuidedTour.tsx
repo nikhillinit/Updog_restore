@@ -104,19 +104,19 @@ export function GuidedTour() {
     }
   }, [isOpen, currentStep]);
 
+  const handleComplete = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY, 'true');
+    track('tour_completed', { version: TOUR_VERSION });
+    setIsOpen(false);
+  }, []);
+
   const handleNext = useCallback(() => {
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
       handleComplete();
     }
-  }, [currentStep]);
-
-  const handleComplete = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, 'true');
-    track('tour_completed', { version: TOUR_VERSION });
-    setIsOpen(false);
-  }, []);
+  }, [currentStep, handleComplete]);
 
   const handleSkip = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, 'true');
