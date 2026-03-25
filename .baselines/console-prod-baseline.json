@@ -1,14 +1,14 @@
 {
-  "total": 198,
+  "total": 170,
   "byMethod": {
-    "log": 160,
-    "debug": 27,
-    "info": 8,
+    "log": 135,
+    "debug": 25,
+    "info": 7,
     "table": 1,
     "group": 1,
     "groupEnd": 1
   },
-  "generatedAt": "2026-03-20T21:05:49.616Z",
+  "generatedAt": "2026-03-25T04:30:31.555Z",
   "scope": [
     "client/src/**/*.{ts,tsx,js}",
     "server/**/*.{ts,tsx,js}",
