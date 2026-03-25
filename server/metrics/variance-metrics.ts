@@ -5,7 +5,23 @@
  * alert frequency, and baseline management operations.
  */
 
+import type { NextFunction, Request, Response } from 'express';
 import { register, Counter, Histogram, Gauge } from 'prom-client';
+import { logger } from '../lib/logger';
+
+interface VarianceMetricsSummary {
+  reportsGenerated: number;
+  activeCalculations: number;
+  activeBaselines: number;
+  alertsGenerated: number;
+  systemHealth: number;
+  timestamp: string;
+}
+
+async function getMetricValue(metric: Counter<string> | Gauge<string>): Promise<number> {
+  const snapshot = await metric.get();
+  return snapshot.values[0]?.value ?? 0;
+}
 
 function getOrCreateCounter(config: ConstructorParameters<typeof Counter>[0]): Counter {
   const existing = register.getSingleMetric(config.name);
@@ -302,7 +318,7 @@ export function recordAlertAction(action: string, severity: string, resolutionTi
  * Update fund variance score
  */
 export function updateFundVarianceScore(fundId: string, baselineId: string, score: number): void {
-  fundVarianceScores.labels(fundId, baselineId)['set'](score);
+  fundVarianceScores.labels(fundId, baselineId).set(score);
 }
 
 /**
@@ -333,7 +349,7 @@ export function recordVarianceApiRequest(
  * Update data quality score
  */
 export function updateDataQualityScore(fundId: string, dataSource: string, score: number): void {
-  dataQualityScores.labels(fundId, dataSource)['set'](score);
+  dataQualityScores.labels(fundId, dataSource).set(score);
 }
 
 /**
@@ -351,7 +367,7 @@ export function recordDataValidationError(
  * Update system health score
  */
 export function updateSystemHealthScore(score: number): void {
-  systemHealthScore['set'](score);
+  systemHealthScore.set(score);
 }
 
 /**
@@ -379,7 +395,7 @@ export function startVarianceCalculation(calculationType: string): () => void {
  * Middleware factory for recording API metrics
  */
 export function createVarianceMetricsMiddleware() {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     // Only track variance-related endpoints
     if (
       !req.path.includes('/variance') &&
@@ -390,10 +406,10 @@ export function createVarianceMetricsMiddleware() {
     }
 
     const startTime = Date.now();
-    const endpoint = req.route?.path || req.path;
+    const endpoint = req.path;
     const method = req.method;
 
-    res['on']('finish', () => {
+    res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
       const statusCode = res.statusCode.toString();
 
@@ -417,23 +433,32 @@ export function initializeVarianceMetrics(): void {
 
   severities.forEach((severity) => {
     categories.forEach((category) => {
-      activeAlertsBySeverity.labels(severity, category)['set'](0);
+      activeAlertsBySeverity.labels(severity, category).set(0);
     });
   });
 
-  console.log('[Metrics] Variance tracking metrics initialized');
+  logger.info('[Metrics] Variance tracking metrics initialized');
 }
 
 /**
  * Get current variance tracking metrics summary
  */
-export function getVarianceMetricsSummary(): any {
+export async function getVarianceMetricsSummary(): Promise<VarianceMetricsSummary> {
+  const [reportsGenerated, activeCalculations, activeBaselines, generatedAlerts, systemHealth] =
+    await Promise.all([
+      getMetricValue(varianceReportsGenerated),
+      getMetricValue(activeVarianceCalculations),
+      getMetricValue(totalActiveBaselines),
+      getMetricValue(alertsGenerated),
+      getMetricValue(systemHealthScore),
+    ]);
+
   return {
-    reportsGenerated: varianceReportsGenerated['get'](),
-    activeCalculations: activeVarianceCalculations['get'](),
-    activeBaselines: totalActiveBaselines['get'](),
-    alertsGenerated: alertsGenerated['get'](),
-    systemHealth: systemHealthScore['get'](),
+    reportsGenerated,
+    activeCalculations,
+    activeBaselines,
+    alertsGenerated: generatedAlerts,
+    systemHealth,
     timestamp: new Date().toISOString(),
   };
 }

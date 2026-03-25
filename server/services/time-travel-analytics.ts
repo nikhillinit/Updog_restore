@@ -147,7 +147,8 @@ export class TimeTravelAnalyticsService {
       const cached = await this.cache.get(cacheKey);
       if (cached) {
         this.loggerInstance.debug('Cache hit for state query', { fundId, targetTime });
-        return JSON.parse(cached);
+        const cachedState = JSON.parse(cached) as FundStateAtTime;
+        return cachedState;
       }
     }
 
@@ -155,12 +156,7 @@ export class TimeTravelAnalyticsService {
     const [snapshot] = await this.db
       .select()
       .from(fundSnapshots)
-      .where(
-        and(
-          eq(fundSnapshots.fundId, fundId),
-          lte(fundSnapshots.snapshotTime, targetTime)
-        )
-      )
+      .where(and(eq(fundSnapshots.fundId, fundId), lte(fundSnapshots.snapshotTime, targetTime)))
       .orderBy(desc(fundSnapshots.snapshotTime))
       .limit(1);
 
@@ -412,12 +408,7 @@ export class TimeTravelAnalyticsService {
     const [snapshot] = await this.db
       .select()
       .from(fundSnapshots)
-      .where(
-        and(
-          eq(fundSnapshots.fundId, fundId),
-          lte(fundSnapshots.snapshotTime, targetTime)
-        )
-      )
+      .where(and(eq(fundSnapshots.fundId, fundId), lte(fundSnapshots.snapshotTime, targetTime)))
       .orderBy(desc(fundSnapshots.snapshotTime))
       .limit(1);
 

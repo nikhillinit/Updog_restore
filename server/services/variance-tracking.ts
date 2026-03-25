@@ -14,7 +14,7 @@ import {
   alertRules,
   fundMetrics,
   portfolioCompanies,
-  fundSnapshots
+  fundSnapshots,
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -24,7 +24,7 @@ import type {
   PerformanceAlert,
   InsertPerformanceAlert,
   AlertRule,
-  InsertAlertRule
+  InsertAlertRule,
 } from '@shared/schema';
 import { eq, and, desc, lte, inArray } from 'drizzle-orm';
 import {
@@ -35,8 +35,41 @@ import {
   updateFundVarianceScore,
   updateDataQualityScore,
   recordSystemError,
-  startVarianceCalculation
+  startVarianceCalculation,
 } from '../metrics/variance-metrics';
+
+interface TriggeredAlertData {
+  ruleId: string;
+  ruleName?: string;
+  metricName: string;
+  thresholdValue: number;
+  actualValue: number | null;
+  severity: 'info' | 'warning' | 'critical' | 'urgent';
+}
+
+function isTriggeredAlertSeverity(value: unknown): value is TriggeredAlertData['severity'] {
+  return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent';
+}
+
+function normalizeTriggeredAlertSeverity(value: unknown): TriggeredAlertData['severity'] {
+  return isTriggeredAlertSeverity(value) ? value : 'warning';
+}
+
+function isTriggeredAlertData(value: unknown): value is TriggeredAlertData {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate['ruleId'] === 'string' &&
+    typeof candidate['metricName'] === 'string' &&
+    typeof candidate['thresholdValue'] === 'number' &&
+    (typeof candidate['actualValue'] === 'number' || candidate['actualValue'] === null) &&
+    isTriggeredAlertSeverity(candidate['severity']) &&
+    (candidate['ruleName'] === undefined || typeof candidate['ruleName'] === 'string')
+  );
+}
 
 /**
  * Baseline creation and management
@@ -56,13 +89,22 @@ export class BaselineService {
     tags?: string[];
   }): Promise<FundBaseline> {
     const startTime = Date.now();
-    const { fundId, name, description, baselineType, periodStart, periodEnd, createdBy, tags = [] } = params;
+    const {
+      fundId,
+      name,
+      description,
+      baselineType,
+      periodStart,
+      periodEnd,
+      createdBy,
+      tags = [],
+    } = params;
 
     try {
       // Get current fund metrics
       const latestMetrics = await db.query.fundMetrics.findFirst({
         where: eq(fundMetrics.fundId, fundId),
-        orderBy: desc(fundMetrics.metricDate)
+        orderBy: desc(fundMetrics.metricDate),
       });
 
       if (!latestMetrics) {
@@ -70,42 +112,40 @@ export class BaselineService {
         throw new Error('No fund metrics available to create baseline');
       }
 
-    // Get portfolio composition
-    const portfolioData = await this.getPortfolioComposition(fundId);
+      // Get portfolio composition
+      const portfolioData = await this.getPortfolioComposition(fundId);
 
-    // Get reserve and pacing data (kept for future use)
-    const _reserveData = await this.getReserveSnapshot(fundId);
-    const _pacingData = await this.getPacingSnapshot(fundId);
+      // Get reserve and pacing data (kept for future use)
+      const _reserveData = await this.getReserveSnapshot(fundId);
+      const _pacingData = await this.getPacingSnapshot(fundId);
 
-    // Check if this should be the default baseline
-    const existingDefaults = await db.query.fundBaselines.findMany({
-      where: and(
-        eq(fundBaselines.fundId, fundId),
-        eq(fundBaselines.isDefault, true),
-        eq(fundBaselines.isActive, true)
-      )
-    });
+      // Check if this should be the default baseline
+      const existingDefaults = await db.query.fundBaselines.findMany({
+        where: and(
+          eq(fundBaselines.fundId, fundId),
+          eq(fundBaselines.isDefault, true),
+          eq(fundBaselines.isActive, true)
+        ),
+      });
 
-    const isDefault = existingDefaults.length === 0;
+      const isDefault = existingDefaults.length === 0;
 
-    const baselineData: InsertFundBaseline = {
-      fundId,
-      name,
-      baselineType,
-      periodStart,
-      periodEnd,
-      snapshotDate: new Date(),
-      totalValue: latestMetrics.totalValue,
-      deployedCapital: portfolioData.deployedCapital,
-      createdBy,
-      isDefault,
-      description,
-      tags
-    };
+      const baselineData: InsertFundBaseline = {
+        fundId,
+        name,
+        baselineType,
+        periodStart,
+        periodEnd,
+        snapshotDate: new Date(),
+        totalValue: latestMetrics.totalValue,
+        deployedCapital: portfolioData.deployedCapital,
+        createdBy,
+        isDefault,
+        description,
+        tags,
+      };
 
-      const [baseline] = await db.insert(fundBaselines)
-        .values(baselineData)
-        .returning();
+      const [baseline] = await db.insert(fundBaselines).values(baselineData).returning();
 
       if (!baseline) {
         throw new Error('Failed to create baseline');
@@ -125,15 +165,15 @@ export class BaselineService {
   /**
    * Get active baselines for a fund
    */
-  async getBaselines(fundId: number, options?: {
-    baselineType?: string;
-    isDefault?: boolean;
-    limit?: number;
-  }): Promise<FundBaseline[]> {
-    const conditions = [
-      eq(fundBaselines.fundId, fundId),
-      eq(fundBaselines.isActive, true)
-    ];
+  async getBaselines(
+    fundId: number,
+    options?: {
+      baselineType?: string;
+      isDefault?: boolean;
+      limit?: number;
+    }
+  ): Promise<FundBaseline[]> {
+    const conditions = [eq(fundBaselines.fundId, fundId), eq(fundBaselines.isActive, true)];
 
     if (options?.baselineType) {
       conditions.push(eq(fundBaselines.baselineType, options.baselineType));
@@ -146,7 +186,7 @@ export class BaselineService {
     const query = db.query.fundBaselines.findMany({
       where: and(...conditions),
       orderBy: desc(fundBaselines.createdAt),
-      limit: options?.limit || 50
+      limit: options?.limit || 50,
     });
 
     return await query;
@@ -158,14 +198,15 @@ export class BaselineService {
   async setDefaultBaseline(baselineId: string, fundId: number): Promise<void> {
     await db.transaction(async (tx) => {
       // Clear existing defaults
-      await tx.update(fundBaselines).set({ isDefault: false, updatedAt: new Date() })
-        .where(and(
-          eq(fundBaselines.fundId, fundId),
-          eq(fundBaselines.isDefault, true)
-        ));
+      await tx
+        .update(fundBaselines)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(and(eq(fundBaselines.fundId, fundId), eq(fundBaselines.isDefault, true)));
 
       // Set new default
-      await tx.update(fundBaselines).set({ isDefault: true, updatedAt: new Date() })
+      await tx
+        .update(fundBaselines)
+        .set({ isDefault: true, updatedAt: new Date() })
         .where(eq(fundBaselines.id, baselineId));
     });
   }
@@ -174,7 +215,9 @@ export class BaselineService {
    * Deactivate a baseline
    */
   async deactivateBaseline(baselineId: string): Promise<void> {
-    await db.update(fundBaselines).set({ isActive: false, updatedAt: new Date() })
+    await db
+      .update(fundBaselines)
+      .set({ isActive: false, updatedAt: new Date() })
       .where(eq(fundBaselines.id, baselineId));
   }
 
@@ -185,8 +228,8 @@ export class BaselineService {
     const companies = await db.query.portfolioCompanies.findMany({
       where: eq(portfolioCompanies.fundId, fundId),
       with: {
-        investments: true
-      }
+        investments: true,
+      },
     });
 
     const totalInvestments = companies.reduce((sum: Decimal, company) => {
@@ -202,25 +245,34 @@ export class BaselineService {
     }, new Decimal(0));
 
     const portfolioCount = companies.length;
-    const averageInvestment = portfolioCount > 0 ? totalInvestments.div(portfolioCount) : new Decimal(0);
+    const averageInvestment =
+      portfolioCount > 0 ? totalInvestments.div(portfolioCount) : new Decimal(0);
 
     // Get sector distribution
-    const sectorCounts = companies.reduce((acc, company) => {
-      acc[company.sector] = (acc[company.sector] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const sectorCounts = companies.reduce(
+      (acc, company) => {
+        acc[company.sector] = (acc[company.sector] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // Get stage distribution
-    const stageCounts = companies.reduce((acc, company) => {
-      acc[company.stage] = (acc[company.stage] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const stageCounts = companies.reduce(
+      (acc, company) => {
+        acc[company.stage] = (acc[company.stage] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
       .filter((c) => c.currentValuation)
       .sort((a, b) =>
-        toDecimal(b.currentValuation!.toString()).comparedTo(toDecimal(a.currentValuation!.toString()))
+        toDecimal(b.currentValuation!.toString()).comparedTo(
+          toDecimal(a.currentValuation!.toString())
+        )
       );
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
@@ -228,7 +280,7 @@ export class BaselineService {
       id: c.id,
       name: c.name,
       sector: c.sector,
-      currentValuation: c.currentValuation
+      currentValuation: c.currentValuation,
     }));
 
     return {
@@ -237,7 +289,7 @@ export class BaselineService {
       averageInvestment: averageInvestment.toString(),
       topPerformers,
       sectorDistribution: sectorCounts,
-      stageDistribution: stageCounts
+      stageDistribution: stageCounts,
     };
   }
 
@@ -246,11 +298,8 @@ export class BaselineService {
    */
   private async getReserveSnapshot(fundId: number) {
     const snapshot = await db.query.fundSnapshots.findFirst({
-      where: and(
-        eq(fundSnapshots.fundId, fundId),
-        eq(fundSnapshots.type, 'RESERVE')
-      ),
-      orderBy: desc(fundSnapshots.createdAt)
+      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
+      orderBy: desc(fundSnapshots.createdAt),
     });
 
     return snapshot?.payload || {};
@@ -261,11 +310,8 @@ export class BaselineService {
    */
   private async getPacingSnapshot(fundId: number) {
     const snapshot = await db.query.fundSnapshots.findFirst({
-      where: and(
-        eq(fundSnapshots.fundId, fundId),
-        eq(fundSnapshots.type, 'PACING')
-      ),
-      orderBy: desc(fundSnapshots.createdAt)
+      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
+      orderBy: desc(fundSnapshots.createdAt),
     });
 
     return snapshot?.payload || {};
@@ -288,69 +334,74 @@ export class VarianceCalculationService {
     asOfDate?: Date;
     generatedBy?: number;
   }): Promise<VarianceReport> {
-    const { fundId, baselineId, reportName, reportType, reportPeriod, asOfDate = new Date(), generatedBy } = params;
+    const {
+      fundId,
+      baselineId,
+      reportName,
+      reportType,
+      reportPeriod,
+      asOfDate = new Date(),
+      generatedBy,
+    } = params;
 
     const finishCalculation = startVarianceCalculation('report_generation');
     const startTime = Date.now();
 
     try {
+      // Get baseline data
+      const baseline = await db.query.fundBaselines.findFirst({
+        where: eq(fundBaselines.id, baselineId),
+      });
 
-    // Get baseline data
-    const baseline = await db.query.fundBaselines.findFirst({
-      where: eq(fundBaselines.id, baselineId)
-    });
+      if (!baseline) {
+        throw new Error('Baseline not found');
+      }
 
-    if (!baseline) {
-      throw new Error('Baseline not found');
-    }
+      // Get current metrics
+      const currentMetrics = await this.getCurrentMetrics(fundId, asOfDate);
+      const baselineMetrics = this.extractBaselineMetrics(baseline);
 
-    // Get current metrics
-    const currentMetrics = await this.getCurrentMetrics(fundId, asOfDate);
-    const baselineMetrics = this.extractBaselineMetrics(baseline);
+      // Calculate variances
+      const variances = this.calculateVariances(currentMetrics, baselineMetrics);
 
-    // Calculate variances
-    const variances = this.calculateVariances(currentMetrics, baselineMetrics);
+      // Analyze portfolio variances
+      const portfolioVariances = await this.analyzePortfolioVariances(fundId, baseline, asOfDate);
 
-    // Analyze portfolio variances
-    const portfolioVariances = await this.analyzePortfolioVariances(fundId, baseline, asOfDate);
+      // Generate insights and risk assessment
+      const insights = this.generateVarianceInsights(variances, portfolioVariances);
 
-    // Generate insights and risk assessment
-    const insights = this.generateVarianceInsights(variances, portfolioVariances);
+      // Check for alert triggers
+      const alertsTriggered = await this.checkAlertTriggers(fundId, variances);
 
-    // Check for alert triggers
-    const alertsTriggered = await this.checkAlertTriggers(fundId, variances);
+      const _calculationDuration = Date.now() - startTime;
 
-    const _calculationDuration = Date.now() - startTime;
+      const reportData: InsertVarianceReport = {
+        fundId,
+        baselineId,
+        reportName,
+        reportType,
+        analysisStart: baseline.periodStart,
+        analysisEnd: baseline.periodEnd,
+        asOfDate,
+        currentMetrics,
+        baselineMetrics,
+        totalValueVariance: variances.totalValueVariance?.toString() ?? null,
+        totalValueVariancePct: variances.totalValueVariancePct?.toString() ?? null,
+        irrVariance: variances.irrVariance?.toString() ?? null,
+        multipleVariance: variances.multipleVariance?.toString() ?? null,
+        dpiVariance: variances.dpiVariance?.toString() ?? null,
+        tvpiVariance: variances.tvpiVariance?.toString() ?? null,
+        portfolioVariances,
+        significantVariances: insights.significantVariances,
+        varianceFactors: insights.factors,
+        thresholdBreaches: insights.thresholdBreaches,
+        riskLevel: insights.riskLevel,
+        alertsTriggered,
+        generatedBy,
+        reportPeriod,
+      };
 
-    const reportData: InsertVarianceReport = {
-      fundId,
-      baselineId,
-      reportName,
-      reportType,
-      analysisStart: baseline.periodStart,
-      analysisEnd: baseline.periodEnd,
-      asOfDate,
-      currentMetrics,
-      baselineMetrics,
-      totalValueVariance: variances.totalValueVariance?.toString() ?? null,
-      totalValueVariancePct: variances.totalValueVariancePct?.toString() ?? null,
-      irrVariance: variances.irrVariance?.toString() ?? null,
-      multipleVariance: variances.multipleVariance?.toString() ?? null,
-      dpiVariance: variances.dpiVariance?.toString() ?? null,
-      tvpiVariance: variances.tvpiVariance?.toString() ?? null,
-      portfolioVariances,
-      significantVariances: insights.significantVariances,
-      varianceFactors: insights.factors,
-      thresholdBreaches: insights.thresholdBreaches,
-      riskLevel: insights.riskLevel,
-      alertsTriggered,
-      generatedBy,
-      reportPeriod
-    };
-
-      const [report] = await db.insert(varianceReports)
-        .values(reportData)
-        .returning();
+      const [report] = await db.insert(varianceReports).values(reportData).returning();
 
       if (!report) {
         throw new Error('Failed to create variance report');
@@ -362,12 +413,20 @@ export class VarianceCalculationService {
 
       // Update variance score
       if (insights.overallScore) {
-        updateFundVarianceScore(fundId.toString(), baselineId, toDecimal(insights.overallScore).toNumber());
+        updateFundVarianceScore(
+          fundId.toString(),
+          baselineId,
+          toDecimal(insights.overallScore).toNumber()
+        );
       }
 
       // Update data quality score
       if (insights.dataQualityScore) {
-        updateDataQualityScore(fundId.toString(), 'variance_calculation', toDecimal(insights.dataQualityScore).toNumber());
+        updateDataQualityScore(
+          fundId.toString(),
+          'variance_calculation',
+          toDecimal(insights.dataQualityScore).toNumber()
+        );
       }
 
       finishCalculation();
@@ -384,11 +443,8 @@ export class VarianceCalculationService {
    */
   private async getCurrentMetrics(fundId: number, asOfDate: Date) {
     const latestMetrics = await db.query.fundMetrics.findFirst({
-      where: and(
-        eq(fundMetrics.fundId, fundId),
-        lte(fundMetrics.metricDate, asOfDate)
-      ),
-      orderBy: desc(fundMetrics.metricDate)
+      where: and(eq(fundMetrics.fundId, fundId), lte(fundMetrics.metricDate, asOfDate)),
+      orderBy: desc(fundMetrics.metricDate),
     });
 
     if (!latestMetrics) {
@@ -401,7 +457,7 @@ export class VarianceCalculationService {
     return {
       ...latestMetrics,
       ...portfolioData,
-      asOfDate
+      asOfDate,
     };
   }
 
@@ -421,7 +477,7 @@ export class VarianceCalculationService {
       topPerformers: baseline.topPerformers,
       sectorDistribution: baseline.sectorDistribution,
       stageDistribution: baseline.stageDistribution,
-      snapshotDate: baseline.snapshotDate
+      snapshotDate: baseline.snapshotDate,
     };
   }
 
@@ -435,7 +491,7 @@ export class VarianceCalculationService {
       irrVariance: null as Decimal | null,
       multipleVariance: null as Decimal | null,
       dpiVariance: null as Decimal | null,
-      tvpiVariance: null as Decimal | null
+      tvpiVariance: null as Decimal | null,
     };
 
     // Total value variance
@@ -444,27 +500,37 @@ export class VarianceCalculationService {
       const baselineVal = toDecimal(baseline['totalValue'].toString());
       const totalVariance = currentVal.minus(baselineVal);
       calculations.totalValueVariance = totalVariance;
-      calculations.totalValueVariancePct = baselineVal.isZero() ? null : totalVariance.div(baselineVal);
+      calculations.totalValueVariancePct = baselineVal.isZero()
+        ? null
+        : totalVariance.div(baselineVal);
     }
 
     // IRR variance
     if (current['irr'] && baseline['irr']) {
-      calculations.irrVariance = toDecimal(current['irr'].toString()).minus(toDecimal(baseline['irr'].toString()));
+      calculations.irrVariance = toDecimal(current['irr'].toString()).minus(
+        toDecimal(baseline['irr'].toString())
+      );
     }
 
     // Multiple variance
     if (current['multiple'] && baseline['multiple']) {
-      calculations.multipleVariance = toDecimal(current['multiple'].toString()).minus(toDecimal(baseline['multiple'].toString()));
+      calculations.multipleVariance = toDecimal(current['multiple'].toString()).minus(
+        toDecimal(baseline['multiple'].toString())
+      );
     }
 
     // DPI variance
     if (current['dpi'] && baseline['dpi']) {
-      calculations.dpiVariance = toDecimal(current['dpi'].toString()).minus(toDecimal(baseline['dpi'].toString()));
+      calculations.dpiVariance = toDecimal(current['dpi'].toString()).minus(
+        toDecimal(baseline['dpi'].toString())
+      );
     }
 
     // TVPI variance
     if (current['tvpi'] && baseline['tvpi']) {
-      calculations.tvpiVariance = toDecimal(current['tvpi'].toString()).minus(toDecimal(baseline['tvpi'].toString()));
+      calculations.tvpiVariance = toDecimal(current['tvpi'].toString()).minus(
+        toDecimal(baseline['tvpi'].toString())
+      );
     }
 
     return calculations;
@@ -482,32 +548,35 @@ export class VarianceCalculationService {
     // Sector-level analysis
     const sectorVariances = this.analyzeSectorVariances(
       currentPortfolio.sectorDistribution || {},
-      baseline.sectorDistribution as Record<string, number> || {}
+      (baseline.sectorDistribution as Record<string, number>) || {}
     );
 
     // Stage-level analysis
     const stageVariances = this.analyzeStageVariances(
       currentPortfolio.stageDistribution || {},
-      baseline.stageDistribution as Record<string, number> || {}
+      (baseline.stageDistribution as Record<string, number>) || {}
     );
 
     return {
       companyVariances,
       sectorVariances,
       stageVariances,
-      portfolioCountVariance: currentPortfolio.portfolioCount - baseline.portfolioCount
+      portfolioCountVariance: currentPortfolio.portfolioCount - baseline.portfolioCount,
     };
   }
 
   /**
    * Generate variance insights and risk assessment
    */
-  private generateVarianceInsights(variances: Record<string, unknown>, portfolioVariances: Record<string, unknown>) {
+  private generateVarianceInsights(
+    variances: Record<string, unknown>,
+    portfolioVariances: Record<string, unknown>
+  ) {
     const significantVariances: Array<Record<string, unknown>> = [];
     const factors: Array<Record<string, unknown>> = [];
     const thresholdBreaches: Array<Record<string, unknown>> = [];
     let riskLevel = 'low';
-    let overallScore = "0";
+    let overallScore = '0';
 
     const totalValueVariance = variances['totalValueVariance'] as Decimal | null;
     const totalValueVariancePct = variances['totalValueVariancePct'] as Decimal | null;
@@ -518,7 +587,7 @@ export class VarianceCalculationService {
         metric: 'totalValue',
         variance: totalValueVariance ? totalValueVariance.toNumber() : null,
         variancePct: totalValueVariancePct.toNumber(),
-        severity: totalValueVariancePct.abs().gt(0.2) ? 'high' : 'medium'
+        severity: totalValueVariancePct.abs().gt(0.2) ? 'high' : 'medium',
       });
     }
 
@@ -529,12 +598,12 @@ export class VarianceCalculationService {
       significantVariances.push({
         metric: 'irr',
         variance: irrVariance.toNumber(),
-        severity: irrVariance.abs().gt(0.1) ? 'high' : 'medium'
+        severity: irrVariance.abs().gt(0.1) ? 'high' : 'medium',
       });
     }
 
     // Determine overall risk level
-    const highSeverityCount = significantVariances.filter(v => v['severity'] === 'high').length;
+    const highSeverityCount = significantVariances.filter((v) => v['severity'] === 'high').length;
     if (highSeverityCount > 0) {
       riskLevel = highSeverityCount >= 2 ? 'critical' : 'high';
     } else if (significantVariances.length > 0) {
@@ -550,14 +619,17 @@ export class VarianceCalculationService {
       thresholdBreaches,
       riskLevel,
       overallScore,
-      dataQualityScore: "0.95" // Placeholder for now
+      dataQualityScore: '0.95', // Placeholder for now
     };
   }
 
   /**
    * Calculate overall variance score
    */
-  private calculateOverallVarianceScore(variances: Record<string, unknown>, _portfolioVariances: Record<string, unknown>): string {
+  private calculateOverallVarianceScore(
+    variances: Record<string, unknown>,
+    _portfolioVariances: Record<string, unknown>
+  ): string {
     let score = new Decimal(0);
     let weightSum = new Decimal(0);
 
@@ -567,7 +639,7 @@ export class VarianceCalculationService {
       irr: 0.25,
       multiple: 0.2,
       dpi: 0.15,
-      tvpi: 0.1
+      tvpi: 0.1,
     };
 
     // Calculate weighted variance score
@@ -584,21 +656,21 @@ export class VarianceCalculationService {
       }
     });
 
-    return weightSum.gt(0) ? score.div(weightSum).toFixed(2) : "0.00";
+    return weightSum.gt(0) ? score.div(weightSum).toFixed(2) : '0.00';
   }
 
   /**
    * Check for alert triggers based on variance calculations
    */
-  private async checkAlertTriggers(fundId: number, variances: Record<string, unknown>): Promise<Array<Record<string, unknown>>> {
+  private async checkAlertTriggers(
+    fundId: number,
+    variances: Record<string, unknown>
+  ): Promise<TriggeredAlertData[]> {
     const activeRules = await db.query.alertRules.findMany({
-      where: and(
-        eq(alertRules.fundId, fundId),
-        eq(alertRules.isEnabled, true)
-      )
+      where: and(eq(alertRules.fundId, fundId), eq(alertRules.isEnabled, true)),
     });
 
-    const triggeredAlerts: Array<Record<string, unknown>> = [];
+    const triggeredAlerts: TriggeredAlertData[] = [];
 
     for (const rule of activeRules) {
       const metricValue = variances[`${rule.metricName}Variance`];
@@ -609,10 +681,11 @@ export class VarianceCalculationService {
           ruleName: rule.name,
           metricName: rule.metricName,
           thresholdValue: toDecimal(rule.thresholdValue?.toString() || '0').toNumber(),
-          actualValue: metricValue === null || metricValue === undefined
-            ? null
-            : toDecimal(metricValue as Decimal | number | string).toNumber(),
-          severity: rule.severity
+          actualValue:
+            metricValue === null || metricValue === undefined
+              ? null
+              : toDecimal(metricValue as Decimal | number | string).toNumber(),
+          severity: normalizeTriggeredAlertSeverity(rule.severity),
         });
       }
     }
@@ -659,7 +732,7 @@ export class VarianceCalculationService {
     return {
       portfolioCount: 0,
       sectorDistribution: {},
-      stageDistribution: {}
+      stageDistribution: {},
     };
   }
 
@@ -668,12 +741,18 @@ export class VarianceCalculationService {
     return [];
   }
 
-  private analyzeSectorVariances(_current: Record<string, number>, _baseline: Record<string, number>) {
+  private analyzeSectorVariances(
+    _current: Record<string, number>,
+    _baseline: Record<string, number>
+  ) {
     // Implementation for sector variance analysis
     return {};
   }
 
-  private analyzeStageVariances(_current: Record<string, number>, _baseline: Record<string, number>) {
+  private analyzeStageVariances(
+    _current: Record<string, number>,
+    _baseline: Record<string, number>
+  ) {
     // Implementation for stage variance analysis
     return {};
   }
@@ -722,12 +801,10 @@ export class AlertManagementService {
       severity: params.severity || 'warning',
       category: params.category || 'performance',
       checkFrequency: params.checkFrequency || 'daily',
-      createdBy: params.createdBy
+      createdBy: params.createdBy,
     };
 
-    const [rule] = await db.insert(alertRules)
-      .values(ruleData)
-      .returning();
+    const [rule] = await db.insert(alertRules).values(ruleData).returning();
 
     if (!rule) {
       throw new Error('Failed to create alert rule');
@@ -763,19 +840,22 @@ export class AlertManagementService {
       title: params.title,
       description: params.description,
       metricName: params.metricName,
-      triggeredAt: new Date()
+      triggeredAt: new Date(),
     };
 
-    const [alert] = await db.insert(performanceAlerts)
-      .values(alertData)
-      .returning();
+    const [alert] = await db.insert(performanceAlerts).values(alertData).returning();
 
     if (!alert) {
       throw new Error('Failed to create performance alert');
     }
 
     // Record metrics
-    recordAlertGenerated(params.fundId.toString(), params.alertType, params.severity, params.category);
+    recordAlertGenerated(
+      params.fundId.toString(),
+      params.alertType,
+      params.severity,
+      params.category
+    );
 
     return alert;
   }
@@ -786,15 +866,17 @@ export class AlertManagementService {
   async acknowledgeAlert(alertId: string, userId: number, notes?: string): Promise<void> {
     // Get alert info for metrics
     const alert = await db.query.performanceAlerts.findFirst({
-      where: eq(performanceAlerts.id, alertId)
+      where: eq(performanceAlerts.id, alertId),
     });
 
-    await db.update(performanceAlerts).set({
+    await db
+      .update(performanceAlerts)
+      .set({
         status: 'acknowledged',
         acknowledgedBy: userId,
         acknowledgedAt: new Date(),
         resolutionNotes: notes,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(performanceAlerts.id, alertId));
 
@@ -810,16 +892,18 @@ export class AlertManagementService {
   async resolveAlert(alertId: string, userId: number, notes?: string): Promise<void> {
     // Get alert info for metrics
     const alert = await db.query.performanceAlerts.findFirst({
-      where: eq(performanceAlerts.id, alertId)
+      where: eq(performanceAlerts.id, alertId),
     });
 
     const resolveTime = new Date();
-    await db.update(performanceAlerts).set({
+    await db
+      .update(performanceAlerts)
+      .set({
         status: 'resolved',
         resolvedBy: userId,
         resolvedAt: resolveTime,
         resolutionNotes: notes,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(performanceAlerts.id, alertId));
 
@@ -833,14 +917,17 @@ export class AlertManagementService {
   /**
    * Get active alerts for a fund
    */
-  async getActiveAlerts(fundId: number, options?: {
-    severity?: string[];
-    category?: string[];
-    limit?: number;
-  }): Promise<PerformanceAlert[]> {
+  async getActiveAlerts(
+    fundId: number,
+    options?: {
+      severity?: string[];
+      category?: string[];
+      limit?: number;
+    }
+  ): Promise<PerformanceAlert[]> {
     const conditions = [
       eq(performanceAlerts.fundId, fundId),
-      eq(performanceAlerts.status, 'active')
+      eq(performanceAlerts.status, 'active'),
     ];
 
     if (options?.severity?.length) {
@@ -854,7 +941,7 @@ export class AlertManagementService {
     return await db.query.performanceAlerts.findMany({
       where: and(...conditions),
       orderBy: desc(performanceAlerts.triggeredAt),
-      limit: options?.limit || 50
+      limit: options?.limit || 50,
     });
   }
 }
@@ -904,29 +991,30 @@ export class VarianceTrackingService {
       baselineId: finalBaselineId,
       reportName,
       reportType: 'ad_hoc',
-      generatedBy: userId
+      generatedBy: userId,
     });
 
     // Generate alerts if any thresholds are breached
     const alertsGenerated: PerformanceAlert[] = [];
-    if (report.alertsTriggered && Array.isArray(report.alertsTriggered)) {
-      for (const alertData of report.alertsTriggered) {
-        const alert = await this.alerts.createAlert({
-          fundId,
-          baselineId: finalBaselineId,
-          varianceReportId: report.id,
-          alertType: 'variance_threshold',
-          severity: alertData.severity,
-          category: 'performance',
-          title: `Variance Alert: ${alertData.metricName}`,
-          description: `${alertData.metricName} variance exceeded threshold`,
-          metricName: alertData.metricName,
-          thresholdValue: toDecimal(alertData.thresholdValue?.toString() || '0').toNumber(),
-          actualValue: toDecimal(alertData.actualValue?.toString() || '0').toNumber(),
-          ruleId: alertData.ruleId
-        });
-        alertsGenerated.push(alert);
-      }
+    const triggeredAlerts = Array.isArray(report.alertsTriggered)
+      ? report.alertsTriggered.filter(isTriggeredAlertData)
+      : [];
+    for (const alertData of triggeredAlerts) {
+      const alert = await this.alerts.createAlert({
+        fundId,
+        baselineId: finalBaselineId,
+        varianceReportId: report.id,
+        alertType: 'variance_threshold',
+        severity: alertData.severity,
+        category: 'performance',
+        title: `Variance Alert: ${alertData.metricName}`,
+        description: `${alertData.metricName} variance exceeded threshold`,
+        metricName: alertData.metricName,
+        thresholdValue: toDecimal(alertData.thresholdValue?.toString() || '0').toNumber(),
+        actualValue: toDecimal(alertData.actualValue?.toString() || '0').toNumber(),
+        ruleId: alertData.ruleId,
+      });
+      alertsGenerated.push(alert);
     }
 
     return { report, alertsGenerated };

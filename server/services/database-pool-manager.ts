@@ -75,7 +75,7 @@ export class DatabasePoolManager extends EventEmitter {
     acquireTimeoutMs: 10000,
     maxRetries: 3,
     healthCheckIntervalMs: 60000,
-    enableMetrics: true
+    enableMetrics: true,
   };
 
   /**
@@ -146,7 +146,7 @@ export class DatabasePoolManager extends EventEmitter {
         acquired: new Date(),
         lastActivity: new Date(),
         queryCount: 0,
-        isHealthy: true
+        isHealthy: true,
       };
 
       // Track active connection
@@ -156,7 +156,6 @@ export class DatabasePoolManager extends EventEmitter {
       this.updateAcquisitionMetrics(poolId, Date.now() - startTime);
 
       return wrapper;
-
     } catch (error) {
       this.updateErrorMetrics(poolId, error);
       throw error;
@@ -178,7 +177,6 @@ export class DatabasePoolManager extends EventEmitter {
       this.activeConnections.get(poolId)?.delete(wrapper);
 
       this.emit('connectionReleased', { poolId, queryCount: wrapper.queryCount });
-
     } catch (error) {
       this.updateErrorMetrics(poolId, error);
       throw error;
@@ -205,7 +203,6 @@ export class DatabasePoolManager extends EventEmitter {
       this.updateQueryMetrics(poolId, queryTime);
 
       return result as T;
-
     } finally {
       await this.releaseConnection(poolId, wrapper);
     }
@@ -230,7 +227,6 @@ export class DatabasePoolManager extends EventEmitter {
       wrapper.queryCount++;
 
       return result;
-
     } catch (error) {
       try {
         await wrapper.client.query('ROLLBACK');
@@ -239,7 +235,6 @@ export class DatabasePoolManager extends EventEmitter {
         this.emit('rollbackError', { poolId, error: rollbackError });
       }
       throw error;
-
     } finally {
       await this.releaseConnection(poolId, wrapper);
     }
@@ -288,7 +283,6 @@ export class DatabasePoolManager extends EventEmitter {
 
       this.emit('healthCheckPassed', { poolId });
       return true;
-
     } catch (error) {
       this.emit('healthCheckFailed', { poolId, error });
       return false;
@@ -314,7 +308,10 @@ export class DatabasePoolManager extends EventEmitter {
 
     // Scale down if utilization is low for extended period
     if (utilizationRatio < 0.3 && (config.maxConnections ?? 10) > (config.minConnections ?? 2)) {
-      config.maxConnections = Math.max((config.maxConnections ?? 10) - 1, config.minConnections ?? 2);
+      config.maxConnections = Math.max(
+        (config.maxConnections ?? 10) - 1,
+        config.minConnections ?? 2
+      );
       this.emit('poolScaledDown', { poolId, newMaxConnections: config.maxConnections });
     }
   }
@@ -362,7 +359,7 @@ export class DatabasePoolManager extends EventEmitter {
       averageQueryTime: 0,
       peakConnections: 0,
       lastHealthCheck: new Date(),
-      memoryUsageMB: 0
+      memoryUsageMB: 0,
     });
   }
 
@@ -406,7 +403,7 @@ export class DatabasePoolManager extends EventEmitter {
   /**
    * Update acquisition metrics
    */
-  private updateAcquisitionMetrics(poolId: string, acquisitionTime: number): void {
+  private updateAcquisitionMetrics(poolId: string, _acquisitionTime: number): void {
     const metrics = this.metrics.get(poolId)!;
     metrics.activeConnections++;
     metrics.idleConnections = Math.max(0, metrics.totalConnections - metrics.activeConnections);
@@ -422,7 +419,7 @@ export class DatabasePoolManager extends EventEmitter {
     if (metrics.averageQueryTime === 0) {
       metrics.averageQueryTime = queryTime;
     } else {
-      metrics.averageQueryTime = (metrics.averageQueryTime * 0.9) + (queryTime * 0.1);
+      metrics.averageQueryTime = metrics.averageQueryTime * 0.9 + queryTime * 0.1;
     }
   }
 
@@ -472,9 +469,7 @@ export class DatabasePoolManager extends EventEmitter {
    * Gracefully close all pools
    */
   async closeAll(): Promise<void> {
-    const closePromises = Array.from(this.pools.keys()).map(poolId =>
-      this.closePool(poolId)
-    );
+    const closePromises = Array.from(this.pools.keys()).map((poolId) => this.closePool(poolId));
 
     await Promise.all(closePromises);
     this.emit('allPoolsClosed');
@@ -491,8 +486,9 @@ export class DatabasePoolManager extends EventEmitter {
       totalConnections: allMetrics.reduce((sum, m) => sum + m.totalConnections, 0),
       totalActiveConnections: allMetrics.reduce((sum, m) => sum + m.activeConnections, 0),
       totalErrors: allMetrics.reduce((sum, m) => sum + m.connectionErrors, 0),
-      averageQueryTime: allMetrics.reduce((sum, m) => sum + m.averageQueryTime, 0) / allMetrics.length,
-      totalMemoryUsageMB: allMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0)
+      averageQueryTime:
+        allMetrics.reduce((sum, m) => sum + m.averageQueryTime, 0) / allMetrics.length,
+      totalMemoryUsageMB: allMetrics.reduce((sum, m) => sum + m.memoryUsageMB, 0),
     };
   }
 }

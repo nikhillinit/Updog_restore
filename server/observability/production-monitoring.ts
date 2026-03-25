@@ -64,7 +64,7 @@ const fundMetrics = new Gauge({
   labelNames: ['fund_id', 'metric_type'],
 });
 
-const allocationMetrics = new Gauge({
+const _allocationMetrics = new Gauge({
   name: 'allocation_metrics',
   help: 'Reserve allocation metrics',
   labelNames: ['fund_id', 'allocation_type'],
@@ -184,12 +184,15 @@ export class ProductionMonitor {
       ...metadata,
     });
 
-    logger.info({
-      calculationId,
-      scenarioType,
-      portfolioSize,
-      metadata,
-    }, 'Reserve calculation started');
+    logger.info(
+      {
+        calculationId,
+        scenarioType,
+        portfolioSize,
+        metadata,
+      },
+      'Reserve calculation started'
+    );
   }
 
   recordCalculationComplete(
@@ -208,13 +211,9 @@ export class ProductionMonitor {
     const portfolioSizeBucket = this.getPortfolioSizeBucket(portfolioSize);
 
     // Record metrics
-    reserveCalculationDuration
-      .labels(scenarioType, portfolioSizeBucket, 'true')
-      .observe(duration);
+    reserveCalculationDuration.labels(scenarioType, portfolioSizeBucket, 'true').observe(duration);
 
-    reserveCalculationTotal
-      .labels(scenarioType, 'true', 'none')
-      .inc();
+    reserveCalculationTotal.labels(scenarioType, 'true', 'none').inc();
 
     activeCalculations.dec();
 
@@ -238,14 +237,20 @@ export class ProductionMonitor {
 
     monitoringEvents.recordCalculationComplete(calculationId, result);
 
-    const resultWithAllocations = result as { allocations?: unknown[]; inputSummary?: { totalAllocated?: unknown } };
-    logger.info({
-      calculationId,
-      duration,
-      portfolioSize,
-      allocationsGenerated: resultWithAllocations.allocations?.length,
-      totalAllocated: resultWithAllocations.inputSummary?.totalAllocated,
-    }, 'Reserve calculation completed');
+    const resultWithAllocations = result as {
+      allocations?: unknown[];
+      inputSummary?: { totalAllocated?: unknown };
+    };
+    logger.info(
+      {
+        calculationId,
+        duration,
+        portfolioSize,
+        allocationsGenerated: resultWithAllocations.allocations?.length,
+        totalAllocated: resultWithAllocations.inputSummary?.totalAllocated,
+      },
+      'Reserve calculation completed'
+    );
   }
 
   recordCalculationError(
@@ -266,13 +271,9 @@ export class ProductionMonitor {
         .observe(duration);
     }
 
-    reserveCalculationTotal
-      .labels(scenarioType, 'false', errorType)
-      .inc();
+    reserveCalculationTotal.labels(scenarioType, 'false', errorType).inc();
 
-    errorRate
-      .labels(errorType, 'reserve_engine', this.getErrorSeverity(error))
-      .inc();
+    errorRate.labels(errorType, 'reserve_engine', this.getErrorSeverity(error)).inc();
 
     activeCalculations.dec();
 
@@ -282,13 +283,16 @@ export class ProductionMonitor {
     monitoringEvents.recordCalculationError(calculationId, error);
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error({
-      calculationId,
-      duration,
-      portfolioSize,
-      error: errorMessage,
-      errorType,
-    }, 'Reserve calculation failed');
+    logger.error(
+      {
+        calculationId,
+        duration,
+        portfolioSize,
+        error: errorMessage,
+        errorType,
+      },
+      'Reserve calculation failed'
+    );
   }
 
   // Parity validation monitoring
@@ -308,55 +312,53 @@ export class ProductionMonitor {
       .labels('pass_rate', result.overallParity.passesParityTest ? 'pass' : 'fail')
       .set(result.overallParity.parityPercentage);
 
-    parityValidationResults
-      .labels('max_drift', 'actual')
-      .set(result.overallParity.maxDrift);
+    parityValidationResults.labels('max_drift', 'actual').set(result.overallParity.maxDrift);
 
     // Record detailed breakdowns
     Object.entries(result.detailedBreakdown).forEach(([metric, data]) => {
-      parityValidationResults
-        .labels(`${metric}_drift`, 'actual')
-        .set(data.drift);
+      parityValidationResults.labels(`${metric}_drift`, 'actual').set(data.drift);
     });
 
     monitoringEvents.recordParityValidation(validationId, result);
 
-    logger.info({
-      validationId,
-      passRate: result.overallParity.parityPercentage,
-      passes: result.overallParity.passesParityTest,
-      maxDrift: result.overallParity.maxDrift,
-    }, 'Parity validation completed');
+    logger.info(
+      {
+        validationId,
+        passRate: result.overallParity.parityPercentage,
+        passes: result.overallParity.passesParityTest,
+        maxDrift: result.overallParity.maxDrift,
+      },
+      'Parity validation completed'
+    );
   }
 
   // API monitoring
-  recordApiRequest(
-    method: string,
-    route: string,
-    statusCode: number,
-    duration: number
-  ): void {
-    apiRequestDuration
-      .labels(method, route, statusCode.toString())
-      .observe(duration / 1000); // Convert to seconds
+  recordApiRequest(method: string, route: string, statusCode: number, duration: number): void {
+    apiRequestDuration.labels(method, route, statusCode.toString()).observe(duration / 1000); // Convert to seconds
 
-    logger.debug({
-      method,
-      route,
-      statusCode,
-      duration,
-    }, 'API request completed');
+    logger.debug(
+      {
+        method,
+        route,
+        statusCode,
+        duration,
+      },
+      'API request completed'
+    );
   }
 
   // Fund metrics monitoring
-  recordFundMetrics(fundId: string, metrics: {
-    totalCommitted?: number;
-    totalCalled?: number;
-    netAssetValue?: number;
-    dpi?: number;
-    tvpi?: number;
-    irr?: number;
-  }): void {
+  recordFundMetrics(
+    fundId: string,
+    metrics: {
+      totalCommitted?: number;
+      totalCalled?: number;
+      netAssetValue?: number;
+      dpi?: number;
+      tvpi?: number;
+      irr?: number;
+    }
+  ): void {
     Object.entries(metrics).forEach(([metricType, value]) => {
       if (value !== undefined) {
         fundMetrics.labels(fundId, metricType)['set'](value);
@@ -400,10 +402,10 @@ export class ProductionMonitor {
   checkPerformanceBudgets(): void {
     // This would typically query metrics from Prometheus
     // For now, we'll simulate budget checks
-    PERFORMANCE_BUDGETS.forEach(budget => {
+    PERFORMANCE_BUDGETS.forEach((budget) => {
       // Simulate getting current metric value
       const currentValue = this.simulateMetricValue(budget.metric);
-      
+
       if (currentValue > budget.threshold) {
         this.recordBudgetViolation(budget, currentValue);
       }
@@ -413,24 +415,25 @@ export class ProductionMonitor {
   private recordBudgetViolation(budget: PerformanceBudget, currentValue: number): void {
     monitoringEvents.recordPerformanceBudgetViolation(budget, currentValue);
 
-    logger.warn({
-      metric: budget.metric,
-      threshold: budget.threshold,
-      currentValue,
-      severity: budget.severity,
-    }, 'Performance budget violation');
+    logger.warn(
+      {
+        metric: budget.metric,
+        threshold: budget.threshold,
+        currentValue,
+        severity: budget.severity,
+      },
+      'Performance budget violation'
+    );
 
-    errorRate
-      .labels('performance_budget', 'monitoring', budget.severity)
-      .inc();
+    errorRate.labels('performance_budget', 'monitoring', budget.severity).inc();
   }
 
   // SLO monitoring
   checkSLOs(): void {
-    SLO_TARGETS.forEach(slo => {
+    SLO_TARGETS.forEach((slo) => {
       // Simulate SLO checks
       const currentValue = this.simulateSLOValue(slo.name);
-      
+
       if (currentValue < slo.target) {
         this.recordSLOViolation(slo, currentValue);
       }
@@ -440,16 +443,17 @@ export class ProductionMonitor {
   private recordSLOViolation(slo: SLOTarget, currentValue: number): void {
     monitoringEvents.recordSLOViolation(slo, currentValue);
 
-    logger.error({
-      slo: slo.name,
-      target: slo.target,
-      currentValue,
-      description: slo.description,
-    }, 'SLO violation detected');
+    logger.error(
+      {
+        slo: slo.name,
+        target: slo.target,
+        currentValue,
+        description: slo.description,
+      },
+      'SLO violation detected'
+    );
 
-    errorRate
-      .labels('slo_violation', 'monitoring', 'critical')
-      .inc();
+    errorRate.labels('slo_violation', 'monitoring', 'critical').inc();
   }
 
   // Utility methods

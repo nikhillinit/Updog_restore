@@ -16,6 +16,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import pLimit from 'p-limit';
 import { toDecimal } from '@shared/lib/decimal-utils';
+import { logger } from '../lib/logger';
 
 // ============================================================================
 // Configuration
@@ -31,21 +32,21 @@ const CONFIG = {
 } as const;
 
 // Initialize AI clients (only if API keys present)
-const anthropic = process.env["ANTHROPIC_API_KEY"]
-  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
+const anthropic = process.env['ANTHROPIC_API_KEY']
+  ? new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] })
   : null;
 
-const openai = process.env["OPENAI_API_KEY"]
-  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
+const openai = process.env['OPENAI_API_KEY']
+  ? new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] })
   : null;
 
-const gemini = process.env["GOOGLE_API_KEY"]
-  ? new GoogleGenerativeAI(process.env["GOOGLE_API_KEY"])
+const gemini = process.env['GOOGLE_API_KEY']
+  ? new GoogleGenerativeAI(process.env['GOOGLE_API_KEY'])
   : null;
 
-const deepseek = process.env["DEEPSEEK_API_KEY"]
+const deepseek = process.env['DEEPSEEK_API_KEY']
   ? new OpenAI({
-      apiKey: process.env["DEEPSEEK_API_KEY"],
+      apiKey: process.env['DEEPSEEK_API_KEY'],
       baseURL: 'https://api.deepseek.com',
     })
   : null;
@@ -81,26 +82,34 @@ interface BudgetData {
   total_cost_usd: number;
 }
 
+interface HuggingFaceGeneration {
+  generated_text?: string;
+}
+
+interface OllamaModule {
+  Ollama: new (options: { host: string }) => OllamaClient;
+}
+
 // ============================================================================
 // Pricing (via environment variables for easy updates)
 // ============================================================================
 
 const PRICING = {
   claude: {
-    input: toDecimal(process.env["CLAUDE_INPUT_COST"] ?? '0.015').toNumber(),
-    output: toDecimal(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075').toNumber(),
+    input: toDecimal(process.env['CLAUDE_INPUT_COST'] ?? '0.015').toNumber(),
+    output: toDecimal(process.env['CLAUDE_OUTPUT_COST'] ?? '0.075').toNumber(),
   },
   gpt: {
-    input: toDecimal(process.env["GPT_INPUT_COST"] ?? '0.00015').toNumber(),
-    output: toDecimal(process.env["GPT_OUTPUT_COST"] ?? '0.0006').toNumber(),
+    input: toDecimal(process.env['GPT_INPUT_COST'] ?? '0.00015').toNumber(),
+    output: toDecimal(process.env['GPT_OUTPUT_COST'] ?? '0.0006').toNumber(),
   },
   gemini: {
-    input: toDecimal(process.env["GEMINI_INPUT_COST"] ?? '0').toNumber(),
-    output: toDecimal(process.env["GEMINI_OUTPUT_COST"] ?? '0').toNumber(),
+    input: toDecimal(process.env['GEMINI_INPUT_COST'] ?? '0').toNumber(),
+    output: toDecimal(process.env['GEMINI_OUTPUT_COST'] ?? '0').toNumber(),
   },
   deepseek: {
-    input: toDecimal(process.env["DEEPSEEK_INPUT_COST"] ?? '0.00014').toNumber(),
-    output: toDecimal(process.env["DEEPSEEK_OUTPUT_COST"] ?? '0.00028').toNumber(),
+    input: toDecimal(process.env['DEEPSEEK_INPUT_COST'] ?? '0.00014').toNumber(),
+    output: toDecimal(process.env['DEEPSEEK_OUTPUT_COST'] ?? '0.00028').toNumber(),
   },
 } as const;
 
@@ -108,8 +117,7 @@ function estimateCost(model: ModelName, usage?: AIResponse['usage']): number {
   if (!usage) return 0;
   const rates = PRICING[model];
   return (
-    (usage.prompt_tokens / 1000) * rates.input +
-    (usage.completion_tokens / 1000) * rates.output
+    (usage.prompt_tokens / 1000) * rates.input + (usage.completion_tokens / 1000) * rates.output
   );
 }
 
@@ -125,12 +133,22 @@ async function ensureLogDir() {
 async function getBudgetData(): Promise<BudgetData> {
   try {
     const data = await fs.readFile(CONFIG.budgetPath, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data) as Partial<BudgetData>;
+    return {
+      date: typeof parsed.date === 'string' ? parsed.date : '',
+      count: typeof parsed.count === 'number' ? parsed.count : 0,
+      total_cost_usd: typeof parsed.total_cost_usd === 'number' ? parsed.total_cost_usd : 0,
+    };
   } catch (error) {
     // Budget file doesn't exist or is invalid - initialize with defaults
     // This is expected on first run
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn('[ai-orchestrator] Failed to read budget file:', error instanceof Error ? error.message : String(error));
+      logger.warn(
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        '[ai-orchestrator] Failed to read budget file'
+      );
     }
     return { date: '', count: 0, total_cost_usd: 0 };
   }
@@ -166,7 +184,7 @@ async function auditLog(entry: Record<string, unknown>) {
   const line = `${JSON.stringify({
     ts: new Date().toISOString(),
     ...entry,
-  })  }\n`;
+  })}\n`;
   await fs.appendFile(CONFIG.logPath, line);
 }
 
@@ -178,10 +196,7 @@ function sha256(text: string): string {
 // Provider Implementations with Retry Logic
 // ============================================================================
 
-async function withRetryAndTimeout<T>(
-  fn: () => Promise<T>,
-  model: ModelName
-): Promise<T> {
+async function withRetryAndTimeout<T>(fn: () => Promise<T>, _model: ModelName): Promise<T> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= CONFIG.maxRetries; attempt++) {
@@ -211,7 +226,7 @@ async function withRetryAndTimeout<T>(
 
       // Wait before retry (exponential backoff)
       if (attempt < CONFIG.maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
   }
@@ -237,55 +252,56 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     // Configure tools (native memory tool)
     const tools: Anthropic.Tool[] = [];
     if (options?.enableMemory) {
-
-       
-      tools.push({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-        type: 'memory_20250818' as any, // Native memory tool (beta feature)
+      const memoryTool = {
+        type: 'memory_20250818',
         name: 'memory',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-      } as any);
+      } as unknown as Anthropic.Tool;
+      tools.push(memoryTool);
     }
 
     // Configure context management (context clearing)
-    const contextManagement = options?.enableContextClearing ? {
-      edits: [
-        {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-          type: 'clear_tool_uses_20250919' as any,
-          trigger: {
-            type: 'input_tokens' as unknown as 'input_tokens',
-            value: 5000,
-          },
-          keep: {
-            type: 'tool_uses' as unknown as 'tool_uses',
-            value: 3,
-          },
-          clear_at_least: {
-            type: 'input_tokens' as unknown as 'input_tokens',
-            value: 3000,
-          },
-        },
-      ],
-    } : undefined;
+    const contextManagement = options?.enableContextClearing
+      ? {
+          edits: [
+            {
+              type: 'clear_tool_uses_20250919',
+              trigger: {
+                type: 'input_tokens',
+                value: 5000,
+              },
+              keep: {
+                type: 'tool_uses',
+                value: 3,
+              },
+              clear_at_least: {
+                type: 'input_tokens',
+                value: 3000,
+              },
+            },
+          ],
+        }
+      : undefined;
 
-    const response = await withRetryAndTimeout(
-      () => anthropic.messages.create({
-        model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
-        max_tokens: 8192,
-        messages: [{ role: 'user', content: prompt }],
-        tools: tools.length > 0 ? tools : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-        ...(contextManagement ? { context_management: contextManagement as any } : {}),
-        // Opus 4.5: Set effort to 'high' for deep reasoning
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anthropic SDK beta feature not in official types
-      } as any),
-      'claude'
-    );
+    const requestPayload: Record<string, unknown> = {
+      model: process.env['CLAUDE_MODEL'] ?? 'claude-opus-4-5-20251101',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }],
+      tools: tools.length > 0 ? tools : undefined,
+    };
+
+    if (options?.enableContextClearing) {
+      requestPayload['betas'] = ['context-management-2025-06-27'];
+    }
+    if (contextManagement) {
+      requestPayload['context_management'] = contextManagement;
+    }
+    if (process.env['CLAUDE_EFFORT']) {
+      requestPayload['effort'] = process.env['CLAUDE_EFFORT'];
+    }
+
+    const request = requestPayload as unknown as Anthropic.MessageCreateParamsNonStreaming;
+
+    const response = await withRetryAndTimeout(() => anthropic.messages.create(request), 'claude');
 
     const text = response.content
       .filter((c) => c.type === 'text')
@@ -323,11 +339,12 @@ async function askGPT(prompt: string): Promise<AIResponse> {
 
   try {
     const response = await withRetryAndTimeout(
-      () => openai.chat.completions.create({
-        model: process.env["OPENAI_MODEL"] ?? 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 16384,
-      }),
+      () =>
+        openai.chat.completions.create({
+          model: process.env['OPENAI_MODEL'] ?? 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 16384,
+        }),
       'gpt'
     );
 
@@ -365,13 +382,10 @@ async function askGemini(prompt: string): Promise<AIResponse> {
 
   try {
     const model = gemini.getGenerativeModel({
-      model: process.env["GEMINI_MODEL"] ?? 'gemini-1.5-flash',
+      model: process.env['GEMINI_MODEL'] ?? 'gemini-1.5-flash',
     });
 
-    const response = await withRetryAndTimeout(
-      () => model.generateContent(prompt),
-      'gemini'
-    );
+    const response = await withRetryAndTimeout(() => model.generateContent(prompt), 'gemini');
 
     const text = response.response.text();
     const metadata = response.response.usageMetadata;
@@ -408,11 +422,12 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
 
   try {
     const response = await withRetryAndTimeout(
-      () => deepseek.chat.completions.create({
-        model: process.env["DEEPSEEK_MODEL"] ?? 'deepseek-chat',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 8192,
-      }),
+      () =>
+        deepseek.chat.completions.create({
+          model: process.env['DEEPSEEK_MODEL'] ?? 'deepseek-chat',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 8192,
+        }),
       'deepseek'
     );
 
@@ -629,7 +644,7 @@ export async function aiConsensus({
   });
 
   // Generate consensus summary
-  const successfulResponses = responses.filter(r => !r.error);
+  const successfulResponses = responses.filter((r) => !r.error);
   const totalCost = responses.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
 
   let consensus = '';
@@ -678,7 +693,8 @@ export async function collaborativeSolve({
 
       if (cumulativeInsights) {
         prompt += `\n\nPrevious insights:\n${cumulativeInsights}`;
-        prompt += '\n\nBuild on these insights and provide your unique perspective and solution approach.';
+        prompt +=
+          '\n\nBuild on these insights and provide your unique perspective and solution approach.';
       } else {
         prompt += ' Provide your unique perspective and solution approach.';
       }
@@ -737,12 +753,19 @@ interface OllamaClient {
 // Ollama support (optional - dynamic require)
 let __ollama__: OllamaClient | null = null;
 try {
-  const Ollama = require('ollama');
-  __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
+  const ollamaModule = require('ollama') as OllamaModule;
+  __ollama__ = new ollamaModule.Ollama({
+    host: process.env['OLLAMA_HOST'] ?? 'http://localhost:11434',
+  });
 } catch (error) {
   // Ollama package not installed - this is expected in most deployments
   // Only log at debug level since it's an optional dependency
-  console.debug('[ai-orchestrator] Ollama not available:', error instanceof Error ? error.message : String(error));
+  logger.debug(
+    {
+      error: error instanceof Error ? error.message : String(error),
+    },
+    '[ai-orchestrator] Ollama not available'
+  );
 }
 
 async function askOllama(prompt: string, model: string) {
@@ -754,9 +777,9 @@ async function askOllama(prompt: string, model: string) {
     usage: {
       inputTokens: res?.prompt_eval_count ?? 0,
       outputTokens: res?.eval_count ?? 0,
-      costUsd: 0
+      costUsd: 0,
     },
-    elapsed: Date.now() - started
+    elapsed: Date.now() - started,
   };
 }
 
@@ -766,30 +789,38 @@ async function askHuggingFace(prompt: string, model: string) {
   const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env["HF_TOKEN"] ?? ''}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${process.env['HF_TOKEN'] ?? ''}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       inputs: prompt,
-      parameters: { max_new_tokens: 2048, temperature: 0.3, return_full_text: false }
-    })
+      parameters: { max_new_tokens: 2048, temperature: 0.3, return_full_text: false },
+    }),
   });
   if (!r.ok) throw new Error(`HF ${model} -> ${r.status}`);
-  const j = await r.json();
-  const text = Array.isArray(j) ? (j[0]?.['generated_text'] ?? '') : (j?.['generated_text'] ?? '');
+  const payload = (await r.json()) as unknown;
+  const getGeneratedText = (value: unknown): string => {
+    if (!value || typeof value !== 'object') {
+      return '';
+    }
+
+    const candidate = value as HuggingFaceGeneration;
+    return typeof candidate.generated_text === 'string' ? candidate.generated_text : '';
+  };
+  const text = Array.isArray(payload) ? getGeneratedText(payload[0]) : getGeneratedText(payload);
   return {
     text,
     usage: {
       inputTokens: Math.ceil(prompt.length / 4),
       outputTokens: Math.ceil((text?.length ?? 0) / 4),
-      costUsd: 0.15
+      costUsd: 0.15,
     },
-    elapsed: Date.now() - started
+    elapsed: Date.now() - started,
   };
 }
 
 const __userText = (messages: ChatMessage[]) =>
-  messages.find(m => m.role === 'user')?.content ?? '';
+  messages.find((m) => m.role === 'user')?.content ?? '';
 
 export const AIRouter = {
   async call(providerId: string, messages: ChatMessage[], _opts?: Record<string, unknown>) {
@@ -808,23 +839,51 @@ export const AIRouter = {
     // Wire to your existing cloud functions (budgeting/retry already there)
     if (providerId === 'gpt' || providerId === 'gpt4') {
       const r = await askGPT(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens ?? 0,
+          outputTokens: r.usage?.completion_tokens ?? 0,
+          costUsd: r.cost_usd ?? 0,
+        },
+      };
     }
     if (providerId === 'gemini') {
       const r = await askGemini(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens ?? 0,
+          outputTokens: r.usage?.completion_tokens ?? 0,
+          costUsd: r.cost_usd ?? 0,
+        },
+      };
     }
     if (providerId === 'deepseek') {
       const r = await askDeepSeek(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens ?? 0,
+          outputTokens: r.usage?.completion_tokens ?? 0,
+          costUsd: r.cost_usd ?? 0,
+        },
+      };
     }
     if (providerId === 'claude') {
       const r = await askClaude(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens ?? 0, outputTokens: r.usage?.completion_tokens ?? 0, costUsd: r.cost_usd ?? 0 } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens ?? 0,
+          outputTokens: r.usage?.completion_tokens ?? 0,
+          costUsd: r.cost_usd ?? 0,
+        },
+      };
     }
 
     throw new Error(`Unknown providerId: ${providerId}`);
-  }
+  },
 };
 
 export default AIRouter;

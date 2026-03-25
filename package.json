@@ -199,6 +199,7 @@
     "test:coverage": "npm run test:coverage:upload",
     "test:quick": "vitest run --exclude='**/api/**'",
     "test:wave1b": "cross-env TZ=UTC vitest run tests/unit/routes/monte-carlo-api.test.ts tests/unit/routes/ai-api.test.ts tests/unit/api/variance-tracking-api.test.ts tests/unit/routes/wave1b-tail-api.test.ts tests/unit/routes/scenario-comparison-api.test.ts",
+    "test:wave1b:runtime": "cross-env TZ=UTC vitest run tests/unit/routes/monte-carlo-api.test.ts tests/unit/routes/ai-api.test.ts tests/unit/api/variance-tracking-api.test.ts tests/unit/routes/wave1b-tail-api.test.ts tests/unit/routes/scenario-comparison-api.test.ts tests/unit/services/monte-carlo-engine.test.ts tests/unit/services/power-law-distribution.test.ts tests/unit/services/variance-tracking.test.ts tests/unit/services/time-travel-analytics.test.ts tests/unit/api/time-travel-api.test.ts tests/unit/circuit-breaker.test.ts tests/unit/portfolio-optimization/portfolio-optimization-service.test.ts tests/unit/cache/server-cache.test.ts tests/unit/services/lp-cache.test.ts tests/unit/services/cache-invalidation-service.test.ts tests/unit/services/cache-warming-service.test.ts tests/unit/websocket/websocket-index.test.ts tests/unit/websocket/portfolio-metrics.test.ts",
     "test:build-affected": "npm run test:smart && npm run build:affected",
     "backtest": "npx tsx scripts/backtest.ts",
     "test:smoke": "cross-env CI=1 playwright test tests/e2e/basic-smoke.spec.ts --project=smoke",

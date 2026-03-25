@@ -5,6 +5,7 @@
  */
 
 import { LRUCache } from 'lru-cache';
+import { logger } from '../lib/logger';
 
 // Configuration via environment variables
 const MAX_NEW_ROUTES_PER_DAY = Number(process.env['RUM_LABEL_BUDGET'] || 200);
@@ -42,7 +43,13 @@ class LabelBudgetTracker {
       this.currentDay = today;
       this.newToday = 0;
       this.seen.clear();
-      console.log(`[RUM] Label budget reset for ${this.labelType}: day ${today}`);
+      logger.info(
+        {
+          labelType: this.labelType,
+          day: today,
+        },
+        '[RUM] Label budget reset'
+      );
     }
   }
 
@@ -66,15 +73,15 @@ class LabelBudgetTracker {
     // New value under budget - track it
     this.seen['set'](value, true);
     this.newToday++;
-    
+
     // Log when approaching limit
     if (this.newToday === Math.floor(this.maxPerDay * 0.8)) {
       console.warn(
         `[RUM] Label budget warning for ${this.labelType}: ` +
-        `${this.newToday}/${this.maxPerDay} (80% used)`
+          `${this.newToday}/${this.maxPerDay} (80% used)`
       );
     }
-    
+
     return true;
   }
 
@@ -110,7 +117,7 @@ export function allowLabel(labelName: 'route' | 'cid', value: string): boolean {
     console.error(`[RUM] Unknown label type: ${labelName}`);
     return false;
   }
-  
+
   return tracker.allow(value);
 }
 
@@ -118,7 +125,7 @@ export function allowLabel(labelName: 'route' | 'cid', value: string): boolean {
  * Get cardinality statistics for monitoring
  */
 export function getCardinalityStats() {
-  return Object.values(trackers).map(t => t.getStats());
+  return Object.values(trackers).map((t) => t.getStats());
 }
 
 /**
@@ -126,7 +133,7 @@ export function getCardinalityStats() {
  * Returns true if any dimension is critically over budget
  */
 export function isCardinalityCritical(): boolean {
-  return Object.values(trackers).some(t => {
+  return Object.values(trackers).some((t) => {
     const stats = t.getStats();
     return stats.percentage >= 95;
   });

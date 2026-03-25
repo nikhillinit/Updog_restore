@@ -10,7 +10,11 @@
 import Decimal from '@shared/lib/decimal-config';
 import type { FeeProfile } from '@shared/schemas/fee-profile';
 import { computeJCurvePath, type JCurveConfig, type JCurvePath } from '@shared/lib/jcurve';
-import { computeFeeBasisTimeline, type FeeBasisConfig } from '@shared/lib/fund-math';
+import {
+  computeFeeBasisTimeline,
+  type FeeBasisConfig,
+  type FeeBasisTimeline,
+} from '@shared/lib/fund-math';
 import { getFundAge, getLifecycleStage, isConstructionPhase } from '@shared/lib/lifecycle-rules';
 
 /**
@@ -114,16 +118,18 @@ export class ConstructionForecastCalculator {
     const numQuarters = fundLifeYears * 4;
 
     // Compute fee basis timeline if fee profile provided
-    let feeTimelinePerPeriod: Decimal[] = Array(numQuarters + 1).fill(new Decimal(0));
+    let feeTimelinePerPeriod = Array.from({ length: numQuarters + 1 }, () => new Decimal(0));
     if (feeProfile) {
       const feeBasisConfig: FeeBasisConfig = {
         fundSize,
         numQuarters,
         feeProfile,
       };
-      const feeBasisTimeline = computeFeeBasisTimeline(feeBasisConfig);
+      const feeBasisTimeline: FeeBasisTimeline = computeFeeBasisTimeline(feeBasisConfig);
       // Extract management fees from each period
-      feeTimelinePerPeriod = feeBasisTimeline.periods.map((p) => p.managementFees);
+      feeTimelinePerPeriod = feeBasisTimeline.periods.map(
+        (period) => period.managementFees
+      ) as Decimal[];
     }
 
     // Configure J-curve computation

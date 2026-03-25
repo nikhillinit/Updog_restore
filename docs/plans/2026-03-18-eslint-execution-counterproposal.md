@@ -419,6 +419,155 @@ validation status instead of the stale 2026-03-18 hotspot snapshot.
 - route outputs no longer leak raw schema shapes
 - the route rollout completed in at least two rollback-friendly batches
 
+### Route-Backing Services and Infra Follow-On
+
+#### Owner-map scope note
+
+- the live owner map currently assigns 35 files to executable Wave 1B service
+  and infra scope
+- if a 36-file count is being used, it only works by carrying
+  `server/websocket/dev-dashboard.ts` forward from Wave 5 dev-runtime
+- keep `server/websocket/dev-dashboard.ts` in Wave 5 unless an explicit owner
+  transfer is recorded
+
+#### Sandbox validation findings (2026-03-24)
+
+- `npm run test:wave1b:runtime` is the validated Wave 1B runtime harness: 18
+  files, 273 passing tests, 13 skipped tests
+- the runtime harness covers:
+  - `tests/unit/routes/monte-carlo-api.test.ts`
+  - `tests/unit/routes/ai-api.test.ts`
+  - `tests/unit/api/variance-tracking-api.test.ts`
+  - `tests/unit/routes/wave1b-tail-api.test.ts`
+  - `tests/unit/routes/scenario-comparison-api.test.ts`
+  - `tests/unit/services/monte-carlo-engine.test.ts`
+  - `tests/unit/services/power-law-distribution.test.ts`
+  - `tests/unit/services/variance-tracking.test.ts`
+  - `tests/unit/services/time-travel-analytics.test.ts`
+  - `tests/unit/api/time-travel-api.test.ts`
+  - `tests/unit/circuit-breaker.test.ts`
+  - `tests/unit/portfolio-optimization/portfolio-optimization-service.test.ts`
+  - `tests/unit/cache/server-cache.test.ts`
+  - `tests/unit/services/lp-cache.test.ts`
+  - `tests/unit/services/cache-invalidation-service.test.ts`
+  - `tests/unit/services/cache-warming-service.test.ts`
+  - `tests/unit/websocket/websocket-index.test.ts`
+  - `tests/unit/websocket/portfolio-metrics.test.ts`
+- targeted `npx eslint --no-warn-ignored ...` on the touched Wave 1B service,
+  infra, and direct-test files returned `0` warnings
+- `npm run lint:eslint` passed at `753` warnings and `0` errors
+- `npm run guardrails:check` passed: console ratchet `108 <= 170`; file-level
+  eslint-disable ratchet `39 <= 127`
+- `npm run check:server` still fails only on pre-existing unrelated issues in
+  `client/src/machines/modeling-wizard.machine.ts` and `server/routes/flags.ts`
+- direct service or infra harness already exists for:
+  - `server/cache/index.ts`
+  - `server/cache/memory.ts`
+  - `server/services/lp-cache.ts`
+  - `server/services/monte-carlo-engine.ts`
+  - `server/services/power-law-distribution.ts`
+  - `server/services/variance-tracking.ts`
+  - `server/services/time-travel-analytics.ts`
+  - `server/infra/circuit-breaker-cache.ts`
+  - `server/services/portfolio-optimization-service.ts`
+  - `server/services/CacheInvalidationService.ts`
+  - `server/services/CacheWarmingService.ts`
+  - `server/websocket/index.ts`
+  - `server/websocket/portfolio-metrics.ts`
+- route-backed harness already exists for:
+  - `server/services/monte-carlo-service-unified.ts`
+  - `server/services/ai-orchestrator.ts`
+  - `server/metrics/variance-metrics.ts`
+  - `server/services/fund-metrics-calculator.ts`
+  - breaker health and readiness surfaces touched through
+    `tests/unit/routes/wave1b-tail-api.test.ts`
+- harness-first files still need direct tests before deeper refactors:
+  - external integrations: `server/services/email-service.ts`,
+    `server/services/notion-service.ts`
+  - operational and monitoring tail: `server/services/database-pool-manager.ts`,
+    `server/seed-demo-data.ts`, `server/observability/production-monitoring.ts`,
+    `server/rum/cardinality-guard.ts`
+- `tests/api/lp-portal.test.ts` is not included by the default Vitest server
+  project include set, so it is not a normal sandbox gate for
+  `server/services/email-service.ts`
+- `tests/integration/cache-monitoring.integration.test.ts` is skipped on Windows
+  or CI, and `tests/integration/circuit-breaker-db.test.ts` remains quarantined,
+  so neither should block normal sandbox execution
+
+#### Execution batches
+
+1. Batch E: Monte Carlo compute and forecasting services
+   - `server/services/monte-carlo-engine.ts`
+   - `server/services/monte-carlo-service-unified.ts`
+   - `server/services/monte-carlo-simulation.ts`
+   - `server/services/power-law-distribution.ts`
+   - `server/services/actual-metrics-calculator.ts`
+   - `server/services/construction-forecast-calculator.ts`
+   - `server/services/fund-metrics-calculator.ts`
+   - `server/services/performance-calculator.ts`
+   - `server/services/projected-metrics-calculator.ts`
+   - `server/services/portfolio-optimization-service.ts`
+2. Batch F: Variance and time-travel analytics
+   - `server/services/variance-tracking.ts`
+   - `server/metrics/variance-metrics.ts`
+   - `server/services/time-travel-analytics.ts`
+3. Batch G: Cache, LP, and circuit-breaker core
+   - `server/services/lp-cache.ts`
+   - `server/cache/index.ts`
+   - `server/cache/memory.ts`
+   - `server/infra/circuit-breaker-cache.ts`
+   - `server/infra/circuit-breaker/CircuitBreaker.ts`
+   - `server/infra/circuit-breaker/error-classifier.ts`
+   - `server/infra/circuit-breaker/hedged.ts`
+   - `server/infra/circuit-breaker/http-breaker.ts`
+   - `server/infra/circuit-breaker/index.ts`
+   - `server/infra/circuit-breaker/mutex.ts`
+   - `server/infra/circuit-breaker/typed-breaker.ts`
+4. Batch H: External integration services
+   - `server/services/ai-orchestrator.ts`
+   - `server/services/email-service.ts`
+   - `server/services/notion-service.ts`
+5. Batch I: Operational tail services
+   - `server/services/CacheInvalidationService.ts`
+   - `server/services/CacheWarmingService.ts`
+   - `server/services/database-pool-manager.ts`
+   - `server/seed-demo-data.ts`
+6. Batch J: Production websocket and monitoring runtime
+   - `server/websocket/index.ts`
+   - `server/websocket/portfolio-metrics.ts`
+   - `server/observability/production-monitoring.ts`
+   - `server/rum/cardinality-guard.ts`
+
+#### Procedure
+
+1. Execute Batches E and F first because they already have direct service or API
+   harness in the default Vitest project.
+2. For Batch G, add direct unit or characterization tests for `lp-cache.ts`,
+   `server/cache/index.ts`, and `server/cache/memory.ts` before deeper type
+   cleanup.
+3. For Batch H, keep `ai-orchestrator.ts` on the existing route harness, but add
+   default-project direct tests for `email-service.ts` and `notion-service.ts`
+   before structural edits.
+4. For Batch I, add focused tests for cache invalidation and warming services
+   before relying on the Windows-skipped cache integration suite.
+5. For Batch J, add websocket envelope or setup tests before changing runtime
+   payload typing or monitoring surfaces.
+6. If Batch G needs `server/infra/circuit-breaker/breaker-registry.ts` or any
+   other Wave 1A-owned producer file, record the owner transfer before touch.
+7. After each service or infra batch, run targeted lint, the smallest covering
+   typecheck, `npm run test:wave1b:runtime`, `npm run lint:eslint`, and
+   `npm run guardrails:check`.
+8. Keep service outputs on typed DTOs, parsers, or adapters, not raw third-party
+   payloads or unchecked cache values.
+
+#### Exit criteria
+
+- all 35 live Wave 1B service and infra files are assigned to an executable or
+  harness-first batch
+- `npm run test:wave1b:runtime` remains green during the service rollout
+- harness-first files gain direct tests before deeper refactors begin
+- no Wave 5 dev-runtime file enters Wave 1B without a recorded owner transfer
+
 ## Wave 2: Client Ingress, Cache, and Stream Boundaries
 
 ### Goal

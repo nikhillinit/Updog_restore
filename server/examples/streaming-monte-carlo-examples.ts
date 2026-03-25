@@ -9,7 +9,11 @@
  */
 
 import { unifiedMonteCarloService } from '../services/monte-carlo-service-unified';
-import type { UnifiedSimulationConfig, MarketEnvironment } from '../services/monte-carlo-service-unified';
+import type {
+  UnifiedSimulationConfig,
+  MarketEnvironment,
+} from '../services/monte-carlo-service-unified';
+import type { PoolMetrics } from '../services/database-pool-manager';
 
 // ============================================================================
 // BASIC USAGE EXAMPLES
@@ -35,32 +39,31 @@ export async function basicStreamingSimulation() {
     // Engine selection
     forceEngine: 'streaming', // Force streaming engine
     performanceMode: 'balanced',
-    enableFallback: true
+    enableFallback: true,
   };
 
   try {
     const startTime = Date.now();
     const result = await unifiedMonteCarloService.runSimulation(config);
 
-    console.log(`✅ Simulation completed in ${result.executionTimeMs}ms`);
-    console.log(`🔧 Engine used: ${result.performance.engineUsed}`);
-    console.log(`💾 Memory usage: ${result.performance.memoryUsageMB.toFixed(2)}MB`);
-    console.log(`⚡ Scenarios/second: ${result.performance.scenariosPerSecond.toFixed(0)}`);
-    console.log(`📊 Expected IRR: ${(result.irr.statistics.mean * 100).toFixed(2)}%`);
-    console.log(`📈 Expected Multiple: ${result.multiple.statistics.mean.toFixed(2)}x`);
-    console.log(`🎯 95% VaR: ${(result.riskMetrics.valueAtRisk.var5 * 100).toFixed(2)}%`);
+    console.log(`[ok] Simulation completed in ${result.executionTimeMs}ms`);
+    console.log(`[engine] Engine used: ${result.performance.engineUsed}`);
+    console.log(`[memory] Memory usage: ${result.performance.memoryUsageMB.toFixed(2)}MB`);
+    console.log(`[rate] Scenarios/second: ${result.performance.scenariosPerSecond.toFixed(0)}`);
+    console.log(`[stats] Expected IRR: ${(result.irr.statistics.mean * 100).toFixed(2)}%`);
+    console.log(`[stats] Expected Multiple: ${result.multiple.statistics.mean.toFixed(2)}x`);
+    console.log(`[risk] 95% VaR: ${(result.riskMetrics.valueAtRisk.var5 * 100).toFixed(2)}%`);
 
     if (result.performance.fallbackTriggered) {
-      console.log('⚠️  Fallback was triggered during execution');
+      console.log('[warn] Fallback was triggered during execution');
     }
 
     return result;
-
   } catch (error) {
     if (error instanceof Error) {
-      console.error('❌ Simulation failed:', error.message);
+      console.error('[error] Simulation failed:', error.message);
     } else {
-      console.error('❌ Simulation failed:', String(error));
+      console.error('[error] Simulation failed:', String(error));
     }
     throw error;
   }
@@ -78,7 +81,7 @@ export async function autoEngineSelection() {
     runs: 1000,
     timeHorizonYears: 5,
     forceEngine: 'auto', // Let system decide
-    performanceMode: 'speed'
+    performanceMode: 'speed',
   };
 
   // Large workload - should use streaming engine
@@ -87,7 +90,7 @@ export async function autoEngineSelection() {
     runs: 25000,
     timeHorizonYears: 10,
     forceEngine: 'auto', // Let system decide
-    performanceMode: 'memory'
+    performanceMode: 'memory',
   };
 
   console.log('Running small workload (1K scenarios)...');
@@ -99,9 +102,13 @@ export async function autoEngineSelection() {
   console.log(`Large workload used: ${largeResult.performance.engineUsed} engine`);
 
   // Compare performance
-  console.log('\n📊 Performance Comparison:');
-  console.log(`Small (${smallResult.performance.engineUsed}): ${smallResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`);
-  console.log(`Large (${largeResult.performance.engineUsed}): ${largeResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`);
+  console.log('\n[stats] Performance Comparison:');
+  console.log(
+    `Small (${smallResult.performance.engineUsed}): ${smallResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`
+  );
+  console.log(
+    `Large (${largeResult.performance.engineUsed}): ${largeResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`
+  );
 
   return { smallResult, largeResult };
 }
@@ -117,20 +124,20 @@ export async function batchProcessingExample() {
       fundId: 1,
       runs: 5000,
       timeHorizonYears: 8,
-      randomSeed: 12345
+      randomSeed: 12345,
     },
     {
       fundId: 2,
       runs: 5000,
       timeHorizonYears: 10,
-      randomSeed: 12346
+      randomSeed: 12346,
     },
     {
       fundId: 3,
       runs: 5000,
       timeHorizonYears: 7,
-      randomSeed: 12347
-    }
+      randomSeed: 12347,
+    },
   ];
 
   console.log(`Processing ${batchConfigs.length} funds in batch...`);
@@ -139,7 +146,7 @@ export async function batchProcessingExample() {
   const results = await unifiedMonteCarloService.runBatchSimulations(batchConfigs);
 
   const totalTime = Date.now() - startTime;
-  console.log(`✅ Batch completed in ${totalTime}ms`);
+  console.log(`[ok] Batch completed in ${totalTime}ms`);
 
   // Analyze results
   results.forEach((result, index) => {
@@ -166,7 +173,7 @@ export async function multiEnvironmentAnalysis() {
     runs: 8000,
     timeHorizonYears: 8,
     batchSize: 800,
-    forceEngine: 'streaming'
+    forceEngine: 'streaming',
   };
 
   const environments: MarketEnvironment[] = [
@@ -174,33 +181,40 @@ export async function multiEnvironmentAnalysis() {
       scenario: 'bull',
       exitMultipliers: { mean: 3.5, volatility: 1.2 },
       failureRate: 0.1,
-      followOnProbability: 0.8
+      followOnProbability: 0.8,
     },
     {
       scenario: 'neutral',
       exitMultipliers: { mean: 2.5, volatility: 0.8 },
       failureRate: 0.2,
-      followOnProbability: 0.6
+      followOnProbability: 0.6,
     },
     {
       scenario: 'bear',
       exitMultipliers: { mean: 1.5, volatility: 0.6 },
       failureRate: 0.4,
-      followOnProbability: 0.3
-    }
+      followOnProbability: 0.3,
+    },
   ];
 
   console.log('Running scenarios across multiple market environments...');
-  const results = await unifiedMonteCarloService.runMultiEnvironmentSimulation(baseConfig, environments);
+  const results = await unifiedMonteCarloService.runMultiEnvironmentSimulation(
+    baseConfig,
+    environments
+  );
 
   // Analyze environment impact
-  console.log('\n📊 Environment Analysis:');
+  console.log('\n[analysis] Environment Analysis:');
   Object.entries(results).forEach(([scenario, result]) => {
     console.log(`\n${scenario.toUpperCase()} Market:`);
     console.log(`  Expected IRR: ${(result.irr.statistics.mean * 100).toFixed(2)}%`);
     console.log(`  Expected Multiple: ${result.multiple.statistics.mean.toFixed(2)}x`);
-    console.log(`  95% Confidence IRR: ${(result.irr.percentiles.p5 * 100).toFixed(2)}% - ${(result.irr.percentiles.p95 * 100).toFixed(2)}%`);
-    console.log(`  Probability of Loss: ${(result.riskMetrics.probabilityOfLoss * 100).toFixed(1)}%`);
+    console.log(
+      `  95% Confidence IRR: ${(result.irr.percentiles.p5 * 100).toFixed(2)}% - ${(result.irr.percentiles.p95 * 100).toFixed(2)}%`
+    );
+    console.log(
+      `  Probability of Loss: ${(result.riskMetrics.probabilityOfLoss * 100).toFixed(1)}%`
+    );
     console.log(`  Execution Time: ${result.executionTimeMs}ms`);
   });
 
@@ -230,21 +244,23 @@ export async function memoryOptimizedSimulation() {
     enableGarbageCollection: true,
 
     forceEngine: 'streaming',
-    performanceMode: 'memory'
+    performanceMode: 'memory',
   };
 
   console.log('Running memory-optimized simulation for 50K scenarios...');
 
   const result = await unifiedMonteCarloService.runSimulation(config);
 
-  console.log(`✅ Large simulation completed successfully`);
-  console.log(`💾 Peak memory usage: ${result.performance.memoryUsageMB.toFixed(2)}MB`);
-  console.log(`⏱️  Total execution time: ${result.executionTimeMs}ms`);
-  console.log(`⚡ Processing rate: ${result.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`);
+  console.log(`[ok] Large simulation completed successfully`);
+  console.log(`[memory] Peak memory usage: ${result.performance.memoryUsageMB.toFixed(2)}MB`);
+  console.log(`[time] Total execution time: ${result.executionTimeMs}ms`);
+  console.log(
+    `[rate] Processing rate: ${result.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`
+  );
 
   // Memory efficiency metrics
   const memoryPerScenario = result.performance.memoryUsageMB / (config.runs / 1000);
-  console.log(`📊 Memory efficiency: ${memoryPerScenario.toFixed(3)}MB per 1K scenarios`);
+  console.log(`[stats] Memory efficiency: ${memoryPerScenario.toFixed(3)}MB per 1K scenarios`);
 
   return result;
 }
@@ -268,7 +284,7 @@ export async function speedOptimizedSimulation() {
     enableGarbageCollection: false, // Disable GC for speed
 
     forceEngine: 'streaming',
-    performanceMode: 'speed'
+    performanceMode: 'speed',
   };
 
   console.log('Running speed-optimized simulation...');
@@ -277,9 +293,11 @@ export async function speedOptimizedSimulation() {
   const result = await unifiedMonteCarloService.runSimulation(config);
 
   const actualTime = Date.now() - startTime;
-  console.log(`✅ Speed simulation completed in ${actualTime}ms`);
-  console.log(`⚡ Achieved rate: ${result.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`);
-  console.log(`🎯 Target vs Actual: ${result.executionTimeMs}ms vs ${actualTime}ms`);
+  console.log(`[ok] Speed simulation completed in ${actualTime}ms`);
+  console.log(
+    `[rate] Achieved rate: ${result.performance.scenariosPerSecond.toFixed(0)} scenarios/sec`
+  );
+  console.log(`[target] Target vs Actual: ${result.executionTimeMs}ms vs ${actualTime}ms`);
 
   return result;
 }
@@ -299,7 +317,7 @@ export async function performanceMonitoringExample() {
     { fundId: 1, runs: 1000, forceEngine: 'traditional' as const, timeHorizonYears: 8 },
     { fundId: 1, runs: 5000, forceEngine: 'streaming' as const, timeHorizonYears: 8 },
     { fundId: 1, runs: 10000, forceEngine: 'auto' as const, timeHorizonYears: 8 },
-    { fundId: 1, runs: 2000, forceEngine: 'auto' as const, timeHorizonYears: 8 }
+    { fundId: 1, runs: 2000, forceEngine: 'auto' as const, timeHorizonYears: 8 },
   ];
 
   console.log('Building performance history...');
@@ -309,22 +327,26 @@ export async function performanceMonitoringExample() {
 
   // Get performance statistics
   const stats = unifiedMonteCarloService.getPerformanceStats();
-  console.log('\n📊 Performance Statistics:');
+  console.log('\n[stats] Performance Statistics:');
   console.log(`Total simulations: ${stats.totalSimulations}`);
-  console.log(`Streaming usage: ${stats.streamingUsage} (${(stats.streamingUsage / stats.totalSimulations * 100).toFixed(1)}%)`);
-  console.log(`Traditional usage: ${stats.traditionalUsage} (${(stats.traditionalUsage / stats.totalSimulations * 100).toFixed(1)}%)`);
+  console.log(
+    `Streaming usage: ${stats.streamingUsage} (${((stats.streamingUsage / stats.totalSimulations) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `Traditional usage: ${stats.traditionalUsage} (${((stats.traditionalUsage / stats.totalSimulations) * 100).toFixed(1)}%)`
+  );
   console.log(`Average execution time: ${stats.averageExecutionTime.toFixed(0)}ms`);
   console.log(`Fallback rate: ${(stats.fallbackRate * 100).toFixed(1)}%`);
 
   // Get optimization recommendations
   const recommendations = unifiedMonteCarloService.getOptimizationRecommendations();
-  console.log('\n🎯 Optimization Recommendations:');
+  console.log('\n[target] Optimization Recommendations:');
   console.log(`Preferred engine: ${recommendations.preferredEngine}`);
   console.log(`Optimal batch size: ${recommendations.optimalBatchSize}`);
   console.log(`Memory usage pattern: ${recommendations.memoryUsagePattern}`);
 
   if (recommendations.recommendations.length > 0) {
-    console.log('\n💡 Specific recommendations:');
+    console.log('\n[idea] Specific recommendations:');
     recommendations.recommendations.forEach((rec, i) => {
       console.log(`  ${i + 1}. ${rec}`);
     });
@@ -342,24 +364,27 @@ export async function healthMonitoringExample() {
   const health = await unifiedMonteCarloService.healthCheck();
 
   console.log(`System status: ${health.status.toUpperCase()}`);
-  console.log('\n🔧 Engine Status:');
-  console.log(`  Traditional engine: ${health.engines.traditional ? '✅ Healthy' : '❌ Unhealthy'}`);
-  console.log(`  Streaming engine: ${health.engines.streaming ? '✅ Healthy' : '❌ Unhealthy'}`);
+  console.log('\n[engine] Engine Status:');
+  console.log(
+    `  Traditional engine: ${health.engines.traditional ? '[ok] Healthy' : '[error] Unhealthy'}`
+  );
+  console.log(
+    `  Streaming engine: ${health.engines.streaming ? '[ok] Healthy' : '[error] Unhealthy'}`
+  );
 
   if (health.connectionPools && Object.keys(health.connectionPools).length > 0) {
-    console.log('\n🔗 Connection Pool Status:');
-    Object.entries(health.connectionPools).forEach(([poolId, metrics]) => {
-      const m = metrics as Record<string, unknown>;
+    console.log('\n[pool] Connection Pool Status:');
+    Object.entries<PoolMetrics>(health.connectionPools).forEach(([poolId, metrics]) => {
       console.log(`  ${poolId}:`);
-      console.log(`    Active connections: ${m['activeConnections']}`);
-      console.log(`    Total connections: ${m['totalConnections']}`);
-      console.log(`    Connection errors: ${m['connectionErrors']}`);
-      console.log(`    Average query time: ${typeof m['averageQueryTime'] === 'number' ? m['averageQueryTime'].toFixed(2) : 'N/A'}ms`);
+      console.log(`    Active connections: ${metrics.activeConnections}`);
+      console.log(`    Total connections: ${metrics.totalConnections}`);
+      console.log(`    Connection errors: ${metrics.connectionErrors}`);
+      console.log(`    Average query time: ${metrics.averageQueryTime.toFixed(2)}ms`);
     });
   }
 
   if (health.recommendations.length > 0) {
-    console.log('\n⚠️  Health Recommendations:');
+    console.log('\n[warn] Health Recommendations:');
     health.recommendations.forEach((rec, i) => {
       console.log(`  ${i + 1}. ${rec}`);
     });
@@ -376,7 +401,7 @@ export async function healthMonitoringExample() {
  * Run all examples in sequence
  */
 export async function runAllExamples() {
-  console.log('🚀 Starting Streaming Monte Carlo Engine Examples\n');
+  console.log('[start] Starting Streaming Monte Carlo Engine Examples\n');
 
   try {
     // Basic functionality
@@ -395,15 +420,14 @@ export async function runAllExamples() {
     await performanceMonitoringExample();
     await healthMonitoringExample();
 
-    console.log('\n✅ All examples completed successfully!');
-
+    console.log('\n[ok] All examples completed successfully!');
   } catch (error) {
-    console.error('\n❌ Example execution failed:', error);
+    console.error('\n[error] Example execution failed:', error);
     throw error;
   } finally {
     // Cleanup resources
     await unifiedMonteCarloService.cleanup();
-    console.log('\n🧹 Resources cleaned up');
+    console.log('\n[cleanup] Resources cleaned up');
   }
 }
 
@@ -421,32 +445,38 @@ export async function compareEnginePerformance(fundId: number, runs: number) {
     fundId,
     runs,
     timeHorizonYears: 8,
-    randomSeed: 12345 // Same seed for fair comparison
+    randomSeed: 12345, // Same seed for fair comparison
   };
 
   // Test traditional engine
   console.log('Testing traditional engine...');
   const traditionalResult = await unifiedMonteCarloService.runSimulation({
     ...baseConfig,
-    forceEngine: 'traditional'
+    forceEngine: 'traditional',
   });
 
   // Test streaming engine
   console.log('Testing streaming engine...');
   const streamingResult = await unifiedMonteCarloService.runSimulation({
     ...baseConfig,
-    forceEngine: 'streaming'
+    forceEngine: 'streaming',
   });
 
   // Compare results
-  console.log('\n📊 Performance Comparison:');
-  console.log(`Traditional: ${traditionalResult.executionTimeMs}ms (${traditionalResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec)`);
-  console.log(`Streaming: ${streamingResult.executionTimeMs}ms (${streamingResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec)`);
+  console.log('\n[stats] Performance Comparison:');
+  console.log(
+    `Traditional: ${traditionalResult.executionTimeMs}ms (${traditionalResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec)`
+  );
+  console.log(
+    `Streaming: ${streamingResult.executionTimeMs}ms (${streamingResult.performance.scenariosPerSecond.toFixed(0)} scenarios/sec)`
+  );
 
   const speedup = traditionalResult.executionTimeMs / streamingResult.executionTimeMs;
-  console.log(`Speedup: ${speedup.toFixed(2)}x ${speedup > 1 ? '(streaming faster)' : '(traditional faster)'}`);
+  console.log(
+    `Speedup: ${speedup.toFixed(2)}x ${speedup > 1 ? '(streaming faster)' : '(traditional faster)'}`
+  );
 
-  console.log('\n💾 Memory Usage:');
+  console.log('\n[memory] Memory Usage:');
   console.log(`Traditional: ${traditionalResult.performance.memoryUsageMB.toFixed(2)}MB`);
   console.log(`Streaming: ${streamingResult.performance.memoryUsageMB.toFixed(2)}MB`);
 
@@ -456,7 +486,12 @@ export async function compareEnginePerformance(fundId: number, runs: number) {
 /**
  * Stress test with increasing workloads
  */
-export async function stressTest(fundId: number, startRuns: number = 1000, maxRuns: number = 50000, step: number = 5000) {
+export async function stressTest(
+  fundId: number,
+  startRuns: number = 1000,
+  maxRuns: number = 50000,
+  step: number = 5000
+) {
   console.log(`\n=== Stress Test (${startRuns} to ${maxRuns} scenarios) ===`);
 
   const results = [];
@@ -470,7 +505,7 @@ export async function stressTest(fundId: number, startRuns: number = 1000, maxRu
         runs,
         timeHorizonYears: 8,
         forceEngine: 'auto',
-        performanceMode: 'balanced'
+        performanceMode: 'balanced',
       });
 
       results.push({
@@ -479,31 +514,38 @@ export async function stressTest(fundId: number, startRuns: number = 1000, maxRu
         scenariosPerSecond: result.performance.scenariosPerSecond,
         memoryUsageMB: result.performance.memoryUsageMB,
         engineUsed: result.performance.engineUsed,
-        fallbackTriggered: result.performance.fallbackTriggered
+        fallbackTriggered: result.performance.fallbackTriggered,
       });
 
-      console.log(`  ✅ ${runs}: ${result.executionTimeMs}ms (${result.performance.engineUsed})`);
-
+      console.log(`  [ok] ${runs}: ${result.executionTimeMs}ms (${result.performance.engineUsed})`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(`  ❌ ${runs}: Failed - ${errorMessage}`);
+      console.log(`  [error] ${runs}: Failed - ${errorMessage}`);
       results.push({
         runs,
-        error: errorMessage
+        error: errorMessage,
       });
     }
   }
 
   // Analyze stress test results
-  console.log('\n📊 Stress Test Summary:');
-  const successful = results.filter(r => !r.error);
+  console.log('\n[stats] Stress Test Summary:');
+  const successful = results.filter((r) => !r.error);
   if (successful.length > 0) {
-    const avgThroughput = successful.reduce((sum, r) => sum + (r.scenariosPerSecond ?? 0), 0) / successful.length;
-    const memoryValues = successful.map(r => r.memoryUsageMB ?? 0);
+    const avgThroughput =
+      successful.reduce((sum, r) => sum + (r.scenariosPerSecond ?? 0), 0) / successful.length;
+    const memoryValues = successful.map((r) => r.memoryUsageMB ?? 0);
     const peakMemory = Math.max(...memoryValues);
     console.log(`Average throughput: ${avgThroughput.toFixed(0)} scenarios/sec`);
     console.log(`Peak memory usage: ${peakMemory.toFixed(2)}MB`);
-    console.log(`Engine transitions: ${successful.filter((r, i) => { const prev = successful[i-1]; return i > 0 && prev && r.engineUsed !== prev.engineUsed; }).length}`);
+    console.log(
+      `Engine transitions: ${
+        successful.filter((r, i) => {
+          const prev = successful[i - 1];
+          return i > 0 && prev && r.engineUsed !== prev.engineUsed;
+        }).length
+      }`
+    );
   }
 
   return results;

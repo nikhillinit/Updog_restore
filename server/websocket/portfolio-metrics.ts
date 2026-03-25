@@ -33,6 +33,12 @@ interface ClientSubscription {
   lastPing: number;
 }
 
+function isPingMessage(message: unknown): message is { type: 'ping' } {
+  return (
+    typeof message === 'object' && message !== null && 'type' in message && message.type === 'ping'
+  );
+}
+
 export class PortfolioMetricsWebSocket {
   private wss: WebSocketServer;
   private clients = new Map<WebSocket, ClientSubscription>();
@@ -85,7 +91,7 @@ export class PortfolioMetricsWebSocket {
 
   private handleMessage(ws: WebSocket, data: unknown) {
     try {
-      const message = JSON.parse(String(data));
+      const message = JSON.parse(String(data)) as unknown;
 
       // Handle subscribe
       const subscribeResult = SubscribeSchema.safeParse(message);
@@ -102,7 +108,7 @@ export class PortfolioMetricsWebSocket {
       }
 
       // Handle ping
-      if (message.type === 'ping') {
+      if (isPingMessage(message)) {
         this.sendToClient(ws, {
           type: 'pong',
           timestamp: Date.now(),
@@ -115,7 +121,7 @@ export class PortfolioMetricsWebSocket {
         type: 'error',
         message: 'Unknown message type',
       });
-    } catch (error) {
+    } catch {
       this.sendToClient(ws, {
         type: 'error',
         message: 'Invalid message format',
@@ -123,10 +129,7 @@ export class PortfolioMetricsWebSocket {
     }
   }
 
-  private handleSubscribe(
-    ws: WebSocket,
-    data: z.infer<typeof SubscribeSchema>
-  ) {
+  private handleSubscribe(ws: WebSocket, data: z.infer<typeof SubscribeSchema>) {
     const channelKey = this.getChannelKey(data.channel, data.fundId, data.entityId);
     const client = this.clients.get(ws);
 
@@ -153,10 +156,7 @@ export class PortfolioMetricsWebSocket {
     });
   }
 
-  private handleUnsubscribe(
-    ws: WebSocket,
-    data: z.infer<typeof UnsubscribeSchema>
-  ) {
+  private handleUnsubscribe(ws: WebSocket, data: z.infer<typeof UnsubscribeSchema>) {
     const channelKey = this.getChannelKey(data.channel, data.fundId, data.entityId);
     const client = this.clients.get(ws);
 
@@ -202,11 +202,7 @@ export class PortfolioMetricsWebSocket {
     });
   }
 
-  private getChannelKey(
-    channel: Channel,
-    fundId?: number,
-    entityId?: string
-  ): string {
+  private getChannelKey(channel: Channel, fundId?: number, entityId?: string): string {
     if (entityId) {
       return `${channel}:${entityId}`;
     }
@@ -280,11 +276,16 @@ export class PortfolioMetricsWebSocket {
       currentPhase?: string;
     }
   ) {
-    this.broadcast('simulation', {
-      event: 'progress',
-      simulationId,
-      ...progress,
-    }, undefined, simulationId);
+    this.broadcast(
+      'simulation',
+      {
+        event: 'progress',
+        simulationId,
+        ...progress,
+      },
+      undefined,
+      simulationId
+    );
   }
 
   /**
@@ -298,11 +299,16 @@ export class PortfolioMetricsWebSocket {
       error?: string;
     }
   ) {
-    this.broadcast('simulation', {
-      event: 'complete',
-      simulationId,
-      ...results,
-    }, undefined, simulationId);
+    this.broadcast(
+      'simulation',
+      {
+        event: 'complete',
+        simulationId,
+        ...results,
+      },
+      undefined,
+      simulationId
+    );
   }
 
   /**
@@ -319,11 +325,15 @@ export class PortfolioMetricsWebSocket {
       reserved?: number;
     }
   ) {
-    this.broadcast('metrics', {
-      event: 'update',
-      fundId,
-      metrics,
-    }, fundId);
+    this.broadcast(
+      'metrics',
+      {
+        event: 'update',
+        fundId,
+        metrics,
+      },
+      fundId
+    );
   }
 
   /**

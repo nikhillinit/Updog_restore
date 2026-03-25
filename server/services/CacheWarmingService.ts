@@ -11,6 +11,7 @@
 
 import { Queue } from 'bullmq';
 import type { ScenarioConfigWithMeta } from '@shared/core/optimization/ScenarioMatrixCache';
+import { logger } from '../lib/logger';
 
 /**
  * Cache warming parameters
@@ -86,9 +87,13 @@ export class CacheWarmingService {
       const estimatedDurationMs = jobs.length * avgDurationMs;
       const completionTime = new Date(Date.now() + estimatedDurationMs).toISOString();
 
-      console.log(
-        `[CacheWarming] Scheduled ${jobs.length} cache warm jobs ` +
-          `(priority: ${params.priority}, estimated: ${estimatedDurationMs}ms)`
+      logger.info(
+        {
+          scheduled: jobs.length,
+          priority: params.priority,
+          estimatedDurationMs,
+        },
+        '[CacheWarming] Scheduled cache warm jobs'
       );
 
       return {

@@ -1,8 +1,15 @@
 import { CircuitBreaker } from './CircuitBreaker';
 import type { CircuitBreakerOptions } from './types';
 
-export function createBreaker<T>(preset: 'cache' | 'http' | 'db', operation: () => Promise<T>, fallback: () => Promise<T>, overrides?: Partial<CircuitBreakerOptions>) {
-  const base: Record<typeof preset, CircuitBreakerOptions> = {
+type BreakerPreset = 'cache' | 'http' | 'db';
+
+export function createBreaker<T>(
+  preset: BreakerPreset,
+  operation: () => Promise<T>,
+  fallback: () => Promise<T>,
+  overrides?: Partial<CircuitBreakerOptions>
+) {
+  const base: Record<BreakerPreset, CircuitBreakerOptions> = {
     cache: {
       failureThreshold: 5,
       resetTimeout: 10_000,
@@ -25,8 +32,8 @@ export function createBreaker<T>(preset: 'cache' | 'http' | 'db', operation: () 
       maxHalfOpenRequests: 2,
       monitoringPeriod: 60_000, // optional rolling window
     },
-  } as any;
-  const opts = { ...base[preset], ...overrides };
+  };
+  const opts: CircuitBreakerOptions = { ...base[preset], ...overrides };
   return new CircuitBreaker<T>(opts, operation, fallback);
 }
 
