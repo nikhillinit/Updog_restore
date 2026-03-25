@@ -29,7 +29,7 @@ const CapTablePlaceholder = ({ companyId }: { companyId?: string }) => (
   </Card>
 );
 
-const CompanySummary = ({ companyId }: { companyId?: string }) => (
+const CompanySummary = () => (
   <div className="space-y-6">
     <Card className="p-6 border-[#E0D8D1]">
       <div className="flex items-center gap-3 mb-4">
@@ -104,7 +104,7 @@ const CompanySummary = ({ companyId }: { companyId?: string }) => (
   </div>
 );
 
-const InvestmentRounds = ({ companyId }: { companyId?: string }) => (
+const InvestmentRounds = () => (
   <Card className="p-6 border-[#E0D8D1]">
     <div className="flex items-center gap-3 mb-4">
       <TrendingUp className="w-6 h-6 text-[#292929]" />
@@ -295,11 +295,11 @@ export default function CompanyDetail() {
         </TabsList>
 
         <TabsContent value="summary" className="mt-6">
-          <CompanySummary {...spreadIfDefined("companyId", companyId)} />
+          <CompanySummary />
         </TabsContent>
 
         <TabsContent value="rounds" className="mt-6">
-          <InvestmentRounds {...spreadIfDefined("companyId", companyId)} />
+          <InvestmentRounds />
         </TabsContent>
 
         <TabsContent value="cap-table" className="mt-6">

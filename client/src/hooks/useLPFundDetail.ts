@@ -20,6 +20,18 @@ interface UseLPFundDetailOptions {
   enabled?: boolean;
 }
 
+function readErrorMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as { message?: unknown }).message === 'string'
+  ) {
+    return (payload as { message: string }).message;
+  }
+
+  return undefined;
+}
+
 /**
  * Hook for fetching fund-specific LP detail
  *
@@ -55,11 +67,13 @@ export function useLPFundDetail(options: UseLPFundDetailOptions) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch fund detail`);
+        const errorData: unknown = await response.json().catch(() => null);
+        throw new Error(
+          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch fund detail`
+        );
       }
 
-      return response.json();
+      return response.json() as Promise<LPFundDetailResponse>;
     },
     enabled: enabled && !!lpId && !!fundId,
     staleTime: 300_000, // 5 minutes

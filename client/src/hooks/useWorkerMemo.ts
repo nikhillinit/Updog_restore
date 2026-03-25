@@ -52,7 +52,7 @@ export function useWorkerMemo<TIn, TOut>(
         setLoading(false);
         if (e.data.timing && import.meta.env.DEV) {
           setTiming(e.data.timing);
-          console.log(`[WORKER] Computation took ${e.data.timing.toFixed(2)}ms`);
+          console.warn(`[WORKER] Computation took ${e.data.timing.toFixed(2)}ms`);
         }
       } else {
         setError(new Error(e.data.error || 'Worker error'));
@@ -60,9 +60,12 @@ export function useWorkerMemo<TIn, TOut>(
       }
     };
 
-    w.onerror = (ev: any) => {
+    w.onerror = (ev: Event | ErrorEvent) => {
       if (!w || w !== workerRef.current) return;
-      setError(ev instanceof ErrorEvent ? ev.error : new Error('Worker error'));
+      const workerError = ev instanceof ErrorEvent && ev.error instanceof Error
+        ? ev.error
+        : new Error('Worker error');
+      setError(workerError);
       setLoading(false);
     };
 

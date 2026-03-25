@@ -21,21 +21,6 @@ import { Calculator, TrendingUp, DollarSign, Target } from "lucide-react";
 import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 
-const projectionData = [
-  { year: '2024', investment: 25, exits: 0, nav: 125, irr: 15.2 },
-  { year: '2025', investment: 35, exits: 5, nav: 180, irr: 22.8 },
-  { year: '2026', investment: 20, exits: 15, nav: 220, irr: 28.5 },
-  { year: '2027', investment: 15, exits: 35, nav: 280, irr: 35.2 },
-  { year: '2028', investment: 5, exits: 45, nav: 320, irr: 38.7 },
-];
-
-const cohortData = [
-  { cohort: '2020', invested: 45, currentValue: 125, projectedValue: 180, irr: 42.1 },
-  { cohort: '2021', invested: 38, currentValue: 89, projectedValue: 145, irr: 35.8 },
-  { cohort: '2022', invested: 32, currentValue: 55, projectedValue: 98, irr: 28.4 },
-  { cohort: '2023', invested: 28, currentValue: 35, projectedValue: 78, irr: 22.9 },
-];
-
 const scenarioData = {
   conservative: { totalReturns: 2.8, irr: 22.5, dpi: 1.8 },
   base: { totalReturns: 3.5, irr: 28.4, dpi: 2.2 },
@@ -272,4 +257,3 @@ export default function FinancialModeling() {
     </main>
   );
 }
-

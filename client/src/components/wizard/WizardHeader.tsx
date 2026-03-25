@@ -11,7 +11,7 @@ interface WizardHeaderProps {
   subtitle: string;
 }
 
-export function WizardHeader({ title, subtitle }: WizardHeaderProps) {
+export function WizardHeader({ title }: WizardHeaderProps) {
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -28,4 +28,3 @@ export function WizardHeader({ title, subtitle }: WizardHeaderProps) {
     </div>
   );
 }
-

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LiquidityEngine, type CashFlowAnalysis, type StressTestResult } from '@/core/LiquidityEngine';
 import type {
   CashTransaction,
+  CashTransactionType,
   CashPosition,
   LiquidityForecast,
   RecurringExpense,
@@ -120,8 +121,15 @@ export function useLiquidityAnalytics(
       const date = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000)); // Weekly intervals
 
       // Random transaction type
-      const types = ['capital_call', 'investment', 'distribution', 'expense', 'management_fee'];
-      const type = types[Math.floor(Math.random() * types.length)] as any;
+      const transactionTypes: CashTransactionType[] = [
+        'capital_call',
+        'investment',
+        'distribution',
+        'expense',
+        'management_fee',
+      ];
+      const type =
+        transactionTypes[Math.floor(Math.random() * transactionTypes.length)] ?? 'capital_call';
 
       // Amount based on type
       let amount = 0;
@@ -442,7 +450,7 @@ export function useLiquidityAnalytics(
     if (options.autoRefresh !== false) {
       refreshAll();
     }
-  }, [options.fundId, options.fundSize]); // Re-run when fund changes
+  }, [options.autoRefresh, options.fundId, options.fundSize, refreshAll]); // Re-run when fund changes
 
   // =============================================================================
   // RETURN HOOK INTERFACE

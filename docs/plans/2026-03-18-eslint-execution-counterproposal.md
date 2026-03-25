@@ -730,48 +730,279 @@ inspection.
   in the Wave 2 harness
 - overlapping ownership between ingress files and consumer files is explicit
 
-## Wave 3: Chart, Wizard, and Forecasting Consumers
+## Wave 3: Client Pages, Hooks, and State Consumers
 
 ### Goal
 
-Fix the heaviest client consumer layers after ingress contracts are stable.
+Finish the remaining client consumer and local-state cleanup after the Wave 2
+ingress layer is stable.
+
+### Live scope rebase
+
+As of 2026-03-25, the old Wave 3 hotspot list is stale relative to the live
+codebase.
+
+- do not drive execution from the older snapshot targets:
+  - `client/src/components/ui/recharts-bundle.tsx`
+  - `client/src/components/dashboard/dual-forecast-dashboard.tsx`
+  - `client/src/components/reports/reports.tsx`
+  - `client/src/components/performance/PerformanceDashboard.tsx`
+  - `client/src/components/modeling-wizard/ModelingWizard.tsx`
+  - `client/src/hooks/useModelingWizard.ts`
+  - `client/src/machines/modeling-wizard.machine.ts`
+  - `client/src/pages/forecasting.tsx`
+  - `client/src/hooks/useCohortAnalysis.ts`
+- the live `.artifacts/eslint-owner-map.md` now centers Wave 3 on consumer
+  pages, hooks, stores, and UI helpers such as:
+  - `client/src/pages/mobile-executive-dashboard.tsx`
+  - `client/src/components/wizard/PremiumSelect.tsx`
+  - `client/src/pages/CapitalStructureStep.tsx`
+  - `client/src/lib/quarter-time.ts`
+  - `client/src/lib/storage.ts`
+  - `client/src/components/ui/intelligent-skeleton.tsx`
+  - `client/src/components/wizard/EnhancedField.tsx`
+  - `client/src/hooks/use-graduation.ts`
+  - `client/src/hooks/useAI.ts`
+  - `client/src/pages/shared-dashboard.tsx`
+  - `client/src/pages/time-travel.tsx`
+  - `client/src/shared/useFlags.ts`
+  - `client/src/stores/useFundStore.ts`
+  - `client/src/stores/fundStore.ts`
+- `client/src/config/runtime.ts` is not a core Wave 3 consumer file in the
+  current codebase; it produces runtime config consumed by the already-landed
+  Wave 2 boundary file `client/src/config/rollout-runtime.ts`
+- treat `client/src/config/runtime.ts` as a Wave 2 carryover prerequisite and
+  clear it before any Wave 3 batch that would otherwise reopen rollout
+  behavior
+- transfer `client/src/debug/fetch-tap.ts`, `client/src/monitoring/noop.ts`,
+  and `client/src/vitals.ts` to Wave 5 because they are dev-runtime or
+  policy-sensitive runtime surfaces, not primary consumer cleanup
+- keep `client/src/lib/storage.ts` in Wave 3, but treat it as low-risk tail
+  work because it is test-backed and not currently on the main application
+  runtime import path
+- keep `client/src/shared/useFlags.ts` in Wave 3 because it is the UI-facing
+  feature-flag consumer layered over already-stabilized Wave 2 flag ingress
 
 ### Primary targets
 
-- `client/src/components/ui/recharts-bundle.tsx`
-- `client/src/components/dashboard/dual-forecast-dashboard.tsx`
-- `client/src/components/reports/reports.tsx`
-- `client/src/components/performance/PerformanceDashboard.tsx`
-- `client/src/components/modeling-wizard/ModelingWizard.tsx`
-- `client/src/hooks/useModelingWizard.ts`
-- `client/src/machines/modeling-wizard.machine.ts`
-- `client/src/pages/forecasting.tsx`
-- `client/src/hooks/useCohortAnalysis.ts`
+- `client/src/components/wizard/PremiumSelect.tsx`
+- `client/src/components/wizard/EnhancedField.tsx`
+- `client/src/components/wizard/TestIdProvider.tsx`
+- `client/src/pages/CapitalStructureStep.tsx`
+- `client/src/pages/DistributionsStep.tsx`
+- `client/src/pages/InvestmentStrategyStep.tsx`
+- `client/src/stores/useFundStore.ts`
+- `client/src/stores/fundStore.ts`
+- `client/src/pages/mobile-executive-dashboard.tsx`
+- `client/src/pages/shared-dashboard.tsx`
+- `client/src/pages/time-travel.tsx`
+- `client/src/hooks/useAI.ts`
+- `client/src/hooks/use-graduation.ts`
+- `client/src/hooks/useFundMetrics.ts`
+- `client/src/hooks/useLPFundDetail.ts`
+- `client/src/hooks/useLPSummary.ts`
+- `client/src/hooks/useLiquidityAnalytics.ts`
+- `client/src/hooks/useFundKpis.ts`
+- `client/src/components/ui/intelligent-skeleton.tsx`
+- `client/src/components/ui/ai-insight-card.tsx`
+- `client/src/lib/quarter-time.ts`
+- `client/src/lib/storage.ts`
+- `client/src/shared/useFlags.ts`
+- the remaining live Wave 3 pages, hooks, stores, and low-warning consumer tail
+  assigned in `.artifacts/eslint-owner-map.md`
 
 ### Repo note
 
 The repo is already on XState v5. Do not preserve a v4-or-v5 branch in the
 execution plan.
 
+### Ownership rule
+
+If a file renders UI, derives local state, or consumes already-normalized
+contracts from Wave 2 or Wave 4 producers, it belongs in Wave 3. If it parses
+raw transport, env, remote-config, or bootstrap payloads before they enter
+client state, record an owner transfer back to Wave 2 instead of silently
+burying boundary cleanup here. If it is primarily dev-runtime, monitoring, or
+console-policy work, move it to Wave 5.
+
+### Runnable harness
+
+- `npm run test:wave3` is the current Wave 3 execution harness:
+  - `tests/unit/components/enhanced-field.test.tsx`
+  - `tests/unit/components/premium-select.test.tsx`
+  - `tests/unit/hooks/useAI.test.tsx`
+  - `tests/unit/hooks/use-graduation.test.tsx`
+  - `tests/unit/lib/quarter-time.test.ts`
+  - `tests/unit/lib/storage.test.ts`
+  - `tests/unit/shared/useFlags.test.tsx`
+  - `tests/unit/stores/useFundStore.test.ts`
+  - `tests/unit/stores/useFundStore.idempotency.test.ts`
+  - `tests/unit/stores/fund-store-stability.test.ts`
+  - `tests/unit/components/ai-enhanced-components.test.tsx`
+  - `tests/unit/modeling-wizard-persistence.test.tsx`
+  - `tests/unit/machines/modeling-wizard-fundid.test.tsx`
+- this harness already gives direct runnable coverage for:
+  - `client/src/components/wizard/EnhancedField.tsx`
+  - `client/src/components/wizard/PremiumSelect.tsx`
+  - `client/src/hooks/useAI.ts`
+  - `client/src/hooks/use-graduation.ts`
+  - `client/src/lib/quarter-time.ts`
+  - `client/src/lib/storage.ts`
+  - `client/src/shared/useFlags.ts`
+  - `client/src/components/ui/intelligent-skeleton.tsx`
+  - `client/src/components/ui/ai-insight-card.tsx`
+  - `client/src/stores/useFundStore.ts`
+  - `client/src/stores/fundStore.ts`
+- the repo also has local tests for some live Wave 3 files outside the current
+  default Vitest project include set:
+  - `client/src/lib/__tests__/storage.test.ts`
+  - `client/src/components/__tests__/POVComponents.test.tsx`
+  - `client/src/components/__tests__/Sidebar.test.tsx`
+- do not count those `client/src/**/__tests__` files as Wave 3 gate coverage
+  until they are moved under `tests/unit` or the Vitest project include rules
+  are intentionally widened
+- remaining page-level coverage gaps for future hardening, not current blockers:
+  - `client/src/pages/CapitalStructureStep.tsx`
+  - `client/src/pages/DistributionsStep.tsx`
+  - `client/src/pages/InvestmentStrategyStep.tsx`
+  - `client/src/pages/mobile-executive-dashboard.tsx`
+  - `client/src/pages/shared-dashboard.tsx`
+  - `client/src/pages/time-travel.tsx`
+
+### Sandbox validation
+
+- on 2026-03-25, a Wave 3 Batch O wizard-input slice landed in sandbox:
+  - `client/src/components/wizard/PremiumSelect.tsx`
+  - `client/src/components/wizard/EnhancedField.tsx`
+  - `tests/unit/components/premium-select.test.tsx`
+  - `tests/unit/components/enhanced-field.test.tsx`
+- targeted `npx eslint --no-warn-ignored ...` on those touched source and test
+  files returned `0` warnings and `0` errors
+- after adding the wizard-input tests to the harness, `npm run test:wave3`
+  passed in the live workspace:
+  - `8` files
+  - `61` tests passed
+  - `2` tests skipped
+- the current harness emits non-blocking stderr from:
+  - zustand persist middleware reporting unavailable test storage in the
+    `useFundStore` and `fundStore` suites
+  - expected localStorage failure logs in
+    `tests/unit/modeling-wizard-persistence.test.tsx`
+- treat that stderr as existing harness noise, not as Wave 3 execution failure
+- on 2026-03-25, the full in-scope Wave 3 rollout landed in sandbox:
+  - Batch O store, wizard-input, and step-page cleanup
+  - Batch P dashboard, analytics, and consumer-hook cleanup
+  - Batch Q helper and flag/storage consumer cleanup
+  - Batch R low-warning page and hook tail cleanup
+- the expanded `npm run test:wave3` harness passed in the live workspace:
+  - `13` files
+  - `73` tests passed
+  - `2` tests skipped
+- targeted `npx eslint --no-warn-ignored ...` across the in-scope live Wave 3
+  owner-map files returned `0` warnings and `0` errors after excluding the
+  recorded non-Wave-3 transfers:
+  - `client/src/config/runtime.ts` as Wave 2 carryover
+  - `client/src/debug/fetch-tap.ts`
+  - `client/src/monitoring/noop.ts`
+  - `client/src/vitals.ts`
+- `npm run check:client` remains red on unrelated pre-existing client and
+  project-include failures outside this Wave 3 rollout; the touched Wave 3
+  files validated here no longer appear in that error surface
+
+### Execution batches
+
+#### Batch O: Wizard inputs, store-backed step pages, and store core
+
+- `client/src/components/wizard/PremiumSelect.tsx`
+- `client/src/components/wizard/EnhancedField.tsx`
+- `client/src/components/wizard/TestIdProvider.tsx`
+- `client/src/pages/CapitalStructureStep.tsx`
+- `client/src/pages/DistributionsStep.tsx`
+- `client/src/pages/InvestmentStrategyStep.tsx`
+- `client/src/stores/useFundStore.ts`
+- `client/src/stores/fundStore.ts`
+- `client/src/stores/useFund.ts`
+- `client/src/stores/useFundSelector.ts`
+- `client/src/lib/investment-round-defaults.ts`
+
+#### Batch P: Dashboard, analytics, and reporting consumers
+
+- `client/src/pages/mobile-executive-dashboard.tsx`
+- `client/src/pages/shared-dashboard.tsx`
+- `client/src/pages/time-travel.tsx`
+- `client/src/components/planning/portfolio-construction.tsx`
+- `client/src/hooks/useAI.ts`
+- `client/src/hooks/use-graduation.ts`
+- `client/src/hooks/useFundMetrics.ts`
+- `client/src/hooks/useLPFundDetail.ts`
+- `client/src/hooks/useLPSummary.ts`
+- `client/src/hooks/useLiquidityAnalytics.ts`
+- `client/src/hooks/useFundKpis.ts`
+- `client/src/adapters/kpiAdapter.ts`
+- `client/src/components/ui/intelligent-skeleton.tsx`
+- `client/src/components/ui/ai-insight-card.tsx`
+
+#### Batch Q: Consumer helpers and UI-facing flag/storage tail
+
+- `client/src/lib/quarter-time.ts`
+- `client/src/lib/storage.ts`
+- `client/src/shared/useFlags.ts`
+- `client/src/hooks/useFlags.tsx`
+- `client/src/hooks/useScenarioComparison.ts`
+- `client/src/components/LegacyRouteRedirector.tsx`
+- `client/src/components/onboarding/GuidedTour.tsx`
+- `client/src/lib/excel-parity.ts`
+
+#### Batch R: Remaining low-warning page and hook tail
+
+- the remaining Wave 3 files at `1-4` warnings in the live owner map after
+  Batches O-Q are stable
+- examples include `client/src/pages/planning.tsx`,
+  `client/src/pages/lp/reports.tsx`, `client/src/pages/CompanyDetail.tsx`,
+  `client/src/pages/financial-modeling.tsx`,
+  `client/src/components/ui/sidebar.tsx`, and `client/src/hooks/useFundKpis.ts`
+
 ### Procedure
 
-1. Define typed chart view models separate from raw payloads.
-2. Centralize Recharts callback and formatter typing in the adapter layer.
-3. Reuse ingress contracts and any earlier stabilized reserve or shared
-   consumer-facing adapters.
-4. Make wizard machine context and events explicit using the repo's XState v5
-   patterns.
-5. Remove local casts that duplicate typed ingress contracts.
-6. Fix local `react-hooks/exhaustive-deps` warnings only where the touched flow
+1. Start each batch with `npm run test:wave3` green.
+2. Clear `client/src/config/runtime.ts` as a Wave 2 carryover before opening any
+   Wave 3 batch that would otherwise mask boundary work behind consumer edits.
+3. Execute Batch O first because the live codebase still routes step pages and
+   dashboards through the fund-store and wizard-input layer.
+4. Before deeper refactors in a harness-first file, add a direct unit or page
+   test for that file and then keep it inside `npm run test:wave3`.
+5. Preserve store idempotence, hydration, and no-op update behavior validated by
+   the current `useFundStore` and `fundStore` suites.
+6. Reuse Wave 2 ingress contracts and do not reintroduce raw `fetch`,
+   `localStorage`, or URL parsing directly inside consumer pages or hooks.
+7. If a Wave 3 consumer reveals a wrong reserve or shared-model contract, hand
+   the contract repair back to the owning Wave 4 file rather than silently
+   fixing the shared helper here.
+8. Fix local `react-hooks/exhaustive-deps` warnings only where the touched flow
    depends on them for correctness.
-7. Apply standing targeted cleanup on touched files only after the architectural
-   edits.
+9. Keep `client/src/debug/fetch-tap.ts`, `client/src/monitoring/noop.ts`, and
+   `client/src/vitals.ts` out of Wave 3 unless an explicit owner transfer is
+   recorded.
+10. Apply standing targeted cleanup on touched files only after the
+    architectural edits.
+11. After each batch, run targeted `npx eslint --no-warn-ignored ...`,
+    `npm run test:wave3`, `npm run lint:eslint`, `npm run guardrails:check`,
+    and the smallest covering client typecheck.
 
 ### Exit criteria
 
-- chart, wizard, and forecasting consumers depend on stable typed contracts
-- forecasting-facing ownership is resolved in one wave per file
-- chart typing does not leak `any` through the component tree
+- the Wave 3 plan matches the live owner-map consumer scope instead of the
+  stale chart/forecasting hotspot list
+- `client/src/config/runtime.ts` is treated as a Wave 2 carryover, not hidden
+  inside Wave 3 consumer work
+- `client/src/debug/fetch-tap.ts`, `client/src/monitoring/noop.ts`, and
+  `client/src/vitals.ts` are recorded in Wave 5
+- `npm run test:wave3` exists and remains green during the wave
+- wizard inputs, store-backed pages, and dashboard consumers gain direct tests
+  before deep refactors begin
+- local store idempotence and hydration behavior remain stable
+- Wave 3 consumers depend on typed contracts without reopening reserve-math or
+  transport-boundary ownership
 
 ## Wave 4: Reserve Math and Shared Modeling Helpers
 
@@ -833,6 +1064,9 @@ under control.
 - `server/queues/backtesting-queue.ts`
 - `server/queues/report-generation-queue.ts`
 - `client/src/debug/wizard-trace.ts`
+- `client/src/debug/fetch-tap.ts`
+- `client/src/monitoring/noop.ts`
+- `client/src/vitals.ts`
 - `client/src/lib/error-boundary.ts`
 - `client/src/lib/logger.ts`
 - `client/src/lib/rollout-orchestrator.ts` if still in runtime scope after Wave

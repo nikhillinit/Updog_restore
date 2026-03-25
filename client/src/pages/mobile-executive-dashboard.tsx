@@ -12,6 +12,19 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 
+type AnalyticsWindow = Window & {
+  gtag?: (
+    command: 'event',
+    eventName: string,
+    params: {
+      custom_map: {
+        fcp_time: number;
+        load_time: number;
+      };
+    }
+  ) => void;
+};
+
 // Lazy load the main dashboard component for optimal bundle splitting
 const MobileExecutiveDashboardDemo = React.lazy(() =>
   import('@/components/dashboard/MobileExecutiveDashboardDemo').then((module) => ({
@@ -42,7 +55,7 @@ function usePerformanceMetrics() {
           }
         });
         observer.observe({ entryTypes: ['paint'] });
-      } catch (e) {
+      } catch {
         console.warn('Performance Observer not fully supported');
       }
     }
@@ -92,7 +105,7 @@ function MobileDashboardSkeleton() {
             </div>
           </div>
           <div className="flex gap-2 overflow-x-auto">
-            {[...Array(3)].map((_, i) => (
+            {Array.from({ length: 3 }, (_, i) => (
               <div key={i} className="h-8 bg-slate-200 rounded w-24 flex-shrink-0"></div>
             ))}
           </div>
@@ -100,7 +113,7 @@ function MobileDashboardSkeleton() {
 
         {/* Metrics skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => (
+          {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="h-32 bg-slate-200 rounded-lg"></div>
           ))}
         </div>
@@ -115,7 +128,7 @@ function MobileDashboardSkeleton() {
         <div className="space-y-4">
           <div className="h-6 bg-slate-200 rounded w-24"></div>
           <div className="space-y-3">
-            {[...Array(2)].map((_, i) => (
+            {Array.from({ length: 2 }, (_, i) => (
               <div key={i} className="border border-slate-200 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="h-5 bg-slate-200 rounded w-40"></div>
@@ -172,7 +185,7 @@ function MobileErrorFallback({ error }: { error: Error }) {
 }
 
 export default function MobileExecutiveDashboardPage() {
-  const { currentFund, isLoading } = useFundContext();
+  const { isLoading } = useFundContext();
   const performanceMetrics = usePerformanceMetrics();
   const [enableDebugger, setEnableDebugger] = useState(false);
 
@@ -190,7 +203,7 @@ export default function MobileExecutiveDashboardPage() {
       // Track performance metrics for monitoring
       if (typeof window !== 'undefined' && 'gtag' in window) {
         // Example: Send to Google Analytics
-        (window as any).gtag?.('event', 'mobile_dashboard_performance', {
+        (window as AnalyticsWindow).gtag?.('event', 'mobile_dashboard_performance', {
           custom_map: {
             fcp_time: performanceMetrics.fcpTime,
             load_time: performanceMetrics.loadTime,

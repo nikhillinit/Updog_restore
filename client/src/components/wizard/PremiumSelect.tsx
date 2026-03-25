@@ -1,11 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface SelectOption {
   value: string;
@@ -34,7 +29,7 @@ export function PremiumSelect({
   required = false,
   description,
   error,
-  className = ''
+  className = '',
 }: PremiumSelectProps) {
   return (
     <div className={`space-y-2 ${className}`}>
@@ -42,22 +37,24 @@ export function PremiumSelect({
         {label}
         {required && <span className="text-pov-error ml-1">*</span>}
       </Label>
-      
+
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className={`
+        <SelectTrigger
+          className={`
           h-11 border border-pov-gray bg-pov-white font-poppins
           transition-all duration-200 ease-out
           focus:ring-2 focus:ring-pov-beige focus:border-transparent
           hover:border-gray-400
           ${error ? 'border-pov-error focus:ring-pov-error/20' : ''}
           shadow-sm hover:shadow-md
-        `}>
+        `}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="bg-pov-white border border-pov-gray shadow-elevated">
-          {options.map((option: any) => (
-            <SelectItem 
-              key={option.value} 
+          {options.map((option) => (
+            <SelectItem
+              key={option.value}
               value={option.value}
               className="font-poppins text-sm hover:bg-pov-beige/20 focus:bg-pov-beige/30 transition-colors duration-150"
             >
@@ -71,19 +68,12 @@ export function PremiumSelect({
           ))}
         </SelectContent>
       </Select>
-      
+
       {description && !error && (
-        <p className="font-poppins text-xs text-gray-600">
-          {description}
-        </p>
+        <p className="font-poppins text-xs text-gray-600">{description}</p>
       )}
-      
-      {error && (
-        <p className="font-poppins text-xs text-pov-error">
-          {error}
-        </p>
-      )}
+
+      {error && <p className="font-poppins text-xs text-pov-error">{error}</p>}
     </div>
   );
 }
-

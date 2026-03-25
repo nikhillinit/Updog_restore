@@ -34,7 +34,7 @@ async function fetchFlags(): Promise<FlagResponse> {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
   
-  return response.json();
+  return response.json() as Promise<FlagResponse>;
 }
 
 /**
@@ -47,7 +47,7 @@ async function fetchFlagStatus(): Promise<FlagStatus> {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
   
-  return response.json();
+  return response.json() as Promise<FlagStatus>;
 }
 
 /**
@@ -60,10 +60,10 @@ export function useFlags() {
     staleTime: 25_000, // 25s (slightly less than server TTL of 30s)
     refetchInterval: 30_000, // Refetch every 30s
     refetchOnWindowFocus: true,
-    retry: (failureCount: any, error: any) => {
+    retry: (failureCount: number, error: unknown) => {
       // Don't retry on 4xx errors, do retry on network/5xx errors
-      if (error && typeof error === 'object' && 'message' in error) {
-        const message = (error as Error).message;
+      if (error instanceof Error) {
+        const message = error.message;
         if (message.includes('HTTP 4')) return false;
       }
       return failureCount < 3;

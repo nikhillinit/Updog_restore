@@ -60,11 +60,11 @@ export const WIZARD_TEST_IDS = {
  */
 export function withTestId<P extends { 'data-testid'?: string }>(
   Component: React.ComponentType<P>,
-  testId: string
+  _testId: string
 ) {
-  return React.forwardRef<any, P>((props: any, ref: any) => {
-      return <Component {...(props as P)} ref={ref} />;
-    });
+  return function WithTestId(props: P) {
+    return <Component {...props} />;
+  };
 }
 
 /**

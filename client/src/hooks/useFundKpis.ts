@@ -61,7 +61,7 @@ async function fetchFundData(fundId: number): Promise<FundData> {
     throw new Error(`Failed to fetch fund data: ${response.statusText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<FundData>;
 }
 
 /**
@@ -317,25 +317,15 @@ export function useKpiHistory(options: {
  * }
  * ```
  */
-export function useFundComparison(fundIds: number[], asOf?: string) {
+export function useFundComparison(_fundIds: number[], _asOf?: string) {
   // Note: This implementation fetches funds sequentially
   // For production, you'd want a batch endpoint: /api/funds/batch
-  const queries = fundIds.map((fundId) => ({
-    queryKey: ['fundData', fundId] as const,
-    queryFn: () => fetchFundData(fundId),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  }));
-
   // Use useQueries for parallel fetching
   // Note: Actual implementation would use TanStack Query's useQueries
   // This is a simplified version for demonstration
 
-  const comparison = useMemo(() => {
-    const result: Record<number, FundKPIs> = {};
-    // In real implementation, you'd use useQueries and aggregate results
-    return result;
-  }, [fundIds, asOf]);
+  const comparison: Record<number, FundKPIs> = {};
+  // In real implementation, you'd use useQueries and aggregate results
 
   return {
     data: comparison,

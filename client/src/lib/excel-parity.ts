@@ -1,11 +1,3 @@
-// Custom error class for Excel parity
-class ExcelParityError extends Error {
-  constructor(message: string, public originalError?: unknown) {
-    super(message);
-    this.name = 'ExcelParityError';
-  }
-}
-
 /**
  * Excel Parity System
  * Validates web application results against Excel/Google Sheets benchmarks
@@ -518,10 +510,9 @@ export class ExcelParityValidator {
       };
     }
 
-    const averagePassRate = history.reduce(
-      (sum: any, result: any) => sum + result.overallParity.parityPercentage,
-      0
-    ) / history.length;
+    const averagePassRate =
+      history.reduce((sum, result) => sum + result.overallParity.parityPercentage, 0) /
+      history.length;
 
     // Determine trend
     let trendDirection: 'improving' | 'declining' | 'stable' = 'stable';

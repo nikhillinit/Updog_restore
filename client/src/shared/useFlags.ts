@@ -18,8 +18,23 @@
  *   const isNewIA = useFlag('enable_new_ia');
  */
 
-import { useMemo, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import { ALL_FLAGS, type FlagKey } from '@shared/feature-flags/flag-definitions';
+
+type FlagName = Extract<FlagKey, string>;
+type FlagSnapshot = Record<FlagName, boolean>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isRuntimeFlagValue(value: string | null): value is '0' | '1' {
+  return value === '0' || value === '1';
+}
+
+function getImportMetaEnv(): unknown {
+  return (import.meta as ImportMeta & { env?: unknown }).env;
+}
 
 /**
  * Get runtime override from query params or localStorage
@@ -29,13 +44,13 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
   try {
     // Check query params first: ?ff_enable_new_ia=1
     const qp = new URLSearchParams(window.location.search).get(`ff_${flagKey}`);
-    if (qp === '0' || qp === '1') return qp === '1';
+    if (isRuntimeFlagValue(qp)) return qp === '1';
 
     // Check localStorage fallback: localStorage.setItem('ff_enable_new_ia', '1')
-    const ls = localStorage.getItem(`ff_${flagKey}`);
-    if (ls === '0' || ls === '1') return ls === '1';
-  } catch (e) {
-    console.warn(`[useFlags] Runtime check failed for ${flagKey}:`, e);
+    const ls = window.localStorage.getItem(`ff_${flagKey}`);
+    if (isRuntimeFlagValue(ls)) return ls === '1';
+  } catch (error) {
+    console.warn(`[useFlags] Runtime check failed for ${flagKey}:`, error);
   }
   return undefined;
 };
@@ -45,11 +60,18 @@ const getRuntimeFlag = (flagKey: string): boolean | undefined => {
  */
 const getEnvFlag = (flagKey: string): boolean | undefined => {
   try {
-    const meta = import.meta as ImportMeta & { env?: Record<string, string> };
-    const envVal = meta.env?.[`VITE_${flagKey.toUpperCase()}`];
+    const env = getImportMetaEnv();
+    if (!isRecord(env)) {
+      return undefined;
+    }
+
+    const envVal = env[`VITE_${flagKey.toUpperCase()}`];
+    if (typeof envVal !== 'string') {
+      return undefined;
+    }
     if (envVal === 'true' || envVal === '1') return true;
     if (envVal === 'false' || envVal === '0') return false;
-  } catch (_e) {
+  } catch {
     // Ignore - might be SSR or no import.meta
   }
   return undefined;
@@ -68,38 +90,35 @@ const subscribe = (callback: () => void) => {
   };
 };
 
+export function getFlagSnapshot(): FlagSnapshot {
+  const snapshot = {} as FlagSnapshot;
+
+  for (const key of Object.keys(ALL_FLAGS) as FlagName[]) {
+    snapshot[key] =
+      getRuntimeFlag(key) ??
+      getEnvFlag(key) ??
+      ALL_FLAGS[key]?.enabled ??
+      false;
+  }
+
+  return snapshot;
+}
+
 /**
  * Hook to access all feature flags with runtime overrides
  * Re-renders when flags change via localStorage or query params
  */
-export function useFlags(): Record<FlagKey, boolean> {
+export function useFlags(): Record<FlagName, boolean> {
   // Re-render on storage/navigation changes
-  useSyncExternalStore(
-    subscribe,
-    () => window.location.search + Date.now() // Snapshot includes query params
-  );
-
-  return useMemo(() => {
-    const flags: Record<string, boolean> = {};
-
-    Object.keys(ALL_FLAGS).forEach((key) => {
-      const flagKey = key as FlagKey;
-      // Priority: runtime > env > definition default
-      flags[key] =
-        getRuntimeFlag(key) ??
-        getEnvFlag(key) ??
-        ALL_FLAGS[flagKey]?.enabled ?? false;
-    });
-
-    return flags as Record<FlagKey, boolean>;
-  }, []); // Dependencies handled by useSyncExternalStore
+  useSyncExternalStore(subscribe, () => window.location.search);
+  return getFlagSnapshot();
 }
 
 /**
  * Hook to access a single feature flag
  * Convenience wrapper with TypeScript autocomplete
  */
-export function useFlag(key: FlagKey): boolean {
+export function useFlag(key: FlagName): boolean {
   const flags = useFlags();
   return flags[key] ?? false;
 }
@@ -108,26 +127,16 @@ export function useFlag(key: FlagKey): boolean {
  * Development helper - log current flag states
  */
 export function debugFlags(): void {
-  const flags = {} as Record<FlagKey, boolean>;
-  Object.keys(ALL_FLAGS).forEach((key) => {
-    const flagKey = key as FlagKey;
-    flags[flagKey] =
-      getRuntimeFlag(key) ??
-      getEnvFlag(key) ??
-      ALL_FLAGS[flagKey]?.enabled ?? false;
-  });
+  const flags = getFlagSnapshot();
+  const rows = (Object.keys(flags) as FlagName[]).map((key) => ({
+    flag: key,
+    enabled: flags[key],
+    runtime: getRuntimeFlag(key) ?? 'not set',
+    env: getEnvFlag(key) ?? 'not set',
+    default: ALL_FLAGS[key]?.enabled ?? false,
+  }));
 
-  console.group('🚩 Feature Flags');
-  console.table(
-    Object.entries(flags).map(([key, value]) => ({
-      flag: key,
-      enabled: value,
-      runtime: getRuntimeFlag(key) ?? 'not set',
-      env: getEnvFlag(key) ?? 'not set',
-      default: ALL_FLAGS[key as FlagKey]?.enabled ?? false,
-    }))
-  );
-  console.groupEnd();
+  console.warn('[useFlags] Feature flag snapshot', rows);
 }
 
 // Expose to window in development

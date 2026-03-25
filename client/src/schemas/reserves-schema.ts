@@ -188,14 +188,14 @@ export function adaptAndValidateCompanies(rawData: unknown[]): {
   const valid: Company[] = [];
   const invalid: Array<{ index: number; errors: string[] }> = [];
   
-  rawData.forEach((item: any, index: any) => {
+  rawData.forEach((item, index) => {
     const result = CompanySchema.safeParse(item);
     if (result.success) {
       valid.push(result.data);
     } else {
       invalid.push({
         index,
-        errors: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        errors: result.error.errors.map((error) => `${error.path.join('.')}: ${error.message}`)
       });
     }
   });

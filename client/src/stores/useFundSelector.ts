@@ -72,9 +72,9 @@ export function useFundSelector<T>(
  *   s.sectorProfiles
  * ]);
  */
-export const useFundTuple = <T extends any[]>(
+export const useFundTuple = <T extends readonly unknown[]>(
   selector: (s: FundState) => T
-) => useFundSelector(selector, shallow);
+) => useFundSelector(selector, shallow as (a: T, b: T) => boolean);
 
 /**
  * Action selector helper.
@@ -98,6 +98,6 @@ export const useFundAction = <T>(
  *   updateStageName: s.updateStageName
  * }));
  */
-export const useFundActions = <T extends Record<string, any>>(
+export const useFundActions = <T extends Record<string, unknown>>(
   selector: (s: FundState) => T
-) => useFundSelector(selector, shallow);
+) => useFundSelector(selector, shallow as (a: T, b: T) => boolean);

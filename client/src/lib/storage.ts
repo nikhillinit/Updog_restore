@@ -39,7 +39,9 @@ interface Persisted<T> {
   data: T;
 }
 
-type Migrator = (raw: Persisted<any>) => Persisted<any> | null;
+type PersistedUnknown = Persisted<unknown>;
+type PersistedDraft = { v: number; at?: number; data: unknown };
+type Migrator = (raw: PersistedDraft) => PersistedUnknown | null;
 
 // ============================================================================
 // MIGRATIONS
@@ -54,14 +56,27 @@ const MIGRATIONS: Record<number, Migrator> = {
   0: (raw) => ({
     v: 1,
     at: raw.at ?? Date.now(),
-    data: raw.data
+    data: raw.data,
   }),
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isPersistedEnvelope(value: unknown): value is PersistedUnknown {
+  return (
+    isRecord(value) &&
+    typeof value['v'] === 'number' &&
+    typeof value['at'] === 'number' &&
+    'data' in value
+  );
+}
 
 /**
  * Migrate data through version chain
  */
-function migrate<T>(obj: Persisted<T>): Persisted<T> | null {
+function migrate(obj: PersistedUnknown): PersistedUnknown | null {
   while (obj.v < CURRENT_VERSION) {
     const step = MIGRATIONS[obj.v];
     if (!step) {
@@ -136,14 +151,16 @@ export function loadFromStorage<T>(key: string, schema: z.ZodType<T>): T | null 
   if (!raw) return null;
 
   try {
-    let obj = JSON.parse(raw) as Persisted<T>;
+    const parsed: unknown = JSON.parse(raw) as unknown;
 
     // Validate structure
-    if (typeof obj !== 'object' || obj === null || typeof obj.v !== 'number' || typeof obj.at !== 'number') {
+    if (!isPersistedEnvelope(parsed)) {
       console.warn(`[Storage] Invalid structure for key: ${key}`);
       localStorage.removeItem(k);
       return null;
     }
+
+    let obj: PersistedUnknown = parsed;
 
     // Migrate if needed
     const migrated = migrate(obj);
@@ -155,7 +172,11 @@ export function loadFromStorage<T>(key: string, schema: z.ZodType<T>): T | null 
 
     // Check TTL
     if (Date.now() - obj.at > TTL_MS) {
-      console.info(`[Storage] Expired data for key: ${key} (age: ${Math.floor((Date.now() - obj.at) / 86400000)}d)`);
+      console.warn(
+        `[Storage] Expired data for key: ${key} (age: ${Math.floor(
+          (Date.now() - obj.at) / 86400000
+        )}d)`
+      );
       localStorage.removeItem(k);
       return null;
     }
@@ -267,13 +288,11 @@ export function clearExpiredData(): void {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
 
-        const obj = JSON.parse(raw) as Persisted<unknown>;
+        const parsed: unknown = JSON.parse(raw) as unknown;
         if (
-          typeof obj === 'object' &&
-          obj !== null &&
-          obj.v === CURRENT_VERSION &&
-          typeof obj.at === 'number' &&
-          now - obj.at > TTL_MS
+          isPersistedEnvelope(parsed) &&
+          parsed.v === CURRENT_VERSION &&
+          now - parsed.at > TTL_MS
         ) {
           keysToRemove.push(key);
         }
@@ -286,11 +305,11 @@ export function clearExpiredData(): void {
     // Phase 2: Remove collected keys
     for (const key of keysToRemove) {
       localStorage.removeItem(key);
-      console.info(`[Storage] Cleared stale/expired key: ${key}`);
+      console.warn(`[Storage] Cleared stale/expired key: ${key}`);
     }
 
     if (keysToRemove.length > 0) {
-      console.info(`[Storage] Cleanup complete: ${keysToRemove.length} items removed`);
+      console.warn(`[Storage] Cleanup complete: ${keysToRemove.length} items removed`);
     }
   } catch (error) {
     console.error('[Storage] Cleanup failed:', error);
@@ -331,7 +350,7 @@ export function getStorageStats(): {
       available: true,
       itemCount: localStorage.length,
       namespacedItems,
-      estimatedSize // rough bytes estimate (key + value lengths)
+      estimatedSize, // rough bytes estimate (key + value lengths)
     };
   } catch (error) {
     console.error('[Storage] Stats failed:', error);

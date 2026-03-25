@@ -314,7 +314,6 @@ export function useCreateComparison(): UseMutationResult<
   CreateComparisonRequest
 > {
   const queryClient = useQueryClient();
-  const { fundId } = useFundContext();
 
   return useMutation({
     mutationFn: createComparison,
@@ -477,7 +476,7 @@ export function useTrackAccess(): UseMutationResult<void, Error, TrackAccessRequ
     mutationFn: trackAccess,
     // Silent UI - don't show errors for tracking, but log for observability
     onError: (error) => {
-      console.debug('[useTrackAccess] Tracking failed (non-blocking):', error.message);
+      console.warn('[useTrackAccess] Tracking failed (non-blocking):', error.message);
     },
   });
 }

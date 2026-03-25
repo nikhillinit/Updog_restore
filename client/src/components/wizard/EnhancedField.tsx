@@ -26,11 +26,13 @@ interface Option {
   label: string;
 }
 
+type EnhancedFieldValue = string | number | null | undefined;
+
 interface EnhancedFieldProps {
   id?: string;
   label?: string;
-  value: any;
-  onChange: (v: any) => void;
+  value: EnhancedFieldValue;
+  onChange: (v: EnhancedFieldValue) => void;
 
   format?: Format;
   type?: 'text' | 'number' | 'date' | 'select';
@@ -71,7 +73,7 @@ export function EnhancedField({
   options,
   min,
   max,
-  step,
+  step: _step,
   placeholder,
   required,
   disabled,
@@ -95,10 +97,14 @@ export function EnhancedField({
       setDisplay(typeof value === 'number' && value > 0 ? formatUSD(value) : '');
     } else if (format === 'percent') {
       setDisplay(typeof value === 'number' ? String(value) : '');
-    } else if (format === 'date') {
-      setDisplay(value || '');
+    } else if (format === 'date' || format === 'select') {
+      setDisplay(typeof value === 'string' ? value : '');
+    } else if (typeof value === 'number') {
+      setDisplay(String(value));
+    } else if (typeof value === 'string') {
+      setDisplay(value);
     } else {
-      setDisplay(value ?? '');
+      setDisplay('');
     }
   }, [value, format]);
 
@@ -188,7 +194,14 @@ export function EnhancedField({
   const isSelect = (type === 'select' || format === 'select') && options?.length;
 
   /** Determine input mode for mobile keyboards */
-  const inputMode = format === 'usd' ? 'numeric' : format === 'percent' || format === 'number' ? 'decimal' : undefined;
+  const inputMode =
+    format === 'usd'
+      ? 'numeric'
+      : format === 'percent' || format === 'number'
+        ? 'decimal'
+        : undefined;
+
+  const selectValue = typeof value === 'string' ? value : '';
 
   /** Combined ARIA describedby */
   const ariaDescribedBy = [
@@ -214,7 +227,7 @@ export function EnhancedField({
         {isSelect ? (
           <select
             id={inputId}
-            value={value ?? ''}
+            value={selectValue}
             onChange={handleChange}
             disabled={disabled}
             required={required}

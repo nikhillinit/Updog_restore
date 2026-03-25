@@ -177,7 +177,7 @@ export function useDebouncePrimitive<T extends string | number | boolean>(
  * debouncedSave(formValues);
  * ```
  */
-export function useDebounceCallback<Args extends any[]>(
+export function useDebounceCallback<Args extends unknown[]>(
   callback: (...args: Args) => void,
   delay: number = 250
 ) {

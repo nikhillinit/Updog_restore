@@ -19,8 +19,11 @@ import {
   Calculator
 } from 'lucide-react';
 
+type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'area';
+
 export interface SkeletonVariant {
   type: 'dashboard' | 'chart' | 'table' | 'metrics' | 'insights' | 'portfolio' | 'analysis';
+  chartType?: ChartType;
   rows?: number;
   columns?: number;
   showHeaders?: boolean;
@@ -40,7 +43,7 @@ interface IntelligentSkeletonProps {
 }
 
 // Dashboard Overview Skeleton
-function DashboardSkeleton({ animated = true, preview }: { animated?: boolean; preview?: any }) {
+function DashboardSkeleton({ animated = true }: { animated?: boolean }) {
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -107,7 +110,7 @@ function ChartSkeleton({
   height = 'h-64'
 }: {
   animated?: boolean;
-  chartType?: 'bar' | 'line' | 'pie' | 'scatter' | 'area';
+  chartType?: ChartType;
   height?: string;
 }) {
   return (
@@ -271,7 +274,7 @@ function PieChartPattern({ animated }: { animated: boolean }) {
 }
 
 function ScatterChartPattern({ animated }: { animated: boolean }) {
-  const points = Array.from({ length: 20 }, (_, i) => ({
+  const points = Array.from({ length: 20 }, () => ({
     x: Math.random() * 90 + 5,
     y: Math.random() * 90 + 5,
     size: Math.random() * 4 + 2
@@ -444,11 +447,11 @@ export function IntelligentSkeleton({
   preview
 }: IntelligentSkeletonProps) {
   const skeletonComponents = {
-    dashboard: <DashboardSkeleton animated={animated} preview={preview} />,
+    dashboard: <DashboardSkeleton animated={animated} />,
     chart: (
       <ChartSkeleton
         animated={animated}
-        chartType={variant.type as any}
+        chartType={variant.chartType ?? 'bar'}
         height={variant.complexity === 'complex' ? 'h-80' : 'h-64'}
       />
     ),
@@ -460,9 +463,9 @@ export function IntelligentSkeleton({
         animated={animated}
       />
     ),
-    metrics: <DashboardSkeleton animated={animated} preview={preview} />,
+    metrics: <DashboardSkeleton animated={animated} />,
     insights: <InsightsSkeleton animated={animated} />,
-    portfolio: <DashboardSkeleton animated={animated} preview={preview} />,
+    portfolio: <DashboardSkeleton animated={animated} />,
     analysis: <InsightsSkeleton animated={animated} />
   };
 
@@ -498,8 +501,11 @@ export const DashboardSkeleton_Component = (props: Omit<IntelligentSkeletonProps
   <IntelligentSkeleton variant={{ type: 'dashboard' }} {...props} />
 );
 
-export const ChartSkeleton_Component = (props: Omit<IntelligentSkeletonProps, 'variant'> & { chartType?: string }) => (
-  <IntelligentSkeleton variant={{ type: 'chart' as any }} {...props} />
+export const ChartSkeleton_Component = ({
+  chartType = 'bar',
+  ...props
+}: Omit<IntelligentSkeletonProps, 'variant'> & { chartType?: ChartType }) => (
+  <IntelligentSkeleton variant={{ type: 'chart', chartType }} {...props} />
 );
 
 export const MetricsSkeleton = (props: Omit<IntelligentSkeletonProps, 'variant'>) => (

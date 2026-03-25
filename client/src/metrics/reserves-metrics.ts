@@ -300,7 +300,7 @@ class ReservesAuditLog {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(trimmed));
       } catch (e) {
         // Storage might be full or disabled
-        console.debug('Failed to store audit entry', e);
+        console.warn('Failed to store audit entry', e);
       }
     }
 

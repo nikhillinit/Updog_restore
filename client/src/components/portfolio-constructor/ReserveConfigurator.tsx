@@ -153,15 +153,12 @@ const POOL_COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
 
 export function ReserveConfigurator({
   portfolioState,
-  onUpdate,
-  isCalculating,
 }: ReserveConfiguratorProps) {
   const [reservePools, setReservePools] = useState<ReservePool[]>(defaultReservePools);
   const [selectedPool, setSelectedPool] = useState<string>('follow-on-primary');
   const [optimizationMode, setOptimizationMode] = useState<'manual' | 'guided' | 'auto'>('guided');
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  const selectedPoolData = reservePools.find((pool) => pool.id === selectedPool);
   const totalReserveAmount = portfolioState.totalFundSize * portfolioState.reserveRatio;
   const totalAllocated = reservePools.reduce((sum, pool) => sum + pool.percentage, 0);
   const isOverAllocated = totalAllocated > 100;
@@ -222,12 +219,6 @@ export function ReserveConfigurator({
             }
           : pool
       )
-    );
-  };
-
-  const updatePoolProperty = (poolId: string, property: string, value: unknown) => {
-    setReservePools((prev) =>
-      prev.map((pool) => (pool.id === poolId ? { ...pool, [property]: value } : pool))
     );
   };
 

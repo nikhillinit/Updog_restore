@@ -9,6 +9,10 @@
 
 import type { InvestmentRound } from '@/types/investment-rounds';
 
+function cloneRound(round: InvestmentRound): InvestmentRound {
+  return { ...round };
+}
+
 /**
  * Benchmark rounds with realistic Q2 2025 market data
  *
@@ -205,7 +209,7 @@ export const BENCHMARK_ROUNDS: InvestmentRound[] = [
  * Get default rounds for new fund creation
  */
 export function getDefaultRounds(): InvestmentRound[] {
-  return JSON.parse(JSON.stringify(BENCHMARK_ROUNDS));
+  return BENCHMARK_ROUNDS.map((round) => cloneRound(round));
 }
 
 /**
@@ -219,9 +223,11 @@ export function getRoundByStage(stageName: string): InvestmentRound | undefined 
  * Create a custom round template
  */
 export function createCustomRound(name: string): InvestmentRound {
+  const normalizedName = BENCHMARK_ROUNDS.find((round) => round.name === name)?.name ?? 'Seed';
+
   return {
     id: `custom-${Date.now()}`,
-    name: name as any,
+    name: normalizedName,
     roundSize: 0,
     valuationType: 'Pre-Money',
     valuation: 0,
@@ -235,6 +241,6 @@ export function createCustomRound(name: string): InvestmentRound {
     monthsToExit: 24,
     exitValuation: 0,
     benchmarkSource: 'Custom',
-    isCustom: true
+    isCustom: true,
   };
 }

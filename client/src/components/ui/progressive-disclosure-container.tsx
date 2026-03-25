@@ -243,8 +243,6 @@ export function ProgressiveDisclosureContainer({
 
   // Filter sections based on current view complexity and priority
   const visibleSections = useMemo(() => {
-    const viewComplexity = VIEW_CONFIGS[currentView].complexity;
-
     return sections.filter(section => {
       // Always show high priority items
       if (section.priority === 'high') return true;

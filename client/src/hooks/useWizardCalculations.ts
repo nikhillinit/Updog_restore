@@ -50,12 +50,7 @@ export function useWizardCalculations(
     if (!reserveAllocation || !wizardContext) return null;
 
     return enrichWizardMetrics(reserveAllocation, wizardContext);
-  }, [
-    reserveAllocation,
-    generalInfo,
-    capitalAllocation,
-    wizardContext
-  ]);
+  }, [reserveAllocation, wizardContext]);
 
   // Check if portfolio is ready for calculation
   const isReadyForCalculation = useMemo(() => {

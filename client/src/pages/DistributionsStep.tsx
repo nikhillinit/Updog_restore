@@ -35,7 +35,6 @@ export default function DistributionsStep() {
 
   // State
   const [
-    waterfallType,
     waterfallTiers,
     recyclingEnabled,
     recyclingType,
@@ -45,10 +44,8 @@ export default function DistributionsStep() {
     mgmtFeeRecyclingRate,
     allowFutureRecycling,
     feeProfiles,
-    fundExpenses,
-    isEvergreen
+    fundExpenses
   ] = useFundTuple(s => [
-    s.waterfallType || 'american',
     s.waterfallTiers || [],
     s.recyclingEnabled || false,
     s.recyclingType || 'exits',
@@ -58,8 +55,7 @@ export default function DistributionsStep() {
     s.mgmtFeeRecyclingRate || 0,
     s.allowFutureRecycling || false,
     s.feeProfiles || [],
-    s.fundExpenses || [],
-    s.isEvergreen || false
+    s.fundExpenses || []
   ]);
 
   // Actions
@@ -173,10 +169,6 @@ export default function DistributionsStep() {
     }
   ];
 
-  // Validation
-  const totalRecyclingRate = exitRecyclingRate + mgmtFeeRecyclingRate;
-  const recyclingExceeds100 = totalRecyclingRate > 100;
-
   return (
     <ModernStepContainer
       title="Exit Recycling"
@@ -208,7 +200,7 @@ export default function DistributionsStep() {
               <div className="space-y-4">
                 <h4 className="font-inter font-bold text-[#292929]">Waterfall Tiers</h4>
                 <div className="space-y-4">
-                  {waterfallTiers.map((tier: WaterfallTier, index: number) => (
+                  {waterfallTiers.map((tier: WaterfallTier) => (
                     <div key={tier.id} className="border border-[#E0D8D1] rounded-xl p-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium">{tier.name}</h3>

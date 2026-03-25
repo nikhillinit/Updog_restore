@@ -352,7 +352,7 @@ if (
     if (state.allocations !== prev.allocations) changed.push('allocations');
     if (state.followOnChecks !== prev.followOnChecks) changed.push('followOnChecks');
     if (changed.length) {
-      console.debug('[fund-store publish]', changed.join(','), {
+      console.warn('[fund-store publish]', changed.join(','), {
         changed,
         timestamp: new Date().toISOString(),
         perf: Math.round(performance.now()),

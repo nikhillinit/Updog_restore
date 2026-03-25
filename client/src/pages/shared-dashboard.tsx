@@ -113,7 +113,7 @@ const useSharedDashboard = (shareId: string) => {
             await fetchDashboardData(body.share.fundId);
           }
         }
-      } catch (_err) {
+      } catch {
         setError('Failed to connect to server');
       } finally {
         setIsLoading(false);
@@ -157,7 +157,7 @@ const useSharedDashboard = (shareId: string) => {
         }
 
         return false;
-      } catch (_err) {
+      } catch {
         setError('Failed to verify passkey');
         return false;
       } finally {
@@ -210,7 +210,7 @@ const useSharedDashboard = (shareId: string) => {
           topPerformers: [],
         });
       }
-    } catch (err) {
+    } catch {
       // Use placeholder on error
       setDashboardData({
         fundName: 'Venture Fund',
@@ -251,8 +251,7 @@ const SharedDashboard: React.FC = () => {
         const duration = Math.round((Date.now() - startTime) / 1000);
         // Duration could be sent to analytics endpoint
         if (duration > 5) {
-          // Only log meaningful sessions
-          console.debug('Share view session:', duration, 'seconds');
+          // Duration is intentionally tracked for future analytics integration.
         }
       };
     }
@@ -353,10 +352,6 @@ const SharedDashboard: React.FC = () => {
   if (!shareConfig || !dashboardData) {
     return null;
   }
-
-  const isMetricHidden = (metricKey: string) => {
-    return shareConfig?.hiddenMetrics?.includes(metricKey) ?? false;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 print:bg-white">

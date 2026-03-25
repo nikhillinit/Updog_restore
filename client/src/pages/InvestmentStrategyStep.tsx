@@ -116,7 +116,6 @@ const DEFAULT_SECTOR_PROFILES: SectorProfile[] = [
 export default function InvestmentStrategyStep() {
   const [, navigate] = useLocation();
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
-  const [editingStage, setEditingStage] = useState<string | null>(null);
 
   // Read pipeline profiles from fundStore (persisted via Zustand middleware)
   const storeProfiles = useFundSelector((s) => s.pipelineProfiles);

@@ -17,13 +17,6 @@ import { AllocationSliders } from '@/components/ui/AllocationSliders';
 import { WizardCard } from '@/components/wizard/WizardCard';
 import type { CapitalPlanAllocation } from '@/stores/fundStore';
 
-// Investment Stage interface (simplified for calculations)
-interface InvestmentStage {
-  graduationRate?: number;
-  roundSize?: number;
-  name?: string;
-}
-
 // Helper function to format currency with commas
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -42,9 +35,6 @@ export default function CapitalStructureStep() {
   // NOTE: Investable capital cannot be calculated yet because expenses are captured in step 5
   const fundSizeM = useFundSelector((s) => s.fundSize);
   const fundSize = (fundSizeM ?? 20) * 1_000_000;
-
-  // Get investment strategy stages for graduation rate modeling
-  const stages = useFundSelector((s) => s.stages);
 
   // Stage-level capital allocations (persisted via fundStore)
   const stageAllocations = useFundSelector((s) => s.capitalStageAllocations);
@@ -173,182 +163,6 @@ export default function CapitalStructureStep() {
       stageProgression: [],
       totalCapitalRequired: initialCapital + followOnCapital,
     };
-  };
-
-  // Helper function for simple fallback calculation when stages aren't defined
-  const calculateSimpleAllocation = (
-    allocation: CapitalPlanAllocation,
-    initialAllocatedCapital: number
-  ) => {
-    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
-      const checkAmountInDollars = allocation.initialCheckAmount * 1000000;
-      const estimatedDeals = Math.floor(initialAllocatedCapital / checkAmountInDollars);
-
-      // Simple follow-on calculation without stage progression
-      let followOnCapital = 0;
-      if (allocation.followOnStrategy === 'amount' && allocation.followOnAmount) {
-        const followOnPerDeal = allocation.followOnAmount * 1000000;
-        const participationRate = allocation.followOnParticipationPct / 100;
-        followOnCapital = followOnPerDeal * estimatedDeals * participationRate;
-      }
-
-      return {
-        initialAllocatedCapital,
-        impliedOwnership: calculateImpliedOwnership(allocation),
-        estimatedDeals,
-        initialCapital: initialAllocatedCapital,
-        followOnCapital,
-        totalCapitalRequired: initialAllocatedCapital + followOnCapital,
-      };
-    }
-    return {
-      initialAllocatedCapital,
-      impliedOwnership: calculateImpliedOwnership(allocation),
-      estimatedDeals: 0,
-      initialCapital: initialAllocatedCapital,
-      followOnCapital: 0,
-      totalCapitalRequired: initialAllocatedCapital,
-    };
-  };
-
-  // Calculate target number of deals using total capital per deal approach
-  const calculateTargetDeals = (
-    allocation: CapitalPlanAllocation,
-    allocatedCapital: number,
-    subsequentStages: InvestmentStage[]
-  ): number => {
-    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
-      const initialCheckSize = allocation.initialCheckAmount * 1000000;
-
-      // Calculate total follow-on capital per initial deal
-      const followOnPerDeal = calculateFollowOnPerInitialDeal(allocation, subsequentStages);
-
-      // Total cost per deal = initial check + expected follow-ons
-      const totalCostPerDeal = initialCheckSize + followOnPerDeal;
-
-      if (totalCostPerDeal <= 0) return 1;
-
-      // Number of deals fund can support
-      return Math.floor(allocatedCapital / totalCostPerDeal);
-    }
-    return 10; // Default fallback
-  };
-
-  // Helper to calculate expected follow-on capital for one initial deal
-  const calculateFollowOnPerInitialDeal = (
-    allocation: CapitalPlanAllocation,
-    stages: InvestmentStage[]
-  ): number => {
-    let totalFollowOn = 0;
-    let cumulativeGradRate = 1.0;
-
-    for (let i = 0; i < stages.length - 1; i++) {
-      const currentStage = stages[i];
-      const nextStage = stages[i + 1];
-
-      if (!currentStage || !nextStage) continue;
-
-      // Cumulative probability of reaching this stage
-      cumulativeGradRate *= (currentStage.graduationRate || 0) / 100;
-
-      // Calculate follow-on check size
-      let followOnCheck = 0;
-      if (allocation.followOnStrategy === 'amount' && allocation.followOnAmount) {
-        followOnCheck = allocation.followOnAmount * 1000000;
-      } else if (
-        allocation.followOnStrategy === 'maintain_ownership' &&
-        allocation.initialOwnershipPct
-      ) {
-        // Pro-rata: ownership% × round size
-        followOnCheck =
-          (allocation.initialOwnershipPct / 100) * (nextStage.roundSize || 0) * 1000000;
-      }
-
-      // Expected capital = probability × check size × participation rate
-      const participationRate = (allocation.followOnParticipationPct || 0) / 100;
-      totalFollowOn += cumulativeGradRate * followOnCheck * participationRate;
-    }
-
-    return totalFollowOn;
-  };
-
-  // Model how deals progress through subsequent stages
-  const modelStageProgression = (subsequentStages: InvestmentStage[], initialDeals: number) => {
-    let currentDeals = initialDeals;
-    const progression = [];
-
-    for (const stage of subsequentStages) {
-      const graduationRate = (stage.graduationRate ?? 0) / 100;
-      const exitRate = 0; // Not available in simplified stage interface
-      const remainRate = 1 - graduationRate - exitRate;
-
-      const graduatingDeals = Math.floor(currentDeals * graduationRate);
-      const exitingDeals = Math.floor(currentDeals * exitRate);
-      const remainingDeals = currentDeals - graduatingDeals - exitingDeals;
-
-      progression.push({
-        stageName: stage.name ?? 'Unknown',
-        startingDeals: currentDeals,
-        graduatingDeals,
-        exitingDeals,
-        remainingDeals,
-        months: 0, // Not available in simplified stage interface
-      });
-
-      // Next stage starts with graduating deals from this stage
-      currentDeals = graduatingDeals;
-
-      // Stop if no deals graduate to next stage
-      if (graduatingDeals === 0) break;
-    }
-
-    return progression;
-  };
-
-  // Calculate follow-on capital based on user inputs and stage progression
-  const calculateFollowOnCapital = (
-    allocation: CapitalPlanAllocation,
-    stageProgression: Array<{ startingDeals?: number }>,
-    initialDeals: number
-  ): number => {
-    if (!allocation.followOnAmount && allocation.followOnStrategy === 'amount') {
-      return 0; // No follow-on specified
-    }
-
-    // Calculate how many deals graduate to subsequent stages
-    let totalFollowOnCapital = 0;
-
-    // Skip the first stage (entry stage) and calculate for subsequent stages
-    for (let i = 1; i < stageProgression.length; i++) {
-      const stage = stageProgression[i];
-      if (!stage) continue;
-      const dealsAtThisStage = stage.startingDeals || 0;
-
-      if (dealsAtThisStage === 0) continue;
-
-      // Use user-specified follow-on strategy
-      if (allocation.followOnStrategy === 'amount' && allocation.followOnAmount) {
-        // Fixed amount per follow-on
-        const followOnCheckSize = allocation.followOnAmount * 1000000;
-        const participationRate = allocation.followOnParticipationPct / 100;
-        totalFollowOnCapital += followOnCheckSize * dealsAtThisStage * participationRate;
-      } else if (
-        allocation.followOnStrategy === 'maintain_ownership' &&
-        allocation.initialOwnershipPct
-      ) {
-        // Pro-rata to maintain ownership (requires valuation assumptions)
-        // This is complex and requires valuation step-ups - for now, use a multiplier
-        const initialCheckSize = allocation.initialCheckAmount
-          ? allocation.initialCheckAmount * 1000000
-          : 0;
-        const stageMultiplier = i === 1 ? 2.5 : i === 2 ? 4 : 6; // Typical step-up multipliers
-        const proRataAmount = initialCheckSize * stageMultiplier;
-        const participationRate = allocation.followOnParticipationPct / 100;
-        totalFollowOnCapital += proRataAmount * dealsAtThisStage * participationRate;
-      }
-    }
-
-    return totalFollowOnCapital;
   };
 
   // Calculate implied ownership using valuations from Investment Rounds step

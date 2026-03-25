@@ -191,24 +191,6 @@ export default function ScenarioBuilder() {
     setShowCreateForm(false);
   };
 
-  const handleDuplicateScenario = (scenarioId: string) => {
-    const scenario = scenarios.find(s => s.id === scenarioId);
-    if (scenario) {
-      const duplicated: Scenario = {
-        ...scenario,
-        id: `copy-${Date.now()}`,
-        name: `${scenario.name} Copy`,
-        type: 'custom'
-      };
-      setScenarios([...scenarios, duplicated]);
-    }
-  };
-
-  const handleDeleteScenario = (scenarioId: string) => {
-    if (scenarios.find(s => s.id === scenarioId)?.type !== 'custom') return;
-    setScenarios(scenarios.filter(s => s.id !== scenarioId));
-  };
-
   const formatCurrency = (value: number) => {
     return `$${(value / 1000000).toFixed(0)}M`;
   };
@@ -219,15 +201,6 @@ export default function ScenarioBuilder() {
 
   const formatMultiple = (value: number) => {
     return `${value.toFixed(2)}x`;
-  };
-
-  const getScenarioTypeColor = (type: string) => {
-    switch (type) {
-      case 'construction': return 'bg-blue-100 text-blue-800';
-      case 'current': return 'bg-green-100 text-green-800';
-      case 'custom': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   return (

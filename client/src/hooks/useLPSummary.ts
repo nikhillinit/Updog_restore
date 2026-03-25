@@ -19,6 +19,18 @@ interface UseLPSummaryOptions {
   enabled?: boolean;
 }
 
+function readErrorMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    typeof (payload as { message?: unknown }).message === 'string'
+  ) {
+    return (payload as { message: string }).message;
+  }
+
+  return undefined;
+}
+
 /**
  * Hook for fetching LP dashboard summary data
  *
@@ -52,11 +64,13 @@ export function useLPSummary(options: UseLPSummaryOptions = {}) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch LP summary`);
+        const errorData: unknown = await response.json().catch(() => null);
+        throw new Error(
+          readErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch LP summary`
+        );
       }
 
-      return response.json();
+      return response.json() as Promise<LPSummaryResponse>;
     },
     enabled: enabled && !!lpId,
     staleTime: 300_000, // 5 minutes

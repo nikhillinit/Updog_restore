@@ -150,13 +150,6 @@ export default function FundSetup() {
     current: step.id === key,
   }));
 
-  // Prepare steps for ProgressStepper
-  const progressSteps = WIZARD_STEPS.map((step) => ({
-    id: step.id,
-    label: step.title,
-    href: `/fund-setup?step=${step.number}`,
-  }));
-
   return (
     <ErrorBoundary
       fallback={<StepNotFound />}
