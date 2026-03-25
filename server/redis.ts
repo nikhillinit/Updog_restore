@@ -1,8 +1,3 @@
- 
- 
- 
- 
- 
 import { logger } from './logger';
 
 // Import the Redis factory to ensure consistent mock behavior
@@ -15,12 +10,11 @@ export const redis = createCacheFromEnv();
 const redisUrl = process.env['REDIS_URL'];
 if (redisUrl !== 'mock' && redisUrl !== 'memory://' && process.env['NODE_ENV'] !== 'test') {
   // Handle connection events for real Redis client
-  redis['on']('error', (err: Error) => {
-    logger.error('Redis Client Error', err);
+  redis.on('error', (err: unknown) => {
+    logger.error('Redis Client Error', err instanceof Error ? err : String(err));
   });
 
-  redis['on']('connect', () => {
+  redis.on('connect', () => {
     logger.info('Redis Client Connected');
   });
 }
-
