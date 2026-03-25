@@ -77,7 +77,7 @@ function toEngineStagePolicy(input: ParityStagePolicy): EngineStagePolicy {
   };
 }
 
-function toConstraints(input: ParityConstraints): ReserveConstraints {
+function _toConstraints(input: ParityConstraints): ReserveConstraints {
   return {
     min_reserve_cents:
       input.min_reserve_cents ?? (input.minCheckSize ? input.minCheckSize * 100 : 0),

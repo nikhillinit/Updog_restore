@@ -5,6 +5,7 @@
 
 import type { EngineAllocation } from '@/core/reserves/types';
 import type { ParityDataset, ParityValidationResult } from '@/lib/excel-parity-validator';
+import { logger } from '@/lib/logger';
 
 interface ApiClientConfig {
   baseUrl?: string;
@@ -135,9 +136,12 @@ export class ResilientApiClient {
           this.config.maxDelayMs
         );
 
-        console.debug(
-          `Retrying request (attempt ${attempt + 1}/${this.config.maxRetries}) after ${delay}ms`
-        );
+        logger.debug('resilient api retry scheduled', {
+          attempt: attempt + 1,
+          maxRetries: this.config.maxRetries,
+          delayMs: delay,
+          path,
+        });
         await this.sleep(delay);
       }
     }
@@ -256,7 +260,7 @@ export class ResilientApiClient {
     if (this.circuitBreaker.state === 'OPEN') {
       if (now - this.circuitBreaker.lastFailureTime > this.config.circuitBreakerResetMs) {
         this.circuitBreaker.state = 'HALF_OPEN';
-        console.debug('Circuit breaker transitioned to HALF_OPEN');
+        logger.debug('circuit breaker transitioned to HALF_OPEN');
       }
     }
 
@@ -270,7 +274,7 @@ export class ResilientApiClient {
     if (this.circuitBreaker.state === 'HALF_OPEN') {
       this.circuitBreaker.state = 'CLOSED';
       this.circuitBreaker.failures = 0;
-      console.debug('Circuit breaker transitioned to CLOSED');
+      logger.debug('circuit breaker transitioned to CLOSED');
     }
   }
 
@@ -305,7 +309,7 @@ export class ResilientApiClient {
       lastFailureTime: 0,
       state: 'CLOSED',
     };
-    console.debug('Circuit breaker reset to CLOSED');
+    logger.debug('circuit breaker reset to CLOSED');
   }
 }
 

@@ -22,7 +22,7 @@ The approved execution sequence is:
 2. Wave 0.5: safety harness and third-party interop inventory
 3. Wave 1A: server schema roots, middleware, parsers
 4. Wave 1B: server route rollout
-5. Wave 2: client ingress, cache, stream boundaries
+5. Wave 2: client ingress, validation, and transport
 6. Wave 3: chart, wizard, and forecasting consumers
 7. Wave 4: reserve math and shared modeling helpers
 8. Wave 5: policy-sensitive, dev-runtime, and mechanical long tail
@@ -568,43 +568,166 @@ validation status instead of the stale 2026-03-18 hotspot snapshot.
 - harness-first files gain direct tests before deeper refactors begin
 - no Wave 5 dev-runtime file enters Wave 1B without a recorded owner transfer
 
-## Wave 2: Client Ingress, Cache, and Stream Boundaries
+## Wave 2: Client Ingress, Validation, and Transport
 
 ### Goal
 
-Stop raw transport data before it reaches client hooks, state, or page logic.
+Stop raw transport data before it reaches client hooks, stores, or app
+bootstrap logic.
+
+### Live scope rebase
+
+As of 2026-03-25, the live `.artifacts/eslint-owner-map.md` is the
+authoritative Wave 2 scope until the next baseline refresh.
+
+- targeted `eslint` on 2026-03-25 returned `0` warnings for
+  `client/src/lib/predictive-cache.ts`, `client/src/hooks/useAgentStream.ts`,
+  `client/src/utils/async-iteration.ts`, and
+  `client/src/lib/validation-helpers.ts`
+- treat those files as validated harness assets, not primary remediation scope
+- keep `client/src/main.tsx` in Wave 2 because URL, localStorage, and app
+  bootstrap normalization is real ingress work
+- transfer `client/src/debug/wizard-trace.ts`,
+  `client/src/lib/error-boundary.ts`, and `client/src/lib/logger.ts` to Wave 5
+  because their remaining work is dev-runtime or console-policy cleanup, not
+  transport or contract ingress work
 
 ### Primary targets
 
-- `client/src/lib/predictive-cache.ts`
-- `client/src/hooks/useAgentStream.ts`
-- `client/src/utils/async-iteration.ts`
-- shared API helpers used by these paths
-- any contract-producing reserve or shared adapters that define forecasting or
-  wizard-facing shapes
+- `client/src/lib/path-utils.ts`
+- `client/src/lib/cache-strategy.ts`
+- `client/src/lib/resilient-api-client.ts`
+- `client/src/api/reserve-engine-client.ts`
+- `client/src/core/flags/featureFlags.ts`
+- `client/src/lib/env-detection.ts`
+- `client/src/lib/hash.ts`
+- `client/src/lib/telemetry.ts`
+- `client/src/services/funds.ts`
+- `client/src/config/navigation.ts`
+- `client/src/config/rollout-runtime.ts`
+- `client/src/lib/excel-parity-validator.ts`
+- `client/src/main.tsx`
+- shared boundary helpers explicitly assigned to Wave 2 in the live owner map
 
 ### Ownership rule
 
-If a page or hook is the actual ingress boundary, it may be owned here. If it is
-only a consumer of already-parsed data, leave it to Wave 3. Do not split a file
+If a file parses or normalizes network, URL, env, localStorage, hash, or app
+bootstrap data before it enters client state, it belongs here. If it is only a
+consumer of already-parsed data, leave it to Wave 3. Do not split a file
 across Wave 2 and Wave 3 without a recorded owner transfer.
+
+Reserve math and shared modeling helpers do not move into Wave 2 unless the
+owner map records an explicit transfer. `client/src/lib/reserves-v11.ts` and
+`client/src/core/reserves/*` remain Wave 4.
+
+### Runnable harness
+
+- `npm run test:wave2` is the current Wave 2 boundary harness:
+  - `tests/unit/cache/predictive-cache-characterization.test.tsx`
+  - `tests/unit/cache/cache-strategy.test.tsx`
+  - `tests/unit/hooks/useAgentStream.test.tsx`
+  - `tests/unit/validation/validation-helpers.test.ts`
+  - `tests/unit/lib/path-utils.test.tsx`
+  - `tests/unit/services/funds.idempotency.test.tsx`
+  - `tests/unit/normalize-create-fund-response.test.tsx`
+- `tests/unit/utils/wave2-utility-boundaries.test.ts` is not a Wave 2 exit gate;
+  it covers generic utilities and does not prove ingress readiness
+
+### Execution batches
+
+#### Batch K: Transport and bootstrap primitives
+
+- `client/src/lib/path-utils.ts`
+- `client/src/lib/hash.ts`
+- `client/src/lib/env-detection.ts`
+- `client/src/lib/validation-helpers.ts`
+- `client/src/main.tsx`
+
+#### Batch L: API and cache ingress
+
+- `client/src/lib/cache-strategy.ts`
+- `client/src/api/reserve-engine-client.ts`
+- `client/src/lib/resilient-api-client.ts`
+- `client/src/services/funds.ts`
+
+#### Batch M: Flag, config, and telemetry ingress
+
+- `client/src/core/flags/featureFlags.ts`
+- `client/src/config/navigation.ts`
+- `client/src/config/rollout-runtime.ts`
+- `client/src/lib/telemetry.ts`
+
+#### Batch N: Low-risk tail and harness-first gaps
+
+- `client/src/lib/excel-parity-validator.ts`
+- direct tests now exist for `client/src/api/reserve-engine-client.ts`,
+  `client/src/lib/cache-strategy.ts`,
+  `client/src/lib/resilient-api-client.ts`,
+  `client/src/lib/telemetry.ts`,
+  `client/src/lib/env-detection.ts`, and
+  `client/src/core/flags/featureFlags.ts`
+
+### Sandbox validation
+
+The plan is now validated by a real Wave 2 sandbox slice, not only by owner-map
+inspection.
+
+- on 2026-03-25, the full live Wave 2 source list was remediated inside the
+  sandbox, including `path-utils.ts`, `cache-strategy.ts`,
+  `resilient-api-client.ts`, `telemetry.ts`, `reserve-engine-client.ts`,
+  `featureFlags.ts`, `env-detection.ts`, `hash.ts`, `funds.ts`,
+  `navigation.ts`, `rollout-runtime.ts`, `excel-parity-validator.ts`,
+  `validation-helpers.ts`, and `main.tsx`
+- focused validation:
+  - `npx vitest run tests/unit/cache/cache-strategy.test.tsx tests/unit/lib/path-utils.test.tsx --reporter=dot`
+    passed `2` files and `8` tests
+  - targeted `npx eslint client/src/lib/path-utils.ts client/src/lib/cache-strategy.ts tests/unit/cache/cache-strategy.test.tsx tests/unit/lib/path-utils.test.tsx`
+    returned `0` warnings and `0` errors
+- final validation on 2026-03-25:
+  - `npm run test:wave2` passed `12` files and `38` tests after the new
+    client-boundary tests entered the harness
+  - targeted `npx eslint ...` across the live Wave 2 source list returned `0`
+    warnings and `0` errors
+  - the funds-to-telemetry contract is aligned, so the Wave 2 harness no
+    longer emits telemetry rejection stderr
 
 ### Procedure
 
-1. Wrap `response.json()` and stream payload handling in explicit parsers.
-2. Keep raw transport data confined to boundary helpers.
-3. Ensure cache hydration validates before values enter client state.
-4. Stabilize any reserve or shared adapter that produces a consumer-facing shape
-   needed by forecasting or wizard code.
-5. Reuse shared contracts from Wave 1 where applicable.
-6. Add targeted tests for cache, stream, and ingress parsing paths.
-7. Apply standing targeted cleanup on touched files only after the architectural
-   edits.
+1. Start each batch with `npm run test:wave2` green.
+2. Wrap `response.json()`, URL parameters, localStorage reads, env lookups, and
+   bootstrap payload handling in explicit parsers or typed normalizers.
+3. Keep raw transport data confined to boundary helpers.
+4. Ensure cache hydration validates before values enter client state.
+5. Keep app-entry and feature-flag normalization in Wave 2; do not move
+   consumer pages or hooks into this wave without a recorded owner transfer.
+6. Do not pull `client/src/lib/reserves-v11.ts` or `client/src/core/reserves/*`
+   into Wave 2. If a boundary helper exposes a wrong contract shape, fix or
+   wrap the boundary file here and send downstream re-verification back to the
+   owning Wave 3 or Wave 4 file.
+7. Add direct tests for `client/src/api/reserve-engine-client.ts`,
+   `client/src/lib/cache-strategy.ts`, and
+   `client/src/lib/resilient-api-client.ts` before deeper refactors in those
+   files.
+8. Run targeted `npx eslint --no-warn-ignored ...` on the current batch after
+   the architectural edits.
+9. Once a batch stabilizes, run `npm run lint:eslint`,
+   `npm run guardrails:check`, and `npm run check:client`.
 
 ### Exit criteria
 
+- live Wave 2 scope matches the owner map
 - raw transport data is blocked at the client boundary
-- any consumer-facing reserve or shared contract needed downstream is stable
+- `npm run test:wave2` remains green during the wave
+- `client/src/main.tsx` remains Wave 2-owned as app bootstrap ingress work
+- `client/src/debug/wizard-trace.ts`, `client/src/lib/error-boundary.ts`, and
+  `client/src/lib/logger.ts` are recorded in Wave 5
+- the full live Wave 2 source list is clean under targeted lint
+- the transport-helper slice (`path-utils.ts`, `cache-strategy.ts`) and the
+  client-boundary API slice (`reserve-engine-client.ts`,
+  `resilient-api-client.ts`) prove the wave can land cleanly through targeted
+  tests and targeted lint
+- harness-first files gain direct tests before deep refactors begin, then stay
+  in the Wave 2 harness
 - overlapping ownership between ingress files and consumer files is explicit
 
 ## Wave 3: Chart, Wizard, and Forecasting Consumers
@@ -671,7 +794,6 @@ re-verification rather than silently patching the contract here.
 - `shared/lib/reserves-v11.ts`
 - `client/src/core/reserves/adapter/toEngineGraduationRates.ts`
 - `client/src/core/reserves/computeReservesFromGraduation.ts`
-- `client/src/lib/path-utils.ts`
 
 ### Procedure
 
@@ -710,6 +832,9 @@ under control.
 - `server/queues/simulation-queue.ts`
 - `server/queues/backtesting-queue.ts`
 - `server/queues/report-generation-queue.ts`
+- `client/src/debug/wizard-trace.ts`
+- `client/src/lib/error-boundary.ts`
+- `client/src/lib/logger.ts`
 - `client/src/lib/rollout-orchestrator.ts` if still in runtime scope after Wave
   0
 
@@ -720,12 +845,14 @@ under control.
    migration unless there is a strong reason to unify them.
 3. For reference or example files, narrow scope or move them rather than
    spending production-runtime cleanup effort first.
-4. For dev-runtime websocket or dashboard code, type event envelopes and
+4. For client policy or debug-runtime helpers, keep console policy explicit and
+   prefer logger or policy cleanup over ad hoc transport refactors.
+5. For dev-runtime websocket or dashboard code, type event envelopes and
    command-output parsing before chasing local console warnings.
-5. Apply standing targeted cleanup on touched files only after the architectural
+6. Apply standing targeted cleanup on touched files only after the architectural
    edits.
-6. Fix remaining unused locals manually or by deliberate rename.
-7. Resolve remaining `require-atomic-updates`, singleton, and narrow console
+7. Fix remaining unused locals manually or by deliberate rename.
+8. Resolve remaining `require-atomic-updates`, singleton, and narrow console
    issues only in the currently owned operational paths.
 
 ### Exit criteria

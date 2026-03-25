@@ -1,4 +1,9 @@
 // Feature flags with environment + localStorage override support
+function readEnvValue(envKey: string): unknown {
+  const envRecord = import.meta.env as Record<string, unknown>;
+  return envRecord[envKey];
+}
+
 function getFlag(envKey: string, localStorageKey: string): boolean {
   // 1. Check localStorage first (for local demo overrides)
   if (typeof window !== 'undefined') {
@@ -9,14 +14,14 @@ function getFlag(envKey: string, localStorageKey: string): boolean {
   }
 
   // 2. Fall back to environment variable
-  const envValue = import.meta.env[envKey];
+  const envValue = readEnvValue(envKey);
   return String(envValue).toLowerCase() === 'true';
 }
 
 // Admin flags - NO localStorage override (security: prevents client-side bypass)
 // These can only be enabled via environment variables set at build time
 function getAdminFlag(envKey: string): boolean {
-  const envValue = import.meta.env[envKey];
+  const envValue = readEnvValue(envKey);
   return String(envValue).toLowerCase() === 'true';
 }
 

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -7,6 +5,12 @@ import './index.css';
 import './styles/brand-tokens.css'; // Phase 1: Brand consistency (Inter/Poppins, neutral palette)
 import { installFetchTap } from './debug/fetch-tap';
 // Vitals loaded dynamically in production
+
+declare global {
+  interface Window {
+    __FORCE_LEGACY_STATE?: boolean;
+  }
+}
 
 // Install fetch interceptor for debugging
 installFetchTap();
@@ -17,14 +21,14 @@ function checkEmergencyRollback() {
     // Check URL parameter first (highest priority)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams['get']('emergency_rollback') === 'true') {
-      (window as any).__FORCE_LEGACY_STATE = true;
+      window.__FORCE_LEGACY_STATE = true;
       console.warn('[CRITICAL] Emergency rollback activated via URL parameter');
       return;
     }
 
     // Check localStorage (persistent emergency rollback)
     if (localStorage.getItem('emergency_rollback') === 'true') {
-      (window as any).__FORCE_LEGACY_STATE = true;
+      window.__FORCE_LEGACY_STATE = true;
       console.warn('[CRITICAL] Emergency rollback activated via localStorage');
 
       // Show user-friendly notification
@@ -53,9 +57,7 @@ if (import.meta.env.PROD) {
   // Code-split Sentry - only load when DSN is configured
   if (import.meta.env.VITE_SENTRY_DSN) {
     import('@/monitoring')
-      .then(() => {
-        console.debug('Sentry monitoring initialized');
-      })
+      .then(() => undefined)
       .catch((err) => {
         console.warn('Failed to load Sentry:', err);
       });

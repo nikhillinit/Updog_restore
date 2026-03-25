@@ -87,6 +87,14 @@ const ALLOWED_EVENTS = {
   fund_create_success: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
   fund_create_failure: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
   fund_create_conflict: { allowedFields: ['idempotency_status', 'request_id'], validators: {} },
+  client_capacity_hit: {
+    allowedFields: ['route', 'concurrent', 'throttled'],
+    validators: {
+      route: (v: unknown) => typeof v === 'string' && v.length > 0,
+      concurrent: (v: unknown) => typeof v === 'number' && v >= 0,
+      throttled: (v: unknown) => typeof v === 'boolean',
+    },
+  },
   api_error: {
     allowedFields: ['endpoint', 'error_message', 'error_code', 'request_id', 'status_code'],
     validators: {},
@@ -113,6 +121,26 @@ interface ValidationResult {
   reason?: string;
 }
 
+function isTelemetryEvent(value: unknown): value is TelemetryEvent {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate['event'] === 'string' &&
+    typeof candidate['timestamp'] === 'string' &&
+    typeof candidate['session_id'] === 'string' &&
+    typeof candidate['properties'] === 'object' &&
+    candidate['properties'] !== null
+  );
+}
+
+function parseTelemetryBuffer(raw: string): TelemetryEvent[] {
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.filter(isTelemetryEvent);
+}
+
 // ============================================================================
 // RING BUFFER OPERATIONS
 // ============================================================================
@@ -124,13 +152,13 @@ export function readTelemetry(): TelemetryEvent[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      return parseTelemetryBuffer(stored);
     }
 
     // Try legacy storage for migration
     const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (legacy) {
-      return JSON.parse(legacy);
+      return parseTelemetryBuffer(legacy);
     }
 
     return [];
@@ -307,11 +335,6 @@ export function track(
       console.warn(`[Telemetry] REJECTED: ${sizeValidation.reason}`);
     }
     return null;
-  }
-
-  // Log in development
-  if (import.meta.env.DEV) {
-    console.log('[Telemetry]', event);
   }
 
   // Write to ring buffer

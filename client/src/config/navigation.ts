@@ -23,11 +23,12 @@ import {
   LayoutDashboard,
   LineChart,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   id: string;
   label: string;
-  icon: any; // lucide-react icon component
+  icon: LucideIcon;
   path?: string; // Optional for items that are just categories
 }
 
