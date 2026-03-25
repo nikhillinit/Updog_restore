@@ -45,6 +45,29 @@ describe('AI routes', () => {
     expect(askAllAIsMock).not.toHaveBeenCalled();
   });
 
+  it('forwards ask requests and preserves the success envelope', async () => {
+    askAllAIsMock.mockResolvedValue([{ model: 'gpt', text: 'answer' }]);
+
+    const response = await request(app)
+      .post('/ask')
+      .send({
+        prompt: 'Summarize the portfolio',
+        models: ['gpt'],
+        tags: ['wave1b'],
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      results: [{ model: 'gpt', text: 'answer' }],
+    });
+    expect(askAllAIsMock).toHaveBeenCalledWith({
+      prompt: 'Summarize the portfolio',
+      models: ['gpt'],
+      tags: ['wave1b'],
+    });
+  });
+
   it('returns a typed server error for ask failures', async () => {
     askAllAIsMock.mockRejectedValue(new Error('provider offline'));
 
@@ -56,6 +79,20 @@ describe('AI routes', () => {
     });
   });
 
+  it('returns usage stats on success', async () => {
+    getUsageStatsMock.mockResolvedValue({
+      totalCalls: 7,
+      dailyBudgetRemaining: 193,
+    });
+
+    const response = await request(app).get('/usage').expect(200);
+
+    expect(response.body).toEqual({
+      totalCalls: 7,
+      dailyBudgetRemaining: 193,
+    });
+  });
+
   it('keeps usage failures on the existing response shape', async () => {
     getUsageStatsMock.mockRejectedValue(new Error('stats unavailable'));
 
@@ -63,6 +100,91 @@ describe('AI routes', () => {
 
     expect(response.body).toEqual({
       error: 'stats unavailable',
+    });
+  });
+
+  it('returns debate results on success', async () => {
+    aiDebateMock.mockResolvedValue({
+      transcript: ['claude: pro', 'gpt: con'],
+      winner: 'claude',
+    });
+
+    const response = await request(app)
+      .post('/debate')
+      .send({
+        topic: 'Should reserve pacing be front-loaded?',
+        ai1: 'claude',
+        ai2: 'gpt',
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      result: {
+        transcript: ['claude: pro', 'gpt: con'],
+        winner: 'claude',
+      },
+    });
+    expect(aiDebateMock).toHaveBeenCalledWith({
+      topic: 'Should reserve pacing be front-loaded?',
+      ai1: 'claude',
+      ai2: 'gpt',
+    });
+  });
+
+  it('returns consensus results on success', async () => {
+    aiConsensusMock.mockResolvedValue({
+      recommendation: 'prefer typed adapters',
+      confidence: 0.91,
+    });
+
+    const response = await request(app)
+      .post('/consensus')
+      .send({
+        question: 'What is the safest route boundary strategy?',
+        models: ['claude', 'gpt'],
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      result: {
+        recommendation: 'prefer typed adapters',
+        confidence: 0.91,
+      },
+    });
+    expect(aiConsensusMock).toHaveBeenCalledWith({
+      question: 'What is the safest route boundary strategy?',
+      models: ['claude', 'gpt'],
+    });
+  });
+
+  it('returns collaboration results on success', async () => {
+    collaborativeSolveMock.mockResolvedValue({
+      solution: 'Introduce shared route parsers first',
+      participants: ['claude', 'gpt'],
+    });
+
+    const response = await request(app)
+      .post('/collaborate')
+      .send({
+        problem: 'Design the next Wave 1B route refactor step',
+        approach: 'parallel',
+        models: ['claude', 'gpt'],
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      success: true,
+      result: {
+        solution: 'Introduce shared route parsers first',
+        participants: ['claude', 'gpt'],
+      },
+    });
+    expect(collaborativeSolveMock).toHaveBeenCalledWith({
+      problem: 'Design the next Wave 1B route refactor step',
+      approach: 'parallel',
+      models: ['claude', 'gpt'],
     });
   });
 });
