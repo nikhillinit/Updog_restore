@@ -8,40 +8,50 @@
  */
 
 import type {
+  AllocationDecision,
   Company,
   ReservesConfig,
   ReservesInput,
   ReservesOutput,
   ReservesResult,
-  AllocationDecision,
 } from '@shared/types/reserves-v11';
 
-// Helper function to calculate cap for a company
-function calculateCap(company: Company, config: ReservesConfig): number {
-  const { cap_policy } = config;
+const DEFAULT_CAP_PERCENT = 0.5;
 
-  switch (cap_policy.kind) {
+function getDefaultCapPercent(config: ReservesConfig): number {
+  return config.cap_policy.default_percent ?? DEFAULT_CAP_PERCENT;
+}
+
+function getCapPercent(company: Company, config: ReservesConfig): number {
+  const defaultPercent = getDefaultCapPercent(config);
+
+  if (config.cap_policy.kind !== 'stage_based') {
+    return defaultPercent;
+  }
+
+  const stage = company.stage ?? 'unknown';
+  return config.cap_policy.stage_caps?.[stage] ?? defaultPercent;
+}
+
+function calculateCap(company: Company, config: ReservesConfig): number {
+  switch (config.cap_policy.kind) {
     case 'fixed_percent': {
-      const percent = cap_policy.default_percent || 0.5; // Default 50%
-      return Math.floor((company.invested_cents || 0) * percent);
+      return Math.floor(company.invested_cents * getDefaultCapPercent(config));
     }
 
     case 'stage_based': {
-      const stage = company.stage || 'unknown';
-      const caps = cap_policy.stage_caps || {};
-      const percent = caps[stage] || cap_policy.default_percent || 0.5;
-      return Math.floor((company.invested_cents || 0) * percent);
+      return Math.floor(company.invested_cents * getCapPercent(company, config));
     }
 
     case 'custom': {
-      if (cap_policy.custom_fn) {
-        return cap_policy.custom_fn(company);
+      if (config.cap_policy.custom_fn) {
+        return config.cap_policy.custom_fn(company);
       }
-      return Math.floor((company.invested_cents || 0) * 0.5);
+      return Math.floor(company.invested_cents * DEFAULT_CAP_PERCENT);
     }
 
     default:
-      return Math.floor((company.invested_cents || 0) * 0.5);
+      return Math.floor(company.invested_cents * DEFAULT_CAP_PERCENT);
   }
 }
 
@@ -54,8 +64,7 @@ export function calculateReservesSafe(
   const warnings: string[] = [];
 
   try {
-    // Input validation
-    if (!input.companies || input.companies.length === 0) {
+    if (input.companies.length === 0) {
       return {
         ok: true,
         data: {
@@ -79,49 +88,56 @@ export function calculateReservesSafe(
       };
     }
 
-    // Calculate total available reserves
-    const totalInitial = input.companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0);
+    const totalInitial = input.companies.reduce((sum, company) => sum + company.invested_cents, 0);
     const available = Math.floor((totalInitial * config.reserve_bps) / 10_000);
     let remaining = available;
 
-    // Rank companies by Exit MOIC (descending)
     const ranked = [...input.companies].sort((a, b) => {
-      const moicA = a.exit_moic_bps || 0;
-      const moicB = b.exit_moic_bps || 0;
-      if (moicB !== moicA) return moicB - moicA;
-      // Secondary sort by invested amount for stability
-      return (b.invested_cents || 0) - (a.invested_cents || 0);
+      if (b.exit_moic_bps !== a.exit_moic_bps) {
+        return b.exit_moic_bps - a.exit_moic_bps;
+      }
+
+      return b.invested_cents - a.invested_cents;
     });
 
-    const exitMoicRanking = ranked.map((c) => c.id);
+    const exitMoicRanking = ranked.map((company) => company.id);
+    const exitMoicRankingIndex = new Map(
+      exitMoicRanking.map((companyId, index) => [companyId, index + 1] as const)
+    );
     const allocations: AllocationDecision[] = [];
     const companyAllocations = new Map<string, number>();
 
-    // Single allocation pass
     const performAllocationPass = (iteration: number) => {
       for (const company of ranked) {
-        if (remaining <= 0) break;
+        if (remaining <= 0) {
+          break;
+        }
 
         const cap = calculateCap(company, config);
-        const already = companyAllocations['get'](company.id) || 0;
+        const already = companyAllocations.get(company.id) ?? 0;
         const room = Math.max(0, cap - already);
 
-        if (room <= 0) continue;
+        if (room <= 0) {
+          continue;
+        }
 
         const allot = Math.min(remaining, room);
 
         if (allot > 0) {
           const newTotal = already + allot;
-          companyAllocations['set'](company.id, newTotal);
+          companyAllocations.set(company.id, newTotal);
 
-          // Find and update existing allocation or create new
-          const existingIndex = allocations.findIndex((a) => a.company_id === company.id);
+          const rankingPosition = exitMoicRankingIndex.get(company.id) ?? 0;
+          const reason = `Ranked #${rankingPosition} by Exit MOIC (${company.exit_moic_bps / 100}%), iteration ${iteration}`;
+          const existingIndex = allocations.findIndex(
+            (allocation) => allocation.company_id === company.id
+          );
 
           if (existingIndex >= 0) {
             allocations[existingIndex] = {
               company_id: company.id,
               planned_cents: newTotal,
-              reason: `Ranked #${exitMoicRanking.indexOf(company.id) + 1} by Exit MOIC (${(company.exit_moic_bps || 0) / 100}%), iteration ${iteration}`,
+              reason,
               cap_cents: cap,
               iteration,
             };
@@ -129,7 +145,7 @@ export function calculateReservesSafe(
             allocations.push({
               company_id: company.id,
               planned_cents: allot,
-              reason: `Ranked #${exitMoicRanking.indexOf(company.id) + 1} by Exit MOIC (${(company.exit_moic_bps || 0) / 100}%), iteration ${iteration}`,
+              reason,
               cap_cents: cap,
               iteration,
             });
@@ -140,25 +156,23 @@ export function calculateReservesSafe(
       }
     };
 
-    // First pass
     performAllocationPass(1);
 
-    // Optional "remain" pass
     if (config.remain_passes === 1 && remaining > 0) {
       performAllocationPass(2);
     }
 
-    // Calculate totals for invariant checking
-    const totalAllocated = allocations.reduce((sum, a) => sum + a.planned_cents, 0);
+    const totalAllocated = allocations.reduce(
+      (sum, allocation) => sum + allocation.planned_cents,
+      0
+    );
 
-    // Conservation invariant check
-    const conservationCheck = Math.abs(totalAllocated + remaining - available) <= 1; // Allow 1 cent rounding
+    const conservationCheck = Math.abs(totalAllocated + remaining - available) <= 1;
 
     if (!conservationCheck) {
       warnings.push(
         `Conservation check failed: allocated=${totalAllocated}, remaining=${remaining}, available=${available}`
       );
-      // Normalize to maintain invariant
       remaining = Math.max(0, available - totalAllocated);
     }
 
@@ -216,7 +230,7 @@ export function calculateReserves(
 
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: companies.reduce((sum, company) => sum + company.invested_cents, 0),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3),
   };
 

@@ -1011,40 +1011,142 @@ console-policy work, move it to Wave 5.
 Clean calculation-path typing, precision handling, and shared helper
 normalization after the consumer-facing contracts are already stable.
 
-### Clarifying rule
+### Live scope rebase
 
-This wave is for algorithmic and precision cleanup. Any reserve or shared helper
-that defines a downstream consumer-facing contract should already have been
-stabilized in Wave 2 or Wave 3. If a Wave 4 fix reveals that a contract shape
-was wrong or incomplete, escalate back to the consumer wave owner for
-re-verification rather than silently patching the contract here.
+As of 2026-03-25, the live `.artifacts/eslint-owner-map.md` is the
+authoritative Wave 4 scope.
 
-### Primary targets
+- the current live hotspots are:
+  - `client/src/lib/reserves-v11.ts`
+  - `client/src/core/reserves/adapter/toEngineGraduationRates.ts`
+  - `client/src/core/reserves/ConstrainedReserveEngine.ts`
+  - `client/src/core/reserves/computeReservesFromGraduation.ts`
+  - `client/src/lib/cashflow/generate.ts`
+  - `schema/src/index.ts`
+  - `client/src/core/capitalAllocation/periodLoopEngine.ts`
+  - `client/src/lib/fund-calc-v2.ts`
+  - `client/src/core/graduation/GraduationRateEngine.ts`
+  - `client/src/core/cohorts/resolvers.ts`
+  - `client/src/core/types/fund-domain.ts`
+  - `client/src/lib/fee-calculations.ts`
+- treat `client/src/lib/cashflow/generate.ts` and
+  `client/src/core/cohorts/resolvers.ts` as security-sensitive Wave 4 work
+  because their remaining warnings are calculation-path parsing rules
+- keep this wave focused on modeling and reserve math; do not reopen transport,
+  UI, or runtime-policy cleanup already assigned to Waves 2, 3, or 5
 
-- `client/src/lib/reserves-v11.ts`
+### Ownership rule
+
+If a file defines reserve math, cashflow math, graduation logic, shared
+modeling helpers, or typed adapters feeding those engines, it belongs here. If
+the fix changes a consumer-facing contract shape already normalized by Wave 2
+or Wave 3, escalate back to that consumer wave for re-verification instead of
+silently burying contract changes in Wave 4.
+
+### Runnable harness
+
+- `npm run test:wave4` is the Wave 4 execution harness:
+  - `tests/unit/reserves-v11.test.ts`
+  - `tests/unit/reserves/ConstrainedReserveEngine.test.ts`
+  - `tests/unit/reserves/adapter-toEngineGraduationRates.test.ts`
+  - `tests/unit/reserves/computeReservesFromGraduation.test.ts`
+  - `tests/unit/lib/cashflow-generate.test.ts`
+  - `tests/unit/engines/graduation-rate-engine.test.ts`
+  - `tests/unit/cohorts/resolvers.test.ts`
+  - `tests/unit/fee-calculations.test.ts`
+  - `tests/unit/fund-calc-fee-horizon.test.ts`
+  - `tests/unit/truth-cases/capital-allocation.test.ts`
+  - `tests/unit/wizard-reserve-bridge.test.ts`
+- `npm run lint:wave4` is the targeted non-regression gate for the current
+  live Wave 4 source list plus the Wave 4 characterization tests
+
+### Sandbox validation
+
+- on 2026-03-25, the reserve and shared-modeling rollout landed in sandbox:
+  - client compatibility shims now re-export the authoritative shared
+    implementations for `reserves-v11` and `ConstrainedReserveEngine`
+  - `toEngineGraduationRates.ts` now accepts `unknown`, normalizes stage input
+    through typed helpers, and uses deterministic fallback stage identifiers
+  - `cashflow/generate.ts` no longer relies on `parseFloat` or `parseInt` in
+    calculation paths
+  - `schema/src/index.ts`, `periodLoopEngine.ts`, `fund-calc-v2.ts`,
+    `GraduationRateEngine.ts`, `fund-domain.ts`, and `fee-calculations.ts`
+    received the low-warning Wave 4 tail cleanup
+- direct Wave 4 characterization coverage added during the rollout:
+  - `tests/unit/lib/cashflow-generate.test.ts`
+  - explicit zero-cap coverage in `tests/unit/reserves-v11.test.ts`
+  - deterministic fallback-stage coverage in
+    `tests/unit/reserves/adapter-toEngineGraduationRates.test.ts`
+  - direct runner coverage in
+    `tests/unit/reserves/computeReservesFromGraduation.test.ts` so the harness
+    no longer relies on `client/src/**/__tests__` include behavior
+
+### Execution batches
+
+#### Batch S: Reserve engines and authoritative shared implementations
+
 - `shared/lib/reserves-v11.ts`
+- `client/src/lib/reserves-v11.ts`
+- `shared/core/reserves/ConstrainedReserveEngine.ts`
+- `client/src/core/reserves/ConstrainedReserveEngine.ts`
+- `tests/unit/reserves-v11.test.ts`
+- `tests/unit/reserves/ConstrainedReserveEngine.test.ts`
+
+#### Batch T: Contract-producing reserve adapters and graduation projections
+
 - `client/src/core/reserves/adapter/toEngineGraduationRates.ts`
 - `client/src/core/reserves/computeReservesFromGraduation.ts`
+- `client/src/core/graduation/GraduationRateEngine.ts`
+- `client/src/core/cohorts/resolvers.ts`
+- `tests/unit/reserves/adapter-toEngineGraduationRates.test.ts`
+- `tests/unit/reserves/computeReservesFromGraduation.test.ts`
+- `tests/unit/engines/graduation-rate-engine.test.ts`
+- `tests/unit/cohorts/resolvers.test.ts`
+
+#### Batch U: Cashflow and modeling helper tail
+
+- `client/src/lib/cashflow/generate.ts`
+- `client/src/core/capitalAllocation/periodLoopEngine.ts`
+- `client/src/lib/fund-calc-v2.ts`
+- `client/src/lib/fee-calculations.ts`
+- `tests/unit/lib/cashflow-generate.test.ts`
+- `tests/unit/fee-calculations.test.ts`
+- `tests/unit/fund-calc-fee-horizon.test.ts`
+- `tests/unit/truth-cases/capital-allocation.test.ts`
+- `tests/unit/wizard-reserve-bridge.test.ts`
+
+#### Batch V: Shared schema and low-warning modeling types
+
+- `schema/src/index.ts`
+- `client/src/core/types/fund-domain.ts`
 
 ### Procedure
 
-1. Replace repeated index access and deep optional chaining with typed helper
-   functions.
-2. Standardize typed inputs and outputs across client and shared reserve
-   helpers.
-3. Remove calculation-path `parseFloat` usage during this wave.
-4. Do not apply defaulting strategies to reserve, forecasting, money-like, or
-   model-driving values.
-5. Run reserve characterization tests after each meaningful sub-batch.
-6. Apply standing targeted cleanup on touched files only after the architectural
-   edits.
+1. Start each batch with `npm run test:wave4` green.
+2. Prefer one authoritative implementation for reserve engines and keep
+   client-path compatibility via thin re-export shims where the app already
+   imports the client path.
+3. Replace unchecked `any` and unsafe property access with `unknown` plus typed
+   helper normalizers.
+4. Remove calculation-path `parseFloat` and `parseInt` usage during this wave.
+5. Do not apply fallback defaults to reserve, forecasting, or money-driving
+   values unless the fallback is already part of the modeled contract.
+6. Add direct tests before changing behavior that affects ranking, capping,
+   graduation, or generated cashflow schedules.
+7. Run `npm run lint:wave4` after the architectural edits for the current
+   batch.
+8. Once the wave is stable, run `npm run lint:eslint`,
+   `npm run guardrails:check`, and the smallest relevant typecheck.
 
 ### Exit criteria
 
-- calculation-path reserve helpers consume typed inputs and produce typed
-  outputs
+- live Wave 4 scope matches the owner map
+- authoritative reserve helpers consume typed inputs and produce typed outputs
+- client compatibility shims stay thin and stop duplicating shared engine logic
+- `npm run test:wave4` remains green during the wave
+- `npm run lint:wave4` passes on the full live Wave 4 source list
 - precision-sensitive paths are covered by characterization tests
-- contract-producing adapter work is not being deferred into this wave
+- contract-producing adapter work is not silently deferred into other waves
 
 ## Wave 5: Policy-Sensitive, Dev-Runtime, and Mechanical Long Tail
 

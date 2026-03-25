@@ -202,9 +202,7 @@ export function isFundData(obj: unknown): obj is FundData {
 /**
  * Helper type for filtering by date
  */
-export type DateFilterable = {
-  [K in keyof any]: string;
-} & Record<string, unknown>;
+export type DateFilterable = Record<string, unknown>;
 
 /**
  * Utility type for making all properties optional except specified keys

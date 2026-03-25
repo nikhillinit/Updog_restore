@@ -24,6 +24,47 @@ interface FundDataInput {
   };
 }
 
+type NumericLike = string | number | null | undefined;
+
+function firstPresent(...values: NumericLike[]): NumericLike {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      if (value.trim() !== '') {
+        return value;
+      }
+      continue;
+    }
+
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function parseNumericInput(value: NumericLike, fallback: number): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/,/g, '').trim();
+    if (normalized === '') {
+      return fallback;
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
+}
+
+function parseIntegerInput(value: NumericLike, fallback: number): number {
+  return Math.trunc(parseNumericInput(value, fallback));
+}
+
 /** Deterministic CFs: one initial contribution + scheduled distributions */
 export function generateCashFlowsFromFundLite(d: FundDataLite): CashFlow[] {
   const flows: CashFlow[] = [];
@@ -80,13 +121,17 @@ export function generateSampleExitSchedule(
  * Convert fund data from wizard format to cash flows
  */
 export function convertFundDataToCashFlows(fundData: FundDataInput): CashFlow[] {
-  const fundSize = parseFloat(fundData.totalCommittedCapital?.replace(/,/g, '') || fundData.size || '0');
+  const fundSize = parseNumericInput(
+    firstPresent(fundData.totalCommittedCapital, fundData.size),
+    0
+  );
   const startDate = new Date(fundData.startDate || new Date());
-  const fundLifeYears = parseInt(fundData.lifeYears || fundData.fundLife || '10');
-  
-  // Generate a sample exit schedule if not provided
+  const fundLifeYears = parseIntegerInput(
+    firstPresent(fundData.lifeYears, fundData.fundLife),
+    10
+  );
   const exitSchedule = fundData.exitSchedule || generateSampleExitSchedule(fundSize, fundLifeYears);
-  
+
   return generateCashFlowsFromFundLite({
     fundSize,
     startDate,
@@ -99,11 +144,12 @@ export function convertFundDataToCashFlows(fundData: FundDataInput): CashFlow[] 
  * Generate waterfall inputs from fund data
  */
 export function generateWaterfallInputs(fundData: FundDataInput) {
-  const fundSize = parseFloat(fundData.totalCommittedCapital?.replace(/,/g, '') || fundData.size || '0');
-  const _gpCommitmentPercent = parseFloat(fundData.gpCommitmentPercent || '2') / 100;
-  const carryPercent = parseFloat(fundData.carryPercentage || '20') / 100;
-  
-  // Simple contribution schedule - can be enhanced later
+  const fundSize = parseNumericInput(
+    firstPresent(fundData.totalCommittedCapital, fundData.size),
+    0
+  );
+  const carryPercent = parseNumericInput(fundData.carryPercentage, 20) / 100;
+
   const contributions = [
     { quarter: 1, amount: fundSize * 0.25 },
     { quarter: 2, amount: fundSize * 0.25 },
@@ -111,23 +157,26 @@ export function generateWaterfallInputs(fundData: FundDataInput) {
     { quarter: 4, amount: fundSize * 0.25 },
   ];
   
-  // Generate exits based on exit schedule
-  const exitSchedule = fundData.exitSchedule || generateSampleExitSchedule(fundSize, 
-    parseInt(fundData.lifeYears || '10'));
-  
-  const exits = exitSchedule.map(exit => ({
+  const exitSchedule =
+    fundData.exitSchedule ||
+    generateSampleExitSchedule(
+      fundSize,
+      parseIntegerInput(firstPresent(fundData.lifeYears, fundData.fundLife), 10)
+    );
+
+  const exits = exitSchedule.map((exit) => ({
     quarter: Math.floor(exit.monthOffset / 3) || 1, // Convert months to quarters
-    grossProceeds: exit.amount
+    grossProceeds: exit.amount,
   }));
-  
+
   const config = {
     carryPct: carryPercent,
-    hurdleRate: parseFloat(fundData.preferredReturnRate || '0') / 100,
-    recyclingEnabled: fundData.exitRecycling?.enabled || false,
-    recyclingCapPctOfCommitted: (fundData.exitRecycling?.recyclePercentage || 0) / 100,
-    recyclingWindowQuarters: (fundData.exitRecycling?.recycleWindowMonths || 0) / 3,
-    recyclingTakePctPerEvent: 0.5 // Conservative default
+    hurdleRate: parseNumericInput(fundData.preferredReturnRate, 0) / 100,
+    recyclingEnabled: fundData.exitRecycling?.enabled ?? false,
+    recyclingCapPctOfCommitted: (fundData.exitRecycling?.recyclePercentage ?? 0) / 100,
+    recyclingWindowQuarters: (fundData.exitRecycling?.recycleWindowMonths ?? 0) / 3,
+    recyclingTakePctPerEvent: 0.5, // Conservative default
   };
-  
+
   return { config, contributions, exits };
 }

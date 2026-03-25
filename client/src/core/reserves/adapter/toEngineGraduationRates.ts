@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { clampPct, clampInt } from '@/lib/coerce';
 
 export interface Stage {
@@ -22,35 +17,86 @@ export interface EngineRates {
   };
 }
 
+type PayloadBasics = {
+  name: string;
+  size: number;
+  modelVersion: 'reserves-ev1';
+} | Record<string, unknown>;
+
+type FundCreationPayload = {
+  basics: PayloadBasics;
+  strategy: {
+    stages: Stage[];
+  };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getStagesSource(input: Record<string, unknown>): unknown[] {
+  if (Array.isArray(input.stages)) {
+    return input.stages;
+  }
+
+  const strategy = input.strategy;
+  if (isRecord(strategy) && Array.isArray(strategy.stages)) {
+    return strategy.stages;
+  }
+
+  return [];
+}
+
+function normalizeStage(stage: unknown, index: number): Stage {
+  if (!isRecord(stage)) {
+    return {
+      id: `stage-${index + 1}`,
+      name: `Stage ${index + 1}`,
+      graduate: 0,
+      exit: 0,
+      months: 1,
+    };
+  }
+
+  const rawId = stage.id;
+  const rawName = stage.name;
+
+  return {
+    id: typeof rawId === 'string' && rawId.trim() !== '' ? rawId : `stage-${index + 1}`,
+    name:
+      typeof rawName === 'string' && rawName.trim() !== ''
+        ? rawName.trim()
+        : `Stage ${index + 1}`,
+    graduate: clampPct(stage.graduate),
+    exit: clampPct(stage.exit),
+    months: clampInt(stage.months, 1, 120),
+  };
+}
+
+function getBasics(input: Record<string, unknown>): PayloadBasics | undefined {
+  return isRecord(input.basics) ? input.basics : undefined;
+}
+
 /**
  * Creates a fund creation payload from the store state or test input
  * NOTE: We already clamp in the store for UX. We keep this adapter clamp as a final
  * belt-and-suspenders safety net before hitting the API. Do not remove without
  * replacing with server-side validation.
  */
-export function toFundCreationPayload(input: any) {
-  // Handle both store state format and test input format
-  const stagesList = input.stages || input.strategy?.stages || [];
-  const stages = stagesList.map((stage: any) => ({
-    id: stage.id || `stage-${Math.random().toString(36).substr(2, 9)}`,
-    name: (stage.name || '').toString().trim() || `Stage ${stage.id || 'Unknown'}`,
-    graduate: clampPct(stage.graduate),
-    exit: clampPct(stage.exit), 
-    months: clampInt(stage.months, 1, 120)
-  }));
-
-  // If input has basics, use them, otherwise generate defaults
-  const basics = input.basics || {
+export function toFundCreationPayload(input: unknown): FundCreationPayload {
+  const normalizedInput = isRecord(input) ? input : {};
+  const stages = getStagesSource(normalizedInput).map(normalizeStage);
+  const basics = getBasics(normalizedInput) ?? {
     name: `Fund from Store ${new Date().toISOString()}`,
     size: 50000000,
-    modelVersion: 'reserves-ev1' as const
+    modelVersion: 'reserves-ev1' as const,
   };
 
   return {
     basics,
     strategy: {
-      stages
-    }
+      stages,
+    },
   };
 }
 

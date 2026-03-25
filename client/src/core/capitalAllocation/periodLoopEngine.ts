@@ -112,7 +112,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     };
   }
 
-  return buildOutput(input, state, periodResults, allViolations, pacingConfig);
+  return buildOutput(input, state, periodResults, allViolations);
 }
 
 function bucketFlowsIntoPeriods(
@@ -164,7 +164,7 @@ function processPeriod(
   const endingCashCents =
     state.cashCents + contributionsCents - distributionsCents;
 
-  const reserveRequiredCents = calculateReserveForPeriod(input, endingCashCents);
+  const reserveRequiredCents = calculateReserveForPeriod(input);
   const reserveBalanceCents = Math.min(endingCashCents, reserveRequiredCents);
 
   if (endingCashCents < reserveRequiredCents) {
@@ -221,10 +221,7 @@ function processPeriod(
   };
 }
 
-function calculateReserveForPeriod(
-  input: NormalizedInput,
-  endingCashCents: number
-): number {
+function calculateReserveForPeriod(input: NormalizedInput): number {
   const targetReserveCents = roundPercentDerivedToCents(
     input.commitmentCents * input.targetReservePct
   );
@@ -235,8 +232,7 @@ function buildOutput(
   input: NormalizedInput,
   finalState: PeriodState,
   periodResults: PeriodResult[],
-  violations: Violation[],
-  pacingConfig: PacingConfig
+  violations: Violation[]
 ): PeriodLoopOutput {
   const reserveBalanceOverTime: ReserveBalancePoint[] = periodResults.map((r) => ({
     date: r.period.endDate,
