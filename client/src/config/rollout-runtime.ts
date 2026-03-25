@@ -12,6 +12,11 @@
 
 import { getRuntimeConfig } from './runtime';
 
+function readEnvValue(key: string): unknown {
+  const envRecord = import.meta.env as Record<string, unknown>;
+  return envRecord[key];
+}
+
 /**
  * Fast FNV-1a hash implementation
  * Returns deterministic 32-bit hash for consistent bucketing
@@ -160,7 +165,7 @@ export async function shouldUseFundStore(): Promise<boolean> {
     console.warn('FundStore rollout check failed:', e);
 
     // Fallback to env var if runtime config fails
-    const envValue = import.meta.env['VITE_USE_FUND_STORE'];
+    const envValue = readEnvValue('VITE_USE_FUND_STORE');
     return envValue !== 'false'; // Default to true
   }
 }

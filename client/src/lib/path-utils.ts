@@ -25,6 +25,50 @@
  */
 const isIndex = (s: string): boolean => /^\d+$/.test(s);
 
+type PathContainer = Record<string, unknown> | unknown[];
+
+function isContainer(value: unknown): value is PathContainer {
+  return typeof value === 'object' && value !== null;
+}
+
+function createContainer(shouldBeArray: boolean): PathContainer {
+  return shouldBeArray ? [] : {};
+}
+
+function readContainerValue(container: PathContainer, key: string): unknown {
+  if (Array.isArray(container) && isIndex(key)) {
+    return container[Number(key)];
+  }
+
+  return (container as Record<string, unknown>)[key];
+}
+
+function writeContainerValue(container: PathContainer, key: string, value: unknown): void {
+  if (Array.isArray(container) && isIndex(key)) {
+    container[Number(key)] = value;
+    return;
+  }
+
+  (container as Record<string, unknown>)[key] = value;
+}
+
+function hasContainerValue(container: PathContainer, key: string): boolean {
+  if (Array.isArray(container) && isIndex(key)) {
+    return Number(key) in container;
+  }
+
+  return key in container;
+}
+
+function deleteContainerValue(container: PathContainer, key: string): void {
+  if (Array.isArray(container) && isIndex(key)) {
+    delete container[Number(key)];
+    return;
+  }
+
+  delete (container as Record<string, unknown>)[key];
+}
+
 /**
  * Normalize a dotted path into an array of parts
  *
@@ -73,9 +117,9 @@ export function deepSet<T extends object>(
   value: unknown
 ): T {
   const parts = normalizePath(path);
-  if (!parts.length) return obj;
+  if (!parts.length || !isContainer(obj)) return obj;
 
-  let node: any = obj;
+  let node: PathContainer = obj;
 
   // Traverse to second-to-last part, creating structure as needed
   for (let i = 0; i < parts.length - 1; i++) {
@@ -84,25 +128,30 @@ export function deepSet<T extends object>(
     const nextKey = parts[i + 1];
     if (!nextKey) continue;
     const shouldBeArray = isIndex(nextKey);
+    const currentValue = readContainerValue(node, key);
+    let nextNode: PathContainer;
 
     // Check if current node is not an object or is null
-    if (typeof node[key] !== 'object' || node[key] === null) {
-      node[key] = shouldBeArray ? [] : {};
-    } else if (shouldBeArray && !Array.isArray(node[key])) {
+    if (!isContainer(currentValue)) {
+      nextNode = createContainer(shouldBeArray);
+    } else if (shouldBeArray && !Array.isArray(currentValue)) {
       // Normalize if prior type mismatched (object → array)
-      node[key] = [];
-    } else if (!shouldBeArray && Array.isArray(node[key])) {
+      nextNode = [];
+    } else if (!shouldBeArray && Array.isArray(currentValue)) {
       // Normalize if prior type mismatched (array → object)
-      node[key] = {};
+      nextNode = {};
+    } else {
+      nextNode = currentValue;
     }
 
-    node = node[key];
+    writeContainerValue(node, key, nextNode);
+    node = nextNode;
   }
 
   // Set the final value
   const lastKey = parts[parts.length - 1];
   if (lastKey) {
-    node[lastKey] = value;
+    writeContainerValue(node, lastKey, value);
   }
 
   return obj;
@@ -127,17 +176,17 @@ export function deepSet<T extends object>(
  * deepGet(arr, 'items.0.name');    // 'Alice'
  */
 export function deepGet<T = unknown>(
-  obj: any,
+  obj: unknown,
   path: string,
   defaultValue?: T
 ): T | undefined {
   const parts = normalizePath(path);
   if (!parts.length) return defaultValue;
 
-  let node = obj;
+  let node: unknown = obj;
   for (const part of parts) {
-    if (node == null || !part) return defaultValue;
-    node = node[part];
+    if (!part || !isContainer(node)) return defaultValue;
+    node = readContainerValue(node, part);
   }
 
   return (node ?? defaultValue) as T | undefined;
@@ -151,15 +200,15 @@ export function deepGet<T = unknown>(
  * deepHas(obj, 'a.b');    // true (even though value is falsy)
  * deepHas(obj, 'a.x');    // false
  */
-export function deepHas(obj: any, path: string): boolean {
+export function deepHas(obj: unknown, path: string): boolean {
   const parts = normalizePath(path);
   if (!parts.length) return false;
 
-  let node = obj;
+  let node: unknown = obj;
   for (const part of parts) {
-    if (typeof node !== 'object' || node === null || !part) return false;
-    if (!(part in node)) return false;
-    node = node[part];
+    if (!part || !isContainer(node)) return false;
+    if (!hasContainerValue(node, part)) return false;
+    node = readContainerValue(node, part);
   }
 
   return true;
@@ -175,23 +224,23 @@ export function deepHas(obj: any, path: string): boolean {
  */
 export function deepDelete<T extends object>(obj: T, path: string): T {
   const parts = normalizePath(path);
-  if (!parts.length) return obj;
+  if (!parts.length || !isContainer(obj)) return obj;
 
-  let node: any = obj;
+  let node: PathContainer = obj;
 
   // Traverse to parent
   for (let i = 0; i < parts.length - 1; i++) {
-    if (typeof node !== 'object' || node === null) return obj;
     const part = parts[i];
     if (!part) return obj;
-    node = node[part];
-    if (node == null) return obj;
+    const nextNode = readContainerValue(node, part);
+    if (!isContainer(nextNode)) return obj;
+    node = nextNode;
   }
 
   // Delete the final key
   const lastKey = parts[parts.length - 1];
-  if (typeof node === 'object' && node !== null && lastKey) {
-    delete node[lastKey];
+  if (lastKey) {
+    deleteContainerValue(node, lastKey);
   }
 
   return obj;

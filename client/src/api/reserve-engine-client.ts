@@ -201,7 +201,8 @@ export class ReserveEngineClient {
         throw new Error(`Health check failed: ${response.status}`);
       }
 
-      return await response.json();
+      const data: unknown = await response.json();
+      return data as HealthCheckResponse;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;
@@ -259,7 +260,7 @@ export class ReserveEngineClient {
 
         clearTimeout(timeoutId);
 
-        const data = await response.json();
+        const data: unknown = await response.json();
 
         // Handle error responses
         if (!response.ok) {

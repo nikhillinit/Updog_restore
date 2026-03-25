@@ -222,13 +222,8 @@ async function executeCreateFund(
   // Track attempt
   if (useTelemetry) {
     try {
-      const track = (
-        Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
-      ).track;
-      track?.('fund_create_attempt', {
-        hash,
-        model_version: finalized.basics?.modelVersion,
-        env: import.meta.env.MODE,
+      Telemetry.track('fund_create_attempt', {
+        request_id: hash,
       });
     } catch {
       // Ignore telemetry errors
@@ -251,16 +246,9 @@ async function executeCreateFund(
       try {
         const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
         const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
-        const track = (
-          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
-        ).track;
-        track?.(eventName, {
-          status: res.status,
-          durationMs,
-          hash,
+        Telemetry.track(eventName, {
           idempotency_status: idempotencyStatus,
-          model_version: finalized.basics?.modelVersion,
-          env: import.meta.env.MODE,
+          request_id: hash,
         });
       } catch {
         // Ignore telemetry errors
@@ -273,17 +261,9 @@ async function executeCreateFund(
     const durationMs = Math.round(performance.now() - startedAt);
     if (useTelemetry) {
       try {
-        const track = (
-          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
-        ).track;
-        track?.('fund_create_failure', {
-          aborted,
-          message: String(error?.message ?? err),
-          durationMs,
-          hash,
+        Telemetry.track('fund_create_failure', {
           idempotency_status: 'error',
-          model_version: finalized.basics?.modelVersion,
-          env: import.meta.env.MODE,
+          request_id: hash,
         });
       } catch {
         // Ignore telemetry errors
@@ -337,7 +317,8 @@ export async function createFund(payload: Json, options?: CreateFundOptions): Pr
   if (!result.res.ok) {
     throw new Error(`Fund creation failed: ${result.res.status}`);
   }
-  return result.res.json();
+  const data: unknown = await result.res.json();
+  return data;
 }
 
 export async function createFundWithToast(payload: Json, options?: CreateFundOptions) {
@@ -350,7 +331,7 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       toast(`❌ Failed to save fund: ${text || result.res.statusText}`, 'error');
       return null;
     }
-    const data = await result.res.json();
+    const data: unknown = await result.res.json();
     toast('✅ Fund saved successfully!', 'success');
     return data;
   } catch (err) {
@@ -369,13 +350,9 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       // Always track capacity hit for observability
       try {
         const { inFlightSize } = await import('../lib/inflight');
-        const track = (
-          Telemetry as { track?: (event: string, data: Record<string, unknown>) => void }
-        ).track;
-        track?.('client_capacity_hit', {
+        Telemetry.track('client_capacity_hit', {
           route: '/api/funds',
           concurrent: inFlightSize(),
-          env: import.meta.env.MODE,
           throttled: !showToast,
         });
       } catch {
