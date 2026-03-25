@@ -343,31 +343,79 @@ helpers before rolling changes through major routes.
 
 ### Goal
 
-Roll the hardened helper layer through the heaviest server routes in smaller,
-clean rollback-friendly batches.
+Roll the hardened helper layer through the remaining server routes in smaller,
+clean rollback-friendly batches, but drive the order from live sandbox
+validation status instead of the stale 2026-03-18 hotspot snapshot.
 
-### Route order
+### Sandbox validation findings (2026-03-24)
 
-1. `server/routes/monte-carlo.ts`
-2. `server/routes/scenario-comparison.ts`
-3. `server/routes/ai.ts`
-4. `server/routes/variance.ts`
+- `npx eslint ... --format json` returns `0` warnings and `0` errors for:
+  - `server/routes/monte-carlo.ts`
+  - `server/routes/scenario-comparison.ts`
+  - `server/routes/ai.ts`
+  - `server/routes/variance.ts`
+  - `server/routes/graduation.ts`
+  - `server/routes/readiness.ts`
+  - `server/routes/fund-metrics.ts`
+  - `server/routes/admin/queue-dashboard.ts`
+- `npm run test:wave1b` passes in the live repo and covers:
+  - `tests/unit/routes/monte-carlo-api.test.ts`
+  - `tests/unit/routes/ai-api.test.ts`
+  - `tests/unit/api/variance-tracking-api.test.ts`
+  - `tests/unit/routes/wave1b-tail-api.test.ts`
+  - `tests/unit/routes/scenario-comparison-api.test.ts`
+- `tests/integration/scenario-comparison-mvp.test.ts` is quarantined, only runs
+  when `ENABLE_PHASE4_TESTS=true`, and still depends on DB-backed setup and
+  migration approval
+- direct route-level sandbox tests now exist for `server/routes/ai.ts`,
+  `server/routes/variance.ts`, and `server/routes/scenario-comparison.ts`
+
+### Execution batches
+
+1. Batch A: `server/routes/monte-carlo.ts`
+2. Batch B: validated route tail
+   - `server/routes/graduation.ts`
+   - `server/routes/readiness.ts`
+   - `server/routes/fund-metrics.ts`
+   - `server/routes/admin/queue-dashboard.ts`
+3. Batch C: direct-harness routes
+   - `server/routes/ai.ts`
+   - `server/routes/variance.ts`
+4. Batch D: unit-covered, integration-conditional route
+   - `server/routes/scenario-comparison.ts`
 
 ### Procedure
 
-1. Remediate `monte-carlo.ts` and `scenario-comparison.ts` first using the Wave
-   1A helper layer.
-2. Run targeted tests, targeted lint, typecheck, `npm run lint:eslint`, and
-   `npm run guardrails:check`.
-3. Commit if the first route batch is internally coherent.
-4. Remediate `ai.ts` and `variance.ts` second using the same shared helpers.
-5. Apply standing targeted cleanup on touched files only after each route
+1. Keep `monte-carlo.ts` first using the Wave 1A helper layer, and require
+   `tests/unit/routes/monte-carlo-api.test.ts` to stay green after each edit.
+2. Treat the route tail as executable Wave 1B scope because
+   `tests/unit/routes/wave1b-tail-api.test.ts` already validates it in sandbox.
+3. Keep `ai.ts` and `variance.ts` on direct route suites that cover request
+   validation and primary success or error envelopes:
+   - `tests/unit/routes/ai-api.test.ts`
+   - `tests/unit/api/variance-tracking-api.test.ts`
+4. Keep `scenario-comparison.ts` on the direct route suite
+   `tests/unit/routes/scenario-comparison-api.test.ts`, but do not count its
+   quarantined integration harness as complete until it is runnable in sandbox
+   or CI.
+5. For `scenario-comparison.ts`, require explicit unblock conditions before
+   execution:
+   - `ENABLE_PHASE4_TESTS=true`
+   - required DB fixtures and migrations available
+   - quarantine exit criteria recorded and satisfied
+6. After each route batch, run targeted tests, targeted lint, the smallest
+   covering typecheck, `npm run lint:eslint`, and `npm run guardrails:check`.
+7. Apply standing targeted cleanup on touched files only after each route
    batch's architectural edits.
-6. Keep route outputs on DTOs or adapter outputs, not raw schema shapes.
+8. Keep route outputs on DTOs or adapter outputs, not raw schema shapes.
 
 ### Exit criteria
 
-- route-local widening is removed from the primary route cluster
+- live Wave 1B batching matches runnable validation status, not stale warning
+  counts
+- `npm run test:wave1b` remains green under sandbox validation
+- `ai.ts`, `variance.ts`, and `scenario-comparison.ts` have direct route harness
+- `scenario-comparison.ts` still has explicit integration unblock conditions
 - route outputs no longer leak raw schema shapes
 - the route rollout completed in at least two rollback-friendly batches
 
