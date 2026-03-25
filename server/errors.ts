@@ -1,8 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Error response formatting
- 
- 
- 
- 
+import type { Request, Response, NextFunction } from 'express';
+
+/** Type guard: value is a non-null object with string-keyed properties. */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -50,28 +52,47 @@ interface ViteDevServerLike {
 }
 
 export function errorHandler(vite?: ViteDevServerLike) {
-   
-  return (err: any, _req: any, res: any, _next: any) => {
+  return (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (vite?.ssrFixStacktrace) {
       try {
         vite.ssrFixStacktrace(err);
       } catch (ssrError) {
         // Vite SSR stack trace fix failed - log but don't block error handling
-        console.warn('[errors] Vite SSR stack trace fix failed:', ssrError instanceof Error ? ssrError.message : String(ssrError));
+        console.warn(
+          '[errors] Vite SSR stack trace fix failed:',
+          ssrError instanceof Error ? ssrError.message : String(ssrError)
+        );
       }
     }
-    const status = typeof err?.statusCode === 'number'
-      ? err.statusCode
-      : typeof err?.status === 'number'
-        ? err.status
-        : 500;
+    const rec = isRecord(err) ? err : undefined;
+    const status =
+      err instanceof AppError
+        ? err.statusCode
+        : typeof rec?.['statusCode'] === 'number'
+          ? rec['statusCode']
+          : typeof rec?.['status'] === 'number'
+            ? rec['status']
+            : 500;
     const expose = status < 500;
-    res["status"](status)["json"]({
-      code: err?.code || (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST'),
-      message: expose ? (err?.message || 'Error') : 'Internal Server Error',
-      ...(err?.field ? { field: err.field } : {}),
+    const code =
+      (rec?.['code'] as string | undefined) || (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST');
+    const message = expose
+      ? err instanceof Error
+        ? err.message
+        : typeof rec?.['message'] === 'string'
+          ? rec['message']
+          : 'Error'
+      : 'Internal Server Error';
+    const field = typeof rec?.['field'] === 'string' ? rec['field'] : undefined;
+    const reqRec = _req as unknown as Record<string, unknown>;
+    const requestId =
+      (reqRec['requestId'] as string | undefined) || (reqRec['id'] as string | undefined);
+    res.status(status).json({
+      code,
+      message,
+      ...(field ? { field } : {}),
       ts: new Date().toISOString(),
-      requestId: _req?.requestId || _req?.id
+      requestId,
     });
   };
 }

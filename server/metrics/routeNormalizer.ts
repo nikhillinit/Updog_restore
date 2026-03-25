@@ -1,17 +1,13 @@
- 
- 
- 
- 
- 
+import { logger } from '../lib/logger.js';
 
 // Prevent metric cardinality explosion
 const CARDINALITY_LIMIT = 1000;
 const knownRoutes = new Set<string>();
 const routePatterns = [
-  { pattern: /\/\d+/g, replacement: '/:id' },              // Numeric IDs
-  { pattern: /\/[a-f0-9-]{36}/gi, replacement: '/:uuid' },  // UUIDs
-  { pattern: /\/[a-zA-Z0-9]{24}/g, replacement: '/:oid' },  // ObjectIds
-  { pattern: /\?.*$/, replacement: '' },                    // Query strings
+  { pattern: /\/\d+/g, replacement: '/:id' }, // Numeric IDs
+  { pattern: /\/[a-f0-9-]{36}/gi, replacement: '/:uuid' }, // UUIDs
+  { pattern: /\/[a-zA-Z0-9]{24}/g, replacement: '/:oid' }, // ObjectIds
+  { pattern: /\?.*$/, replacement: '' }, // Query strings
 ];
 
 export function normalizeRoute(path: string): string {
@@ -20,20 +16,20 @@ export function normalizeRoute(path: string): string {
   for (const { pattern, replacement } of routePatterns) {
     normalized = normalized.replace(pattern, replacement);
   }
-  
+
   // Cardinality protection
   if (knownRoutes.size >= CARDINALITY_LIMIT) {
     if (!knownRoutes.has(normalized)) {
       // Check if it's an API route or static file
       if (normalized.startsWith('/api/')) {
-        return '/api/other';  // Bucket overflow API routes
+        return '/api/other'; // Bucket overflow API routes
       }
-      return '/static/other';   // Bucket static files
+      return '/static/other'; // Bucket static files
     }
   } else {
     knownRoutes.add(normalized);
   }
-  
+
   return normalized;
 }
 
@@ -44,8 +40,7 @@ setInterval(() => {
     const toKeep = Math.floor(CARDINALITY_LIMIT * 0.8);
     const routes = Array.from(knownRoutes);
     knownRoutes.clear();
-    routes.slice(-toKeep).forEach(r => knownRoutes.add(r));
-    console.log(`Cleaned route cache: kept ${knownRoutes.size} routes`);
+    routes.slice(-toKeep).forEach((r) => knownRoutes.add(r));
+    logger.info({ kept: knownRoutes.size }, 'Cleaned route cache');
   }
 }, 3600000);
-

@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Business metrics types
- 
- 
- 
- 
 /**
  * Business logic performance metrics
  * Tracks fund-specific operations and business KPIs
@@ -15,7 +10,7 @@ export const fundOperations = new Counter({
   name: 'fund_operations_total',
   help: 'Total number of fund operations',
   labelNames: ['operation', 'fund_id', 'user_id', 'result'],
-  registers: [register]
+  registers: [register],
 });
 
 export const fundOperationDuration = new Histogram({
@@ -23,7 +18,7 @@ export const fundOperationDuration = new Histogram({
   help: 'Duration of fund operations in seconds',
   labelNames: ['operation', 'fund_id'],
   buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5],
-  registers: [register]
+  registers: [register],
 });
 
 // Reserve Engine Metrics
@@ -31,7 +26,7 @@ export const reserveCalculations = new Counter({
   name: 'reserve_calculations_total',
   help: 'Total number of reserve calculations',
   labelNames: ['calculation_type', 'result', 'cache_hit'],
-  registers: [register]
+  registers: [register],
 });
 
 export const reserveCalculationDuration = new Histogram({
@@ -39,7 +34,7 @@ export const reserveCalculationDuration = new Histogram({
   help: 'Duration of reserve calculations in seconds',
   labelNames: ['calculation_type', 'complexity'],
   buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
-  registers: [register]
+  registers: [register],
 });
 
 export const reserveDataSize = new Histogram({
@@ -47,7 +42,7 @@ export const reserveDataSize = new Histogram({
   help: 'Size of reserve calculation data in bytes',
   labelNames: ['calculation_type'],
   buckets: [1024, 5120, 25600, 102400, 512000, 2560000], // 1KB to 2.5MB
-  registers: [register]
+  registers: [register],
 });
 
 // Pacing Engine Metrics
@@ -55,14 +50,14 @@ export const pacingAnalysis = new Counter({
   name: 'pacing_analysis_total',
   help: 'Total number of pacing analyses',
   labelNames: ['analysis_type', 'fund_stage', 'result'],
-  registers: [register]
+  registers: [register],
 });
 
 export const pacingComplexity = new Gauge({
   name: 'pacing_complexity_score',
   help: 'Complexity score of pacing analysis',
   labelNames: ['fund_id', 'analysis_type'],
-  registers: [register]
+  registers: [register],
 });
 
 // Cohort Engine Metrics
@@ -70,7 +65,7 @@ export const cohortProcessing = new Counter({
   name: 'cohort_processing_total',
   help: 'Total number of cohort processing operations',
   labelNames: ['cohort_type', 'operation', 'result'],
-  registers: [register]
+  registers: [register],
 });
 
 export const cohortSize = new Histogram({
@@ -78,7 +73,7 @@ export const cohortSize = new Histogram({
   help: 'Number of items in cohort processing',
   labelNames: ['cohort_type'],
   buckets: [10, 50, 100, 500, 1000, 5000, 10000],
-  registers: [register]
+  registers: [register],
 });
 
 // Idempotency Metrics (Enhanced)
@@ -86,7 +81,7 @@ export const idempotencyOperations = new Counter({
   name: 'idempotency_operations_total',
   help: 'Total idempotency operations',
   labelNames: ['operation', 'result', 'cache_layer'],
-  registers: [register]
+  registers: [register],
 });
 
 export const idempotencyLatency = new Summary({
@@ -94,7 +89,7 @@ export const idempotencyLatency = new Summary({
   help: 'Latency of idempotency operations',
   labelNames: ['operation', 'cache_layer'],
   percentiles: [0.5, 0.9, 0.95, 0.99],
-  registers: [register]
+  registers: [register],
 });
 
 // Database Performance Metrics
@@ -102,7 +97,7 @@ export const databaseOperations = new Counter({
   name: 'database_operations_total',
   help: 'Total database operations',
   labelNames: ['operation', 'table', 'result', 'connection_pool'],
-  registers: [register]
+  registers: [register],
 });
 
 export const databaseQueryDuration = new Histogram({
@@ -110,14 +105,14 @@ export const databaseQueryDuration = new Histogram({
   help: 'Duration of database queries',
   labelNames: ['operation', 'table', 'complexity'],
   buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2],
-  registers: [register]
+  registers: [register],
 });
 
 export const connectionPoolMetrics = new Gauge({
   name: 'database_connection_pool',
   help: 'Database connection pool metrics',
   labelNames: ['state', 'database'],
-  registers: [register]
+  registers: [register],
 });
 
 // Business KPI Metrics
@@ -125,37 +120,41 @@ export const fundPerformanceScore = new Gauge({
   name: 'fund_performance_score',
   help: 'Performance score of funds',
   labelNames: ['fund_id', 'metric_type'],
-  registers: [register]
+  registers: [register],
 });
 
 export const userEngagement = new Counter({
   name: 'user_engagement_total',
   help: 'User engagement events',
   labelNames: ['event_type', 'user_segment', 'fund_id'],
-  registers: [register]
+  registers: [register],
 });
 
 export const systemHealth = new Gauge({
   name: 'system_health_score',
   help: 'Overall system health score',
   labelNames: ['component', 'check_type'],
-  registers: [register]
+  registers: [register],
 });
 
 // Helper functions for business metrics
 export class BusinessMetricsCollector {
-  
   // Track fund operation with timing
-  trackFundOperation(operation: string, fundId: string, userId: string, fn: () => Promise<any>) {
+  trackFundOperation<T>(
+    operation: string,
+    fundId: string,
+    userId: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
     const timer = fundOperationDuration.startTimer({ operation, fund_id: fundId });
-    
+
     return fn()
-      .then(result => {
+      .then((result) => {
         fundOperations.inc({ operation, fund_id: fundId, user_id: userId, result: 'success' });
         timer({ operation, fund_id: fundId });
         return result;
       })
-      .catch(error => {
+      .catch((error) => {
         fundOperations.inc({ operation, fund_id: fundId, user_id: userId, result: 'error' });
         timer({ operation, fund_id: fundId });
         throw error;
@@ -163,35 +162,35 @@ export class BusinessMetricsCollector {
   }
 
   // Track reserve calculation performance
-  trackReserveCalculation(
-    calculationType: string, 
+  trackReserveCalculation<T>(
+    calculationType: string,
     complexity: 'low' | 'medium' | 'high',
     dataSize: number,
     cacheHit: boolean,
-    fn: () => Promise<any>
-  ) {
-    const timer = reserveCalculationDuration.startTimer({ 
-      calculation_type: calculationType, 
-      complexity 
+    fn: () => Promise<T>
+  ): Promise<T> {
+    const timer = reserveCalculationDuration.startTimer({
+      calculation_type: calculationType,
+      complexity,
     });
-    
+
     reserveDataSize.observe({ calculation_type: calculationType }, dataSize);
-    
+
     return fn()
-      .then(result => {
-        reserveCalculations.inc({ 
-          calculation_type: calculationType, 
+      .then((result) => {
+        reserveCalculations.inc({
+          calculation_type: calculationType,
           result: 'success',
-          cache_hit: cacheHit ? 'true' : 'false'
+          cache_hit: cacheHit ? 'true' : 'false',
         });
         timer({ calculation_type: calculationType, complexity });
         return result;
       })
-      .catch(error => {
-        reserveCalculations.inc({ 
-          calculation_type: calculationType, 
+      .catch((error) => {
+        reserveCalculations.inc({
+          calculation_type: calculationType,
           result: 'error',
-          cache_hit: cacheHit ? 'true' : 'false'
+          cache_hit: cacheHit ? 'true' : 'false',
         });
         timer({ calculation_type: calculationType, complexity });
         throw error;
@@ -199,29 +198,29 @@ export class BusinessMetricsCollector {
   }
 
   // Track pacing analysis
-  trackPacingAnalysis(
+  trackPacingAnalysis<T>(
     analysisType: string,
     fundStage: string,
     complexityScore: number,
     fundId: string,
-    fn: () => Promise<any>
-  ) {
+    fn: () => Promise<T>
+  ): Promise<T> {
     pacingComplexity['set']({ fund_id: fundId, analysis_type: analysisType }, complexityScore);
-    
+
     return fn()
-      .then(result => {
-        pacingAnalysis.inc({ 
-          analysis_type: analysisType, 
-          fund_stage: fundStage, 
-          result: 'success' 
+      .then((result) => {
+        pacingAnalysis.inc({
+          analysis_type: analysisType,
+          fund_stage: fundStage,
+          result: 'success',
         });
         return result;
       })
-      .catch(error => {
-        pacingAnalysis.inc({ 
-          analysis_type: analysisType, 
-          fund_stage: fundStage, 
-          result: 'error' 
+      .catch((error) => {
+        pacingAnalysis.inc({
+          analysis_type: analysisType,
+          fund_stage: fundStage,
+          result: 'error',
         });
         throw error;
       });
@@ -233,53 +232,53 @@ export class BusinessMetricsCollector {
     help: 'Size of processed cohorts',
     labelNames: ['cohort_type'],
     buckets: [1, 5, 10, 50, 100, 500, 1000],
-    registers: [register]
+    registers: [register],
   });
 
   // Track cohort processing
-  trackCohortProcessing(
+  trackCohortProcessing<T>(
     cohortType: string,
     operation: string,
     cohortSize: number,
-    fn: () => Promise<any>
-  ) {
+    fn: () => Promise<T>
+  ): Promise<T> {
     // Now we have a proper histogram to observe
     this.cohortSizeHistogram.observe({ cohort_type: cohortType }, cohortSize);
-    
+
     return fn()
-      .then(result => {
-        cohortProcessing.inc({ 
-          cohort_type: cohortType, 
-          operation, 
-          result: 'success' 
+      .then((result) => {
+        cohortProcessing.inc({
+          cohort_type: cohortType,
+          operation,
+          result: 'success',
         });
         return result;
       })
-      .catch(error => {
-        cohortProcessing.inc({ 
-          cohort_type: cohortType, 
-          operation, 
-          result: 'error' 
+      .catch((error) => {
+        cohortProcessing.inc({
+          cohort_type: cohortType,
+          operation,
+          result: 'error',
         });
         throw error;
       });
   }
 
   // Track idempotency with cache layers
-  trackIdempotency(
+  trackIdempotency<T>(
     operation: string,
     cacheLayer: 'redis' | 'memory' | 'database',
-    fn: () => Promise<any>
-  ) {
+    fn: () => Promise<T>
+  ): Promise<T> {
     const timer = idempotencyLatency.startTimer({ operation, cache_layer: cacheLayer });
-    
+
     return fn()
-      .then(result => {
+      .then((result) => {
         idempotencyOperations.inc({ operation, result: 'success', cache_layer: cacheLayer });
         timer();
         return result;
       })
-      .catch(error => {
+      .catch((error) => {
         idempotencyOperations.inc({ operation, result: 'error', cache_layer: cacheLayer });
         timer();
         throw error;
@@ -287,32 +286,32 @@ export class BusinessMetricsCollector {
   }
 
   // Track database operations
-  trackDatabaseOperation(
+  trackDatabaseOperation<T>(
     operation: string,
     table: string,
     complexity: 'simple' | 'complex' | 'join',
     connectionPool: string,
-    fn: () => Promise<any>
-  ) {
+    fn: () => Promise<T>
+  ): Promise<T> {
     const timer = databaseQueryDuration.startTimer({ operation, table, complexity });
-    
+
     return fn()
-      .then(result => {
-        databaseOperations.inc({ 
-          operation, 
-          table, 
-          result: 'success', 
-          connection_pool: connectionPool 
+      .then((result) => {
+        databaseOperations.inc({
+          operation,
+          table,
+          result: 'success',
+          connection_pool: connectionPool,
         });
         timer({ operation, table, complexity });
         return result;
       })
-      .catch(error => {
-        databaseOperations.inc({ 
-          operation, 
-          table, 
-          result: 'error', 
-          connection_pool: connectionPool 
+      .catch((error) => {
+        databaseOperations.inc({
+          operation,
+          table,
+          result: 'error',
+          connection_pool: connectionPool,
         });
         timer({ operation, table, complexity });
         throw error;
@@ -331,10 +330,10 @@ export class BusinessMetricsCollector {
 
   // Track user engagement
   trackUserEngagement(eventType: string, userSegment: string, fundId?: string) {
-    userEngagement.inc({ 
-      event_type: eventType, 
+    userEngagement.inc({
+      event_type: eventType,
       user_segment: userSegment,
-      fund_id: fundId || 'unknown'
+      fund_id: fundId || 'unknown',
     });
   }
 }
@@ -346,7 +345,7 @@ export const businessMetrics = new BusinessMetricsCollector();
 setInterval(() => {
   // Calculate and update system health scores
   const components = ['database', 'redis', 'api', 'workers'];
-  components.forEach(component => {
+  components.forEach((component) => {
     // In real implementation, calculate actual health scores
     const healthScore = Math.random() * 0.2 + 0.8; // 80-100%
     businessMetrics.updateSystemHealth(component, 'availability', healthScore);

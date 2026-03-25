@@ -16,9 +16,7 @@ if (sentryDSN) {
     tracesSampleRate: Number(process.env['SENTRY_TRACES_RATE'] || '0.1'),
 
     // Performance monitoring
-    integrations: [
-      Sentry.httpIntegration(),
-    ],
+    integrations: [Sentry.httpIntegration()],
 
     // Privacy: Scrub sensitive data
     beforeSend(event: Event) {
@@ -28,25 +26,22 @@ if (sentryDSN) {
         delete event.request.headers['cookie'];
         delete event.request.headers['x-auth-token'];
       }
-      
+
       // Remove database connection strings
       if (event.extra) {
         const stringified = JSON.stringify(event.extra);
         const scrubbed = stringified
           .replace(/postgresql:\/\/[^@]+@[^/]+/g, 'postgresql://[redacted]')
           .replace(/redis:\/\/[^@]+@[^/]+/g, 'redis://[redacted]');
-        event.extra = JSON.parse(scrubbed);
+        const scrubbedExtra = JSON.parse(scrubbed) as NonNullable<Event['extra']>;
+        event.extra = scrubbedExtra;
       }
-      
+
       return event;
     },
-    
+
     // Ignore specific errors
-    ignoreErrors: [
-      'ECONNRESET',
-      'ECONNREFUSED',
-      'ETIMEDOUT',
-    ],
+    ignoreErrors: ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT'],
   });
 }
 

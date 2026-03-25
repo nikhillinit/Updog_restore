@@ -48,7 +48,8 @@ export const cspDirectives: CSPDirectives = {
  * Convert CSP directives object to header value string
  */
 export function buildCSPHeader(directives: CSPDirectives = cspDirectives): string {
-  return Object.entries(directives)
+  const entries = Object.entries(directives) as [keyof CSPDirectives, string[]][];
+  return entries
     .map(([key, values]) => {
       // Convert camelCase to kebab-case
       const directive = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);

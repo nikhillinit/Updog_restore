@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 /**
  * Strict TypeScript error interfaces for better type safety
  */
@@ -35,7 +30,7 @@ export interface HealthCheckError extends Error {
 
 export interface DatabaseError extends Error {
   query?: string;
-  queryParams?: any[];
+  queryParams?: unknown[];
   connectionId?: string;
   poolStats?: {
     total: number;
@@ -62,7 +57,7 @@ export interface RateLimitError extends Error {
 
 export interface ValidationError extends Error {
   field: string;
-  value: any;
+  value: unknown;
   constraint: string;
   validationRule: string;
 }
@@ -141,7 +136,7 @@ export function createRateLimitError(
 export function createValidationError(
   message: string,
   field: string,
-  value: any,
+  value: unknown,
   constraint: string,
   validationRule: string,
   options: Partial<ValidationError> = {}

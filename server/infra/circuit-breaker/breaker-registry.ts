@@ -1,4 +1,5 @@
 import type { BreakerLike } from './typed-breaker';
+import { logger } from '../../lib/logger.js';
 
 /**
  * Central registry for all circuit breakers in the application
@@ -19,7 +20,7 @@ export class BreakerRegistry {
 
   register(name: string, breaker: BreakerLike): void {
     this.breakers['set'](name, breaker);
-    console.log(`[breaker-registry] Registered breaker: ${name}`);
+    logger.info({ name }, '[breaker-registry] Registered breaker');
   }
 
   get(name: string): BreakerLike | undefined {
@@ -31,7 +32,7 @@ export class BreakerRegistry {
     this.breakers.forEach((breaker, name) => {
       result[name] = {
         state: breaker.getState(),
-        stats: breaker.getMetrics?.() || {}
+        stats: breaker.getMetrics?.() || {},
       };
     });
     return result;
