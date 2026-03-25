@@ -4,8 +4,14 @@
  */
 
 import { config as loadDotenv } from 'dotenv';
+import pino from 'pino';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
+
+const logger = pino({
+  level: process.env['LOG_LEVEL'] || 'info',
+  redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+});
 
 const bool = z
   .string()
@@ -226,13 +232,13 @@ export function loadEnv() {
     throw new Error('JWT_ALG=RS256 requires JWT_JWKS_URL');
   }
 
-  console.log(
+  logger.info(
     `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env['NODE_ENV']})`
   );
 
   // Additional validation for production
   if (config.NODE_ENV === 'production') {
-    console.log('[config] Running production environment validation...');
+    logger.info('[config] Running production environment validation...');
 
     // Required configuration
     const requiredInProduction = [
@@ -338,12 +344,12 @@ export function loadEnv() {
       }
     }
 
-    console.log('✅ Production environment validation passed');
+    logger.info('Production environment validation passed');
   }
 
   // Staging validation
   if (config.NODE_ENV === 'staging') {
-    console.log('[config] Running staging environment validation...');
+    logger.info('[config] Running staging environment validation...');
 
     const requiredInStaging = ['DATABASE_URL', 'REDIS_URL', 'SESSION_SECRET'] as const;
 
@@ -352,10 +358,10 @@ export function loadEnv() {
     );
 
     if (missing.length > 0) {
-      console.warn(`⚠️  Missing recommended staging configuration: ${missing.join(', ')}`);
+      logger.warn(`Missing recommended staging configuration: ${missing.join(', ')}`);
     }
 
-    console.log('✅ Staging environment validation passed');
+    logger.info('Staging environment validation passed');
   }
 
   // Log configuration (redact sensitive values)
@@ -367,9 +373,9 @@ export function loadEnv() {
     HEALTH_KEY: config.HEALTH_KEY ? '***' : undefined,
   };
 
-  console.log(`[config] Environment: ${config.NODE_ENV}`);
+  logger.info(`[config] Environment: ${config.NODE_ENV}`);
   if (config.NODE_ENV === 'development') {
-    console.log('[config] Development configuration loaded:', logConfig);
+    logger.info({ config: logConfig }, '[config] Development configuration loaded');
   }
 
   return config;

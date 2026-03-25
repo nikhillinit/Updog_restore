@@ -7,7 +7,7 @@
 import { db } from '../db';
 
 export interface DatabaseConnection {
-  query: (sql: string, params?: any[]) => Promise<any>;
+  query: (sql: string, params?: unknown[]) => Promise<unknown>;
   close: () => Promise<void>;
 }
 
@@ -16,13 +16,13 @@ export interface DatabaseConnection {
  */
 export function createConnection(): DatabaseConnection {
   return {
-    query: async (sql: string, params?: any[]) => {
+    query: async (_sql: string, _params?: unknown[]) => {
       // For testing, we just return the db instance
       return db;
     },
     close: async () => {
       // No-op for in-memory/mock databases
-    }
+    },
   };
 }
 

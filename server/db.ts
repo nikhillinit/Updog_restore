@@ -35,12 +35,12 @@ let pool: unknown;
 if (isTest) {
   // Import the database mock for testing
   const vitestMockPath = '../tests/helpers/database-mock';
-  const mockModule = isVitest
-    ? await import(vitestMockPath)
-    : require('../tests/helpers/database-mock.cjs');
-  const { databaseMock } = mockModule as {
+  const mockModule = (
+    isVitest ? await import(vitestMockPath) : require('../tests/helpers/database-mock.cjs')
+  ) as {
     databaseMock: NodePgDatabase<CombinedSchema>;
   };
+  const { databaseMock } = mockModule;
   db = databaseMock;
   pool = null;
 } else if (isVercel) {

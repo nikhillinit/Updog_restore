@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Dependency injection container
-
 /**
  * Centralized Providers System - Single source of truth for Redis/memory decisions
  * The "valve" that controls all Redis access throughout the application
@@ -18,8 +16,18 @@ export interface Providers {
   cache: Cache;
   rateLimitStore?: RateLimitStore; // undefined => in-memory
   queue?: { enabled: boolean; close(): Promise<void> };
-  sessions?: { enabled: boolean; store?: any };
+  sessions?: { enabled: boolean; store?: unknown };
   teardown?: () => Promise<void>;
+}
+
+interface RedisCacheClient {
+  connect(): Promise<unknown>;
+  ping(): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<unknown>;
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
+  del(key: string): Promise<unknown>;
+  quit(): Promise<unknown>;
 }
 
 /**
@@ -121,7 +129,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
       connectTimeout: 1000,
-    });
+    }) as unknown as RedisCacheClient;
 
     // Test connection with explicit ping
     await redis.connect();
@@ -156,25 +164,25 @@ async function buildCache(redisUrl: string): Promise<Cache> {
 
     return {
       async get(key: string): Promise<string | null> {
-        return withCircuitBreaker(async () => (await redis['get'](key)) ?? null, null);
+        return withCircuitBreaker(async () => (await redis.get(key)) ?? null, null);
       },
       async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
         await withCircuitBreaker(async () => {
           if (ttlSeconds) {
-            await redis['setex'](key, ttlSeconds, value);
+            await redis.setex(key, ttlSeconds, value);
           } else {
-            await redis['set'](key, value);
+            await redis.set(key, value);
           }
         }, undefined);
       },
       async del(key: string): Promise<void> {
         await withCircuitBreaker(async () => {
-          await redis['del'](key);
+          await redis.del(key);
         }, undefined);
       },
       async close(): Promise<void> {
         try {
-          await redis['quit']();
+          await redis.quit();
         } catch (err) {
           logger.warn({ err }, '[providers] Redis close failed');
         }

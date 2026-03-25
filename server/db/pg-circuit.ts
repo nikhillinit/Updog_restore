@@ -4,8 +4,11 @@
  */
 import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { Pool } from 'pg';
+import { logger } from '../lib/logger';
 import { TypedCircuitBreaker } from '../infra/circuit-breaker/typed-breaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
+
+const log = logger.child({ module: 'db:pg-circuit' });
 
 // PostgreSQL connection pool configuration
 const poolConfig = {
@@ -25,19 +28,19 @@ export const pool = new Pool(poolConfig);
 
 // Pool event handlers for monitoring
 pool['on']('error', (err: unknown) => {
-  console.error('[PG Pool] Unexpected error on idle client:', err);
+  log.error({ err }, 'Unexpected error on idle client');
 });
 
 pool['on']('connect', () => {
-  console.log('[PG Pool] New client connected');
+  log.info('New client connected');
 });
 
 pool['on']('acquire', () => {
-  console.debug('[PG Pool] Client acquired from pool');
+  log.debug('Client acquired from pool');
 });
 
 pool['on']('remove', () => {
-  console.debug('[PG Pool] Client removed from pool');
+  log.debug('Client removed from pool');
 });
 
 // Circuit breaker configuration for database operations
@@ -73,15 +76,15 @@ function recordMetrics(metrics: QueryMetrics) {
   if (queryMetrics.length > MAX_METRICS) {
     queryMetrics.shift();
   }
-  
+
   // Log slow queries
   if (metrics.duration > 1000) {
-    console.warn(`[PG] Slow query (${metrics.duration}ms): ${metrics.query.slice(0, 100)}`);
+    log.warn({ duration: metrics.duration, query: metrics.query.slice(0, 100) }, 'Slow query');
   }
-  
+
   // Log errors
   if (metrics.error) {
-    console.error(`[PG] Query error: ${metrics.error.message}`);
+    log.error({ err: metrics.error }, 'Query error');
   }
 }
 
@@ -90,8 +93,8 @@ function recordMetrics(metrics: QueryMetrics) {
  */
 export function getQueryMetrics() {
   const totalQueries = queryMetrics.length;
-  const errorQueries = queryMetrics.filter(m => m.error).length;
-  const slowQueries = queryMetrics.filter(m => m.duration > 1000).length;
+  const errorQueries = queryMetrics.filter((m) => m.error).length;
+  const slowQueries = queryMetrics.filter((m) => m.duration > 1000).length;
   const avgDuration = queryMetrics.reduce((sum, m) => sum + m.duration, 0) / totalQueries || 0;
 
   return {
@@ -183,17 +186,15 @@ export async function queryScalar<T = unknown>(
 
   const keys = Object.keys(row);
   const firstKey = keys[0];
-  return firstKey !== undefined ? row[firstKey] ?? null : null;
+  return firstKey !== undefined ? (row[firstKey] ?? null) : null;
 }
 
 /**
  * Execute multiple queries in a transaction
  */
-export async function transaction<T>(
-  callback: (client: PoolClient) => Promise<T>
-): Promise<T> {
+export async function transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
     const result = await callback(client);
@@ -217,16 +218,25 @@ export async function transactionWithBreaker<T>(
   if (process.env['CB_DB_ENABLED'] === 'false') {
     return transaction(callback);
   }
-  
-  return dbBreaker.run(() => transaction(callback), async () => { throw new Error('Database circuit open during transaction'); });
+
+  return dbBreaker.run(
+    () => transaction(callback),
+    async () => {
+      throw new Error('Database circuit open during transaction');
+    }
+  );
 }
 
 /**
  * Health check for database connection
  */
-export async function healthCheck(): Promise<{ healthy: boolean; latency?: number; error?: string }> {
+export async function healthCheck(): Promise<{
+  healthy: boolean;
+  latency?: number;
+  error?: string;
+}> {
   const start = Date.now();
-  
+
   try {
     await pool.query('SELECT 1');
     return {
@@ -257,8 +267,8 @@ export function getPoolStats() {
  * Gracefully close the pool
  */
 export async function closePool(): Promise<void> {
-  await pool["end"]();
-  console.log('[PG Pool] Connection pool closed');
+  await pool['end']();
+  log.info('Connection pool closed');
 }
 
 /**
@@ -273,33 +283,28 @@ export async function withBackoff<T>(
     factor?: number;
   } = {}
 ): Promise<T> {
-  const {
-    maxRetries = 3,
-    initialDelay = 100,
-    maxDelay = 10000,
-    factor = 2,
-  } = options;
-  
+  const { maxRetries = 3, initialDelay = 100, maxDelay = 10000, factor = 2 } = options;
+
   let lastError: Error | undefined;
   let delay = initialDelay;
-  
+
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (i === maxRetries) {
         throw error;
       }
-      
-      console.log(`[Backoff] Retry ${i + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
+
+      log.info({ attempt: i + 1, maxRetries, delay }, 'Retrying after backoff');
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
       delay = Math.min(delay * factor, maxDelay);
     }
   }
-  
+
   throw lastError;
 }
 
@@ -317,12 +322,9 @@ export async function queryWithRetry<T extends QueryResultRow = QueryResultRow>(
 // Export types for external use
 export type { QueryResult, PoolClient } from 'pg';
 
-
-
 /**
  * Get circuit breaker stats
  */
 export function getStats() {
   return dbBreaker.getMetrics();
 }
-

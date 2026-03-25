@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 // Explicit interface to avoid TS4111 index signature errors
 export interface RedisAPI {
-  on(event: string, listener: (...args: any[]) => void): this;
+  on(event: string, listener: (...args: unknown[]) => void): this;
   get(key: string): Promise<string | null>;
   set(key: string, value: string | number | Buffer): Promise<'OK'>;
   setex(key: string, seconds: number, value: string | number | Buffer): Promise<'OK'>;
@@ -14,7 +14,7 @@ export interface RedisAPI {
   ping(): Promise<'PONG'>;
   quit(): Promise<'OK'>;
   duplicate(): RedisAPI;
-  call(command: string, ...args: (string | number)[]): Promise<any>;
+  call(command: string, ...args: (string | number)[]): Promise<unknown>;
 }
 
 type RedisClient = Redis;
@@ -73,8 +73,6 @@ function createMemoryRedisClient(): RedisAPI {
     return entry;
   };
 
-  let proxy: RedisClient;
-
   const stub: {
     get(key: string): Promise<string | null>;
     set(key: string, value: RedisValue): Promise<'OK'>;
@@ -112,7 +110,7 @@ function createMemoryRedisClient(): RedisAPI {
       return store.delete(key) ? 1 : 0;
     },
     async incr(key: string): Promise<number> {
-      const current = Number(await stub.get(key) ?? '0');
+      const current = Number((await stub.get(key)) ?? '0');
       const next = current + 1;
       store.set(key, { value: next.toString() });
       return next;
@@ -174,7 +172,7 @@ function createMemoryRedisClient(): RedisAPI {
     },
   };
 
-  proxy = stub as unknown as RedisClient;
+  const proxy = stub as unknown as RedisClient;
   return proxy as unknown as RedisAPI;
 }
 
@@ -300,6 +298,17 @@ function parseSentinelOptions(config: CreateRedisConfig): {
 }
 
 /**
+ * Isolate ioredis constructor call to contain any-type propagation.
+ * The ioredis type definitions contain `any` internally, which propagates
+ * through ESLint's type-aware rules. Returning `unknown` creates a clean
+ * type boundary.
+ */
+function newRedisClient(options: RedisOptions): unknown {
+  const RedisCtor = Redis as unknown as new (redisOptions: RedisOptions) => unknown;
+  return new RedisCtor(options);
+}
+
+/**
  * Create typed Redis client from configuration
  */
 export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
@@ -362,10 +371,7 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
         options.tls = options.tls || {};
       }
 
-      logger.info(
-        { connection: maskPassword(config.url) },
-        'Redis client using URL configuration'
-      );
+      logger.info({ connection: maskPassword(config.url) }, 'Redis client using URL configuration');
     } catch (error) {
       logger.warn(
         {
@@ -378,46 +384,38 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
   }
 
   // Merge any additional config options (these override URL-parsed values)
-  const {
-    url: _url,
-    sentinels: _sentinels,
-    name: _name,
-    ...configOptions
-  } = config;
+  const { url: _url, sentinels: _sentinels, name: _name, ...configOptions } = config;
   Object.assign(options, configOptions);
 
   // Log connection attempt (mask password)
   logger.info({ connection: maskConnectionInfo(options) }, 'Creating Redis client');
 
-  // Create Redis client
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Redis client type variance
-  const redis = new Redis(options as any);
+  // Create Redis client via helper that isolates ioredis any-type propagation
+  const redis = newRedisClient(options) as RedisAPI;
 
   // Add connection event listeners
-  redis['on']('connect', () => {
+  redis.on('connect', () => {
     logger.info({ connection: maskConnectionInfo(options) }, 'Redis client connected');
   });
 
-  redis['on']('ready', () => {
+  redis.on('ready', () => {
     logger.info('Redis client ready');
   });
 
-  redis['on']('error', (error: Error) => {
-    logger.error(
-      { error: error.message, connection: maskConnectionInfo(options) },
-      'Redis client error'
-    );
+  redis.on('error', (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error({ error: message, connection: maskConnectionInfo(options) }, 'Redis client error');
   });
 
-  redis['on']('close', () => {
+  redis.on('close', () => {
     logger.warn({ connection: maskConnectionInfo(options) }, 'Redis connection closed');
   });
 
-  redis['on']('reconnecting', (delay: number) => {
-    logger.info(`Redis reconnecting in ${delay}ms`);
+  redis.on('reconnecting', (delay: unknown) => {
+    logger.info(`Redis reconnecting in ${String(delay)}ms`);
   });
 
-  return redis as unknown as RedisAPI;
+  return redis;
 }
 
 /**
@@ -455,10 +453,7 @@ export function createCacheFromEnv(): RedisAPI {
   const redisUrl = process.env['REDIS_URL'];
 
   if (redisUrl === 'memory://' || redisUrl === 'mock') {
-    logger.info(
-      { redisUrl },
-      'Redis memory mode detected'
-    );
+    logger.info({ redisUrl }, 'Redis memory mode detected');
     return createMemoryRedisClient();
   }
 

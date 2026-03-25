@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Express app initialization
-
 /**
  * DI-Friendly Express Server
  * Consumes providers instead of creating global connections
@@ -11,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import compression from 'compression';
 import bodyParser from 'body-parser';
+import { logger } from './lib/logger';
 import { withNonce, csp } from './security/csp';
 import { cspReportRoute } from './routes/public/csp-report';
 // REMOVED: Legacy simple flags route - use secure flagsRouter from routes/flags.ts instead
@@ -31,6 +30,8 @@ import { serveStatic, setupVite } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
+
+const log = logger.child({ module: 'server' });
 
 // CORS configuration with origin validation
 function parseOrigins(raw?: string): string[] {
@@ -55,8 +56,7 @@ export async function createServer(
 ): Promise<import('node:http').Server> {
   const app = express();
 
-  console.log('[server] Creating Express application...');
-  console.log(`[server] NODE_ENV: ${config.NODE_ENV}`);
+  log.info({ nodeEnv: config.NODE_ENV }, 'Creating Express application');
 
   // Bind providers to app.locals for routes/services
   app.locals['providers'] = providers;
@@ -126,7 +126,10 @@ export async function createServer(
   app.use(express.urlencoded({ extended: false, limit: bodyLimit }));
 
   // Body parser error handler (now has req.requestId available)
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  const hasBodyParserErrorType = (value: unknown): value is { type?: string } =>
+    typeof value === 'object' && value !== null && 'type' in value;
+
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (!err) return next();
 
     // Ensure X-Request-ID is set
@@ -134,14 +137,14 @@ export async function createServer(
       res['set']('X-Request-ID', req.requestId);
     }
 
-    if (err?.type === 'entity.too.large') {
+    if (hasBodyParserErrorType(err) && err.type === 'entity.too.large') {
       return sendApiError(
         res,
         413,
         createErrorBody('Payload Too Large', req.requestId, 'PAYLOAD_TOO_LARGE')
       );
     }
-    if (err?.type === 'entity.parse.failed') {
+    if (hasBodyParserErrorType(err) && err.type === 'entity.parse.failed') {
       return sendApiError(res, 400, createErrorBody('Invalid JSON', req.requestId, 'INVALID_JSON'));
     }
     next(err);
@@ -156,10 +159,10 @@ export async function createServer(
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
     const path = req.path;
-    let capturedJsonResponse: Record<string, any> | undefined = undefined;
+    let capturedJsonResponse: unknown;
 
     const originalResJson = res.json;
-    res.json = function (bodyJson: any) {
+    res.json = function (bodyJson: Parameters<typeof originalResJson>[0]) {
       capturedJsonResponse = bodyJson;
       return originalResJson.call(res, bodyJson);
     };
@@ -178,12 +181,9 @@ export async function createServer(
           logLine = `${logLine.slice(0, 79)}…`;
         }
 
-        // Include version in structured logs
-        console.log(
-          JSON.stringify({
+        log.info(
+          {
             timestamp: new Date().toISOString(),
-            level: 'info',
-            msg: logLine,
             service: 'fund-platform-api',
             version,
             environment: config.NODE_ENV,
@@ -192,7 +192,9 @@ export async function createServer(
             statusCode: res.statusCode,
             duration,
             requestId: req.requestId,
-          })
+            response: capturedJsonResponse,
+          },
+          logLine
         );
       }
     });
@@ -320,23 +322,23 @@ export async function createServer(
   }
 
   if (distExists) {
-    console.log('[server] Serving static client from dist/public');
+    log.info('Serving static client from dist/public');
     serverMode = 'static';
     serveStatic(app, distPublicPath);
   } else if (!isProductionMode && useViteMiddleware) {
-    console.log('[server] USE_VITE_MIDDLEWARE enabled; attaching Vite middleware...');
+    log.info('USE_VITE_MIDDLEWARE enabled; attaching Vite middleware');
     serverMode = 'vite';
     await setupVite(app);
   } else {
-    console.log('[server] No dist/public found; running in API-only mode');
+    log.info('No dist/public found; running in API-only mode');
     serverMode = 'api-only';
     app.get('/', (_req: Request, res: Response) => {
       res.json({ status: 'ok', service: 'fund-platform-api', env: config.NODE_ENV });
     });
   }
 
-  console.log(`[server] Mode selected: ${serverMode}`);
+  log.info({ serverMode }, 'Mode selected');
 
-  console.log('[server] Express application created successfully');
+  log.info('Express application created successfully');
   return httpServer;
 }

@@ -23,10 +23,10 @@ export async function cancel(req: Request, res: Response) {
     // const redis = getRedisClient();
     // await redis.set(`ai:run:${runId}:cancel`, '1', { EX: 300 });
 
-    res["status"](204)["send"]();
+    res.status(204).send();
   } catch (error) {
     logger.error({ runId: runId ?? 'unknown', error }, 'Failed to cancel agent run');
-    res["status"](500)["json"]({
+    res.status(500).json({
       error: 'Failed to cancel run',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -41,15 +41,11 @@ export async function cancel(req: Request, res: Response) {
  * @returns true if cancellation requested
  */
 export async function isCancelled(runId: string): Promise<boolean> {
-  try {
-    // TODO: Wire to actual Redis client
-    // const redis = getRedisClient();
-    // const value = await redis.get(`ai:run:${runId}:cancel`);
-    // return value === '1';
+  void runId;
+  // TODO: Wire to actual Redis client
+  // const redis = getRedisClient();
+  // const value = await redis.get(`ai:run:${runId}:cancel`);
+  // return value === '1';
 
-    return false; // Mock: always return false in development
-  } catch (error) {
-    logger.error({ runId, error }, 'Failed to check cancellation status');
-    return false; // Fail-safe: don't block execution
-  }
+  return false; // Mock: always return false in development
 }

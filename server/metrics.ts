@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // Metrics collection types
- 
- 
- 
- 
 import promClient from 'prom-client';
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 
 // Use a single registry to avoid duplicate metric registration during test/hot reload cycles.
 export const register = promClient.register;
@@ -161,20 +157,23 @@ export function recordBusinessMetric(
           : null,
     });
   }
-  
+
   const metric = businessOperations['get'](operation)!;
   metric.counter.inc({ status });
-  
+
   if (duration !== undefined && metric.histogram) {
     metric.histogram.observe({ status }, duration);
   }
 }
 
 // Cache for dynamically created metrics
-const businessOperations = new Map<string, {
-  counter: promClient.Counter<string>;
-  histogram: promClient.Histogram<string> | null;
-}>();
+const businessOperations = new Map<
+  string,
+  {
+    counter: promClient.Counter<string>;
+    histogram: promClient.Histogram<string> | null;
+  }
+>();
 
 // NATS bridge metrics
 export const natsBridgeConnections = getOrCreateGauge(
@@ -203,15 +202,15 @@ export const calcDurationMs = getOrCreateHistogram(
   [50, 100, 200, 500, 1000, 2000, 5000, 10000]
 );
 
-export const httpRequests = getOrCreateCounter(
-  'http_requests_total',
-  'Total HTTP requests',
-  ['route', 'method', 'code']
-);
+export const httpRequests = getOrCreateCounter('http_requests_total', 'Total HTTP requests', [
+  'route',
+  'method',
+  'code',
+]);
 
 // Create metrics router
 export const metricsRouter = Router();
-metricsRouter['get']('/metrics', async (_req: any, res: any) => {
-  res['set']('Content-Type', register.contentType);
-  res["end"](await register.metrics());
+metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });

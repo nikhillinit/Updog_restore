@@ -12,6 +12,9 @@ import { db as dbInstance } from './pool';
 // Workaround: Accept this type error as documented technical debt until Drizzle ORM upgrade.
 import type { NodePgDatabase } from './pool';
 import type * as schema from '@shared/schema';
+import { logger } from '../lib/logger';
+
+const log = logger.child({ module: 'db:index' });
 
 export const db: NodePgDatabase<typeof schema> = dbInstance;
 export type { NodePgDatabase };
@@ -76,12 +79,12 @@ export async function checkDatabaseHealth() {
  * Gracefully shutdown all database connections
  */
 export async function shutdownDatabases() {
-  console.log('[DB] Shutting down database connections...');
+  log.info('Shutting down database connections');
 
   await Promise.all([
     import('./pg-circuit').then((m) => m.closePool()),
     import('./redis-circuit').then((m) => m.closeRedis()),
   ]);
 
-  console.log('[DB] All database connections closed');
+  log.info('All database connections closed');
 }

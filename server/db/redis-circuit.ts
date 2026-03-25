@@ -4,7 +4,10 @@
  */
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
+import { logger } from '../lib/logger';
 import { createCacheFromEnv } from './redis-factory';
+
+const log = logger.child({ module: 'db:redis-circuit' });
 
 // Redis connection configuration
 const _redisConfig = {
@@ -96,13 +99,8 @@ class InMemoryRedis {
 // Create Redis client using typed factory (skip in memory mode)
 let redis: RedisClient;
 
-// Lazy logger import to avoid circular dependencies
-const getLogger = async () => (await import('../lib/logger.js')).logger;
-
 if (process.env['REDIS_URL'] === 'memory://') {
-  getLogger().then((l) =>
-    l.info('[Redis Circuit] Memory mode detected, using in-memory Redis stub')
-  );
+  log.info('Memory mode detected, using in-memory Redis stub');
   redis = new InMemoryRedis() as unknown as RedisClient;
 } else {
   redis = createCacheFromEnv() as unknown as RedisClient;
@@ -110,25 +108,25 @@ if (process.env['REDIS_URL'] === 'memory://') {
 
 // Redis event handlers for monitoring
 redis.on('connect', () => {
-  getLogger().then((l) => l.info('[Redis] Connected to Redis server'));
+  log.info('Connected to Redis server');
 });
 
 redis.on('ready', () => {
-  getLogger().then((l) => l.info('[Redis] Redis client ready'));
+  log.info('Redis client ready');
 });
 
 redis.on('error', (...args: unknown[]) => {
   const err = args[0] as Error;
-  getLogger().then((l) => l.error({ err }, '[Redis] Redis client error'));
+  log.error({ err }, 'Redis client error');
 });
 
 redis.on('close', () => {
-  getLogger().then((l) => l.info('[Redis] Redis connection closed'));
+  log.info('Redis connection closed');
 });
 
 redis.on('reconnecting', (...args: unknown[]) => {
   const delay = args[0] as number;
-  getLogger().then((l) => l.debug({ delay }, `[Redis] Reconnecting in ${delay}ms`));
+  log.debug({ delay }, `Reconnecting in ${delay}ms`);
 });
 
 // Circuit breaker configuration for Redis operations
@@ -234,14 +232,15 @@ function recordMetrics(metrics: CacheMetrics) {
 
   // Log slow operations
   if (metrics.duration > 100) {
-    console.warn(
-      `[Redis] Slow operation (${metrics.duration}ms): ${metrics.operation} ${metrics.key}`
+    log.warn(
+      { duration: metrics.duration, operation: metrics.operation, key: metrics.key },
+      'Slow operation'
     );
   }
 
   // Log fallback usage
   if (metrics.fallback) {
-    console.info(`[Redis] Using memory fallback for: ${metrics.key}`);
+    log.info({ key: metrics.key }, 'Using memory fallback');
   }
 }
 
@@ -303,7 +302,7 @@ export async function get(key: string): Promise<string | null> {
     error = err as Error;
 
     // Fallback to memory cache
-    console.warn(`[Redis] Falling back to memory cache for key: ${key}`);
+    log.warn({ key }, 'Falling back to memory cache');
     const cachedValue = memoryCache.get(key);
     hit = cachedValue !== null;
     fallback = true;
@@ -365,7 +364,7 @@ export async function set(
     error = err as Error;
     fallback = true;
     // Memory cache already updated, so operation succeeds
-    console.warn(`[Redis] Failed to set in Redis, using memory cache: ${key}`);
+    log.warn({ key }, 'Failed to set in Redis, using memory cache');
   } finally {
     recordMetrics({
       operation: 'set',
@@ -400,14 +399,14 @@ export async function del(key: string): Promise<void> {
       async () => redis.del(key),
       async () => {
         // Memory cache already cleared, so operation succeeds
-        console.warn(`[Redis] Failed to delete from Redis: ${key}`);
+        log.warn({ key }, 'Failed to delete from Redis');
         return 0;
       }
     );
   } catch (err) {
     error = err as Error;
     // Memory cache already cleared, so operation succeeds
-    console.warn(`[Redis] Failed to delete from Redis: ${key}`);
+    log.warn({ key }, 'Failed to delete from Redis');
   } finally {
     recordMetrics({
       operation: 'del',
@@ -429,7 +428,6 @@ export async function getJSON<T>(key: string): Promise<T | null> {
   try {
     return JSON.parse(value) as T;
   } catch (error) {
-    const log = await getLogger();
     log.error({ key, err: error }, 'Failed to parse JSON for Redis key');
     return null;
   }
@@ -455,14 +453,14 @@ export async function incr(key: string): Promise<number> {
     const result = await redisBreaker.run(
       async () => redis.incr(key),
       async () => {
-        console.error(`[Redis] Failed to increment ${key}`);
+        log.error({ key }, 'Failed to increment');
         // Return 0 as fallback
         return 0;
       }
     );
     return typeof result === 'number' ? result : 0;
   } catch (error) {
-    console.error(`[Redis] Failed to increment ${key}:`, error);
+    log.error({ key, err: error }, 'Failed to increment');
     // Return 0 as fallback
     return 0;
   }
@@ -483,7 +481,7 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
     );
     return typeof result === 'boolean' ? result : false;
   } catch (error) {
-    console.error(`[Redis] Failed to set expiry for ${key}:`, error);
+    log.error({ key, err: error }, 'Failed to set expiry');
     return false;
   }
 }
@@ -518,7 +516,7 @@ export async function healthCheck(): Promise<{
  */
 export function clearMemoryCache(): void {
   memoryCache.clear();
-  getLogger().then((l) => l.debug('[Redis] Memory cache cleared'));
+  log.debug('Memory cache cleared');
 }
 
 /**
@@ -526,7 +524,7 @@ export function clearMemoryCache(): void {
  */
 export async function closeRedis(): Promise<void> {
   await redis.quit();
-  getLogger().then((l) => l.info('[Redis] Connection closed'));
+  log.info('Connection closed');
 }
 
 /**
@@ -556,7 +554,7 @@ export async function withBackoff<T>(
         throw error;
       }
 
-      console.log(`[Redis Backoff] Retry ${i + 1}/${maxRetries} after ${delay}ms`);
+      log.info({ attempt: i + 1, maxRetries, delay }, 'Retrying after backoff');
       await new Promise((resolve) => setTimeout(resolve, delay));
 
       delay = Math.min(delay * factor, maxDelay);
