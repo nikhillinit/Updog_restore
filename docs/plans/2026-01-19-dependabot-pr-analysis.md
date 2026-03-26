@@ -182,10 +182,12 @@ node --import tsx scripts/generate-discovery-map.ts
 | Root | vitest 3.2.4 |
 | packages/agent-core | vitest ^3.2.4 |
 | packages/test-repair-agent | vitest ^3.2.4 |
-| packages/zencoder-integration | vitest ^1.0.4 |
 | packages/bundle-optimization-agent | vitest ^1.2.0 |
-| packages/dependency-analysis-agent | vitest ^1.2.0 |
-| packages/route-optimization-agent | vitest ^1.2.0 |
+
+Archived on March 25, 2026:
+- `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`
+- `archive/2026-q1/unused-code/packages/route-optimization-agent/`
+- `archive/2026-q1/unused-code/packages/zencoder-integration/`
 
 **Additional Risks:**
 - Coverage provider: No `@vitest/coverage-v8` in package.json

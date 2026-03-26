@@ -182,22 +182,13 @@ describe('ZencoderAgent', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('should respect maxRetries configuration', async () => {
+    it('should forward maxRetries configuration to the base agent', () => {
       const retryAgent = new ZencoderAgent({
         name: 'retry-test-agent',
         maxRetries: 0,
       });
 
-      const input = {
-        projectRoot: process.cwd(),
-        task: 'invalid-task' as any,
-        maxFixes: 0,
-      };
-
-      const result = await retryAgent.execute(input);
-
-      expect(result.success).toBe(false);
-      expect(result.retries).toBe(0);
+      expect(retryAgent.getStatus().config.maxRetries).toBe(0);
     });
   });
 

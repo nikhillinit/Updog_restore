@@ -4,7 +4,9 @@ import { describe, it, expect } from 'vitest';
 
 const phase4BoundaryFiles = [
   'server/routes.ts',
+  'server/routes/funds.ts',
   'server/routes/calculations.ts',
+  'server/contracts/funds-endpoint-ownership.ts',
   'server/services/projected-metrics-calculator.ts',
   'workers/reserve-worker.ts',
   'workers/pacing-worker.ts',
@@ -16,11 +18,12 @@ const phase4BoundaryFiles = [
  *
  * Two bypass vectors:
  *   1. Raw relative paths: ../client/src/...
- *   2. Alias paths: @/ maps to client/src/* (tsconfig.json:50).
+ *   2. Alias paths: @/ maps to client/src/* (tsconfig.json).
  *      Only @shared/ and @server/ are safe for server/worker use.
  *
  * Strategy: allowlist of safe alias prefixes; everything else from @/ or
- * client/src/ is a violation.
+ * client/src/ is a violation for the canonical Phase 4 files, including the
+ * authoritative router owner and ownership manifest.
  */
 const SAFE_ALIAS_PREFIXES = ['@shared/', '@shared', '@server/', '@server'] as const;
 

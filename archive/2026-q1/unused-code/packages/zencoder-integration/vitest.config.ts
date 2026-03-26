@@ -7,7 +7,14 @@ export default mergeConfig(
   defineConfig({
     resolve: {
       alias: {
-        '@povc/agent-core': path.resolve(__dirname, '../agent-core/src'),
+        '@povc/agent-core': path.resolve(__dirname, '../agent-core/src/index.ts'),
+      },
+    },
+    test: {
+      server: {
+        deps: {
+          inline: ['@povc/agent-core'],
+        },
       },
     },
   })

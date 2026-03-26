@@ -441,7 +441,7 @@ describe('units.ts - Regression Tests', () => {
   it('regression: 100× MOIC error (original bug)', () => {
     // Original bug: user enters 2.5x MOIC, system stored as 250 bps instead of 25000 bps
     const userInput = '2.5';
-    const moicValue = parseFloat(userInput);
+    const moicValue = Number(userInput);
 
     // Old (buggy) code would do:
     // const wrongBps = moicValue * 100; // => 250

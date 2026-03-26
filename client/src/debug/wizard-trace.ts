@@ -1,3 +1,7 @@
+import { logger } from '@/lib/logger';
+
+const MAX_SERIALIZED_DETAIL = 140;
+
 export function traceWizard(
   event: string,
   detail?: unknown,
@@ -11,15 +15,17 @@ export function traceWizard(
     component: opts?.component,
     detail: sanitize(detail),
   };
-  // Log a single JSON object for easy copy/paste/parse
-  // Use `WIZARD` marker so it's easy to filter in Console
-  console.log('WIZARD', entry);
+  logger.debug('WIZARD', entry);
 }
 
 function sanitize(v: unknown) {
   try {
-    const s = JSON.stringify(v);
-    return s && s.length > 140 ? JSON.parse(`${s.slice(0, 140)  }"…]"`) : v;
+    const serialized = JSON.stringify(v);
+    if (!serialized || serialized.length <= MAX_SERIALIZED_DETAIL) {
+      return v;
+    }
+
+    return `${serialized.slice(0, MAX_SERIALIZED_DETAIL - 3)}...`;
   } catch {
     return String(v);
   }

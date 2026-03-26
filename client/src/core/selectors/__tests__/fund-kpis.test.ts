@@ -849,7 +849,7 @@ describe('selectTVPI', () => {
   });
 
   it('should equal DPI for fully liquidated fund', () => {
-    const data = createFundData({
+    const _data = createFundData({
       investments: [], // No active investments
       valuations: [],
       capitalCalls: [
@@ -884,6 +884,7 @@ describe('selectTVPI', () => {
     // NAV should be 5M (10M called - 0 invested - 15M dist = -5M cash, + 0 portfolio = -5M NAV)
     // But wait, if we invested 0, where did the 15M distribution come from?
     // This is a contrived example. Let's adjust:
+    expect(_data.distributions).toHaveLength(1);
   });
 });
 

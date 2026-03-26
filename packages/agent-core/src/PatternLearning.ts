@@ -33,8 +33,14 @@ import type { ConversationStorage } from './ConversationMemory.js';
 import { CacheKeySchema } from './cache/KeySchema.js';
 import type { MemoryEventBus} from './MemoryEventBus.js';
 import { getEventBus } from './MemoryEventBus.js';
-import { logger } from './Logger.js';
+import { Logger } from './Logger';
 import type { AgentResult, AgentExecutionContext } from './BaseAgent.js';
+
+const logger = new Logger({
+  level: 'info',
+  agent: 'pattern-learning',
+  enableFile: false,
+});
 
 /**
  * Pattern types

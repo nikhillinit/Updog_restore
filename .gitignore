@@ -67,6 +67,7 @@ jspm_packages/
 .baselines/*
 !.baselines/console-prod-baseline.json
 !.baselines/eslint-file-disable-baseline.json
+!.baselines/phase4-worker-eslint-baseline.json
 
 # Optional REPL history
 .node_repl_history

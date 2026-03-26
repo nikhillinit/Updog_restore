@@ -26,10 +26,7 @@ const MIGRATION_GUIDE = join(ROOT, 'packages', 'agent-core', 'THINKING_MIGRATION
 const EXPECTED_AGENTS = [
   { name: 'Test Repair Agent', path: 'test-repair-agent' },
   { name: 'Bundle Optimization Agent', path: 'bundle-optimization-agent' },
-  { name: 'Codex Review Agent', path: 'codex-review-agent' },
-  { name: 'Dependency Analysis Agent', path: 'dependency-analysis-agent' },
-  { name: 'Route Optimization Agent', path: 'route-optimization-agent' },
-  { name: 'Zencoder Agent', path: 'zencoder-integration' }
+  { name: 'Codex Review Agent', path: 'codex-review-agent' }
 ];
 
 // Example agents (should NOT exist as packages)
