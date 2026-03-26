@@ -1,24 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
 import { useState, useEffect } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  BarChart3, 
-  Settings, 
-  Eye, 
-  Download,
-  Share,
-  ArrowLeft,
-  TrendingUp 
-} from 'lucide-react';
+import { BarChart3, Settings, Eye, Download, Share, ArrowLeft, TrendingUp } from 'lucide-react';
 import PortfolioAnalyticsDashboard from './portfolio-analytics-dashboard';
-import SimpleChartBuilder from './simple-chart-builder';
+import SimpleChartBuilder, { type ChartConfig as BuilderChartConfig } from './simple-chart-builder';
 import SavedViewsManager from './saved-views-manager';
 import BenchmarkingDashboard from './benchmarking-dashboard';
 import TagPerformanceAnalysis from './tag-performance-analysis';
@@ -31,7 +18,7 @@ interface AnalyticsView {
   xAxis: string;
   yAxis: string;
   groupBy?: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   notes: string;
   createdAt: string;
   lastModified: string;
@@ -40,13 +27,9 @@ interface AnalyticsView {
   tags: string[];
 }
 
-interface ChartConfig {
-  type: AnalyticsView['chartType'];
-  title: string;
-  xAxis: string;
-  yAxis: string;
+type ChartConfig = BuilderChartConfig & {
   filters: AnalyticsView['filters'];
-}
+};
 
 export default function EnhancedPortfolioAnalytics() {
   const { currentFund } = useFundContext();
@@ -71,7 +54,8 @@ export default function EnhancedPortfolioAnalytics() {
         xAxis: 'quarter',
         yAxis: 'revenue',
         filters: {},
-        notes: 'Shows strong growth in Q3/Q4 across SaaS companies. Notable acceleration in TechFlow and FinanceHub.',
+        notes:
+          'Shows strong growth in Q3/Q4 across SaaS companies. Notable acceleration in TechFlow and FinanceHub.',
         createdAt: '2024-12-15T10:00:00Z',
         lastModified: '2024-12-20T15:30:00Z',
         createdBy: 'John Smith',
@@ -86,7 +70,8 @@ export default function EnhancedPortfolioAnalytics() {
         xAxis: 'sector',
         yAxis: 'burnRate',
         filters: {},
-        notes: 'AI/ML companies showing higher burn rates due to compute costs. EdTech maintaining efficient operations.',
+        notes:
+          'AI/ML companies showing higher burn rates due to compute costs. EdTech maintaining efficient operations.',
         createdAt: '2024-12-18T14:20:00Z',
         lastModified: '2024-12-18T14:20:00Z',
         createdBy: 'Sarah Johnson',
@@ -101,7 +86,8 @@ export default function EnhancedPortfolioAnalytics() {
         xAxis: 'name',
         yAxis: 'currentValuation',
         filters: {},
-        notes: 'FinanceHub represents 35% of total portfolio value. Good diversification across remaining companies.',
+        notes:
+          'FinanceHub represents 35% of total portfolio value. Good diversification across remaining companies.',
         createdAt: '2024-12-19T09:15:00Z',
         lastModified: '2024-12-19T09:15:00Z',
         createdBy: 'Michael Chen',
@@ -112,8 +98,11 @@ export default function EnhancedPortfolioAnalytics() {
     setSavedViews(sampleViews);
   }, []);
 
-  const handleChartConfigChange = (config: ChartConfig) => {
-    setCurrentChartConfig(config);
+  const handleChartConfigChange = (config: BuilderChartConfig) => {
+    setCurrentChartConfig({
+      ...config,
+      filters: config.filters ?? {},
+    });
   };
 
   const handleViewLoad = (view: AnalyticsView) => {
@@ -134,19 +123,15 @@ export default function EnhancedPortfolioAnalytics() {
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
     };
-    setSavedViews(prev => [...prev, newView]);
+    setSavedViews((prev) => [...prev, newView]);
   };
 
   const handleViewUpdate = (id: string, updates: Partial<AnalyticsView>) => {
-    setSavedViews(prev => 
-      prev.map(view => 
-        view.id === id ? { ...view, ...updates } : view
-      )
-    );
+    setSavedViews((prev) => prev.map((view) => (view.id === id ? { ...view, ...updates } : view)));
   };
 
   const handleViewDelete = (id: string) => {
-    setSavedViews(prev => prev.filter(view => view.id !== id));
+    setSavedViews((prev) => prev.filter((view) => view.id !== id));
   };
 
   if (!currentFund) {
@@ -179,7 +164,7 @@ export default function EnhancedPortfolioAnalytics() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Portfolio Analytics</h1>
                 <p className="text-sm text-gray-600">
-                  {currentFund.name} • Advanced data exploration and visualization
+                  {currentFund.name} | Advanced data exploration and visualization
                 </p>
               </div>
             </div>
@@ -203,35 +188,35 @@ export default function EnhancedPortfolioAnalytics() {
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="px-6">
           <TabsList className="grid w-full grid-cols-5 bg-transparent border-t border-gray-200 rounded-none">
-            <TabsTrigger 
-              value="dashboard" 
+            <TabsTrigger
+              value="dashboard"
               className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
             >
               <Eye className="h-4 w-4 mr-2" />
               Analytics Dashboard
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="builder"
               className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Chart Builder
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="tag-performance"
               className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               By Tags
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="benchmarks"
               className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               Benchmarks
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="saved-views"
               className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none"
             >
@@ -254,7 +239,8 @@ export default function EnhancedPortfolioAnalytics() {
               <CardHeader>
                 <CardTitle>Drag & Drop Chart Builder</CardTitle>
                 <p className="text-sm text-gray-600">
-                  Build custom visualizations by selecting chart types and dragging fields into configuration areas
+                  Build custom visualizations by selecting chart types and dragging fields into
+                  configuration areas
                 </p>
               </CardHeader>
               <CardContent>

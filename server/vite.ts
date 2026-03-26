@@ -29,23 +29,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isViteLogger(value: unknown): value is ViteLogger {
-  return isRecord(value) && typeof value.error === 'function';
+  return isRecord(value) && typeof value['error'] === 'function';
 }
 
 function isViteServerLike(value: unknown): value is ViteServerLike {
   return (
     isRecord(value) &&
-    typeof value.middlewares === 'function' &&
-    typeof value.transformIndexHtml === 'function' &&
-    typeof value.ssrFixStacktrace === 'function'
+    typeof value['middlewares'] === 'function' &&
+    typeof value['transformIndexHtml'] === 'function' &&
+    typeof value['ssrFixStacktrace'] === 'function'
   );
 }
 
 function isViteModuleLike(value: unknown): value is ViteModuleLike {
   return (
     isRecord(value) &&
-    typeof value.createServer === 'function' &&
-    typeof value.createLogger === 'function'
+    typeof value['createServer'] === 'function' &&
+    typeof value['createLogger'] === 'function'
   );
 }
 

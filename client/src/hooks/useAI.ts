@@ -59,11 +59,7 @@ function parseUsagePayload(payload: unknown): AIResponse['usage'] | undefined {
   const completionTokens = asNumber(payload['completion_tokens']);
   const totalTokens = asNumber(payload['total_tokens']);
 
-  if (
-    promptTokens === undefined ||
-    completionTokens === undefined ||
-    totalTokens === undefined
-  ) {
+  if (promptTokens === undefined || completionTokens === undefined || totalTokens === undefined) {
     return undefined;
   }
 
@@ -83,14 +79,17 @@ function parseAIResponseItem(payload: unknown): AIResponse {
   if (typeof model !== 'string' || !MODEL_NAMES.has(model as ModelName)) {
     throw new Error('Invalid AI response item');
   }
+  const usage = parseUsagePayload(payload['usage']);
+  const costUsd = asNumber(payload['cost_usd']);
+  const elapsedMs = asNumber(payload['elapsed_ms']);
 
   return {
-    model,
-    text: typeof payload['text'] === 'string' ? payload['text'] : undefined,
-    error: typeof payload['error'] === 'string' ? payload['error'] : undefined,
-    usage: parseUsagePayload(payload['usage']),
-    cost_usd: asNumber(payload['cost_usd']),
-    elapsed_ms: asNumber(payload['elapsed_ms']),
+    model: model as ModelName,
+    ...(typeof payload['text'] === 'string' ? { text: payload['text'] } : {}),
+    ...(typeof payload['error'] === 'string' ? { error: payload['error'] } : {}),
+    ...(usage !== undefined ? { usage } : {}),
+    ...(costUsd !== undefined ? { cost_usd: costUsd } : {}),
+    ...(elapsedMs !== undefined ? { elapsed_ms: elapsedMs } : {}),
   };
 }
 

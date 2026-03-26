@@ -4,13 +4,25 @@
  */
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
@@ -25,7 +37,12 @@ interface ShareConfigModalProps {
   children?: React.ReactNode;
 }
 
-const SHARE_ACCESS_LEVELS = ['view_only', 'view_with_details', 'collaborator'] as const satisfies readonly ShareAccessLevel[];
+const SHARE_ACCESS_LEVELS = [
+  'view_only',
+  'view_with_details',
+  'collaborator',
+  'admin',
+] as const satisfies readonly ShareAccessLevel[];
 
 const isShareAccessLevel = (value: string): value is ShareAccessLevel =>
   SHARE_ACCESS_LEVELS.includes(value as ShareAccessLevel);
@@ -34,7 +51,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   fundId,
   fundName,
   onCreateShare,
-  children
+  children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -48,7 +65,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
     expiresInDays: 30,
     hiddenMetrics: [...LP_HIDDEN_METRICS],
     customTitle: `${fundName} - Portfolio Dashboard`,
-    customMessage: ''
+    customMessage: '',
   });
 
   const handleCreateShare = async () => {
@@ -78,15 +95,18 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
       expiresInDays: 30,
       hiddenMetrics: [...LP_HIDDEN_METRICS],
       customTitle: `${fundName} - Portfolio Dashboard`,
-      customMessage: ''
+      customMessage: '',
     });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      setIsOpen(open);
-      if (!open) resetForm();
-    }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) resetForm();
+      }}
+    >
       <DialogTrigger asChild>
         {children || (
           <Button variant="outline" className="gap-2">
@@ -112,11 +132,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 Share Link Created Successfully
               </h3>
               <div className="flex items-center gap-2">
-                <Input
-                  value={createdLink}
-                  readOnly
-                  className="flex-1 font-mono text-sm"
-                />
+                <Input value={createdLink} readOnly className="flex-1 font-mono text-sm" />
                 <Button
                   variant="outline"
                   size="sm"
@@ -160,7 +176,9 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="view_only">View Only - Basic LP Dashboard</SelectItem>
-                  <SelectItem value="view_with_details">View with Details - Extended Metrics</SelectItem>
+                  <SelectItem value="view_with_details">
+                    View with Details - Extended Metrics
+                  </SelectItem>
                   <SelectItem value="collaborator">Collaborator - Can Comment</SelectItem>
                 </SelectContent>
               </Select>
@@ -180,7 +198,9 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 </div>
                 <Switch
                   checked={config.requirePasskey}
-                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, requirePasskey: checked }))}
+                  onCheckedChange={(checked) =>
+                    setConfig((prev) => ({ ...prev, requirePasskey: checked }))
+                  }
                 />
               </div>
 
@@ -190,7 +210,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   <Input
                     type="password"
                     value={config.passkey}
-                    onChange={(e) => setConfig(prev => ({ ...prev, passkey: e.target.value }))}
+                    onChange={(e) => setConfig((prev) => ({ ...prev, passkey: e.target.value }))}
                     placeholder="Enter a secure passkey"
                   />
                 </div>
@@ -206,7 +226,12 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   min="1"
                   max="365"
                   value={config.expiresInDays || ''}
-                  onChange={(e) => setConfig(prev => ({ ...prev, expiresInDays: parseInt(e.target.value) || undefined }))}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      expiresInDays: parseInt(e.target.value) || undefined,
+                    }))
+                  }
                   placeholder="30"
                 />
               </div>
@@ -220,7 +245,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 <Label>Dashboard Title</Label>
                 <Input
                   value={config.customTitle}
-                  onChange={(e) => setConfig(prev => ({ ...prev, customTitle: e.target.value }))}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, customTitle: e.target.value }))}
                   placeholder="Custom title for LP dashboard"
                 />
               </div>
@@ -229,7 +254,9 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 <Label>Welcome Message</Label>
                 <Textarea
                   value={config.customMessage}
-                  onChange={(e) => setConfig(prev => ({ ...prev, customMessage: e.target.value }))}
+                  onChange={(e) =>
+                    setConfig((prev) => ({ ...prev, customMessage: e.target.value }))
+                  }
                   placeholder="Optional message for LPs accessing the dashboard"
                   rows={3}
                 />
@@ -249,20 +276,20 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                       checked={config.hiddenMetrics.includes(metric)}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setConfig(prev => ({
+                          setConfig((prev) => ({
                             ...prev,
-                            hiddenMetrics: [...prev.hiddenMetrics, metric]
+                            hiddenMetrics: [...prev.hiddenMetrics, metric],
                           }));
                         } else {
-                          setConfig(prev => ({
+                          setConfig((prev) => ({
                             ...prev,
-                            hiddenMetrics: prev.hiddenMetrics.filter(m => m !== metric)
+                            hiddenMetrics: prev.hiddenMetrics.filter((m) => m !== metric),
                           }));
                         }
                       }}
                     />
                     <Label htmlFor={metric} className="text-sm">
-                      {metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                     </Label>
                   </div>
                 ))}
@@ -271,17 +298,10 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
 
             {/* Actions */}
             <div className="flex gap-2 pt-4 border-t">
-              <Button
-                onClick={handleCreateShare}
-                disabled={isCreating}
-                className="flex-1"
-              >
+              <Button onClick={handleCreateShare} disabled={isCreating} className="flex-1">
                 {isCreating ? 'Creating...' : 'Create Share Link'}
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-              >
+              <Button variant="outline" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
             </div>

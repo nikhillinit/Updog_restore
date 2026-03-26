@@ -18,7 +18,7 @@ import {
   Wrench,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
 } from 'lucide-react';
 
 interface DevHealthMetrics {
@@ -89,30 +89,37 @@ const isDashboardOverall = (value: unknown): value is DashboardData['overall'] =
   value === 'healthy' || value === 'warning' || value === 'critical';
 
 function parseDashboardData(value: unknown): DashboardData {
+  const timestamp = isRecord(value) ? value['timestamp'] : undefined;
+  const overall = isRecord(value) ? value['overall'] : undefined;
+  const metrics = isRecord(value) ? value['metrics'] : undefined;
+
   if (
-    !isRecord(value)
-    || typeof value.timestamp !== 'string'
-    || !isDashboardOverall(value.overall)
-    || !isRecord(value.metrics)
+    !isRecord(value) ||
+    typeof timestamp !== 'string' ||
+    !isDashboardOverall(overall) ||
+    !isRecord(metrics)
   ) {
     throw new Error('Invalid dev dashboard response');
   }
 
   return {
-    timestamp: value.timestamp,
-    overall: value.overall,
-    metrics: value.metrics as DevHealthMetrics,
+    timestamp,
+    overall,
+    metrics: metrics as unknown as DevHealthMetrics,
   };
 }
 
 function parseQuickFixResponse(value: unknown): { success: boolean; message: string } {
-  if (!isRecord(value) || typeof value.success !== 'boolean' || typeof value.message !== 'string') {
+  const success = isRecord(value) ? value['success'] : undefined;
+  const message = isRecord(value) ? value['message'] : undefined;
+
+  if (!isRecord(value) || typeof success !== 'boolean' || typeof message !== 'string') {
     throw new Error('Invalid quick fix response');
   }
 
   return {
-    success: value.success,
-    message: value.message,
+    success,
+    message,
   };
 }
 
@@ -141,7 +148,7 @@ const DevDashboard: React.FC = () => {
   const handleQuickFix = async (action: string) => {
     try {
       const response = await fetch(`/api/dev-dashboard/fix/${action}`, {
-        method: 'POST'
+        method: 'POST',
       });
       const payload: unknown = await response.json();
       const result = parseQuickFixResponse(payload);
@@ -209,7 +216,7 @@ const DevDashboard: React.FC = () => {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))  } ${  sizes[i]}`;
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
   if (loading) {
@@ -227,12 +234,7 @@ const DevDashboard: React.FC = () => {
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
           {error || 'Failed to load dashboard data'}
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-4"
-            onClick={fetchHealth}
-          >
+          <Button variant="outline" size="sm" className="ml-4" onClick={fetchHealth}>
             Retry
           </Button>
         </AlertDescription>
@@ -246,15 +248,16 @@ const DevDashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Development Dashboard</h1>
-          <p className="text-muted-foreground">
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </p>
+          <p className="text-muted-foreground">Last updated: {lastUpdated.toLocaleTimeString()}</p>
         </div>
         <div className="flex items-center space-x-4">
           <Badge
             variant={
-              data.overall === 'healthy' ? 'default' :
-              data.overall === 'warning' ? 'secondary' : 'destructive'
+              data.overall === 'healthy'
+                ? 'default'
+                : data.overall === 'warning'
+                  ? 'secondary'
+                  : 'destructive'
             }
             className="text-sm px-3 py-1"
           >
@@ -270,7 +273,6 @@ const DevDashboard: React.FC = () => {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
         {/* TypeScript Health */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -281,9 +283,7 @@ const DevDashboard: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {data.metrics.typescript.errorCount}
-            </div>
+            <div className="text-2xl font-bold">{data.metrics.typescript.errorCount}</div>
             <p className="text-xs text-muted-foreground">
               {data.metrics.typescript.errorCount === 0 ? 'No errors' : 'Type errors'}
             </p>
@@ -313,11 +313,10 @@ const DevDashboard: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {data.metrics.tests.passCount}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{data.metrics.tests.passCount}</div>
             <p className="text-xs text-muted-foreground">
-              passing {data.metrics.tests.failCount > 0 && `, ${data.metrics.tests.failCount} failing`}
+              passing{' '}
+              {data.metrics.tests.failCount > 0 && `, ${data.metrics.tests.failCount} failing`}
             </p>
             <div className="mt-2">
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -349,12 +348,8 @@ const DevDashboard: React.FC = () => {
             {getStatusIcon(data.metrics.build.status)}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {data.metrics.build.duration / 1000}s
-            </div>
-            <p className="text-xs text-muted-foreground">
-              last build time
-            </p>
+            <div className="text-2xl font-bold">{data.metrics.build.duration / 1000}s</div>
+            <p className="text-xs text-muted-foreground">last build time</p>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-xs">
                 <span>Client:</span>
@@ -391,12 +386,8 @@ const DevDashboard: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {data.metrics.monteCarlo.avgLatency}ms
-            </div>
-            <p className="text-xs text-muted-foreground">
-              avg latency
-            </p>
+            <div className="text-2xl font-bold">{data.metrics.monteCarlo.avgLatency}ms</div>
+            <p className="text-xs text-muted-foreground">avg latency</p>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-xs">
                 <span>Throughput:</span>
@@ -420,12 +411,8 @@ const DevDashboard: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {data.metrics.database.latency}ms
-            </div>
-            <p className="text-xs text-muted-foreground">
-              connection latency
-            </p>
+            <div className="text-2xl font-bold">{data.metrics.database.latency}ms</div>
+            <p className="text-xs text-muted-foreground">connection latency</p>
             <div className="mt-2">
               <div className="flex justify-between text-xs">
                 <span>Connections:</span>
@@ -442,12 +429,8 @@ const DevDashboard: React.FC = () => {
             {getStatusIcon(data.metrics.devServer.status)}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              :{data.metrics.devServer.port}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              port
-            </p>
+            <div className="text-2xl font-bold">:{data.metrics.devServer.port}</div>
+            <p className="text-xs text-muted-foreground">port</p>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-xs">
                 <span>Memory:</span>
@@ -469,9 +452,7 @@ const DevDashboard: React.FC = () => {
             <GitBranch className="h-5 w-5 mr-2" />
             Git Status
           </CardTitle>
-          <CardDescription>
-            Current branch and repository state
-          </CardDescription>
+          <CardDescription>Current branch and repository state</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -484,7 +465,7 @@ const DevDashboard: React.FC = () => {
               <div className="text-lg font-semibold">
                 {data.metrics.git.uncommittedChanges}
                 {data.metrics.git.uncommittedChanges > 0 && (
-                  <span className="text-yellow-500 ml-2">⚠</span>
+                  <span className="text-yellow-500 ml-2">!</span>
                 )}
               </div>
             </div>
@@ -519,9 +500,7 @@ const DevDashboard: React.FC = () => {
                   <div className="text-sm font-medium">
                     {error.file}:{error.line}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {error.message}
-                  </div>
+                  <div className="text-sm text-muted-foreground">{error.message}</div>
                 </div>
               ))}
               {data.metrics.typescript.errors.length > 5 && (

@@ -4,8 +4,8 @@ export interface Stage {
   id: string;
   name: string;
   graduate: number; // %
-  exit: number;     // %
-  months: number;   // int >= 1
+  exit: number; // %
+  months: number; // int >= 1
 }
 
 export interface EngineRates {
@@ -17,11 +17,13 @@ export interface EngineRates {
   };
 }
 
-type PayloadBasics = {
-  name: string;
-  size: number;
-  modelVersion: 'reserves-ev1';
-} | Record<string, unknown>;
+type PayloadBasics =
+  | {
+      name: string;
+      size: number;
+      modelVersion: 'reserves-ev1';
+    }
+  | Record<string, unknown>;
 
 type FundCreationPayload = {
   basics: PayloadBasics;
@@ -35,13 +37,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getStagesSource(input: Record<string, unknown>): unknown[] {
-  if (Array.isArray(input.stages)) {
-    return input.stages;
+  if (Array.isArray(input['stages'])) {
+    return input['stages'];
   }
 
-  const strategy = input.strategy;
-  if (isRecord(strategy) && Array.isArray(strategy.stages)) {
-    return strategy.stages;
+  const strategy = input['strategy'];
+  if (isRecord(strategy) && Array.isArray(strategy['stages'])) {
+    return strategy['stages'];
   }
 
   return [];
@@ -58,23 +60,21 @@ function normalizeStage(stage: unknown, index: number): Stage {
     };
   }
 
-  const rawId = stage.id;
-  const rawName = stage.name;
+  const rawId = stage['id'];
+  const rawName = stage['name'];
 
   return {
     id: typeof rawId === 'string' && rawId.trim() !== '' ? rawId : `stage-${index + 1}`,
     name:
-      typeof rawName === 'string' && rawName.trim() !== ''
-        ? rawName.trim()
-        : `Stage ${index + 1}`,
-    graduate: clampPct(stage.graduate),
-    exit: clampPct(stage.exit),
-    months: clampInt(stage.months, 1, 120),
+      typeof rawName === 'string' && rawName.trim() !== '' ? rawName.trim() : `Stage ${index + 1}`,
+    graduate: clampPct(stage['graduate']),
+    exit: clampPct(stage['exit']),
+    months: clampInt(stage['months'], 1, 120),
   };
 }
 
 function getBasics(input: Record<string, unknown>): PayloadBasics | undefined {
-  return isRecord(input.basics) ? input.basics : undefined;
+  return isRecord(input['basics']) ? input['basics'] : undefined;
 }
 
 /**

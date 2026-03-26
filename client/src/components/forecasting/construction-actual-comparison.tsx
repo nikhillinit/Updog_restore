@@ -301,7 +301,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="initial-checks">
           <ComparisonTable
-            data={comparisonData.initialChecks}
+            data={comparisonData['initialChecks']}
             title="Construction vs. Actual Comparison, By Entry Stage"
             description="Average initial check size per deal in actual investments compared between construction plan and actual investments."
           />
@@ -309,7 +309,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="follow-on-reserves">
           <ComparisonTable
-            data={comparisonData.followOnReserves}
+            data={comparisonData['followOnReserves']}
             title="Follow-On Reserves Comparison"
             description="Average follow-on reserve allocation per deal comparing construction plan with actual reserve deployment."
           />
@@ -317,7 +317,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="round-sizes">
           <ComparisonTable
-            data={comparisonData.roundSizes}
+            data={comparisonData['roundSizes']}
             title="Round Sizes Comparison"
             description="Average total round size for deals comparing construction assumptions with actual market conditions."
           />
@@ -325,7 +325,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="pre-money">
           <ComparisonTable
-            data={comparisonData.preMoneyValuations}
+            data={comparisonData['preMoneyValuations']}
             title="Pre-Money Valuations Comparison"
             description="Average pre-money valuation per deal of actual investments compared between construction plan and actual investments."
           />
@@ -333,7 +333,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="post-money">
           <ComparisonTable
-            data={comparisonData.postMoneyValuations}
+            data={comparisonData['postMoneyValuations']}
             title="Post-Money Valuations Comparison"
             description="Average post-money valuation per deal comparing construction assumptions with actual investment terms."
           />
@@ -353,17 +353,17 @@ export function ConstructionActualComparison() {
             <div>
               <h4 className="font-medium text-blue-900 mb-2">Market Conditions</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Pre-Seed valuations 114% higher than construction</li>
-                <li>• Series A check sizes 17% below target</li>
-                <li>• Overall deployment pacing 25% of target</li>
+                <li>- Pre-Seed valuations 114% higher than construction</li>
+                <li>- Series A check sizes 17% below target</li>
+                <li>- Overall deployment pacing 25% of target</li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium text-blue-900 mb-2">Recommended Actions</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Increase check sizes for Series A deals</li>
-                <li>• Accelerate deal sourcing and execution</li>
-                <li>• Adjust valuation expectations for current market</li>
+                <li>- Increase check sizes for Series A deals</li>
+                <li>- Accelerate deal sourcing and execution</li>
+                <li>- Adjust valuation expectations for current market</li>
               </ul>
             </div>
           </div>

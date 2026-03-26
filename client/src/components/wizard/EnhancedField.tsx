@@ -28,11 +28,9 @@ interface Option {
 
 type EnhancedFieldValue = string | number | null | undefined;
 
-interface EnhancedFieldProps {
+interface EnhancedFieldBaseProps {
   id?: string;
   label?: string;
-  value: EnhancedFieldValue;
-  onChange: (v: EnhancedFieldValue) => void;
 
   format?: Format;
   type?: 'text' | 'number' | 'date' | 'select';
@@ -59,6 +57,36 @@ interface EnhancedFieldProps {
   /** Additional class names */
   className?: string;
 }
+
+type NumberFieldProps = EnhancedFieldBaseProps & {
+  format?: 'number';
+  value: number | null | undefined;
+  onChange: (v: number | undefined) => void;
+};
+
+type PercentFieldProps = EnhancedFieldBaseProps & {
+  format: 'percent';
+  value: number | null | undefined;
+  onChange: (v: number) => void;
+};
+
+type UsdFieldProps = EnhancedFieldBaseProps & {
+  format: 'usd';
+  value: number | null | undefined;
+  onChange: (v: number) => void;
+};
+
+type DateOrSelectFieldProps = EnhancedFieldBaseProps & {
+  format: 'date' | 'select';
+  value: string | null | undefined;
+  onChange: (v: string) => void;
+};
+
+type EnhancedFieldProps =
+  | NumberFieldProps
+  | PercentFieldProps
+  | UsdFieldProps
+  | DateOrSelectFieldProps;
 
 /** Clamp percentage to 0-100 range */
 const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
@@ -109,6 +137,12 @@ export function EnhancedField({
   }, [value, format]);
 
   const showError = !!error;
+  const emitNumberValue = (nextValue: number | undefined) =>
+    (onChange as NumberFieldProps['onChange'])(nextValue);
+  const emitNumericValue = (nextValue: number) =>
+    (onChange as PercentFieldProps['onChange'] | UsdFieldProps['onChange'])(nextValue);
+  const emitStringValue = (nextValue: string) =>
+    (onChange as DateOrSelectFieldProps['onChange'])(nextValue);
 
   /** Handle input change */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -119,7 +153,7 @@ export function EnhancedField({
       setDisplay(raw);
       const parsed = parseUSDStrict(raw);
       if (parsed !== null) {
-        onChange(parsed);
+        emitNumericValue(parsed);
       }
       return;
     }
@@ -129,9 +163,9 @@ export function EnhancedField({
       const cleaned = raw.replace(/[^\d.]/g, '');
       const n = Number(cleaned);
       if (Number.isFinite(n)) {
-        onChange(clampPct(n));
+        emitNumericValue(clampPct(n));
       } else if (raw === '') {
-        onChange(0);
+        emitNumericValue(0);
       }
       return;
     }
@@ -144,26 +178,26 @@ export function EnhancedField({
         let clamped = n;
         if (min !== undefined && clamped < min) clamped = min;
         if (max !== undefined && clamped > max) clamped = max;
-        onChange(clamped);
+        emitNumberValue(clamped);
       } else if (raw === '') {
-        onChange(undefined);
+        emitNumberValue(undefined);
       }
       return;
     }
 
     if (format === 'date') {
-      onChange(raw);
+      emitStringValue(raw);
       setDisplay(raw);
       return;
     }
 
     if (format === 'select') {
-      onChange(raw);
+      emitStringValue(raw);
       return;
     }
 
     // Fallback
-    onChange(raw);
+    emitStringValue(raw);
   };
 
   /** Handle blur (format display) */
@@ -204,13 +238,10 @@ export function EnhancedField({
   const selectValue = typeof value === 'string' ? value : '';
 
   /** Combined ARIA describedby */
-  const ariaDescribedBy = [
-    helpText ? helpId : null,
-    error ? errorId : null,
-    aria['aria-describedby'],
-  ]
-    .filter(Boolean)
-    .join(' ') || undefined;
+  const ariaDescribedBy =
+    [helpText ? helpId : null, error ? errorId : null, aria['aria-describedby']]
+      .filter(Boolean)
+      .join(' ') || undefined;
 
   return (
     <div className={cn('space-y-1.5', className)}>

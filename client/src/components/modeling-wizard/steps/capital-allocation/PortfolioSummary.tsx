@@ -84,11 +84,11 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
   };
 
   const formatTooltipValue = (
-    value: ValueType,
-    name: NameType,
+    value: ValueType | undefined,
+    name: NameType | undefined,
     entry: ChartAmountPayload
   ): [string, string] => [
-    `${Number(value).toFixed(1)}% (${formatCurrency(entry.payload?.amount ?? 0)}M)`,
+    `${Number(value ?? 0).toFixed(1)}% (${formatCurrency(entry.payload?.amount ?? 0)}M)`,
     String(name ?? ''),
   ];
 
@@ -214,9 +214,7 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                     />
                   ))}
                 </Pie>
-                <Tooltip
-                  formatter={formatTooltipValue}
-                />
+                <Tooltip formatter={formatTooltipValue} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -271,9 +269,7 @@ export function PortfolioSummary({ sectors, stages, metrics, className }: Portfo
                     />
                   ))}
                 </Pie>
-                <Tooltip
-                  formatter={formatTooltipValue}
-                />
+                <Tooltip formatter={formatTooltipValue} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

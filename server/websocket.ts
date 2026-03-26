@@ -54,9 +54,10 @@ function getEventTypeRoom(fundId: number, eventType: string): string {
 export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env['NODE_ENV'] === 'production' 
-        ? process.env['FRONTEND_URL'] 
-        : 'http://localhost:5173',
+      origin:
+        process.env['NODE_ENV'] === 'production'
+          ? process.env['FRONTEND_URL']
+          : 'http://localhost:5173',
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
@@ -85,10 +86,11 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
         });
 
         if (!fund) {
-          return callback({
+          callback?.({
             error: 'Fund not found',
             message: `Fund ${fundId} does not exist`,
           });
+          return;
         }
 
         // Join fund room
@@ -125,9 +127,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
         const { fundId } = parsed;
 
         // Leave all rooms for this fund
-        const rooms = Array.from(socket.rooms).filter(
-          (room) => room.startsWith(`fund:${fundId}`)
-        );
+        const rooms = Array.from(socket.rooms).filter((room) => room.startsWith(`fund:${fundId}`));
 
         rooms.forEach((room) => socket.leave(room));
         subscriptions.delete(fundId);

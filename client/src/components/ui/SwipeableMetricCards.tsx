@@ -15,10 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import {
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface MetricCardData {
   id: string;
@@ -28,7 +25,7 @@ export interface MetricCardData {
   change: string;
   trend: 'up' | 'down' | 'stable';
   severity: 'success' | 'warning' | 'critical' | 'neutral';
-  icon: React.ElementType<{ className?: string }>;
+  icon: React.ElementType;
   metadata?: Record<string, unknown>;
 }
 
@@ -54,7 +51,7 @@ function MetricCard({
   isActive = false,
   onClick,
   compactMode = false,
-  className
+  className,
 }: {
   metric: MetricCardData;
   isActive?: boolean;
@@ -69,32 +66,32 @@ function MetricCard({
       bg: 'bg-green-50',
       border: 'border-green-200',
       text: 'text-green-800',
-      iconBg: 'bg-green-100'
+      iconBg: 'bg-green-100',
     },
     warning: {
       bg: 'bg-yellow-50',
       border: 'border-yellow-200',
       text: 'text-yellow-800',
-      iconBg: 'bg-yellow-100'
+      iconBg: 'bg-yellow-100',
     },
     critical: {
       bg: 'bg-red-50',
       border: 'border-red-200',
       text: 'text-red-800',
-      iconBg: 'bg-red-100'
+      iconBg: 'bg-red-100',
     },
     neutral: {
       bg: 'bg-slate-50',
       border: 'border-slate-200',
       text: 'text-slate-800',
-      iconBg: 'bg-slate-100'
-    }
+      iconBg: 'bg-slate-100',
+    },
   };
 
   const trendConfig = {
-    up: { symbol: '↗', color: 'text-green-600' },
-    down: { symbol: '↘', color: 'text-red-600' },
-    stable: { symbol: '→', color: 'text-slate-500' }
+    up: { symbol: '^', color: 'text-green-600' },
+    down: { symbol: 'v', color: 'text-red-600' },
+    stable: { symbol: '>', color: 'text-slate-500' },
   };
 
   const config = severityConfig[metric.severity];
@@ -103,13 +100,13 @@ function MetricCard({
   return (
     <Card
       className={cn(
-        "transition-all duration-300 cursor-pointer touch-manipulation",
-        "hover:shadow-lg active:scale-95 select-none",
-        "min-h-[120px]", // Ensure proper touch target
+        'transition-all duration-300 cursor-pointer touch-manipulation',
+        'hover:shadow-lg active:scale-95 select-none',
+        'min-h-[120px]', // Ensure proper touch target
         config.bg,
         config.border,
-        isActive && "ring-2 ring-blue-500 ring-offset-2 shadow-lg",
-        compactMode && "min-h-[100px]",
+        isActive && 'ring-2 ring-blue-500 ring-offset-2 shadow-lg',
+        compactMode && 'min-h-[100px]',
         className
       )}
       onClick={() => {
@@ -129,62 +126,25 @@ function MetricCard({
       }}
       aria-label={`${metric.title}: ${metric.value}, ${metric.change} change`}
     >
-      <CardContent className={cn(
-        "p-4 h-full flex flex-col justify-between",
-        compactMode && "p-3"
-      )}>
+      <CardContent className={cn('p-4 h-full flex flex-col justify-between', compactMode && 'p-3')}>
         {/* Header with icon and trend */}
         <div className="flex items-start justify-between mb-3">
-          <div className={cn(
-            "p-2 rounded-lg",
-            config.iconBg,
-            compactMode && "p-1.5"
-          )}>
-            <IconComponent className={cn(
-              "h-5 w-5",
-              config.text,
-              compactMode && "h-4 w-4"
-            )} />
+          <div className={cn('p-2 rounded-lg', config.iconBg, compactMode && 'p-1.5')}>
+            <IconComponent className={cn('h-5 w-5', config.text, compactMode && 'h-4 w-4')} />
           </div>
           <div className="flex items-center gap-1">
-            <span className={cn(
-              "text-sm font-mono",
-              trendInfo.color
-            )}>
-              {trendInfo.symbol}
-            </span>
-            <span className={cn(
-              "text-sm font-semibold",
-              trendInfo.color
-            )}>
-              {metric.change}
-            </span>
+            <span className={cn('text-sm font-mono', trendInfo.color)}>{trendInfo.symbol}</span>
+            <span className={cn('text-sm font-semibold', trendInfo.color)}>{metric.change}</span>
           </div>
         </div>
 
         {/* Content */}
         <div className="space-y-1 flex-grow">
-          <p className={cn(
-            "font-poppins text-xs",
-            config.text,
-            "opacity-70"
-          )}>
-            {metric.title}
-          </p>
-          <p className={cn(
-            "font-inter font-bold text-2xl",
-            config.text,
-            compactMode && "text-xl"
-          )}>
+          <p className={cn('font-poppins text-xs', config.text, 'opacity-70')}>{metric.title}</p>
+          <p className={cn('font-inter font-bold text-2xl', config.text, compactMode && 'text-xl')}>
             {metric.value}
           </p>
-          <p className={cn(
-            "font-mono text-xs",
-            config.text,
-            "opacity-60"
-          )}>
-            {metric.subtitle}
-          </p>
+          <p className={cn('font-mono text-xs', config.text, 'opacity-60')}>{metric.subtitle}</p>
         </div>
 
         {/* Active indicator */}
@@ -212,7 +172,7 @@ export function SwipeableMetricCards({
   autoScrollInterval = 5000,
   compactMode = false,
   cardsPerView = 1,
-  enableSwipeNavigation = true
+  enableSwipeNavigation = true,
 }: SwipeableMetricCardsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -221,23 +181,26 @@ export function SwipeableMetricCards({
   const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Handle index changes
-  const handleIndexChange = useCallback((newIndex: number) => {
-    const clampedIndex = Math.max(0, Math.min(metrics.length - 1, newIndex));
-    setCurrentIndex(clampedIndex);
-    onIndexChange?.(clampedIndex);
+  const handleIndexChange = useCallback(
+    (newIndex: number) => {
+      const clampedIndex = Math.max(0, Math.min(metrics.length - 1, newIndex));
+      setCurrentIndex(clampedIndex);
+      onIndexChange?.(clampedIndex);
 
-    // Scroll to the correct position
-    if (scrollRef.current) {
-      const scrollContainer = scrollRef.current;
-      const cardWidth = scrollContainer.clientWidth / cardsPerView;
-      const targetScrollLeft = clampedIndex * cardWidth;
+      // Scroll to the correct position
+      if (scrollRef.current) {
+        const scrollContainer = scrollRef.current;
+        const cardWidth = scrollContainer.clientWidth / cardsPerView;
+        const targetScrollLeft = clampedIndex * cardWidth;
 
-      scrollContainer.scrollTo({
-        left: targetScrollLeft,
-        behavior: 'smooth'
-      });
-    }
-  }, [metrics.length, onIndexChange, cardsPerView]);
+        scrollContainer.scrollTo({
+          left: targetScrollLeft,
+          behavior: 'smooth',
+        });
+      }
+    },
+    [metrics.length, onIndexChange, cardsPerView]
+  );
 
   // Auto-scroll functionality
   useEffect(() => {
@@ -263,7 +226,7 @@ export function SwipeableMetricCards({
     setDragStart({
       x: clientX,
       scrollLeft: scrollRef.current.scrollLeft,
-      time: Date.now()
+      time: Date.now(),
     });
 
     // Stop auto-scroll when user interacts
@@ -374,20 +337,18 @@ export function SwipeableMetricCards({
 
     const width = window.innerWidth;
     if (width >= 1024) return Math.min(4, metrics.length); // Desktop
-    if (width >= 640) return Math.min(2, metrics.length);  // Tablet
+    if (width >= 640) return Math.min(2, metrics.length); // Tablet
     return 1; // Mobile
   };
 
   const responsiveCardsPerView = getCardsPerView();
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Header with title and navigation */}
       {showNavigation && (
         <div className="flex items-center justify-between">
-          <h3 className="font-inter font-semibold text-lg text-slate-900">
-            Key Metrics
-          </h3>
+          <h3 className="font-inter font-semibold text-lg text-slate-900">Key Metrics</h3>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -406,10 +367,8 @@ export function SwipeableMetricCards({
                   <button
                     key={index}
                     className={cn(
-                      "w-2 h-2 rounded-full transition-all duration-300",
-                      index === currentIndex
-                        ? "bg-blue-600 w-4"
-                        : "bg-slate-300 hover:bg-slate-400"
+                      'w-2 h-2 rounded-full transition-all duration-300',
+                      index === currentIndex ? 'bg-blue-600 w-4' : 'bg-slate-300 hover:bg-slate-400'
                     )}
                     onClick={() => handleIndexChange(index)}
                     aria-label={`Go to metric ${index + 1}`}
@@ -436,11 +395,13 @@ export function SwipeableMetricCards({
       <div
         ref={scrollRef}
         className={cn(
-          "flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory",
-          "touch-pan-x select-none",
+          'flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory',
+          'touch-pan-x select-none',
           enableSwipeNavigation
-            ? (isDragging ? "cursor-grabbing" : "cursor-grab")
-            : "cursor-default"
+            ? isDragging
+              ? 'cursor-grabbing'
+              : 'cursor-grab'
+            : 'cursor-default'
         )}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -465,17 +426,17 @@ export function SwipeableMetricCards({
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          WebkitOverflowScrolling: 'touch'
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {metrics.map((metric, index) => (
           <div
             key={metric.id}
             className={cn(
-              "flex-shrink-0 snap-start",
-              responsiveCardsPerView === 1 && "w-full",
-              responsiveCardsPerView === 2 && "w-[calc(50%-0.5rem)]",
-              responsiveCardsPerView >= 4 && "w-[calc(25%-0.75rem)]"
+              'flex-shrink-0 snap-start',
+              responsiveCardsPerView === 1 && 'w-full',
+              responsiveCardsPerView === 2 && 'w-[calc(50%-0.5rem)]',
+              responsiveCardsPerView >= 4 && 'w-[calc(25%-0.75rem)]'
             )}
           >
             <MetricCard

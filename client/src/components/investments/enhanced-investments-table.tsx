@@ -39,9 +39,10 @@ interface Investment {
   irr: number;
   ownershipPercentage: number;
   lastRound: string;
-  status: 'Active' | 'Exited' | 'Written Off';
+  status: 'Active' | 'Exited' | 'Written Off' | 'Under Review' | 'Follow-on Required';
   partnerLead: string;
   dateInvested: string;
+  notes?: string;
 }
 
 // Enhanced mock data with deal tags
@@ -560,7 +561,7 @@ export default function EnhancedInvestmentsTable({
                   className="cursor-pointer"
                   onClick={() => handleTagToggle(tag)}
                 >
-                  {tag} ×
+                  {tag} x
                 </Badge>
               ))}
               {selectedSector !== 'all' && (
@@ -569,7 +570,7 @@ export default function EnhancedInvestmentsTable({
                   className="cursor-pointer"
                   onClick={() => setSelectedSector('all')}
                 >
-                  Sector: {selectedSector} ×
+                  Sector: {selectedSector} x
                 </Badge>
               )}
               {selectedStage !== 'all' && (
@@ -578,7 +579,7 @@ export default function EnhancedInvestmentsTable({
                   className="cursor-pointer"
                   onClick={() => setSelectedStage('all')}
                 >
-                  Stage: {selectedStage} ×
+                  Stage: {selectedStage} x
                 </Badge>
               )}
               {selectedStatus !== 'all' && (
@@ -587,7 +588,7 @@ export default function EnhancedInvestmentsTable({
                   className="cursor-pointer"
                   onClick={() => setSelectedStatus('all')}
                 >
-                  Status: {selectedStatus} ×
+                  Status: {selectedStatus} x
                 </Badge>
               )}
             </div>

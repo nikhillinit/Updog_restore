@@ -211,11 +211,14 @@ function parseStoredSteps(value: unknown): Partial<WizardStepDataMap> {
   }
 
   const steps: Partial<WizardStepDataMap> = {};
+  const assignStoredStep = <TStep extends WizardStep>(step: TStep, stepData: unknown): void => {
+    steps[step] = stepData as WizardStepDataMap[TStep];
+  };
 
   for (const step of STEP_ORDER) {
     const stepData = value[step];
     if (stepData !== undefined) {
-      steps[step] = stepData as WizardStepDataMap[typeof step];
+      assignStoredStep(step, stepData);
     }
   }
 
@@ -229,18 +232,25 @@ function parseStoredWizardProgress(stored: string): PersistedWizardStorage | nul
     return null;
   }
 
-  return {
+  const result: PersistedWizardStorage = {
     steps: parseStoredSteps(parsed['steps']),
-    currentStep: isWizardStep(parsed['currentStep']) ? parsed['currentStep'] : undefined,
     completedSteps: parseWizardStepList(parsed['completedSteps']),
     visitedSteps: parseWizardStepList(parsed['visitedSteps']),
-    skipOptionalSteps:
-      typeof parsed['skipOptionalSteps'] === 'boolean' ? parsed['skipOptionalSteps'] : undefined,
-    lastSaved:
-      typeof parsed['lastSaved'] === 'number' || parsed['lastSaved'] === null
-        ? parsed['lastSaved']
-        : undefined,
   };
+
+  if (isWizardStep(parsed['currentStep'])) {
+    result.currentStep = parsed['currentStep'];
+  }
+
+  if (typeof parsed['skipOptionalSteps'] === 'boolean') {
+    result.skipOptionalSteps = parsed['skipOptionalSteps'];
+  }
+
+  if (typeof parsed['lastSaved'] === 'number' || parsed['lastSaved'] === null) {
+    result.lastSaved = parsed['lastSaved'];
+  }
+
+  return result;
 }
 
 async function readResponseJson(response: Response): Promise<unknown> {
@@ -480,7 +490,7 @@ function validateStepData(step: WizardStep, data: unknown): string[] {
       }
       // Check allocations sum to 100%
       if (isUnknownArray(sectorProfiles)) {
-        const totalAllocation = sectorProfiles.reduce((sum, sp) => {
+        const totalAllocation = sectorProfiles.reduce<number>((sum, sp) => {
           return (
             sum + (isRecord(sp) && typeof sp['allocation'] === 'number' ? sp['allocation'] : 0)
           );

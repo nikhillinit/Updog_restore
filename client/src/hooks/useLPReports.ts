@@ -21,8 +21,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload.message === 'string') {
-    return payload.message;
+  if (isRecord(payload) && typeof payload['message'] === 'string') {
+    return payload['message'];
   }
 
   return undefined;
@@ -84,7 +84,9 @@ export function useLPReports(options: UseLPReportsOptions = {}) {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch reports`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch reports`
+        );
       }
 
       return (await readJsonResponse(response)) as ReportListResponse;
@@ -137,7 +139,9 @@ export function useGenerateLPReport() {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to generate report`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to generate report`
+        );
       }
 
       return (await readJsonResponse(response)) as ReportGenerationResponse;
@@ -192,7 +196,9 @@ export function useLPReportStatus(options: UseLPReportStatusOptions) {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch report status`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch report status`
+        );
       }
 
       return (await readJsonResponse(response)) as GeneratedReport;
@@ -238,7 +244,9 @@ export function useDownloadLPReport() {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to download report`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to download report`
+        );
       }
 
       return response.blob();

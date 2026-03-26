@@ -212,9 +212,9 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
 
   const chartData = getChartData();
 
-  const formatTooltip = (value: number | string): [string, string] => {
+  const formatTooltip = (value: number | string | undefined): [string, string] => {
     const displayValue =
-      chartData.find((datum) => datum.value === value)?.display ?? String(value);
+      chartData.find((datum) => datum.value === value)?.display ?? String(value ?? '');
 
     return [displayValue, getMetricLabel()];
   };
@@ -268,10 +268,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'bar' ? (
-                <BarChart
-                  data={chartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={12} />
                   <YAxis fontSize={12} />

@@ -111,7 +111,9 @@ export function ApprovalPanel() {
       const response = await fetch('/api/v1/reserve-approvals?status=pending');
       if (!response.ok) throw new Error('Failed to fetch approvals');
       const payload = await readJsonResponse(response);
-      return (isRecord(payload) ? payload : {}) as PendingApprovalsResponse;
+      return (isRecord(payload)
+        ? payload
+        : { total: 0, approvals: [] }) as unknown as PendingApprovalsResponse;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -124,7 +126,7 @@ export function ApprovalPanel() {
       const response = await fetch(`/api/v1/reserve-approvals/${selectedApproval}`);
       if (!response.ok) throw new Error('Failed to fetch approval details');
       const payload = await readJsonResponse(response);
-      return (isRecord(payload) ? payload : null) as ApprovalDetails | null;
+      return (isRecord(payload) ? payload : null) as unknown as ApprovalDetails | null;
     },
     enabled: !!selectedApproval,
   });
@@ -229,7 +231,9 @@ export function ApprovalPanel() {
         <CardContent>
           <Tabs defaultValue="pending" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pending">Pending ({getApprovalCount(pendingApprovals)})</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending ({getApprovalCount(pendingApprovals)})
+              </TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
