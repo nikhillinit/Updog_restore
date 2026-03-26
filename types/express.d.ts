@@ -8,7 +8,6 @@
  *   - server/middleware/audit.ts (id, email, orgId)
  */
 import 'express-serve-static-core';
-import type { UserContext } from '../server/lib/secure-context';
 
 interface RequestLogger {
   info: (_obj: unknown, msg?: string) => void;
@@ -32,6 +31,15 @@ interface LPProfile {
   email: string;
   entityType: string;
   fundIds: number[];
+}
+
+interface UserContext {
+  userId: string;
+  orgId: string;
+  fundId?: string;
+  email: string;
+  role: string;
+  partnerId?: string;
 }
 
 declare global {

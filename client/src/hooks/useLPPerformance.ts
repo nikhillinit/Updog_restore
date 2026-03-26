@@ -15,8 +15,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload.message === 'string') {
-    return payload.message;
+  if (isRecord(payload) && typeof payload['message'] === 'string') {
+    return payload['message'];
   }
 
   return undefined;
@@ -87,7 +87,9 @@ export function useLPPerformance(options: UseLPPerformanceOptions) {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch performance`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch performance`
+        );
       }
 
       return (await readJsonResponse(response)) as LPPerformanceResponse;
@@ -146,7 +148,9 @@ export function useLPHoldings(options: UseLPHoldingsOptions) {
 
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
-        throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch holdings`);
+        throw new Error(
+          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch holdings`
+        );
       }
 
       return (await readJsonResponse(response)) as LPHoldingsResponse;

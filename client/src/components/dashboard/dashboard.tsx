@@ -216,10 +216,7 @@ export default function Dashboard() {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" />
                 <XAxis dataKey="name" tick={{ fill: '#292929' }} />
-                <YAxis
-                  tick={{ fill: '#292929' }}
-                  tickFormatter={formatMillionsTick}
-                />
+                <YAxis tick={{ fill: '#292929' }} tickFormatter={formatMillionsTick} />
                 <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
                 <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
               </BarChart>
@@ -417,7 +414,11 @@ export default function Dashboard() {
       </div>
 
       {/* Main Dashboard Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as DashboardTab)}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="fund">Fund</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>

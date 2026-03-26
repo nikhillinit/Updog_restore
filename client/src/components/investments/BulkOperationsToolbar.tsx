@@ -63,7 +63,7 @@ interface Investment {
   stage: string;
   sector: string;
   tags?: string[];
-  [key: string]: unknown;
+  notes?: string;
 }
 
 interface BulkEditForm {
@@ -118,7 +118,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
         cleanedUpdates.sector = editForm.sector;
       }
 
-      const notes = editForm.notes?.trim();
+      const notes = editForm['notes']?.trim();
       if (notes) {
         cleanedUpdates.notes = notes;
       }
@@ -193,7 +193,9 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Status</Label>
                     <Select
                       value={editForm.status || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value as InvestmentStatus }))}
+                      onValueChange={(value) =>
+                        setEditForm((prev) => ({ ...prev, status: value as InvestmentStatus }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -212,7 +214,9 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Stage</Label>
                     <Select
                       value={editForm.stage || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, stage: value as InvestmentStage }))}
+                      onValueChange={(value) =>
+                        setEditForm((prev) => ({ ...prev, stage: value as InvestmentStage }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select stage" />
@@ -231,7 +235,9 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                     <Label>Sector</Label>
                     <Select
                       value={editForm.sector || ''}
-                      onValueChange={(value) => setEditForm((prev) => ({ ...prev, sector: value as InvestmentSector }))}
+                      onValueChange={(value) =>
+                        setEditForm((prev) => ({ ...prev, sector: value as InvestmentSector }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select sector" />
@@ -351,7 +357,7 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                   <div className="max-h-32 overflow-y-auto border rounded p-2 bg-gray-50">
                     {selectedInvestments.map((inv) => (
                       <div key={inv.id} className="text-sm py-1">
-                        • {inv.company_name}
+                        - {inv.company_name}
                       </div>
                     ))}
                   </div>

@@ -11,11 +11,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { BarChart3, LineChart, PieChart, TrendingUp } from 'lucide-react';
 
-interface ChartConfig {
-  type: string;
+export type ChartType = 'bar' | 'line' | 'pie' | 'area';
+
+export interface ChartConfig {
+  type: ChartType;
   xAxis: string;
   yAxis: string;
   title: string;
+  filters?: Record<string, unknown>;
 }
 
 interface ChartBuilderProps {
@@ -49,7 +52,7 @@ const DIMENSIONS = [
 ];
 
 export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps) {
-  const [chartType, setChartType] = useState('bar');
+  const [chartType, setChartType] = useState<ChartType>('bar');
   const [xAxis, setXAxis] = useState('name');
   const [yAxis, setYAxis] = useState('revenue');
   const [title, setTitle] = useState('Revenue by Company');
@@ -67,8 +70,9 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
   };
 
   const handleChartTypeChange = (value: string) => {
-    setChartType(value);
-    updateChart({ type: value });
+    const nextType = value as ChartType;
+    setChartType(nextType);
+    updateChart({ type: nextType });
   };
 
   const handleXAxisChange = (value: string) => {

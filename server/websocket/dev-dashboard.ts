@@ -53,7 +53,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isChokidarModule(value: unknown): value is ChokidarModule {
-  return isRecord(value) && typeof value.watch === 'function';
+  return isRecord(value) && typeof value['watch'] === 'function';
 }
 
 function parseQuickTestSummary(raw: string): { passed: number; failed: number } {
@@ -69,8 +69,8 @@ function parseQuickTestSummary(raw: string): { passed: number; failed: number } 
     }
 
     return {
-      passed: typeof parsed.numPassedTests === 'number' ? parsed.numPassedTests : 0,
-      failed: typeof parsed.numFailedTests === 'number' ? parsed.numFailedTests : 0,
+      passed: typeof parsed['numPassedTests'] === 'number' ? parsed['numPassedTests'] : 0,
+      failed: typeof parsed['numFailedTests'] === 'number' ? parsed['numFailedTests'] : 0,
     };
   } catch {
     return { passed: 0, failed: 0 };
@@ -119,10 +119,10 @@ class DevDashboardWebSocket {
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env["NODE_ENV"] === 'development' ? '*' : false,
-        methods: ['GET', 'POST']
+        origin: process.env['NODE_ENV'] === 'development' ? '*' : false,
+        methods: ['GET', 'POST'],
       },
-      path: '/socket.io/dev-dashboard'
+      path: '/socket.io/dev-dashboard',
     });
 
     this.setupEventHandlers();
@@ -132,7 +132,7 @@ class DevDashboardWebSocket {
 
   private setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      logger.info({ socketId: socket.id }, 'Dev dashboard client connected');
+      logger.info('Dev dashboard client connected', { socketId: socket.id });
 
       // Send initial metrics on connection
       this.sendMetricsUpdate(socket);
@@ -145,7 +145,7 @@ class DevDashboardWebSocket {
         try {
           this.broadcast({
             type: 'build_started',
-            data: { timestamp: new Date().toISOString() }
+            data: { timestamp: new Date().toISOString() },
           });
 
           const start = Date.now();
@@ -156,8 +156,8 @@ class DevDashboardWebSocket {
             type: 'build_completed',
             data: {
               timestamp: new Date().toISOString(),
-              duration
-            }
+              duration,
+            },
           });
 
           // Trigger metrics update after build
@@ -169,8 +169,8 @@ class DevDashboardWebSocket {
             type: 'build_failed',
             data: {
               timestamp: new Date().toISOString(),
-              errors: [error instanceof Error ? error.message : 'Build failed']
-            }
+              errors: [error instanceof Error ? error.message : 'Build failed'],
+            },
           });
         }
       });
@@ -179,7 +179,7 @@ class DevDashboardWebSocket {
         try {
           this.broadcast({
             type: 'test_started',
-            data: { timestamp: new Date().toISOString() }
+            data: { timestamp: new Date().toISOString() },
           });
 
           const { stdout } = await execAsync('npm run test:quick -- --reporter=json');
@@ -188,15 +188,15 @@ class DevDashboardWebSocket {
           const results = {
             passed: testResult.passed,
             failed: testResult.failed,
-            coverage: 85 // Placeholder
+            coverage: 85, // Placeholder
           };
 
           this.broadcast({
             type: 'test_completed',
             data: {
               timestamp: new Date().toISOString(),
-              results
-            }
+              results,
+            },
           });
 
           // Trigger metrics update after tests
@@ -207,14 +207,14 @@ class DevDashboardWebSocket {
           this.broadcast({
             type: 'test_failed',
             data: {
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           });
         }
       });
 
       socket.on('disconnect', () => {
-        logger.info({ socketId: socket.id }, 'Dev dashboard client disconnected');
+        logger.info('Dev dashboard client disconnected', { socketId: socket.id });
       });
     });
   }
@@ -228,14 +228,14 @@ class DevDashboardWebSocket {
           timestamp: new Date().toISOString(),
           overall: this.calculateOverallHealth(metrics),
           changedMetrics: this.getChangedMetrics(metrics),
-          metrics
-        }
+          metrics,
+        },
       };
 
       socket.emit('dev_dashboard_event', event);
       this.lastMetrics = metrics;
     } catch (error) {
-      logger.error({ error }, 'Failed to send metrics update');
+      logger.error('Failed to send metrics update', { error });
     }
   }
 
@@ -248,14 +248,14 @@ class DevDashboardWebSocket {
           timestamp: new Date().toISOString(),
           overall: this.calculateOverallHealth(metrics),
           changedMetrics: this.getChangedMetrics(metrics),
-          metrics
-        }
+          metrics,
+        },
       };
 
       this.broadcast(event);
       this.lastMetrics = metrics;
     } catch (error) {
-      logger.error({ error }, 'Failed to broadcast metrics update');
+      logger.error('Failed to broadcast metrics update', { error });
     }
   }
 
@@ -267,10 +267,7 @@ class DevDashboardWebSocket {
     // Simplified metrics collection for real-time updates
     // This mirrors the logic from the dev-dashboard route but optimized for frequent polling
 
-    const [typescript, git] = await Promise.all([
-      this.getTypeScriptErrors(),
-      this.getGitStatus()
-    ]);
+    const [typescript, git] = await Promise.all([this.getTypeScriptErrors(), this.getGitStatus()]);
 
     return {
       typescript,
@@ -278,8 +275,8 @@ class DevDashboardWebSocket {
       devServer: {
         status: 'running',
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        uptime: Math.round(process.uptime())
-      }
+        uptime: Math.round(process.uptime()),
+      },
     };
   }
 
@@ -295,14 +292,14 @@ class DevDashboardWebSocket {
         errors.push({
           file: match[1] ?? '',
           line: parseInt(match[2] ?? '0'),
-          message: (match[3] ?? '').trim()
+          message: (match[3] ?? '').trim(),
         });
       }
 
       return {
         errorCount: errors.length,
         errors: errors.slice(0, 5),
-        trend: 'stable'
+        trend: 'stable',
       };
     } catch {
       return { errorCount: -1, errors: [], trend: 'stable' };
@@ -312,13 +309,13 @@ class DevDashboardWebSocket {
   private async getGitStatus(): Promise<GitMetrics> {
     try {
       const [statusResult] = await Promise.all([
-        execAsync('git status --porcelain').catch(() => ({ stdout: '' }))
+        execAsync('git status --porcelain').catch(() => ({ stdout: '' })),
       ]);
 
       const uncommittedChanges = statusResult.stdout.trim().split('\n').filter(Boolean).length;
 
       return {
-        uncommittedChanges
+        uncommittedChanges,
       };
     } catch {
       return { uncommittedChanges: 0 };
@@ -344,9 +341,7 @@ class DevDashboardWebSocket {
   }
 
   private calculateOverallHealth(metrics: CollectedMetrics): 'healthy' | 'warning' | 'critical' {
-    const issues = [
-      metrics.typescript?.errorCount > 0
-    ];
+    const issues = [metrics.typescript?.errorCount > 0];
 
     const criticalIssues = issues.filter(Boolean).length;
 
@@ -372,15 +367,14 @@ class DevDashboardWebSocket {
         throw new Error('Invalid chokidar module shape');
       }
 
-      this.fileWatcher = chokidarModule.watch([
-        'client/src/**/*.{ts,tsx}',
-        'server/**/*.ts',
-        'shared/**/*.ts'
-      ], {
-        ignored: /node_modules/,
-        persistent: true,
-        ignoreInitial: true
-      });
+      this.fileWatcher = chokidarModule.watch(
+        ['client/src/**/*.{ts,tsx}', 'server/**/*.ts', 'shared/**/*.ts'],
+        {
+          ignored: /node_modules/,
+          persistent: true,
+          ignoreInitial: true,
+        }
+      );
 
       let updateTimeout: NodeJS.Timeout;
       this.fileWatcher.on('change', () => {
@@ -391,10 +385,9 @@ class DevDashboardWebSocket {
         }, 2000);
       });
     } catch (error) {
-      logger.warn(
-        { error: error instanceof Error ? error.message : String(error) },
-        'File watcher setup failed'
-      );
+      logger.warn('File watcher setup failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

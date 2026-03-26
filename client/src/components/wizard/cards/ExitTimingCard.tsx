@@ -51,7 +51,7 @@ export function ExitTimingCard({
 
   const summary = (
     <div className="text-sm text-muted-foreground">
-      Typical window: 4–8 years depending on stage.
+      Typical window: 4-8 years depending on stage.
     </div>
   );
 
@@ -76,8 +76,8 @@ export function ExitTimingCard({
               min={1}
               max={10}
               value={stageValue}
-              onChange={(v: number) => set(s, v)}
-              contextChip="Range: 4–8y"
+              onChange={(v) => set(s, v ?? stageValue)}
+              contextChip="Range: 4-8y"
               aria-invalid={!!err}
               {...(err !== undefined ? { error: err } : {})}
               disabled={disabled}

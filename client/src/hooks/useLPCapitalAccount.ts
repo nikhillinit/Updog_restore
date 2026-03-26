@@ -8,18 +8,15 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLPContext } from '@/contexts/LPContext';
-import type {
-  CapitalAccountResponse,
-  CapitalAccountQuery,
-} from '@shared/types/lp-api';
+import type { CapitalAccountResponse, CapitalAccountQuery } from '@shared/types/lp-api';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
 function getErrorMessage(payload: unknown): string | undefined {
-  if (isRecord(payload) && typeof payload.message === 'string') {
-    return payload.message;
+  if (isRecord(payload) && typeof payload['message'] === 'string') {
+    return payload['message'];
   }
 
   return undefined;
@@ -92,14 +89,26 @@ export function useLPCapitalAccount(options: UseLPCapitalAccountOptions = {}) {
 
     if (!response.ok) {
       const errorData = await readJsonResponse(response).catch(() => null);
-      throw new Error(getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch capital account`);
+      throw new Error(
+        getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch capital account`
+      );
     }
 
     return (await readJsonResponse(response)) as CapitalAccountResponse;
   };
 
   const query = useQuery<CapitalAccountResponse, Error>({
-    queryKey: ['lp-capital-account', lpId, fundId, startDate, endDate, types, sortBy, sortOrder, limit],
+    queryKey: [
+      'lp-capital-account',
+      lpId,
+      fundId,
+      startDate,
+      endDate,
+      types,
+      sortBy,
+      sortOrder,
+      limit,
+    ],
     queryFn: async () => fetchCapitalAccount(),
     enabled: enabled && !!lpId,
     staleTime: 60_000, // 1 minute
@@ -113,7 +122,18 @@ export function useLPCapitalAccount(options: UseLPCapitalAccountOptions = {}) {
     if (query.data?.pagination.hasMore && query.data?.pagination.cursor) {
       const nextCursor = query.data.pagination.cursor;
       await queryClient.fetchQuery<CapitalAccountResponse>({
-        queryKey: ['lp-capital-account', lpId, fundId, startDate, endDate, types, sortBy, sortOrder, limit, nextCursor],
+        queryKey: [
+          'lp-capital-account',
+          lpId,
+          fundId,
+          startDate,
+          endDate,
+          types,
+          sortBy,
+          sortOrder,
+          limit,
+          nextCursor,
+        ],
         queryFn: async () => fetchCapitalAccount(nextCursor),
       });
     }

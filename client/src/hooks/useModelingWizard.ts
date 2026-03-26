@@ -16,11 +16,12 @@ import type { StateFrom } from 'xstate';
 import {
   modelingWizardMachine,
   type WizardStep,
+  type ModelingWizardEvents,
   type ModelingWizardContext,
   type WizardStepDataMap,
   STEP_ORDER,
   getNextStep,
-  getPreviousStep
+  getPreviousStep,
 } from '@/machines/modeling-wizard.machine';
 
 // ============================================================================
@@ -109,15 +110,15 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
     autoSaveInterval = 30000,
     loadSavedProgress = true,
     onComplete,
-    onError
+    onError,
   } = options;
 
   // Initialize XState machine
   const [state, send] = useMachine(modelingWizardMachine, {
     input: {
       skipOptionalSteps,
-      autoSaveInterval
-    }
+      autoSaveInterval,
+    },
   });
 
   const context = state.context;
@@ -176,33 +177,53 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
     }
   }, [canGoBack, send]);
 
-  const goToStep = useCallback((step: WizardStep) => {
-    send({ type: 'GOTO', step });
-  }, [send]);
+  const goToStep = useCallback(
+    (step: WizardStep) => {
+      send({ type: 'GOTO', step });
+    },
+    [send]
+  );
 
   // ============================================================================
   // DATA MANAGEMENT
   // ============================================================================
 
-  const saveStep = useCallback(<TStep extends WizardStep>(step: TStep, data: WizardStepDataMap[TStep]) => {
-    send({ type: 'SAVE_STEP', step, data });
-  }, [send]);
+  const saveStep = useCallback(
+    <TStep extends WizardStep>(step: TStep, data: WizardStepDataMap[TStep]) => {
+      const event = {
+        type: 'SAVE_STEP',
+        step,
+        data,
+      } as ModelingWizardEvents;
+      send(event);
+    },
+    [send]
+  );
 
-  const getStepData = useCallback(<TStep extends WizardStep>(step: TStep): WizardStepDataMap[TStep] | undefined => {
-    return context.steps[step];
-  }, [context.steps]);
+  const getStepData = useCallback(
+    <TStep extends WizardStep>(step: TStep): WizardStepDataMap[TStep] | undefined => {
+      return context.steps[step];
+    },
+    [context.steps]
+  );
 
   // ============================================================================
   // VALIDATION
   // ============================================================================
 
-  const isStepValid = useCallback((step: WizardStep): boolean => {
-    return context.isStepValid[step] ?? false;
-  }, [context.isStepValid]);
+  const isStepValid = useCallback(
+    (step: WizardStep): boolean => {
+      return context.isStepValid[step] ?? false;
+    },
+    [context.isStepValid]
+  );
 
-  const getStepErrors = useCallback((step: WizardStep): string[] => {
-    return context.validationErrors[step] || [];
-  }, [context.validationErrors]);
+  const getStepErrors = useCallback(
+    (step: WizardStep): string[] => {
+      return context.validationErrors[step] || [];
+    },
+    [context.validationErrors]
+  );
 
   // ============================================================================
   // SUBMISSION
@@ -232,9 +253,12 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
   // CONFIGURATION
   // ============================================================================
 
-  const toggleSkipOptional = useCallback((skip: boolean) => {
-    send({ type: 'TOGGLE_SKIP_OPTIONAL', skip });
-  }, [send]);
+  const toggleSkipOptional = useCallback(
+    (skip: boolean) => {
+      send({ type: 'TOGGLE_SKIP_OPTIONAL', skip });
+    },
+    [send]
+  );
 
   // ============================================================================
   // RESET
@@ -286,7 +310,7 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
     toggleSkipOptional,
 
     // Reset
-    reset
+    reset,
   };
 }
 
@@ -356,7 +380,7 @@ export function useCurrentStepComponent(wizard: UseModelingWizardReturn) {
       feesExpenses: 'FeesExpensesStep',
       exitRecycling: 'ExitRecyclingStep',
       waterfall: 'WaterfallStep',
-      scenarios: 'ScenariosStep'
+      scenarios: 'ScenariosStep',
     };
 
     return stepComponents[wizard.currentStep];
@@ -370,10 +394,10 @@ export function useIsWizardComplete(wizard: UseModelingWizardReturn): boolean {
   return useMemo(() => {
     // Check if all required steps are completed
     const requiredSteps = STEP_ORDER.filter(
-      step => !wizard.context.skipOptionalSteps || step !== 'exitRecycling'
+      (step) => !wizard.context.skipOptionalSteps || step !== 'exitRecycling'
     );
 
-    return requiredSteps.every(step => wizard.isStepValid(step));
+    return requiredSteps.every((step) => wizard.isStepValid(step));
   }, [wizard]);
 }
 
@@ -389,7 +413,7 @@ export function useFormattedWizardData(wizard: UseModelingWizardReturn) {
       feesExpenses: wizard.getStepData('feesExpenses'),
       exitRecycling: wizard.getStepData('exitRecycling'),
       waterfall: wizard.getStepData('waterfall'),
-      scenarios: wizard.getStepData('scenarios')
+      scenarios: wizard.getStepData('scenarios'),
     };
   }, [wizard]);
 }

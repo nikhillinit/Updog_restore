@@ -16,13 +16,13 @@ describe('finalizePayload', () => {
     const result = toFundCreationPayload(input);
 
     // Test clamping
-    const s0 = result.strategy.stages[0];
+    const s0 = result.strategy.stages[0]!;
     expect(s0.graduate).toBe(100); // clamped from 101.3
     expect(s0.exit).toBe(0); // clamped from -3
     expect(s0.months).toBe(1); // rounded from 0.2
 
     // Test normal values pass through
-    const s1 = result.strategy.stages[1];
+    const s1 = result.strategy.stages[1]!;
     expect(s1.graduate).toBe(50);
     expect(s1.exit).toBe(25);
     expect(s1.months).toBe(18);

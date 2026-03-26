@@ -139,10 +139,11 @@ function parseGraduationSummary(payload: unknown): GraduationSummary {
     }
     return parsed;
   });
+  const seed = asNumber(payload['seed']);
 
   return {
     mode,
-    seed: asNumber(payload['seed']),
+    ...(seed !== undefined ? { seed } : {}),
     totalCompanies,
     expectedGraduationRate,
     expectedFailureRate,
@@ -171,10 +172,11 @@ function parseGraduationConfig(payload: unknown): GraduationConfig {
   ) {
     throw new Error('Invalid graduation defaults response');
   }
+  const seed = asNumber(payload['seed']);
 
   return {
     expectationMode: payload['expectationMode'],
-    seed: asNumber(payload['seed']),
+    ...(seed !== undefined ? { seed } : {}),
     transitions: {
       seedToA,
       aToB,

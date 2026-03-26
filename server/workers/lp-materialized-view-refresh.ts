@@ -44,7 +44,7 @@ export interface RefreshMetrics {
 }
 
 interface RefreshJobHandle {
-  id: string;
+  id?: string;
   data: ViewRefreshJob;
   attemptsMade: number;
   updateProgress(progress: number): Promise<void>;
@@ -270,10 +270,7 @@ export class MaterializedViewRefreshWorker {
   /**
    * Process refresh job
    */
-  private async processRefresh(
-    job: RefreshJobHandle,
-    _token?: string
-  ): Promise<RefreshMetrics> {
+  private async processRefresh(job: RefreshJobHandle, _token?: string): Promise<RefreshMetrics> {
     const startTime = Date.now();
 
     try {

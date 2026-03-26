@@ -279,8 +279,8 @@ export default function ModernDashboard() {
                         tickFormatter={(value: number) => `$${value / 1000000}M`}
                       />
                       <Tooltip
-                        formatter={(value: number) => [
-                          `$${(value / 1000000).toFixed(1)}M`,
+                        formatter={(value: number | undefined) => [
+                          `$${((value ?? 0) / 1000000).toFixed(1)}M`,
                           'Portfolio Value',
                         ]}
                         labelStyle={{ color: '#292929' }}
@@ -336,7 +336,7 @@ export default function ModernDashboard() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number) => [`${value}%`, 'Allocation']}
+                        formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Allocation']}
                         contentStyle={{
                           backgroundColor: '#FFFFFF',
                           border: '1px solid #E0D8D1',
