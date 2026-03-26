@@ -46,6 +46,14 @@ const PROJECTS = {
   shared: 'tsconfig.shared.json'
 };
 
+function createEmptyProjectEntry(timestamp) {
+  return {
+    errors: [],
+    total: 0,
+    lastUpdated: timestamp
+  };
+}
+
 // ============================================================================
 // Core Functions
 // ============================================================================
@@ -81,7 +89,7 @@ function runTypeScriptCompiler() {
   let combinedOutput = '';
 
   for (const [project, configFile] of Object.entries(PROJECTS)) {
-    console.log(`  Checking ${project}...`);
+    console.log(`  Checking ${project} (${configFile})...`);
     const output = runProjectCheck(project, configFile);
     if (output) {
       combinedOutput += output + '\n';
@@ -217,11 +225,14 @@ function generateBaseline() {
 
   // Generate context-aware hashes
   const fileCache = {};
+  const timestamp = new Date().toISOString();
   const baseline = {
     version: '2.0.0',
-    projects: {},
+    projects: Object.fromEntries(
+      Object.keys(PROJECTS).map(project => [project, createEmptyProjectEntry(timestamp)])
+    ),
     totalErrors: 0,
-    timestamp: new Date().toISOString(),
+    timestamp,
     buildMode: 'per-project',
     elapsedMs: Date.now() - startTime
   };
@@ -232,11 +243,7 @@ function generateBaseline() {
     const hash = generateContextHash(error, fileCache);
 
     if (!baseline.projects[project]) {
-      baseline.projects[project] = {
-        errors: [],
-        total: 0,
-        lastUpdated: baseline.timestamp
-      };
+      baseline.projects[project] = createEmptyProjectEntry(baseline.timestamp);
     }
 
     baseline.projects[project].errors.push(hash);
@@ -403,7 +410,7 @@ function showProgress() {
     const fixed = baselineCount - currentCount;
     const progress = baselineCount > 0 ? ((fixed / baselineCount) * 100) : 0;
 
-    if (baselineCount > 0 || currentCount > 0) {
+    if (project !== 'unknown' || baselineCount > 0 || currentCount > 0) {
       console.log(
         `${project.padEnd(10)} │ ${baselineCount.toString().padStart(8)} │ ` +
         `${currentCount.toString().padStart(8)} │ ${fixed.toString().padStart(8)} │ ` +
@@ -414,10 +421,13 @@ function showProgress() {
   }
 
   console.log('─'.repeat(70));
+  const totalProgress = baseline.totalErrors > 0
+    ? (totalFixed / baseline.totalErrors) * 100
+    : 0;
   console.log(
     `${'TOTAL'.padEnd(10)} │ ${baseline.totalErrors.toString().padStart(8)} │ ` +
     `${current.totalErrors.toString().padStart(8)} │ ${totalFixed.toString().padStart(8)} │ ` +
-    `${((totalFixed / baseline.totalErrors) * 100).toFixed(1).padStart(6)}%`
+    `${totalProgress.toFixed(1).padStart(6)}%`
   );
   console.log('─'.repeat(70));
   console.log(`\n📅 Baseline last updated: ${new Date(baseline.timestamp).toLocaleString()}`);

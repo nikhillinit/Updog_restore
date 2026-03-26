@@ -32,8 +32,11 @@ superseded_by: null
 zones: `client/`, `server/`, and `shared/`. Running `npx tsc --noEmit` from the
 project root compiles everything as a single unified program. But the CI
 baseline check (`npm run baseline:check`) and the pre-push hook compile each
-zone separately with its own `tsconfig.json`. The separate compilation is
-stricter -- it catches errors that the unified check misses.
+zone separately with the repo-root configs `tsconfig.client.json`,
+`tsconfig.server.json`, and `tsconfig.shared.json`. The separate compilation is
+stricter -- it catches errors that the unified check misses. The
+`client/tsconfig.json` file is used for Vite/editor path mapping and should stay
+aligned with `tsconfig.client.json`, but it is not the enforced pre-push gate.
 
 **How to Recognize This Trap:**
 
@@ -118,22 +121,21 @@ if (getFlag(flags, 'enableDarkMode')) { ... }
 // BEFORE -- path alias resolves in unified but not per-zone
 import { Thing } from '@shared/deep/nested/thing';
 
-// AFTER -- verify the path exists in shared/tsconfig.json paths
-// and that shared/tsconfig.json exports the module
-// Check: does shared/tsconfig.json include this file in its compilation?
+// AFTER -- verify the path exists in tsconfig.shared.json paths
+// and that tsconfig.shared.json includes the module in its compilation
 ```
 
 ### Diagnostic Commands
 
 ```bash
 # Check which tsconfig a file belongs to:
-npx tsc --showConfig -p client/tsconfig.json | findstr "include"
-npx tsc --showConfig -p server/tsconfig.json | findstr "include"
+npx tsc --showConfig -p tsconfig.client.json | findstr "include"
+npx tsc --showConfig -p tsconfig.server.json | findstr "include"
 
 # Run per-zone checks individually to isolate which zone fails:
-npx tsc --noEmit -p client/tsconfig.json
-npx tsc --noEmit -p server/tsconfig.json
-npx tsc --noEmit -p shared/tsconfig.json
+npx tsc --noEmit -p tsconfig.client.json
+npx tsc --noEmit -p tsconfig.server.json
+npx tsc --noEmit -p tsconfig.shared.json
 ```
 
 **Key Learnings:**
