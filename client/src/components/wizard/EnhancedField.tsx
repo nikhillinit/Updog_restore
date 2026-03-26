@@ -26,8 +26,6 @@ interface Option {
   label: string;
 }
 
-type EnhancedFieldValue = string | number | null | undefined;
-
 interface EnhancedFieldBaseProps {
   id?: string;
   label?: string;

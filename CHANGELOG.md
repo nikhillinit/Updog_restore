@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-26
 owner: Core Team
 review_cadence: P7D
 ---
@@ -17,6 +17,12 @@ and this project adheres to
 
 ### Added
 
+- **Governance Refresh for March 2026 Delivery** (2026-03-26)
+  - Added `ADR-019` to document the ESLint ratchet strategy, Pino runtime
+    logging standard, and narrow policy exclusions for non-production paths
+  - Added `ADR-020` to record the explicit Phase 3C Track B no-go decision for
+    the current release and the April 9, 2026 reconsideration deadline
+
 - **P5: CI Guardrail Ratchets for Console and eslint-disable Debt** (2026-02-17)
   - Added `scripts/guardrails/console-ratchet.mjs` (baseline: 374 disallowed
     calls)
@@ -27,6 +33,38 @@ and this project adheres to
   - Added `@quarantine` JSDoc headers to 19/20 test files with skip directives
 
 ### Changed
+
+- **Pre-commit Lint Gate Tightened** (2026-03-26)
+  - `lint-staged` now runs
+    `eslint --fix --max-warnings 0 --cache --no-warn-ignored`
+  - Cleared the remaining active warnings in `EnhancedField` and the Recharts
+    dispatcher so staged TypeScript/JavaScript changes now fail on any warning
+
+- **Tear Sheet PDF Export Split Out Of Dashboard Chunk** (2026-03-26)
+  - `client/src/components/reports/tear-sheet-dashboard.tsx` now loads the PDF
+    runtime on demand instead of importing `@react-pdf` during route render
+  - This keeps tear-sheet browsing responsive while preserving the existing PDF
+    export behavior
+
+- **Integration Test Server Lifecycle Ceiling Removed** (2026-03-26)
+  - `vitest.config.int.ts` runs suite-level server lifecycle through
+    `tests/integration/global-setup.ts`
+  - `tests/integration/setup.ts` is limited to worker environment hydration and
+    native fetch restoration
+  - This replaces per-file server spawn/kill behavior that exhausted CI runners
+    under long integration batches
+
+- **TypeScript Baseline Fully Retired** (2026-03-26)
+  - Reduced `.tsc-baseline.json` from 90 errors to 0
+  - `npm run baseline:check` now passes with zero current errors
+  - Mechanical strictness cleanups included TS4111 index-signature fixes,
+    exact-optional object construction, and Recharts formatter typing repairs
+
+- **Quarantine Inventory Refreshed** (2026-03-26)
+  - Regenerated `tests/quarantine/REPORT.md`
+  - Current inventory is 37 documented quarantine files and 0 undocumented files
+  - Updated the report generator to log file counts accurately and emit stable
+    forward-slash paths
 
 - **P5: Legacy Feature Flag System Removal** (2026-02-17)
   - Deleted `client/src/lib/feature-flags.ts` (284 lines, zero production

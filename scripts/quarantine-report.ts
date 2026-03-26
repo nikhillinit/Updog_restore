@@ -58,7 +58,7 @@ async function generateReport(): Promise<void> {
     // Check for @quarantine tag or describe.skip
     if (content.includes('@quarantine') || content.includes('describe.skip')) {
       const parsed = parseQuarantineJSDoc(content);
-      const relativePath = path.relative(process.cwd(), file);
+      const relativePath = path.relative(process.cwd(), file).replace(/\\/g, '/');
 
       quarantined.push({
         file: relativePath,
@@ -79,7 +79,7 @@ async function generateReport(): Promise<void> {
   fs.writeFileSync(outputPath, report);
 
   console.log(`Quarantine report generated: ${outputPath}`);
-  console.log(`Total quarantined tests: ${quarantined.length}`);
+  console.log(`Total quarantined files: ${quarantined.length}`);
   console.log(`Documented: ${quarantined.filter((q) => q.owner !== 'Unknown').length}`);
   console.log(`Undocumented: ${quarantined.filter((q) => q.owner === 'Unknown').length}`);
 }
@@ -100,6 +100,9 @@ Generated: ${now}
 | Total Quarantined | ${entries.length} |
 | Documented | ${documented.length} |
 | Undocumented | ${undocumented.length} |
+
+This report tracks quarantined files, not the total number of skipped
+assertions inside those files.
 
 ## Documented Quarantines
 
@@ -131,7 +134,7 @@ These tests use \`describe.skip\` but lack proper \`@quarantine\` documentation.
 
 - [ ] Review each quarantined test for exit criteria status
 - [ ] Update owners if team members have changed
-- [ ] Add documentation to undocumented quarantines
+- [${undocumented.length === 0 ? 'x' : ' '}] Add documentation to undocumented quarantines
 - [ ] Remove tests that meet exit criteria
 
 ## Protocol Reference

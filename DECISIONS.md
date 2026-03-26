@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-26
 owner: Core Team
 review_cadence: P90D
 ---
@@ -22,6 +22,8 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-016: XState Wizard Persistence with Invoke Pattern and Automatic Retry](#adr-016-xstate-wizard-persistence-with-invoke-pattern-and-automatic-retry)
 - [ADR-017: Export Strategy - BullMQ Async Pipeline with Unified Data Model](#adr-017-export-strategy---bullmq-async-pipeline-with-unified-data-model)
 - [ADR-018: Phase 3C Truthful Rich Results - Track A](#adr-018-phase-3c-truthful-rich-results---track-a)
+- [ADR-019: Operational Guardrails, Pino Standardization, and Policy Exclusions](#adr-019-operational-guardrails-pino-standardization-and-policy-exclusions)
+- [ADR-020: Phase 3C Track B Go/No-Go Deadline](#adr-020-phase-3c-track-b-gono-go-deadline)
 
 ---
 
@@ -4775,3 +4777,101 @@ Batch order: 3C2 (contract) -> 3C3 (server) -> 3C5 (client) -> 3C6 (acceptance).
 - `server/services/fund-results-rich-mappers.ts` - Pure config mappers
 - `client/src/pages/fund-model-results.tsx` - Results page
 - `docs/plans/2026-03-22-phase-3c-implementation-plan.md` - Full plan
+
+---
+
+## ADR-019: Operational Guardrails, Pino Standardization, and Policy Exclusions
+
+**Date:** 2026-03-26 **Status:** [ACCEPTED]
+
+### Context
+
+March 2026 remediation work introduced real ratchets for console usage and
+file-level `eslint-disable` debt, and follow-up cleanup retired the remaining
+active warning budget on both the repository lint gate and `lint-staged`. Active
+runtime logging has also converged on Pino while a few legacy Winston utilities
+remain in the tree, and the repo still needed a written rule for when
+non-production paths may be excluded from quality enforcement.
+
+### Decision
+
+1. **Use zero-warning enforcement for active lint entrypoints, with ratchets for
+   tracked debt categories.**
+   - `npm run lint` remains the repo gate: `lint:eslint` plus `guardrails:check`
+   - `lint-staged` runs
+     `eslint --fix --max-warnings 0 --cache --no-warn-ignored` so new warnings
+     are blocked before commit
+   - console debt and file-level disable debt continue to use explicit ratchets
+     instead of a broad warning allowance
+2. **Treat console and file-level disable debt as no-regression budgets.**
+   - new work must not increase `scripts/guardrails/console-ratchet.mjs`
+   - new work must not increase `scripts/guardrails/eslint-disable-ratchet.mjs`
+3. **Standardize active server/runtime logging on Pino.**
+   - new runtime logging should use `server/lib/logger.ts`, `pino-http`, or the
+     directly related Pino wrapper path
+   - do not introduce new Winston loggers in active server paths
+   - legacy Winston utilities remain migration backlog, not a model for new code
+4. **Keep policy exclusions narrow, path-based, and documented.**
+   - exclusions are acceptable for non-production, demonstration, archived, or
+     manual-only paths when they create outsized noise
+   - exclusions must name the path and rationale explicitly
+   - `server/examples/**` is the canonical example of an allowed exclusion
+
+### Consequences
+
+- Backlog item `lint-staged -> --max-warnings 0` is closed
+- Future lint cleanup should keep the repo at zero warnings while ratcheting
+  category-specific debt downward
+- Logging migration work should remove or isolate remaining Winston usage before
+  tightening repo-wide logging policy further
+
+### Related Files
+
+- `package.json`
+- `scripts/guardrails/console-ratchet.mjs`
+- `scripts/guardrails/eslint-disable-ratchet.mjs`
+- `server/lib/logger.ts`
+- `server/config/index.ts`
+
+---
+
+## ADR-020: Phase 3C Track B Go/No-Go Deadline
+
+**Date:** 2026-03-26 **Status:** [ACCEPTED]
+
+### Context
+
+ADR-018 explicitly accepted Phase 3C Track A and deferred Track B (scenario-rich
+results) because truthful scenario persistence does not yet exist on the server.
+The implementation plan required a written go/no-go decision so that scenario
+work could not drift into Track A by assumption.
+
+### Decision
+
+- **Current decision: NO-GO for Track B in the default Phase 3C release.** Phase
+  3C closes at Track A.
+- Track B may only reopen under a separate execution plan with written product
+  and engineering-lead approval recorded **by 2026-04-09**.
+- If no such approval exists by **2026-04-09**, scenario-rich results remain
+  backlog work and require a fresh kickoff rather than implicit continuation of
+  the Phase 3C plan.
+- Until a separate Track B plan is approved, `scenarios` must remain
+  unavailable/pending only. No UI expansion, client-truth shortcuts, or
+  read-model promises may be added under the Phase 3C banner.
+
+### Rationale
+
+- truthful scenario results require server-owned draft persistence first
+- Track A is already releasable without reopening scenario scope
+- an explicit date prevents "deferred" from functioning as silent approval
+
+### Consequences
+
+- current release planning may ship Track A and close Phase 3C cleanly
+- any future Track B work starts with persistence and ownership, not rendering
+- the April 9, 2026 deadline is the control point for product escalation
+
+### Related Files
+
+- `DECISIONS.md` (ADR-018 and ADR-020)
+- `docs/plans/2026-03-22-phase-3c-implementation-plan.md`

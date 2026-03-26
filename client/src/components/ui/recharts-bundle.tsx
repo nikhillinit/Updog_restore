@@ -329,7 +329,7 @@ export const ChartTooltipContent = React.forwardRef<
 ChartTooltipContent.displayName = 'ChartTooltipContent';
 
 export const ChartLegend = React.forwardRef<HTMLDivElement, ChartLegendProps>(
-  ({ className, nameKey, ...props }, ref) => {
+  ({ className, nameKey, ...props }, _ref) => {
     const filteredProps: Record<string, unknown> = Object.fromEntries(
       Object.entries(props).filter(([_, value]) => value !== undefined)
     );
@@ -415,6 +415,12 @@ type RechartsDispatcherProps = {
   component?: RechartsComponentName;
   children?: React.ReactNode;
 } & Record<string, unknown>;
+type RechartsDispatcherComponent = React.ElementType<
+  {
+    children?: React.ReactNode;
+    ref?: React.Ref<HTMLDivElement>;
+  } & Record<string, unknown>
+>;
 
 const RechartsDispatcher = React.forwardRef<HTMLDivElement, RechartsDispatcherProps>(
   ({ component, children, ...rest }, ref) => {
@@ -424,7 +430,7 @@ const RechartsDispatcher = React.forwardRef<HTMLDivElement, RechartsDispatcherPr
 
     const Component = componentMap[
       component as RechartsComponentName
-    ] as unknown as React.ElementType;
+    ] as unknown as RechartsDispatcherComponent;
 
     if (!Component) {
       return null;
@@ -434,8 +440,8 @@ const RechartsDispatcher = React.forwardRef<HTMLDivElement, RechartsDispatcherPr
     // still owns its own prop validation.
 
     return (
-      <Component ref={ref} {...(rest as any)}>
-        {children}
+      <Component ref={ref} {...rest}>
+        {children as React.ReactNode}
       </Component>
     );
   }

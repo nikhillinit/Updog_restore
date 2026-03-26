@@ -1,7 +1,4 @@
- 
 import { useState } from 'react';
-import { generatePdf, downloadBlob } from '@/utils/pdf';
-import { TearSheetTemplate } from '@/utils/pdf/templates/TearSheetTemplate';
 import type { TearSheetData } from '@/utils/pdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -93,6 +90,27 @@ interface AuditLogEntry {
   timestamp: string;
   version: number;
 }
+
+type TearSheetPdfRuntime = {
+  generatePdf: (document: React.ReactElement) => Promise<Blob>;
+  downloadBlob: (blob: Blob, filename: string) => void;
+  TearSheetTemplate: React.ComponentType<{ data: TearSheetData }>;
+};
+
+let tearSheetPdfRuntimePromise: Promise<TearSheetPdfRuntime> | null = null;
+
+const loadTearSheetPdfRuntime = (): Promise<TearSheetPdfRuntime> => {
+  tearSheetPdfRuntimePromise ??= Promise.all([
+    import('@/utils/pdf'),
+    import('@/utils/pdf/templates/TearSheetTemplate'),
+  ]).then(([pdfModule, templateModule]) => ({
+    generatePdf: pdfModule.generatePdf,
+    downloadBlob: pdfModule.downloadBlob,
+    TearSheetTemplate: templateModule.TearSheetTemplate,
+  }));
+
+  return tearSheetPdfRuntimePromise;
+};
 
 // Mock data - in real app, this would come from API
 const MOCK_TEAR_SHEETS: TearSheet[] = [
@@ -231,6 +249,7 @@ export default function TearSheetDashboard() {
   const [commentaryDraft, setCommentaryDraft] = useState('');
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
   const [showAuditTrail, setShowAuditTrail] = useState(false);
+  const [exportingTearSheetId, setExportingTearSheetId] = useState<string | null>(null);
 
   // Filter tear sheets based on search and filters
   const filteredTearSheets = tearSheets.filter(sheet => {
@@ -291,7 +310,13 @@ export default function TearSheetDashboard() {
   };
 
   const exportToPDF = async (tearSheet: TearSheet) => {
+    setExportingTearSheetId(tearSheet.id);
+
     try {
+      // Keep @react-pdf out of the initial tear-sheet route chunk and load it
+      // only when the user requests an export.
+      const { generatePdf, downloadBlob, TearSheetTemplate } = await loadTearSheetPdfRuntime();
+
       // Convert TearSheet to TearSheetData format for PDF template
       const pdfData: TearSheetData = {
         companyName: tearSheet.companyName,
@@ -317,6 +342,8 @@ export default function TearSheetDashboard() {
     } catch (error) {
       console.error('Failed to generate PDF:', error);
       // In real app, show user-facing error toast
+    } finally {
+      setExportingTearSheetId(null);
     }
   };
 
@@ -461,9 +488,14 @@ export default function TearSheetDashboard() {
               <History className="h-4 w-4 mr-1" />
               History
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportToPDF(tearSheet)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToPDF(tearSheet)}
+              disabled={exportingTearSheetId === tearSheet.id}
+            >
               <Download className="h-4 w-4 mr-1" />
-              PDF
+              {exportingTearSheetId === tearSheet.id ? 'Preparing...' : 'PDF'}
             </Button>
           </div>
         </div>
