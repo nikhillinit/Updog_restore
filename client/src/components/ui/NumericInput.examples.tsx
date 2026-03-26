@@ -260,10 +260,11 @@ export function FormIntegrationExample() {
   const [mgmtFee, setMgmtFee] = useState<number | undefined>(2.0);
   const [carryRate, setCarryRate] = useState<number | undefined>(20);
   const [fundTerm, setFundTerm] = useState<number | undefined>(10);
+  const [submittedPayload, setSubmittedPayload] = useState<Record<string, unknown> | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', {
+    setSubmittedPayload({
       fundName,
       fundSize,
       mgmtFee,
@@ -339,6 +340,12 @@ export function FormIntegrationExample() {
         >
           Create Fund
         </button>
+
+        {submittedPayload ? (
+          <pre className="rounded-md bg-pov-gray p-3 text-xs text-pov-charcoal/80">
+            {JSON.stringify(submittedPayload, null, 2)}
+          </pre>
+        ) : null}
       </form>
     </div>
   );

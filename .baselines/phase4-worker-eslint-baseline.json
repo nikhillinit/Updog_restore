@@ -1,0 +1,14 @@
+{
+  "totalWarnings": 55,
+  "fileWarnings": {
+    "workers/cohort-worker.ts": 21,
+    "workers/pacing-worker.ts": 4,
+    "workers/reserve-worker.ts": 30
+  },
+  "generatedAt": "2026-03-25T22:49:59.928Z",
+  "scope": [
+    "workers/cohort-worker.ts",
+    "workers/pacing-worker.ts",
+    "workers/reserve-worker.ts"
+  ]
+}

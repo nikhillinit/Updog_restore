@@ -122,17 +122,28 @@ Readable evidence remains in `docs/evidence/endpoint-ownership.md`, but the
 manifest is the authoritative machine-checked source for the Phase 4 canonical
 surface.
 
-### 6. Boundary Regression Guard Is Focused
+### 6. Boundary Regression Guard Is Focused And Runnable
 
 Worker lint is still noisy enough that broad `eslint .` is not a reliable
 boundary gate for this batch. The lightweight solo-developer control is:
 
-- keep targeted ESLint on touched files
+- keep a zero-warning strict lint gate for the clean Phase 4 files
+- add a warning-ratchet guard for the three noisy worker files
 - add a focused contract test over the normalized Phase 4 files
 
-That test only guards the files that were explicitly normalized in this phase.
+The focused import guard covers the files that are authoritative in this phase,
+including the canonical route owner and the ownership manifest.
 
-### 7. Compatibility Sunset Must Stay Explicit
+### 7. Validation Entry Points Must Be Named
+
+Phase 4 should validate through named repo scripts, not only pasted one-off
+commands. The canonical entry points are:
+
+- `npm run test:phase4`
+- `npm run lint:phase4`
+- `npm run validate:phase4`
+
+### 8. Compatibility Sunset Must Stay Explicit
 
 Temporary legacy acceptance remains allowed only for the current migration path:
 
@@ -181,19 +192,26 @@ The implementation made these structural changes:
 5. Added `server/contracts/funds-endpoint-ownership.ts` as the machine-checked
    canonical ownership manifest for the funds surface.
 6. Added `tests/unit/contract/funds-boundary-guard.test.ts` with:
-   - file-level import scanning for all 6 Phase 4 boundary files
+   - file-level import scanning for all 8 authoritative Phase 4 files
    - alias-bypass detection (`@/core/`, `@/lib/`, `@/utils/` → client/src/)
    - synthetic pattern unit tests proving the guard catches both raw paths and
      alias paths while allowing `@shared/` imports
    - shim re-export completeness checks for the shared/client compatibility
      modules introduced in this phase
-7. Extended route ownership smoke proof to cover GET /api/funds and a real
+7. Added named Phase 4 harness scripts in `package.json`:
+   - `test:phase4`
+   - `lint:phase4`
+   - `validate:phase4`
+8. Added `scripts/guardrails/phase4-worker-eslint-ratchet.mjs` plus
+   `.baselines/phase4-worker-eslint-baseline.json` so worker-warning drift is
+   ratcheted instead of accepted as undifferentiated warning-only output.
+9. Extended route ownership smoke proof to cover GET /api/funds and a real
    boot-path POST -> GET /api/funds/:id round-trip on `registerRoutes()`.
-8. Added create -> detail-readback proof (POST → GET /api/funds/:id by numeric
+10. Added create -> detail-readback proof (POST → GET /api/funds/:id by numeric
    ID) to the funds snapshot suite.
-9. Fixed DB mock `generateId()` to return serial integers instead of UUIDs,
+11. Fixed DB mock `generateId()` to return serial integers instead of UUIDs,
    matching the `serial('id')` primary key contract in `shared/schema.ts`.
-10. Updated the endpoint ownership evidence doc to reflect the normalized owner.
+12. Updated the endpoint ownership evidence doc to reflect the normalized owner.
 
 ## Validation
 
@@ -202,30 +220,31 @@ The implementation made these structural changes:
 Server validation command:
 
 ```powershell
-npx vitest run tests/unit/contract/funds-endpoint-snapshots.test.ts tests/unit/contract/funds-route-ownership.test.ts tests/unit/contract/funds-boundary-guard.test.ts tests/unit/engines/reserve-engine.test.ts tests/unit/engines/pacing-engine.test.ts tests/unit/engines/cohort-engine.test.ts tests/unit/fund-calc-fee-horizon.test.ts --project=server
+npm run test:phase4:server
 ```
 
 Observed result:
 
 - `7` test files passed
-- `152` tests passed
+- `154` tests passed
 - `2` tests skipped
 
 Client validation command:
 
 ```powershell
-npx vitest run tests/unit/pages/fund-model-results.test.tsx --project=client
+npm run test:phase4:client
 ```
 
 Observed result:
 
 - `1` test file passed
-- `15` tests passed
+- `19` tests passed
+- existing React `act(...)` warnings remain non-failing harness noise
 
 Integration validation command:
 
 ```powershell
-npx vitest run tests/integration/wizard-to-results-e2e.test.ts --config vitest.config.int.ts
+npm run test:phase4:integration
 ```
 
 Observed result:
@@ -233,30 +252,53 @@ Observed result:
 - `1` integration test file passed
 - submit, concrete results navigation, and persisted reload remained green
 
+Combined behavioral entry point:
+
+```powershell
+npm run test:phase4
+```
+
+Observed result:
+
+- server, client, and integration Phase 4 proof set remained green end to end
+
 ### Static Validation
 
-Targeted lint command:
+Strict zero-warning lint command:
 
 ```powershell
-npx eslint --no-cache --no-ignore server/routes.ts server/routes/funds.ts server/routes/calculations.ts server/services/projected-metrics-calculator.ts workers/reserve-worker.ts workers/pacing-worker.ts workers/cohort-worker.ts shared/core/reserves/ReserveEngine.ts shared/core/pacing/PacingEngine.ts shared/core/cohorts/CohortEngine.ts shared/lib/fund-calc.ts shared/utils/pLimit.ts shared/utils/resilientLimit.ts client/src/core/reserves/ReserveEngine.ts client/src/core/pacing/PacingEngine.ts client/src/core/cohorts/CohortEngine.ts client/src/lib/fund-calc.ts client/src/utils/pLimit.ts client/src/utils/resilientLimit.ts tests/unit/contract/funds-endpoint-snapshots.test.ts tests/unit/contract/funds-route-ownership.test.ts tests/unit/contract/funds-boundary-guard.test.ts
+npm run lint:phase4:strict
 ```
 
 Observed result:
 
 - exit code `0`
-- remaining output is warning-only
-- worker/service warnings are pre-existing debt outside the Phase 4 acceptance
-  bar
+- clean Phase 4 files remained at `0` warnings and `0` errors
 
-Focused guardrail lint command for the solo-maintainer additions:
+Worker-warning ratchet command:
 
 ```powershell
-npx eslint --no-cache --no-ignore server/contracts/funds-endpoint-ownership.ts shared/utils/pLimit.ts shared/utils/resilientLimit.ts client/src/utils/pLimit.ts client/src/utils/resilientLimit.ts tests/unit/contract/funds-endpoint-snapshots.test.ts tests/unit/contract/funds-route-ownership.test.ts tests/unit/contract/funds-boundary-guard.test.ts
+npm run guard:phase4:workers:check
 ```
 
 Observed result:
 
 - exit code `0`
+- ratchet held at `55` warnings total:
+  - `workers/cohort-worker.ts`: `21`
+  - `workers/pacing-worker.ts`: `4`
+  - `workers/reserve-worker.ts`: `30`
+
+Combined static validation entry point:
+
+```powershell
+npm run lint:phase4
+```
+
+Observed result:
+
+- strict Phase 4 files stayed zero-warning
+- noisy worker files did not regress past the committed Phase 4 baseline
 
 ## Exit Criteria
 
@@ -267,7 +309,9 @@ Phase 4 is satisfied when all of the following remain true:
 - `server/contracts/funds-endpoint-ownership.ts` remains aligned with the
   canonical funds surface and its contract tests
 - route prefixes remain internally consistent
-- Phase 4 files no longer import runtime logic from `client/`
+- authoritative Phase 4 files no longer import runtime logic from `client/`
+- clean Phase 4 files remain zero-warning under `npm run lint:phase4:strict`
+- noisy Phase 4 workers do not regress past the committed warning baseline
 - route-level create -> detail-readback proofs still pass for
   `GET /api/funds/:id` on both the snapshot-mounted router and the real
   `registerRoutes()` boot path
@@ -281,8 +325,10 @@ Rollback the relevant Phase 4 checkpoint if any of the following occur:
   `POST /api/funds/calculate`
 - the ownership manifest no longer matches the canonical `registerRoutes()`
   surface
-- any normalized Phase 4 file reintroduces a direct runtime import from
+- any authoritative Phase 4 file reintroduces a direct runtime import from
   `client/src/*` or a server-side `@/` alias that resolves into `client/src/*`
+- the clean-file zero-warning lint gate fails or the worker-warning ratchet is
+  exceeded
 - create -> readback no longer returns the authored fund identity through the
   canonical detail readback proof at `GET /api/funds/:id`
 

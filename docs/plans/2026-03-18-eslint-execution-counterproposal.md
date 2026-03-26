@@ -1148,47 +1148,192 @@ silently burying contract changes in Wave 4.
 - precision-sensitive paths are covered by characterization tests
 - contract-producing adapter work is not silently deferred into other waves
 
-## Wave 5: Policy-Sensitive, Dev-Runtime, and Mechanical Long Tail
+## Wave 5: Policy-Sensitive, Dev-Runtime, Packages, and Tail
 
 ### Goal
 
-Finish the remaining warnings only after the main architectural sources are
-under control.
+Finish the remaining warning-only surface after Waves 1-4 by using explicit
+runtime policy decisions first, then cleaning the mechanical queue, worker,
+package, and example tail without reopening earlier owner-wave boundaries.
 
-### Primary targets
+### Live scope and owner corrections
 
-- `packages/agent-core/backtest-runner.ts`
-- `server/security/integration-guide.ts`
-- `server/websocket/dev-dashboard.ts`
-- `server/routes/dev-dashboard.ts`
-- `server/cache/index.ts`
-- `server/queues/simulation-queue.ts`
-- `server/queues/backtesting-queue.ts`
-- `server/queues/report-generation-queue.ts`
-- `client/src/debug/wizard-trace.ts`
-- `client/src/debug/fetch-tap.ts`
-- `client/src/monitoring/noop.ts`
-- `client/src/vitals.ts`
-- `client/src/lib/error-boundary.ts`
-- `client/src/lib/logger.ts`
-- `client/src/lib/rollout-orchestrator.ts` if still in runtime scope after Wave
-  0
+- Use `.artifacts/eslint-owner-map.md` as the starting file list, but treat live
+  targeted lint as authoritative when it conflicts with earlier sections.
+- `client/src/debug/fetch-tap.ts`, `client/src/monitoring/noop.ts`, and
+  `client/src/vitals.ts` remain Wave 5 carryovers even though the current owner
+  map still lists them under Wave 3.
+- `server/cache/index.ts` is not Wave 5 scope. It stays with Wave 1B per the
+  overlapping ownership rule for service/cache contracts.
+- `client/src/lib/rollout-orchestrator.ts` is not an active Wave 5 target
+  unless a fresh owner transfer records new warnings on the live file.
+- `server/security/integration-guide.ts` and
+  `server/routes/simulations-guarded.example.ts` remain skip-or-move decisions,
+  not execution-first cleanup.
+
+### Executable batches
+
+- Batch W: client policy/runtime carryover
+  - `client/src/lib/logger.ts`
+  - `client/src/debug/wizard-trace.ts`
+  - `client/src/lib/error-boundary.ts`
+  - `client/src/debug/fetch-tap.ts`
+  - `client/src/monitoring/noop.ts`
+  - `client/src/vitals.ts`
+  - Primary rules: `no-console`, `no-explicit-any`, `no-unsafe-*`
+  - Validation: `npm run test:wave5` plus `npm run lint:wave5:policy` for the
+    directly validated policy subset
+- Batch X: dev dashboard and server runtime
+  - `server/websocket/dev-dashboard.ts`
+  - `server/routes/dev-dashboard.ts`
+  - `server/websocket.ts`
+  - `server/vite.ts`
+  - `server/observability/metrics-demo.ts`
+  - `server/seed-db.ts`
+  - `server/seed-pipeline.ts`
+  - Primary rules: event-envelope typing, command-output parsing, `no-console`
+  - Harness-first gaps: direct route coverage for `server/routes/dev-dashboard.ts`
+    and direct socket/runtime coverage for `server/websocket.ts`
+- Batch Y: queues, workers, and injected runtime helpers
+  - `server/queues/simulation-queue.ts`
+  - `server/queues/backtesting-queue.ts`
+  - `server/queues/report-generation-queue.ts`
+  - `server/workers/lp-materialized-view-refresh.ts`
+  - `server/workers/scenarioGeneratorWorker.ts`
+  - `server/workers/capital-call-status-worker.ts`
+  - `server/utils/singleflight-enhanced.ts`
+  - `server/engine/fault-injector.ts`
+  - Primary rules: `require-atomic-updates`, `no-unsafe-call`, narrow console
+  - Runnable coverage today: backtesting queue unit coverage, report-queue
+    integration coverage, and fault-injector chaos coverage
+- Batch Z: package and CLI tail
+  - `packages/agent-core/backtest-runner.ts`
+  - `packages/agent-core/src/Backtest.ts`
+  - `packages/agent-core/src/cache/UpstashAdapter.ts`
+  - `packages/agent-core/src/PatternLearning.ts`
+  - `packages/agent-core/src/SerializationHelper.ts`
+  - `packages/agent-core/src/Logger.ts`
+  - `packages/agent-core/src/BaseAgent.ts`
+  - `packages/agent-core/src/HybridMemoryManager.ts`
+  - `packages/codex-review-agent/src/CodexReviewAgent.ts`
+  - `packages/test-repair-agent/src/TestRepairAgent.ts`
+  - `packages/bundle-optimization-agent/src/BundleOptimizationAgent.ts`
+  - package-local `vitest.config.ts` tails
+  - Primary rules: CLI-safe console policy, type narrowing, stray unused locals
+  - Archived from active scope on March 25, 2026:
+    `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`,
+    `archive/2026-q1/unused-code/packages/route-optimization-agent/`, and
+    `archive/2026-q1/unused-code/packages/zencoder-integration/`
+  - Harness status: package-local tests exist, but they are not yet part of the
+    green Wave 5 gate because the current package runs still need a dedicated
+    active-package validation pass
+- Batch AA: examples, tests, and explicit skips
+  - `client/src/components/ui/NumericInput.examples.tsx`
+  - `client/src/components/wizard/wizard-components.example.tsx`
+  - `client/src/core/demo/http.ts`
+  - `client/src/core/selectors/__tests__/fund-kpis.test.ts`
+  - `client/src/lib/__tests__/units.test.ts`
+  - `tests/unit/map-fund-store-to-payload.test.ts`
+  - `server/security/integration-guide.ts`
+  - `server/routes/simulations-guarded.example.ts`
+  - Decision rule: keep example/reference files on move-or-suppress paths instead
+    of spending production-runtime cleanup effort first
+
+### Runnable validation
+
+- `npm run test:wave5` is the named Wave 5 harness. It currently chains the
+  passing root/unit slice (`npm run test:wave5:root`) and the passing
+  report-queue integration slice (`npm run test:wave5:integration`).
+- `npm run lint:wave5:policy` is the strict lint gate for the first validated
+  Batch W slice. Do not introduce a fake full-wave `lint:wave5` gate until the
+  remaining Wave 5 files are actually clean.
+- There is still no direct runnable harness today for
+  `server/routes/dev-dashboard.ts`, `server/websocket/dev-dashboard.ts`,
+  `server/websocket.ts`, `server/vite.ts`, `client/src/workers/simulation.worker.ts`,
+  or `client/src/workers/strategy.worker.ts`.
+- Package-local probes on March 25, 2026 showed:
+  - `packages/agent-core/src/__tests__/Backtest.test.ts` passes from the package
+    root, but `PatternLearning.test.ts` fails on `InMemoryStorage is not a constructor`
+  - `tests/chaos/wasm-fault.integration.test.ts` is not wired into a green named
+    config yet and must stay a harness-first gap
+
+### Sandbox validation
+
+- Batch W validation slice implemented:
+  - `client/src/lib/logger.ts`
+  - `client/src/debug/wizard-trace.ts`
+  - `client/src/lib/error-boundary.ts`
+  - `client/src/debug/fetch-tap.ts`
+  - `client/src/monitoring/noop.ts`
+  - `client/src/vitals.ts`
+- Direct tests added:
+  - `tests/unit/lib/logger.test.ts`
+  - `tests/unit/debug/wizard-trace.test.ts`
+  - `tests/unit/debug/fetch-tap.test.ts`
+  - `tests/unit/monitoring/noop.test.ts`
+  - `tests/unit/lib/vitals.test.ts`
+- Batch AA cleanup implemented:
+  - `client/src/components/ui/NumericInput.examples.tsx`
+  - `client/src/components/wizard/wizard-components.example.tsx`
+  - `client/src/core/demo/http.ts`
+  - `client/src/core/selectors/__tests__/fund-kpis.test.ts`
+  - `client/src/lib/__tests__/units.test.ts`
+- Archived Wave 5 package tail removed from active scope:
+  - `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`
+  - `archive/2026-q1/unused-code/packages/route-optimization-agent/`
+  - `archive/2026-q1/unused-code/packages/zencoder-integration/`
+  - `archive/2026-q1/unused-code/docs/ZENCODER_INTEGRATION.md`
+  - `archive/2026-q1/unused-code/scripts/zencoder-full-fix.ps1`
+  - `archive/2026-q1/unused-code/scripts/zencoder-typescript-fix.ps1`
+- Validation results on March 25, 2026:
+  - targeted `eslint --max-warnings 0` on the validated policy slice passed with
+    `0` warnings and `0` errors
+  - `npm run test:wave5` passed out of sandbox with `9` files and `142` tests:
+    `test:wave5:root` passed `8` files / `123` tests and
+    `test:wave5:integration` passed `1` file / `19` tests
+  - `test:wave5:root` still requires out-of-sandbox execution on this machine
+    because the sandbox hits the known `esbuild` `spawn EPERM` startup
+    restriction during Vitest config startup
+  - active non-archived Batch X/Y/Z re-measurement still shows `318` warnings
+    across the dev-runtime server slice and active package internals, so that
+    residual must stay a follow-on batch instead of being misreported as green
+
+### Reassessment
+
+Per the timebox rule, Wave 5 now closes the low-risk policy/archive/example
+tail and explicitly splits the remaining dev-runtime/package backlog into a
+follow-on cleanup batch before Wave 6 ratcheting:
+
+- completed in Wave 5:
+  - Batch W client policy/runtime carryover
+  - Batch AA example and reference-file cleanup
+  - archival removal of inactive package agents and the retired Zencoder entry
+    points
+- split out after March 25, 2026 re-measurement:
+  - Batch X server dev dashboard and websocket runtime
+  - Batch Y queue/worker operational tail
+  - the active-package remainder of Batch Z (`agent-core`, `codex-review`,
+    `test-repair`, `bundle-optimization`)
+
+Do not treat the current `test:wave5` or `lint:wave5:policy` scripts as proof
+for the split-out residual surface.
 
 ### Procedure
 
-1. Apply the Wave 0 policy decisions first.
-2. For CLI files, prefer explicit CLI-safe output policy over runtime logger
-   migration unless there is a strong reason to unify them.
-3. For reference or example files, narrow scope or move them rather than
-   spending production-runtime cleanup effort first.
-4. For client policy or debug-runtime helpers, keep console policy explicit and
-   prefer logger or policy cleanup over ad hoc transport refactors.
-5. For dev-runtime websocket or dashboard code, type event envelopes and
+1. Record the owner correction for the Wave 3 carryovers before starting Batch W.
+2. Apply the Wave 0 policy decisions first.
+3. For client policy files, codify the logging/debug policy before editing the
+   runtime call sites.
+4. For dev-runtime websocket or dashboard code, type event envelopes and
    command-output parsing before chasing local console warnings.
-6. Apply standing targeted cleanup on touched files only after the architectural
+5. For CLI or package files, prefer explicit CLI-safe output policy over forced
+   runtime logger migration.
+6. For example or reference files, move or suppress them rather than expanding
+   production-runtime scope.
+7. Apply standing targeted cleanup on touched files only after the architectural
    edits.
-7. Fix remaining unused locals manually or by deliberate rename.
-8. Resolve remaining `require-atomic-updates`, singleton, and narrow console
+8. Fix remaining unused locals manually or by deliberate rename.
+9. Resolve remaining `require-atomic-updates`, singleton, and narrow-console
    issues only in the currently owned operational paths.
 
 ### Exit criteria
@@ -1196,6 +1341,8 @@ under control.
 - the long tail is reduced without distorting earlier owner waves
 - policy-sensitive files are handled according to recorded policy, not ad hoc
   exceptions
+- every executed Batch W-Z change is attached to a named Wave 5 harness or an
+  explicit harness-first gap note
 
 ## Wave 6: Ratchet Through Existing Gates
 

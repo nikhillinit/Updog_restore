@@ -261,11 +261,14 @@ These agents exist in `packages/`:
 - [x] **Test Repair Agent** (`packages/test-repair-agent/`) - ✅ **MIGRATED** - Uses extended thinking for complex test failure analysis
 - [x] **Bundle Optimization Agent** (`packages/bundle-optimization-agent/`) - ✅ **MIGRATED** - Uses extended thinking for optimization strategy
 - [x] **Codex Review Agent** (`packages/codex-review-agent/`) - ✅ **MIGRATED** - Enhanced with extended thinking capabilities
-- [x] **Dependency Analysis Agent** (`packages/dependency-analysis-agent/`) - ✅ **MIGRATED** - Extended thinking integrated
-- [x] **Route Optimization Agent** (`packages/route-optimization-agent/`) - ✅ **MIGRATED** - Extended thinking integrated
-- [x] **Zencoder Agent** (`packages/zencoder-integration/`) - ✅ **MIGRATED** - Extended thinking integrated
 
-**Migration Complete**: All 6 production agents now have extended thinking capabilities!
+**Migration Complete**: All 3 active package agents now have extended thinking capabilities.
+
+Archived package agents:
+
+- `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`
+- `archive/2026-q1/unused-code/packages/route-optimization-agent/`
+- `archive/2026-q1/unused-code/packages/zencoder-integration/`
 
 ### Example Agents (Reference Only)
 

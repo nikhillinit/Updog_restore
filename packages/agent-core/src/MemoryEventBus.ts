@@ -24,7 +24,13 @@
  * ```
  */
 
-import { logger } from './Logger.js';
+import { Logger } from './Logger';
+
+const logger = new Logger({
+  level: 'info',
+  agent: 'memory-event-bus',
+  enableFile: false,
+});
 
 /**
  * Memory event types

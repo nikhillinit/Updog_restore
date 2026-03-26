@@ -26,6 +26,7 @@ export function WizardExample() {
     fundSize: 0,
     strategy: '',
   });
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // Auto-save form data
   const autosaveStatus = useAutosave(
@@ -33,8 +34,8 @@ export function WizardExample() {
     async (data) => {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log('Saved:', data);
       localStorage.setItem('wizard-draft', JSON.stringify(data));
+      setLastSavedAt(new Date().toISOString());
     },
     800
   );
@@ -87,7 +88,7 @@ export function WizardExample() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      fundSize: parseFloat(e.target.value) || 0,
+                      fundSize: Number(e.target.value) || 0,
                     })
                   }
                   className="w-full px-3 py-2 border border-lightGray rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal"
@@ -139,6 +140,12 @@ export function WizardExample() {
             Next
           </button>
         </div>
+
+        {lastSavedAt ? (
+          <div className="mt-3 text-sm text-charcoal/60">
+            Last saved at {new Date(lastSavedAt).toLocaleTimeString()}
+          </div>
+        ) : null}
       </div>
     </div>
   );

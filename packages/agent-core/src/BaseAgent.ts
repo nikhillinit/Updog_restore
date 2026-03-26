@@ -136,7 +136,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
 
     let lastError: Error | null = null;
     const _attempt = 0;
-    const maxRetries = this.config.maxRetries || 3;
+    const maxRetries = this.config.maxRetries ?? 3;
 
     // Try initial attempt + maxRetries
     for (let i = 0; i <= maxRetries; i++) {
@@ -295,8 +295,8 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
    * Post-execution hook
    */
   protected async afterExecution(
-    result: TOutput, 
-    context: AgentExecutionContext
+    result: TOutput,
+    _context: AgentExecutionContext
   ): Promise<TOutput> {
     return result;
   }

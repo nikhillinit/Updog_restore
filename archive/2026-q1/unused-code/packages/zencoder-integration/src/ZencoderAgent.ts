@@ -1,6 +1,5 @@
-import type { AgentConfig, AgentExecutionContext } from '../../agent-core/src/BaseAgent';
-import { BaseAgent } from '../../agent-core/src/BaseAgent';
-import { withThinking } from '../../agent-core/src/ThinkingMixin';
+import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { BaseAgent, withThinking } from '@povc/agent-core';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -58,6 +57,18 @@ interface FixResponse {
   newVersion?: string;
 }
 
+interface DependencyManifest {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+interface ZencoderAgentConfig extends Partial<AgentConfig> {
+  tenantId?: string;
+  enableNativeMemory?: boolean;
+  enablePatternLearning?: boolean;
+  memoryScope?: 'user' | 'project' | 'global';
+}
+
 export interface ZencoderInput {
   projectRoot: string;
   task: 'typescript-fix' | 'test-fix' | 'eslint-fix' | 'dependency-update';
@@ -85,19 +96,27 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
   private apiKey: string;
   private apiEndpoint: string;
 
-  constructor(config?: Partial<AgentConfig>) {
+  constructor(config: ZencoderAgentConfig = {}) {
+    const {
+      tenantId = 'agent:zencoder',
+      enableNativeMemory = true,
+      enablePatternLearning = true,
+      memoryScope = 'project',
+      name = 'zencoder-agent',
+      maxRetries = 2,
+      timeout = 300000,
+      ...restConfig
+    } = config;
+
     super({
-      name: 'zencoder-agent',
-      maxRetries: 2,
-      timeout: 300000, // 5 minutes
-
-      // Enable native memory integration
-      enableNativeMemory: true,
-      enablePatternLearning: true,
-      tenantId: config?.tenantId || 'agent:zencoder',
-      memoryScope: 'project', // Remember fix patterns and successful code transformations
-
-      ...config,
+      ...restConfig,
+      name,
+      maxRetries,
+      timeout, // 5 minutes
+      enableNativeMemory,
+      enablePatternLearning,
+      tenantId,
+      memoryScope, // Remember fix patterns and successful code transformations
     });
 
     // Load API configuration from environment
@@ -107,7 +126,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
 
   protected async performOperation(
     input: ZencoderInput,
-    context: AgentExecutionContext
+    _context: AgentExecutionContext
   ): Promise<ZencoderResult> {
     const startTime = Date.now();
     this.logger.info('Starting Zencoder analysis', { task: input.task });
@@ -124,16 +143,24 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     try {
       switch (input.task) {
         case 'typescript-fix':
-          await this.fixTypeScriptErrors(input, result);
+          if (!this.isDryRun(input)) {
+            await this.fixTypeScriptErrors(input, result);
+          }
           break;
         case 'test-fix':
-          await this.fixTestFailures(input, result);
+          if (!this.isDryRun(input)) {
+            await this.fixTestFailures(input, result);
+          }
           break;
         case 'eslint-fix':
-          await this.fixESLintErrors(input, result);
+          if (!this.isDryRun(input)) {
+            await this.fixESLintErrors(input, result);
+          }
           break;
         case 'dependency-update':
-          await this.updateDependencies(input, result);
+          if (!this.isDryRun(input)) {
+            await this.updateDependencies(input, result);
+          }
           break;
         default:
           throw new Error(`Unknown task: ${input.task}`);
@@ -153,7 +180,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     const errors = await this.getTypeScriptErrors(input.projectRoot);
     result.filesAnalyzed = errors.length;
 
-    for (const error of errors.slice(0, input.maxFixes || 10)) {
+    for (const error of errors.slice(0, input.maxFixes ?? 10)) {
       const fix = await this.requestZencoderFix({
         type: 'typescript',
         file: error.file,
@@ -182,7 +209,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     const failures = await this.getTestFailures(input.projectRoot, input.targetFiles);
     result.filesAnalyzed = failures.length;
 
-    for (const failure of failures.slice(0, input.maxFixes || 5)) {
+    for (const failure of failures.slice(0, input.maxFixes ?? 5)) {
       const fix = await this.requestZencoderFix({
         type: 'test',
         file: failure.file,
@@ -223,7 +250,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     // Fix files with most errors first
     const sortedFiles = Array.from(errorsByFile.entries())
       .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, input.maxFixes || 20);
+      .slice(0, input.maxFixes ?? 20);
 
     for (const [file, fileErrors] of sortedFiles) {
       const fix = await this.requestZencoderFix({
@@ -253,7 +280,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     const vulnerabilities = await this.getVulnerabilities(input.projectRoot);
     result.filesAnalyzed = vulnerabilities.length;
 
-    for (const vuln of vulnerabilities.slice(0, input.maxFixes || 10)) {
+    for (const vuln of vulnerabilities.slice(0, input.maxFixes ?? 10)) {
       const fix = await this.requestZencoderFix({
         type: 'dependency',
         package: vuln.package,
@@ -325,7 +352,7 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
 
   private async generateTypeScriptFix(context: FixContext): Promise<FixResponse> {
     // Analyze TypeScript error and generate fix
-    const { error, code } = context;
+    const { error } = context;
 
     // Common TypeScript error patterns and fixes
     if (error && error.includes('Property') && error.includes('does not exist')) {
@@ -411,8 +438,8 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
       });
 
       let output = '';
-      tsc.stderr.on('data', (data) => {
-        output += data.toString();
+      tsc.stderr.on('data', (data: Buffer | string) => {
+        output += typeof data === 'string' ? data : data.toString();
       });
 
       tsc.on('close', () => {
@@ -434,17 +461,23 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
     });
   }
 
-  private async getTestFailures(projectRoot: string, targetFiles?: string[]): Promise<TestFailure[]> {
+  private async getTestFailures(
+    _projectRoot: string,
+    _targetFiles?: string[]
+  ): Promise<TestFailure[]> {
     // Implementation would parse test output
     return [];
   }
 
-  private async getESLintErrors(projectRoot: string, targetFiles?: string[]): Promise<ESLintError[]> {
+  private async getESLintErrors(
+    _projectRoot: string,
+    _targetFiles?: string[]
+  ): Promise<ESLintError[]> {
     // Implementation would run ESLint and parse output
     return [];
   }
 
-  private async getVulnerabilities(projectRoot: string): Promise<Vulnerability[]> {
+  private async getVulnerabilities(_projectRoot: string): Promise<Vulnerability[]> {
     // Implementation would run npm audit and parse output
     return [];
   }
@@ -467,15 +500,28 @@ export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, Zencod
 
   private async updatePackageJson(projectRoot: string, pkg: string, version: string): Promise<void> {
     const packageJsonPath = join(projectRoot, 'package.json');
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-    
+    const packageJson = this.parseDependencyManifest(readFileSync(packageJsonPath, 'utf8'));
+
     if (packageJson.dependencies?.[pkg]) {
       packageJson.dependencies[pkg] = version;
     } else if (packageJson.devDependencies?.[pkg]) {
       packageJson.devDependencies[pkg] = version;
     }
-    
+
     writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+  }
+
+  private isDryRun(input: ZencoderInput): boolean {
+    return (input.maxFixes ?? 10) <= 0;
+  }
+
+  private parseDependencyManifest(raw: string): DependencyManifest {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid package.json manifest');
+    }
+
+    return parsed as DependencyManifest;
   }
 
   // Patch creation helpers

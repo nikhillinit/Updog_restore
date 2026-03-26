@@ -1,10 +1,54 @@
 import type { Metric } from 'web-vitals';
 import { onLCP, onINP, onCLS, onFCP, onTTFB } from 'web-vitals';
 import { Sentry } from '@/monitoring';
+import { logger } from '@/lib/logger';
 
 interface VitalMetric extends Omit<Metric, 'navigationType'> {
   navigationType?: string;
   delta: number;
+}
+
+interface PrivacySettings {
+  telemetryOptOut?: boolean;
+}
+
+declare global {
+  interface Window {
+    getVitalsSnapshot?: typeof getVitalsSnapshot;
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isPrivacySettings(value: unknown): value is PrivacySettings {
+  return typeof value === 'object' && value !== null;
+}
+
+function readPrivacySettings(): PrivacySettings | null {
+  const raw = localStorage.getItem('privacy-settings');
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isPrivacySettings(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function ensureCorrelationId(): string {
+  const existingCorrelationId = sessionStorage.getItem('cid');
+  if (existingCorrelationId) {
+    return existingCorrelationId;
+  }
+
+  const newCorrelationId = crypto.randomUUID();
+  sessionStorage.setItem('cid', newCorrelationId);
+  return newCorrelationId;
 }
 
 /**
@@ -17,16 +61,9 @@ function isTelemetryAllowed(): boolean {
   }
 
   // Check user opt-out preference
-  const privacySettings = localStorage.getItem('privacy-settings');
-  if (privacySettings) {
-    try {
-      const settings = JSON.parse(privacySettings) as Record<string, unknown>;
-      if (settings['telemetryOptOut'] === true) {
-        return false;
-      }
-    } catch (e: unknown) {
-      // Invalid settings, allow by default
-    }
+  const privacySettings = readPrivacySettings();
+  if (privacySettings?.telemetryOptOut === true) {
+    return false;
   }
 
   // Check if RUM v2 is enabled and should validate
@@ -45,16 +82,16 @@ function sendToAnalytics(metric: VitalMetric) {
   // Privacy check - short circuit if telemetry disabled
   if (!isTelemetryAllowed()) {
     if (import.meta.env.DEV) {
-      console.log('[Web Vital] Telemetry disabled by privacy settings');
+      logger.debug('web_vital_skipped', {
+        reason: 'privacy-disabled',
+        name: metric.name,
+      });
     }
     return;
   }
 
   // Get or create correlation ID
-  const cid = sessionStorage.getItem('cid') || crypto.randomUUID();
-  if (!sessionStorage.getItem('cid')) {
-    sessionStorage.setItem('cid', cid);
-  }
+  const cid = ensureCorrelationId();
 
   const body = {
     name: metric.name,
@@ -71,25 +108,22 @@ function sendToAnalytics(metric: VitalMetric) {
   };
 
   // Send to Sentry as custom measurement (if privacy allows)
-  if ((window as unknown as Record<string, unknown>)['Sentry'] && isTelemetryAllowed()) {
-    // Use span API for measurements in v10+
-    Sentry.withScope((scope) => {
-      scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
+  Sentry.withScope((scope) => {
+    scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
 
-      // Also send as breadcrumb for observability
-      Sentry.addBreadcrumb({
-        message: `Web Vital: ${metric.name.toLowerCase()}`,
-        level: 'info',
-        data: {
-          value: metric.value,
-          rating: metric.rating,
-        },
-      });
+    // Also send as breadcrumb for observability
+    Sentry.addBreadcrumb({
+      message: `Web Vital: ${metric.name.toLowerCase()}`,
+      level: 'info',
+      data: {
+        value: metric.value,
+        rating: metric.rating,
+      },
     });
-  }
+  });
 
   // Send to backend RUM endpoint
-  if (navigator.sendBeacon) {
+  if (typeof navigator.sendBeacon === 'function') {
     const url = '/metrics/rum';
     const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
     navigator.sendBeacon(url, blob);
@@ -100,12 +134,21 @@ function sendToAnalytics(metric: VitalMetric) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       keepalive: true,
-    }).catch(console.error);
+    }).catch((error: unknown) => {
+      logger.warn('web_vital_transport_failed', {
+        name: metric.name,
+        error: getErrorMessage(error),
+      });
+    });
   }
 
   // Log to console in development
   if (import.meta.env.DEV) {
-    console.log(`[Web Vital] ${metric.name}:`, metric.value, metric.rating);
+    logger.debug('web_vital', {
+      name: metric.name,
+      value: metric.value,
+      rating: metric.rating,
+    });
   }
 }
 
@@ -172,13 +215,15 @@ export function startVitals() {
       });
 
       observer.observe({ entryTypes: ['longtask'] });
-    } catch (e: unknown) {
-      console.warn('Long task observer not supported:', e);
+    } catch (error: unknown) {
+      logger.warn('long_task_observer_not_supported', {
+        error: getErrorMessage(error),
+      });
     }
   }
 
   if (import.meta.env.DEV) {
-    console.log('Web Vitals monitoring initialized');
+    logger.debug('web_vitals_initialized');
   }
 }
 
@@ -230,6 +275,6 @@ export function getVitalsSnapshot() {
 }
 
 // Expose for debugging in console
-if (import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>)['getVitalsSnapshot'] = getVitalsSnapshot;
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.getVitalsSnapshot = getVitalsSnapshot;
 }

@@ -123,7 +123,7 @@ export interface MemoryMetadata {
 /**
  * In-memory storage implementation (fallback when Redis unavailable)
  */
-class InMemoryStorage implements ConversationStorage {
+export class InMemoryStorage implements ConversationStorage {
   private store = new Map<string, { value: string; expiresAt: number | null }>();
   private cleanupInterval: NodeJS.Timeout;
 

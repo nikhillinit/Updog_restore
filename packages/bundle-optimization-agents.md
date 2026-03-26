@@ -1,8 +1,10 @@
 # Bundle Optimization Agents
 
-AI-powered agents for autonomous bundle size optimization, dependency management, and route optimization.
+Bundle optimization tooling centered on the active `bundle-optimization-agent`
+package plus built-in dependency and route analysis commands in
+`scripts/ai-tools/bundle-analyzer.mjs`.
 
-## Available Agents
+## Active Package Agent
 
 ### 1. Bundle Optimization Agent
 Analyzes and optimizes bundle composition to achieve target size.
@@ -19,8 +21,21 @@ npm run ai bundle-optimize --target=400 --strategy=balanced
 - Preserve functionality with testing
 - Generate detailed reports
 
-### 2. Dependency Analysis Agent
-Intelligent dependency management and tree-shaking optimization.
+## Built-in Analysis Commands
+
+The dependency and route commands remain available through the bundle analyzer
+gateway, but the dedicated package experiments were archived on March 25, 2026:
+
+- `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`
+- `archive/2026-q1/unused-code/packages/route-optimization-agent/`
+
+The separate Zencoder package was also archived on March 25, 2026:
+
+- `archive/2026-q1/unused-code/packages/zencoder-integration/`
+
+### 2. Dependency Analysis
+Intelligent dependency management and tree-shaking analysis via
+`bundle-analyzer.mjs`.
 
 **Usage:**
 ```bash
@@ -34,8 +49,9 @@ npm run ai deps-analyze --unused --heavy --duplicates
 - Suggest lighter alternatives
 - Generate removal commands
 
-### 3. Route Optimization Agent
-Automated lazy loading and code splitting for routes.
+### 3. Route Optimization
+Automated lazy loading and code splitting analysis via
+`bundle-analyzer.mjs`.
 
 **Usage:**
 ```bash
@@ -51,7 +67,8 @@ npm run ai routes-optimize --analyze-usage --implement
 
 ## Bundle Orchestrator
 
-Coordinates all agents for comprehensive optimization:
+Coordinates bundle analysis, dependency analysis, route analysis, and bundle
+optimization for comprehensive optimization:
 
 ```bash
 npm run ai bundle-orchestrate --target=400 --strategy=balanced
@@ -83,7 +100,7 @@ node scripts/ai-tools/bundle-analyzer.mjs report --output=optimization-report.js
 
 ## Configuration
 
-All agents extend the BaseAgent class and include:
+The active bundle package extends the `BaseAgent` class and includes:
 - Retry logic with exponential backoff
 - Metrics collection and monitoring
 - Health tracking
@@ -105,12 +122,13 @@ All agents extend the BaseAgent class and include:
 ```
 packages/
 ├── agent-core/              # Base agent infrastructure
-├── bundle-optimization-agent/  # Bundle size optimization
-├── dependency-analysis-agent/  # Dependency management
-└── route-optimization-agent/   # Route lazy loading
+├── bundle-optimization-agent/  # Active bundle optimization package
+└── archive/2026-q1/unused-code/packages/
+   ├── dependency-analysis-agent/  # Archived dependency package
+   └── route-optimization-agent/   # Archived route package
 
 scripts/ai-tools/
-├── bundle-analyzer.mjs      # Gateway script for bundle commands
+├── bundle-analyzer.mjs      # Bundle, dependency, and route commands
 ├── orchestrate-bundle-optimization.mjs  # Orchestration logic
 └── index.js                  # Main AI gateway
 ```

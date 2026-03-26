@@ -4,6 +4,7 @@
  */
 
 import { metrics } from '@/metrics/reserves-metrics';
+import { logger } from '@/lib/logger';
 import type { ReservesInput, ReservesConfig, ReservesResult } from '@shared/types/reserves-v11';
 
 export interface ErrorContext {
@@ -219,11 +220,11 @@ export class ReservesErrorBoundary {
     for (const strategy of sortedStrategies) {
       if (strategy.canRecover(error, context)) {
         try {
-          console.info(`Attempting recovery with strategy: ${strategy.name}`);
+          logger.info(`Attempting recovery with strategy: ${strategy.name}`);
           const result = await strategy.recover(error, context);
 
           if (result) {
-            console.info(`Recovery successful with strategy: ${strategy.name}`);
+            logger.info(`Recovery successful with strategy: ${strategy.name}`);
             return result;
           }
         } catch (recoveryError) {

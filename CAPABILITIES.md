@@ -596,12 +596,12 @@ const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
       optimization patterns across builds
 - [x] **CodexReviewAgent** (`agent:codex-review`) - Remembers code review
       patterns and common issues
-- [x] **DependencyAnalysisAgent** (`agent:dependency-analysis`) - Tracks
-      dependency patterns and successful optimizations
-- [x] **RouteOptimizationAgent** (`agent:route-optimization`) - Learns route
-      optimization patterns and lazy loading effectiveness
-- [x] **ZencoderAgent** (`agent:zencoder`) - Remembers fix patterns and
-      successful code transformations
+
+Archived package-level agents:
+
+- `archive/2026-q1/unused-code/packages/dependency-analysis-agent/`
+- `archive/2026-q1/unused-code/packages/route-optimization-agent/`
+- `archive/2026-q1/unused-code/packages/zencoder-integration/`
 
 **Memory-Enabled Project-Level Agents (.claude/agents/):**
 
@@ -1101,7 +1101,7 @@ class MyAgent extends withThinking(BaseAgent) {
 complete):
 
 - TestRepairAgent, BundleOptimizationAgent, CodexReviewAgent
-- DependencyAnalysisAgent, RouteOptimizationAgent, ZencoderAgent
+- ZencoderAgent
 
 **Docs**:
 
