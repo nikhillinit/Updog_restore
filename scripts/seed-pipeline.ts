@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Pipeline seeding utilities
 
-import { db } from './db';
+import { db } from '../server/db';
 import {
   dealOpportunities,
   dueDiligenceItems,

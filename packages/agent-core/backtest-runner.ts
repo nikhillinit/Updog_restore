@@ -24,7 +24,7 @@
  * ]
  */
 
-import { BacktestRunner } from './src/Backtest';
+import { BacktestRunner, type BacktestReport } from './src/Backtest';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
@@ -43,6 +43,14 @@ interface CLIOptions {
 const DEFAULT_OUTPUT = 'backtest-report.json';
 const DEFAULT_MAX_CONCURRENT = 3;
 const DEFAULT_TIMEOUT = 300000; // 5 minutes
+
+function writeStdoutLine(message = ''): void {
+  process.stdout.write(`${message}\n`);
+}
+
+function writeStderrLine(message = ''): void {
+  process.stderr.write(`${message}\n`);
+}
 
 /**
  * Parse command line arguments
@@ -114,7 +122,7 @@ function parseArgs(args: string[]): CLIOptions {
  * Print usage information
  */
 function printHelp(): void {
-  console.log(`
+  writeStdoutLine(`
 Backtest Runner - Agent Performance Evaluation Tool
 
 USAGE:
@@ -229,22 +237,22 @@ async function main(): Promise<void> {
   const projectRoot = resolve(options.projectRoot || process.cwd());
   const outputPath = resolve(options.output || DEFAULT_OUTPUT);
 
-  console.log('='.repeat(60));
-  console.log('BACKTEST RUNNER');
-  console.log('='.repeat(60));
-  console.log(`Test Cases: ${casesPath}`);
-  console.log(`Project Root: ${projectRoot}`);
-  console.log(`Output: ${outputPath}`);
-  console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'LIVE'}`);
-  console.log('='.repeat(60));
-  console.log();
+  writeStdoutLine('='.repeat(60));
+  writeStdoutLine('BACKTEST RUNNER');
+  writeStdoutLine('='.repeat(60));
+  writeStdoutLine(`Test Cases: ${casesPath}`);
+  writeStdoutLine(`Project Root: ${projectRoot}`);
+  writeStdoutLine(`Output: ${outputPath}`);
+  writeStdoutLine(`Mode: ${options.dryRun ? 'DRY RUN' : 'LIVE'}`);
+  writeStdoutLine('='.repeat(60));
+  writeStdoutLine();
 
   try {
     // Load test cases
-    console.log('Loading test cases...');
+    writeStdoutLine('Loading test cases...');
     const testCases = BacktestRunner.loadTestCases(casesPath);
-    console.log(`Loaded ${testCases.length} test cases`);
-    console.log();
+    writeStdoutLine(`Loaded ${testCases.length} test cases`);
+    writeStdoutLine();
 
     // Create backtest runner
     const runner = new BacktestRunner({
@@ -257,39 +265,39 @@ async function main(): Promise<void> {
     });
 
     // Run backtest
-    console.log('Starting backtest...');
-    console.log();
+    writeStdoutLine('Starting backtest...');
+    writeStdoutLine();
     const report = await runner.runBacktest(testCases);
 
     // Save report
-    console.log();
-    console.log('Saving report...');
+    writeStdoutLine();
+    writeStdoutLine('Saving report...');
     BacktestRunner.saveReport(report, outputPath);
-    console.log(`Report saved to: ${outputPath}`);
-    console.log(`Summary saved to: ${outputPath.replace('.json', '-summary.txt')}`);
-    console.log();
+    writeStdoutLine(`Report saved to: ${outputPath}`);
+    writeStdoutLine(`Summary saved to: ${outputPath.replace('.json', '-summary.txt')}`);
+    writeStdoutLine();
 
     // Print summary
     printSummary(report);
 
     // Exit with appropriate code
     if (report.failedCases > 0) {
-      console.log();
+      writeStdoutLine();
       console.warn(`Warning: ${report.failedCases} test cases failed`);
       process.exit(2);
     } else {
-      console.log();
-      console.log('All test cases completed successfully!');
+      writeStdoutLine();
+      writeStdoutLine('All test cases completed successfully!');
       process.exit(0);
     }
   } catch (error: unknown) {
-    console.error();
-    console.error('FATAL ERROR:');
-    console.error(error instanceof Error ? error.message : String(error));
+    writeStderrLine();
+    writeStderrLine('FATAL ERROR:');
+    writeStderrLine(error instanceof Error ? error.message : String(error));
     if (options.verbose && error instanceof Error && error.stack) {
-      console.error();
-      console.error('Stack trace:');
-      console.error(error.stack);
+      writeStderrLine();
+      writeStderrLine('Stack trace:');
+      writeStderrLine(error.stack);
     }
     process.exit(1);
   }
@@ -299,23 +307,23 @@ async function main(): Promise<void> {
  * Print summary to console
  */
 function printSummary(report: BacktestReport): void {
-  console.log('='.repeat(60));
-  console.log('SUMMARY');
-  console.log('='.repeat(60));
-  console.log();
-  console.log(`Total Cases:          ${report.totalCases}`);
-  console.log(`Successful:           ${report.successfulCases} (${(report.successRate * 100).toFixed(2)}%)`);
-  console.log(`Failed:               ${report.failedCases}`);
-  console.log();
-  console.log('Performance Metrics:');
-  console.log(`  Quality Score:      ${report.averageQualityScore.toFixed(2)}/100`);
-  console.log(`  Similarity:         ${(report.averageSimilarityScore * 100).toFixed(2)}%`);
-  console.log(`  Speedup:            ${report.averageSpeedup.toFixed(2)}x`);
-  console.log(`  Avg Iterations:     ${report.averageIterations.toFixed(2)}`);
-  console.log(`  Total Cost:         ${report.totalCost.toFixed(2)} units`);
-  console.log();
-  console.log(`Duration:             ${(report.summary.totalDuration / 1000).toFixed(2)}s`);
-  console.log('='.repeat(60));
+  writeStdoutLine('='.repeat(60));
+  writeStdoutLine('SUMMARY');
+  writeStdoutLine('='.repeat(60));
+  writeStdoutLine();
+  writeStdoutLine(`Total Cases:          ${report.totalCases}`);
+  writeStdoutLine(`Successful:           ${report.successfulCases} (${(report.successRate * 100).toFixed(2)}%)`);
+  writeStdoutLine(`Failed:               ${report.failedCases}`);
+  writeStdoutLine();
+  writeStdoutLine('Performance Metrics:');
+  writeStdoutLine(`  Quality Score:      ${report.averageQualityScore.toFixed(2)}/100`);
+  writeStdoutLine(`  Similarity:         ${(report.averageSimilarityScore * 100).toFixed(2)}%`);
+  writeStdoutLine(`  Speedup:            ${report.averageSpeedup.toFixed(2)}x`);
+  writeStdoutLine(`  Avg Iterations:     ${report.averageIterations.toFixed(2)}`);
+  writeStdoutLine(`  Total Cost:         ${report.totalCost.toFixed(2)} units`);
+  writeStdoutLine();
+  writeStdoutLine(`Duration:             ${(report.summary.totalDuration / 1000).toFixed(2)}s`);
+  writeStdoutLine('='.repeat(60));
 }
 
 // Run CLI

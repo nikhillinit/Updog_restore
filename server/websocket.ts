@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */ // WebSocket server types
- 
- 
- 
- 
 import type { Server as HttpServer } from 'http';
 import type { Socket } from 'socket.io';
 import { Server as SocketIOServer } from 'socket.io';
@@ -12,6 +7,30 @@ import { z } from 'zod';
 import { db } from './db';
 import { funds } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+
+interface SubscriptionSuccessResponse {
+  success: true;
+  fundId: number;
+}
+
+interface ErrorResponse {
+  error: string;
+  message: string;
+}
+
+interface SubscriptionStateResponse {
+  subscriptions: number[];
+  rooms: string[];
+}
+
+interface PingResponse {
+  pong: true;
+  timestamp: number;
+}
+
+type SubscriptionCallback = (response: SubscriptionSuccessResponse | ErrorResponse) => void;
+type SubscriptionStateCallback = (response: SubscriptionStateResponse) => void;
+type PingCallback = (response: PingResponse) => void;
 
 // WebSocket event schemas
 const subscribeSchema = z.object({
@@ -55,7 +74,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     const subscriptions = new Set<number>();
 
     // Subscribe to fund events
-    socket['on']('subscribe:fund', async (data: any, callback: any) => {
+    socket.on('subscribe:fund', async (data: unknown, callback?: SubscriptionCallback) => {
       try {
         const parsed = subscribeSchema.parse(data);
         const { fundId, eventTypes } = parsed;
@@ -78,7 +97,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
 
         // Join specific event type rooms if requested
         if (eventTypes && eventTypes.length > 0) {
-          eventTypes.forEach((eventType: any) => {
+          eventTypes.forEach((eventType) => {
             socket.join(getEventTypeRoom(fundId, eventType));
           });
         }
@@ -89,10 +108,10 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
           eventTypes,
         });
 
-        callback({ success: true, fundId });
+        callback?.({ success: true, fundId });
       } catch (error) {
         logger.error('Subscribe error:', error);
-        callback({
+        callback?.({
           error: 'Subscription failed',
           message: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -100,17 +119,17 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Unsubscribe from fund events
-    socket['on']('unsubscribe:fund', async (data: any, callback: any) => {
+    socket.on('unsubscribe:fund', async (data: unknown, callback?: SubscriptionCallback) => {
       try {
         const parsed = unsubscribeSchema.parse(data);
         const { fundId } = parsed;
 
         // Leave all rooms for this fund
         const rooms = Array.from(socket.rooms).filter(
-          (room: any) => room.startsWith(`fund:${fundId}`)
+          (room) => room.startsWith(`fund:${fundId}`)
         );
-        
-        rooms.forEach((room: any) => socket.leave(room));
+
+        rooms.forEach((room) => socket.leave(room));
         subscriptions.delete(fundId);
 
         logger.info('Client unsubscribed from fund', {
@@ -118,10 +137,10 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
           fundId,
         });
 
-        callback({ success: true, fundId });
+        callback?.({ success: true, fundId });
       } catch (error) {
         logger.error('Unsubscribe error:', error);
-        callback({
+        callback?.({
           error: 'Unsubscription failed',
           message: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -129,15 +148,15 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Get current subscriptions
-    socket['on']('get:subscriptions', (callback: any) => {
-      callback({
+    socket.on('get:subscriptions', (callback?: SubscriptionStateCallback) => {
+      callback?.({
         subscriptions: Array.from(subscriptions),
         rooms: Array.from(socket.rooms),
       });
     });
 
     // Handle disconnection
-    socket['on']('disconnect', () => {
+    socket.on('disconnect', () => {
       logger.info('WebSocket client disconnected', {
         socketId: socket.id,
         subscriptions: Array.from(subscriptions),
@@ -145,8 +164,8 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Ping/pong for connection health
-    socket['on']('ping', (callback: any) => {
-      callback({ pong: true, timestamp: Date.now() });
+    socket.on('ping', (callback?: PingCallback) => {
+      callback?.({ pong: true, timestamp: Date.now() });
     });
   });
 
@@ -156,9 +175,9 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     const roomCounts = new Map<string, number>();
 
     // Count clients per room
-    io.sockets.adapter.rooms.forEach((socketIds: any, room: any) => {
+    io.sockets.adapter.rooms.forEach((socketIds, room) => {
       if (room.startsWith('fund:')) {
-        roomCounts['set'](room, socketIds.size);
+        roomCounts.set(room, socketIds.size);
       }
     });
 
@@ -175,7 +194,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
 export async function publishFundEvent(
   fundId: number,
   eventType: string,
-  event: any,
+  event: unknown,
   io?: SocketIOServer
 ): Promise<void> {
   try {
@@ -208,4 +227,3 @@ export async function publishFundEvent(
     });
   }
 }
-

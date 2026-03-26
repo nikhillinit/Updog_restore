@@ -104,10 +104,10 @@ export class Logger {
 
     switch (entry.level) {
       case 'debug':
-        console.debug(message);
+        process.stdout.write(`${message}\n`);
         break;
       case 'info':
-        console.log(message);
+        process.stdout.write(`${message}\n`);
         break;
       case 'warn':
         console.warn(message);

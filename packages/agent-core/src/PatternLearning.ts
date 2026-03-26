@@ -42,6 +42,20 @@ const logger = new Logger({
   enableFile: false,
 });
 
+function getExecutionTags(context: AgentExecutionContext): string[] {
+  const tags = context.metadata?.tags;
+  return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string') : [];
+}
+
+function getExecutionCost(context: AgentExecutionContext): number | undefined {
+  const cost = context.metadata?.cost;
+  return typeof cost === 'number' ? cost : undefined;
+}
+
+function getExecutionOutput(result: AgentResult<unknown>): string | null {
+  return typeof result.data === 'string' ? result.data : null;
+}
+
 /**
  * Pattern types
  */
@@ -285,7 +299,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
         operation: context.operation ?? 'unknown',
         inputSignature,
         fileTypes,
-        tags: context.tags ?? [],
+        tags: getExecutionTags(context),
       },
       observation: {
         approach,
@@ -293,7 +307,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
         metrics: {
           duration: result.duration ?? 0,
           retries: result.retries ?? 0,
-          cost: context.cost,
+          cost: getExecutionCost(context),
         },
       },
       learnedInsight,
@@ -301,7 +315,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
       occurrences: 1,
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
-      tags: [...(context.tags ?? []), ...fileTypes, context.operation ?? 'unknown'],
+      tags: [...getExecutionTags(context), ...fileTypes, context.operation ?? 'unknown'],
     };
   }
 
@@ -476,7 +490,7 @@ Consider these patterns when approaching this task. Apply successful patterns an
    */
   private extractFileTypes(context: AgentExecutionContext): string[] {
     // Try to extract from input if it's a string or has file paths
-    const input = context.input;
+    const input: unknown = context.metadata?.input;
 
     if (typeof input === 'string') {
       // Extract file extensions from paths
@@ -526,9 +540,10 @@ Consider these patterns when approaching this task. Apply successful patterns an
    */
   private extractApproach(result: AgentResult<unknown>, context: AgentExecutionContext): string {
     // Try to extract from result output
-    if (result.output && typeof result.output === 'string') {
+    const output = getExecutionOutput(result);
+    if (output) {
       // Take first sentence as approach
-      const firstSentence = result.output.split('.')[0];
+      const firstSentence = output.split('.')[0];
       return firstSentence.slice(0, 200); // Truncate to 200 chars
     }
 

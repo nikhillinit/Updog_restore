@@ -107,6 +107,51 @@ export interface WorktreeContext {
   cleanup: () => Promise<void>;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function chunkToString(chunk: string | Buffer): string {
+  return typeof chunk === 'string' ? chunk : chunk.toString();
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function normalizeBacktestCase(value: unknown, index: number): BacktestCase {
+  const record = isRecord(value) ? value : {};
+  const metadata = isRecord(record.metadata) ? record.metadata : {};
+  const testCommand = toOptionalString(metadata.testCommand);
+  const expectedOutcome = toOptionalString(metadata.expectedOutcome);
+  const category = toOptionalString(metadata.category);
+
+  return {
+    id: toOptionalString(record.id) ?? `case-${index}`,
+    commitHash: toOptionalString(record.commitHash) ?? '',
+    type: (toOptionalString(record.type) as TaskType | undefined) ?? 'general',
+    description: toOptionalString(record.description) ?? '',
+    files: toStringArray(record.files),
+    errorMessage: toOptionalString(record.errorMessage) ?? '',
+    humanSolution: toOptionalString(record.humanSolution) ?? '',
+    timeToResolve: toOptionalNumber(record.timeToResolve) ?? 0,
+    complexity: toOptionalNumber(record.complexity) ?? 5,
+    metadata: {
+      ...(testCommand ? { testCommand } : {}),
+      ...(expectedOutcome ? { expectedOutcome } : {}),
+      ...(category ? { category } : {}),
+    },
+  };
+}
+
 // ========================================
 // BacktestRunner Class
 // ========================================
@@ -496,12 +541,12 @@ export class BacktestRunner {
       let stdout = '';
       let stderr = '';
 
-      proc.stdout.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout.on('data', (data: string | Buffer) => {
+        stdout += chunkToString(data);
       });
 
-      proc.stderr.on('data', (data) => {
-        stderr += data.toString();
+      proc.stderr.on('data', (data: string | Buffer) => {
+        stderr += chunkToString(data);
       });
 
       proc.on('close', (code) => {
@@ -672,25 +717,14 @@ export class BacktestRunner {
     }
 
     const content = readFileSync(filePath, 'utf-8');
-    const cases = JSON.parse(content);
+    const casesUnknown: unknown = JSON.parse(content);
 
     // Validate cases
-    if (!Array.isArray(cases)) {
+    if (!Array.isArray(casesUnknown)) {
       throw new Error('Test cases must be an array');
     }
 
-    return cases.map((c, index) => ({
-      id: c.id || `case-${index}`,
-      commitHash: c.commitHash,
-      type: c.type || 'general',
-      description: c.description || '',
-      files: c.files || [],
-      errorMessage: c.errorMessage || '',
-      humanSolution: c.humanSolution || '',
-      timeToResolve: c.timeToResolve || 0,
-      complexity: c.complexity || 5,
-      metadata: c.metadata || {},
-    }));
+    return casesUnknown.map((backtestCase, index) => normalizeBacktestCase(backtestCase, index));
   }
 
   /**

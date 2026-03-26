@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Database seeding utilities
 
-import { db } from './db';
+import { db } from '../server/db';
 import { funds, portfolioCompanies, investments, fundMetrics, activities } from '@schema';
 
 // Self-executing script when run directly

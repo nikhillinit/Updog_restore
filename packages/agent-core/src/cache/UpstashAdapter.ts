@@ -27,6 +27,32 @@ import {
 } from './CacheAdapter';
 import { CircuitBreaker } from './CircuitBreaker';
 
+interface UpstashRedisClient {
+  get(key: string): Promise<string | null>;
+  mget(...keys: string[]): Promise<Array<string | null>>;
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
+  del(...keys: string[]): Promise<number>;
+  ttl(key: string): Promise<number>;
+  sadd(setKey: string, member: string): Promise<unknown>;
+  smembers(setKey: string): Promise<string[]>;
+  ping(): Promise<string>;
+}
+
+function isUpstashRedisClient(value: unknown): value is UpstashRedisClient {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as UpstashRedisClient).get === 'function' &&
+    typeof (value as UpstashRedisClient).mget === 'function' &&
+    typeof (value as UpstashRedisClient).setex === 'function' &&
+    typeof (value as UpstashRedisClient).del === 'function' &&
+    typeof (value as UpstashRedisClient).ttl === 'function' &&
+    typeof (value as UpstashRedisClient).sadd === 'function' &&
+    typeof (value as UpstashRedisClient).smembers === 'function' &&
+    typeof (value as UpstashRedisClient).ping === 'function'
+  );
+}
+
 /**
  * Compression threshold (2KB)
  * Objects larger than this will be gzipped
@@ -61,7 +87,7 @@ const DEFAULT_TIMEOUT_MS = 25;
  * ```
  */
 export class UpstashAdapter implements CacheAdapter {
-  private client: Redis | null = null;
+  private client: UpstashRedisClient | null = null;
   private circuitBreaker: CircuitBreaker | null = null;
   private readonly config: CacheAdapterConfig;
   private isInitialized = false;
@@ -117,11 +143,16 @@ export class UpstashAdapter implements CacheAdapter {
         throw new Error('Upstash token is required');
       }
 
-      this.client = new Redis({
+      const clientCandidate: unknown = new Redis({
         url: this.config.url,
         token: this.config.token,
         automaticDeserialization: false, // We handle serialization
       });
+      if (!isUpstashRedisClient(clientCandidate)) {
+        throw new Error('Unexpected Upstash Redis client shape');
+      }
+
+      this.client = clientCandidate;
 
       this.isInitialized = true;
 
@@ -470,7 +501,7 @@ export class UpstashAdapter implements CacheAdapter {
 
       return result === 'PONG';
 
-    } catch (_error: unknown) {
+    } catch {
       return false;
     }
   }

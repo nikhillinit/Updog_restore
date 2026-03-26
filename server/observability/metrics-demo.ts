@@ -14,6 +14,5 @@ installMetricsRoute(app);
 
 const port = Number(process.env['PORT'] ?? 7071);
 app.listen(port, () => {
-   
-  console.log(`[metrics-demo] listening on :${port}`);
+  process.stdout.write(`[metrics-demo] listening on :${port}\n`);
 });

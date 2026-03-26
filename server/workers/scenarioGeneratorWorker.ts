@@ -24,6 +24,7 @@ import type { RedisClientType } from 'redis';
 import type { ScenarioResult } from '@shared/core/optimization/ScenarioGenerator';
 import { ScenarioMatrixCache } from '@shared/core/optimization/ScenarioMatrixCache';
 import type { ScenarioConfigWithMeta } from '@shared/core/optimization/ScenarioMatrixCache';
+import { logger } from '../logger';
 
 /**
  * Worker configuration
@@ -111,7 +112,7 @@ async function persistMetrics(
     await redis.expire(`${metricsKey24h}:latencies`, 86400);
     await redis.expire(metricsKey7d, 604800); // 7 days
   } catch (error) {
-    console.error('[ScenarioWorker] Metrics persistence error:', error);
+    logger.error('[ScenarioWorker] Metrics persistence error', error);
     // Non-fatal - don't throw
   }
 }
@@ -158,8 +159,8 @@ async function processScenarioJob(
       step: 'Retrieved from cache',
     } as JobProgress);
 
-    console.log(
-      `[ScenarioWorker] Cache HIT - Job ${job.id} retrieved ${result.metadata.numScenarios}×${result.metadata.numBuckets} matrix in ${totalDurationMs}ms ` +
+    logger.info(
+      `[ScenarioWorker] Cache HIT - Job ${job.id} retrieved ${result.metadata.numScenarios}x${result.metadata.numBuckets} matrix in ${totalDurationMs}ms ` +
         `(key: ${result.metadata.configHash.substring(0, 8)}...)`
     );
   } else {
@@ -169,8 +170,8 @@ async function processScenarioJob(
       step: 'Generated and cached',
     } as JobProgress);
 
-    console.log(
-      `[ScenarioWorker] Cache MISS - Job ${job.id} generated ${result.metadata.numScenarios}×${result.metadata.numBuckets} matrix in ${result.metadata.durationMs}ms ` +
+    logger.info(
+      `[ScenarioWorker] Cache MISS - Job ${job.id} generated ${result.metadata.numScenarios}x${result.metadata.numBuckets} matrix in ${result.metadata.durationMs}ms ` +
         `(total: ${totalDurationMs}ms, compressed: ${(result.compressed.compressedSize / 1024).toFixed(1)}KB, key: ${result.metadata.configHash.substring(0, 8)}...)`
     );
 
@@ -194,7 +195,7 @@ export function createScenarioWorker(
 ): Worker<ScenarioConfigWithMeta, ScenarioResult> {
   // Initialize cache with database + Redis connections
   const cache = new ScenarioMatrixCache(config.db, config.redis);
-  console.log(
+  logger.info(
     `[ScenarioWorker] Cache initialized (Redis: ${config.redis ? 'enabled' : 'disabled'})`
   );
 
@@ -205,7 +206,7 @@ export function createScenarioWorker(
       try {
         return await processScenarioJob(job, cache);
       } catch (error) {
-        console.error(`[ScenarioWorker] Job ${job.id} failed:`, error);
+        logger.error(`[ScenarioWorker] Job ${job.id} failed`, error);
         throw error;
       }
     },
@@ -232,7 +233,7 @@ export function createScenarioWorker(
     const result = job.returnvalue as ScenarioResult | undefined;
     const cacheHit = result?.metadata.durationMs === 0;
 
-    console.log(
+    logger.info(
       `[ScenarioWorker] Job ${job.id} completed successfully - ` +
         `Cache: ${cacheHit ? 'HIT' : 'MISS'}${result ? `, Matrix: ${result.compressed.numScenarios}x${result.compressed.numBuckets}` : ''}`
     );
@@ -251,18 +252,18 @@ export function createScenarioWorker(
 
   // Graceful shutdown
   process.on('SIGTERM', async () => {
-    console.log('[ScenarioWorker] SIGTERM received, shutting down gracefully...');
+    logger.warn('[ScenarioWorker] SIGTERM received, shutting down gracefully...');
     await worker.close();
     process.exit(0);
   });
 
   process.on('SIGINT', async () => {
-    console.log('[ScenarioWorker] SIGINT received, shutting down gracefully...');
+    logger.warn('[ScenarioWorker] SIGINT received, shutting down gracefully...');
     await worker.close();
     process.exit(0);
   });
 
-  console.log(
+  logger.info(
     `[ScenarioWorker] Started with concurrency=${config.concurrency ?? 2}, cache=${config.redis ? 'enabled' : 'PostgreSQL-only'}`
   );
 
@@ -311,7 +312,7 @@ if (require.main === module) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- CommonJS require lacks TypeScript module types
       await client.connect();
       cacheRedis = client as RedisClientType;
-      console.log('[ScenarioWorker] Cache Redis connected');
+      logger.info('[ScenarioWorker] Cache Redis connected');
     } catch (error) {
       console.warn('[ScenarioWorker] Cache Redis unavailable, using PostgreSQL-only mode:', error);
       cacheRedis = undefined;
@@ -328,7 +329,7 @@ if (require.main === module) {
       timeout: parseInt(process.env['WORKER_TIMEOUT'] ?? '300000', 10), // 5 minutes
     });
 
-    console.log('[ScenarioWorker] Standalone worker started with cache support');
+    logger.info('[ScenarioWorker] Standalone worker started with cache support');
   })().catch((error) => {
     console.error('[ScenarioWorker] Failed to start worker:', error);
     process.exit(1);

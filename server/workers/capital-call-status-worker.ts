@@ -49,6 +49,28 @@ export interface StatusCheckMetrics {
 
 type CallStatus = 'pending' | 'due' | 'overdue' | 'paid' | 'partial';
 
+interface ReminderRedisClient {
+  get(key: string): Promise<string | null>;
+  setex(key: string, seconds: number, value: string): Promise<unknown>;
+}
+
+function isReminderRedisClient(value: unknown): value is ReminderRedisClient {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as ReminderRedisClient).get === 'function' &&
+    typeof (value as ReminderRedisClient).setex === 'function'
+  );
+}
+
+function getReminderRedisClient(redis: unknown): ReminderRedisClient {
+  if (!isReminderRedisClient(redis)) {
+    throw new Error('Capital call reminder Redis client is unavailable');
+  }
+
+  return redis;
+}
+
 const CALL_STATUS = {
   PENDING: 'pending' as const,
   DUE: 'due' as const,
@@ -366,7 +388,8 @@ export class CapitalCallStatusWorker {
 
       // Check if we've already sent this reminder today
       const reminderKey = `capital-call-reminder:${reminderDateStr}:${daysBeforeDue}`;
-      const alreadySent = await this.redis['get'](reminderKey);
+      const redisClient = getReminderRedisClient(this.redis);
+      const alreadySent = await redisClient.get(reminderKey);
 
       if (!alreadySent) {
         const upcomingCalls = await db
@@ -400,7 +423,7 @@ export class CapitalCallStatusWorker {
         }
 
         // Mark this reminder as sent (TTL 24 hours)
-        await this.redis['setex'](reminderKey, 86400, '1');
+        await redisClient.setex(reminderKey, 86400, '1');
       }
     }
 

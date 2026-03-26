@@ -1,9 +1,81 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, type Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import { exec } from 'child_process';
+import { createRequire } from 'module';
 import { promisify } from 'util';
+import { logger } from '../logger';
 
 const execAsync = promisify(exec);
+const require = createRequire(import.meta.url);
+
+interface TypeScriptErrorMetric {
+  file: string;
+  line: number;
+  message: string;
+}
+
+interface TypeScriptMetrics {
+  errorCount: number;
+  errors: TypeScriptErrorMetric[];
+  trend: 'stable';
+}
+
+interface GitMetrics {
+  uncommittedChanges: number;
+}
+
+interface DevServerMetrics {
+  status: 'running';
+  memory: number;
+  uptime: number;
+}
+
+interface CollectedMetrics {
+  typescript: TypeScriptMetrics;
+  git: GitMetrics;
+  devServer: DevServerMetrics;
+}
+
+interface FileWatcher {
+  on(event: 'change', listener: () => void): FileWatcher;
+  close(): void;
+}
+
+interface ChokidarModule {
+  watch(
+    paths: string[],
+    options: { ignored: RegExp; persistent: boolean; ignoreInitial: boolean }
+  ): FileWatcher;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isChokidarModule(value: unknown): value is ChokidarModule {
+  return isRecord(value) && typeof value.watch === 'function';
+}
+
+function parseQuickTestSummary(raw: string): { passed: number; failed: number } {
+  const jsonLine = raw.split('\n').find((line) => line.startsWith('{'));
+  if (!jsonLine) {
+    return { passed: 0, failed: 0 };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(jsonLine);
+    if (!isRecord(parsed)) {
+      return { passed: 0, failed: 0 };
+    }
+
+    return {
+      passed: typeof parsed.numPassedTests === 'number' ? parsed.numPassedTests : 0,
+      failed: typeof parsed.numFailedTests === 'number' ? parsed.numFailedTests : 0,
+    };
+  } catch {
+    return { passed: 0, failed: 0 };
+  }
+}
 
 interface DevMetricsUpdate {
   type: 'metrics_update';
@@ -11,7 +83,7 @@ interface DevMetricsUpdate {
     timestamp: string;
     overall: 'healthy' | 'warning' | 'critical';
     changedMetrics: string[];
-    metrics: any;
+    metrics: CollectedMetrics;
   };
 }
 
@@ -41,8 +113,8 @@ type DevDashboardEvent = DevMetricsUpdate | BuildEvent | TestEvent;
 class DevDashboardWebSocket {
   private io: SocketIOServer;
   private metricsInterval: NodeJS.Timeout | null = null;
-  private fileWatcher: any = null;
-  private lastMetrics: any = null;
+  private fileWatcher: FileWatcher | null = null;
+  private lastMetrics: CollectedMetrics | null = null;
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
@@ -60,7 +132,7 @@ class DevDashboardWebSocket {
 
   private setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      console.log('Dev dashboard client connected:', socket.id);
+      logger.info({ socketId: socket.id }, 'Dev dashboard client connected');
 
       // Send initial metrics on connection
       this.sendMetricsUpdate(socket);
@@ -89,7 +161,9 @@ class DevDashboardWebSocket {
           });
 
           // Trigger metrics update after build
-          setTimeout(() => this.broadcastMetricsUpdate(), 1000);
+          setTimeout(() => {
+            void this.broadcastMetricsUpdate();
+          }, 1000);
         } catch (error) {
           this.broadcast({
             type: 'build_failed',
@@ -109,11 +183,11 @@ class DevDashboardWebSocket {
           });
 
           const { stdout } = await execAsync('npm run test:quick -- --reporter=json');
-          const testResult = JSON.parse(stdout.split('\n').find(line => line.startsWith('{')) || '{}');
+          const testResult = parseQuickTestSummary(stdout);
 
           const results = {
-            passed: testResult.numPassedTests || 0,
-            failed: testResult.numFailedTests || 0,
+            passed: testResult.passed,
+            failed: testResult.failed,
             coverage: 85 // Placeholder
           };
 
@@ -126,8 +200,10 @@ class DevDashboardWebSocket {
           });
 
           // Trigger metrics update after tests
-          setTimeout(() => this.broadcastMetricsUpdate(), 1000);
-        } catch (error) {
+          setTimeout(() => {
+            void this.broadcastMetricsUpdate();
+          }, 1000);
+        } catch {
           this.broadcast({
             type: 'test_failed',
             data: {
@@ -138,12 +214,12 @@ class DevDashboardWebSocket {
       });
 
       socket.on('disconnect', () => {
-        console.log('Dev dashboard client disconnected:', socket.id);
+        logger.info({ socketId: socket.id }, 'Dev dashboard client disconnected');
       });
     });
   }
 
-  private async sendMetricsUpdate(socket: any) {
+  private async sendMetricsUpdate(socket: Socket) {
     try {
       const metrics = await this.collectMetrics();
       const event: DevMetricsUpdate = {
@@ -159,7 +235,7 @@ class DevDashboardWebSocket {
       socket.emit('dev_dashboard_event', event);
       this.lastMetrics = metrics;
     } catch (error) {
-      console.error('Failed to send metrics update:', error);
+      logger.error({ error }, 'Failed to send metrics update');
     }
   }
 
@@ -179,7 +255,7 @@ class DevDashboardWebSocket {
       this.broadcast(event);
       this.lastMetrics = metrics;
     } catch (error) {
-      console.error('Failed to broadcast metrics update:', error);
+      logger.error({ error }, 'Failed to broadcast metrics update');
     }
   }
 
@@ -187,7 +263,7 @@ class DevDashboardWebSocket {
     this.io.emit('dev_dashboard_event', event);
   }
 
-  private async collectMetrics() {
+  private async collectMetrics(): Promise<CollectedMetrics> {
     // Simplified metrics collection for real-time updates
     // This mirrors the logic from the dev-dashboard route but optimized for frequent polling
 
@@ -207,13 +283,13 @@ class DevDashboardWebSocket {
     };
   }
 
-  private async getTypeScriptErrors() {
+  private async getTypeScriptErrors(): Promise<TypeScriptMetrics> {
     try {
       const { stdout, stderr } = await execAsync('npx tsc --noEmit --pretty false 2>&1 || true');
       const output = stdout + stderr;
       const errorRegex = /(.+)\((\d+),\d+\): error TS\d+: (.+)/g;
-      const errors = [];
-      let match;
+      const errors: TypeScriptErrorMetric[] = [];
+      let match: RegExpExecArray | null;
 
       while ((match = errorRegex.exec(output)) !== null) {
         errors.push({
@@ -228,12 +304,12 @@ class DevDashboardWebSocket {
         errors: errors.slice(0, 5),
         trend: 'stable'
       };
-    } catch (error) {
+    } catch {
       return { errorCount: -1, errors: [], trend: 'stable' };
     }
   }
 
-  private async getGitStatus() {
+  private async getGitStatus(): Promise<GitMetrics> {
     try {
       const [statusResult] = await Promise.all([
         execAsync('git status --porcelain').catch(() => ({ stdout: '' }))
@@ -244,12 +320,12 @@ class DevDashboardWebSocket {
       return {
         uncommittedChanges
       };
-    } catch (error) {
+    } catch {
       return { uncommittedChanges: 0 };
     }
   }
 
-  private getChangedMetrics(newMetrics: any): string[] {
+  private getChangedMetrics(newMetrics: CollectedMetrics): string[] {
     if (!this.lastMetrics) return [];
 
     const changes: string[] = [];
@@ -267,7 +343,7 @@ class DevDashboardWebSocket {
     return changes;
   }
 
-  private calculateOverallHealth(metrics: any): 'healthy' | 'warning' | 'critical' {
+  private calculateOverallHealth(metrics: CollectedMetrics): 'healthy' | 'warning' | 'critical' {
     const issues = [
       metrics.typescript?.errorCount > 0
     ];
@@ -283,7 +359,7 @@ class DevDashboardWebSocket {
     // Update metrics every 15 seconds for connected clients
     this.metricsInterval = setInterval(() => {
       if (this.io.engine.clientsCount > 0) {
-        this.broadcastMetricsUpdate();
+        void this.broadcastMetricsUpdate();
       }
     }, 15000);
   }
@@ -291,8 +367,12 @@ class DevDashboardWebSocket {
   private setupFileWatchers() {
     // Watch for TypeScript file changes to trigger immediate updates
     try {
-      const chokidar = require('chokidar');
-      this.fileWatcher = chokidar.watch([
+      const chokidarModule: unknown = require('chokidar');
+      if (!isChokidarModule(chokidarModule)) {
+        throw new Error('Invalid chokidar module shape');
+      }
+
+      this.fileWatcher = chokidarModule.watch([
         'client/src/**/*.{ts,tsx}',
         'server/**/*.ts',
         'shared/**/*.ts'
@@ -307,11 +387,14 @@ class DevDashboardWebSocket {
         // Debounce file changes
         clearTimeout(updateTimeout);
         updateTimeout = setTimeout(() => {
-          this.broadcastMetricsUpdate();
+          void this.broadcastMetricsUpdate();
         }, 2000);
       });
     } catch (error) {
-      console.warn('File watcher setup failed (chokidar not installed):', error instanceof Error ? error.message : String(error));
+      logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'File watcher setup failed'
+      );
     }
   }
 

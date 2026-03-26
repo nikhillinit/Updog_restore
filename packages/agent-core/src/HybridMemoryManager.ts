@@ -319,7 +319,7 @@ export class HybridMemoryManager {
   /**
    * Get statistics about memory usage
    */
-  async getStats(tenantId: string): Promise<{
+  async getStats(_tenantId: string): Promise<{
     sessionMemories: number;
     projectMemories: number;
     longtermMemories: number;

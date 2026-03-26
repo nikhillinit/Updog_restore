@@ -339,16 +339,20 @@ Format each issue as: [SEVERITY] Message`,
    * Display review results in console
    */
   private displayReviewResults(result: ReviewResult): void {
-    console.log(`\n${  '='.repeat(80)}`);
-    console.log(`📊 Codex Review: ${result.filePath}`);
-    console.log('='.repeat(80));
+    const writeOutput = (message = ''): void => {
+      process.stdout.write(`${message}\n`);
+    };
+
+    writeOutput(`\n${'='.repeat(80)}`);
+    writeOutput(`📊 Codex Review: ${result.filePath}`);
+    writeOutput('='.repeat(80));
 
     if (result.consensus) {
-      console.log(`\n${result.consensus}\n`);
+      writeOutput(`\n${result.consensus}\n`);
     }
 
     if (result.issues.length === 0) {
-      console.log('✅ No issues found\n');
+      writeOutput('✅ No issues found\n');
       return;
     }
 
@@ -362,11 +366,11 @@ Format each issue as: [SEVERITY] Message`,
     const printIssues = (issues: ReviewIssue[], title: string, icon: string) => {
       if (issues.length === 0) return;
 
-      console.log(`\n${icon} ${title} (${issues.length}):`);
+      writeOutput(`\n${icon} ${title} (${issues.length}):`);
       issues.forEach((issue, idx) => {
-        console.log(`  ${idx + 1}. [${issue.provider}] ${issue.message}`);
+        writeOutput(`  ${idx + 1}. [${issue.provider}] ${issue.message}`);
         if (issue.suggestion) {
-          console.log(`     💡 ${issue.suggestion}`);
+          writeOutput(`     💡 ${issue.suggestion}`);
         }
       });
     };
@@ -377,7 +381,7 @@ Format each issue as: [SEVERITY] Message`,
     printIssues(low, 'LOW', '🔵');
     printIssues(info, 'INFO', 'ℹ️');
 
-    console.log(`\n${  '='.repeat(80)  }\n`);
+    writeOutput(`\n${'='.repeat(80)}\n`);
   }
 
   /**

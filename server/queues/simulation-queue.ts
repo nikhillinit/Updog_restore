@@ -10,6 +10,8 @@ import { Queue, Worker, QueueEvents } from 'bullmq';
 import { EventEmitter } from 'events';
 import type IORedis from 'ioredis';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry';
+import { getBullMQConnection } from './redis-connection.js';
+import { logger } from '../logger';
 
 // Job types
 export interface SimulationJobData {
@@ -80,6 +82,28 @@ let queue: Queue<SimulationJobData, SimulationJobResult> | null = null;
 let worker: Worker<SimulationJobData, SimulationJobResult> | null = null;
 let queueEvents: QueueEvents | null = null;
 
+function resetSimulationQueueRuntime(): void {
+  worker = null;
+  queueEvents = null;
+  queue = null;
+}
+
+async function closeSimulationQueue(): Promise<void> {
+  logger.info('[queue] Closing simulation queue...');
+
+  const workerRef = worker;
+  const queueEventsRef = queueEvents;
+  const queueRef = queue;
+
+  await workerRef?.close();
+  await queueEventsRef?.close();
+  await queueRef?.close();
+
+  resetSimulationQueueRuntime();
+  unregisterQueueRuntime('simulation');
+  logger.info('[queue] Simulation queue closed');
+}
+
 /**
  * Initialize the simulation queue with Redis connection
  */
@@ -90,25 +114,11 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   if (queue && worker && queueEvents) {
     return {
       queue,
-      close: async () => {
-        console.log('[queue] Closing simulation queue...');
-        await worker?.close();
-        await queueEvents?.close();
-        await queue?.close();
-        worker = null;
-        queueEvents = null;
-        queue = null;
-        unregisterQueueRuntime('simulation');
-        console.log('[queue] Simulation queue closed');
-      },
+      close: closeSimulationQueue,
     };
   }
 
-  const connection = {
-    host: redisConnection['options']['host'] || 'localhost',
-    port: redisConnection['options']['port'] || 6379,
-    password: redisConnection['options']['password'],
-  };
+  const connection = getBullMQConnection(redisConnection);
 
   // Create queue
   queue = new Queue<SimulationJobData, SimulationJobResult>(QUEUE_NAME, {
@@ -125,6 +135,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   });
 
   // Create worker to process jobs
+  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
   worker = new Worker<SimulationJobData, SimulationJobResult>(
     QUEUE_NAME,
     async (job: Job<SimulationJobData, SimulationJobResult>) => {
@@ -201,6 +212,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
     {
       connection,
       concurrency: 2, // Process 2 jobs concurrently
+      lockDuration: 300000,
       limiter: {
         max: 10,
         duration: 60000, // Max 10 jobs per minute
@@ -212,7 +224,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   queueEvents = new QueueEvents(QUEUE_NAME, { connection });
 
   queueEvents.on('completed', ({ jobId, returnvalue }) => {
-    console.log(`[queue] Job ${jobId} completed`, returnvalue);
+    logger.info('[queue] Job completed', { jobId, returnvalue });
   });
 
   queueEvents.on('failed', ({ jobId, failedReason }) => {
@@ -228,7 +240,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
     console.error('[queue] Queue error:', err);
   });
 
-  console.log('[queue] Simulation queue initialized');
+  logger.info('[queue] Simulation queue initialized');
   registerQueueRuntime('simulation', {
     getQueue: () => queue,
     getWorker: () => worker,
@@ -237,17 +249,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
 
   return {
     queue,
-    close: async () => {
-      console.log('[queue] Closing simulation queue...');
-      await worker?.close();
-      await queueEvents?.close();
-      await queue?.close();
-      worker = null;
-      queueEvents = null;
-      queue = null;
-      unregisterQueueRuntime('simulation');
-      console.log('[queue] Simulation queue closed');
-    },
+    close: closeSimulationQueue,
   };
 }
 
