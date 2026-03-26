@@ -350,7 +350,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "eslint --fix --max-warnings 4700 --cache --no-warn-ignored",
+      "eslint --fix --max-warnings 0 --cache --no-warn-ignored",
       "node node_modules/prettier/bin/prettier.cjs --write"
     ],
     "*.{json,md,yml,yaml}": [

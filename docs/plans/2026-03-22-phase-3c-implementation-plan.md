@@ -995,6 +995,14 @@ Done when:
 
 ### Step 5: Make The Track B Decision Explicit
 
+Decision recorded on 2026-03-26:
+
+- NO-GO for Track B in the default Phase 3C release
+- reopen only with a separate written Track B plan approved by Product and
+  Engineering Lead by 2026-04-09
+- absent that approval by 2026-04-09, Track B remains backlog work and must not
+  proceed under the Phase 3C plan by assumption
+
 Goal:
 
 - prevent scenario work from sliding into Track A by assumption
