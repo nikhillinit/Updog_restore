@@ -31,6 +31,8 @@ import {
   generateQuarterlyXLSX,
 } from '../services/xlsx-generation-service.js';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
+import { getBullMQConnection } from './redis-connection.js';
+import { logger } from '../logger';
 
 // Job types
 export interface ReportGenerationJobData {
@@ -285,6 +287,26 @@ let queue: Queue<ReportGenerationJobData, ReportGenerationResult> | null = null;
 let worker: Worker<ReportGenerationJobData, ReportGenerationResult> | null = null;
 let queueEvents: QueueEvents | null = null;
 
+function resetReportQueueRuntime(): void {
+  queue = null;
+  worker = null;
+  queueEvents = null;
+}
+
+async function closeReportQueue(): Promise<void> {
+  const workerRef = worker;
+  const queueEventsRef = queueEvents;
+  const queueRef = queue;
+
+  await workerRef?.close();
+  await queueEventsRef?.close();
+  await queueRef?.close();
+
+  resetReportQueueRuntime();
+  unregisterQueueRuntime('report');
+  logger.info('[ReportQueue] Closed LP report generation queue');
+}
+
 /**
  * Initialize the report generation queue with Redis connection
  */
@@ -295,25 +317,11 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   if (queue && worker && queueEvents) {
     return {
       queue,
-      close: async () => {
-        await worker?.close();
-        await queueEvents?.close();
-        await queue?.close();
-        queue = null;
-        worker = null;
-        queueEvents = null;
-        unregisterQueueRuntime('report');
-        console.log('[ReportQueue] Closed LP report generation queue');
-      },
+      close: closeReportQueue,
     };
   }
 
-  const opts = redisConnection['options'] as Record<string, unknown>;
-  const connection = {
-    host: (opts['host'] as string) || 'localhost',
-    port: (opts['port'] as number) || 6379,
-    password: opts['password'] as string | undefined,
-  };
+  const connection = getBullMQConnection(redisConnection);
 
   // Create queue
   queue = new Queue<ReportGenerationJobData, ReportGenerationResult>(QUEUE_NAME, {
@@ -382,7 +390,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
         };
 
         reportEvents.emitComplete(job.id!, reportId, result);
-        console.log(
+        logger.info(
           `[ReportQueue] Generated ${reportType} report ${reportId} in ${result.durationMs}ms`
         );
         return result;
@@ -418,7 +426,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   queueEvents = new QueueEvents(QUEUE_NAME, { connection });
 
   queueEvents.on('completed', ({ jobId }) => {
-    console.log(`[ReportQueue] Job ${jobId} completed`);
+    logger.info(`[ReportQueue] Job ${jobId} completed`);
   });
 
   queueEvents.on('failed', ({ jobId, failedReason }) => {
@@ -430,7 +438,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
     console.error('[ReportQueue] Worker error:', error);
   });
 
-  console.log('[ReportQueue] Initialized LP report generation queue');
+  logger.info('[ReportQueue] Initialized LP report generation queue');
   registerQueueRuntime('report', {
     getQueue: () => queue,
     getWorker: () => worker,
@@ -439,19 +447,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
   return {
     queue,
-    close: async () => {
-      await worker?.close();
-      await queueEvents?.close();
-      await queue?.close();
-      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
-      queue = null;
-      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
-      worker = null;
-      // eslint-disable-next-line require-atomic-updates -- sequential cleanup, no race
-      queueEvents = null;
-      unregisterQueueRuntime('report');
-      console.log('[ReportQueue] Closed LP report generation queue');
-    },
+    close: closeReportQueue,
   };
 }
 
@@ -473,7 +469,7 @@ export async function enqueueReportGeneration(
   const waitingCount = await queue.getWaitingCount();
   const estimatedWaitMs = waitingCount * 30000; // ~30s per report
 
-  console.log(`[ReportQueue] Enqueued report ${data.reportId}, waiting: ${waitingCount}`);
+  logger.info(`[ReportQueue] Enqueued report ${data.reportId}, waiting: ${waitingCount}`);
 
   return {
     jobId: job.id!,

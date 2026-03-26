@@ -35,7 +35,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
     onEvict,
   } = opts;
 
-  const inflight = new Map<string, SingleFlightEntry<any>>();
+  const inflight = new Map<string, SingleFlightEntry<unknown>>();
   const durations: number[] = [];
   const stats: SingleFlightStats = {
     size: 0,
@@ -67,17 +67,17 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
     return inflight.has(key); 
   }
   
-  function getStats(): SingleFlightStats { 
-    return { 
+  function getStats(): SingleFlightStats {
+    return {
       ...stats,
-      avgDuration: durations.length > 0 
-        ? durations.reduce((a: any, b: any) => a + b, 0) / durations.length 
+      avgDuration: durations.length > 0
+        ? durations.reduce((total, duration) => total + duration, 0) / durations.length
         : 0
-    }; 
+    };
   }
 
   function cancel(key: string): boolean {
-    const entry = inflight['get'](key);
+    const entry = inflight.get(key);
     if (entry) {
       entry.abort?.abort();
       inflight.delete(key);
@@ -93,7 +93,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
   ): Promise<T> {
     stats.totalRequests++;
 
-    const existing = inflight['get'](key);
+    const existing = inflight.get(key) as SingleFlightEntry<T> | undefined;
     if (existing) {
       stats.dedupedRequests++;
       return existing.promise;
@@ -102,9 +102,13 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
     // Capacity management with LRU eviction
     if (inflight.size >= capacity) {
       // Evict oldest entry
-      const oldestKey = inflight.keys().next().value;
+      const oldestKey = inflight.keys().next().value as string | undefined;
       if (oldestKey) {
-        const entry = inflight['get'](oldestKey)!;
+        const entry = inflight.get(oldestKey);
+        if (!entry) {
+          inflight.delete(oldestKey);
+          return Promise.reject(new Error(`Single-flight entry missing for key ${oldestKey}`));
+        }
         entry.abort?.abort();
         inflight.delete(oldestKey);
         stats.evictions++;
@@ -155,11 +159,11 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
           queueMicrotask(() => inflight.delete(key));
         }
       })
-      .catch(error => {
+      .catch((error: unknown) => {
         stats.errors++;
-        const entry = inflight['get'](key);
+        const entry = inflight.get(key);
         if (entry) {
-          entry.lastError = error;
+          entry.lastError = error instanceof Error ? error : new Error(String(error));
         }
         throw error;
       });
@@ -171,7 +175,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
       attempts: 0,
     };
 
-    inflight['set'](key, entry);
+    inflight.set(key, entry);
     stats.size = inflight.size;
 
     return promise;

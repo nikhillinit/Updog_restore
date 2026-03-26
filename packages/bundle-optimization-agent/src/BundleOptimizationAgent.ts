@@ -62,7 +62,7 @@ export class BundleOptimizationAgent extends withThinking(BaseAgent)<BundleOptim
 
   protected async performOperation(
     input: BundleOptimizationInput,
-    context: AgentExecutionContext
+    _context: AgentExecutionContext
   ): Promise<BundleAnalysis> {
     this.logger.info('Starting bundle optimization analysis', { input });
 
@@ -299,7 +299,9 @@ Suggest specific, actionable optimization strategies.`,
 
         // Run tests after each change
         if (input.preserveFunctionality) {
-          const testResult = await execAsync('npm test').catch(e => e);
+          const testResult = await execAsync('npm test').catch((error: unknown) =>
+            error instanceof Error ? error : new Error(String(error))
+          );
           if (testResult instanceof Error) {
             this.logger.warn('Tests failed after optimization, rolling back', { optimization });
             if (input.rollbackOnFailure) {

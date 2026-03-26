@@ -43,6 +43,46 @@ export interface RefreshMetrics {
   error?: string;
 }
 
+interface RefreshJobHandle {
+  id: string;
+  data: ViewRefreshJob;
+  attemptsMade: number;
+  updateProgress(progress: number): Promise<void>;
+}
+
+interface DebounceRedisClient {
+  get(key: string): Promise<string | null>;
+  setex(key: string, seconds: number, value: string): Promise<unknown>;
+}
+
+function isDebounceRedisClient(value: unknown): value is DebounceRedisClient {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as DebounceRedisClient).get === 'function' &&
+    typeof (value as DebounceRedisClient).setex === 'function'
+  );
+}
+
+function getDebounceRedisClient(redis: unknown): DebounceRedisClient {
+  if (!isDebounceRedisClient(redis)) {
+    throw new Error('View refresh Redis client is unavailable');
+  }
+
+  return redis;
+}
+
+function createImmediateJobHandle(job: ViewRefreshJob): RefreshJobHandle {
+  return {
+    id: 'immediate',
+    data: job,
+    attemptsMade: 0,
+    async updateProgress() {
+      return Promise.resolve();
+    },
+  };
+}
+
 export class MaterializedViewRefreshWorker {
   private queue: Queue<ViewRefreshJob>;
   private worker: Worker<ViewRefreshJob>;
@@ -69,9 +109,11 @@ export class MaterializedViewRefreshWorker {
       },
     });
 
+    // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
     this.worker = new Worker<ViewRefreshJob>(queueName, this.processRefresh.bind(this), {
       connection: redis,
       concurrency: 1, // Process one refresh at a time to avoid lock contention
+      lockDuration: 300000,
     });
 
     this.setupEventHandlers();
@@ -113,13 +155,7 @@ export class MaterializedViewRefreshWorker {
       ...(viewName !== undefined ? { viewName } : {}),
     };
 
-    return this.processRefresh(
-      {
-        id: 'immediate',
-        data: job,
-      } as any,
-      undefined
-    );
+    return this.processRefresh(createImmediateJobHandle(job), undefined);
   }
 
   /**
@@ -131,14 +167,15 @@ export class MaterializedViewRefreshWorker {
 
     try {
       // Check if already debounced
-      const isDebounced = await this.redis['get'](debounceKey);
+      const redisClient = getDebounceRedisClient(this.redis);
+      const isDebounced = await redisClient.get(debounceKey);
       if (isDebounced) {
         logger.debug({ lpId, fundId }, 'View refresh debounced');
         return;
       }
 
       // Set debounce flag
-      await this.redis['setex'](debounceKey, Math.ceil(this.EVENT_THROTTLE_MS / 1000), '1');
+      await redisClient.setex(debounceKey, Math.ceil(this.EVENT_THROTTLE_MS / 1000), '1');
 
       // Schedule refresh
       const job: ViewRefreshJob = {
@@ -234,8 +271,8 @@ export class MaterializedViewRefreshWorker {
    * Process refresh job
    */
   private async processRefresh(
-    job: Job<ViewRefreshJob>,
-    token?: string
+    job: RefreshJobHandle,
+    _token?: string
   ): Promise<RefreshMetrics> {
     const startTime = Date.now();
 
@@ -253,7 +290,7 @@ export class MaterializedViewRefreshWorker {
 
       // Refresh each view concurrently
       const refreshPromises = views.map((viewName) => this.refreshView(viewName, job));
-      const results = await Promise.all(refreshPromises);
+      await Promise.all(refreshPromises);
 
       await job.updateProgress(90);
 
@@ -296,15 +333,6 @@ export class MaterializedViewRefreshWorker {
         'View refresh failed'
       );
 
-      // Record failed metric
-      const metrics: RefreshMetrics = {
-        duration,
-        memoryUsage: process.memoryUsage().heapUsed,
-        cacheInvalidated: 0,
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-
       throw error;
     }
   }
@@ -312,17 +340,13 @@ export class MaterializedViewRefreshWorker {
   /**
    * Refresh a specific materialized view
    */
-  private async refreshView(viewName: string, job: Job<ViewRefreshJob>): Promise<void> {
+  private async refreshView(viewName: string, job: Pick<RefreshJobHandle, 'id'>): Promise<void> {
     try {
       logger.info({ viewName, jobId: job.id }, 'Refreshing view');
 
       // Execute REFRESH MATERIALIZED VIEW CONCURRENTLY
       // This would require raw SQL access to the database
       // For now, we document the approach
-
-      const refreshQuery = `
-        SELECT * FROM refresh_lp_dashboard_views();
-      `;
 
       // This would be executed via the database connection:
       // await db.execute(sql.raw(refreshQuery));
@@ -356,7 +380,6 @@ export class MaterializedViewRefreshWorker {
    * Calculate next scheduled refresh time
    */
   private calculateNextRefreshTime(): Date {
-    const now = new Date();
     const nextRefresh = new Date();
     nextRefresh.setUTCDate(nextRefresh.getUTCDate() + 1);
     nextRefresh.setUTCHours(0, 0, 0, 0);
@@ -444,6 +467,10 @@ export function getOrCreateWorker(redis: Redis): MaterializedViewRefreshWorker {
 export async function cleanupWorker(): Promise<void> {
   if (globalWorker) {
     await globalWorker.stop();
-    globalWorker = null;
+    resetGlobalWorker();
   }
+}
+
+function resetGlobalWorker(): void {
+  globalWorker = null;
 }

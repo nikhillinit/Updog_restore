@@ -30,6 +30,10 @@ export interface SerializationResult {
   originalSize?: number;
 }
 
+function isSerializationWorkerResult(value: unknown): value is SerializationWorkerResult {
+  return typeof value === 'object' && value !== null && 'serialized' in value && 'truncated' in value;
+}
+
 // Singleton worker pool - shared across all serialization operations
 let workerPool: Piscina | null = null;
 
@@ -105,7 +109,12 @@ export async function serializeAsync(
     const pool = getWorkerPool();
     const task: SerializationTask = { obj, pretty, maxSize, truncate };
 
-    const result: SerializationWorkerResult = await pool.run(task);
+    const resultUnknown: unknown = await pool.run(task);
+    if (!isSerializationWorkerResult(resultUnknown)) {
+      throw new Error('Unexpected serialization worker result');
+    }
+
+    const result: SerializationWorkerResult = resultUnknown;
 
     // Handle worker errors
     if (result.error) {
@@ -152,7 +161,8 @@ function estimateSize(obj: unknown): number {
 
   if (Array.isArray(obj)) {
     // Estimate array size
-    return obj.reduce((sum, item) => sum + estimateSize(item), 10);
+    const items: unknown[] = obj;
+    return items.reduce((sum, item) => sum + estimateSize(item), 10);
   }
 
   if (typeof obj === 'object') {

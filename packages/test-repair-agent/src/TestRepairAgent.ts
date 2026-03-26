@@ -393,8 +393,8 @@ Provide a specific, actionable fix that addresses the root cause.`,
       /any\s+type/i,           // TypeScript 'any' type
       /console\.log/i,         // Debug statements
       /@ts-ignore/i,           // Suppressing TS errors
-      /\/\/\s*TODO/i,          // Unfinished work
-      /setTimeout.*999999/i,   // Extremely long timeouts
+      /(?:\/\/\s*)?TODO/i,     // Unfinished work
+      /set(?:Timeout|\s+timeout).*999999/i, // Extremely long timeouts
     ];
 
     return unsafePatterns.some(pattern => pattern.test(repair));
@@ -620,12 +620,14 @@ Failed Criteria: ${Object.entries(evaluation.criteria)
 
       let stdout = '';
       let stderr = '';
+      const chunkToString = (chunk: string | Buffer): string =>
+        typeof chunk === 'string' ? chunk : chunk.toString();
 
       if (childProcess.stdout) {
-        childProcess.stdout.on('data', (data) => { stdout += data.toString(); });
+        childProcess.stdout.on('data', (data: string | Buffer) => { stdout += chunkToString(data); });
       }
       if (childProcess.stderr) {
-        childProcess.stderr.on('data', (data) => { stderr += data.toString(); });
+        childProcess.stderr.on('data', (data: string | Buffer) => { stderr += chunkToString(data); });
       }
 
       childProcess.on('close', (exitCode) => {

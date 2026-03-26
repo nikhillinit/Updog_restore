@@ -21,6 +21,8 @@ import type {
   BacktestingJobResultRef,
 } from '@shared/types/backtesting';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
+import { getBullMQConnection } from './redis-connection.js';
+import { logger } from '../logger';
 
 // ============================================================================
 // TYPES
@@ -125,6 +127,30 @@ let queue: Queue<BacktestJobData, any, string> | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let worker: Worker<BacktestJobData, any, string> | null = null;
 let staleSweepTimer: ReturnType<typeof setInterval> | null = null;
+
+function resetBacktestingRuntimeState(): void {
+  worker = null;
+  queue = null;
+  jobStates.clear();
+  idempotencyMap.clear();
+}
+
+async function closeBacktestingRuntime(): Promise<void> {
+  if (staleSweepTimer) {
+    clearInterval(staleSweepTimer);
+    staleSweepTimer = null;
+  }
+
+  const workerRef = worker;
+  const queueRef = queue;
+
+  await workerRef?.close();
+  await queueRef?.close();
+
+  resetBacktestingRuntimeState();
+  unregisterQueueRuntime('backtesting');
+  logger.warn('[backtesting-queue] Closed');
+}
 
 // ---------------------------------------------------------------------------
 // Worker processor helpers
@@ -262,28 +288,11 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
   if (queue && worker) {
     return {
       queue,
-      close: async () => {
-        if (staleSweepTimer) {
-          clearInterval(staleSweepTimer);
-          staleSweepTimer = null;
-        }
-        await worker?.close();
-        await queue?.close();
-        worker = null;
-        queue = null;
-        jobStates.clear();
-        idempotencyMap.clear();
-        unregisterQueueRuntime('backtesting');
-        console.warn('[backtesting-queue] Closed');
-      },
+      close: closeBacktestingRuntime,
     };
   }
 
-  const connection = {
-    host: redisConnection['options']['host'] || 'localhost',
-    port: redisConnection['options']['port'] || 6379,
-    password: redisConnection['options']['password'],
-  };
+  const connection = getBullMQConnection(redisConnection);
 
   queue = new Queue<BacktestJobData>(QUEUE_NAME, {
     connection,
@@ -295,40 +304,29 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
     },
   });
 
+  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
   worker = new Worker<BacktestJobData>(QUEUE_NAME, processBacktestJob, {
     connection,
     concurrency: 2,
     limiter: { max: 10, duration: 60000 },
     autorun: true,
+    lockDuration: JOB_TIMEOUT_MS,
   });
 
-  worker.on('error', (err) => console.error('[backtesting-queue] Worker error:', err));
-  queue.on('error', (err) => console.error('[backtesting-queue] Queue error:', err));
+  worker.on('error', (error) => logger.error('[backtesting-queue] Worker error', error));
+  queue.on('error', (error) => logger.error('[backtesting-queue] Queue error', error));
   staleSweepTimer = setInterval(() => sweepStaleJobs(), STALE_SWEEP_INTERVAL_MS);
   registerQueueRuntime('backtesting', {
     getQueue: () => queue,
     getWorker: () => worker,
     isInitialized: () => queue !== null && worker !== null,
   });
-  console.warn('[backtesting-queue] Initialized');
+  logger.info('[backtesting-queue] Initialized');
 
   const queueRef = queue;
   return {
     queue: queueRef,
-    close: async () => {
-      if (staleSweepTimer) {
-        clearInterval(staleSweepTimer);
-        staleSweepTimer = null;
-      }
-      await worker?.close();
-      await queue?.close();
-      worker = null;
-      queue = null;
-      jobStates.clear();
-      idempotencyMap.clear();
-      unregisterQueueRuntime('backtesting');
-      console.warn('[backtesting-queue] Closed');
-    },
+    close: closeBacktestingRuntime,
   };
 }
 

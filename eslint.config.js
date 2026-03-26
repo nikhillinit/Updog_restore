@@ -61,6 +61,9 @@ export default [
       'ai-utils/**', // Experimental AI development tools
       'notebooks/**', // Jupyter notebooks and examples
       'server/examples/**', // Server example code
+      'server/security/integration-guide.ts', // Reference integration guide, not runtime code
+      'server/routes/simulations-guarded.example.ts', // Example-only route wiring
+      'server/engine/fault-injector.ts', // Test-only chaos helper used by tests
       'docs/**', // Documentation files
       'msw/**', // Mock Service Worker test fixtures
       'eslint-rules/**', // ESLint rule definitions (CommonJS)

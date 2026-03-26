@@ -21,7 +21,15 @@ type ResultMsg = {
   duration?: number;
 };
 
-self.addEventListener('message', async (evt: MessageEvent<RunMsg>) => {
+type WorkerScope = Pick<DedicatedWorkerGlobalScope, 'addEventListener' | 'postMessage'>;
+
+const workerScope = self as unknown as WorkerScope;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+workerScope.addEventListener('message', async (evt: MessageEvent<RunMsg>) => {
   const { data } = evt;
   if (!data || data.type !== 'run') return;
 
@@ -41,14 +49,14 @@ self.addEventListener('message', async (evt: MessageEvent<RunMsg>) => {
       duration
     };
     
-    (self as any).postMessage(response);
-  } catch (err: any) {
+    workerScope.postMessage(response);
+  } catch (err: unknown) {
     const errorResponse: ResultMsg = {
       type: 'error',
       runId: data.runId,
-      error: String(err?.message ?? err)
+      error: getErrorMessage(err)
     };
-    (self as any).postMessage(errorResponse);
+    workerScope.postMessage(errorResponse);
   }
 });
 

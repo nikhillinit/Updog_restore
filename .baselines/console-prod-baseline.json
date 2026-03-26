@@ -1,14 +1,14 @@
 {
-  "total": 170,
+  "total": 39,
   "byMethod": {
-    "log": 135,
-    "debug": 25,
-    "info": 7,
-    "table": 1,
-    "group": 1,
-    "groupEnd": 1
+    "log": 39,
+    "debug": 0,
+    "info": 0,
+    "table": 0,
+    "group": 0,
+    "groupEnd": 0
   },
-  "generatedAt": "2026-03-25T04:30:31.555Z",
+  "generatedAt": "2026-03-26T16:39:50.790Z",
   "scope": [
     "client/src/**/*.{ts,tsx,js}",
     "server/**/*.{ts,tsx,js}",
@@ -20,5 +20,12 @@
     "server/examples/**",
     "**/*.d.ts"
   ],
-  "disallowedMethods": ["log", "debug", "info", "table", "group", "groupEnd"]
+  "disallowedMethods": [
+    "log",
+    "debug",
+    "info",
+    "table",
+    "group",
+    "groupEnd"
+  ]
 }
