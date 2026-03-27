@@ -2,7 +2,7 @@
 
 # Skill Index
 
-**55 skills** discovered across 3 scan patterns.
+**56 skills** discovered across 3 scan patterns.
 
 | Name                               | Format          | Status | Path                                                          |
 | ---------------------------------- | --------------- | ------ | ------------------------------------------------------------- |
@@ -16,6 +16,7 @@
 | bundle-size                        | subdirectory    | ACTIVE | `.claude/skills/bundle-size/SKILL.md`                         |
 | claude-infra-integrity             | subdirectory    | ACTIVE | `.claude/skills/claude-infra-integrity/SKILL.md`              |
 | code-formatter                     | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/code-formatter/SKILL.md`      |
+| code-reviewer                      | subdirectory    | ACTIVE | `.claude/skills/code-reviewer/SKILL.md`                       |
 | continuous-improvement             | flat            | ACTIVE | `.claude/skills/continuous-improvement.md`                    |
 | database-schema-evolution          | flat            | ACTIVE | `.claude/skills/database-schema-evolution.md`                 |
 | dependency-guardian                | workflow-engine | ACTIVE | `.claude/skills/workflow-engine/dependency-guardian/SKILL.md` |
@@ -62,4 +63,4 @@
 | writing-plans                      | flat            | ACTIVE | `.claude/skills/writing-plans.md`                             |
 | xlsx                               | flat            | ACTIVE | `.claude/skills/xlsx.md`                                      |
 
-_Generated: 2026-03-19T02:38:14.929Z_
+_Generated: 2026-03-27T17:51:13.408Z_

@@ -1,6 +1,7 @@
 # JavaScript/TypeScript Code Review Reference
 
 ## Table of Contents
+
 1. Modern JavaScript Patterns
 2. TypeScript Best Practices
 3. Async/Await Patterns
@@ -12,6 +13,7 @@
 ## 1. Modern JavaScript Patterns
 
 ### Variable Declarations
+
 ```javascript
 // ✅ Use const by default
 const apiUrl = 'https://api.example.com';
@@ -25,10 +27,13 @@ var oldStyle = 'avoid';
 ```
 
 ### Destructuring
+
 ```javascript
 // ✅ Object destructuring
 const { name, age, email } = user;
-const { data: { results } } = apiResponse;
+const {
+  data: { results },
+} = apiResponse;
 
 // ✅ Array destructuring
 const [first, second, ...rest] = array;
@@ -40,6 +45,7 @@ function createUser({ name, email, role = 'user' }) {
 ```
 
 ### Spread and Rest Operators
+
 ```javascript
 // ✅ Object merging
 const defaults = { theme: 'light', lang: 'en' };
@@ -57,9 +63,10 @@ function sum(...numbers) {
 ```
 
 ### Arrow Functions
+
 ```javascript
 // ✅ Concise for simple operations
-const double = x => x * 2;
+const double = (x) => x * 2;
 const add = (a, b) => a + b;
 
 // ✅ Implicit return with objects (use parentheses)
@@ -68,12 +75,12 @@ const createUser = (name, email) => ({ name, email });
 // ❌ Don't use arrow functions for methods that need 'this'
 class Counter {
   count = 0;
-  
+
   // ❌ Won't work as expected
   increment = () => {
     this.count++;
-  }
-  
+  };
+
   // ✅ Use regular method
   increment() {
     this.count++;
@@ -84,6 +91,7 @@ class Counter {
 ## 2. TypeScript Best Practices
 
 ### Type Definitions
+
 ```typescript
 // ✅ Define interfaces for object shapes
 interface User {
@@ -99,11 +107,12 @@ type Result<T> = { success: true; data: T } | { success: false; error: string };
 
 // ✅ Generic types
 function fetchData<T>(url: string): Promise<T> {
-  return fetch(url).then(res => res.json());
+  return fetch(url).then((res) => res.json());
 }
 ```
 
 ### Avoid 'any'
+
 ```typescript
 // ❌ Defeats the purpose of TypeScript
 function process(data: any) {
@@ -125,6 +134,7 @@ function process(data: unknown) {
 ```
 
 ### Utility Types
+
 ```typescript
 // ✅ Partial - make all properties optional
 type PartialUser = Partial<User>;
@@ -143,6 +153,7 @@ type RequiredValue = NonNullable<string | null | undefined>;
 ```
 
 ### Type Guards
+
 ```typescript
 // ✅ Type guard functions
 function isUser(obj: unknown): obj is User {
@@ -167,6 +178,7 @@ function processData(data: unknown) {
 ## 3. Async/Await Patterns
 
 ### Error Handling
+
 ```javascript
 // ❌ Unhandled promise rejection
 async function fetchUser(id) {
@@ -178,11 +190,11 @@ async function fetchUser(id) {
 async function fetchUser(id) {
   try {
     const response = await fetch(`/api/users/${id}`);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Failed to fetch user:', error);
@@ -192,6 +204,7 @@ async function fetchUser(id) {
 ```
 
 ### Parallel vs Sequential
+
 ```javascript
 // ❌ Sequential (slow)
 const user = await fetchUser(id);
@@ -202,33 +215,34 @@ const comments = await fetchComments(id);
 const [user, posts, comments] = await Promise.all([
   fetchUser(id),
   fetchPosts(id),
-  fetchComments(id)
+  fetchComments(id),
 ]);
 
 // ✅ Parallel with error handling
 const results = await Promise.allSettled([
   fetchUser(id),
   fetchPosts(id),
-  fetchComments(id)
+  fetchComments(id),
 ]);
 
 const user = results[0].status === 'fulfilled' ? results[0].value : null;
 ```
 
 ### Async Iteration
+
 ```javascript
 // ✅ Process items in parallel with controlled concurrency
 async function processItems(items, concurrency = 3) {
   const results = [];
-  
+
   for (let i = 0; i < items.length; i += concurrency) {
     const batch = items.slice(i, i + concurrency);
     const batchResults = await Promise.all(
-      batch.map(item => processItem(item))
+      batch.map((item) => processItem(item))
     );
     results.push(...batchResults);
   }
-  
+
   return results;
 }
 ```
@@ -236,6 +250,7 @@ async function processItems(items, concurrency = 3) {
 ## 4. React Patterns
 
 ### Component Structure
+
 ```typescript
 // ✅ Functional component with TypeScript
 interface UserProfileProps {
@@ -246,57 +261,59 @@ interface UserProfileProps {
 export function UserProfile({ userId, onUpdate }: UserProfileProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     fetchUser(userId).then(setUser).finally(() => setLoading(false));
   }, [userId]);
-  
+
   if (loading) return <LoadingSpinner />;
   if (!user) return <ErrorMessage />;
-  
+
   return <div>{user.name}</div>;
 }
 ```
 
 ### Custom Hooks
+
 ```typescript
 // ✅ Extract reusable logic into custom hooks
 function useUser(userId: string) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
+
   useEffect(() => {
     let cancelled = false;
-    
+
     fetchUser(userId)
-      .then(data => {
+      .then((data) => {
         if (!cancelled) setUser(data);
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    
+
     return () => {
       cancelled = true;
     };
   }, [userId]);
-  
+
   return { user, loading, error };
 }
 ```
 
 ### Avoid Prop Drilling
+
 ```typescript
 // ✅ Use Context for deeply nested data
 const ThemeContext = React.createContext<'light' | 'dark'>('light');
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  
+
   return (
     <ThemeContext.Provider value={theme}>
       <DeepComponent />
@@ -311,6 +328,7 @@ function DeepComponent() {
 ```
 
 ### Memoization
+
 ```typescript
 // ✅ useMemo for expensive calculations
 const expensiveValue = useMemo(() => {
@@ -329,6 +347,7 @@ const handleClick = useCallback(() => {
 ## 5. Security Considerations
 
 ### XSS Prevention
+
 ```javascript
 // ❌ Dangerous
 element.innerHTML = userInput;
@@ -351,6 +370,7 @@ import DOMPurify from 'dompurify';
 ```
 
 ### Authentication Tokens
+
 ```javascript
 // ❌ Never store sensitive tokens in localStorage
 localStorage.setItem('authToken', token);
@@ -361,12 +381,12 @@ localStorage.setItem('authToken', token);
 // ✅ For API calls, use secure storage
 class ApiClient {
   private token: string | null = null;
-  
+
   setToken(token: string) {
     this.token = token;
     // Store in memory only, or secure cookie
   }
-  
+
   async fetch(url: string) {
     return fetch(url, {
       headers: {
@@ -378,6 +398,7 @@ class ApiClient {
 ```
 
 ### Input Validation
+
 ```javascript
 // ✅ Validate all inputs
 function validateEmail(email: string): boolean {
@@ -406,6 +427,7 @@ function validateUser(data: unknown) {
 ## 6. Performance Optimization
 
 ### Debouncing and Throttling
+
 ```javascript
 // ✅ Debounce for search inputs
 function debounce<T extends (...args: any[]) => any>(
@@ -413,7 +435,7 @@ function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
@@ -430,7 +452,7 @@ function throttle<T extends (...args: any[]) => any>(
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
@@ -446,6 +468,7 @@ const handleScroll = throttle(() => {
 ```
 
 ### Lazy Loading
+
 ```javascript
 // ✅ Code splitting
 const AdminPanel = React.lazy(() => import('./AdminPanel'));
@@ -468,18 +491,19 @@ async function loadModule() {
 ## 7. Common Pitfalls
 
 ### Stale Closures
+
 ```javascript
 // ❌ Common mistake with useEffect
 function Counter() {
   const [count, setCount] = useState(0);
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCount(count + 1); // Stale closure! Always uses initial count
     }, 1000);
     return () => clearInterval(interval);
   }, []); // Missing dependency
-  
+
   return <div>{count}</div>;
 }
 
@@ -494,28 +518,30 @@ useEffect(() => {
 // ✅ Solution 2: Use updater function
 useEffect(() => {
   const interval = setInterval(() => {
-    setCount(prevCount => prevCount + 1);
+    setCount((prevCount) => prevCount + 1);
   }, 1000);
   return () => clearInterval(interval);
 }, []);
 ```
 
 ### Array Methods Return Values
+
 ```javascript
 // ❌ Wrong - forEach returns undefined
-const doubled = [1, 2, 3].forEach(x => x * 2);
+const doubled = [1, 2, 3].forEach((x) => x * 2);
 
 // ✅ Use map for transformations
-const doubled = [1, 2, 3].map(x => x * 2);
+const doubled = [1, 2, 3].map((x) => x * 2);
 
 // ✅ Use filter for filtering
-const evens = [1, 2, 3, 4].filter(x => x % 2 === 0);
+const evens = [1, 2, 3, 4].filter((x) => x % 2 === 0);
 
 // ✅ Use reduce for aggregation
 const sum = [1, 2, 3].reduce((acc, x) => acc + x, 0);
 ```
 
 ### Comparing Objects
+
 ```javascript
 // ❌ Wrong - compares references
 {} === {} // false

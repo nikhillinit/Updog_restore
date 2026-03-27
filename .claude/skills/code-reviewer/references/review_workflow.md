@@ -1,6 +1,7 @@
 # Code Review Workflow Guide
 
 ## Table of Contents
+
 1. Review Preparation
 2. Multi-Pass Review Strategy
 3. AI Collaboration Patterns
@@ -24,18 +25,20 @@
    - Very large change (>1000 lines): Consider requesting split
 
 3. **Identify Review Focus Areas**
-   - New feature → Functionality, architecture, tests
-   - Bug fix → Root cause, edge cases, regression prevention
-   - Refactoring → Improved design, maintained behavior
-   - Performance → Benchmarks, profiling results
-   - Security → Threat modeling, input validation
+   - New feature -> Functionality, architecture, tests
+   - Bug fix -> Root cause, edge cases, regression prevention
+   - Refactoring -> Improved design, maintained behavior
+   - Performance -> Benchmarks, profiling results
+   - Security -> Threat modeling, input validation
 
 ## 2. Multi-Pass Review Strategy
 
 ### Pass 1: High-Level Architecture (5 minutes)
+
 **Goal:** Understand overall design and identify major issues
 
 **Check for:**
+
 - Overall approach makes sense
 - Fits within existing architecture
 - No obvious design flaws
@@ -43,15 +46,18 @@
 - Files organized logically
 
 **Questions to ask:**
+
 - Is this the right solution to the problem?
 - Are there simpler alternatives?
 - Does it follow existing patterns?
 - Will it scale appropriately?
 
 ### Pass 2: Logic and Correctness (15-20 minutes)
+
 **Goal:** Verify the code does what it's supposed to
 
 **Check for:**
+
 - Core logic is correct
 - Edge cases handled
 - Error handling appropriate
@@ -61,6 +67,7 @@
 - Resource leaks
 
 **Focus areas:**
+
 - Conditional logic (if/else, switch)
 - Loop boundaries
 - Async operations
@@ -68,15 +75,18 @@
 - Data transformations
 
 ### Pass 3: Security and Safety (10 minutes)
+
 **Goal:** Identify security vulnerabilities
 
 **Run automated scan:**
+
 ```bash
 # Use the security scan script
 python scripts/security_scan.py <file_or_directory>
 ```
 
 **Manual checks:**
+
 - Input validation present
 - SQL/NoSQL injection prevention
 - XSS prevention
@@ -87,9 +97,11 @@ python scripts/security_scan.py <file_or_directory>
 - CSRF protection for state changes
 
 ### Pass 4: Tests and Documentation (10 minutes)
+
 **Goal:** Ensure code is testable and understandable
 
 **Check for:**
+
 - Tests cover main functionality
 - Edge cases tested
 - Tests are maintainable
@@ -99,14 +111,17 @@ python scripts/security_scan.py <file_or_directory>
 - Breaking changes noted
 
 **Ask:**
+
 - Can I understand what this does without running it?
 - Are the test names clear?
 - Do tests provide good examples of usage?
 
 ### Pass 5: Style and Best Practices (5 minutes)
+
 **Goal:** Ensure code maintainability
 
 **Check for:**
+
 - Follows language conventions
 - Naming is clear and consistent
 - No overly complex functions
@@ -115,6 +130,7 @@ python scripts/security_scan.py <file_or_directory>
 - No code smells
 
 **Run complexity analysis:**
+
 ```bash
 # Use the complexity analysis script
 python scripts/analyze_complexity.py <file_or_directory>
@@ -122,9 +138,11 @@ python scripts/analyze_complexity.py <file_or_directory>
 
 ## 3. AI Collaboration Patterns
 
-The Multi-AI Collaboration tools can be leveraged for different aspects of review:
+The Multi-AI Collaboration tools can be leveraged for different aspects of
+review:
 
 ### Pattern 1: Consensus on Architecture
+
 When unsure about architectural decisions:
 
 ```
@@ -134,6 +152,7 @@ Options: "Service layer with dependency injection OR Direct database access with
 ```
 
 ### Pattern 2: Security Deep Dive
+
 For security-critical code:
 
 ```
@@ -142,6 +161,7 @@ Prompt: "Review this authentication handler for security vulnerabilities"
 ```
 
 ### Pattern 3: Comparative Analysis
+
 For complex refactoring decisions:
 
 ```
@@ -150,6 +170,7 @@ Prompt: "What are the trade-offs of implementing caching at the database layer v
 ```
 
 ### Pattern 4: Debate Complex Trade-offs
+
 When there are competing approaches:
 
 ```
@@ -158,6 +179,7 @@ Topic: "Microservices vs Monolith for this new feature given our team size and t
 ```
 
 ### Pattern 5: Collaborative Problem Solving
+
 For complex bugs or optimizations:
 
 ```
@@ -169,7 +191,8 @@ Problem: "This query is slow at scale. How can we optimize it while maintaining 
 
 ### Feedback Levels
 
-**🔴 Critical (Must Fix)**
+**[Critical] Critical (Must Fix)**
+
 - Security vulnerabilities
 - Data corruption risks
 - Breaking changes without migration
@@ -177,12 +200,15 @@ Problem: "This query is slow at scale. How can we optimize it while maintaining 
 - Memory leaks or resource exhaustion
 
 Example:
-> 🔴 **Critical:** This allows SQL injection. Use parameterized queries:
+
+> [Critical] **Critical:** This allows SQL injection. Use parameterized queries:
+>
 > ```python
 > cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
 > ```
 
-**🟠 Major (Should Fix)**
+**[Major] Major (Should Fix)**
+
 - Incorrect logic
 - Missing error handling
 - Performance issues
@@ -190,12 +216,16 @@ Example:
 - Poor architecture choices
 
 Example:
-> 🟠 **Major:** This function doesn't handle the case when the array is empty, which will cause a crash. Add a guard clause:
+
+> [Major] **Major:** This function doesn't handle the case when the array is
+> empty, which will cause a crash. Add a guard clause:
+>
 > ```javascript
 > if (items.length === 0) return defaultValue;
 > ```
 
-**🟡 Minor (Nice to Have)**
+**[Minor] Minor (Nice to Have)**
+
 - Style inconsistencies
 - Suboptimal but working code
 - Missing edge case tests
@@ -203,9 +233,12 @@ Example:
 - Naming suggestions
 
 Example:
-> 🟡 **Minor:** Consider using a more descriptive name like `calculateUserMetrics` instead of `process`.
 
-**🟢 Praise (Positive Feedback)**
+> [Minor] **Minor:** Consider using a more descriptive name like
+> `calculateUserMetrics` instead of `process`.
+
+**[Praise] Praise (Positive Feedback)**
+
 - Elegant solutions
 - Good test coverage
 - Clear documentation
@@ -213,22 +246,23 @@ Example:
 - Security considerations
 
 Example:
-> 🟢 **Nice!** Great use of the factory pattern here. This makes testing much easier.
+
+> [Praise] **Nice!** Great use of the factory pattern here. This makes testing
+> much easier.
 
 ### Feedback Structure
 
-**1. Start with Context**
-Explain what you're seeing and why it matters.
+**1. Start with Context** Explain what you're seeing and why it matters.
 
-❌ "This is wrong."
-✅ "This function doesn't validate the input, which means invalid data could corrupt the database."
+[Avoid] "This is wrong." [Do] "This function doesn't validate the input, which
+means invalid data could corrupt the database."
 
-**2. Be Specific**
-Point to exact lines and explain the issue.
+**2. Be Specific** Point to exact lines and explain the issue.
 
-❌ "Fix the error handling."
-✅ "Line 45: This catch block swallows the exception. Either log it or re-throw:
-```python
+[Avoid] "Fix the error handling." [Do] "Line 45: This catch block swallows the
+exception. Either log it or re-throw:
+
+````python
 except ValueError as e:
     logger.error(f"Invalid input: {e}")
     raise
@@ -237,8 +271,8 @@ except ValueError as e:
 **3. Suggest Solutions**
 Provide actionable alternatives.
 
-❌ "This is inefficient."
-✅ "This loops through all items twice (O(n²)). Consider using a Set for O(n):
+[Avoid] "This is inefficient."
+[Do] "This loops through all items twice (O(n^2)). Consider using a Set for O(n):
 ```python
 seen = set()
 unique_items = [x for x in items if x not in seen and not seen.add(x)]
@@ -247,13 +281,13 @@ unique_items = [x for x in items if x not in seen and not seen.add(x)]
 **4. Ask Questions**
 Seek to understand before judging.
 
-❌ "Why did you do it this way?"
-✅ "I'm curious about the choice to use polling here. Have you considered using event listeners instead? Is there a specific reason polling is preferred?"
+[Avoid] "Why did you do it this way?"
+[Do] "I'm curious about the choice to use polling here. Have you considered using event listeners instead? Is there a specific reason polling is preferred?"
 
 **5. Acknowledge Good Work**
 Positive reinforcement improves code quality over time.
 
-✅ "The test coverage here is excellent. I especially appreciate the edge case tests for empty inputs."
+[Do] "The test coverage here is excellent. I especially appreciate the edge case tests for empty inputs."
 
 ## 5. Review Levels by Context
 
@@ -312,34 +346,31 @@ Positive reinforcement improves code quality over time.
 
 ## Review Workflow Summary
 
-```
-1. Preparation (5 min)
-   ↓
+````
+
+1. Preparation (5 min) v
 2. Automated Scans (2 min)
    - complexity_analyzer.py
-   - security_scan.py
-   ↓
+   - security_scan.py v
 3. Multi-Pass Review (30 min)
    - Architecture
    - Logic
    - Security
    - Tests
-   - Style
-   ↓
+   - Style v
 4. AI Consultation (optional, 5-10 min)
    - For complex decisions
    - For security verification
-   - For architectural validation
-   ↓
+   - For architectural validation v
 5. Provide Feedback (10 min)
    - Categorize by severity
    - Be specific and actionable
-   - Include praise
-   ↓
+   - Include praise v
 6. Follow-up (ongoing)
    - Track addressed issues
    - Verify fixes
    - Learn from patterns
+
 ```
 
 ## Red Flags Checklist
@@ -358,3 +389,4 @@ Stop and escalate if you see:
 - [ ] Breaking changes without deprecation
 - [ ] Extremely high complexity (>500 lines in one function)
 - [ ] Copied-pasted code from unknown sources
+```
