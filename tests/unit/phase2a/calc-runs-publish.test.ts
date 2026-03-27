@@ -183,24 +183,39 @@ describe('Migration 0010 (snapshot attribution)', () => {
 // Item 8: Worker binding -- workers accept run attribution
 // ============================================================================
 
-describe('Worker snapshot attribution', () => {
-  it('reserve worker destructures runId/configId/configVersion', async () => {
+describe('Worker and service snapshot attribution', () => {
+  it('reserve worker carries runId/configId/configVersion into the extracted service', async () => {
     const fs = await import('fs/promises');
-    const source = await fs.readFile('workers/reserve-worker.ts', 'utf-8');
-    expect(source).toContain('runId');
-    expect(source).toContain('configId');
-    expect(source).toContain('configVersion');
-    // Written to snapshot
-    expect(source).toMatch(/runId != null && \{ runId \}/);
+    const workerSource = await fs.readFile('workers/reserve-worker.ts', 'utf-8');
+    const serviceSource = await fs.readFile(
+      'server/services/reserve-calculation-service.ts',
+      'utf-8'
+    );
+
+    expect(workerSource).toContain('runId');
+    expect(workerSource).toContain('configId');
+    expect(workerSource).toContain('configVersion');
+    expect(workerSource).toContain('runReserveCalculation({');
+    expect(serviceSource).toMatch(/runId != null && \{ runId \}/);
+    expect(serviceSource).toMatch(/configId != null && \{ configId \}/);
+    expect(serviceSource).toMatch(/configVersion != null && \{ configVersion \}/);
   });
 
-  it('pacing worker destructures runId/configId/configVersion', async () => {
+  it('pacing worker carries runId/configId/configVersion into the extracted service', async () => {
     const fs = await import('fs/promises');
-    const source = await fs.readFile('workers/pacing-worker.ts', 'utf-8');
-    expect(source).toContain('runId');
-    expect(source).toContain('configId');
-    expect(source).toContain('configVersion');
-    expect(source).toMatch(/runId != null && \{ runId \}/);
+    const workerSource = await fs.readFile('workers/pacing-worker.ts', 'utf-8');
+    const serviceSource = await fs.readFile(
+      'server/services/pacing-calculation-service.ts',
+      'utf-8'
+    );
+
+    expect(workerSource).toContain('runId');
+    expect(workerSource).toContain('configId');
+    expect(workerSource).toContain('configVersion');
+    expect(workerSource).toContain('runPacingCalculation({');
+    expect(serviceSource).toMatch(/runId != null && \{ runId \}/);
+    expect(serviceSource).toMatch(/configId != null && \{ configId \}/);
+    expect(serviceSource).toMatch(/configVersion != null && \{ configVersion \}/);
   });
 
   it('cohort worker accepts runId/configId/configVersion (no snapshot yet)', async () => {
