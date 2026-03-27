@@ -636,61 +636,275 @@ real-DB lifecycle lane that validates persisted publish state.
 - reviving quarantined infrastructure tests unchanged when their runtime
   assumptions are obsolete
 
-## Sprint 4: Secondary Surfaces And Documentation Convergence
+## Sprint 4: Exposure-Driven Secondary Surface Triage And Documentation Convergence
 
 ### Goal
 
-Stop exposing ambiguous or placeholder product surfaces, then align the docs
-with the stabilized architecture.
+Remove overclaimed secondary surfaces according to their real user exposure,
+then refresh only the authoritative docs that describe the stabilized product.
+
+### First-Principles Framing
+
+- Problem:
+  - users and maintainers cannot reliably tell which secondary surfaces are
+    truthful versus placeholder
+- Primary users:
+  - end users navigating the app
+  - operators and support responding to broken flows
+  - maintainers and doc readers deciding what is live
+- Fundamental truths:
+  - nav or route exposure creates a product promise
+  - mock-only or local-only state is not production truth
+  - unmounted backend code has no product value until an activation path exists
+  - authoritative docs should describe only the supported surface area
+- Design requirements:
+  - Must have:
+    - one explicit exposure decision per surface
+    - one shared policy seam for nav visibility and route redirect so exposure
+      cannot drift
+    - cheap rollback via redirect, route gate, nav removal, or archive
+    - active-lane validation for any surviving exposed surface
+    - one named implementation owner and dependency-impact note per surviving
+      surface change
+  - Nice to have:
+    - one narrowly completed secondary surface with truthful persistence
+  - Not required:
+    - finishing every secondary feature
+    - hand-curating generated doc artifacts
+  - Unknowns to validate:
+    - whether `planning` deserves narrow truthful completion or only redirect or
+      quarantine
+    - whether KPI surfaces have a near-term user need strong enough to justify
+      one end-to-end slice
 
 ### Stories
 
-#### S4.1 Secondary Surface Triage
+#### S4.0 Architecture Delivery Guardrails
 
 - Size: `S`
+- Scope:
+  - require each surviving Sprint 4 surface change to carry a short delivery
+    checklist:
+    - target validated
+    - exposure and dependency impact analyzed
+    - benefits and trade-offs stated
+    - rollback path defined
+    - result captured in a short decision record
+  - prefer one clear owner path per surface instead of partially advancing
+    multiple overlapping implementations
+  - avoid architecture anti-patterns:
+    - keeping a primary-nav surface live while its core actions remain TODO-only
+    - treating local-only state as durable product truth
+    - counting unmounted mock backend code as delivered product scope
+    - updating docs to imply support before exposure changes actually land
+
+#### S4.1 Exposure Inventory And Ownership Decisions
+
+- Size: `S`
+- Scope:
+  - classify each secondary surface by actual exposure, not by rough feature
+    theme:
+    - primary-nav and routed
+    - routed but not primary-nav
+    - backend-only and unmounted
+  - assign one explicit ownership state per surface:
+    - finish now with a narrow truthful scope
+    - hide or quarantine behind the authoritative route or flag path
+    - archive explicitly
+  - record the implementation owner and authoritative exposure control for each
+    decision:
+    - navigation source
+    - route table
+    - feature flag (use `client/src/core/flags/featureFlags.ts` as the
+      authoritative client flag source)
+    - shared surface-policy helper
+    - server mount
+  - run one explicit six-lens review for each surface before deciding:
+    - White: exact exposure, backing data, and current test reality
+    - Red: trust or confusion cost if left exposed
+    - Yellow: user or business value preserved by keeping it visible
+    - Black: failure modes, support burden, and architecture drag
+    - Green: lower-cost alternatives such as redirect, embed, flag, or archive
+    - Blue: final decision, owner, validation path, benefits, trade-offs, and
+      rollback
 - Surfaces to classify:
   - `client/src/pages/planning.tsx`
-  - `client/src/pages/kpi-manager/KpiDefinitionModal.tsx`
+  - `client/src/pages/kpi-manager/*`
+  - `client/src/pages/kpi-submission.tsx`
   - `server/compass/routes.ts`
-- Each surface must be assigned one state:
-  - ship now
-  - hide behind flag
-  - archive
+- Exposure facts to use:
+  - `planning` is routed in `client/src/App.tsx`, but it is only a primary-nav
+    problem in the full navigation; `NEW_IA` already omits it
+  - `kpi-manager` and `kpi-submission` are still routed in `client/src/App.tsx`,
+    but neither is a primary sidebar destination
+  - `compass` is mock-backed and not mounted in the server app
 
-#### S4.2 Implement Or Hide Based On Triage
+#### S4.2 Fix Or Hide Primary-Exposure Surfaces First
 
 - Size: `M`
 - Scope:
-  - implement only surfaces that survive triage
-  - hide or archive the rest so the UI no longer overclaims capability
+  - treat `planning` as the first Sprint 4 decision because it is still a live
+    route and a full-nav destination
+  - do not leave `planning` visible in the sidebar if it remains mock-data
+    driven with no persistence for:
+    - FMV override
+    - case sync
+    - case clone
+    - save changes
+  - choose one narrow truthful outcome:
+    - implement a persisted, limited planning slice, or
+    - redirect `/planning` to the existing truthful reserve-planning destination
+      at `/portfolio?tab=reserve-planning`, or
+    - remove or flag the route from the authoritative navigation and route
+      surface
+  - use the shared surface-policy helper so nav removal and direct-route
+    redirect stay coupled
+  - make exposure changes in the authoritative sources of truth:
+    - `client/src/components/layout/navigation-config.ts`
+    - `client/src/App.tsx`
+    - `client/src/lib/secondary-surface-policy.ts`
+    - `client/src/core/flags/featureFlags.ts`
 
-#### S4.3 Documentation Refresh
+#### S4.3 Quarantine Or Narrow The KPI Surface
+
+- Size: `M`
+- Scope:
+  - treat KPI as lower urgency than `planning`, because it is routed but not a
+    primary-nav destination
+  - do not scope this as only a missing save mutation in
+    `KpiDefinitionModal.tsx`
+  - account for the broader unfinished surface:
+    - definition modal save is TODO
+    - request builder modal is placeholder-only
+    - settings modal is placeholder-only
+    - tab enablement still relies on a mock user in `tabs-config.ts`
+    - page state is local-only in `useKpiManager.ts`
+    - `kpi-submission` is also local-only and non-persistent, so KPI quarantine
+      cannot stop at `/kpi-manager`
+  - choose one narrow truthful outcome:
+    - complete one end-to-end KPI definition path and remove placeholder
+      companion modals, or
+    - quarantine both KPI routes behind an explicit flag or archive decision
+  - until KPI has a truthful home, prefer a neutral safe fallback such as
+    `/dashboard` over pretending Settings already owns the feature
+- Primary files:
+  - `client/src/pages/kpi-manager/index.tsx`
+  - `client/src/pages/kpi-manager/KpiDefinitionModal.tsx`
+  - `client/src/pages/kpi-manager/tabs-config.ts`
+  - `client/src/pages/kpi-manager/useKpiManager.ts`
+  - `client/src/pages/kpi-submission.tsx`
+  - `client/src/App.tsx`
+  - `client/src/lib/secondary-surface-policy.ts`
+  - `client/src/core/flags/featureFlags.ts`
+
+#### S4.4 Archive Or Explicitly Reclassify Compass
 
 - Size: `S`
 - Scope:
-  - update README and current status docs to match the live wizard,
-    publish/results behavior, and supported surfaces
+  - do not spend Sprint 4 implementation budget treating Compass as a peer to
+    routed product surfaces unless a separate activation decision is made
+  - because Compass is not mounted and still returns mock responses, default to:
+    - archive, or
+    - explicit experimental status behind a documented server-mount gate
+  - do not count Compass as "implemented" merely because route files exist
+- Primary files:
+  - `server/compass/routes.ts`
+  - server app mount path if activation is proposed
+
+#### S4.5 Documentation Refresh On Authoritative Sources Only
+
+- Size: `S`
+- Scope:
+  - update only the docs that are supposed to describe the live product surface
+    and lifecycle behavior
+  - prioritize:
+    - `README.md`
+    - `docs/BUILD_READINESS.md`
+    - any live plan or status doc that still claims exposed placeholder surfaces
+      are production-ready
+  - do not hand-edit generated docs under `docs/_generated/*` unless the sprint
+    also uses their owning generation path
+  - mark historical or archive material as non-authoritative instead of trying
+    to normalize every stale document
 - Primary files:
   - `README.md`
   - `docs/BUILD_READINESS.md`
-  - `docs/_generated/staleness-report.md`
+  - selected live status docs only
 
 ### Acceptance
 
-1. No user-facing primary surface remains both visible and knowingly dead-end.
-2. README no longer contradicts the live fund lifecycle.
-3. Stale or contradictory status docs are either updated or clearly marked as
-   historical.
+1. Every secondary surface in scope has one explicit state tied to its real
+   exposure level: finish now, hide or quarantine, or archive.
+2. No primary-nav destination remains visibly live while still relying on mock
+   data and TODO actions.
+3. If `planning` remains in primary navigation after this sprint, its remaining
+   actions are narrowly truthful and persisted; otherwise it is redirected,
+   removed, or gated from the authoritative nav and route surface.
+4. KPI Manager and KPI Submission are no longer half-live with placeholder or
+   local-only behavior: they are either narrowed to one truthful path or
+   explicitly quarantined together.
+5. Compass is not treated as a live product surface unless the sprint also
+   mounts it behind an explicit experimental activation decision.
+6. Documentation updates target authoritative docs only and no longer overclaim
+   supported secondary surfaces.
+7. Any hide, redirect, or flag decision is reflected consistently in the
+   navigation source, route table, shared surface-policy helper, and user-facing
+   docs so no orphan exposure remains.
+8. Each surviving surface change has a documented owner, trade-off summary, and
+   rollback path.
 
 ### Validation
 
-- targeted UI smoke tests for any still-exposed secondary surfaces
-- markdown/doc review
+- `npx vitest run tests/unit/lib/secondary-surface-policy.test.tsx tests/unit/components/layout/sidebar-navigation.test.tsx --project=client`
+- `npx eslint client/src/App.tsx client/src/components/layout/navigation-config.ts client/src/core/flags/featureFlags.ts client/src/lib/secondary-surface-policy.ts tests/unit/components/layout/sidebar-navigation.test.tsx tests/unit/lib/secondary-surface-policy.test.tsx`
+- `npm run test:phase4`
+- exact targeted client tests under the active `tests/unit/**/*.test.tsx` lane
+  for any changed navigation, route gating, or still-exposed secondary page
+  behavior
+- targeted route or navigation assertions for any surface removed from primary
+  exposure
+- a short surface decision record capturing White, Red, Yellow, Black, Green,
+  and Blue outputs plus the final owner, benefits, trade-offs, and rollback path
+  for `planning`, KPI Manager, KPI Submission, and Compass
+- markdown review of `README.md` and `docs/BUILD_READINESS.md`
+
+### Sprint-4 Revisions From Codebase Review And Sandbox Validation
+
+1. `planning` is not a low-exposure cleanup item, but the sandbox confirmed the
+   problem is concentrated in the full navigation plus direct route exposure.
+   `NEW_IA` already omits it, so Sprint 4 should treat planning quarantine as a
+   focused nav-plus-route change rather than a whole-IA rewrite.
+2. KPI scope is broader than `kpi-manager`. The sandbox review showed
+   `kpi-submission` is also local-only and non-persistent, so route quarantine
+   or completion has to treat the KPI surface as a pair, not a single page.
+3. Compass should not compete for "finish now" budget by default. Its route file
+   is explicitly marked not mounted and returns mock data throughout.
+4. Validation should follow the same rule used in Sprint 1 navigation work: put
+   coverage in the active `tests/unit/**/*.test.tsx` lane, not in dormant
+   client-local test folders or ad hoc manual smoke only. The sandbox spike
+   exposed this directly when an initial `.test.ts` policy file was invisible to
+   the client project.
+5. Documentation cleanup should mirror the Sprint 3 command-cleanup lesson:
+   update only authoritative docs directly, and do not promise generated-doc
+   freshness without running the owning generation path.
+6. The useful part of the local `senior-architect` skill was governance, not
+   content depth: carry explicit owners, dependency impact, benefits,
+   trade-offs, and rollback into each surface decision, but ignore its generic
+   placeholder pattern text.
+7. The sandbox implementation surfaced one additional architectural requirement:
+   use a shared `secondary-surface-policy` seam for both nav filtering and route
+   redirects, otherwise Sprint 4 hide/quarantine work will drift and leave
+   orphan exposure behind.
+8. The safest first landing is dormant quarantine controls with explicit flags
+   and tested redirects. Flip defaults only after the surface owner decision is
+   accepted.
 
 ### Non-Goals
 
 - shipping every secondary feature
 - rewriting historical archive material
+- manually polishing unmounted or unowned surfaces without first fixing their
+  exposure contract
 
 ## Dependency Order
 

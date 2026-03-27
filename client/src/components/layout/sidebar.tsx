@@ -3,17 +3,19 @@ import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'wouter';
 import { useFundContext } from '@/contexts/FundContext';
 import { POVIcon } from '@/components/ui/POVLogo';
-import { getNavigationItems, getFooterNavigationItems } from './navigation-config';
+import {
+  getNavigationItems,
+  getFooterNavigationItems,
+  isNavigationItemEnabled,
+  resolveNavigationHref,
+  type NavigationContext,
+  type NavigationItem,
+} from './navigation-config';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 
 interface SidebarProps {
   activeModule: string;
-  onModuleChange: (_module: string) => void;
 }
-
-// Use feature-flag aware navigation
-const navigationItems = getNavigationItems();
-const footerItems = getFooterNavigationItems();
 
 const chartCategories = [
   { id: 'basic', label: 'Basic Charts' },
@@ -23,11 +25,153 @@ const chartCategories = [
   { id: 'advanced', label: 'Advanced' },
 ];
 
-export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
+function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
+  return cn(
+    'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+    isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
+    isDisabled
+      ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
+      : isActive
+        ? 'bg-beige/30 text-charcoal font-medium'
+        : 'text-charcoal/70 hover:bg-lightGray'
+  );
+}
+
+function NavItemContent({
+  item,
+  isHovered,
+  isActive,
+}: {
+  item: NavigationItem;
+  isHovered: boolean;
+  isActive: boolean;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <>
+      <Icon className="h-5 w-5 flex-shrink-0" />
+      {isHovered && (
+        <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
+          {item.label}
+        </span>
+      )}
+
+      {!isHovered && (
+        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+          {item.label}
+        </div>
+      )}
+    </>
+  );
+}
+
+function FooterNavItemContent({
+  item,
+  isHovered,
+  isActive,
+}: {
+  item: NavigationItem;
+  isHovered: boolean;
+  isActive: boolean;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <>
+      <Icon className="h-4 w-4 flex-shrink-0" />
+      {isHovered && (
+        <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
+          {item.label}
+        </span>
+      )}
+
+      {!isHovered && (
+        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+          {item.label}
+        </div>
+      )}
+    </>
+  );
+}
+
+function NavigationButton({
+  item,
+  href,
+  isActive,
+  isDisabled,
+  isHovered,
+  compact = false,
+}: {
+  item: NavigationItem;
+  href: string | null;
+  isActive: boolean;
+  isDisabled: boolean;
+  isHovered: boolean;
+  compact?: boolean;
+}) {
+  const title = !isHovered ? item.label : undefined;
+  const className = compact
+    ? cn(
+        'w-full flex items-center rounded-md transition-colors font-poppins relative group',
+        isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
+        isActive
+          ? 'bg-beige/30 text-charcoal font-medium'
+          : isDisabled
+            ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
+            : 'text-charcoal/60 hover:bg-lightGray hover:text-charcoal'
+      )
+    : baseNavClassName(isHovered, isActive, isDisabled);
+
+  if (href && !isDisabled) {
+    return (
+      <Link
+        href={href}
+        title={title}
+        className={className}
+        aria-current={isActive ? 'page' : undefined}
+        data-active={isActive ? 'true' : 'false'}
+      >
+        {compact ? (
+          <FooterNavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+        ) : (
+          <NavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+        )}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled
+      title={title}
+      aria-disabled="true"
+      data-active={isActive ? 'true' : 'false'}
+      className={className}
+    >
+      {compact ? (
+        <FooterNavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+      ) : (
+        <NavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+      )}
+    </button>
+  );
+}
+
+export default function Sidebar({ activeModule }: SidebarProps) {
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [_location, _setLocation] = useLocation();
+  const [location] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
+
+  const navigationItems = getNavigationItems();
+  const footerItems = getFooterNavigationItems();
+  const navigationContext: NavigationContext = {
+    location,
+    currentFundId: currentFund?.id ?? null,
+    needsSetup,
+  };
 
   return (
     <aside
@@ -73,52 +217,30 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
             <p className="font-poppins text-xs text-amber-600 mb-3">
               Configure your fund to access all features
             </p>
-            <Link href="/fund-setup">
-              <button className="w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200">
-                Start Fund Setup
-              </button>
+            <Link
+              href="/fund-setup"
+              className="block w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200 text-center"
+            >
+              Start Fund Setup
             </Link>
           </div>
         )}
 
         <ul className="space-y-1">
           {navigationItems.map((item) => {
-            const Icon = item.icon;
+            const href = resolveNavigationHref(item, navigationContext);
             const isActive = activeModule === item.id;
-            const isDisabled = needsSetup && item.id !== 'fund-setup';
+            const isDisabled = !isNavigationItemEnabled(item, navigationContext);
 
             return (
               <li key={item.id}>
-                <Link href={`/${item.id}`}>
-                  <button
-                    disabled={isDisabled}
-                    onClick={() => !isDisabled && onModuleChange(item.id)}
-                    title={!isHovered ? item.label : undefined}
-                    className={cn(
-                      'w-full flex items-center rounded-md transition-colors font-poppins relative group',
-                      isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
-                      isDisabled
-                        ? 'text-charcoal/40 cursor-not-allowed bg-lightGray'
-                        : isActive
-                          ? 'bg-beige/30 text-charcoal font-medium'
-                          : 'text-charcoal/70 hover:bg-lightGray'
-                    )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    {isHovered && (
-                      <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
-                        {item.label}
-                      </span>
-                    )}
-
-                    {/* Tooltip for collapsed state */}
-                    {!isHovered && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {item.label}
-                      </div>
-                    )}
-                  </button>
-                </Link>
+                <NavigationButton
+                  item={item}
+                  href={href}
+                  isActive={isActive}
+                  isDisabled={isDisabled}
+                  isHovered={isHovered}
+                />
               </li>
             );
           })}
@@ -153,45 +275,24 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         )}
       </nav>
 
-      {/* Footer Navigation (Settings + Help) */}
       {footerItems.length > 0 && (
         <div className="border-t border-lightGray p-2 bg-gray-50">
           <ul className="space-y-1">
             {footerItems.map((item) => {
-              const Icon = item.icon;
+              const href = resolveNavigationHref(item, navigationContext);
               const isActive = activeModule === item.id;
+              const isDisabled = !isNavigationItemEnabled(item, navigationContext);
 
               return (
                 <li key={item.id}>
-                  <Link href={item.path || `/${item.id}`}>
-                    <button
-                      onClick={() => onModuleChange(item.id)}
-                      title={!isHovered ? item.label : undefined}
-                      className={cn(
-                        'w-full flex items-center rounded-md transition-colors font-poppins relative group',
-                        isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
-                        isActive
-                          ? 'bg-beige/30 text-charcoal font-medium'
-                          : 'text-charcoal/60 hover:bg-lightGray hover:text-charcoal'
-                      )}
-                    >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
-                      {isHovered && (
-                        <span
-                          className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}
-                        >
-                          {item.label}
-                        </span>
-                      )}
-
-                      {/* Tooltip for collapsed state */}
-                      {!isHovered && (
-                        <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          {item.label}
-                        </div>
-                      )}
-                    </button>
-                  </Link>
+                  <NavigationButton
+                    item={item}
+                    href={href}
+                    isActive={isActive}
+                    isDisabled={isDisabled}
+                    isHovered={isHovered}
+                    compact
+                  />
                 </li>
               );
             })}

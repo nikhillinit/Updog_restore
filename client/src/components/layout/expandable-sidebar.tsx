@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Link, useLocation } from "wouter";
-import { useFundContext } from "@/contexts/FundContext";
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Link, useLocation } from 'wouter';
+import { useFundContext } from '@/contexts/FundContext';
+import { extractFundResultsRouteId } from '@/lib/fund-routes';
 import {
   LayoutDashboard,
   Calculator,
@@ -14,14 +15,13 @@ import {
   DollarSign,
   Settings,
   Clock,
-  Globe,
   Users,
   HelpCircle,
-  type LucideIcon
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+  type LucideIcon,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { BRANDING } from '@/config/branding';
 
 interface ExpandableSidebarProps {
@@ -33,6 +33,7 @@ interface NavigationItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  path?: string;
 }
 
 interface NavigationSection {
@@ -43,60 +44,68 @@ interface NavigationSection {
 
 const NAVIGATION_STRUCTURE = {
   fund: {
-    title: "Fund",
+    title: 'Fund',
     icon: LayoutDashboard,
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
       { id: 'construction', label: 'Construction', icon: Settings },
       { id: 'investments', label: 'Investments', icon: TrendingUp },
-      { id: 'model-view', label: 'Model View', icon: Calculator }
-    ]
+      { id: 'model-view', label: 'Model View', icon: Calculator },
+    ],
   },
   reportsAndDocuments: {
-    title: "Reports and Documents",
+    title: 'Reports and Documents',
     icon: FileText,
     items: [
       { id: 'reports', label: 'Reports', icon: FileText },
-      { id: 'documents', label: 'Documents', icon: FileText }
-    ]
+      { id: 'documents', label: 'Documents', icon: FileText },
+    ],
   },
   tools: {
-    title: "Tools",
+    title: 'Tools',
     icon: Settings,
     items: [
       { id: 'kpi-manager', label: 'KPI Manager', icon: Activity },
       { id: 'scenario-builder', label: 'Scenario Builder', icon: Target },
       { id: 'what-if-analysis', label: 'What-If Analysis', icon: TrendingUp },
-      { id: 'cap-tables', label: 'Cap Tables', icon: Calculator }
-    ]
+      { id: 'cap-tables', label: 'Cap Tables', icon: Calculator },
+    ],
   },
   administration: {
-    title: "Administration",
+    title: 'Administration',
     icon: Settings,
     items: [
       { id: 'history', label: 'History', icon: Clock },
-      { id: 'publish', label: 'Publish', icon: Globe },
-      { id: 'collaborate', label: 'Collaborate', icon: Users }
-    ]
-  }
+      { id: 'model-results', label: 'Model Results', icon: BarChart3 },
+      { id: 'collaborate', label: 'Collaborate', icon: Users },
+    ],
+  },
 } satisfies Record<string, NavigationSection>;
 
 type NavigationSectionKey = keyof typeof NAVIGATION_STRUCTURE;
-type NavigationSectionEntry = [NavigationSectionKey, (typeof NAVIGATION_STRUCTURE)[NavigationSectionKey]];
+type NavigationSectionEntry = [
+  NavigationSectionKey,
+  (typeof NAVIGATION_STRUCTURE)[NavigationSectionKey],
+];
 
-export default function ExpandableSidebar({ activeModule, onModuleChange }: ExpandableSidebarProps) {
+export default function ExpandableSidebar({
+  activeModule,
+  onModuleChange,
+}: ExpandableSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Partial<Record<NavigationSectionKey, boolean>>>({
+  const [expandedSections, setExpandedSections] = useState<
+    Partial<Record<NavigationSectionKey, boolean>>
+  >({
     fund: true,
-    tools: true
+    tools: true,
   });
-  const [_location, _setLocation] = useLocation();
+  const [location, _setLocation] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
   const toggleSection = (sectionKey: NavigationSectionKey) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [sectionKey]: !prev[sectionKey]
+      [sectionKey]: !prev[sectionKey],
     }));
   };
 
@@ -108,11 +117,20 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
     setIsExpanded(false);
   };
 
+  const resolveItemHref = (item: NavigationItem) => {
+    if (item.id === 'model-results') {
+      const fundId = extractFundResultsRouteId(location) ?? currentFund?.id ?? null;
+      return fundId != null ? `/fund-model-results/${fundId}` : '/fund-setup';
+    }
+
+    return item.path ?? `/${item.id}`;
+  };
+
   return (
-    <aside 
+    <aside
       className={cn(
-        "bg-gray-900 text-white shadow-lg border-r border-gray-800 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
-        isExpanded ? "w-64" : "w-16"
+        'bg-gray-900 text-white shadow-lg border-r border-gray-800 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out overflow-hidden',
+        isExpanded ? 'w-64' : 'w-16'
       )}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -145,9 +163,9 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
               variant="ghost"
               size="sm"
               className={cn(
-                "w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800",
-                activeModule === 'dashboard' && "bg-gray-800 text-white",
-                !isExpanded && "px-2"
+                'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                activeModule === 'dashboard' && 'bg-gray-800 text-white',
+                !isExpanded && 'px-2'
               )}
               onClick={() => onModuleChange('dashboard')}
             >
@@ -174,80 +192,87 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
         {isExpanded && <Separator className="bg-gray-800 mb-4" />}
 
         {/* Main Navigation Sections */}
-        {(Object.entries(NAVIGATION_STRUCTURE) as NavigationSectionEntry[]).map(([sectionKey, section]) => (
-          <div key={sectionKey} className="mb-4">
-            {isExpanded && (
-              <button
-                onClick={() => toggleSection(sectionKey)}
-                className="w-full flex items-center justify-between px-2 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-              >
-                <div className="flex items-center space-x-2">
-                  <section.icon className="h-4 w-4" />
-                  <span>{section.title}</span>
-                </div>
-                <ChevronRight 
-                  className={cn(
-                    "h-3 w-3 transition-transform",
-                    expandedSections[sectionKey] && "rotate-90"
-                  )} 
-                />
-              </button>
-            )}
+        {(Object.entries(NAVIGATION_STRUCTURE) as NavigationSectionEntry[]).map(
+          ([sectionKey, section]) => (
+            <div key={sectionKey} className="mb-4">
+              {isExpanded && (
+                <button
+                  onClick={() => toggleSection(sectionKey)}
+                  className="w-full flex items-center justify-between px-2 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <section.icon className="h-4 w-4" />
+                    <span>{section.title}</span>
+                  </div>
+                  <ChevronRight
+                    className={cn(
+                      'h-3 w-3 transition-transform',
+                      expandedSections[sectionKey] && 'rotate-90'
+                    )}
+                  />
+                </button>
+              )}
 
-            {/* Section Items */}
-            {(isExpanded ? expandedSections[sectionKey] : true) && (
-              <div className={cn("space-y-1", isExpanded && "ml-2")}>
-                {section.items.map((item) => {
-                  const isActive = activeModule === item.id;
-                  const isDisabled = needsSetup && item.id !== 'fund-setup';
-                  
-                  return (
-                    <Link key={item.id} href={`/${item.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isDisabled}
-                        className={cn(
-                          "w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800",
-                          isActive && "bg-blue-600 text-white hover:bg-blue-700",
-                          isDisabled && "text-gray-500 cursor-not-allowed",
-                          !isExpanded && "px-2"
-                        )}
-                        onClick={() => !isDisabled && onModuleChange(item.id)}
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        {isExpanded && (
-                          <div className="flex items-center justify-between w-full ml-2">
-                            <span className="text-sm">{item.label}</span>
-                            {item.id === 'scenario-builder' && isActive && (
-                              <Badge variant="secondary" className="text-xs">
-                                Active
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </Button>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
+              {/* Section Items */}
+              {(isExpanded ? expandedSections[sectionKey] : true) && (
+                <div className={cn('space-y-1', isExpanded && 'ml-2')}>
+                  {section.items.map((item) => {
+                    const isActive = activeModule === item.id;
+                    const isDisabled =
+                      (needsSetup && item.id !== 'fund-setup') ||
+                      (item.id === 'model-results' &&
+                        extractFundResultsRouteId(location) == null &&
+                        currentFund == null);
+
+                    return (
+                      <Link key={item.id} href={resolveItemHref(item)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isDisabled}
+                          className={cn(
+                            'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                            isActive && 'bg-blue-600 text-white hover:bg-blue-700',
+                            isDisabled && 'text-gray-500 cursor-not-allowed',
+                            !isExpanded && 'px-2'
+                          )}
+                          onClick={() => !isDisabled && onModuleChange(item.id)}
+                        >
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
+                          {isExpanded && (
+                            <div className="flex items-center justify-between w-full ml-2">
+                              <span className="text-sm">{item.label}</span>
+                              {item.id === 'scenario-builder' && isActive && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        )}
 
         {/* Additional Tools */}
         {isExpanded && (
           <div className="space-y-1">
             <Separator className="bg-gray-800 mb-2" />
-            
+
             {/* Sensitivity Analysis - New Addition */}
             <Link href="/sensitivity-analysis">
               <Button
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800",
-                  activeModule === 'sensitivity-analysis' && "bg-blue-600 text-white hover:bg-blue-700"
+                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                  activeModule === 'sensitivity-analysis' &&
+                    'bg-blue-600 text-white hover:bg-blue-700'
                 )}
                 onClick={() => onModuleChange('sensitivity-analysis')}
               >
@@ -265,8 +290,8 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800",
-                  activeModule === 'cash-management' && "bg-blue-600 text-white hover:bg-blue-700"
+                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                  activeModule === 'cash-management' && 'bg-blue-600 text-white hover:bg-blue-700'
                 )}
                 onClick={() => onModuleChange('cash-management')}
               >
@@ -281,8 +306,9 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800",
-                  activeModule === 'portfolio-analytics' && "bg-blue-600 text-white hover:bg-blue-700"
+                  'w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800',
+                  activeModule === 'portfolio-analytics' &&
+                    'bg-blue-600 text-white hover:bg-blue-700'
                 )}
                 onClick={() => onModuleChange('portfolio-analytics')}
               >

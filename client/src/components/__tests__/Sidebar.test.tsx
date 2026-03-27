@@ -45,9 +45,7 @@ describe('Sidebar', () => {
     it('renders 26 navigation items', () => {
       vi['mocked'](useFlag).mockReturnValue(false);
 
-      const { container } = render(
-        <Sidebar activeModule="dashboard" onModuleChange={() => {}} />
-      );
+      const { container } = render(<Sidebar activeModule="dashboard" />);
 
       const navButtons = container.querySelectorAll('button[class*="nav"]');
       expect(navButtons.length).toBeGreaterThanOrEqual(25);
@@ -56,7 +54,7 @@ describe('Sidebar', () => {
     it('shows legacy navigation labels', () => {
       vi['mocked'](useFlag).mockReturnValue(false);
 
-      render(<Sidebar activeModule="dashboard" onModuleChange={() => {}} />);
+      render(<Sidebar activeModule="dashboard" />);
 
       // Check for legacy labels
       expect(screen.queryByText(/Dashboard/i)).toBeInTheDocument();
@@ -69,9 +67,7 @@ describe('Sidebar', () => {
     it('renders exactly 5 navigation items', () => {
       vi['mocked'](useFlag).mockReturnValue(true);
 
-      const { container } = render(
-        <Sidebar activeModule="overview" onModuleChange={() => {}} />
-      );
+      const { container } = render(<Sidebar activeModule="overview" />);
 
       const navButtons = container.querySelectorAll('button[class*="nav"]');
       expect(navButtons).toHaveLength(5);
@@ -80,7 +76,7 @@ describe('Sidebar', () => {
     it('shows new IA navigation labels', () => {
       vi['mocked'](useFlag).mockReturnValue(true);
 
-      render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
+      render(<Sidebar activeModule="overview" />);
 
       // Check for new IA labels
       expect(screen.getByText(/Overview/i)).toBeInTheDocument();
@@ -93,7 +89,7 @@ describe('Sidebar', () => {
     it('does NOT show legacy-only items', () => {
       vi['mocked'](useFlag).mockReturnValue(true);
 
-      render(<Sidebar activeModule="overview" onModuleChange={() => {}} />);
+      render(<Sidebar activeModule="overview" />);
 
       // These should not appear in new IA
       expect(screen.queryByText(/KPI Manager/i)).not.toBeInTheDocument();

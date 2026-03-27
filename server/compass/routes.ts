@@ -1,9 +1,12 @@
 /**
- * COMPASS ROUTES - NOT YET MOUNTED
+ * COMPASS ROUTES - EXPERIMENTAL AND UNMOUNTED
  *
- * These routes return mock data and are not wired into the Express app.
- * The companion calculator.ts contains real business logic.
- * Gate behind FEATURE_COMPASS=1 env var before mounting in app.ts.
+ * These routes return mock data and are intentionally not wired into the
+ * Express app. Treat Compass as experimental until a separate activation
+ * decision mounts it behind an explicit server flag or route gate.
+ *
+ * The companion calculator.ts contains real business logic, but that does not
+ * make Compass part of the live product surface yet.
  *
  * @see P5.3 tech debt audit (2026-02-18)
  */

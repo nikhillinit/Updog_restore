@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense } from 'react';
 import { Switch, Route, Redirect, useLocation } from 'wouter';
 import { queryClient } from './lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +16,8 @@ import './styles/demo-animations.css';
 
 // Layout components
 import Sidebar from '@/components/layout/sidebar';
+import { getActiveNavigationId } from '@/components/layout/navigation-config';
+import { getSecondarySurfaceRedirect } from '@/lib/secondary-surface-policy';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 import DemoBanner from '@/components/demo/DemoBanner';
@@ -172,13 +174,7 @@ const _moduleConfig = {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const [activeModule, setActiveModule] = useState('fund-setup');
-
-  // Update active module based on current route
-  useEffect(() => {
-    const path = location.replace('/', '') || 'fund-setup';
-    setActiveModule(path);
-  }, [location, setActiveModule]);
+  const activeModule = getActiveNavigationId(location);
 
   // const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
@@ -186,7 +182,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">
       <DynamicFundHeader />
       <div className="flex flex-1">
-        <Sidebar activeModule={activeModule} onModuleChange={setActiveModule} />
+        <Sidebar activeModule={activeModule} />
         <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
       </div>
     </div>
@@ -304,6 +300,16 @@ const LP_ROUTES: LPRouteEntry[] = [
 ];
 
 function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
+  const redirectTarget = getSecondarySurfaceRedirect(path);
+
+  if (redirectTarget != null) {
+    return (
+      <Route key={path} path={path}>
+        {() => <Redirect to={redirectTarget} />}
+      </Route>
+    );
+  }
+
   if (isProtected) {
     return (
       <Route key={path} path={path}>
