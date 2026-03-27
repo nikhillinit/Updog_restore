@@ -39,6 +39,7 @@ npm run db:studio
 ## VSCode Quick Access
 
 ### Press F5 (Launch Configs)
+
 - **API Server (Tech Ventures Tenant)** - Start with tech-ventures context
 - **API Server (Bio Capital Tenant)** - Start with bio-capital context
 - **API Server (No Tenant - Admin)** - Bypass RLS (see all data)
@@ -46,12 +47,14 @@ npm run db:studio
 - **Test: RLS Suite** - Run all RLS isolation tests
 
 ### Ctrl+Shift+P → Tasks (Run Task)
+
 - **RLS: Quick Start (Full Setup)** - Automated full setup
 - **RLS: Seed Test Data** - Seed organizations
 - **RLS: Run Isolation Tests** - Test suite
 - **RLS: Start API (Tech Ventures)** - API with tenant context
 
 ### Type `rls-` + Tab (Snippets)
+
 - `rls-policy-full` - Complete CRUD policy suite
 - `rls-test-isolation` - Isolation test template
 - `rls-helper-with-context` - Tenant context wrapper
@@ -60,6 +63,7 @@ npm run db:studio
 ## Code Patterns
 
 ### Tenant Switching (Recommended)
+
 ```typescript
 import { withTenantContext } from '@/lib/tenant-context';
 
@@ -71,15 +75,17 @@ const funds = await withTenantContext(db, 'tech-ventures', async () => {
 ```
 
 ### Manual Control
+
 ```typescript
 import { switchTenant, resetTenant } from '@/lib/tenant-context';
 
 await switchTenant(db, 'bio-capital');
 const companies = await db.select().from(companiesTable);
-await resetTenant(db);  // Always reset when done
+await resetTenant(db); // Always reset when done
 ```
 
 ### Check Current Tenant
+
 ```typescript
 import { getCurrentTenant, getTenantIndicator } from '@/lib/tenant-context';
 
@@ -91,6 +97,7 @@ console.log(await getTenantIndicator(db));
 ```
 
 ### Testing Pattern
+
 ```typescript
 describe('My RLS test', () => {
   beforeEach(async () => await resetTenant(db));
@@ -140,10 +147,10 @@ WHERE tablename = 'funds';
 
 ## Test Organizations
 
-| ID | Slug | Name | Funds | Companies |
-|----|------|------|-------|-----------|
-| 1 | `tech-ventures` | Tech Ventures LLC | 3 | 6 |
-| 2 | `bio-capital` | Bio Capital Partners | 2 | 5 |
+| ID  | Slug            | Name                 | Funds | Companies |
+| --- | --------------- | -------------------- | ----- | --------- |
+| 1   | `tech-ventures` | Tech Ventures LLC    | 3     | 6         |
+| 2   | `bio-capital`   | Bio Capital Partners | 2     | 5         |
 
 **Edge Case:** "Alpha Innovations" exists in both orgs (Fintech vs Biotech)
 
@@ -165,20 +172,21 @@ DEBUG=app:rls,app:auth npm run dev:api
 ```typescript
 // All from '@/lib/tenant-context'
 
-switchTenant(db, slug)           // Switch by slug
-switchTenantById(db, id)          // Switch by ID
-resetTenant(db)                   // Clear context
-getCurrentTenant(db)              // Get context info
-withTenantContext(db, slug, fn)  // Auto-cleanup wrapper
-listOrganizations(db)             // Get all orgs
-verifyRLS(db, tableName)          // Check RLS status
-getTenantIndicator(db)            // Terminal display
-setTenantFromRequest(db, slug)    // Express middleware helper
+switchTenant(db, slug); // Switch by slug
+switchTenantById(db, id); // Switch by ID
+resetTenant(db); // Clear context
+getCurrentTenant(db); // Get context info
+withTenantContext(db, slug, fn); // Auto-cleanup wrapper
+listOrganizations(db); // Get all orgs
+verifyRLS(db, tableName); // Check RLS status
+getTenantIndicator(db); // Terminal display
+setTenantFromRequest(db, slug); // Express middleware helper
 ```
 
 ## Debugging Tips
 
 ### No Rows Returned
+
 ```typescript
 // Check if tenant context is set
 const context = await getCurrentTenant(db);
@@ -189,6 +197,7 @@ if (!context) {
 ```
 
 ### Cross-Tenant Data Visible
+
 ```sql
 -- Verify RLS enabled
 SELECT relrowsecurity FROM pg_class WHERE relname = 'funds';
@@ -200,11 +209,12 @@ SELECT COUNT(*) FROM pg_policies WHERE tablename = 'funds';
 ```
 
 ### Cannot Insert Records
+
 ```typescript
 // Ensure org_id matches current tenant
 const context = await getCurrentTenant(db);
 await db.insert(funds).values({
-  orgId: context!.orgId,  // REQUIRED
+  orgId: context!.orgId, // REQUIRED
   name: 'New Fund',
   // ...
 });
@@ -248,12 +258,13 @@ c:\dev\Updog_restore\
 ## Performance Tips
 
 - Always add index: `CREATE INDEX idx_table_org_id ON table(org_id)`
-- Use composite indexes: `CREATE INDEX idx_table_org_date ON table(org_id, created_at DESC)`
+- Use composite indexes:
+  `CREATE INDEX idx_table_org_date ON table(org_id, created_at DESC)`
 - Prefer `withTenantContext()` over manual switching (automatic cleanup)
 - Check RLS policies in query plan: `EXPLAIN ANALYZE SELECT * FROM funds`
 
 ---
 
-**Quick Start**: `npm run rls:quickstart:ps`
-**Full Guide**: `docs\RLS-DEVELOPMENT-GUIDE.md`
-**Support**: Check guide, snippets, test examples, or helper JSDoc
+**Quick Start**: `npm run rls:quickstart:ps` **Full Guide**:
+`docs\RLS-DEVELOPMENT-GUIDE.md` **Support**: Check guide, snippets, test
+examples, or helper JSDoc

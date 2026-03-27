@@ -5,19 +5,23 @@ last_updated: 2026-01-19
 
 # Implementation Summary: watch() Debounce Performance Fix
 
-**Date:** 2025-11-30
-**Issue:** React Hook Form `watch()` defeating memoization, causing 50+ recalculations per keystroke
-**Status:** ✅ COMPLETED
+**Date:** 2025-11-30 **Issue:** React Hook Form `watch()` defeating memoization,
+causing 50+ recalculations per keystroke **Status:** ✅ COMPLETED
 **Methodology:** Systematic Debugging (4-phase approach)
 
 ---
 
 ## Executive Summary
 
-Successfully fixed performance bottleneck in modeling wizard form steps where `watch()` was defeating `useMemo` optimization. Implemented subscription pattern with debouncing, achieving **90% reduction in calculations** and **95% reduction in auto-save calls**.
+Successfully fixed performance bottleneck in modeling wizard form steps where
+`watch()` was defeating `useMemo` optimization. Implemented subscription pattern
+with debouncing, achieving **90% reduction in calculations** and **95% reduction
+in auto-save calls**.
 
 **Impact:**
-- **Before:** 50+ calculations per second during typing, auto-save on every keystroke
+
+- **Before:** 50+ calculations per second during typing, auto-save on every
+  keystroke
 - **After:** <5 calculations per value change, auto-save debounced to 500ms
 - **User Experience:** Eliminated lag during form input
 
@@ -29,25 +33,28 @@ Successfully fixed performance bottleneck in modeling wizard form steps where `w
 
 ```typescript
 // ❌ PROBLEM CODE
-const formValues = watch();  // Returns NEW object every render
+const formValues = watch(); // Returns NEW object every render
 
 const { calculations } = useCapitalAllocationCalculations({
-  formValues,  // Object identity changes → memo busted
+  formValues, // Object identity changes → memo busted
   // ...
 });
 ```
 
 **Why It Failed:**
+
 1. `watch()` returns new object reference on every render
 2. `useMemo` uses `Object.is()` for dependency comparison
 3. Different object reference → memo invalidated → recalculation
 4. Every keystroke → render → new object → recalculation
 
 **Evidence:**
+
 - Created instrumented version (`CapitalAllocationStep.INSTRUMENTED.tsx`)
 - Measured actual calculation frequency
 - Documented data flow from keystroke to calculation
-- Created root cause report (`docs/analysis/perf-watch-memoization-root-cause.md`)
+- Created root cause report
+  (`docs/analysis/perf-watch-memoization-root-cause.md`)
 
 ---
 
@@ -55,16 +62,17 @@ const { calculations } = useCapitalAllocationCalculations({
 
 ### Affected Files
 
-| File | Severity | Calculations | Status |
-|------|----------|--------------|--------|
-| CapitalAllocationStep.tsx | **CRITICAL** | 5-10ms each | ✅ FIXED |
-| ExitRecyclingStep.tsx | **MEDIUM** | 2-5ms each | ✅ FIXED |
-| FundFinancialsStep.tsx | SAFE | Uses useMemo directly | - |
-| ScenariosStep.tsx | SAFE | Uses useMemo directly | - |
+| File                      | Severity     | Calculations          | Status   |
+| ------------------------- | ------------ | --------------------- | -------- |
+| CapitalAllocationStep.tsx | **CRITICAL** | 5-10ms each           | ✅ FIXED |
+| ExitRecyclingStep.tsx     | **MEDIUM**   | 2-5ms each            | ✅ FIXED |
+| FundFinancialsStep.tsx    | SAFE         | Uses useMemo directly | -        |
+| ScenariosStep.tsx         | SAFE         | Uses useMemo directly | -        |
 
 ### Pattern Signature
 
 **Anti-pattern detected:**
+
 ```typescript
 const formValues = watch();
 const { calculations } = useHook({ formValues });
@@ -92,7 +100,7 @@ const debouncedFormValues = useDebounceDeep(formValues, 250);
 
 // 3. Calculations use debounced values
 const { calculations } = useCalculations({
-  formValues: debouncedFormValues,  // ✅ Stable + debounced
+  formValues: debouncedFormValues, // ✅ Stable + debounced
   // ...
 });
 
@@ -140,7 +148,8 @@ useEffect(() => {
    - Testing strategies
    - Real-world examples
 
-6. **`client/src/components/modeling-wizard/steps/CapitalAllocationStep.INSTRUMENTED.tsx`** (~350 lines)
+6. **`client/src/components/modeling-wizard/steps/CapitalAllocationStep.INSTRUMENTED.tsx`**
+   (~350 lines)
    - Diagnostic version with performance counters
    - Used for root cause validation
    - **NOTE:** Temporary file, can be deleted
@@ -167,6 +176,7 @@ useEffect(() => {
 **File:** `tests/performance/watch-debounce.test.tsx`
 
 **Test Suites:**
+
 1. **Calculation Frequency** (4 tests)
    - Rapid typing triggers <5 calculations
    - Single value change → exactly 1 calculation
@@ -185,7 +195,8 @@ useEffect(() => {
    - 10 rapid keystrokes complete in <2 seconds
    - Total calculation count <5
 
-**Test Strategy:** TDD approach - Tests written BEFORE implementation to ensure they validate actual behavior.
+**Test Strategy:** TDD approach - Tests written BEFORE implementation to ensure
+they validate actual behavior.
 
 ---
 
@@ -193,17 +204,19 @@ useEffect(() => {
 
 ### Code Review Results (code-reviewer agent)
 
-**Status:** ✅ APPROVED with minor suggestion
-**Confidence Scores:**
+**Status:** ✅ APPROVED with minor suggestion **Confidence Scores:**
+
 - Correct Pattern Implementation: 95/100
 - Proper Cleanup Handling: 92/100
 - Type Safety: 90/100
 - Documentation Quality: 88/100
 
 **Issues Found:**
+
 - ❌ ESLint suppression without comment (Confidence: 85) - **FIXED**
 
 **Strengths:**
+
 - ✅ No memory leaks detected
 - ✅ Proper subscription cleanup
 - ✅ Type-safe implementation
@@ -215,21 +228,21 @@ useEffect(() => {
 
 ### Before Fix
 
-| Metric | Value | Impact |
-|--------|-------|--------|
-| Calculations per second (typing) | 50-100+ | High CPU usage |
-| Auto-save calls per second | 10+ | Network spam |
-| Calculation frequency | Every keystroke | Immediate |
-| User-perceived lag | Noticeable | Poor UX |
+| Metric                           | Value           | Impact         |
+| -------------------------------- | --------------- | -------------- |
+| Calculations per second (typing) | 50-100+         | High CPU usage |
+| Auto-save calls per second       | 10+             | Network spam   |
+| Calculation frequency            | Every keystroke | Immediate      |
+| User-perceived lag               | Noticeable      | Poor UX        |
 
 ### After Fix
 
-| Metric | Value | Impact |
-|--------|-------|--------|
-| Calculations per value change | <5 | 90% reduction |
-| Auto-save calls (max) | 1 per 500ms | 95% reduction |
-| Calculation frequency | Debounced 250ms | Batched |
-| User-perceived lag | None | Good UX |
+| Metric                        | Value           | Impact        |
+| ----------------------------- | --------------- | ------------- |
+| Calculations per value change | <5              | 90% reduction |
+| Auto-save calls (max)         | 1 per 500ms     | 95% reduction |
+| Calculation frequency         | Debounced 250ms | Batched       |
+| User-perceived lag            | None            | Good UX       |
 
 ### Improvement Summary
 
@@ -296,6 +309,7 @@ useEffect(() => {
 ## Next Steps
 
 ### Immediate (Completed)
+
 - ✅ Fix CapitalAllocationStep
 - ✅ Fix ExitRecyclingStep
 - ✅ Create performance tests
@@ -303,6 +317,7 @@ useEffect(() => {
 - ✅ Documentation
 
 ### Optional Future Work
+
 - [ ] Apply same pattern to other wizard steps (if needed)
 - [ ] Run performance tests in CI/CD
 - [ ] Add "calculating..." UI indicator (using `isCalculating` flag)
@@ -310,6 +325,7 @@ useEffect(() => {
 - [ ] Delete instrumented file (`CapitalAllocationStep.INSTRUMENTED.tsx`)
 
 ### Monitoring
+
 - Watch for similar patterns in future PRs
 - Enforce through linting rule (future enhancement)
 - Add to code review checklist
@@ -329,6 +345,7 @@ useEffect(() => {
 ## References
 
 **Documentation:**
+
 - Root Cause Analysis: `docs/analysis/perf-watch-memoization-root-cause.md`
 - Pattern Analysis: `docs/analysis/wizard-steps-pattern-analysis.md`
 - Performance Cheatsheet: `cheatsheets/react-performance-patterns.md`
@@ -336,11 +353,13 @@ useEffect(() => {
 - Auto-save Pattern Reference: `cheatsheets/auto-save-testing-patterns.md`
 
 **Code:**
+
 - useDebounceDeep Hook: `client/src/hooks/useDebounceDeep.ts`
 - Performance Tests: `tests/performance/watch-debounce.test.tsx`
 - Fixed Components: `client/src/components/modeling-wizard/steps/`
 
 **External:**
+
 - React Hook Form docs: https://react-hook-form.com/docs/useform/watch
 - React useMemo docs: https://react.dev/reference/react/useMemo
 
@@ -348,16 +367,14 @@ useEffect(() => {
 
 ## Sign-off
 
-**Implementation:** ✅ Complete
-**Testing:** ✅ Comprehensive test suite created
-**Code Review:** ✅ Approved (92/100 confidence)
-**Documentation:** ✅ Cheatsheet + analysis reports
-**Performance:** ✅ 90% improvement achieved
+**Implementation:** ✅ Complete **Testing:** ✅ Comprehensive test suite created
+**Code Review:** ✅ Approved (92/100 confidence) **Documentation:** ✅
+Cheatsheet + analysis reports **Performance:** ✅ 90% improvement achieved
 
 **Ready for:** Verification testing, PR creation, deployment
 
 ---
 
-**Completed:** 2025-11-30
-**Methodology:** Systematic Debugging + TDD + Agent Verification
-**Total Implementation Time:** Plan mode (no execution yet - ready for user approval)
+**Completed:** 2025-11-30 **Methodology:** Systematic Debugging + TDD + Agent
+Verification **Total Implementation Time:** Plan mode (no execution yet - ready
+for user approval)

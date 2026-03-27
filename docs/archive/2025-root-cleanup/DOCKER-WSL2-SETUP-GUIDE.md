@@ -10,6 +10,7 @@ last_updated: 2026-01-19
 Docker is **fully operational** using Docker Engine in WSL2.
 
 ### System Information
+
 - **OS**: Windows 11 Home (Build 26200)
 - **Architecture**: ARM64-based PC
 - **WSL Version**: 2.6.3
@@ -18,13 +19,17 @@ Docker is **fully operational** using Docker Engine in WSL2.
 - **Default Distribution**: Ubuntu-22.04
 
 ### Why Docker Desktop Doesn't Work
-Docker Desktop requires Windows build 27653+ for ARM64 support (you have 26200). The workaround is using Docker Engine directly in WSL2, which works perfectly on your current Windows version.
+
+Docker Desktop requires Windows build 27653+ for ARM64 support (you have 26200).
+The workaround is using Docker Engine directly in WSL2, which works perfectly on
+your current Windows version.
 
 ---
 
 ## How to Use Docker
 
 ### Option 1: Run Docker from WSL2 (Recommended)
+
 ```bash
 # Enter your Ubuntu WSL distribution
 wsl -d Ubuntu-22.04
@@ -37,6 +42,7 @@ docker-compose up
 ```
 
 ### Option 2: Run Docker Commands from Windows PowerShell/CMD
+
 ```powershell
 # Run any Docker command by prefixing with WSL
 wsl -d Ubuntu-22.04 docker ps
@@ -48,6 +54,7 @@ function docker { wsl -d Ubuntu-22.04 docker @args }
 ```
 
 ### Option 3: Set Up PowerShell Alias (One-time Setup)
+
 ```powershell
 # Open PowerShell profile
 notepad $PROFILE
@@ -69,21 +76,25 @@ docker run --rm hello-world
 ## Quick Reference
 
 ### Start Docker Service (if not running)
+
 ```bash
 wsl -d Ubuntu-22.04 sudo service docker start
 ```
 
 ### Check Docker Status
+
 ```bash
 wsl -d Ubuntu-22.04 sudo service docker status
 ```
 
 ### Stop Docker Service
+
 ```bash
 wsl -d Ubuntu-22.04 sudo service docker stop
 ```
 
 ### Test Docker Installation
+
 ```bash
 wsl -d Ubuntu-22.04 docker run --rm hello-world
 ```
@@ -93,12 +104,15 @@ wsl -d Ubuntu-22.04 docker run --rm hello-world
 ## Working with Projects
 
 ### Your Current Project (Updog_restore)
+
 Your project files in `c:/dev/Updog_restore` are accessible from WSL at:
+
 ```bash
 /mnt/c/dev/Updog_restore
 ```
 
 Example workflow:
+
 ```bash
 # Enter WSL
 wsl -d Ubuntu-22.04
@@ -117,8 +131,9 @@ docker run -p 3000:3000 myapp
 ## Important Notes for ARM64
 
 ### Image Compatibility
+
 1. **Prefer ARM64 or multi-arch images**: Most official images now support ARM64
-2. **Check image architecture**: 
+2. **Check image architecture**:
    ```bash
    docker image inspect <image-name> | grep Architecture
    ```
@@ -128,6 +143,7 @@ docker run -p 3000:3000 myapp
    ```
 
 ### Common Multi-Arch Images That Work Great
+
 - `node`
 - `python`
 - `postgres`
@@ -141,11 +157,13 @@ docker run -p 3000:3000 myapp
 ## Troubleshooting
 
 ### Docker Service Not Starting
+
 ```bash
 wsl -d Ubuntu-22.04 sudo service docker start
 ```
 
 ### Permission Denied Errors
+
 ```bash
 # Add your user to docker group (one-time setup)
 wsl -d Ubuntu-22.04 sudo usermod -aG docker $USER
@@ -156,6 +174,7 @@ wsl -d Ubuntu-22.04
 ```
 
 ### WSL Issues
+
 ```bash
 # Restart WSL
 wsl --shutdown
@@ -163,6 +182,7 @@ wsl -d Ubuntu-22.04
 ```
 
 ### Check Docker Logs
+
 ```bash
 wsl -d Ubuntu-22.04 sudo journalctl -u docker.service -n 50
 ```
@@ -194,9 +214,11 @@ fi
 
 ## Running Testcontainers Integration Tests
 
-This project uses [Testcontainers](https://node.testcontainers.org/) for integration testing with real PostgreSQL and Redis containers.
+This project uses [Testcontainers](https://node.testcontainers.org/) for
+integration testing with real PostgreSQL and Redis containers.
 
 ### From WSL2 (Local Development)
+
 ```bash
 # Enter WSL
 wsl -d Ubuntu-22.04
@@ -212,19 +234,28 @@ npm test -- --config vitest.config.testcontainers.ts
 ```
 
 ### From Windows (Requires Docker in PATH)
-Testcontainers needs Docker available. If using WSL2 Docker Engine, the tests must run from WSL2.
+
+Testcontainers needs Docker available. If using WSL2 Docker Engine, the tests
+must run from WSL2.
 
 ### CI Environment
-Testcontainers tests run automatically on GitHub Actions via `.github/workflows/testcontainers-ci.yml`. The CI uses Ubuntu runners with native Docker support.
+
+Testcontainers tests run automatically on GitHub Actions via
+`.github/workflows/testcontainers-ci.yml`. The CI uses Ubuntu runners with
+native Docker support.
 
 ### Current Test Coverage
+
 The testcontainers config (`vitest.config.testcontainers.ts`) includes:
-- `tests/integration/testcontainers-smoke.test.ts` - Basic container connectivity
+
+- `tests/integration/testcontainers-smoke.test.ts` - Basic container
+  connectivity
 - `tests/integration/migration-runner.test.ts` - Drizzle migration utilities
 
 ### Troubleshooting Testcontainers
 
 **Container startup timeout:**
+
 ```bash
 # Increase timeout in test file
 await new PostgreSqlContainer('pgvector/pgvector:pg16')
@@ -233,6 +264,7 @@ await new PostgreSqlContainer('pgvector/pgvector:pg16')
 ```
 
 **Permission errors:**
+
 ```bash
 # Ensure your user is in docker group
 sudo usermod -aG docker $USER
@@ -240,8 +272,9 @@ sudo usermod -aG docker $USER
 wsl --shutdown
 ```
 
-**Migration table not found:**
-The project uses `migrationsSchema: 'public'` for drizzle migrations. If you see "drizzle_migrations does not exist", ensure the migration helper uses the correct schema.
+**Migration table not found:** The project uses `migrationsSchema: 'public'` for
+drizzle migrations. If you see "drizzle_migrations does not exist", ensure the
+migration helper uses the correct schema.
 
 ---
 
@@ -255,9 +288,12 @@ The project uses `migrationsSchema: 'public'` for drizzle migrations. If you see
 
 ## You're Ready to Go
 
-Docker is fully operational on your ARM64 Windows system through WSL2. This setup is actually preferred by many developers as it provides a true Linux environment for Docker.
+Docker is fully operational on your ARM64 Windows system through WSL2. This
+setup is actually preferred by many developers as it provides a true Linux
+environment for Docker.
 
 **Quick Test:**
+
 ```bash
 wsl -d Ubuntu-22.04 docker run --rm -it ubuntu bash
 ```
