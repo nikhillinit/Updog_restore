@@ -5,13 +5,15 @@ last_updated: 2026-01-19
 
 # Vite Build Vercel Fix
 
-**Date:** 2025-10-07
-**Issue:** `Cannot find module '/vercel/path0/tools_local/node_modules/vite/bin/vite.js'` on Vercel CI
-**Status:** ✅ RESOLVED
+**Date:** 2025-10-07 **Issue:**
+`Cannot find module '/vercel/path0/tools_local/node_modules/vite/bin/vite.js'`
+on Vercel CI **Status:** [Done] RESOLVED
 
 ## Problem
 
-Build scripts hard-coded paths to `tools_local/node_modules/vite/bin/vite.js` which:
+Build scripts hard-coded paths to `tools_local/node_modules/vite/bin/vite.js`
+which:
+
 - Worked on Windows via junction links created by postinstall hook
 - **Failed on Vercel's Linux CI** because:
   - Junctions are Windows-specific
@@ -20,11 +22,14 @@ Build scripts hard-coded paths to `tools_local/node_modules/vite/bin/vite.js` wh
 
 ## Root Cause
 
-The sidecar architecture (`tools_local/`) was designed for Windows development module resolution reliability, but build scripts assumed tools would be in the sidecar directory. On Linux CI, this assumption breaks.
+The sidecar architecture (`tools_local/`) was designed for Windows development
+module resolution reliability, but build scripts assumed tools would be in the
+sidecar directory. On Linux CI, this assumption breaks.
 
 ## Solution
 
-**Use standard npm binary resolution** - Let `node_modules/.bin/vite` handle the path:
+**Use standard npm binary resolution** - Let `node_modules/.bin/vite` handle the
+path:
 
 ### Changed Scripts (package.json)
 
@@ -72,7 +77,7 @@ The sidecar architecture (`tools_local/`) was designed for Windows development m
 ```bash
 # Local test (Windows)
 npm run build:web
-# ✅ Build successful: dist/ generated
+# [Done] Build successful: dist/ generated
 
 # Vercel CI will now work because:
 # - Vite exists at node_modules/vite (installed by npm ci)
@@ -82,22 +87,21 @@ npm run build:web
 
 ## Sidecar Architecture Notes
 
-The `tools_local/` sidecar is **still useful for**:
-- Windows-specific module resolution issues
-- Development tooling that benefits from controlled environment
-- **But NOT for build-critical binaries** that need CI compatibility
+The `tools_local/` sidecar was a historical Windows workaround. Current build
+and development tooling should resolve from root dependencies, and the
+historical sidecar context is preserved under `docs/archive/2025-sidecar/`.
 
-### Best Practice Going Forward
+### Current Practice
 
-- **Development tools (tsx, eslint, prettier, etc.)**: Can use sidecar paths if needed
-- **Build tools (vite, typescript, bundlers)**: Use standard npm binaries
-- **CI-critical scripts**: Always prefer `node_modules/.bin/` resolution
+- Use standard npm binaries from root `node_modules/.bin` for build and
+  development scripts
+- Keep sidecar-specific troubleshooting and migration notes in the archive only
+- Prefer current troubleshooting guidance in `cheatsheets/daily-workflow.md`
 
 ## Related Files
 
-- `package.json` - Updated build scripts
-- `SIDECAR_GUIDE.md` - Sidecar architecture documentation
-- `scripts/link-sidecar-packages.mjs` - Sidecar linking script (still used for other packages)
+- `package.json` - Current build and script entry points
+- `docs/archive/2025-sidecar/` - Historical sidecar documentation
 
 ## Credits
 

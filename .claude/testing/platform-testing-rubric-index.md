@@ -5,24 +5,27 @@ last_updated: 2026-01-19
 
 # Platform-Wide Manual Testing Rubric - Index
 
-**Purpose:** Comprehensive manual testing guide for the Press On Ventures portfolio management platform
-**Version:** 1.0
-**Last Updated:** 2025-12-23
+**Purpose:** Comprehensive manual testing guide for the Press On Ventures
+portfolio management platform **Version:** 1.0 **Last Updated:** 2025-12-23
 **Test Environment:** Development (localhost:5000)
 
 ---
 
 ## Overview
 
-This modular testing rubric provides structured manual test cases across all platform features. Each domain is documented in a separate file for easier navigation and maintenance.
+This modular testing rubric provides structured manual test cases across all
+platform features. Each domain is documented in a separate file for easier
+navigation and maintenance.
 
 **Test Coverage:**
+
 - 7 domain-specific rubrics
 - 1 cross-cutting concerns rubric
 - 1 quick-reference checklist
 - Estimated total testing time: 6-8 hours (comprehensive pass)
 
 **Testing Principles:**
+
 - Test against realistic data scenarios
 - Verify Excel parity for calculations
 - Validate error handling and edge cases
@@ -34,9 +37,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ## Rubric Files
 
 ### 1. Fund Setup & Configuration
-**File:** [rubric-fund-setup.md](rubric-fund-setup.md)
-**Estimated Time:** 45 minutes
-**Coverage:**
+
+**File:** [rubric-fund-setup.md](rubric-fund-setup.md) **Estimated Time:** 45
+minutes **Coverage:**
+
 - 7-step fund setup wizard (Fund Details → Carry Waterfall → Review)
 - Fund parameters validation (size, vintage, duration)
 - Carry structure configuration (American waterfall, hurdle rates)
@@ -44,6 +48,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Fund duplication and editing
 
 **Key Test Areas:**
+
 - Wizard navigation and state persistence
 - Form validation (required fields, ranges, dependencies)
 - Waterfall configuration (GP/LP splits, hurdle rates, catch-up)
@@ -53,9 +58,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 2. Portfolio Management
+
 **File:** [rubric-portfolio-management.md](rubric-portfolio-management.md)
-**Estimated Time:** 60 minutes
-**Coverage:**
+**Estimated Time:** 60 minutes **Coverage:**
+
 - Portfolio company creation and editing
 - Investment tracking (initial, follow-ons, exits)
 - Cap table management (ownership, dilution)
@@ -63,6 +69,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Document attachments and notes
 
 **Key Test Areas:**
+
 - Company CRUD operations
 - Investment event tracking
 - Cap table calculations (ownership %, dilution)
@@ -72,9 +79,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 3. Calculation Engines
+
 **File:** [rubric-calculation-engines.md](rubric-calculation-engines.md)
-**Estimated Time:** 75 minutes
-**Coverage:**
+**Estimated Time:** 75 minutes **Coverage:**
+
 - XIRR/IRR calculations (51 Excel parity tests)
 - Waterfall distributions (American waterfall, 53 tests)
 - Monte Carlo simulations (10k runs, probabilistic outcomes)
@@ -83,6 +91,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Cohort analytics (vintage, sector, stage)
 
 **Key Test Areas:**
+
 - Excel parity verification (XIRR, waterfall)
 - Precision and rounding (28-digit Decimal.js)
 - Edge cases (zero investment, 100% loss, partial exits)
@@ -92,9 +101,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 4. Analytics & Reporting
+
 **File:** [rubric-analytics-reporting.md](rubric-analytics-reporting.md)
-**Estimated Time:** 50 minutes
-**Coverage:**
+**Estimated Time:** 50 minutes **Coverage:**
+
 - Performance dashboards (fund-level, portfolio-level)
 - Variance analysis (budget vs actual)
 - Time-travel reporting (historical snapshots)
@@ -102,6 +112,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Data export (CSV, Excel, PDF)
 
 **Key Test Areas:**
+
 - Dashboard metric accuracy
 - Chart rendering (Recharts/Nivo)
 - Filter interactions
@@ -111,9 +122,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 5. LP Portal
-**File:** [rubric-lp-portal.md](rubric-lp-portal.md)
-**Estimated Time:** 40 minutes
-**Coverage:**
+
+**File:** [rubric-lp-portal.md](rubric-lp-portal.md) **Estimated Time:** 40
+minutes **Coverage:**
+
 - LP dashboard (capital accounts, distributions)
 - Capital call tracking
 - Distribution history
@@ -121,6 +133,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Document access (quarterly reports, K-1s)
 
 **Key Test Areas:**
+
 - LP authentication and authorization
 - Capital account calculations
 - Distribution waterfall (LP view)
@@ -130,9 +143,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 6. API Integration
-**File:** [rubric-api-integration.md](rubric-api-integration.md)
-**Estimated Time:** 60 minutes
-**Coverage:**
+
+**File:** [rubric-api-integration.md](rubric-api-integration.md) **Estimated
+Time:** 60 minutes **Coverage:**
+
 - 48 backend API routes
 - Request validation (Zod schemas)
 - Response formats (success/error structures)
@@ -141,6 +155,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Cursor pagination
 
 **Key Test Areas:**
+
 - HTTP status codes (200, 201, 400, 404, 409, 429, 500)
 - Request body validation (required fields, types, constraints)
 - Error response consistency
@@ -151,9 +166,10 @@ This modular testing rubric provides structured manual test cases across all pla
 ---
 
 ### 7. Cross-Cutting Concerns
-**File:** [rubric-cross-cutting.md](rubric-cross-cutting.md)
-**Estimated Time:** 55 minutes
-**Coverage:**
+
+**File:** [rubric-cross-cutting.md](rubric-cross-cutting.md) **Estimated Time:**
+55 minutes **Coverage:**
+
 - Security (authentication, authorization, input validation)
 - Performance (page load, API response times, worker jobs)
 - Accessibility (WCAG 2.1 AA, keyboard navigation, screen readers)
@@ -162,6 +178,7 @@ This modular testing rubric provides structured manual test cases across all pla
 - Mobile responsiveness
 
 **Key Test Areas:**
+
 - Authentication flows (login, logout, session expiry)
 - Role-based access control
 - XSS/SQL injection prevention
@@ -174,9 +191,8 @@ This modular testing rubric provides structured manual test cases across all pla
 
 ## Quick Reference
 
-**File:** [platform-test-checklist.md](platform-test-checklist.md)
-**Purpose:** Fast pre-release smoke test checklist
-**Estimated Time:** 20 minutes
+**File:** [platform-test-checklist.md](platform-test-checklist.md) **Purpose:**
+Fast pre-release smoke test checklist **Estimated Time:** 20 minutes
 **Coverage:** Critical path testing for all major features
 
 ---
@@ -209,6 +225,7 @@ Before running any manual tests, ensure the following test data exists:
 ### Database Seeding
 
 Run the following command to seed test data:
+
 ```bash
 npm run db:seed:test
 ```
@@ -218,6 +235,7 @@ npm run db:seed:test
 ## Test Execution Guidelines
 
 ### 1. Pre-Test Setup
+
 - [ ] Verify test database is seeded
 - [ ] Clear browser cache and localStorage
 - [ ] Ensure Redis is running (for caching tests)
@@ -225,6 +243,7 @@ npm run db:seed:test
 - [ ] Open browser DevTools (Console + Network tabs)
 
 ### 2. During Testing
+
 - [ ] Record all bugs in GitHub Issues with `bug` label
 - [ ] Screenshot errors and unexpected behavior
 - [ ] Note console warnings/errors
@@ -232,6 +251,7 @@ npm run db:seed:test
 - [ ] Test both happy path and error scenarios
 
 ### 3. Post-Test Reporting
+
 - [ ] Summarize pass/fail rate by rubric section
 - [ ] Prioritize bugs by severity (blocker, critical, major, minor)
 - [ ] Document any test data issues
@@ -248,21 +268,26 @@ npm run db:seed:test
 
 ## Version History
 
-| Version | Date       | Changes                                    |
-|---------|------------|--------------------------------------------|
-| 1.0     | 2025-12-23 | Initial modular rubric structure           |
+| Version | Date       | Changes                          |
+| ------- | ---------- | -------------------------------- |
+| 1.0     | 2025-12-23 | Initial modular rubric structure |
 
 ---
 
 ## Related Documentation
 
-- [Scenario Comparison MVP Rubric](scenario-comparison-manual-test-rubric.md) - Detailed testing for scenario comparison feature
-- [cheatsheets/anti-pattern-prevention.md](../../cheatsheets/anti-pattern-prevention.md) - 24 cataloged anti-patterns to verify
-- [cheatsheets/pr-merge-verification.md](../../cheatsheets/pr-merge-verification.md) - PR verification guidelines
-- [SIDECAR_GUIDE.md](../../SIDECAR_GUIDE.md) - Windows development troubleshooting
+- [Scenario Comparison MVP Rubric](scenario-comparison-manual-test-rubric.md) -
+  Detailed testing for scenario comparison feature
+- [cheatsheets/anti-pattern-prevention.md](../../cheatsheets/anti-pattern-prevention.md) -
+  24 cataloged anti-patterns to verify
+- [cheatsheets/pr-merge-verification.md](../../cheatsheets/pr-merge-verification.md) -
+  PR verification guidelines
+- [cheatsheets/daily-workflow.md](../../cheatsheets/daily-workflow.md) - Current
+  Windows development troubleshooting
 
 ---
 
 ## Contact
 
-For questions or issues with this rubric, contact the development team or file a GitHub Issue with the `testing` label.
+For questions or issues with this rubric, contact the development team or file a
+GitHub Issue with the `testing` label.

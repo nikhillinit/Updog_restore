@@ -1,15 +1,14 @@
 // scripts/doctor-links.mjs
-// Quick verification that critical junctions/symlinks are in place
+// Quick verification that core frontend modules resolve
 
 import { existsSync } from 'node:fs';
 
-// ANSI color codes
 const red = "\x1b[31m";
 const green = "\x1b[32m";
 const yellow = "\x1b[33m";
 const reset = "\x1b[0m";
 
-const CRITICAL_LINKS = [
+const REQUIRED_PATHS = [
   'node_modules/vite/package.json',
   'node_modules/@vitejs/plugin-react/package.json',
   'node_modules/@preact/preset-vite/package.json',
@@ -17,16 +16,16 @@ const CRITICAL_LINKS = [
 
 let hasErrors = false;
 
-for (const link of CRITICAL_LINKS) {
-  if (!existsSync(link)) {
-    console.error(`${red}❌ Missing link: ${link}${reset}`);
+for (const dependencyPath of REQUIRED_PATHS) {
+  if (!existsSync(dependencyPath)) {
+    console.error(`${red}Missing dependency: ${dependencyPath}${reset}`);
     hasErrors = true;
   }
 }
 
 if (hasErrors) {
-  console.error(`\n${yellow}🔧 Run: node scripts/link-sidecar-packages.mjs${reset}`);
+  console.error(`\n${yellow}Run: npm install${reset}`);
   process.exit(1);
 }
 
-console.log(`${green}[doctor:links] ✅ vite + plugins linked correctly${reset}`);
+console.log(`${green}[doctor:links] PASS: core frontend modules resolve${reset}`);

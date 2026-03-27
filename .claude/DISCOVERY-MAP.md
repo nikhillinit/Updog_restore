@@ -125,8 +125,8 @@ Pattern matching uses OR logic: any match triggers the route.
 | "db validate" OR "schema check" OR "before db:push"              | /db-validate command                                    | Pre-push schema validation                 |
 | "orchestrate" OR "chain agents" OR "auto validate"               | workflow-orchestrator agent                             | Auto-chain agents based on changes         |
 | "agent metrics" OR "agent performance" OR "usage tracking"       | .claude/AGENT-METRICS.md                                | Agent performance tracking                 |
-| "error" OR "debug" OR "troubleshoot"                             | SIDECAR_GUIDE.md                                        | Platform issues                            |
-| "module not found" OR "typescript" OR "path"                     | SIDECAR_GUIDE.md                                        | TS/module resolution                       |
+| "error" OR "debug" OR "troubleshoot"                             | cheatsheets/daily-workflow.md                           | Platform issues                            |
+| "module not found" OR "typescript" OR "path"                     | cheatsheets/daily-workflow.md                           | TS/module resolution                       |
 
 ---
 
@@ -199,7 +199,7 @@ Q5: Which category?
   +-- Development --> docs/INDEX.md
   +-- Testing --> docs/INDEX.md
   +-- Deployment --> docs/INDEX.md
-  +-- Troubleshooting --> SIDECAR_GUIDE.md
+  +-- Troubleshooting --> cheatsheets/daily-workflow.md
   +-- Other --> docs/INDEX.md
   |
   v

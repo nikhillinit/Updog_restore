@@ -1,31 +1,26 @@
 // scripts/doctor-shell.mjs
-// Validates shell environment for Windows npm shims
+// Validates shell environment for Windows npm workflows
 // IMPORTANT: npm commands must run in PowerShell/CMD, not Git Bash/WSL
 
 import { env, platform } from 'node:process';
 
-// ANSI color codes
 const red = "\x1b[31m";
 const green = "\x1b[32m";
 const yellow = "\x1b[33m";
 const reset = "\x1b[0m";
 
-// Only validate on Windows
 if (platform !== 'win32') {
-  console.log(`${green}[doctor:shell] ✅ Non-Windows platform - shell validation skipped${reset}`);
+  console.log(`${green}[doctor:shell] PASS: non-Windows platform - shell validation skipped${reset}`);
   process.exit(0);
 }
 
-console.log('[doctor:shell] Validating shell environment for Windows npm shims...');
+console.log('[doctor:shell] Validating shell environment for Windows npm workflows...');
 
-// Check shell environment variables
 const shell = env.SHELL || '';
 const comspec = env.COMSPEC || '';
 
-// Detect problematic shells
 const isGitBash = shell.toLowerCase().includes('bash') || shell.includes('/bin/sh');
 const isWSL = shell.includes('/bin/bash') && env.WSL_DISTRO_NAME;
-const isPowerShell = comspec.toLowerCase().includes('cmd.exe') || env.PSModulePath;
 
 let ok = true;
 let msg = '';
@@ -33,11 +28,10 @@ let msg = '';
 if (isGitBash) {
   ok = false;
   msg = `
-${red}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${red}---------------------------------------------${reset}
 ${red}PROBLEM: Running in Git Bash${reset}
 
-Git Bash creates POSIX symlinks instead of Windows junctions,
-which breaks sidecar package linking.
+Git Bash can break Windows npm shim resolution and local script execution.
 
 ${yellow}FIX THIS NOW (run in PowerShell or CMD):${reset}
 
@@ -45,20 +39,20 @@ ${yellow}FIX THIS NOW (run in PowerShell or CMD):${reset}
   2. Open PowerShell or CMD
   3. Configure npm to use CMD:
      ${green}npm config set script-shell "C:\\Windows\\System32\\cmd.exe"${reset}
-  4. Recreate junctions:
-     ${green}node scripts/link-sidecar-packages.mjs${reset}
+  4. Refresh dependencies:
+     ${green}npm install${reset}
   5. Verify:
      ${green}npm run doctor${reset}
 
-${red}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${red}---------------------------------------------${reset}
 `;
 } else if (isWSL) {
   ok = false;
   msg = `
-${red}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${red}---------------------------------------------${reset}
 ${red}PROBLEM: Running in WSL${reset}
 
-WSL cannot create Windows junctions for sidecar linking.
+WSL is not the supported shell environment for these Windows npm workflows.
 Run all npm commands from PowerShell or CMD.
 
 ${yellow}FIX THIS NOW:${reset}
@@ -68,14 +62,14 @@ ${yellow}FIX THIS NOW:${reset}
   3. Navigate to: ${env.PWD || process.cwd()}
   4. Run: ${green}npm run doctor${reset}
 
-${red}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${red}---------------------------------------------${reset}
 `;
 }
 
 if (!ok) {
-  console.error(`\n${red}[doctor:shell] ❌ Shell mismatch${reset}\n${msg}`);
+  console.error(`\n${red}[doctor:shell] FAIL: shell mismatch${reset}\n${msg}`);
   process.exit(2);
 }
 
-console.log(`${green}[doctor:shell] ✅ Shell environment is correct for Windows npm shims${reset}`);
+console.log(`${green}[doctor:shell] PASS: shell environment is correct for Windows npm workflows${reset}`);
 console.log(`[doctor:shell]    Detected: ${comspec || 'PowerShell'}`);
