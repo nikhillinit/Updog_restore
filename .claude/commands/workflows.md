@@ -9,47 +9,55 @@ Interactive guide to available commands, agents, and when to use them.
 ## Available Commands
 
 ### `/test-smart`
-**When to use:** After making code changes, before committing
-**What it does:** Intelligently selects and runs only affected tests for fast feedback
+
+**When to use:** After making code changes, before committing **What it does:**
+Intelligently selects and runs only affected tests for fast feedback
 **Example:** Made changes to `waterfall.ts` → Runs only waterfall-related tests
 
 ### `/fix-auto`
+
 **When to use:** When you have lint errors, type errors, or simple test failures
-**What it does:** Automatically fixes common issues (linting, formatting, simple type errors)
-**Example:** After coding session, before committing changes
+**What it does:** Automatically fixes common issues (linting, formatting, simple
+type errors) **Example:** After coding session, before committing changes
 
 ### `/deploy-check`
+
 **When to use:** Before deployment, before merging to main, weekly validation
 **What it does:** Comprehensive pre-deployment validation (8 phases)
 **Example:** Ready to deploy → Runs full validation suite
 
 ### `/workflows` (this command)
-**When to use:** Need help choosing which tool to use
-**What it does:** Shows this interactive guide
+
+**When to use:** Need help choosing which tool to use **What it does:** Shows
+this interactive guide
 
 ## Available Agents
 
 ### `waterfall-specialist`
-**When to use:** Editing waterfall calculation logic or related UI
-**What it does:** Validates waterfall calculations, ensures helpers used correctly
-**Example:** `Use waterfall-specialist agent to review my changes`
-**Files:** `client/src/lib/waterfall.ts`, waterfall components
+
+**When to use:** Editing waterfall calculation logic or related UI **What it
+does:** Validates waterfall calculations, ensures helpers used correctly
+**Example:** `Use waterfall-specialist agent to review my changes` **Files:**
+`client/src/lib/waterfall.ts`, waterfall components
 
 ### `test-repair`
-**When to use:** Tests are failing and you need autonomous repair
-**What it does:** Diagnoses and fixes test failures while preserving intent
-**Example:** `Use test-repair agent to fix these failing tests`
+
+**When to use:** Tests are failing and you need autonomous repair **What it
+does:** Diagnoses and fixes test failures while preserving intent **Example:**
+`Use test-repair agent to fix these failing tests`
 
 ### `perf-guard`
+
 **When to use:** After dependency updates, before deployment, weekly checks
-**What it does:** Bundle analysis, performance regression detection
-**Example:** `Use perf-guard agent to analyze bundle size`
+**What it does:** Bundle analysis, performance regression detection **Example:**
+`Use perf-guard agent to analyze bundle size`
 
 ### `db-migration`
+
 **When to use:** Before running `npm run db:push`, when editing schema files
-**What it does:** Validates schema changes, prevents data loss
-**Example:** `Use db-migration agent before I push schema changes`
-**Files:** `shared/db/schema/*`
+**What it does:** Validates schema changes, prevents data loss **Example:**
+`Use db-migration agent before I push schema changes` **Files:**
+`shared/db/schema/*`
 
 ## Decision Tree
 
@@ -70,7 +78,7 @@ Interactive guide to available commands, agents, and when to use them.
 │    └─→ Use test-repair agent
 │
 ├─── Updated dependencies (package.json)?
-│    ├─→ npm run doctor:links (Windows sidecar check)
+│    ├─→ npm run doctor:quick (module resolution check)
 │    └─→ Use perf-guard agent (bundle impact)
 │
 └─── Ready to deploy?
@@ -80,6 +88,7 @@ Interactive guide to available commands, agents, and when to use them.
 ## Routine Workflows
 
 ### Daily Development
+
 ```
 1. Start coding
 2. Make changes
@@ -90,6 +99,7 @@ Interactive guide to available commands, agents, and when to use them.
 ```
 
 ### Before Every Commit
+
 ```
 - [ ] /fix-auto (lint, types, simple test fixes)
 - [ ] /test-smart (affected tests pass)
@@ -97,6 +107,7 @@ Interactive guide to available commands, agents, and when to use them.
 ```
 
 ### Before Deployment
+
 ```
 - [ ] /deploy-check (full validation)
 - [ ] perf-guard agent (bundle analysis)
@@ -106,6 +117,7 @@ Interactive guide to available commands, agents, and when to use them.
 ```
 
 ### Weekly Maintenance
+
 ```
 - [ ] /deploy-check (health check)
 - [ ] npm audit (security check)
@@ -117,6 +129,7 @@ Interactive guide to available commands, agents, and when to use them.
 ## Common Scenarios
 
 ### Scenario: "I'm adding a new feature"
+
 ```
 1. Code the feature
 2. If touching waterfall → waterfall-specialist agent
@@ -128,6 +141,7 @@ Interactive guide to available commands, agents, and when to use them.
 ```
 
 ### Scenario: "Tests are failing"
+
 ```
 1. Try /fix-auto first (handles simple failures)
 2. If still failing → test-repair agent
@@ -135,14 +149,16 @@ Interactive guide to available commands, agents, and when to use them.
 ```
 
 ### Scenario: "Build is broken"
+
 ```
-1. Check if Windows sidecar issue → npm run doctor:links
+1. Check if module resolution issue -> npm run doctor:quick
 2. /fix-auto (type/lint issues)
 3. If bundle issues → perf-guard agent
 4. npm run build to verify
 ```
 
 ### Scenario: "Ready to push to production"
+
 ```
 1. /deploy-check (comprehensive validation)
 2. Review deployment readiness report
@@ -154,22 +170,25 @@ Interactive guide to available commands, agents, and when to use them.
 ## Memory Management
 
 **CHANGELOG.md** (`/log-change`)
+
 - Every feature, bug fix, dependency update
 - Timestamped entries
 
 **DECISIONS.md** (`/log-decision`)
+
 - Architectural choices
 - Algorithm changes
 - Tech stack additions
 
 **cheatsheets/** (`/create-cheatsheet [topic]`)
+
 - Reusable patterns
 - Complex workflows
 - Domain knowledge
 
 ## Quick Links
 
-- [CLAUDE.md](../CLAUDE.md) - Core architecture
+- [CLAUDE.md](../../CLAUDE.md) - Core architecture
 - [CHANGELOG.md](../../CHANGELOG.md) - Recent changes
 - [DECISIONS.md](../../DECISIONS.md) - Architectural decisions
 - [cheatsheets/](../../cheatsheets/) - Detailed guides
@@ -180,7 +199,8 @@ Interactive guide to available commands, agents, and when to use them.
 - **Commands are fast**: /test-smart and /fix-auto save time
 - **Document as you go**: /log-change after every feature
 - **Weekly validation**: /deploy-check even if not deploying
-- **Windows quirks**: npm run doctor:links if build issues
+- **Module resolution issues**: npm run doctor:quick if builds fail after
+  dependency or Vite changes
 
 ---
 

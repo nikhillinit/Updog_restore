@@ -1,13 +1,13 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-27
 owner: Core Team
 review_cadence: P90D
 ---
 
 # Cheatsheets Index
 
-Complete reference to all 32 project cheatsheets, organized by category.
+Complete reference to all 41 project cheatsheets, organized by category.
 
 **Quick Navigation:** Use Ctrl+F / Cmd+F to search for specific topics.
 
@@ -162,4 +162,4 @@ Complete reference to all 32 project cheatsheets, organized by category.
 3. Update CLAUDE.md if it's a core workflow reference
 4. Run `npm run validate:claude-md` to verify links
 
-**Last updated:** 2025-12-14
+**Last updated:** 2026-03-27
