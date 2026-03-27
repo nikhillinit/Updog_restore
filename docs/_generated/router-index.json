@@ -1,141 +1,106 @@
 {
-  "agents": [
-    {
-      "name": "phoenix-truth-case-runner",
-      "phase": ["0"],
-      "skill": "phoenix-truth-case-orchestrator"
-    },
-    {
-      "name": "phoenix-precision-guardian",
-      "phase": ["1A"],
-      "skill": "phoenix-precision-guard"
-    },
-    {
-      "name": "waterfall-specialist",
-      "phase": ["0", "1B"],
-      "skill": "phoenix-waterfall-ledger-semantics"
-    },
-    {
-      "name": "xirr-fees-validator",
-      "phase": ["0", "1B"],
-      "skill": "phoenix-xirr-fees-validator"
-    },
-    {
-      "name": "phoenix-capital-allocation-analyst",
-      "phase": ["0", "1A"],
-      "skill": "phoenix-capital-exit-investigator"
-    },
-    {
-      "name": "phoenix-docs-scribe",
-      "phase": ["1A"],
-      "skill": "phoenix-docs-sync"
-    },
-    {
-      "name": "phoenix-probabilistic-engineer",
-      "phase": ["2"],
-      "skill": "phoenix-advanced-forecasting"
-    },
-    {
-      "name": "phoenix-reserves-optimizer",
-      "phase": ["2"],
-      "skill": "phoenix-reserves-optimizer"
-    },
-    {
-      "name": "phoenix-brand-reporting-stylist",
-      "phase": ["3"],
-      "skill": "phoenix-brand-reporting"
-    }
-  ],
+  "agents": [],
   "config": {
     "generic_terms": ["test", "error", "fix", "update", "change", "help"],
     "min_score_to_route": 2
   },
   "decision_tree": {
     "Q0": {
-      "action_if_false": "CONTINUE",
-      "action_if_true": "REQUIRE_EVIDENCE_CHECK",
+      "action_if_false": "'CONTINUE'",
       "condition": {
-        "raw": "or:\n        - field: \"risk_level\"\n          equals: \"high\"\n        - field: \"status\"\n          not_equals: \"ACTIVE\""
+        "raw": "or:\n        - field: 'risk_level'\n          equals: 'high'\n        - field: 'status'\n          not_equals: 'ACTIVE'"
       },
-      "id": "risk_check",
-      "next": "Q1",
-      "question": "Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?"
+      "id": "'risk_check'",
+      "next": "'Q1'",
+      "question": "'Is"
     },
     "Q1": {
-      "action_if_false": "CONTINUE",
+      "action_if_false": "'CONTINUE'",
       "action_if_true": {
-        "message": "Start with CLAUDE.md, then use repo search plus docs/INDEX.md and .claude/DISCOVERY-MAP.md before consulting CAPABILITIES historical inventory",
-        "route": "CLAUDE.md"
+        "message": "'Start",
+        "route": "'CLAUDE.md'"
       },
-      "id": "capability_check",
-      "keywords": ["implement", "create", "add", "build", "new feature"],
-      "next": "Q2",
-      "question": "Does this involve implementing something NEW?"
+      "id": "'capability_check'",
+      "keywords": [
+        "'implement'",
+        "'create'",
+        "'add'",
+        "'build'",
+        "'new feature'"
+      ],
+      "next": "'Q2'",
+      "question": "'Does"
     },
     "Q2": {
-      "action_if_false": "CONTINUE",
+      "action_if_false": "'CONTINUE'",
       "action_if_true": {
-        "route": "docs/PHOENIX-SOT/README.md"
+        "route": "'docs/PHOENIX-SOT/README.md'"
       },
-      "id": "phoenix_check",
+      "id": "'phoenix_check'",
       "keywords": [
-        "phoenix",
-        "truth case",
-        "xirr",
-        "waterfall",
-        "fees",
-        "capital",
-        "recycling"
+        "'phoenix'",
+        "'truth case'",
+        "'xirr'",
+        "'waterfall'",
+        "'fees'",
+        "'capital'",
+        "'recycling'"
       ],
-      "next": "Q3",
-      "question": "Is this a Phoenix project task?"
+      "next": "'Q3'",
+      "question": "'Is"
     },
     "Q3": {
-      "action_if_false": "CONTINUE",
+      "action_if_false": "'CONTINUE'",
       "action_if_true": {
-        "route": "DECISIONS.md"
+        "route": "'DECISIONS.md'"
       },
-      "id": "decision_check",
+      "id": "'decision_check'",
       "keywords": [
-        "why",
-        "decision",
-        "rationale",
-        "adr",
-        "architecture decision"
+        "'why'",
+        "'decision'",
+        "'rationale'",
+        "'adr'",
+        "'architecture decision'"
       ],
-      "next": "Q4",
-      "question": "Is this about understanding WHY a decision was made?"
+      "next": "'Q4'",
+      "question": "'Is"
     },
     "Q4": {
-      "action_if_false": "CONTINUE",
+      "action_if_false": "'CONTINUE'",
       "action_if_true": {
-        "route": "CHANGELOG.md"
+        "route": "'CHANGELOG.md'"
       },
-      "id": "history_check",
-      "keywords": ["changed", "history", "changelog", "recent", "update"],
-      "next": "Q5",
-      "question": "Is this about recent changes or history?"
+      "id": "'history_check'",
+      "keywords": [
+        "'changed'",
+        "'history'",
+        "'changelog'",
+        "'recent'",
+        "'update'"
+      ],
+      "next": "'Q5'",
+      "question": "'Is"
     },
     "Q5": {
       "branches": {
-        "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"docs/INDEX.md\""
+        "raw": "development:\n        keywords: ['develop', 'code', 'implement', 'feature']\n        route: 'docs/INDEX.md'\n      testing:\n        keywords: ['test', 'spec', 'coverage', 'jest', 'vitest']\n        route: 'docs/INDEX.md#testing'\n      deployment:\n        keywords: ['deploy', 'prod', 'release', 'ci', 'cd']\n        route: 'docs/workflows/PRODUCTION_SCRIPTS.md'\n      troubleshooting:\n        keywords: ['error', 'debug', 'fix', 'broken', 'issue']\n        route: 'docs/INDEX.md'"
       },
-      "id": "category_routing",
-      "keywords": ["develop", "code", "implement", "feature"],
-      "next": "Q6",
-      "question": "Which category does this fall into?"
+      "id": "'category_routing'",
+      "keywords": ["'develop'", "'code'", "'implement'", "'feature'"],
+      "next": "'Q6'",
+      "question": "'Which"
     },
     "Q6": {
-      "action_if_false": "PROCEED",
+      "action_if_false": "'PROCEED'",
       "action_if_true": {
-        "route": "cheatsheets/document-review-workflow.md",
-        "warning": "Document may be stale - apply Document Review Protocol"
+        "route": "'cheatsheets/document-review-workflow.md'",
+        "warning": "'Document"
       },
       "condition": {
-        "raw": "and:\n        - field: \"age_days\"\n          greater_than: 30\n        - field: \"contains_execution_claims\"\n          equals: true"
+        "raw": "and:\n        - field: 'age_days'\n          greater_than: 30\n        - field: 'contains_execution_claims'\n          equals: true"
       },
-      "id": "staleness_check",
-      "question": "Is the target document potentially stale?"
+      "id": "'staleness_check'",
+      "question": "'Is"
     }
   },
   "docs": [
@@ -2572,7 +2537,6 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "description": "Comprehensive multi-AI code review system for Python, JavaScript, and TypeScript. Use when reviewing code for quality, security, performance, or best practices. Includes automated analysis scripts, language-specific patterns, and AI collaboration workflows for complex decisions.",
         "name": "code-reviewer"
       },
       "hasExecutionClaims": false,
@@ -3932,7 +3896,6 @@
         "owner": "'Core Team'",
         "priority": 5,
         "review_cadence": "'P90D'",
-        "route_hint": "'Historical inventory only. Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md.'",
         "status": "ACTIVE",
         "use_cases": ["capability_discovery", "feature_planning"]
       },
@@ -3998,21 +3961,6 @@
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "CLAUDE_PROJECT_INSTRUCTIONS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2026-01-19",
@@ -4064,97 +4012,7 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "DOCKER-WSL2-SETUP-GUIDE.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "DOCUMENTATION-NAVIGATION-GUIDE.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "ESLINT_DISABLE_AUDIT.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "FEATURE_FLAGS_READY.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "IMPLEMENTATION-SUMMARY-WATCH-DEBOUNCE-FIX.md",
-      "staleDays": 67,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "IMPLEMENTATION_SYNTHESIS.md",
       "staleDays": 67,
       "status": "ACTIVE"
     },
@@ -4267,36 +4125,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "QUARANTINE_TEST_ANALYSIS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "QUICK_FIX_INSTRUCTIONS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
         "last_updated": "2026-03-27",
         "status": "ACTIVE"
       },
@@ -4306,21 +4134,6 @@
       "owner": null,
       "path": "README.md",
       "staleDays": 0,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "RLS-CHEATSHEET.md",
-      "staleDays": 67,
       "status": "ACTIVE"
     },
     {
@@ -4349,67 +4162,7 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "STABILIZATION-BUNDLE.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "STEP_2_AND_4_IMPROVEMENTS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "SUPERPOWERS-INTEGRATION-SUMMARY.md",
-      "staleDays": 67,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "TYPESCRIPT_ERRORS_REVIEW.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "ULTRA_COMPRESSED_PLAYBOOK.md",
       "staleDays": 67,
       "status": "ACTIVE"
     },
@@ -4432,62 +4185,17 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "UX_INTEGRATION_CONSENSUS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "VERCEL_ACCESS.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "VERCEL_SOLUTION.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
+        "last_updated": "2026-03-27",
         "owner": "Core Team",
         "review_cadence": "P90D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-01-19",
+      "lastUpdated": "2026-03-27",
       "owner": "Core Team",
       "path": "cheatsheets/INDEX.md",
-      "staleDays": 67,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -4997,6 +4705,21 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/react-performance-patterns.md",
+      "staleDays": 67,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-01-19",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-01-19",
+      "owner": null,
+      "path": "cheatsheets/rls-cheatsheet.md",
       "staleDays": 67,
       "status": "ACTIVE"
     },
@@ -5546,7 +5269,7 @@
         "audience": "both",
         "categories": ["documentation", "navigation"],
         "keywords": ["index", "docs", "navigation", "routing", "documentation"],
-        "last_updated": "2025-12-16",
+        "last_updated": "2026-03-27",
         "owner": "'Core Team'",
         "priority": 2,
         "review_cadence": "'P90D'",
@@ -5557,10 +5280,10 @@
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2025-12-16",
+      "lastUpdated": "2026-03-27",
       "owner": "'Core Team'",
       "path": "docs/INDEX.md",
-      "staleDays": 101,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -14063,1067 +13786,19 @@
       "path": "docs/zen-mcp-integration-summary.md",
       "staleDays": 67,
       "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "triage-interleaved-thinking-failures.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
     }
   ],
-  "generatedAt": "2026-03-27T17:40:37.271Z",
-  "patterns": [
-    {
-      "category": "Security",
-      "id": "security",
-      "keywords": [
-        "secret",
-        "key",
-        "token",
-        "password",
-        "auth",
-        "security",
-        "credential",
-        "env"
-      ],
-      "priority": 5,
-      "target": "SECURITY.md"
-    },
-    {
-      "category": "Phoenix",
-      "id": "phoenix_truth",
-      "keywords": [
-        "truth case",
-        "validation",
-        "deterministic",
-        "pass rate",
-        "baseline"
-      ],
-      "priority": 10,
-      "target": ".claude/commands/phoenix-truth.md"
-    },
-    {
-      "category": "Phoenix",
-      "id": "phoenix_phase2",
-      "keywords": [
-        "monte carlo",
-        "probabilistic",
-        "expectation mode",
-        "seeded",
-        "distribution",
-        "phase 2"
-      ],
-      "priority": 11,
-      "target": ".claude/commands/phoenix-phase2.md"
-    },
-    {
-      "agent": "waterfall-specialist",
-      "category": "Phoenix",
-      "id": "phoenix_waterfall",
-      "keywords": [
-        "waterfall",
-        "clawback",
-        "carry",
-        "ledger",
-        "tier",
-        "gp",
-        "lp"
-      ],
-      "priority": 12,
-      "target": ".claude/agents/waterfall-specialist.md"
-    },
-    {
-      "agent": "phoenix-precision-guardian",
-      "category": "Phoenix",
-      "id": "phoenix_precision",
-      "keywords": [
-        "precision",
-        "parseFloat",
-        "decimal",
-        "numeric drift",
-        "rounding"
-      ],
-      "priority": 13,
-      "target": ".claude/agents/phoenix-precision-guardian.md"
-    },
-    {
-      "agent": "xirr-fees-validator",
-      "category": "Phoenix",
-      "id": "phoenix_xirr",
-      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
-      "priority": 14,
-      "target": ".claude/agents/xirr-fees-validator.md"
-    },
-    {
-      "agent": "phoenix-capital-allocation-analyst",
-      "category": "Phoenix",
-      "id": "phoenix_allocation",
-      "keywords": [
-        "capital allocation",
-        "exit recycling",
-        "deployment",
-        "stage allocation"
-      ],
-      "priority": 15,
-      "target": ".claude/agents/phoenix-capital-allocation-analyst.md"
-    },
-    {
-      "category": "Domain Knowledge",
-      "id": "domain_knowledge",
-      "keywords": [
-        "domain knowledge",
-        "vc modeling",
-        "fund calculations",
-        "notebooklm",
-        "truth source",
-        "canonical"
-      ],
-      "priority": 16,
-      "target": "docs/notebooklm-sources/"
-    },
-    {
-      "category": "Phoenix",
-      "id": "phoenix_engines",
-      "keywords": [
-        "reserve engine",
-        "pacing engine",
-        "cohort engine",
-        "reserves",
-        "pacing",
-        "cohorts"
-      ],
-      "priority": 17,
-      "target": "docs/notebooklm-sources/"
-    },
-    {
-      "category": "Architecture",
-      "id": "adr_directory",
-      "keywords": [
-        "adr",
-        "architecture decision",
-        "mem0",
-        "stage normalization",
-        "token budgeting",
-        "streaming"
-      ],
-      "priority": 18,
-      "target": "docs/adr/"
-    },
-    {
-      "category": "Phoenix",
-      "id": "truth_schemas",
-      "keywords": [
-        "schema",
-        "json schema",
-        "truth case schema",
-        "validation schema"
-      ],
-      "priority": 19,
-      "target": "docs/schemas/"
-    },
-    {
-      "category": "Capabilities",
-      "id": "capabilities",
-      "keywords": [
-        "capability",
-        "feature",
-        "existing solution",
-        "already built",
-        "what can"
-      ],
-      "priority": 20,
-      "target": "CAPABILITIES.md"
-    },
-    {
-      "category": "Production",
-      "id": "production",
-      "keywords": [
-        "deploy",
-        "release",
-        "prod",
-        "production",
-        "rollout",
-        "shipping"
-      ],
-      "priority": 30,
-      "target": "docs/workflows/PRODUCTION_SCRIPTS.md"
-    },
-    {
-      "category": "CI/CD",
-      "id": "ci_cd",
-      "keywords": ["ci", "cd", "github actions", "workflow", "pipeline"],
-      "priority": 31,
-      "target": "docs/workflows/README.md"
-    },
-    {
-      "category": "Testing",
-      "id": "testing",
-      "keywords": [
-        "test",
-        "unit test",
-        "integration",
-        "e2e",
-        "jest",
-        "vitest",
-        "coverage"
-      ],
-      "priority": 40,
-      "target": "docs/INDEX.md"
-    },
-    {
-      "agent": "database-expert",
-      "category": "Database",
-      "id": "database",
-      "keywords": [
-        "database",
-        "db",
-        "sql",
-        "migration",
-        "schema",
-        "postgres",
-        "drizzle"
-      ],
-      "priority": 50,
-      "target": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
-    },
-    {
-      "category": "Memory",
-      "id": "memory",
-      "keywords": [
-        "memory",
-        "context",
-        "vector",
-        "embedding",
-        "semantic search",
-        "pgvector"
-      ],
-      "priority": 60,
-      "target": "docs/INDEX.md"
-    },
-    {
-      "category": "AI Tools",
-      "id": "ai_tools",
-      "keywords": [
-        "ai",
-        "llm",
-        "model",
-        "inference",
-        "prompt",
-        "agent",
-        "claude"
-      ],
-      "priority": 70,
-      "target": "docs/DEVELOPMENT-TOOLING-CATALOG.md"
-    },
-    {
-      "category": "Performance",
-      "id": "performance",
-      "keywords": [
-        "perf",
-        "performance",
-        "slow",
-        "latency",
-        "benchmark",
-        "optimization"
-      ],
-      "priority": 80,
-      "target": "cheatsheets/pr-merge-verification.md"
-    },
-    {
-      "agent": "debug-expert",
-      "category": "Development",
-      "id": "debugging",
-      "keywords": [
-        "debug",
-        "debugging",
-        "investigate",
-        "root cause",
-        "trace",
-        "stack trace"
-      ],
-      "priority": 85,
-      "target": ".claude/agents/debug-expert.md"
-    },
-    {
-      "agent": "code-reviewer",
-      "category": "Development",
-      "id": "code_review",
-      "keywords": [
-        "review",
-        "code review",
-        "pr review",
-        "pull request",
-        "check code"
-      ],
-      "priority": 86,
-      "target": ".claude/agents/code-reviewer.md"
-    },
-    {
-      "agent": "code-simplifier",
-      "category": "Development",
-      "id": "refactoring",
-      "keywords": [
-        "refactor",
-        "simplify",
-        "clean up",
-        "improve code",
-        "reduce complexity"
-      ],
-      "priority": 87,
-      "target": ".claude/agents/code-simplifier.md"
-    },
-    {
-      "agent": "test-repair",
-      "category": "Testing",
-      "id": "test_repair",
-      "keywords": [
-        "fix test",
-        "test fail",
-        "failing test",
-        "repair test",
-        "broken test"
-      ],
-      "priority": 88,
-      "target": ".claude/agents/test-repair.md"
-    },
-    {
-      "agent": "docs-architect",
-      "category": "Documentation",
-      "id": "documentation",
-      "keywords": [
-        "document",
-        "documentation",
-        "docs",
-        "jsdoc",
-        "readme",
-        "write docs"
-      ],
-      "priority": 89,
-      "target": ".claude/agents/docs-architect.md"
-    },
-    {
-      "category": "Operations",
-      "id": "runbooks",
-      "keywords": [
-        "runbook",
-        "incident",
-        "rollback",
-        "canary",
-        "blue green",
-        "disaster recovery",
-        "dr"
-      ],
-      "priority": 91,
-      "target": "docs/runbooks/"
-    },
-    {
-      "category": "Operations",
-      "id": "observability",
-      "keywords": [
-        "metrics",
-        "prometheus",
-        "grafana",
-        "monitoring",
-        "alerting",
-        "dashboard",
-        "kpi"
-      ],
-      "priority": 92,
-      "target": "docs/observability/"
-    },
-    {
-      "category": "Testing",
-      "id": "chaos_engineering",
-      "keywords": [
-        "chaos",
-        "chaos engineering",
-        "rls testing",
-        "game day",
-        "failure injection"
-      ],
-      "priority": 93,
-      "target": "docs/chaos-engineering/"
-    },
-    {
-      "category": "Quality",
-      "id": "quality_gates",
-      "keywords": ["gate", "quality gate", "raci", "gate tracking", "approval"],
-      "priority": 94,
-      "target": "docs/gates/"
-    },
-    {
-      "category": "Implementation",
-      "id": "wizard",
-      "keywords": [
-        "wizard",
-        "modeling wizard",
-        "xstate",
-        "state machine",
-        "wizard step"
-      ],
-      "priority": 95,
-      "target": "docs/wizard/"
-    },
-    {
-      "category": "Phoenix",
-      "id": "forecasting",
-      "keywords": [
-        "forecasting",
-        "power law",
-        "calibration",
-        "streaming monte carlo"
-      ],
-      "priority": 96,
-      "target": "docs/forecasting/"
-    },
-    {
-      "category": "AI Agents",
-      "id": "agent_memory",
-      "keywords": [
-        "agent memory",
-        "memory integration",
-        "pattern learning",
-        "hybrid memory",
-        "memory scope",
-        "tenant"
-      ],
-      "priority": 97,
-      "target": "cheatsheets/agent-memory-integration.md"
-    },
-    {
-      "category": "AI Agents",
-      "id": "agent_architecture",
-      "keywords": [
-        "agent architecture",
-        "base agent",
-        "agent core",
-        "agent framework",
-        "multi-agent",
-        "orchestration"
-      ],
-      "priority": 98,
-      "target": "cheatsheets/agent-architecture.md"
-    },
-    {
-      "category": "Performance",
-      "id": "bundle_optimization",
-      "keywords": [
-        "bundle",
-        "bundle size",
-        "bundle optimization",
-        "tree shaking",
-        "code splitting",
-        "lazy loading"
-      ],
-      "priority": 99,
-      "target": "packages/bundle-optimization-agents.md"
-    },
-    {
-      "category": "Troubleshooting",
-      "id": "troubleshooting",
-      "keywords": ["error", "broken", "issue", "problem", "not working"],
-      "priority": 100,
-      "target": "docs/INDEX.md"
-    },
-    {
-      "category": "Development",
-      "id": "planning",
-      "keywords": [
-        "plan",
-        "planning",
-        "design",
-        "architect",
-        "strategy",
-        "approach",
-        "blueprint"
-      ],
-      "priority": 101,
-      "target": ".claude/skills/writing-plans.md"
-    },
-    {
-      "category": "Development",
-      "id": "brainstorming",
-      "keywords": [
-        "brainstorm",
-        "ideate",
-        "explore options",
-        "alternatives",
-        "creative"
-      ],
-      "priority": 102,
-      "target": ".claude/skills/brainstorming.md"
-    },
-    {
-      "category": "Development",
-      "id": "task_decomposition",
-      "keywords": [
-        "break down",
-        "decompose",
-        "split task",
-        "subtasks",
-        "chunk"
-      ],
-      "priority": 103,
-      "target": ".claude/skills/task-decomposition.md"
-    },
-    {
-      "category": "Development",
-      "id": "implementation",
-      "keywords": [
-        "implement",
-        "build",
-        "create",
-        "develop",
-        "new feature",
-        "add feature"
-      ],
-      "priority": 104,
-      "target": "CLAUDE.md"
-    },
-    {
-      "agent": "code-explorer",
-      "category": "Development",
-      "id": "code_exploration",
-      "keywords": [
-        "understand code",
-        "explore codebase",
-        "how does",
-        "find where",
-        "trace code",
-        "code flow"
-      ],
-      "priority": 105,
-      "target": ".claude/agents/code-explorer.md"
-    },
-    {
-      "agent": "test-scaffolder",
-      "category": "Testing",
-      "id": "test_scaffolding",
-      "keywords": [
-        "scaffold test",
-        "new test suite",
-        "test infrastructure",
-        "setup tests",
-        "test boilerplate"
-      ],
-      "priority": 106,
-      "target": ".claude/agents/test-scaffolder.md"
-    },
-    {
-      "agent": "test-automator",
-      "category": "Testing",
-      "id": "test_automation",
-      "keywords": [
-        "automate test",
-        "test automation",
-        "test strategy",
-        "test coverage",
-        "comprehensive test"
-      ],
-      "priority": 107,
-      "target": ".claude/agents/test-automator.md"
-    },
-    {
-      "agent": "playwright-test-author",
-      "category": "Testing",
-      "id": "playwright_tests",
-      "keywords": [
-        "playwright",
-        "e2e test",
-        "browser test",
-        "end to end",
-        "ui test"
-      ],
-      "priority": 108,
-      "target": ".claude/agents/playwright-test-author.md"
-    },
-    {
-      "agent": "pr-test-analyzer",
-      "category": "Testing",
-      "id": "pr_test_analysis",
-      "keywords": [
-        "pr tests",
-        "test gaps",
-        "missing tests",
-        "test coverage pr"
-      ],
-      "priority": 109,
-      "target": ".claude/agents/pr-test-analyzer.md"
-    },
-    {
-      "agent": "test-repair",
-      "category": "Testing",
-      "id": "flaky_tests",
-      "keywords": [
-        "flaky",
-        "intermittent",
-        "random failure",
-        "sometimes pass",
-        "race condition test"
-      ],
-      "priority": 110,
-      "target": ".claude/agents/test-repair.md"
-    },
-    {
-      "agent": "silent-failure-hunter",
-      "category": "Quality",
-      "id": "silent_failures",
-      "keywords": [
-        "silent failure",
-        "swallowed exception",
-        "catch empty",
-        "error ignored",
-        "missing error handling"
-      ],
-      "priority": 111,
-      "target": ".claude/agents/silent-failure-hunter.md"
-    },
-    {
-      "agent": "type-design-analyzer",
-      "category": "Quality",
-      "id": "type_design",
-      "keywords": [
-        "type design",
-        "typescript types",
-        "type safety",
-        "generic types",
-        "type inference"
-      ],
-      "priority": 112,
-      "target": ".claude/agents/type-design-analyzer.md"
-    },
-    {
-      "agent": "comment-analyzer",
-      "category": "Quality",
-      "id": "comment_analysis",
-      "keywords": [
-        "comments",
-        "code comments",
-        "documentation accuracy",
-        "outdated comments"
-      ],
-      "priority": 113,
-      "target": ".claude/agents/comment-analyzer.md"
-    },
-    {
-      "agent": "devops-troubleshooter",
-      "category": "DevOps",
-      "id": "devops_issues",
-      "keywords": [
-        "devops",
-        "infrastructure",
-        "container",
-        "docker",
-        "kubernetes",
-        "k8s"
-      ],
-      "priority": 114,
-      "target": ".claude/agents/devops-troubleshooter.md"
-    },
-    {
-      "agent": "incident-responder",
-      "category": "DevOps",
-      "id": "incident_response",
-      "keywords": [
-        "incident",
-        "outage",
-        "production down",
-        "pager",
-        "on call",
-        "sev1",
-        "sev2"
-      ],
-      "priority": 115,
-      "target": ".claude/agents/incident-responder.md"
-    },
-    {
-      "agent": "chaos-engineer",
-      "category": "Testing",
-      "id": "chaos_testing",
-      "keywords": [
-        "chaos",
-        "resilience",
-        "fault injection",
-        "failure testing",
-        "chaos monkey"
-      ],
-      "priority": 116,
-      "target": ".claude/agents/chaos-engineer.md"
-    },
-    {
-      "agent": "schema-drift-checker",
-      "category": "Database",
-      "id": "schema_drift",
-      "keywords": [
-        "schema drift",
-        "schema mismatch",
-        "zod schema",
-        "drizzle schema",
-        "schema alignment"
-      ],
-      "priority": 117,
-      "target": ".claude/agents/schema-drift-checker.md"
-    },
-    {
-      "agent": "db-migration",
-      "category": "Database",
-      "command": "/db-validate",
-      "id": "db_migration",
-      "keywords": [
-        "migration",
-        "db:push",
-        "schema change",
-        "alter table",
-        "database migration"
-      ],
-      "priority": 118,
-      "target": ".claude/agents/db-migration.md"
-    },
-    {
-      "agent": "perf-guard",
-      "category": "Performance",
-      "id": "perf_guard",
-      "keywords": [
-        "performance regression",
-        "perf guard",
-        "bundle analysis",
-        "size regression"
-      ],
-      "priority": 119,
-      "target": ".claude/agents/perf-guard.md"
-    },
-    {
-      "agent": "perf-regression-triager",
-      "category": "Performance",
-      "id": "perf_regression",
-      "keywords": [
-        "perf regression",
-        "slower",
-        "benchmark failed",
-        "performance degraded"
-      ],
-      "priority": 120,
-      "target": ".claude/agents/perf-regression-triager.md"
-    },
-    {
-      "agent": "baseline-regression-explainer",
-      "category": "Quality",
-      "id": "baseline_regression",
-      "keywords": [
-        "baseline",
-        "baseline failed",
-        "quality regression",
-        "lint regression",
-        "type regression"
-      ],
-      "priority": 121,
-      "target": ".claude/agents/baseline-regression-explainer.md"
-    },
-    {
-      "agent": "parity-auditor",
-      "category": "Phoenix",
-      "id": "excel_parity",
-      "keywords": [
-        "excel parity",
-        "excel match",
-        "spreadsheet",
-        "calculation mismatch",
-        "truth case failed"
-      ],
-      "priority": 122,
-      "target": ".claude/agents/parity-auditor.md"
-    },
-    {
-      "agent": "workflow-orchestrator",
-      "category": "Orchestration",
-      "id": "workflow_orchestration",
-      "keywords": [
-        "orchestrate",
-        "chain agents",
-        "auto validate",
-        "multi-agent",
-        "agent chain"
-      ],
-      "priority": 123,
-      "target": ".claude/agents/workflow-orchestrator.md"
-    },
-    {
-      "agent": "context-orchestrator",
-      "category": "Orchestration",
-      "id": "context_management",
-      "keywords": [
-        "context",
-        "context window",
-        "memory management",
-        "conversation context"
-      ],
-      "priority": 124,
-      "target": ".claude/agents/context-orchestrator.md"
-    },
-    {
-      "agent": "dx-optimizer",
-      "category": "Development",
-      "id": "dx_optimization",
-      "keywords": [
-        "developer experience",
-        "dx",
-        "tooling",
-        "workflow friction",
-        "onboarding"
-      ],
-      "priority": 125,
-      "target": ".claude/agents/dx-optimizer.md"
-    },
-    {
-      "agent": "legacy-modernizer",
-      "category": "Development",
-      "id": "legacy_code",
-      "keywords": [
-        "legacy",
-        "modernize",
-        "technical debt",
-        "outdated",
-        "refactor legacy"
-      ],
-      "priority": 126,
-      "target": ".claude/agents/legacy-modernizer.md"
-    },
-    {
-      "category": "Thinking",
-      "id": "thinking_frameworks",
-      "keywords": [
-        "think deeper",
-        "analyze thoroughly",
-        "critical thinking",
-        "systematic analysis"
-      ],
-      "priority": 130,
-      "target": ".claude/skills/extended-thinking-framework.md"
-    },
-    {
-      "category": "Thinking",
-      "id": "inversion_thinking",
-      "keywords": [
-        "inversion",
-        "what could go wrong",
-        "failure modes",
-        "anti-patterns",
-        "avoid mistakes"
-      ],
-      "priority": 131,
-      "target": ".claude/skills/inversion-thinking.md"
-    },
-    {
-      "category": "Thinking",
-      "id": "pattern_recognition",
-      "keywords": ["pattern", "recurring", "similar issues", "common pattern"],
-      "priority": 132,
-      "target": ".claude/skills/pattern-recognition.md"
-    },
-    {
-      "category": "Thinking",
-      "id": "analogical_thinking",
-      "keywords": ["analogy", "similar to", "like", "compare to"],
-      "priority": 133,
-      "target": ".claude/skills/analogical-thinking.md"
-    },
-    {
-      "category": "Orchestration",
-      "id": "parallel_agents",
-      "keywords": [
-        "parallel",
-        "concurrent",
-        "simultaneously",
-        "multiple agents"
-      ],
-      "priority": 134,
-      "target": ".claude/skills/dispatching-parallel-agents.md"
-    },
-    {
-      "category": "Development",
-      "id": "async_resilience",
-      "keywords": [
-        "async error",
-        "retry",
-        "circuit breaker",
-        "resilience",
-        "graceful degradation"
-      ],
-      "priority": 135,
-      "target": ".claude/skills/async-error-resilience.md"
-    },
-    {
-      "category": "Performance",
-      "id": "react_performance",
-      "keywords": [
-        "react performance",
-        "re-render",
-        "useMemo",
-        "useCallback",
-        "memoization"
-      ],
-      "priority": 136,
-      "target": ".claude/skills/react-performance-optimization.md"
-    },
-    {
-      "category": "Development",
-      "id": "api_design",
-      "keywords": ["api design", "rest api", "endpoint design", "api patterns"],
-      "priority": 137,
-      "target": ".claude/skills/api-design-principles.md"
-    },
-    {
-      "category": "Development",
-      "id": "architecture_patterns",
-      "keywords": [
-        "architecture pattern",
-        "design pattern",
-        "clean architecture",
-        "hexagonal"
-      ],
-      "priority": 138,
-      "target": ".claude/skills/architecture-patterns.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_log_change",
-      "keywords": ["log change", "changelog", "record change"],
-      "priority": 140,
-      "target": ".claude/commands/log-change.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_log_decision",
-      "keywords": [
-        "log decision",
-        "adr",
-        "record decision",
-        "architecture decision"
-      ],
-      "priority": 141,
-      "target": ".claude/commands/log-decision.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_pre_commit",
-      "keywords": [
-        "pre-commit",
-        "before commit",
-        "commit check",
-        "quality check"
-      ],
-      "priority": 142,
-      "target": ".claude/commands/pre-commit-check.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_pr_ready",
-      "keywords": [
-        "pr ready",
-        "pull request ready",
-        "before pr",
-        "pr validation"
-      ],
-      "priority": 143,
-      "target": ".claude/commands/pr-ready.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_catalog",
-      "keywords": ["catalog", "list tools", "available tools", "what tools"],
-      "priority": 144,
-      "target": ".claude/commands/catalog-tooling.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_workflows",
-      "keywords": ["workflows", "which tool", "tool helper", "find command"],
-      "priority": 145,
-      "target": ".claude/commands/workflows.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_deps_audit",
-      "keywords": [
-        "dependency audit",
-        "security audit",
-        "npm audit",
-        "vulnerable"
-      ],
-      "priority": 146,
-      "target": ".claude/commands/wshobson/deps-audit.md"
-    },
-    {
-      "category": "Commands",
-      "id": "cmd_tech_debt",
-      "keywords": ["tech debt", "technical debt", "debt analysis"],
-      "priority": 147,
-      "target": ".claude/commands/wshobson/tech-debt.md"
-    },
-    {
-      "category": "Quality",
-      "id": "cheat_anti_patterns",
-      "keywords": ["anti-pattern", "bad practice", "code smell", "avoid"],
-      "priority": 150,
-      "target": "cheatsheets/anti-pattern-prevention.md"
-    },
-    {
-      "category": "Testing",
-      "id": "cheat_testing_patterns",
-      "keywords": [
-        "testing pattern",
-        "test pattern",
-        "service testing",
-        "api testing"
-      ],
-      "priority": 151,
-      "target": "cheatsheets/service-testing-patterns.md"
-    },
-    {
-      "category": "Testing",
-      "id": "cheat_testcontainers",
-      "keywords": ["testcontainer", "docker test", "integration test docker"],
-      "priority": 152,
-      "target": "cheatsheets/testcontainers-guide.md"
-    },
-    {
-      "category": "Development",
-      "id": "cheat_daily_workflow",
-      "keywords": [
-        "daily workflow",
-        "how to start",
-        "getting started",
-        "workflow"
-      ],
-      "priority": 153,
-      "target": "cheatsheets/daily-workflow.md"
-    },
-    {
-      "category": "AI Tools",
-      "id": "cheat_codex",
-      "keywords": ["codex", "codex cli", "openai codex", "consult codex"],
-      "priority": 154,
-      "target": "cheatsheets/codex-collaboration-protocol.md"
-    }
-  ],
+  "generatedAt": "2026-03-27T18:24:20.969Z",
+  "patterns": [],
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 578,
+      "ACTIVE": 563,
       "APPROVED": 1,
       "ARCHIVED": 1,
       "DRAFT": 18,
       "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
-      "HISTORICAL": 97,
+      "HISTORICAL": 95,
       "PROPOSED": 5,
       "UNKNOWN": 180,
       "VERIFIED": 9,
@@ -15132,7 +13807,7 @@
     },
     "missing_frontmatter": 101,
     "stale_docs": 224,
-    "total_docs": 899
+    "total_docs": 882
   },
   "version": "2.0"
 }

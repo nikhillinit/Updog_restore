@@ -7,7 +7,7 @@ review_cadence: P90D
 
 # Cheatsheets Index
 
-Complete reference to all 41 project cheatsheets, organized by category.
+Complete reference to all 42 project cheatsheets, organized by category.
 
 **Quick Navigation:** Use Ctrl+F / Cmd+F to search for specific topics.
 
@@ -119,11 +119,13 @@ Complete reference to all 41 project cheatsheets, organized by category.
 
 ---
 
-## Miscellaneous (2 files)
+## Miscellaneous (3 files)
 
 - **[command-summary.md](command-summary.md)** - npm scripts quick reference
 - **[pr-merge-verification.md](pr-merge-verification.md)** - Baseline test
   comparison, merge criteria
+- **[rls-cheatsheet.md](rls-cheatsheet.md)** - Multi-tenant RLS setup, tenant
+  switching, and debugging quick reference
 
 ---
 
