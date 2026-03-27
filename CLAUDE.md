@@ -61,7 +61,7 @@ log alone? If NO, write it down. If YES, do not create a file.
 - `npm run dev:api` - Backend API only (Express with hot reload)
 - `npm run build` - Production build (frontend + backend)
 - `npm run check` - TypeScript type checking
-- `npm run doctor:links` - Verify package junctions
+- `npm run doctor:quick` - Fast module resolution check
 - `npm run doctor:quick` - Fast sidecar health check
 
 ### Testing & Quality

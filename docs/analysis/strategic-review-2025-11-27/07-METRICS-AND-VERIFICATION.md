@@ -166,8 +166,8 @@ git log -1 --format="%ai %s" -- docs/sessions/SESSION-HANDOFF-2025-11-20-PHASE1-
   (lines 458-673)
 - [../../../cheatsheets/pr-merge-verification.md](../../../cheatsheets/pr-merge-verification.md) -
   ADR-014 verification workflow
-- [../../../SIDECAR_GUIDE.md](../../../SIDECAR_GUIDE.md) - Windows sidecar
-  architecture (263 lines)
+- [../../../cheatsheets/daily-workflow.md](../../../cheatsheets/daily-workflow.md) -
+  Current troubleshooting and module resolution workflow
 
 **For Future Sessions**:
 

@@ -483,12 +483,12 @@ continuous-improvement (refine)
 - [x] Multi-document synthesis across 50+ files
 - [x] Persistent sessions with context
 - [x] Rate limit management (50 queries/day, multi-account support)
-- [x] 9 active notebooks documented in [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md)
+- [x] NotebookLM workflow documented in [.claude/skills/notebooklm.md](.claude/skills/notebooklm.md)
 
 **Documentation**:
-- [cheatsheets/notebooklm-mcp-tools.md](cheatsheets/notebooklm-mcp-tools.md) - Complete tool reference
-- [cheatsheets/notebooklm-agent-integration.md](cheatsheets/notebooklm-agent-integration.md) - Integration patterns
-- [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md) - Notebook registry (9 notebooks, 70+ files)
+- [.claude/skills/notebooklm.md](.claude/skills/notebooklm.md) - NotebookLM workflow and usage guide
+- [docs/notebooklm-sources/](docs/notebooklm-sources/) - Source-grounded domain documents used with NotebookLM workflows
+- [docs/INDEX.md#domain-knowledge-notebooklm](docs/INDEX.md#domain-knowledge-notebooklm) - Current entry point for NotebookLM-backed domain knowledge
 
 ##  Slash Commands
 

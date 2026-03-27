@@ -180,8 +180,8 @@ See `.claude/WORKFLOW.md` for complete Quality Gate Protocol.
 ## Special Considerations
 
 - **Windows Development**: All commands run in PowerShell/CMD, not Git Bash
-- **Sidecar Architecture**: If Vite/tooling errors occur, check
-  `npm run doctor:links`
+- **Module Resolution**: If Vite/tooling errors occur, run
+  `npm run doctor:quick`
 - **Waterfall Updates**: Always use helpers from `client/src/lib/waterfall.ts`
 - **Schema Validation**: Cross-reference Zod schemas in `/shared` for data
   fixtures

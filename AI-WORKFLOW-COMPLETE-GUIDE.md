@@ -35,8 +35,8 @@ Modeling Platform
 
 ### Domain Specialists (2)
 
-8. **waterfall-specialist** (CRITICAL) - ALL VC carry calculations (MANDATORY for
-   waterfall)
+8. **waterfall-specialist** (CRITICAL) - ALL VC carry calculations (MANDATORY
+   for waterfall)
 9. **cohort-specialist** - Cohort analytics (future)
 
 ### Architecture & Planning (4)
@@ -60,7 +60,8 @@ Modeling Platform
 
 ### Documentation (2)
 
-20. **docs-architect** (CRITICAL) - Technical docs (8 agents -> 2,400 lines in 45 min)
+20. **docs-architect** (CRITICAL) - Technical docs (8 agents -> 2,400 lines in
+    45 min)
 21. **debug-expert** - Root cause analysis
 
 ### General Purpose (4)
@@ -153,7 +154,8 @@ await Promise.all([simplify, fix, test]);
    - Use when: Error deep in execution
    - Method: Add instrumentation, find origin
 
-6. **verification-before-completion** (CRITICAL) - Verify before claiming success
+6. **verification-before-completion** (CRITICAL) - Verify before claiming
+   success
    - Auto-activates: Before "work complete"
    - **Mandatory:** Run verification, confirm output
 
@@ -547,7 +549,7 @@ Tests failing?
 → Manual debug (remaining 10%)
 
 Build failing?
-→ npm run doctor:links (Windows check)
+-> npm run doctor:quick (module resolution check)
 → /fix-auto
 → npm run build
 
@@ -573,19 +575,19 @@ Stuck after 15 min?
  Is the task repetitive?
 
  YES → Is it well-defined?
-  
+
    YES → Is it low-risk?
-    
+
      YES → AUTOMATE (parallel if possible)
      NO → AUTOMATE WITH GATES (human checkpoints)
-  
+
    NO → Is it exploratory?
-     
+
       YES → Use agent for research, human decides
       NO → MANUAL (too vague for automation)
 
  NO → Is it high-value one-time task?
-   
+
     YES → Consider agent assistance
     NO → MANUAL (not worth setup cost)
 ```

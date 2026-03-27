@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-16
+last_updated: 2026-03-27
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2025-12-16
+Humans AND Agents **Last Updated**: 2026-03-27
 
 ---
 
@@ -26,7 +26,7 @@ Humans AND Agents **Last Updated**: 2025-12-16
 | Category                                         | When to Use                             | Primary Docs                        |
 | ------------------------------------------------ | --------------------------------------- | ----------------------------------- |
 | [Getting Started](#getting-started)              | First time setup, onboarding            | README.md                           |
-| [Development](#development)                      | Building features, coding workflows     | CLAUDE.md, CAPABILITIES.md          |
+| [Development](#development)                      | Building features, coding workflows     | CLAUDE.md, docs/INDEX.md            |
 | [Testing](#testing)                              | Running tests, fixing failures          | tests/README.md                     |
 | [Deployment](#deployment)                        | Deploying to staging/production         | scripts/README.md                   |
 | [Architecture](#architecture)                    | Design decisions, technical strategy    | DECISIONS.md                        |
@@ -37,7 +37,7 @@ Humans AND Agents **Last Updated**: 2025-12-16
 | [Domain Knowledge](#domain-knowledge-notebooklm) | VC fund modeling truth sources          | notebooklm-sources/                 |
 | [Skills & Tools](#skills--tools)                 | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md      |
 | [CI Quality Gates](#ci-quality-gates)            | Baseline validation, schema drift, perf | CLAUDE-INFRA-V4-INTEGRATION-PLAN.md |
-| [Troubleshooting](#troubleshooting)              | Debugging, common issues                | SIDECAR_GUIDE.md                    |
+| [Troubleshooting](#troubleshooting)              | Debugging, common issues                | cheatsheets/daily-workflow.md       |
 
 ---
 
@@ -45,13 +45,13 @@ Humans AND Agents **Last Updated**: 2025-12-16
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                              | Description                                                   | When to Use                                        |
-| ------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------- |
-| [README.md](../README.md)             | Project overview, tech stack, setup                           | First time setup                                   |
-| [CLAUDE.md](../CLAUDE.md)             | AI assistant guidelines, conventions                          | Before ANY AI-assisted task                        |
-| [CAPABILITIES.md](../CAPABILITIES.md) | **READ THIS FIRST**: Complete inventory of existing solutions | Before creating any todos or implementing anything |
+| Document                              | Description                                       | When to Use                  |
+| ------------------------------------- | ------------------------------------------------- | ---------------------------- |
+| [README.md](../README.md)             | Project overview, tech stack, setup               | First time setup             |
+| [CLAUDE.md](../CLAUDE.md)             | AI assistant guidelines, conventions              | Before ANY AI-assisted task  |
+| [CAPABILITIES.md](../CAPABILITIES.md) | Historical inventory of agents, tools, and skills | Historical capability lookup |
 
-**Critical Path**: CAPABILITIES.md → CLAUDE.md → README.md
+**Current Path**: CLAUDE.md -> repo search -> docs/INDEX.md -> README.md
 
 ---
 
@@ -62,7 +62,7 @@ Humans AND Agents **Last Updated**: 2025-12-16
 | Document                                                         | Description                                       | When to Use                         |
 | ---------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------- |
 | [CLAUDE.md](../CLAUDE.md)                                        | Core architecture, conventions, memory management | Every development session           |
-| [CAPABILITIES.md](../CAPABILITIES.md)                            | Existing agents, tools, functions                 | Before implementing new features    |
+| [CAPABILITIES.md](../CAPABILITIES.md)                            | Historical inventory of agents, tools, functions  | Historical capability context       |
 | [CHANGELOG.md](../CHANGELOG.md)                                  | All changes with timestamps                       | Recording changes, checking history |
 | [DECISIONS.md](../DECISIONS.md)                                  | Architectural decisions (ADRs)                    | Understanding "why" decisions       |
 | [DEVELOPMENT-TOOLING-CATALOG.md](DEVELOPMENT-TOOLING-CATALOG.md) | Complete inventory of agents, tools, scripts      | Finding the right tool for the job  |
@@ -79,18 +79,16 @@ Humans AND Agents **Last Updated**: 2025-12-16
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                   | Description                                                 | When to Use                                                  |
-| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| [tests/README.md](../tests/README.md)                                                                      | Testing strategy (Unit, Integration, E2E)                   | Writing tests, fixing test failures                          |
-| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                      | API/service test patterns, integration testing              | When writing integration tests                               |
-| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                              | Testcontainers setup and usage guide                        | Setting up Docker-based integration tests                    |
-| [FOUNDATION-HARDENING-EXECUTION-PLAN.md](../FOUNDATION-HARDENING-EXECUTION-PLAN.md)                        | v4 execution plan: 72.3% → 90%+ test pass rate              | Active sprint execution                                      |
-| [FOUNDATION-HARDENING-PLAN.md](../FOUNDATION-HARDENING-PLAN.md)                                            | Original scope documentation (superseded by execution plan) | Historical reference                                         |
-| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md) | Triage decision framework for divergence fixes              | When encountering implementation mismatches during hardening |
-| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                             | Complex refactoring registry (10+ files, architectural)     | Documenting deferred architectural work                      |
-| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)               | Analysis of 22 recent PRs, divergence patterns              | Understanding implementation parity issues                   |
-| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)   | Fee-specific divergence analysis                            | When working on fee-related code                             |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                            | PR verification baseline (74.7% pass rate)                  | Before merging PRs                                           |
+| Document                                                                                                   | Description                                             | When to Use                                                  |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| [tests/README.md](../tests/README.md)                                                                      | Testing strategy (Unit, Integration, E2E)               | Writing tests, fixing test failures                          |
+| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                      | API/service test patterns, integration testing          | When writing integration tests                               |
+| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                              | Testcontainers setup and usage guide                    | Setting up Docker-based integration tests                    |
+| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md) | Triage decision framework for divergence fixes          | When encountering implementation mismatches during hardening |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                             | Complex refactoring registry (10+ files, architectural) | Documenting deferred architectural work                      |
+| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)               | Analysis of 22 recent PRs, divergence patterns          | Understanding implementation parity issues                   |
+| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)   | Fee-specific divergence analysis                        | When working on fee-related code                             |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                            | PR verification baseline (74.7% pass rate)              | Before merging PRs                                           |
 
 **Key Commands**:
 
@@ -160,13 +158,13 @@ DECISIONS.md (2026-01-19)._
 
 **Status**: [ACTIVE] **Audience**: Agents
 
-| Document                                                                                                                            | Description                               | When to Use                         |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------- |
-| [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system         | Code review automation              |
-| [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                | Portfolio QA, Reserve Sizing        |
-| [.claude/skills/README.md](../.claude/skills/README.md)                                                                             | 21 skills catalog                         | Finding skills for workflows        |
-| [.claude/agents/PHOENIX-AGENTS.md](../.claude/agents/PHOENIX-AGENTS.md)                                                             | 9 Phoenix-specific agents                 | Phoenix project workflows           |
-| [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md](../archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md) | Archived Multi-AI collaboration prototype | Historical consensus/debate tooling |
+| Document                                                                                                                            | Description                                             | When to Use                          |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| [ai-utils/README.md](../ai-utils/README.md)                                                                                         | Memory-enabled code review system                       | Code review automation               |
+| [ai/prompt/README.md](../ai/prompt/README.md)                                                                                       | Type-safe prompt templates                              | Portfolio QA, Reserve Sizing         |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)                                                                               | 56 skills catalog                                       | Finding skills for workflows         |
+| [.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)                                                                             | Agent-facing routing, including Phoenix quick reference | Finding Phoenix agents and workflows |
+| [archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md](../archive/2026-q1/unused-code/claude_code-multi-AI-MCP/README.md) | Archived Multi-AI collaboration prototype               | Historical consensus/debate tooling  |
 
 **Key Features**:
 
@@ -293,7 +291,7 @@ parity work
 | Document                                                         | Description                                               | When to Use            |
 | ---------------------------------------------------------------- | --------------------------------------------------------- | ---------------------- |
 | [DEVELOPMENT-TOOLING-CATALOG.md](DEVELOPMENT-TOOLING-CATALOG.md) | Complete inventory (31 agents, 277 scripts, 59 MCP tools) | Finding the right tool |
-| [.claude/skills/README.md](../.claude/skills/README.md)          | 21 skills catalog                                         | Skill selection        |
+| [.claude/skills/INDEX.md](../.claude/skills/INDEX.md)            | 56 skills catalog                                         | Skill selection        |
 | [cheatsheets/](../cheatsheets/)                                  | Implementation guides                                     | How-to documentation   |
 
 **Decision Tree Priority**:
@@ -350,14 +348,14 @@ agents explain failures and recommend fixes.
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                              | Description                                  | When to Use                    |
-| ------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------ |
-| [SIDECAR_GUIDE.md](../SIDECAR_GUIDE.md)                                               | Windows sidecar architecture troubleshooting | Module resolution issues       |
-| [cheatsheets/document-review-workflow.md](../cheatsheets/document-review-workflow.md) | Document review protocol                     | Verifying documentation claims |
+| Document                                                                              | Description                      | When to Use                          |
+| ------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------ |
+| [cheatsheets/daily-workflow.md](../cheatsheets/daily-workflow.md)                     | Current troubleshooting workflow | Build, dependency, and module issues |
+| [cheatsheets/document-review-workflow.md](../cheatsheets/document-review-workflow.md) | Document review protocol         | Verifying documentation claims       |
 
 **Common Issues**:
 
-- **Module not found**: Run `npm run doctor:links`
+- **Module not found**: Run `npm run doctor:quick`
 - **Pre-commit fails**: Run `npm run doctor` then retry
 - **After npm install**: Auto-fixed by postinstall hook
 
@@ -391,7 +389,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2025-12-16 **Next Review**: 2026-01-14
+structural changes) **Last Updated**: 2026-03-27 **Next Review**: 2026-04-26
 
 **Update Triggers**:
 
