@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockDb } = vi.hoisted(() => ({
+const { mockDb, mockRunReserveCalculation, mockRunPacingCalculation } = vi.hoisted(() => ({
   mockDb: {
     query: {
       fundConfigs: {
@@ -16,6 +16,8 @@ const { mockDb } = vi.hoisted(() => ({
     transaction: vi.fn(),
     update: vi.fn(),
   },
+  mockRunReserveCalculation: vi.fn(),
+  mockRunPacingCalculation: vi.fn(),
 }));
 
 vi.mock('../../../server/db', () => ({
@@ -24,6 +26,14 @@ vi.mock('../../../server/db', () => ({
 
 vi.mock('uuid', () => ({
   v4: vi.fn(() => 'new-correlation-id'),
+}));
+
+vi.mock('../../../server/services/reserve-calculation-service', () => ({
+  runReserveCalculation: mockRunReserveCalculation,
+}));
+
+vi.mock('../../../server/services/pacing-calculation-service', () => ({
+  runPacingCalculation: mockRunPacingCalculation,
 }));
 
 import { FundPersistenceService } from '../../../server/services/fund-persistence-service';
@@ -59,9 +69,11 @@ function valuesReturning(value: unknown) {
 describe('FundPersistenceService publishDraft behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRunReserveCalculation.mockResolvedValue({ snapshotId: 501 });
+    mockRunPacingCalculation.mockResolvedValue({ snapshotId: 502 });
   });
 
-  it('marks new runs failed when no calculation queues are available', async () => {
+  it('runs authoritative calculations inline when no producer queues are available', async () => {
     const service = new FundPersistenceService();
     const draft = {
       id: 11,
@@ -83,16 +95,16 @@ describe('FundPersistenceService publishDraft behavior', () => {
       configId: 11,
       configVersion: 3,
       correlationId: 'new-correlation-id',
-      engines: ['reserve', 'pacing', 'cohort'],
+      engines: ['reserve', 'pacing'],
       dispatchState: 'pending',
       requestedAt: new Date('2026-03-22T10:00:00.000Z'),
       lastError: null,
     };
-    const failedRun = {
+    const dispatchedRun = {
       ...pendingRun,
-      dispatchState: 'failed',
-      failedAt: new Date('2026-03-22T10:00:01.000Z'),
-      lastError: 'No queue configured for cohort calculations',
+      dispatchState: 'dispatched',
+      dispatchedAt: new Date('2026-03-22T10:00:01.000Z'),
+      lastError: null,
     };
 
     const tx = {
@@ -115,13 +127,14 @@ describe('FundPersistenceService publishDraft behavior', () => {
     mockDb.transaction.mockImplementation(async (callback: (tx: typeof tx) => Promise<unknown>) =>
       callback(tx)
     );
-    mockDb.update.mockReturnValue(whereReturning([failedRun]));
+    mockDb.update.mockReturnValue(whereReturning([dispatchedRun]));
 
     const result = await service.publishDraft(1, { reserve: null, pacing: null, cohort: null }, 99);
 
-    expect(result.run.dispatchState).toBe('failed');
-    expect(result.run.lastError).toBe('No queue configured for cohort calculations');
-    expect(mockDb.update).toHaveBeenCalledTimes(1);
+    expect(result.run.dispatchState).toBe('dispatched');
+    expect(result.run.lastError).toBeNull();
+    expect(mockRunReserveCalculation).toHaveBeenCalledTimes(1);
+    expect(mockRunPacingCalculation).toHaveBeenCalledTimes(1);
   });
 
   it('re-dispatches partial runs using only missing authoritative engines', async () => {
@@ -143,12 +156,13 @@ describe('FundPersistenceService publishDraft behavior', () => {
       engines: ['reserve', 'pacing', 'cohort'],
       dispatchState: 'partial',
       requestedAt: new Date('2026-03-22T10:15:00.000Z'),
-      lastError: 'No queue configured for cohort calculations',
+      lastError: 'Inline pacing calculation failed: timeout',
     };
     const redispatchedRun = {
       ...partialRun,
       dispatchState: 'dispatched',
       dispatchedAt: new Date('2026-03-22T10:15:10.000Z'),
+      lastError: null,
     };
 
     const tx = {
@@ -191,6 +205,8 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(pacingQueue.add).toHaveBeenCalledTimes(1);
     expect(reserveQueue.add).not.toHaveBeenCalled();
     expect(cohortQueue.add).not.toHaveBeenCalled();
+    expect(mockRunReserveCalculation).not.toHaveBeenCalled();
+    expect(mockRunPacingCalculation).not.toHaveBeenCalled();
   });
 
   it('reuses the published run when a concurrent request already consumed the draft', async () => {
@@ -247,5 +263,7 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(result.run.id).toBe(existingRun.id);
     expect(txInsert).not.toHaveBeenCalled();
     expect(mockDb.update).not.toHaveBeenCalled();
+    expect(mockRunReserveCalculation).not.toHaveBeenCalled();
+    expect(mockRunPacingCalculation).not.toHaveBeenCalled();
   });
 });

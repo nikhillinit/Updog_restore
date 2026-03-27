@@ -13,11 +13,15 @@ import { funds, fundConfigs, fundEvents, calcRuns, fundSnapshots } from '@shared
 import { eq, and, max } from 'drizzle-orm';
 import type { Fund, FundConfig, CalcRun, DispatchState } from '@shared/schema/fund';
 import type { EngineResults } from '@shared/schemas/engine-results-schema';
+import {
+  AUTHORITATIVE_ENGINE_KEYS,
+  getCalculationEngineDescriptor,
+  isAuthoritativeEngineKey,
+  type AuthoritativeEngineKey,
+} from '@shared/contracts/fund-authoritative-calculations.contract';
 import type { Queue } from 'bullmq';
-
-// ============================================================================
-// Types
-// ============================================================================
+import { runReserveCalculation } from './reserve-calculation-service';
+import { runPacingCalculation } from './pacing-calculation-service';
 
 export interface CreateFundInput {
   name: string;
@@ -45,6 +49,22 @@ export interface PublishResult {
   correlationId: string;
 }
 
+interface PublishJobData {
+  fundId: number;
+  correlationId: string;
+  runId: number;
+  configId: number;
+  configVersion: number;
+}
+
+const inlineExecutionByEngine: Record<
+  AuthoritativeEngineKey,
+  (jobData: PublishJobData) => Promise<unknown>
+> = {
+  reserve: runReserveCalculation,
+  pacing: runPacingCalculation,
+};
+
 class NoPublishableDraftError extends Error {
   constructor() {
     super('No draft to publish');
@@ -57,23 +77,12 @@ class PublishDraftRaceLostError extends Error {
   }
 }
 
-// ============================================================================
-// Service
-// ============================================================================
-
 export class FundPersistenceService {
-  /**
-   * Atomically creates a fund row and its initial draft config in a single
-   * DB transaction. Prevents orphan funds that exist without any config.
-   *
-   * If configInput is omitted, inserts a minimal draft with empty config JSONB.
-   */
   async createFundWithInitialDraft(
     fundInput: CreateFundInput,
     configInput?: Record<string, unknown>
   ): Promise<CreateFundResult> {
     return await db.transaction(async (tx) => {
-      // 1. Insert funds row
       const [fund] = await tx
         .insert(funds)
         .values({
@@ -90,7 +99,6 @@ export class FundPersistenceService {
 
       if (!fund) throw new Error('Failed to insert fund row');
 
-      // 2. Insert initial draft config (version=1, isDraft=true)
       const [draft] = await tx
         .insert(fundConfigs)
         .values({
@@ -104,7 +112,6 @@ export class FundPersistenceService {
 
       if (!draft) throw new Error('Failed to insert initial draft config');
 
-      // 3. Insert FUND_CREATED audit event
       await tx.insert(fundEvents).values({
         fundId: fund.id,
         eventType: 'FUND_CREATED',
@@ -119,10 +126,6 @@ export class FundPersistenceService {
     });
   }
 
-  /**
-   * Allocates the next version number for a new draft of a given fund.
-   * Returns MAX(version) + 1, or 1 if no configs exist.
-   */
   async allocateNextVersion(fundId: number): Promise<number> {
     const [result] = await db
       .select({ maxVersion: max(fundConfigs.version) })
@@ -133,14 +136,6 @@ export class FundPersistenceService {
     return currentMax + 1;
   }
 
-  /**
-   * Publish a fund's active draft with calcRun tracking and deterministic jobIds.
-   *
-   * 1. Idempotency check: if no draft but a pending/partial run exists, re-dispatch.
-   * 2. Transaction: unpublish old head, publish draft, insert calcRun + events.
-   * 3. After commit: dispatch queue jobs with deterministic jobIds.
-   * 4. Update dispatchState based on queue outcomes.
-   */
   async publishDraft(
     fundId: number,
     queues: PublishQueues,
@@ -148,7 +143,7 @@ export class FundPersistenceService {
   ): Promise<PublishResult> {
     const { v4: generateUuid } = await import('uuid');
     const correlationId = generateUuid();
-    const engines = ['reserve', 'pacing', 'cohort'];
+    const engines = [...AUTHORITATIVE_ENGINE_KEYS];
 
     try {
       const created = await db.transaction(async (tx) => {
@@ -242,10 +237,6 @@ export class FundPersistenceService {
     }
   }
 
-  /**
-   * Dispatch calculation jobs with deterministic jobIds.
-   * BullMQ natively rejects duplicate jobIds, making re-dispatch idempotent.
-   */
   private async dispatchCalcJobs(
     run: CalcRun,
     queues: PublishQueues,
@@ -259,7 +250,7 @@ export class FundPersistenceService {
       return run;
     }
 
-    const jobData = {
+    const jobData: PublishJobData = {
       fundId: run.fundId,
       correlationId: run.correlationId,
       runId: run.id,
@@ -284,24 +275,41 @@ export class FundPersistenceService {
 
     for (const engine of targetEngines) {
       const queue = queueByEngine[engine] ?? null;
-      if (!queue) {
-        failed++;
-        lastError = `No queue configured for ${engine} calculations`;
-        continue;
+      if (queue) {
+        try {
+          const jobId = `run:${run.id}:${engine}`;
+          await queue.add('calculate', jobData, { ...jobOptions, jobId });
+          dispatched++;
+          continue;
+        } catch (err) {
+          failed++;
+          lastError = err instanceof Error ? err.message : String(err);
+          console.error(`Failed to dispatch ${engine} job for run ${run.id}:`, err);
+          continue;
+        }
       }
 
-      try {
-        const jobId = `run:${run.id}:${engine}`;
-        await queue.add('calculate', jobData, { ...jobOptions, jobId });
-        dispatched++;
-      } catch (err) {
-        failed++;
-        lastError = err instanceof Error ? err.message : String(err);
-        console.error(`Failed to dispatch ${engine} job for run ${run.id}:`, err);
+      if (isAuthoritativeEngineKey(engine)) {
+        const descriptor = getCalculationEngineDescriptor(engine);
+        if (descriptor.syncCapable) {
+          try {
+            await inlineExecutionByEngine[engine](jobData);
+            dispatched++;
+            continue;
+          } catch (err) {
+            failed++;
+            const detail = err instanceof Error ? err.message : String(err);
+            lastError = `Inline ${engine} calculation failed: ${detail}`;
+            console.error(`Failed inline ${engine} calculation for run ${run.id}:`, err);
+            continue;
+          }
+        }
       }
+
+      failed++;
+      lastError = `No execution path configured for ${engine} calculations`;
     }
 
-    // Update dispatch state
     let newState: DispatchState;
     if (failed === 0 && dispatched > 0) {
       newState = 'dispatched';
@@ -368,9 +376,13 @@ export class FundPersistenceService {
   private async getDispatchTargets(
     run: CalcRun,
     redispatchExistingRun: boolean
-  ): Promise<string[]> {
+  ): Promise<AuthoritativeEngineKey[]> {
+    const runEngines = run.engines.filter((engine): engine is AuthoritativeEngineKey =>
+      isAuthoritativeEngineKey(engine)
+    );
+
     if (!redispatchExistingRun || run.dispatchState !== 'partial') {
-      return run.engines;
+      return [...runEngines];
     }
 
     const snapshots = await db.query.fundSnapshots.findMany({
@@ -381,16 +393,11 @@ export class FundPersistenceService {
     });
 
     const snapshotTypes = new Set(snapshots.map((snapshot) => snapshot.type));
-    const targets: string[] = [];
 
-    if (run.engines.includes('reserve') && !snapshotTypes.has('RESERVE')) {
-      targets.push('reserve');
-    }
-    if (run.engines.includes('pacing') && !snapshotTypes.has('PACING')) {
-      targets.push('pacing');
-    }
-
-    return targets;
+    return runEngines.filter((engine) => {
+      const descriptor = getCalculationEngineDescriptor(engine);
+      return !snapshotTypes.has(descriptor.snapshotType);
+    });
   }
 }
 

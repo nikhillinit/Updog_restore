@@ -23,6 +23,7 @@ const require = createRequire(import.meta.url);
 // Detect test environment
 const isVitest = process.env['VITEST'] === 'true';
 const isTest = process.env['NODE_ENV'] === 'test' || isVitest;
+const useRealDbInVitest = process.env['USE_REAL_DB_IN_VITEST'] === '1';
 
 // Detect if running on Vercel
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
@@ -32,7 +33,7 @@ let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
 
 // Use mock database in test environment
-if (isTest) {
+if (isTest && !useRealDbInVitest) {
   // Import the database mock for testing
   const vitestMockPath = '../tests/helpers/database-mock';
   const mockModule = (

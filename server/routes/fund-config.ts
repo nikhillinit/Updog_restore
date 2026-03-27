@@ -255,7 +255,7 @@ export function registerFundConfigRoutes(app: Express) {
       res['json']({
         success: true,
         data: result.published,
-        message: 'Configuration published and calculations queued',
+        message: 'Configuration published and calculations started',
         correlationId: result.correlationId,
         runId: result.run.id,
         dispatchState: result.run.dispatchState,

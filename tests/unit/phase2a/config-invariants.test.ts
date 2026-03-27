@@ -104,10 +104,10 @@ describe('Worker queue names match registry', () => {
 // Item 3: Reserve snapshot includes snapshotTime
 // ============================================================================
 
-describe('Reserve worker snapshotTime', () => {
-  it('reserve worker insert includes snapshotTime field', async () => {
+describe('Reserve/pacing calculation service snapshotTime', () => {
+  it('reserve calculation service insert includes snapshotTime field', async () => {
     const workerSource = await import('fs/promises').then((fs) =>
-      fs.readFile('workers/reserve-worker.ts', 'utf-8')
+      fs.readFile('server/services/reserve-calculation-service.ts', 'utf-8')
     );
     // The insert values block must include snapshotTime
     expect(workerSource).toContain('snapshotTime');
@@ -115,9 +115,9 @@ describe('Reserve worker snapshotTime', () => {
     expect(workerSource).toMatch(/snapshotTime:\s*new Date\(\)/);
   });
 
-  it('pacing worker already had snapshotTime', async () => {
+  it('pacing calculation service insert includes snapshotTime field', async () => {
     const workerSource = await import('fs/promises').then((fs) =>
-      fs.readFile('workers/pacing-worker.ts', 'utf-8')
+      fs.readFile('server/services/pacing-calculation-service.ts', 'utf-8')
     );
     expect(workerSource).toMatch(/snapshotTime:\s*new Date\(\)/);
   });
