@@ -1075,9 +1075,9 @@
       "docType": "command",
       "exists": true,
       "frontmatter": {
-        "allowed-tools": "Read, Write, Edit, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(npm test:*), Bash(npm run phoenix:*)",
-        "argument-hint": "[goal] seed=<int> iters=<int> scenario=<name> focus=<graduation|moic|reserves|monte-carlo>",
-        "description": "Phase 2 workflow: validate Expectation Mode, run seeded Monte Carlo, summarize distributions",
+        "'Phase 2 workflow": "validate Expectation Mode, run seeded Monte Carlo,",
+        "Read, Write, Edit, Grep, Glob, Bash(git status": "*), Bash(git diff:*), Bash(git",
+        "branch": "*), Bash(npm test:*), Bash(npm run phoenix:*)",
         "disable-model-invocation": true
       },
       "hasExecutionClaims": false,
@@ -5171,10 +5171,10 @@
           "catalog"
         ],
         "last_updated": "2025-12-12",
-        "owner": "Core Team",
+        "owner": "'Core Team'",
         "priority": 2,
-        "review_cadence": "P90D",
-        "route_hint": "Complete inventory of AI tools and automation.",
+        "review_cadence": "'P90D'",
+        "route_hint": "'Complete inventory of AI tools and automation.'",
         "source_of_truth": true,
         "status": "ACTIVE",
         "use_cases": ["tool_discovery", "agent_selection"]
@@ -5182,7 +5182,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-12",
-      "owner": "Core Team",
+      "owner": "'Core Team'",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
       "staleDays": 105,
       "status": "ACTIVE"
@@ -9435,54 +9435,6 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-26-entropy-reduction-integrated.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-26-entropy-reduction/findings.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-26-entropy-reduction/progress.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-26-entropy-reduction/task_plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {
         "last_updated": "2026-03-27",
         "status": "ACTIVE"
@@ -12591,7 +12543,7 @@
       "status": "HISTORICAL"
     }
   ],
-  "generatedAt": "2026-03-27T19:35:30.047Z",
+  "generatedAt": "2026-03-27T20:04:39.604Z",
   "patterns": [],
   "stats": {
     "by_status": {
@@ -12601,14 +12553,14 @@
       "DRAFT": 18,
       "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
       "HISTORICAL": 61,
-      "UNKNOWN": 173,
+      "UNKNOWN": 169,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 94,
-    "stale_docs": 217,
-    "total_docs": 801
+    "missing_frontmatter": 90,
+    "stale_docs": 213,
+    "total_docs": 797
   },
   "version": "2.0"
 }
