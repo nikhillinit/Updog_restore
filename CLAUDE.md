@@ -1,12 +1,13 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-27
 ---
 
 # CLAUDE.md
 
-**CRITICAL: Read CAPABILITIES.md FIRST before ANY task to check for existing
-solutions!**
+**Start here:** Read this file first, then use repo search plus `docs/INDEX.md`
+and `.claude/DISCOVERY-MAP.md` to find existing solutions. Consult
+`CAPABILITIES.md` only as a historical inventory.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with
 code in this repository.
@@ -25,6 +26,30 @@ architecture—so you get the rigor and repeatability of programmatic models, pl
 easy-to-extend engines for new calculations. This single file points you at the
 CHANGELOG for "what changed," DECISIONS for "why we chose it," and focused
 cheatsheets for testing, APIs, and UI conventions.
+
+## Documentation Governance
+
+**PRUNE by default** - do not create:
+
+- Session artifacts (progress logs, handoff docs, session summaries)
+- Navigation docs (indexes, capability catalogs, routing tables)
+- Capability inventories that can be derived from code and active docs
+
+**PRESERVE and CREATE** - these are institutional memory:
+
+- REFLs for debugging learnings (`docs/skills/REFL-NNN-*.md`)
+- ADR entries in `DECISIONS.md` for architectural rationale
+- Memory entries for non-derivable gotchas
+- Domain docs when business logic cannot be inferred from code
+
+**Derivability test:** Could a future session reconstruct this from code and git
+log alone? If NO, write it down. If YES, do not create a file.
+
+**Key references** (consult as needed, not mandatory pre-reads):
+
+- `CHANGELOG.md` - recent changes
+- `DECISIONS.md` - architectural rationale
+- `cheatsheets/daily-workflow.md` - development patterns
 
 ## Essential Commands
 
@@ -64,37 +89,40 @@ cheatsheets for testing, APIs, and UI conventions.
 - **PR Verification**: Compare to baseline, not perfection - See
   [cheatsheets/pr-merge-verification.md](cheatsheets/pr-merge-verification.md)
 
-## MANDATORY WORKFLOW - CHECK THESE FIRST
+## MANDATORY WORKFLOW - START HERE
 
-1. **CAPABILITIES.md** - ALWAYS READ FIRST before creating any todos or
-   implementing anything
-2. **docs/INDEX.md** - Central routing table for all documentation (NEW)
-3. **CHANGELOG.md** - Check for similar past work
-4. **DECISIONS.md** - Review architectural decisions
-5. **cheatsheets/** - Detailed implementation guides
+1. **CLAUDE.md** - Current operating guidance and governance
+2. **Repo search** - Check for existing code, commands, skills, and docs
+3. **docs/INDEX.md** - Human-facing documentation routing
+4. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
+5. **CHANGELOG.md** - Check for similar past work
+6. **DECISIONS.md** - Review architectural decisions
+7. **CAPABILITIES.md** - Historical inventory only, if helpful
 
 ## BEFORE ANY TASK
 
 ```
-STOP! Have you checked CAPABILITIES.md for existing solutions?
-- If NO: Read it now
-- If YES: Use existing agents/tools in your todo list
+START HERE:
+- Read CLAUDE.md
+- Search the repo for existing implementations
+- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
+- Consult CAPABILITIES.md only if historical inventory context helps
 ```
 
 ## Discovery Routing (Quick Reference)
 
 For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 
-| Task Type                       | Route To                           |
-| ------------------------------- | ---------------------------------- |
-| New feature/capability          | CAPABILITIES.md first              |
-| Phoenix validation              | `/phoenix-truth` command           |
-| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command          |
-| Waterfall/clawback issues       | `waterfall-specialist` agent       |
-| Precision/numeric drift         | `phoenix-precision-guardian` agent |
-| XIRR/fees issues                | `xirr-fees-validator` agent        |
-| Architecture decisions          | DECISIONS.md                       |
-| Troubleshooting                 | cheatsheets/daily-workflow.md      |
+| Task Type                       | Route To                                  |
+| ------------------------------- | ----------------------------------------- |
+| New feature/capability          | CLAUDE.md -> repo search -> docs/INDEX.md |
+| Phoenix validation              | `/phoenix-truth` command                  |
+| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command                 |
+| Waterfall/clawback issues       | `waterfall-specialist` agent              |
+| Precision/numeric drift         | `phoenix-precision-guardian` agent        |
+| XIRR/fees issues                | `xirr-fees-validator` agent               |
+| Architecture decisions          | DECISIONS.md                              |
+| Troubleshooting                 | cheatsheets/daily-workflow.md             |
 
 **Machine-readable index**: `docs/_generated/router-index.json` **Staleness
 report**: `docs/_generated/staleness-report.md` **Regenerate**:
@@ -109,7 +137,7 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 - **Superpowers**: `/superpowers:brainstorm`, `/superpowers:write-plan`,
   `/superpowers:execute-plan` - See
   [obra/superpowers](https://github.com/obra/superpowers)
-- **Skills**: 28 auto-activating skills - See [CAPABILITIES.md](CAPABILITIES.md)
+- **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
 ## Architecture
 

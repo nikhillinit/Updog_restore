@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-27
 ---
 
 # Claude Code Standard Workflow
@@ -8,16 +8,19 @@ last_updated: 2026-01-19
 ## MANDATORY FIRST STEP (Before ANY Task)
 
 ```
-1. Read CAPABILITIES.md
-2. Identify existing solutions
-3. Check CHANGELOG for similar past work
+1. Read CLAUDE.md
+2. Search the repo for existing solutions
+3. Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
+4. Check CHANGELOG for similar past work
+5. Consult CAPABILITIES.md only if historical inventory helps
 ```
 
-## Task Workflow (After Capability Check)
+## Task Workflow (After Discovery Check)
 
 ### Phase 1: Informed Planning
 
-1. **Check capabilities** - What tools already exist for this?
+1. **Check the current surface** - What code, docs, commands, skills, or agents
+   already exist for this?
 2. **Create informed TodoWrite** - Tasks that USE existing tools
 3. **Verify approach** - Would existing agents handle this better?
 
@@ -31,26 +34,28 @@ last_updated: 2026-01-19
 ## NEVER DO THIS:
 
 - Create todos to build things that already exist
-- Skip checking CAPABILITIES.md
-- Implement from scratch without checking
+- Skip repo search and routing docs
+- Implement from scratch without checking the current surface
 - Ignore existing agents
 
 ## ALWAYS DO THIS:
 
-- Check CAPABILITIES.md FIRST
+- Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md
 - Use existing agents via Task tool
 - Run agents in parallel when possible
-- Update CAPABILITIES.md when adding new tools
+- Update discovery docs when adding durable tools or workflows
 
 ## Example Workflow
 
 **User Request:** "Analyze our fund's performance"
 
-**Step 1: Check Capabilities**
+**Step 1: Check Current Surface**
 
 ```
-Read CAPABILITIES.md
-Found: waterfall-specialist, test-automator, perf-guard
+Read CLAUDE.md
+Search repo for existing report flows
+Check docs/INDEX.md and .claude/DISCOVERY-MAP.md
+Found: waterfall-specialist, docs-architect, existing reporting docs
 ```
 
 **Step 2: Create Informed Todos**

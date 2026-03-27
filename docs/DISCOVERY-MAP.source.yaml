@@ -3,8 +3,8 @@
 # Generator: scripts/generate-discovery-map.ts
 # Output: docs/_generated/router-index.json, docs/_generated/staleness-report.md
 
-version: "2.0"
-generated_at: null  # Filled by generator
+version: '2.0'
+generated_at: null # Filled by generator
 
 # =============================================================================
 # CONFIGURATION
@@ -18,35 +18,35 @@ configuration:
 
   # Paths to scan for documentation
   scan_paths:
-    - "*.md"              # Root-level docs (CAPABILITIES.md, etc.)
-    - "docs/*.md"         # Top-level docs/ files (INDEX.md, etc.)
-    - "docs/**/*.md"      # Nested docs/ subdirectories
-    - "docs/notebooklm-sources/**/*.md"  # Domain knowledge truth sources
-    - "docs/adr/*.md"     # Architecture Decision Records
-    - "docs/runbooks/*.md"        # Operational runbooks
-    - "docs/observability/*.md"   # Metrics and monitoring
-    - "docs/chaos-engineering/*.md"  # Chaos testing
-    - "docs/wizard/*.md"          # Wizard implementation
-    - "docs/forecasting/*.md"     # Monte Carlo, power law
-    - "cheatsheets/**/*.md"
-    - ".claude/agents/*.md"
-    - ".claude/skills/**/*.md"
-    - ".claude/commands/*.md"
+    - '*.md' # Root-level docs (CAPABILITIES.md, etc.)
+    - 'docs/*.md' # Top-level docs/ files (INDEX.md, etc.)
+    - 'docs/**/*.md' # Nested docs/ subdirectories
+    - 'docs/notebooklm-sources/**/*.md' # Domain knowledge truth sources
+    - 'docs/adr/*.md' # Architecture Decision Records
+    - 'docs/runbooks/*.md' # Operational runbooks
+    - 'docs/observability/*.md' # Metrics and monitoring
+    - 'docs/chaos-engineering/*.md' # Chaos testing
+    - 'docs/wizard/*.md' # Wizard implementation
+    - 'docs/forecasting/*.md' # Monte Carlo, power law
+    - 'cheatsheets/**/*.md'
+    - '.claude/agents/*.md'
+    - '.claude/skills/**/*.md'
+    - '.claude/commands/*.md'
 
   # Exclude patterns
   exclude_paths:
-    - "docs/_generated/**"
-    - "docs/archive/**"
-    - "**/node_modules/**"
+    - 'docs/_generated/**'
+    - 'docs/archive/**'
+    - '**/node_modules/**'
 
   # Generic terms that need additional context (don't route on these alone)
   generic_terms:
-    - "test"
-    - "error"
-    - "fix"
-    - "update"
-    - "change"
-    - "help"
+    - 'test'
+    - 'error'
+    - 'fix'
+    - 'update'
+    - 'change'
+    - 'help'
 
 # =============================================================================
 # DECISION TREE (Q0-Q6)
@@ -54,94 +54,94 @@ configuration:
 # =============================================================================
 decision_tree:
   Q0:
-    id: "risk_check"
-    question: "Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?"
+    id: 'risk_check'
+    question: 'Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?'
     condition:
       or:
-        - field: "risk_level"
-          equals: "high"
-        - field: "status"
-          not_equals: "ACTIVE"
-    action_if_true: "REQUIRE_EVIDENCE_CHECK"
-    action_if_false: "CONTINUE"
-    next: "Q1"
+        - field: 'risk_level'
+          equals: 'high'
+        - field: 'status'
+          not_equals: 'ACTIVE'
+    action_if_true: 'REQUIRE_EVIDENCE_CHECK'
+    action_if_false: 'CONTINUE'
+    next: 'Q1'
 
   Q1:
-    id: "capability_check"
-    question: "Does this involve implementing something NEW?"
-    keywords: ["implement", "create", "add", "build", "new feature"]
+    id: 'capability_check'
+    question: 'Does this involve implementing something NEW?'
+    keywords: ['implement', 'create', 'add', 'build', 'new feature']
     action_if_true:
-      route: "CAPABILITIES.md"
-      message: "Check existing solutions before building"
-    action_if_false: "CONTINUE"
-    next: "Q2"
+      route: 'CLAUDE.md'
+      message: 'Start with CLAUDE.md, then use repo search plus docs/INDEX.md and .claude/DISCOVERY-MAP.md before consulting CAPABILITIES historical inventory'
+    action_if_false: 'CONTINUE'
+    next: 'Q2'
 
   Q2:
-    id: "phoenix_check"
-    question: "Is this a Phoenix project task?"
-    keywords: ["phoenix", "truth case", "xirr", "waterfall", "fees", "capital", "recycling"]
+    id: 'phoenix_check'
+    question: 'Is this a Phoenix project task?'
+    keywords: ['phoenix', 'truth case', 'xirr', 'waterfall', 'fees', 'capital', 'recycling']
     action_if_true:
-      route: "docs/PHOENIX-SOT/README.md"
+      route: 'docs/PHOENIX-SOT/README.md'
       sub_routing:
-        - condition: "deterministic validation"
-          route: "/phoenix-truth"
-        - condition: "phase 2 OR probabilistic OR monte carlo"
-          route: "/phoenix-phase2"
-        - condition: "distribution report"
-          route: "/phoenix-prob-report"
-    action_if_false: "CONTINUE"
-    next: "Q3"
+        - condition: 'deterministic validation'
+          route: '/phoenix-truth'
+        - condition: 'phase 2 OR probabilistic OR monte carlo'
+          route: '/phoenix-phase2'
+        - condition: 'distribution report'
+          route: '/phoenix-prob-report'
+    action_if_false: 'CONTINUE'
+    next: 'Q3'
 
   Q3:
-    id: "decision_check"
-    question: "Is this about understanding WHY a decision was made?"
-    keywords: ["why", "decision", "rationale", "adr", "architecture decision"]
+    id: 'decision_check'
+    question: 'Is this about understanding WHY a decision was made?'
+    keywords: ['why', 'decision', 'rationale', 'adr', 'architecture decision']
     action_if_true:
-      route: "DECISIONS.md"
-    action_if_false: "CONTINUE"
-    next: "Q4"
+      route: 'DECISIONS.md'
+    action_if_false: 'CONTINUE'
+    next: 'Q4'
 
   Q4:
-    id: "history_check"
-    question: "Is this about recent changes or history?"
-    keywords: ["changed", "history", "changelog", "recent", "update"]
+    id: 'history_check'
+    question: 'Is this about recent changes or history?'
+    keywords: ['changed', 'history', 'changelog', 'recent', 'update']
     action_if_true:
-      route: "CHANGELOG.md"
-    action_if_false: "CONTINUE"
-    next: "Q5"
+      route: 'CHANGELOG.md'
+    action_if_false: 'CONTINUE'
+    next: 'Q5'
 
   Q5:
-    id: "category_routing"
-    question: "Which category does this fall into?"
+    id: 'category_routing'
+    question: 'Which category does this fall into?'
     branches:
       development:
-        keywords: ["develop", "code", "implement", "feature"]
-        route: "docs/INDEX.md"
+        keywords: ['develop', 'code', 'implement', 'feature']
+        route: 'docs/INDEX.md'
       testing:
-        keywords: ["test", "spec", "coverage", "jest", "vitest"]
-        route: "docs/INDEX.md#testing"
+        keywords: ['test', 'spec', 'coverage', 'jest', 'vitest']
+        route: 'docs/INDEX.md#testing'
       deployment:
-        keywords: ["deploy", "prod", "release", "ci", "cd"]
-        route: "docs/workflows/PRODUCTION_SCRIPTS.md"
+        keywords: ['deploy', 'prod', 'release', 'ci', 'cd']
+        route: 'docs/workflows/PRODUCTION_SCRIPTS.md'
       troubleshooting:
-        keywords: ["error", "debug", "fix", "broken", "issue"]
-        route: "docs/INDEX.md"
-    default_route: "docs/INDEX.md"
-    next: "Q6"
+        keywords: ['error', 'debug', 'fix', 'broken', 'issue']
+        route: 'docs/INDEX.md'
+    default_route: 'docs/INDEX.md'
+    next: 'Q6'
 
   Q6:
-    id: "staleness_check"
-    question: "Is the target document potentially stale?"
+    id: 'staleness_check'
+    question: 'Is the target document potentially stale?'
     condition:
       and:
-        - field: "age_days"
+        - field: 'age_days'
           greater_than: 30
-        - field: "contains_execution_claims"
+        - field: 'contains_execution_claims'
           equals: true
     action_if_true:
-      warning: "Document may be stale - apply Document Review Protocol"
-      route: "cheatsheets/document-review-workflow.md"
-    action_if_false: "PROCEED"
+      warning: 'Document may be stale - apply Document Review Protocol'
+      route: 'cheatsheets/document-review-workflow.md'
+    action_if_false: 'PROCEED'
 
 # =============================================================================
 # PATTERN ROUTING RULES
@@ -149,1079 +149,1079 @@ decision_tree:
 # =============================================================================
 patterns:
   # --- Security (highest priority - always check first) ---
-  - id: "security"
+  - id: 'security'
     priority: 5
-    category: "Security"
+    category: 'Security'
     keywords:
-      - "secret"
-      - "key"
-      - "token"
-      - "password"
-      - "auth"
-      - "security"
-      - "credential"
-      - "env"
-    target: "SECURITY.md"
-    warning: "Security-sensitive operation - verify permissions"
+      - 'secret'
+      - 'key'
+      - 'token'
+      - 'password'
+      - 'auth'
+      - 'security'
+      - 'credential'
+      - 'env'
+    target: 'SECURITY.md'
+    warning: 'Security-sensitive operation - verify permissions'
 
   # --- Phoenix System (domain-specific, high priority) ---
-  - id: "phoenix_truth"
+  - id: 'phoenix_truth'
     priority: 10
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "truth case"
-      - "validation"
-      - "deterministic"
-      - "pass rate"
-      - "baseline"
-    target: ".claude/commands/phoenix-truth.md"
-    command: "/phoenix-truth"
+      - 'truth case'
+      - 'validation'
+      - 'deterministic'
+      - 'pass rate'
+      - 'baseline'
+    target: '.claude/commands/phoenix-truth.md'
+    command: '/phoenix-truth'
 
-  - id: "phoenix_phase2"
+  - id: 'phoenix_phase2'
     priority: 11
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "monte carlo"
-      - "probabilistic"
-      - "expectation mode"
-      - "seeded"
-      - "distribution"
-      - "phase 2"
-    target: ".claude/commands/phoenix-phase2.md"
-    command: "/phoenix-phase2"
-    gate: "deterministic_must_pass"
+      - 'monte carlo'
+      - 'probabilistic'
+      - 'expectation mode'
+      - 'seeded'
+      - 'distribution'
+      - 'phase 2'
+    target: '.claude/commands/phoenix-phase2.md'
+    command: '/phoenix-phase2'
+    gate: 'deterministic_must_pass'
 
-  - id: "phoenix_waterfall"
+  - id: 'phoenix_waterfall'
     priority: 12
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "waterfall"
-      - "clawback"
-      - "carry"
-      - "ledger"
-      - "tier"
-      - "gp"
-      - "lp"
-    target: ".claude/agents/waterfall-specialist.md"
-    agent: "waterfall-specialist"
+      - 'waterfall'
+      - 'clawback'
+      - 'carry'
+      - 'ledger'
+      - 'tier'
+      - 'gp'
+      - 'lp'
+    target: '.claude/agents/waterfall-specialist.md'
+    agent: 'waterfall-specialist'
 
-  - id: "phoenix_precision"
+  - id: 'phoenix_precision'
     priority: 13
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "precision"
-      - "parseFloat"
-      - "decimal"
-      - "numeric drift"
-      - "rounding"
-    target: ".claude/agents/phoenix-precision-guardian.md"
-    agent: "phoenix-precision-guardian"
+      - 'precision'
+      - 'parseFloat'
+      - 'decimal'
+      - 'numeric drift'
+      - 'rounding'
+    target: '.claude/agents/phoenix-precision-guardian.md'
+    agent: 'phoenix-precision-guardian'
 
-  - id: "phoenix_xirr"
+  - id: 'phoenix_xirr'
     priority: 14
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "xirr"
-      - "irr"
-      - "fees"
-      - "management fee"
-      - "carry fee"
-    target: ".claude/agents/xirr-fees-validator.md"
-    agent: "xirr-fees-validator"
+      - 'xirr'
+      - 'irr'
+      - 'fees'
+      - 'management fee'
+      - 'carry fee'
+    target: '.claude/agents/xirr-fees-validator.md'
+    agent: 'xirr-fees-validator'
 
-  - id: "phoenix_allocation"
+  - id: 'phoenix_allocation'
     priority: 15
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "capital allocation"
-      - "exit recycling"
-      - "deployment"
-      - "stage allocation"
-    target: ".claude/agents/phoenix-capital-allocation-analyst.md"
-    agent: "phoenix-capital-allocation-analyst"
+      - 'capital allocation'
+      - 'exit recycling'
+      - 'deployment'
+      - 'stage allocation'
+    target: '.claude/agents/phoenix-capital-allocation-analyst.md'
+    agent: 'phoenix-capital-allocation-analyst'
 
   # --- Domain Knowledge (NotebookLM Sources) ---
-  - id: "domain_knowledge"
+  - id: 'domain_knowledge'
     priority: 16
-    category: "Domain Knowledge"
+    category: 'Domain Knowledge'
     keywords:
-      - "domain knowledge"
-      - "vc modeling"
-      - "fund calculations"
-      - "notebooklm"
-      - "truth source"
-      - "canonical"
-    target: "docs/notebooklm-sources/"
-    message: "85K words of domain truth - XIRR, Waterfall, Fees, Capital, Reserves, Pacing, Cohorts, Monte Carlo"
+      - 'domain knowledge'
+      - 'vc modeling'
+      - 'fund calculations'
+      - 'notebooklm'
+      - 'truth source'
+      - 'canonical'
+    target: 'docs/notebooklm-sources/'
+    message: '85K words of domain truth - XIRR, Waterfall, Fees, Capital, Reserves, Pacing, Cohorts, Monte Carlo'
 
-  - id: "phoenix_engines"
+  - id: 'phoenix_engines'
     priority: 17
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "reserve engine"
-      - "pacing engine"
-      - "cohort engine"
-      - "reserves"
-      - "pacing"
-      - "cohorts"
-    target: "docs/notebooklm-sources/"
-    message: "Phase 2 engine documentation (complete Nov 6, 2025)"
+      - 'reserve engine'
+      - 'pacing engine'
+      - 'cohort engine'
+      - 'reserves'
+      - 'pacing'
+      - 'cohorts'
+    target: 'docs/notebooklm-sources/'
+    message: 'Phase 2 engine documentation (complete Nov 6, 2025)'
 
   # --- ADRs (Additional Architecture Decisions) ---
-  - id: "adr_directory"
+  - id: 'adr_directory'
     priority: 18
-    category: "Architecture"
+    category: 'Architecture'
     keywords:
-      - "adr"
-      - "architecture decision"
-      - "mem0"
-      - "stage normalization"
-      - "token budgeting"
-      - "streaming"
-    target: "docs/adr/"
-    message: "12 ADRs: Monte Carlo validation, mem0 integration, stage normalization, etc."
+      - 'adr'
+      - 'architecture decision'
+      - 'mem0'
+      - 'stage normalization'
+      - 'token budgeting'
+      - 'streaming'
+    target: 'docs/adr/'
+    message: '12 ADRs: Monte Carlo validation, mem0 integration, stage normalization, etc.'
 
   # --- Truth Case Schemas ---
-  - id: "truth_schemas"
+  - id: 'truth_schemas'
     priority: 19
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "schema"
-      - "json schema"
-      - "truth case schema"
-      - "validation schema"
-    target: "docs/schemas/"
-    message: "5 JSON schemas for truth case validation (XIRR, waterfall, fees, capital, recycling)"
+      - 'schema'
+      - 'json schema'
+      - 'truth case schema'
+      - 'validation schema'
+    target: 'docs/schemas/'
+    message: '5 JSON schemas for truth case validation (XIRR, waterfall, fees, capital, recycling)'
 
   # --- Core Capabilities ---
-  - id: "capabilities"
+  - id: 'capabilities'
     priority: 20
-    category: "Capabilities"
+    category: 'Capabilities'
     keywords:
-      - "capability"
-      - "feature"
-      - "existing solution"
-      - "already built"
-      - "what can"
-    target: "CAPABILITIES.md"
-    message: "Check here FIRST before building anything new"
+      - 'capability'
+      - 'feature'
+      - 'existing solution'
+      - 'already built'
+      - 'what can'
+    target: 'CAPABILITIES.md'
+    message: 'Historical capability inventory. Start current routing from CLAUDE.md and docs/INDEX.md'
 
   # --- Production & Deployment ---
-  - id: "production"
+  - id: 'production'
     priority: 30
-    category: "Production"
+    category: 'Production'
     keywords:
-      - "deploy"
-      - "release"
-      - "prod"
-      - "production"
-      - "rollout"
-      - "shipping"
-    target: "docs/workflows/PRODUCTION_SCRIPTS.md"
+      - 'deploy'
+      - 'release'
+      - 'prod'
+      - 'production'
+      - 'rollout'
+      - 'shipping'
+    target: 'docs/workflows/PRODUCTION_SCRIPTS.md'
 
-  - id: "ci_cd"
+  - id: 'ci_cd'
     priority: 31
-    category: "CI/CD"
+    category: 'CI/CD'
     keywords:
-      - "ci"
-      - "cd"
-      - "github actions"
-      - "workflow"
-      - "pipeline"
-    target: "docs/workflows/README.md"
+      - 'ci'
+      - 'cd'
+      - 'github actions'
+      - 'workflow'
+      - 'pipeline'
+    target: 'docs/workflows/README.md'
 
   # --- Testing ---
-  - id: "testing"
+  - id: 'testing'
     priority: 40
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "test"
-      - "unit test"
-      - "integration"
-      - "e2e"
-      - "jest"
-      - "vitest"
-      - "coverage"
-    target: "docs/INDEX.md"
+      - 'test'
+      - 'unit test'
+      - 'integration'
+      - 'e2e'
+      - 'jest'
+      - 'vitest'
+      - 'coverage'
+    target: 'docs/INDEX.md'
     commands:
-      - "/test-smart"
-      - "/fix-auto"
+      - '/test-smart'
+      - '/fix-auto'
 
   # --- Database ---
-  - id: "database"
+  - id: 'database'
     priority: 50
-    category: "Database"
+    category: 'Database'
     keywords:
-      - "database"
-      - "db"
-      - "sql"
-      - "migration"
-      - "schema"
-      - "postgres"
-      - "drizzle"
-    target: "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
-    agent: "database-expert"
+      - 'database'
+      - 'db'
+      - 'sql'
+      - 'migration'
+      - 'schema'
+      - 'postgres'
+      - 'drizzle'
+    target: 'docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md'
+    agent: 'database-expert'
 
   # --- Memory Systems ---
-  - id: "memory"
+  - id: 'memory'
     priority: 60
-    category: "Memory"
+    category: 'Memory'
     keywords:
-      - "memory"
-      - "context"
-      - "vector"
-      - "embedding"
-      - "semantic search"
-      - "pgvector"
-    target: "docs/INDEX.md"
+      - 'memory'
+      - 'context'
+      - 'vector'
+      - 'embedding'
+      - 'semantic search'
+      - 'pgvector'
+    target: 'docs/INDEX.md'
 
   # --- AI Tools ---
-  - id: "ai_tools"
+  - id: 'ai_tools'
     priority: 70
-    category: "AI Tools"
+    category: 'AI Tools'
     keywords:
-      - "ai"
-      - "llm"
-      - "model"
-      - "inference"
-      - "prompt"
-      - "agent"
-      - "claude"
-    target: "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+      - 'ai'
+      - 'llm'
+      - 'model'
+      - 'inference'
+      - 'prompt'
+      - 'agent'
+      - 'claude'
+    target: 'docs/DEVELOPMENT-TOOLING-CATALOG.md'
 
   # --- Performance ---
-  - id: "performance"
+  - id: 'performance'
     priority: 80
-    category: "Performance"
+    category: 'Performance'
     keywords:
-      - "perf"
-      - "performance"
-      - "slow"
-      - "latency"
-      - "benchmark"
-      - "optimization"
-    target: "cheatsheets/pr-merge-verification.md"
-    command: "/deploy-check"
+      - 'perf'
+      - 'performance'
+      - 'slow'
+      - 'latency'
+      - 'benchmark'
+      - 'optimization'
+    target: 'cheatsheets/pr-merge-verification.md'
+    command: '/deploy-check'
 
   # --- Debugging ---
-  - id: "debugging"
+  - id: 'debugging'
     priority: 85
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "debug"
-      - "debugging"
-      - "investigate"
-      - "root cause"
-      - "trace"
-      - "stack trace"
-    target: ".claude/agents/debug-expert.md"
-    agent: "debug-expert"
+      - 'debug'
+      - 'debugging'
+      - 'investigate'
+      - 'root cause'
+      - 'trace'
+      - 'stack trace'
+    target: '.claude/agents/debug-expert.md'
+    agent: 'debug-expert'
 
   # --- Code Review ---
-  - id: "code_review"
+  - id: 'code_review'
     priority: 86
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "review"
-      - "code review"
-      - "pr review"
-      - "pull request"
-      - "check code"
-    target: ".claude/agents/code-reviewer.md"
-    agent: "code-reviewer"
+      - 'review'
+      - 'code review'
+      - 'pr review'
+      - 'pull request'
+      - 'check code'
+    target: '.claude/agents/code-reviewer.md'
+    agent: 'code-reviewer'
 
   # --- Refactoring ---
-  - id: "refactoring"
+  - id: 'refactoring'
     priority: 87
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "refactor"
-      - "simplify"
-      - "clean up"
-      - "improve code"
-      - "reduce complexity"
-    target: ".claude/agents/code-simplifier.md"
-    agent: "code-simplifier"
+      - 'refactor'
+      - 'simplify'
+      - 'clean up'
+      - 'improve code'
+      - 'reduce complexity'
+    target: '.claude/agents/code-simplifier.md'
+    agent: 'code-simplifier'
 
   # --- Test Repair ---
-  - id: "test_repair"
+  - id: 'test_repair'
     priority: 88
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "fix test"
-      - "test fail"
-      - "failing test"
-      - "repair test"
-      - "broken test"
-    target: ".claude/agents/test-repair.md"
-    agent: "test-repair"
+      - 'fix test'
+      - 'test fail'
+      - 'failing test'
+      - 'repair test'
+      - 'broken test'
+    target: '.claude/agents/test-repair.md'
+    agent: 'test-repair'
 
   # --- Documentation ---
-  - id: "documentation"
+  - id: 'documentation'
     priority: 89
-    category: "Documentation"
+    category: 'Documentation'
     keywords:
-      - "document"
-      - "documentation"
-      - "docs"
-      - "jsdoc"
-      - "readme"
-      - "write docs"
-    target: ".claude/agents/docs-architect.md"
-    agent: "docs-architect"
+      - 'document'
+      - 'documentation'
+      - 'docs'
+      - 'jsdoc'
+      - 'readme'
+      - 'write docs'
+    target: '.claude/agents/docs-architect.md'
+    agent: 'docs-architect'
 
   # --- Runbooks (Operational) ---
-  - id: "runbooks"
+  - id: 'runbooks'
     priority: 91
-    category: "Operations"
+    category: 'Operations'
     keywords:
-      - "runbook"
-      - "incident"
-      - "rollback"
-      - "canary"
-      - "blue green"
-      - "disaster recovery"
-      - "dr"
-    target: "docs/runbooks/"
-    message: "10 runbooks: incident response, rollback, canary, blue-green, DR"
+      - 'runbook'
+      - 'incident'
+      - 'rollback'
+      - 'canary'
+      - 'blue green'
+      - 'disaster recovery'
+      - 'dr'
+    target: 'docs/runbooks/'
+    message: '10 runbooks: incident response, rollback, canary, blue-green, DR'
 
   # --- Observability ---
-  - id: "observability"
+  - id: 'observability'
     priority: 92
-    category: "Operations"
+    category: 'Operations'
     keywords:
-      - "metrics"
-      - "prometheus"
-      - "grafana"
-      - "monitoring"
-      - "alerting"
-      - "dashboard"
-      - "kpi"
-    target: "docs/observability/"
-    message: "AI metrics, Prometheus, Grafana dashboards, business KPIs"
+      - 'metrics'
+      - 'prometheus'
+      - 'grafana'
+      - 'monitoring'
+      - 'alerting'
+      - 'dashboard'
+      - 'kpi'
+    target: 'docs/observability/'
+    message: 'AI metrics, Prometheus, Grafana dashboards, business KPIs'
 
   # --- Chaos Engineering ---
-  - id: "chaos_engineering"
+  - id: 'chaos_engineering'
     priority: 93
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "chaos"
-      - "chaos engineering"
-      - "rls testing"
-      - "game day"
-      - "failure injection"
-    target: "docs/chaos-engineering/"
-    message: "RLS chaos testing, game day runbooks, monitoring specs"
+      - 'chaos'
+      - 'chaos engineering'
+      - 'rls testing'
+      - 'game day'
+      - 'failure injection'
+    target: 'docs/chaos-engineering/'
+    message: 'RLS chaos testing, game day runbooks, monitoring specs'
 
   # --- Quality Gates ---
-  - id: "quality_gates"
+  - id: 'quality_gates'
     priority: 94
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "gate"
-      - "quality gate"
-      - "raci"
-      - "gate tracking"
-      - "approval"
-    target: "docs/gates/"
-    message: "RACI matrix, gate tracking for releases"
+      - 'gate'
+      - 'quality gate'
+      - 'raci'
+      - 'gate tracking'
+      - 'approval'
+    target: 'docs/gates/'
+    message: 'RACI matrix, gate tracking for releases'
 
   # --- Wizard Implementation ---
-  - id: "wizard"
+  - id: 'wizard'
     priority: 95
-    category: "Implementation"
+    category: 'Implementation'
     keywords:
-      - "wizard"
-      - "modeling wizard"
-      - "xstate"
-      - "state machine"
-      - "wizard step"
-    target: "docs/wizard/"
-    secondary: "docs/plans/xstate-persistence-implementation.md"
-    message: "Wizard implementation, XState persistence plan (ADR-016)"
+      - 'wizard'
+      - 'modeling wizard'
+      - 'xstate'
+      - 'state machine'
+      - 'wizard step'
+    target: 'docs/wizard/'
+    secondary: 'docs/plans/xstate-persistence-implementation.md'
+    message: 'Wizard implementation, XState persistence plan (ADR-016)'
 
   # --- Forecasting ---
-  - id: "forecasting"
+  - id: 'forecasting'
     priority: 96
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "forecasting"
-      - "power law"
-      - "calibration"
-      - "streaming monte carlo"
-    target: "docs/forecasting/"
-    message: "Power law implementation, Monte Carlo calibration guide"
+      - 'forecasting'
+      - 'power law'
+      - 'calibration'
+      - 'streaming monte carlo'
+    target: 'docs/forecasting/'
+    message: 'Power law implementation, Monte Carlo calibration guide'
 
   # --- Agent Memory & Architecture ---
-  - id: "agent_memory"
+  - id: 'agent_memory'
     priority: 97
-    category: "AI Agents"
+    category: 'AI Agents'
     keywords:
-      - "agent memory"
-      - "memory integration"
-      - "pattern learning"
-      - "hybrid memory"
-      - "memory scope"
-      - "tenant"
-    target: "cheatsheets/agent-memory-integration.md"
-    secondary: "cheatsheets/memory-patterns.md"
-    message: "Agent memory integration, pattern learning, multi-tenant isolation"
+      - 'agent memory'
+      - 'memory integration'
+      - 'pattern learning'
+      - 'hybrid memory'
+      - 'memory scope'
+      - 'tenant'
+    target: 'cheatsheets/agent-memory-integration.md'
+    secondary: 'cheatsheets/memory-patterns.md'
+    message: 'Agent memory integration, pattern learning, multi-tenant isolation'
 
-  - id: "agent_architecture"
+  - id: 'agent_architecture'
     priority: 98
-    category: "AI Agents"
+    category: 'AI Agents'
     keywords:
-      - "agent architecture"
-      - "base agent"
-      - "agent core"
-      - "agent framework"
-      - "multi-agent"
-      - "orchestration"
-    target: "cheatsheets/agent-architecture.md"
-    secondary: "packages/bundle-optimization-agents.md"
-    message: "Agent framework, BaseAgent class, multi-agent orchestration"
+      - 'agent architecture'
+      - 'base agent'
+      - 'agent core'
+      - 'agent framework'
+      - 'multi-agent'
+      - 'orchestration'
+    target: 'cheatsheets/agent-architecture.md'
+    secondary: 'packages/bundle-optimization-agents.md'
+    message: 'Agent framework, BaseAgent class, multi-agent orchestration'
 
   # --- Bundle Optimization ---
-  - id: "bundle_optimization"
+  - id: 'bundle_optimization'
     priority: 99
-    category: "Performance"
+    category: 'Performance'
     keywords:
-      - "bundle"
-      - "bundle size"
-      - "bundle optimization"
-      - "tree shaking"
-      - "code splitting"
-      - "lazy loading"
-    target: "packages/bundle-optimization-agents.md"
-    message: "AI-powered bundle optimization, dependency analysis, route optimization"
+      - 'bundle'
+      - 'bundle size'
+      - 'bundle optimization'
+      - 'tree shaking'
+      - 'code splitting'
+      - 'lazy loading'
+    target: 'packages/bundle-optimization-agents.md'
+    message: 'AI-powered bundle optimization, dependency analysis, route optimization'
 
   # --- Troubleshooting (fallback) ---
-  - id: "troubleshooting"
+  - id: 'troubleshooting'
     priority: 100
-    category: "Troubleshooting"
+    category: 'Troubleshooting'
     keywords:
-      - "error"
-      - "broken"
-      - "issue"
-      - "problem"
-      - "not working"
-    target: "docs/INDEX.md"
-    secondary: "cheatsheets/document-review-workflow.md"
+      - 'error'
+      - 'broken'
+      - 'issue'
+      - 'problem'
+      - 'not working'
+    target: 'docs/INDEX.md'
+    secondary: 'cheatsheets/document-review-workflow.md'
 
   # =============================================================================
   # ADDITIONAL AGENTS (Complete Coverage)
   # =============================================================================
 
   # --- Planning & Design ---
-  - id: "planning"
+  - id: 'planning'
     priority: 101
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "plan"
-      - "planning"
-      - "design"
-      - "architect"
-      - "strategy"
-      - "approach"
-      - "blueprint"
-    target: ".claude/skills/writing-plans.md"
-    skill: "writing-plans"
-    secondary: ".claude/skills/brainstorming.md"
+      - 'plan'
+      - 'planning'
+      - 'design'
+      - 'architect'
+      - 'strategy'
+      - 'approach'
+      - 'blueprint'
+    target: '.claude/skills/writing-plans.md'
+    skill: 'writing-plans'
+    secondary: '.claude/skills/brainstorming.md'
 
-  - id: "brainstorming"
+  - id: 'brainstorming'
     priority: 102
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "brainstorm"
-      - "ideate"
-      - "explore options"
-      - "alternatives"
-      - "creative"
-    target: ".claude/skills/brainstorming.md"
-    skill: "brainstorming"
+      - 'brainstorm'
+      - 'ideate'
+      - 'explore options'
+      - 'alternatives'
+      - 'creative'
+    target: '.claude/skills/brainstorming.md'
+    skill: 'brainstorming'
 
-  - id: "task_decomposition"
+  - id: 'task_decomposition'
     priority: 103
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "break down"
-      - "decompose"
-      - "split task"
-      - "subtasks"
-      - "chunk"
-    target: ".claude/skills/task-decomposition.md"
-    skill: "task-decomposition"
+      - 'break down'
+      - 'decompose'
+      - 'split task'
+      - 'subtasks'
+      - 'chunk'
+    target: '.claude/skills/task-decomposition.md'
+    skill: 'task-decomposition'
 
   # --- Implementation & Feature Development ---
-  - id: "implementation"
+  - id: 'implementation'
     priority: 104
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "implement"
-      - "build"
-      - "create"
-      - "develop"
-      - "new feature"
-      - "add feature"
-    target: "CAPABILITIES.md"
-    message: "Check existing solutions first, then use writing-plans skill"
-    skill: "writing-plans"
+      - 'implement'
+      - 'build'
+      - 'create'
+      - 'develop'
+      - 'new feature'
+      - 'add feature'
+    target: 'CLAUDE.md'
+    message: 'Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using writing-plans'
+    skill: 'writing-plans'
 
-  - id: "code_exploration"
+  - id: 'code_exploration'
     priority: 105
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "understand code"
-      - "explore codebase"
-      - "how does"
-      - "find where"
-      - "trace code"
-      - "code flow"
-    target: ".claude/agents/code-explorer.md"
-    agent: "code-explorer"
+      - 'understand code'
+      - 'explore codebase'
+      - 'how does'
+      - 'find where'
+      - 'trace code'
+      - 'code flow'
+    target: '.claude/agents/code-explorer.md'
+    agent: 'code-explorer'
 
   # --- Testing Agents ---
-  - id: "test_scaffolding"
+  - id: 'test_scaffolding'
     priority: 106
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "scaffold test"
-      - "new test suite"
-      - "test infrastructure"
-      - "setup tests"
-      - "test boilerplate"
-    target: ".claude/agents/test-scaffolder.md"
-    agent: "test-scaffolder"
+      - 'scaffold test'
+      - 'new test suite'
+      - 'test infrastructure'
+      - 'setup tests'
+      - 'test boilerplate'
+    target: '.claude/agents/test-scaffolder.md'
+    agent: 'test-scaffolder'
 
-  - id: "test_automation"
+  - id: 'test_automation'
     priority: 107
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "automate test"
-      - "test automation"
-      - "test strategy"
-      - "test coverage"
-      - "comprehensive test"
-    target: ".claude/agents/test-automator.md"
-    agent: "test-automator"
+      - 'automate test'
+      - 'test automation'
+      - 'test strategy'
+      - 'test coverage'
+      - 'comprehensive test'
+    target: '.claude/agents/test-automator.md'
+    agent: 'test-automator'
 
-  - id: "playwright_tests"
+  - id: 'playwright_tests'
     priority: 108
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "playwright"
-      - "e2e test"
-      - "browser test"
-      - "end to end"
-      - "ui test"
-    target: ".claude/agents/playwright-test-author.md"
-    agent: "playwright-test-author"
+      - 'playwright'
+      - 'e2e test'
+      - 'browser test'
+      - 'end to end'
+      - 'ui test'
+    target: '.claude/agents/playwright-test-author.md'
+    agent: 'playwright-test-author'
 
-  - id: "pr_test_analysis"
+  - id: 'pr_test_analysis'
     priority: 109
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "pr tests"
-      - "test gaps"
-      - "missing tests"
-      - "test coverage pr"
-    target: ".claude/agents/pr-test-analyzer.md"
-    agent: "pr-test-analyzer"
+      - 'pr tests'
+      - 'test gaps'
+      - 'missing tests'
+      - 'test coverage pr'
+    target: '.claude/agents/pr-test-analyzer.md'
+    agent: 'pr-test-analyzer'
 
-  - id: "flaky_tests"
+  - id: 'flaky_tests'
     priority: 110
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "flaky"
-      - "intermittent"
-      - "random failure"
-      - "sometimes pass"
-      - "race condition test"
-    target: ".claude/agents/test-repair.md"
-    agent: "test-repair"
-    message: "Test repair agent has dedicated flakiness detection"
+      - 'flaky'
+      - 'intermittent'
+      - 'random failure'
+      - 'sometimes pass'
+      - 'race condition test'
+    target: '.claude/agents/test-repair.md'
+    agent: 'test-repair'
+    message: 'Test repair agent has dedicated flakiness detection'
 
   # --- Code Quality Agents ---
-  - id: "silent_failures"
+  - id: 'silent_failures'
     priority: 111
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "silent failure"
-      - "swallowed exception"
-      - "catch empty"
-      - "error ignored"
-      - "missing error handling"
-    target: ".claude/agents/silent-failure-hunter.md"
-    agent: "silent-failure-hunter"
+      - 'silent failure'
+      - 'swallowed exception'
+      - 'catch empty'
+      - 'error ignored'
+      - 'missing error handling'
+    target: '.claude/agents/silent-failure-hunter.md'
+    agent: 'silent-failure-hunter'
 
-  - id: "type_design"
+  - id: 'type_design'
     priority: 112
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "type design"
-      - "typescript types"
-      - "type safety"
-      - "generic types"
-      - "type inference"
-    target: ".claude/agents/type-design-analyzer.md"
-    agent: "type-design-analyzer"
+      - 'type design'
+      - 'typescript types'
+      - 'type safety'
+      - 'generic types'
+      - 'type inference'
+    target: '.claude/agents/type-design-analyzer.md'
+    agent: 'type-design-analyzer'
 
-  - id: "comment_analysis"
+  - id: 'comment_analysis'
     priority: 113
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "comments"
-      - "code comments"
-      - "documentation accuracy"
-      - "outdated comments"
-    target: ".claude/agents/comment-analyzer.md"
-    agent: "comment-analyzer"
+      - 'comments'
+      - 'code comments'
+      - 'documentation accuracy'
+      - 'outdated comments'
+    target: '.claude/agents/comment-analyzer.md'
+    agent: 'comment-analyzer'
 
   # --- CI/CD & DevOps Agents ---
-  - id: "devops_issues"
+  - id: 'devops_issues'
     priority: 114
-    category: "DevOps"
+    category: 'DevOps'
     keywords:
-      - "devops"
-      - "infrastructure"
-      - "container"
-      - "docker"
-      - "kubernetes"
-      - "k8s"
-    target: ".claude/agents/devops-troubleshooter.md"
-    agent: "devops-troubleshooter"
+      - 'devops'
+      - 'infrastructure'
+      - 'container'
+      - 'docker'
+      - 'kubernetes'
+      - 'k8s'
+    target: '.claude/agents/devops-troubleshooter.md'
+    agent: 'devops-troubleshooter'
 
-  - id: "incident_response"
+  - id: 'incident_response'
     priority: 115
-    category: "DevOps"
+    category: 'DevOps'
     keywords:
-      - "incident"
-      - "outage"
-      - "production down"
-      - "pager"
-      - "on call"
-      - "sev1"
-      - "sev2"
-    target: ".claude/agents/incident-responder.md"
-    agent: "incident-responder"
+      - 'incident'
+      - 'outage'
+      - 'production down'
+      - 'pager'
+      - 'on call'
+      - 'sev1'
+      - 'sev2'
+    target: '.claude/agents/incident-responder.md'
+    agent: 'incident-responder'
 
-  - id: "chaos_testing"
+  - id: 'chaos_testing'
     priority: 116
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "chaos"
-      - "resilience"
-      - "fault injection"
-      - "failure testing"
-      - "chaos monkey"
-    target: ".claude/agents/chaos-engineer.md"
-    agent: "chaos-engineer"
+      - 'chaos'
+      - 'resilience'
+      - 'fault injection'
+      - 'failure testing'
+      - 'chaos monkey'
+    target: '.claude/agents/chaos-engineer.md'
+    agent: 'chaos-engineer'
 
   # --- Schema & Migration Agents ---
-  - id: "schema_drift"
+  - id: 'schema_drift'
     priority: 117
-    category: "Database"
+    category: 'Database'
     keywords:
-      - "schema drift"
-      - "schema mismatch"
-      - "zod schema"
-      - "drizzle schema"
-      - "schema alignment"
-    target: ".claude/agents/schema-drift-checker.md"
-    agent: "schema-drift-checker"
+      - 'schema drift'
+      - 'schema mismatch'
+      - 'zod schema'
+      - 'drizzle schema'
+      - 'schema alignment'
+    target: '.claude/agents/schema-drift-checker.md'
+    agent: 'schema-drift-checker'
 
-  - id: "db_migration"
+  - id: 'db_migration'
     priority: 118
-    category: "Database"
+    category: 'Database'
     keywords:
-      - "migration"
-      - "db:push"
-      - "schema change"
-      - "alter table"
-      - "database migration"
-    target: ".claude/agents/db-migration.md"
-    agent: "db-migration"
-    command: "/db-validate"
+      - 'migration'
+      - 'db:push'
+      - 'schema change'
+      - 'alter table'
+      - 'database migration'
+    target: '.claude/agents/db-migration.md'
+    agent: 'db-migration'
+    command: '/db-validate'
 
   # --- Performance Agents ---
-  - id: "perf_guard"
+  - id: 'perf_guard'
     priority: 119
-    category: "Performance"
+    category: 'Performance'
     keywords:
-      - "performance regression"
-      - "perf guard"
-      - "bundle analysis"
-      - "size regression"
-    target: ".claude/agents/perf-guard.md"
-    agent: "perf-guard"
+      - 'performance regression'
+      - 'perf guard'
+      - 'bundle analysis'
+      - 'size regression'
+    target: '.claude/agents/perf-guard.md'
+    agent: 'perf-guard'
 
-  - id: "perf_regression"
+  - id: 'perf_regression'
     priority: 120
-    category: "Performance"
+    category: 'Performance'
     keywords:
-      - "perf regression"
-      - "slower"
-      - "benchmark failed"
-      - "performance degraded"
-    target: ".claude/agents/perf-regression-triager.md"
-    agent: "perf-regression-triager"
+      - 'perf regression'
+      - 'slower'
+      - 'benchmark failed'
+      - 'performance degraded'
+    target: '.claude/agents/perf-regression-triager.md'
+    agent: 'perf-regression-triager'
 
   # --- Baseline & Parity Agents ---
-  - id: "baseline_regression"
+  - id: 'baseline_regression'
     priority: 121
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "baseline"
-      - "baseline failed"
-      - "quality regression"
-      - "lint regression"
-      - "type regression"
-    target: ".claude/agents/baseline-regression-explainer.md"
-    agent: "baseline-regression-explainer"
+      - 'baseline'
+      - 'baseline failed'
+      - 'quality regression'
+      - 'lint regression'
+      - 'type regression'
+    target: '.claude/agents/baseline-regression-explainer.md'
+    agent: 'baseline-regression-explainer'
 
-  - id: "excel_parity"
+  - id: 'excel_parity'
     priority: 122
-    category: "Phoenix"
+    category: 'Phoenix'
     keywords:
-      - "excel parity"
-      - "excel match"
-      - "spreadsheet"
-      - "calculation mismatch"
-      - "truth case failed"
-    target: ".claude/agents/parity-auditor.md"
-    agent: "parity-auditor"
+      - 'excel parity'
+      - 'excel match'
+      - 'spreadsheet'
+      - 'calculation mismatch'
+      - 'truth case failed'
+    target: '.claude/agents/parity-auditor.md'
+    agent: 'parity-auditor'
 
   # --- Orchestration Agents ---
-  - id: "workflow_orchestration"
+  - id: 'workflow_orchestration'
     priority: 123
-    category: "Orchestration"
+    category: 'Orchestration'
     keywords:
-      - "orchestrate"
-      - "chain agents"
-      - "auto validate"
-      - "multi-agent"
-      - "agent chain"
-    target: ".claude/agents/workflow-orchestrator.md"
-    agent: "workflow-orchestrator"
+      - 'orchestrate'
+      - 'chain agents'
+      - 'auto validate'
+      - 'multi-agent'
+      - 'agent chain'
+    target: '.claude/agents/workflow-orchestrator.md'
+    agent: 'workflow-orchestrator'
 
-  - id: "context_management"
+  - id: 'context_management'
     priority: 124
-    category: "Orchestration"
+    category: 'Orchestration'
     keywords:
-      - "context"
-      - "context window"
-      - "memory management"
-      - "conversation context"
-    target: ".claude/agents/context-orchestrator.md"
-    agent: "context-orchestrator"
+      - 'context'
+      - 'context window'
+      - 'memory management'
+      - 'conversation context'
+    target: '.claude/agents/context-orchestrator.md'
+    agent: 'context-orchestrator'
 
   # --- Developer Experience ---
-  - id: "dx_optimization"
+  - id: 'dx_optimization'
     priority: 125
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "developer experience"
-      - "dx"
-      - "tooling"
-      - "workflow friction"
-      - "onboarding"
-    target: ".claude/agents/dx-optimizer.md"
-    agent: "dx-optimizer"
+      - 'developer experience'
+      - 'dx'
+      - 'tooling'
+      - 'workflow friction'
+      - 'onboarding'
+    target: '.claude/agents/dx-optimizer.md'
+    agent: 'dx-optimizer'
 
-  - id: "legacy_code"
+  - id: 'legacy_code'
     priority: 126
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "legacy"
-      - "modernize"
-      - "technical debt"
-      - "outdated"
-      - "refactor legacy"
-    target: ".claude/agents/legacy-modernizer.md"
-    agent: "legacy-modernizer"
+      - 'legacy'
+      - 'modernize'
+      - 'technical debt'
+      - 'outdated'
+      - 'refactor legacy'
+    target: '.claude/agents/legacy-modernizer.md'
+    agent: 'legacy-modernizer'
 
   # =============================================================================
   # SKILLS (Complete Coverage)
   # =============================================================================
 
-  - id: "thinking_frameworks"
+  - id: 'thinking_frameworks'
     priority: 130
-    category: "Thinking"
+    category: 'Thinking'
     keywords:
-      - "think deeper"
-      - "analyze thoroughly"
-      - "critical thinking"
-      - "systematic analysis"
-    target: ".claude/skills/extended-thinking-framework.md"
-    skill: "extended-thinking-framework"
+      - 'think deeper'
+      - 'analyze thoroughly'
+      - 'critical thinking'
+      - 'systematic analysis'
+    target: '.claude/skills/extended-thinking-framework.md'
+    skill: 'extended-thinking-framework'
 
-  - id: "inversion_thinking"
+  - id: 'inversion_thinking'
     priority: 131
-    category: "Thinking"
+    category: 'Thinking'
     keywords:
-      - "inversion"
-      - "what could go wrong"
-      - "failure modes"
-      - "anti-patterns"
-      - "avoid mistakes"
-    target: ".claude/skills/inversion-thinking.md"
-    skill: "inversion-thinking"
+      - 'inversion'
+      - 'what could go wrong'
+      - 'failure modes'
+      - 'anti-patterns'
+      - 'avoid mistakes'
+    target: '.claude/skills/inversion-thinking.md'
+    skill: 'inversion-thinking'
 
-  - id: "pattern_recognition"
+  - id: 'pattern_recognition'
     priority: 132
-    category: "Thinking"
+    category: 'Thinking'
     keywords:
-      - "pattern"
-      - "recurring"
-      - "similar issues"
-      - "common pattern"
-    target: ".claude/skills/pattern-recognition.md"
-    skill: "pattern-recognition"
+      - 'pattern'
+      - 'recurring'
+      - 'similar issues'
+      - 'common pattern'
+    target: '.claude/skills/pattern-recognition.md'
+    skill: 'pattern-recognition'
 
-  - id: "analogical_thinking"
+  - id: 'analogical_thinking'
     priority: 133
-    category: "Thinking"
+    category: 'Thinking'
     keywords:
-      - "analogy"
-      - "similar to"
-      - "like"
-      - "compare to"
-    target: ".claude/skills/analogical-thinking.md"
-    skill: "analogical-thinking"
+      - 'analogy'
+      - 'similar to'
+      - 'like'
+      - 'compare to'
+    target: '.claude/skills/analogical-thinking.md'
+    skill: 'analogical-thinking'
 
-  - id: "parallel_agents"
+  - id: 'parallel_agents'
     priority: 134
-    category: "Orchestration"
+    category: 'Orchestration'
     keywords:
-      - "parallel"
-      - "concurrent"
-      - "simultaneously"
-      - "multiple agents"
-    target: ".claude/skills/dispatching-parallel-agents.md"
-    skill: "dispatching-parallel-agents"
+      - 'parallel'
+      - 'concurrent'
+      - 'simultaneously'
+      - 'multiple agents'
+    target: '.claude/skills/dispatching-parallel-agents.md'
+    skill: 'dispatching-parallel-agents'
 
-  - id: "async_resilience"
+  - id: 'async_resilience'
     priority: 135
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "async error"
-      - "retry"
-      - "circuit breaker"
-      - "resilience"
-      - "graceful degradation"
-    target: ".claude/skills/async-error-resilience.md"
-    skill: "async-error-resilience"
+      - 'async error'
+      - 'retry'
+      - 'circuit breaker'
+      - 'resilience'
+      - 'graceful degradation'
+    target: '.claude/skills/async-error-resilience.md'
+    skill: 'async-error-resilience'
 
-  - id: "react_performance"
+  - id: 'react_performance'
     priority: 136
-    category: "Performance"
+    category: 'Performance'
     keywords:
-      - "react performance"
-      - "re-render"
-      - "useMemo"
-      - "useCallback"
-      - "memoization"
-    target: ".claude/skills/react-performance-optimization.md"
-    skill: "react-performance-optimization"
+      - 'react performance'
+      - 're-render'
+      - 'useMemo'
+      - 'useCallback'
+      - 'memoization'
+    target: '.claude/skills/react-performance-optimization.md'
+    skill: 'react-performance-optimization'
 
-  - id: "api_design"
+  - id: 'api_design'
     priority: 137
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "api design"
-      - "rest api"
-      - "endpoint design"
-      - "api patterns"
-    target: ".claude/skills/api-design-principles.md"
-    skill: "api-design-principles"
+      - 'api design'
+      - 'rest api'
+      - 'endpoint design'
+      - 'api patterns'
+    target: '.claude/skills/api-design-principles.md'
+    skill: 'api-design-principles'
 
-  - id: "architecture_patterns"
+  - id: 'architecture_patterns'
     priority: 138
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "architecture pattern"
-      - "design pattern"
-      - "clean architecture"
-      - "hexagonal"
-    target: ".claude/skills/architecture-patterns.md"
-    skill: "architecture-patterns"
+      - 'architecture pattern'
+      - 'design pattern'
+      - 'clean architecture'
+      - 'hexagonal'
+    target: '.claude/skills/architecture-patterns.md'
+    skill: 'architecture-patterns'
 
   # =============================================================================
   # COMMANDS (Complete Coverage)
   # =============================================================================
 
-  - id: "cmd_log_change"
+  - id: 'cmd_log_change'
     priority: 140
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "log change"
-      - "changelog"
-      - "record change"
-    target: ".claude/commands/log-change.md"
-    command: "/log-change"
+      - 'log change'
+      - 'changelog'
+      - 'record change'
+    target: '.claude/commands/log-change.md'
+    command: '/log-change'
 
-  - id: "cmd_log_decision"
+  - id: 'cmd_log_decision'
     priority: 141
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "log decision"
-      - "adr"
-      - "record decision"
-      - "architecture decision"
-    target: ".claude/commands/log-decision.md"
-    command: "/log-decision"
+      - 'log decision'
+      - 'adr'
+      - 'record decision'
+      - 'architecture decision'
+    target: '.claude/commands/log-decision.md'
+    command: '/log-decision'
 
-  - id: "cmd_pre_commit"
+  - id: 'cmd_pre_commit'
     priority: 142
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "pre-commit"
-      - "before commit"
-      - "commit check"
-      - "quality check"
-    target: ".claude/commands/pre-commit-check.md"
-    command: "/pre-commit-check"
+      - 'pre-commit'
+      - 'before commit'
+      - 'commit check'
+      - 'quality check'
+    target: '.claude/commands/pre-commit-check.md'
+    command: '/pre-commit-check'
 
-  - id: "cmd_pr_ready"
+  - id: 'cmd_pr_ready'
     priority: 143
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "pr ready"
-      - "pull request ready"
-      - "before pr"
-      - "pr validation"
-    target: ".claude/commands/pr-ready.md"
-    command: "/pr-ready"
+      - 'pr ready'
+      - 'pull request ready'
+      - 'before pr'
+      - 'pr validation'
+    target: '.claude/commands/pr-ready.md'
+    command: '/pr-ready'
 
-  - id: "cmd_catalog"
+  - id: 'cmd_catalog'
     priority: 144
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "catalog"
-      - "list tools"
-      - "available tools"
-      - "what tools"
-    target: ".claude/commands/catalog-tooling.md"
-    command: "/catalog-tooling"
+      - 'catalog'
+      - 'list tools'
+      - 'available tools'
+      - 'what tools'
+    target: '.claude/commands/catalog-tooling.md'
+    command: '/catalog-tooling'
 
-  - id: "cmd_workflows"
+  - id: 'cmd_workflows'
     priority: 145
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "workflows"
-      - "which tool"
-      - "tool helper"
-      - "find command"
-    target: ".claude/commands/workflows.md"
-    command: "/workflows"
+      - 'workflows'
+      - 'which tool'
+      - 'tool helper'
+      - 'find command'
+    target: '.claude/commands/workflows.md'
+    command: '/workflows'
 
-  - id: "cmd_deps_audit"
+  - id: 'cmd_deps_audit'
     priority: 146
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "dependency audit"
-      - "security audit"
-      - "npm audit"
-      - "vulnerable"
-    target: ".claude/commands/wshobson/deps-audit.md"
-    command: "/wshobson:deps-audit"
+      - 'dependency audit'
+      - 'security audit'
+      - 'npm audit'
+      - 'vulnerable'
+    target: '.claude/commands/wshobson/deps-audit.md'
+    command: '/wshobson:deps-audit'
 
-  - id: "cmd_tech_debt"
+  - id: 'cmd_tech_debt'
     priority: 147
-    category: "Commands"
+    category: 'Commands'
     keywords:
-      - "tech debt"
-      - "technical debt"
-      - "debt analysis"
-    target: ".claude/commands/wshobson/tech-debt.md"
-    command: "/wshobson:tech-debt"
+      - 'tech debt'
+      - 'technical debt'
+      - 'debt analysis'
+    target: '.claude/commands/wshobson/tech-debt.md'
+    command: '/wshobson:tech-debt'
 
   # =============================================================================
   # CHEATSHEETS (Additional Coverage)
   # =============================================================================
 
-  - id: "cheat_anti_patterns"
+  - id: 'cheat_anti_patterns'
     priority: 150
-    category: "Quality"
+    category: 'Quality'
     keywords:
-      - "anti-pattern"
-      - "bad practice"
-      - "code smell"
-      - "avoid"
-    target: "cheatsheets/anti-pattern-prevention.md"
-    message: "24 cataloged anti-patterns with prevention strategies"
+      - 'anti-pattern'
+      - 'bad practice'
+      - 'code smell'
+      - 'avoid'
+    target: 'cheatsheets/anti-pattern-prevention.md'
+    message: '24 cataloged anti-patterns with prevention strategies'
 
-  - id: "cheat_testing_patterns"
+  - id: 'cheat_testing_patterns'
     priority: 151
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "testing pattern"
-      - "test pattern"
-      - "service testing"
-      - "api testing"
-    target: "cheatsheets/service-testing-patterns.md"
+      - 'testing pattern'
+      - 'test pattern'
+      - 'service testing'
+      - 'api testing'
+    target: 'cheatsheets/service-testing-patterns.md'
 
-  - id: "cheat_testcontainers"
+  - id: 'cheat_testcontainers'
     priority: 152
-    category: "Testing"
+    category: 'Testing'
     keywords:
-      - "testcontainer"
-      - "docker test"
-      - "integration test docker"
-    target: "cheatsheets/testcontainers-guide.md"
+      - 'testcontainer'
+      - 'docker test'
+      - 'integration test docker'
+    target: 'cheatsheets/testcontainers-guide.md'
 
-  - id: "cheat_daily_workflow"
+  - id: 'cheat_daily_workflow'
     priority: 153
-    category: "Development"
+    category: 'Development'
     keywords:
-      - "daily workflow"
-      - "how to start"
-      - "getting started"
-      - "workflow"
-    target: "cheatsheets/daily-workflow.md"
+      - 'daily workflow'
+      - 'how to start'
+      - 'getting started'
+      - 'workflow'
+    target: 'cheatsheets/daily-workflow.md'
 
-  - id: "cheat_codex"
+  - id: 'cheat_codex'
     priority: 154
-    category: "AI Tools"
+    category: 'AI Tools'
     keywords:
-      - "codex"
-      - "codex cli"
-      - "openai codex"
-      - "consult codex"
-    target: "cheatsheets/codex-collaboration-protocol.md"
-    message: "Codex CLI integration for complex architectural decisions"
+      - 'codex'
+      - 'codex cli'
+      - 'openai codex'
+      - 'consult codex'
+    target: 'cheatsheets/codex-collaboration-protocol.md'
+    message: 'Codex CLI integration for complex architectural decisions'
 
 # =============================================================================
 # AGENT REGISTRY (for cross-reference)
 # =============================================================================
 agents:
   phoenix:
-    - name: "phoenix-truth-case-runner"
-      skill: "phoenix-truth-case-orchestrator"
+    - name: 'phoenix-truth-case-runner'
+      skill: 'phoenix-truth-case-orchestrator'
       phase: [0]
-    - name: "phoenix-precision-guardian"
-      skill: "phoenix-precision-guard"
+    - name: 'phoenix-precision-guardian'
+      skill: 'phoenix-precision-guard'
       phase: [1A]
-    - name: "waterfall-specialist"
-      skill: "phoenix-waterfall-ledger-semantics"
+    - name: 'waterfall-specialist'
+      skill: 'phoenix-waterfall-ledger-semantics'
       phase: [0, 1B]
-    - name: "xirr-fees-validator"
-      skill: "phoenix-xirr-fees-validator"
+    - name: 'xirr-fees-validator'
+      skill: 'phoenix-xirr-fees-validator'
       phase: [0, 1B]
-    - name: "phoenix-capital-allocation-analyst"
-      skill: "phoenix-capital-exit-investigator"
+    - name: 'phoenix-capital-allocation-analyst'
+      skill: 'phoenix-capital-exit-investigator'
       phase: [0, 1A]
-    - name: "phoenix-docs-scribe"
-      skill: "phoenix-docs-sync"
+    - name: 'phoenix-docs-scribe'
+      skill: 'phoenix-docs-sync'
       phase: [1A]
-    - name: "phoenix-probabilistic-engineer"
-      skill: "phoenix-advanced-forecasting"
+    - name: 'phoenix-probabilistic-engineer'
+      skill: 'phoenix-advanced-forecasting'
       phase: [2]
-    - name: "phoenix-reserves-optimizer"
-      skill: "phoenix-reserves-optimizer"
+    - name: 'phoenix-reserves-optimizer'
+      skill: 'phoenix-reserves-optimizer'
       phase: [2]
-    - name: "phoenix-brand-reporting-stylist"
-      skill: "phoenix-brand-reporting"
+    - name: 'phoenix-brand-reporting-stylist'
+      skill: 'phoenix-brand-reporting'
       phase: [3]
 
 # =============================================================================
@@ -1230,17 +1230,17 @@ agents:
 staleness:
   # Documents with these patterns in content are considered to have "execution claims"
   execution_claim_patterns:
-    - "tests pass"
-    - "PR merged"
-    - "deployed to"
-    - "completed on"
-    - "verified that"
-    - "confirmed working"
+    - 'tests pass'
+    - 'PR merged'
+    - 'deployed to'
+    - 'completed on'
+    - 'verified that'
+    - 'confirmed working'
 
   # Override cadences by path pattern
   cadence_overrides:
-    "docs/PHOENIX-SOT/**": "P30D"      # Phoenix docs: 30 days
-    "docs/notebooklm-sources/**": "P90D"  # Domain knowledge: 90 days (stable)
-    "CHANGELOG.md": "P7D"               # Changelog: 7 days
-    "cheatsheets/**": "P90D"            # Cheatsheets: 90 days
-    "docs/archive/**": "P365D"          # Archives: 1 year (low priority)
+    'docs/PHOENIX-SOT/**': 'P30D' # Phoenix docs: 30 days
+    'docs/notebooklm-sources/**': 'P90D' # Domain knowledge: 90 days (stable)
+    'CHANGELOG.md': 'P7D' # Changelog: 7 days
+    'cheatsheets/**': 'P90D' # Cheatsheets: 90 days
+    'docs/archive/**': 'P365D' # Archives: 1 year (low priority)
