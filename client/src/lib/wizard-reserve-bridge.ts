@@ -17,13 +17,16 @@
  * @module wizard-reserve-bridge
  */
 
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 import type {
   SectorProfile,
   InvestmentStageCohort,
   CapitalAllocationOutput,
   StageAllocation,
 } from '@/schemas/modeling-wizard.schemas';
+import type {
+  SharedWizardComputationContext,
+  WizardReserveAllocation,
+} from '@/lib/wizard-computation-context';
 import type {
   ReserveAllocationInput,
   PortfolioCompany,
@@ -43,18 +46,7 @@ import { logger } from '@/lib/logger';
 /**
  * Reserve allocation output format (wizard-friendly)
  */
-export interface ReserveAllocation {
-  totalPlanned: number; // dollars
-  optimalMOIC: number; // decimal multiple (e.g., 2.8)
-  companiesSupported: number;
-  avgFollowOnSize: number; // dollars
-  allocations: Array<{
-    companyId: string;
-    companyName: string;
-    plannedReserve: number; // dollars
-    exitMOIC: number; // decimal multiple
-  }>;
-}
+export interface ReserveAllocation extends WizardReserveAllocation {}
 
 /**
  * Synthetic portfolio company (wizard format)
@@ -368,7 +360,7 @@ export function buildStageStrategies(
  * ```
  */
 export function transformWizardToReserveRequest(
-  ctx: ModelingWizardContext,
+  ctx: SharedWizardComputationContext,
   fullSectorProfiles?: SectorProfile[],
   fullCapitalAllocation?: CapitalAllocationOutput
 ): ReserveAllocationInput {
@@ -486,7 +478,7 @@ export function transformWizardToReserveRequest(
  * ```
  */
 export async function calculateEngineComparison(
-  ctx: ModelingWizardContext,
+  ctx: SharedWizardComputationContext,
   fullSectorProfiles: SectorProfile[],
   fullCapitalAllocation: CapitalAllocationOutput
 ): Promise<ReserveCalculationResult> {
@@ -557,7 +549,7 @@ function wizardPortfolioToAdapterFormat(portfolio: WizardPortfolioCompany[]) {
  * TODO: Migrate callers to transformWizardToReserveRequest + DeterministicReserveEngine
  */
 export async function calculateReservesForWizard(
-  ctx: ModelingWizardContext,
+  ctx: SharedWizardComputationContext,
   portfolio: WizardPortfolioCompany[]
 ): Promise<ReserveAllocation> {
   const general = ctx.steps.generalInfo;

@@ -50,6 +50,24 @@ The set is organized as four sequential sprints:
    - `client/src/pages/planning.tsx`
    - `client/src/pages/kpi-manager/KpiDefinitionModal.tsx`
    - `server/compass/routes.ts`
+9. The mounted app sidebar is `client/src/components/layout/sidebar.tsx` driven
+   by `client/src/components/layout/navigation-config.ts`.
+   `client/src/components/layout/expandable-sidebar.tsx` is not mounted in
+   `client/src/App.tsx` and should be treated as secondary cleanup.
+10. Current active-module detection in `client/src/App.tsx` copies the raw
+    pathname segment and does not normalize dynamic routes like
+    `/fund-model-results/:fundId`.
+11. The checked-in sidebar test at
+    `client/src/components/__tests__/Sidebar.test.tsx` is not part of the active
+    Vitest include set and also mocks `wouter` with `to` instead of `href`; new
+    navigation coverage must live under `tests/unit/**/*`.
+12. The live sidebar currently falls back to `/${item.id}` for most links and
+    renders nested interactive controls (`Link` wrapping `button`), so the
+    results navigation work should be used to make navigation metadata explicit
+    and correct the accessibility/behavior contract.
+13. The navigation code currently uses `client/src/core/flags/featureFlags.ts`
+    as its flag source; new sidebar work should keep that as the authoritative
+    source rather than mixing in the older runtime `useFlag` hook path.
 
 ## Plan-Level Rules
 
@@ -114,14 +132,41 @@ on a results page that immediately reports `NO_PUBLISHED_CONFIG`.
   - `tests/unit/contract/funds-endpoint-snapshots.test.ts`
   - `tests/unit/contract/funds-route-ownership.test.ts`
 
-#### S1.4 Dead-End Surface Hygiene
+#### S1.4 Results Navigation Alignment
 
 - Size: `S`
 - Scope:
-  - hide, flag, or relabel any immediately user-facing route or nav entry that
-    conflicts with the chosen publish/results flow
-  - avoid leaving users in a state where the sidebar implies a supported flow
-    that does not exist
+  - add one canonical results/status destination in the mounted navigation
+    source of truth:
+    - `client/src/components/layout/navigation-config.ts`
+  - decide whether that destination belongs in both navigation modes:
+    - legacy/full nav
+    - `NEW_IA` simplified nav
+  - centralize fund-scoped navigation behavior in one shared helper or
+    equivalent implementation:
+    - resolve href from route fund ID first, then `currentFund.id`, else a safe
+      disabled or setup fallback
+    - determine whether the nav item is enabled
+    - match dynamic locations back to a stable nav ID
+  - replace implicit `id -> /${id}` navigation with explicit nav metadata so
+    route generation is not encoded in `sidebar.tsx`
+  - update `client/src/components/layout/sidebar.tsx` to consume that shared
+    behavior instead of blindly linking to `/${item.id}`
+  - replace mirrored `activeModule` state in `client/src/App.tsx` with direct
+    route-derived matching so `/fund-model-results/:fundId` highlights correctly
+    without an effect-driven sync layer
+  - remove nested interactive nav controls in the live sidebar so enabled items
+    render as links and disabled items render as disabled controls
+  - clean up stale `Publish` wording in
+    `client/src/components/layout/expandable-sidebar.tsx` only after the live
+    sidebar path is aligned
+- Primary files:
+  - `client/src/components/layout/navigation-config.ts`
+  - `client/src/components/layout/sidebar.tsx`
+  - `client/src/App.tsx`
+  - `client/src/contexts/FundContext.tsx`
+  - `client/src/lib/fund-routes.ts`
+  - `tests/unit/components/layout/sidebar-navigation.test.tsx`
 
 ### Acceptance
 
@@ -132,12 +177,49 @@ on a results page that immediately reports `NO_PUBLISHED_CONFIG`.
 3. If draft save or publish fails, the user remains in the active flow with an
    actionable error and without data loss.
 4. The active handoff path is covered by at least one boot-path automated test.
+5. The sidebar no longer exposes stale `Publish` wording as a primary action; it
+   exposes a results/status destination that opens `/fund-model-results/:fundId`
+   for the selected or route-addressed fund.
+6. The results/status nav item highlights correctly on deep-linked dynamic
+   routes such as `/fund-model-results/42`.
+7. Navigation coverage for this behavior runs inside the active Vitest project,
+   not only in dormant `client/src/components/__tests__`.
+8. The live sidebar no longer relies on nested `Link` + `button` controls for
+   primary navigation, and disabled results navigation does not navigate.
+9. Navigation behavior is derived from explicit config metadata plus current
+   route context, not from `item.id` string concatenation.
 
 ### Validation
 
 - `npm run test:phase4`
 - `npm run lint:phase4`
-- targeted test file runs for any new lifecycle proof added in this sprint
+- `npx vitest run tests/unit/contexts/fund-context-route-selection.test.tsx --project=client`
+- `npx vitest run tests/unit/components/layout/sidebar-navigation.test.tsx --project=client`
+
+### Sandbox-Validated Revisions
+
+1. Treat `client/src/components/layout/sidebar.tsx` plus
+   `client/src/components/layout/navigation-config.ts` as the implementation
+   path. `expandable-sidebar.tsx` cleanup is follow-through only.
+2. Do not scope this as a label change. The live issue also requires fund-scoped
+   href generation and route-aware active matching.
+3. Reuse the route-fund precedence already proven by
+   `tests/unit/contexts/fund-context-route-selection.test.tsx`: route fund ID
+   first, then `currentFund.id`, then safe fallback.
+4. Do not rely on `client/src/components/__tests__/Sidebar.test.tsx` for
+   validation. A sandbox test run against that file returned
+   `No test files found` under the active client Vitest project, and the file's
+   `wouter` mock is out of date.
+5. Because `navigationItems` and `footerItems` are currently resolved at module
+   load in `client/src/components/layout/sidebar.tsx`, the implementation should
+   avoid making new route/flag behavior depend on stale module-scope state where
+   a render-time helper would be clearer and easier to test.
+6. The route-derived active-module work should remove the redundant
+   location-to-state effect in `client/src/App.tsx` rather than layering new
+   matching logic on top of it.
+7. The sidebar implementation should standardize on the existing
+   `client/src/core/flags/featureFlags.ts` path so nav behavior and tests do not
+   split across multiple flag systems.
 
 ### Non-Goals
 
@@ -149,8 +231,10 @@ on a results page that immediately reports `NO_PUBLISHED_CONFIG`.
 
 ### Goal
 
-Reduce architecture drift by establishing one production wizard owner and moving
-the active flow toward server-backed draft lifecycle behavior.
+Reduce architecture drift by establishing one production wizard owner, removing
+machine-specific coupling from shared wizard logic, and moving the routed flow
+from partial local persistence to an authoritative server-backed draft
+lifecycle.
 
 ### Stories
 
@@ -162,57 +246,168 @@ the active flow toward server-backed draft lifecycle behavior.
   - document the XState wizard as non-authoritative unless a replacement plan is
     approved separately
 
-#### S2.2 Retire Or Quarantine The Parallel Wizard Path
+#### S2.2 Extract Shared Wizard Seams From Machine-Specific Context
 
 - Size: `M`
 - Scope:
-  - remove the XState wizard from production ownership
-  - quarantine or archive unused entry points, docs, and tests that imply it is
+  - extract shared wizard calculation/domain types so active routed-flow code
+    does not depend directly on `ModelingWizardContext`
+  - target the smallest useful shared seam first:
+    - `steps.generalInfo`
+    - `steps.sectorProfiles`
+    - `steps.capitalAllocation`
+    - optional `calculations.reserves`
+  - preserve compatibility for any remaining XState consumers behind an adapter
+    or compatibility seam
+  - do not rewrite the active wizard to XState
+- Primary files:
+  - `client/src/hooks/useWizardCalculations.ts`
+  - `client/src/hooks/useEngineComparison.ts`
+  - `client/src/lib/wizard-reserve-bridge.ts`
+  - `client/src/lib/wizard-calculations.ts`
+  - `client/src/machines/modeling-wizard.machine.ts`
+
+#### S2.3 Quarantine The Parallel Wizard UI And Ownership Claims
+
+- Size: `S`
+- Scope:
+  - retire the XState wizard from production ownership after shared seams are
+    extracted
+  - quarantine or archive entry points, docs, and tests that still imply it is
     live
-  - keep only code that still serves an active shared library purpose
+  - keep only code that still serves an active shared-library purpose
 - Primary files:
   - `client/src/components/modeling-wizard/ModelingWizard.tsx`
   - `client/src/machines/modeling-wizard.machine.ts`
   - any tests or docs that still present it as the main flow
 
-#### S2.3 Server-Backed Draft Autosave For The Active Wizard
+#### S2.4 Draft Identity Bootstrap For The Active Wizard
 
 - Size: `M`
 - Scope:
-  - move draft save earlier in the routed store-based wizard
-  - persist authoritative draft data before the review step
+  - create a server-recognized draft identity before the review step
+  - use the existing canonical create path (`POST /api/funds`) and its atomic
+    initial-draft behavior once minimum fund basics are valid
+  - persist the canonical `fundId` in the active routed flow so subsequent
+    autosave and resume operations target one fund consistently
+  - make bootstrap idempotent and retry-safe so the wizard does not create
+    duplicate funds on transient failure
+  - if step 1 still allows navigation before minimum createable basics exist,
+    keep the review-step create fallback explicit during the transition instead
+    of assuming universal pre-review identity bootstrap
+- Primary files:
+  - `client/src/pages/fund-setup.tsx`
+  - `client/src/pages/FundBasicsStep.tsx`
+  - `client/src/stores/fundStore.ts`
+  - `client/src/services/funds.ts`
+  - `server/routes/funds.ts`
+
+#### S2.5 Server-Backed Draft Autosave For The Active Wizard
+
+- Size: `M`
+- Scope:
+  - add debounced or step-bound draft upsert against `PUT /api/funds/:id/draft`
+    after draft identity bootstrap succeeds
+  - persist authoritative draft data during the wizard, not only in review
+  - include dirty-state and retry behavior that is explicit about create vs
+    draft-save failures
 - Primary files:
   - `client/src/pages/fund-setup.tsx`
   - step pages under `client/src/pages/*`
   - `client/src/stores/fundStore.ts`
   - `server/routes/fund-config.ts`
 
-#### S2.4 Draft Hydration And Merge Policy
+#### S2.6 Draft Hydration And Authority Policy
 
 - Size: `M`
 - Scope:
-  - define which source wins on load:
-    - server draft
-    - local persisted store
+  - define deterministic load authority across:
+    - pre-bootstrap local persisted slice
+    - server draft after bootstrap
     - empty defaults
-  - implement deterministic hydration and conflict behavior
+  - do not implement a vague whole-object merge between server and local state
+  - once a canonical server draft exists, make server draft authoritative and
+    either invalidate or explicitly quarantine the partial local persisted slice
+  - do not persist `draftFundId` alone before server draft hydration is in
+    place; durable draft identity must ship together with authoritative reload
+    behavior or explicit local invalidation
+  - ensure reload/resume behavior is deterministic across tabs and devices
 - Primary files:
   - `client/src/stores/fundStore.ts`
   - `client/src/pages/fund-setup.tsx`
   - `client/src/pages/ReviewStep.tsx`
+  - `server/routes/fund-config.ts`
 
 ### Acceptance
 
 1. The repo has one explicit production wizard owner.
-2. The active wizard can resume from server-backed draft state.
-3. Local persistence no longer acts as the only durable source of wizard truth.
-4. Obsolete wizard ownership claims are removed from production docs/tests.
+2. Shared routed-wizard logic no longer depends directly on
+   `ModelingWizardContext` where a shared domain seam is sufficient.
+3. When minimum fund basics are valid, the active wizard acquires a stable
+   canonical `fundId` before review and reuses it for autosave; if step 1 still
+   permits incomplete progression, the review-step fallback remains explicit and
+   duplicate-safe during the transition.
+4. The active wizard can save, reload, and resume from server-backed draft
+   state.
+5. Local persistence no longer acts as the only durable source of wizard truth,
+   and its authority after bootstrap is explicitly defined.
+6. Obsolete wizard ownership claims are removed from production docs/tests.
 
 ### Validation
 
-- targeted routed wizard tests
-- create/save/reload draft tests
+- `npx vitest run tests/unit/adapters/fund-store-adapters.test.tsx --project=client`
+- `npx vitest run tests/unit/contract/fund-draft-round-trip.test.ts --project=server`
+- exact targeted routed-wizard bootstrap/autosave/resume tests under
+  `tests/unit/pages/*`
+- `npm run test:wave3`
+- `npm run test:wave4`
 - `npm run test:phase4` remains green
+
+### Sprint-2 Revisions From Codebase Review
+
+1. Do not start autosave before the routed wizard has a stable draft identity.
+   The current server draft API is fund-scoped (`PUT /api/funds/:id/draft`),
+   while canonical fund creation already creates an initial draft atomically in
+   `server/routes/funds.ts`.
+2. Do not treat XState retirement as a pure delete task. Shared hooks and libs
+   still import `ModelingWizardContext`, so seam extraction must precede UI
+   quarantine.
+3. Do not describe hydration as a generic merge. The live `fundStore`
+   local-persisted slice is partial (`stages`, `sectorProfiles`, `allocations`,
+   `followOnChecks`, and capital plan inputs), so an unqualified server/local
+   merge would be lossy and ambiguous.
+4. Prefer a clear authority rule:
+   - before bootstrap: local persisted slice may seed in-progress work
+   - after bootstrap: server draft is authoritative
+   - local persisted data becomes cache-only or is invalidated explicitly
+5. Keep this sprint focused on ownership, draft identity, autosave, and resume.
+   Do not expand it into a replacement of the routed wizard with the XState
+   implementation.
+
+### Sandbox-Validated Revisions
+
+1. The early draft-identity bootstrap is valid, but it is currently conditional.
+   `FundBasicsStep` can still advance without enough data to call
+   `POST /api/funds`, so the Sprint 2 plan must keep the review-step create
+   fallback until step-level validation or blocking bootstrap behavior is
+   explicitly accepted.
+2. A session-scoped `draftFundId` is useful immediately, but persisting that ID
+   before server hydration is unsafe because the live local persisted slice is
+   partial. The durable identity story must stay coupled to S2.6 authority and
+   hydration work.
+3. The shared seam extraction is smaller than the machine type implies. A
+   minimal computation context covering `generalInfo`, `sectorProfiles`,
+   `capitalAllocation`, and optional `calculations.reserves` was enough to
+   remove direct `ModelingWizardContext` dependency from the touched shared
+   calculation helpers.
+4. Bootstrap work changes test-double contracts. Review-step and integration
+   harnesses that stub `fundStore` now also need `draftFundId` and
+   `setDraftFundId`, so Sprint 2 should budget for test-harness updates
+   alongside feature work.
+5. Sandbox validation exposed intermittent `spawn EPERM` failures when running
+   direct or parallel single-file Vitest commands. For reliable sandbox
+   validation, prefer serial named scripts (`test:wave3`, `test:wave4`,
+   `test:phase4`) and treat one-off direct Vitest file runs as best-effort.
 
 ### Non-Goals
 

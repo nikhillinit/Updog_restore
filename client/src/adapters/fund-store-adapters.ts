@@ -4,12 +4,14 @@
  * Maps FundState (client store) to canonical wire formats:
  * - fundStoreToCreateV1: FundState -> FundCreateV1 (POST /api/funds)
  * - fundStoreToDraftWriteV1: FundState -> FundDraftWriteV1 (PUT /api/funds/:id/draft)
+ * - fundDraftWriteV1ToStoreHydrationPatch: FundDraftWriteV1 -> FundState patch
  *
  * These replace the legacy mapFundStoreToCreatePayload.
  */
 
 import type { FundCreateV1 } from '@shared/contracts/fund-create-v1.contract';
 import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { FundState } from '@/stores/fundStore';
 
 type FundStateSlice = Pick<
@@ -45,6 +47,128 @@ type FundStateSlice = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
 >;
+
+type DraftHydrationDefaults = Pick<
+  FundState,
+  | 'isEvergreen'
+  | 'lpClasses'
+  | 'lps'
+  | 'stages'
+  | 'sectorProfiles'
+  | 'allocations'
+  | 'followOnChecks'
+  | 'capitalStageAllocations'
+  | 'capitalPlanAllocations'
+  | 'pipelineProfiles'
+  | 'waterfallType'
+  | 'waterfallTiers'
+  | 'recyclingEnabled'
+  | 'recyclingType'
+  | 'exitRecyclingRate'
+  | 'mgmtFeeRecyclingRate'
+  | 'allowFutureRecycling'
+  | 'feeProfiles'
+  | 'fundExpenses'
+>;
+
+type DraftLPClass = NonNullable<FundDraftWriteV1['lpClasses']>[number];
+type DraftLP = NonNullable<FundDraftWriteV1['lps']>[number];
+type DraftCapitalPlanAllocation = NonNullable<FundDraftWriteV1['capitalPlanAllocations']>[number];
+type DraftWaterfallTier = NonNullable<FundDraftWriteV1['waterfallTiers']>[number];
+type DraftFeeProfile = NonNullable<FundDraftWriteV1['feeProfiles']>[number];
+type DraftFeeTier = DraftFeeProfile['feeTiers'][number];
+type DraftFundExpense = NonNullable<FundDraftWriteV1['fundExpenses']>[number];
+
+function hydrateLPClasses(
+  lpClasses: NonNullable<FundDraftWriteV1['lpClasses']>
+): FundState['lpClasses'] {
+  return lpClasses.map((lpClass: DraftLPClass): FundState['lpClasses'][number] => ({
+    id: lpClass.id,
+    name: lpClass.name,
+    targetAllocation: lpClass.targetAllocation,
+    ...spreadIfDefined('managementFeeRate', lpClass.managementFeeRate),
+    ...spreadIfDefined('carriedInterest', lpClass.carriedInterest),
+    ...spreadIfDefined('preferredReturn', lpClass.preferredReturn),
+  }));
+}
+
+function hydrateLPs(lps: NonNullable<FundDraftWriteV1['lps']>): FundState['lps'] {
+  return lps.map((lp: DraftLP): FundState['lps'][number] => ({
+    id: lp.id,
+    name: lp.name,
+    commitment: lp.commitment,
+    type: lp.type,
+    ...spreadIfDefined('lpClassId', lp.lpClassId),
+  }));
+}
+
+function hydrateCapitalPlanAllocations(
+  allocations: NonNullable<FundDraftWriteV1['capitalPlanAllocations']>
+): FundState['capitalPlanAllocations'] {
+  return allocations.map(
+    (allocation: DraftCapitalPlanAllocation): FundState['capitalPlanAllocations'][number] => ({
+      id: allocation.id,
+      name: allocation.name,
+      entryRound: allocation.entryRound,
+      capitalAllocationPct: allocation.capitalAllocationPct,
+      initialCheckStrategy: allocation.initialCheckStrategy,
+      followOnStrategy: allocation.followOnStrategy,
+      followOnParticipationPct: allocation.followOnParticipationPct,
+      investmentHorizonMonths: allocation.investmentHorizonMonths,
+      ...spreadIfDefined('sectorProfileId', allocation.sectorProfileId),
+      ...spreadIfDefined('initialCheckAmount', allocation.initialCheckAmount),
+      ...spreadIfDefined('initialOwnershipPct', allocation.initialOwnershipPct),
+      ...spreadIfDefined('followOnAmount', allocation.followOnAmount),
+    })
+  );
+}
+
+function hydrateWaterfallTiers(
+  tiers: NonNullable<FundDraftWriteV1['waterfallTiers']>
+): FundState['waterfallTiers'] {
+  return tiers.map((tier: DraftWaterfallTier): FundState['waterfallTiers'][number] => ({
+    id: tier.id,
+    name: tier.name,
+    gpSplit: tier.gpSplit,
+    lpSplit: tier.lpSplit,
+    ...spreadIfDefined('preferredReturn', tier.preferredReturn),
+    ...spreadIfDefined('catchUp', tier.catchUp),
+    ...spreadIfDefined('condition', tier.condition),
+    ...spreadIfDefined('conditionValue', tier.conditionValue),
+  }));
+}
+
+function hydrateFeeProfiles(
+  feeProfiles: NonNullable<FundDraftWriteV1['feeProfiles']>
+): FundState['feeProfiles'] {
+  return feeProfiles.map((profile: DraftFeeProfile): FundState['feeProfiles'][number] => ({
+    id: profile.id,
+    name: profile.name,
+    feeTiers: profile.feeTiers.map(
+      (tier: DraftFeeTier): FundState['feeProfiles'][number]['feeTiers'][number] => ({
+        id: tier.id,
+        name: tier.name,
+        percentage: tier.percentage,
+        feeBasis: tier.feeBasis,
+        startMonth: tier.startMonth,
+        ...spreadIfDefined('endMonth', tier.endMonth),
+        ...spreadIfDefined('recyclingPercentage', tier.recyclingPercentage),
+      })
+    ),
+  }));
+}
+
+function hydrateFundExpenses(
+  expenses: NonNullable<FundDraftWriteV1['fundExpenses']>
+): FundState['fundExpenses'] {
+  return expenses.map((expense: DraftFundExpense): FundState['fundExpenses'][number] => ({
+    id: expense.id,
+    category: expense.category,
+    monthlyAmount: expense.monthlyAmount,
+    startMonth: expense.startMonth,
+    ...spreadIfDefined('endMonth', expense.endMonth),
+  }));
+}
 
 /**
  * Maps fund store state to FundCreateV1 (POST /api/funds).
@@ -137,4 +261,61 @@ export function fundStoreToDraftWriteV1(state: FundStateSlice): FundDraftWriteV1
   if (state.fundExpenses.length > 0) draft.fundExpenses = state.fundExpenses;
 
   return draft;
+}
+
+/**
+ * Maps a server draft payload back into the routed wizard store.
+ *
+ * Missing fields are interpreted against the routed wizard's seeded defaults,
+ * not the partially persisted client cache. This keeps post-bootstrap resume
+ * deterministic and server-authoritative.
+ */
+export function fundDraftWriteV1ToStoreHydrationPatch(
+  draft: FundDraftWriteV1,
+  defaults: DraftHydrationDefaults
+): Partial<FundState> {
+  return {
+    fundName: draft.fundName,
+    lpClasses: draft.lpClasses ? hydrateLPClasses(draft.lpClasses) : defaults.lpClasses,
+    lps: draft.lps ? hydrateLPs(draft.lps) : defaults.lps,
+    stages: draft.stages ?? defaults.stages,
+    sectorProfiles: draft.sectorProfiles ?? defaults.sectorProfiles,
+    allocations: draft.allocations ?? defaults.allocations,
+    followOnChecks: draft.followOnChecks ?? defaults.followOnChecks,
+    capitalStageAllocations: draft.capitalStageAllocations ?? defaults.capitalStageAllocations,
+    capitalPlanAllocations: draft.capitalPlanAllocations
+      ? hydrateCapitalPlanAllocations(draft.capitalPlanAllocations)
+      : defaults.capitalPlanAllocations,
+    pipelineProfiles: draft.pipelineProfiles ?? defaults.pipelineProfiles,
+    waterfallTiers: draft.waterfallTiers
+      ? hydrateWaterfallTiers(draft.waterfallTiers)
+      : defaults.waterfallTiers,
+    feeProfiles: draft.feeProfiles ? hydrateFeeProfiles(draft.feeProfiles) : defaults.feeProfiles,
+    fundExpenses: draft.fundExpenses
+      ? hydrateFundExpenses(draft.fundExpenses)
+      : defaults.fundExpenses,
+    ...spreadIfDefined('fundSize', draft.fundSize),
+    ...spreadIfDefined('vintageYear', draft.vintageYear),
+    ...spreadIfDefined('managementFeeRate', draft.managementFeeRate),
+    ...spreadIfDefined('carriedInterest', draft.carriedInterest),
+    ...spreadIfDefined('establishmentDate', draft.establishmentDate),
+    ...spreadIfDefined('isEvergreen', draft.isEvergreen ?? defaults.isEvergreen),
+    ...spreadIfDefined('fundLife', draft.fundLife),
+    ...spreadIfDefined('investmentPeriod', draft.investmentPeriod),
+    ...spreadIfDefined('gpCommitment', draft.gpCommitment),
+    ...spreadIfDefined('waterfallType', draft.waterfallType ?? defaults.waterfallType),
+    ...spreadIfDefined('recyclingEnabled', draft.recyclingEnabled ?? defaults.recyclingEnabled),
+    ...spreadIfDefined('recyclingType', draft.recyclingType ?? defaults.recyclingType),
+    ...spreadIfDefined('recyclingCap', draft.recyclingCap),
+    ...spreadIfDefined('recyclingPeriod', draft.recyclingPeriod),
+    ...spreadIfDefined('exitRecyclingRate', draft.exitRecyclingRate ?? defaults.exitRecyclingRate),
+    ...spreadIfDefined(
+      'mgmtFeeRecyclingRate',
+      draft.mgmtFeeRecyclingRate ?? defaults.mgmtFeeRecyclingRate
+    ),
+    ...spreadIfDefined(
+      'allowFutureRecycling',
+      draft.allowFutureRecycling ?? defaults.allowFutureRecycling
+    ),
+  };
 }

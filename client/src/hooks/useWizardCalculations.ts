@@ -13,9 +13,9 @@ import {
   type WizardPortfolioCompany,
   type PortfolioValidationResult,
   type PortfolioSummary,
-  type EnrichedReserveAllocation
+  type EnrichedReserveAllocation,
 } from '@/lib/wizard-calculations';
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
+import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 
 /**
  * Hook for wizard calculation operations
@@ -26,7 +26,7 @@ import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
  */
 export function useWizardCalculations(
   portfolio: WizardPortfolioCompany[],
-  wizardContext: ModelingWizardContext | undefined
+  wizardContext: SharedWizardComputationContext | undefined
 ) {
   // Portfolio validation (recalculates when portfolio changes)
   const validation: PortfolioValidationResult = useMemo(
@@ -35,10 +35,7 @@ export function useWizardCalculations(
   );
 
   // Portfolio summary (recalculates when portfolio changes)
-  const summary: PortfolioSummary = useMemo(
-    () => generatePortfolioSummary(portfolio),
-    [portfolio]
-  );
+  const summary: PortfolioSummary = useMemo(() => generatePortfolioSummary(portfolio), [portfolio]);
 
   // Get enriched metrics if reserves are calculated
   // Keep deps narrow but include the context reference to avoid stale closures.
@@ -55,17 +52,9 @@ export function useWizardCalculations(
   // Check if portfolio is ready for calculation
   const isReadyForCalculation = useMemo(() => {
     return (
-      validation.valid &&
-      portfolio.length > 0 &&
-      generalInfo != null &&
-      capitalAllocation != null
+      validation.valid && portfolio.length > 0 && generalInfo != null && capitalAllocation != null
     );
-  }, [
-    validation.valid,
-    portfolio.length,
-    generalInfo,
-    capitalAllocation
-  ]);
+  }, [validation.valid, portfolio.length, generalInfo, capitalAllocation]);
 
   return {
     // Validation
@@ -85,6 +74,6 @@ export function useWizardCalculations(
 
     // Reserve results (if available)
     reserveAllocation,
-    hasReserves: !!reserveAllocation
+    hasReserves: !!reserveAllocation,
   };
 }

@@ -21,7 +21,7 @@ import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCa
 import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { useEngineComparison } from '@/hooks/useEngineComparison';
 import { FLAGS } from '@/core/flags/featureFlags';
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
+import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
 import { EngineRecommendationsPanel } from './capital-allocation/EngineRecommendationsPanel';
 import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
@@ -148,7 +148,7 @@ export function CapitalAllocationStep({
   }, [watch, onSave]);
 
   // Engine comparison (behind feature flag)
-  const minimalWizardContext = React.useMemo<ModelingWizardContext>(
+  const minimalWizardContext = React.useMemo<SharedWizardComputationContext>(
     () => ({
       steps: {
         generalInfo: {
@@ -164,41 +164,6 @@ export function CapitalAllocationStep({
         sectorProfiles: { sectorProfiles },
         capitalAllocation: debouncedFormValues as CapitalAllocationOutput,
       },
-      currentStep: 'capitalAllocation' as const,
-      currentStepIndex: 2,
-      totalSteps: 7,
-      completedSteps: new Set(['generalInfo', 'sectorProfiles'] as const),
-      visitedSteps: new Set(['generalInfo', 'sectorProfiles', 'capitalAllocation'] as const),
-      validationErrors: {
-        generalInfo: [],
-        sectorProfiles: [],
-        capitalAllocation: [],
-        feesExpenses: [],
-        exitRecycling: [],
-        waterfall: [],
-        scenarios: [],
-      },
-      isStepValid: {
-        generalInfo: true,
-        sectorProfiles: true,
-        capitalAllocation: false,
-        feesExpenses: false,
-        exitRecycling: true,
-        waterfall: false,
-        scenarios: false,
-      },
-      lastSaved: null,
-      isDirty: false,
-      persistenceError: null,
-      retryCount: 0,
-      lastPersistAttempt: null,
-      navigationIntent: null,
-      targetStep: null,
-      submissionError: null,
-      submissionRetryCount: 0,
-      createdFundId: null,
-      skipOptionalSteps: false,
-      autoSaveInterval: 30000,
     }),
     [fundFinancials, sectorProfiles, debouncedFormValues]
   );

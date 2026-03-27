@@ -1,5 +1,8 @@
 /**
- * Modeling Wizard State Machine (XState v5)
+ * Modeling Wizard State Machine (XState v5, legacy non-authoritative path)
+ *
+ * Legacy XState flow retained for compatibility with shared computation helpers.
+ * The routed store-based wizard under /fund-setup is the production owner.
  *
  * Manages the multi-step wizard flow for VC fund modeling with:
  * - 7 sequential steps with validation
@@ -623,6 +626,7 @@ const submitFundModel = fromPromise(async ({ input }: { input: ModelingWizardCon
 // STATE MACHINE DEFINITION
 // ============================================================================
 
+/** @deprecated Compatibility-only machine for the quarantined XState wizard UI. */
 export const modelingWizardMachine = setup({
   types: {
     context: {} as ModelingWizardContext,

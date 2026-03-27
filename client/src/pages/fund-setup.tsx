@@ -14,6 +14,11 @@ import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
+import { useFundDraftSync } from '@/hooks/useFundDraftSync';
+import { useFundSelector } from '@/stores/useFundSelector';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 // Feature flag for new selector pattern migration
 const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
@@ -99,7 +104,9 @@ function useStepKey(): StepKey {
 export default function FundSetup() {
   const key = useStepKey();
   const [, setLocation] = useLocation();
-  const { canAccessStep, markStepVisited, getRedirectUrl } = useWizardStepGuard();
+  const { markStepVisited, getRedirectUrl } = useWizardStepGuard();
+  const draftFundId = useFundSelector((s) => s.draftFundId);
+  const { status, error, retry, isHydrating } = useFundDraftSync({ stepKey: key });
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
 
   // Get current step number from key
@@ -107,7 +114,7 @@ export default function FundSetup() {
 
   // Step guard: redirect if trying to skip ahead via URL manipulation
   React.useEffect(() => {
-    if (key === 'not-found') return; // Let not-found render normally
+    if (isHydrating || key === 'not-found') return; // Let not-found render normally
 
     const redirectUrl = getRedirectUrl(currentStepNumber);
     if (redirectUrl) {
@@ -129,7 +136,7 @@ export default function FundSetup() {
 
     // Mark step as visited if legitimately accessed
     markStepVisited(currentStepNumber);
-  }, [key, currentStepNumber, canAccessStep, getRedirectUrl, markStepVisited, setLocation]);
+  }, [currentStepNumber, getRedirectUrl, isHydrating, key, markStepVisited, setLocation]);
 
   // Emit telemetry on step load
   React.useEffect(() => {
@@ -170,10 +177,54 @@ export default function FundSetup() {
         {/* Modern Progress Header - Single unified progress indicator */}
         <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
 
-        {/* Step Content */}
-        <div data-testid={`wizard-step-${key}-container`} className="relative">
-          <Step />
-        </div>
+        {isHydrating && draftFundId != null ? (
+          <div
+            className="flex min-h-[320px] items-center justify-center px-6"
+            data-testid="draft-hydrating"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-[#E0D8D1] bg-white px-6 py-4 text-sm font-poppins text-[#292929] shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading saved draft from the server...
+            </div>
+          </div>
+        ) : (
+          <>
+            {draftFundId != null && status !== 'idle' && (
+              <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+                {status === 'error' ? (
+                  <Alert
+                    className="border-l-4 border-l-red-500 bg-red-50"
+                    data-testid="draft-sync-error"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <AlertTitle>Draft Sync Failed</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center gap-3">
+                      <span>{error ?? 'Unable to sync the authoritative draft.'}</span>
+                      <Button type="button" size="sm" variant="outline" onClick={retry}>
+                        Retry Sync
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div
+                    aria-live="polite"
+                    className="rounded-xl border border-[#E0D8D1] bg-white px-4 py-3 text-sm font-poppins text-[#5F564F] shadow-sm"
+                    data-testid="draft-sync-status"
+                  >
+                    {status === 'saving'
+                      ? 'Saving authoritative server draft...'
+                      : 'Draft saved to server'}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step Content */}
+            <div data-testid={`wizard-step-${key}-container`} className="relative">
+              <Step />
+            </div>
+          </>
+        )}
       </div>
     </ErrorBoundary>
   );

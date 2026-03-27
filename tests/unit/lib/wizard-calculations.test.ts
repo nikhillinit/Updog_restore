@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the bridge module BEFORE importing the module under test
-vi.mock('../wizard-reserve-bridge', () => ({
+vi.mock('@/lib/wizard-reserve-bridge', () => ({
   calculateReservesForWizard: vi.fn(),
 }));
 
@@ -19,9 +19,9 @@ import {
   calculateReservesForWizard,
   type WizardPortfolioCompany,
   type ReserveAllocation,
-} from '../wizard-calculations';
-import type { SharedWizardComputationContext as ModelingWizardContext } from '../wizard-computation-context';
-import * as bridgeModule from '../wizard-reserve-bridge';
+} from '@/lib/wizard-calculations';
+import type { SharedWizardComputationContext as ModelingWizardContext } from '@/lib/wizard-computation-context';
+import * as bridgeModule from '@/lib/wizard-reserve-bridge';
 
 // ============================================================================
 // TEST FACTORIES

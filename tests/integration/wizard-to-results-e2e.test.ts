@@ -51,6 +51,14 @@ const mockFundState = {
   fundExpenses: [],
   hydrated: true,
   setHydrated: vi.fn(),
+  draftFundId: null as number | null,
+  setDraftFundId: vi.fn((fundId: number | null) => {
+    mockFundState.draftFundId = fundId;
+  }),
+  draftServerReady: false,
+  setDraftServerReady: vi.fn((ready: boolean) => {
+    mockFundState.draftServerReady = ready;
+  }),
 };
 
 vi.mock('@tanstack/react-query', () => ({
@@ -102,6 +110,10 @@ describe('wizard to results flow', () => {
   beforeEach(() => {
     mockSetCurrentFund.mockReset();
     mockInvalidateQueries.mockClear();
+    mockFundState.draftFundId = null;
+    mockFundState.draftServerReady = false;
+    mockFundState.setDraftFundId.mockClear();
+    mockFundState.setDraftServerReady.mockClear();
     mockCreateFund.mockReset().mockResolvedValue({
       success: true,
       data: { id: 42, name: 'Test Fund', size: '50000000' },
