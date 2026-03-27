@@ -1,21 +1,21 @@
 # Staleness Report
 
-_Generated: 2026-03-27T19:35:30.963Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-03-27T20:04:41.287Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 801   |
-| Stale Documents     | 217   |
-| Missing Frontmatter | 94    |
+| Total Documents     | 797   |
+| Stale Documents     | 213   |
+| Missing Frontmatter | 90    |
 
 ### By Status
 
 | Status           | Count |
 | ---------------- | ----- | ---------- | --- |
 | ACTIVE           | 529   |
-| UNKNOWN          | 173   |
+| UNKNOWN          | 169   |
 | HISTORICAL       | 61    |
 | DRAFT            | 18    |
 | VERIFIED         | 9     |
@@ -82,7 +82,7 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/pre-commit-check.md`                 | Never        | 999      | YES - verify!        | Unassigned |
 | `.claude/commands/session-start.md`                    | Never        | 999      | No                   | Unassigned |
 
-_...and 167 more stale documents._
+_...and 163 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -227,10 +227,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/2026-03-22-phase-3-review.md`
 - [ ] `docs/plans/2026-03-22-phase-3c-implementation-plan.md`
 - [ ] `docs/plans/2026-03-22-phase-4-implementation-spec.md`
-- [ ] `docs/plans/2026-03-26-entropy-reduction-integrated.md`
-- [ ] `docs/plans/2026-03-26-entropy-reduction/findings.md`
-- [ ] `docs/plans/2026-03-26-entropy-reduction/progress.md`
-- [ ] `docs/plans/2026-03-26-entropy-reduction/task_plan.md`
 - [ ] `docs/qa-response-2026-01-23.md`
 - [ ] `docs/queue-observability.md`
 - [ ] `docs/session-learning-reports/2026-01-20-hook-fix.md`
