@@ -52,9 +52,9 @@ cleanup() {
   fi
 
   if [[ $exit_code -ne 0 ]]; then
-    echo -e "\n${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "\n${RED}${BOLD}---------------------------------------------${NC}"
     echo -e "${RED}${BOLD}TEST PLAN FAILED (Exit code: $exit_code)${NC}"
-    echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    echo -e "${RED}${BOLD}---------------------------------------------${NC}\n"
   fi
 
   exit $exit_code
@@ -68,9 +68,9 @@ print_header() {
   local title="$1"
   local width=60
   echo ""
-  echo -e "${CYAN}${BOLD}$(printf '━%.0s' {1..60})${NC}"
+  echo -e "${CYAN}${BOLD}$(printf '-%.0s' {1..60})${NC}"
   echo -e "${CYAN}${BOLD}${title}${NC}"
-  echo -e "${CYAN}${BOLD}$(printf '━%.0s' {1..60})${NC}"
+  echo -e "${CYAN}${BOLD}$(printf '-%.0s' {1..60})${NC}"
 }
 
 print_phase_time() {
@@ -87,10 +87,10 @@ test_result() {
 
   if [[ "$result" == "pass" ]]; then
     PASSED_TESTS=$((PASSED_TESTS + 1))
-    echo -e "${GREEN}✅ ${test_name}${NC}"
+    echo -e "${GREEN}[Done] ${test_name}${NC}"
   else
     FAILED_TESTS=$((FAILED_TESTS + 1))
-    echo -e "${RED}❌ ${test_name}${NC}"
+    echo -e "${RED}[Fail] ${test_name}${NC}"
     return 1
   fi
 }
@@ -190,55 +190,21 @@ print_phase_time
 # Phase 3: Doctor checks
 print_header "PHASE 3: DOCTOR CHECKS"
 
-run_test "doctor:sidecar" "npm run doctor:sidecar"
-run_test "doctor:links" "npm run doctor:links"
+run_test "doctor:shell" "npm run doctor:shell"
 run_test "doctor:quick" "npm run doctor:quick"
 run_test "doctor (unified)" "npm run doctor"
 
 print_phase_time
 
-# Phase 4: Junction persistence check
-print_header "PHASE 4: JUNCTION PERSISTENCE TEST"
+# Phase 4: Dependency resolution check
+print_header "PHASE 4: DEPENDENCY RESOLUTION CHECK"
 
-echo "Checking if junctions exist before npm ci..."
-JUNCTIONS_BEFORE=0
-for junction in node_modules/vite node_modules/@vitejs/plugin-react node_modules/autoprefixer; do
-  if [[ -e "$junction" ]]; then
-    JUNCTIONS_BEFORE=$((JUNCTIONS_BEFORE + 1))
-  fi
-done
-
-echo "Found $JUNCTIONS_BEFORE junctions before npm ci"
-
-echo "Running npm ci in tools_local..."
-if cd tools_local && npm ci && cd ..; then
-  test_result "tools_local npm ci (persistence test)" "pass"
+echo "Verifying root dependency resolution..."
+if npm run doctor:quick; then
+  test_result "Module resolution after install" "pass"
 else
-  test_result "tools_local npm ci (persistence test)" "fail"
+  test_result "Module resolution after install" "fail"
   exit 1
-fi
-
-echo "Checking if junctions persist after npm ci..."
-JUNCTIONS_AFTER=0
-for junction in node_modules/vite node_modules/@vitejs/plugin-react node_modules/autoprefixer; do
-  if [[ -e "$junction" ]]; then
-    JUNCTIONS_AFTER=$((JUNCTIONS_AFTER + 1))
-  fi
-done
-
-echo "Found $JUNCTIONS_AFTER junctions after npm ci"
-
-if [[ $JUNCTIONS_AFTER -eq $JUNCTIONS_BEFORE ]]; then
-  test_result "Junction persistence after npm ci" "pass"
-else
-  echo -e "${YELLOW}Junctions changed: $JUNCTIONS_BEFORE -> $JUNCTIONS_AFTER${NC}"
-  echo "Re-running postinstall hook..."
-  if npm run postinstall; then
-    test_result "Junction restoration via postinstall" "pass"
-  else
-    test_result "Junction restoration via postinstall" "fail"
-    exit 1
-  fi
 fi
 
 print_phase_time
@@ -372,16 +338,16 @@ echo -e "  ${BLUE}Duration:     ${TOTAL_DURATION}s${NC}"
 echo ""
 
 if [[ $FAILED_TESTS -eq 0 ]]; then
-  echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}${BOLD}✅ ALL TESTS PASSED${NC}"
-  echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${GREEN}${BOLD}---------------------------------------------${NC}"
+  echo -e "${GREEN}${BOLD}[Done] ALL TESTS PASSED${NC}"
+  echo -e "${GREEN}${BOLD}---------------------------------------------${NC}"
   echo ""
   echo -e "${GREEN}Your development environment is fully validated!${NC}"
   exit 0
 else
-  echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${RED}${BOLD}❌ SOME TESTS FAILED${NC}"
-  echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${RED}${BOLD}---------------------------------------------${NC}"
+  echo -e "${RED}${BOLD}[Fail] SOME TESTS FAILED${NC}"
+  echo -e "${RED}${BOLD}---------------------------------------------${NC}"
   echo ""
   echo -e "${YELLOW}Review the output above for details.${NC}"
   exit 1

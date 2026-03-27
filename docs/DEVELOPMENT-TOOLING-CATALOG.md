@@ -7,11 +7,11 @@ keywords: [agents, tools, scripts, mcp, skills, workflows, catalog]
 source_of_truth: true
 agent_routing:
   priority: 2
-  route_hint: "Complete inventory of AI tools and automation."
+  route_hint: 'Complete inventory of AI tools and automation.'
   use_cases: [tool_discovery, agent_selection]
 maintenance:
-  owner: "Core Team"
-  review_cadence: "P90D"
+  owner: 'Core Team'
+  review_cadence: 'P90D'
 ---
 
 # Development Tooling Catalog (Corrected)
@@ -317,7 +317,7 @@ split into:
 - `dev`, `dev:client`, `dev:api` - Start development servers
 - `build`, `build:client`, `build:api` - Production builds
 - `check` - TypeScript type checking
-- `doctor`, `doctor:quick`, `doctor:links`, `doctor:sidecar` - Health checks
+- `doctor`, `doctor:shell`, `doctor:quick` - Health checks
 
 ### 7.2 Testing (18 scripts)
 
