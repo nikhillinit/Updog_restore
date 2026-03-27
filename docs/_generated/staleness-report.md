@@ -1,30 +1,28 @@
 # Staleness Report
 
-_Generated: 2026-03-27T18:24:21.506Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+_Generated: 2026-03-27T18:47:54.571Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
 
 ## Summary
 
 | Metric              | Value |
 | ------------------- | ----- |
-| Total Documents     | 882   |
-| Stale Documents     | 224   |
-| Missing Frontmatter | 101   |
+| Total Documents     | 801   |
+| Stale Documents     | 217   |
+| Missing Frontmatter | 94    |
 
 ### By Status
 
 | Status           | Count |
 | ---------------- | ----- | ---------- | --- |
-| ACTIVE           | 563   |
-| UNKNOWN          | 180   |
-| HISTORICAL       | 95    |
+| ACTIVE           | 529   |
+| UNKNOWN          | 173   |
+| HISTORICAL       | 61    |
 | DRAFT            | 18    |
 | VERIFIED         | 9     |
-| PROPOSED         | 5     |
 | DRAFT # VERIFIED | DRAFT | DEPRECATED | 4   |
 | ready            | 3     |
 | active           | 2     |
 | ARCHIVED         | 1     |
-| APPROVED         | 1     |
 | ACCEPTED         | 1     |
 
 ## Stale Documents
@@ -84,7 +82,7 @@ Documents that need review (older than their cadence threshold):
 | `.claude/commands/pre-commit-check.md`                 | Never        | 999      | YES - verify!        | Unassigned |
 | `.claude/commands/session-start.md`                    | Never        | 999      | No                   | Unassigned |
 
-_...and 174 more stale documents._
+_...and 167 more stale documents._
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -221,12 +219,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/planning/phase2-execution/03-epic-h-test-strategy.md`
 - [ ] `docs/planning/phase2-execution/04-epic-i-wizard-audit.md`
 - [ ] `docs/planning/phase2-execution/05-epic-j-reporting-audit.md`
-- [ ] `docs/plans/2026-01-20-hook-fix/findings.md`
-- [ ] `docs/plans/2026-01-20-hook-fix/progress.md`
-- [ ] `docs/plans/2026-01-20-hook-fix/task_plan.md`
-- [ ] `docs/plans/2026-02-13-priority-planning/findings.md`
-- [ ] `docs/plans/2026-02-13-priority-planning/progress.md`
-- [ ] `docs/plans/2026-02-13-priority-planning/task_plan.md`
 - [ ] `docs/plans/2026-03-20-concurrent-beaming-pine-revised.md`
 - [ ] `docs/plans/2026-03-20-phase-0b-execution-spec.md`
 - [ ] `docs/plans/2026-03-20-phase-0b-revised-counterproposal.md`
@@ -239,7 +231,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/plans/2026-03-26-entropy-reduction/findings.md`
 - [ ] `docs/plans/2026-03-26-entropy-reduction/progress.md`
 - [ ] `docs/plans/2026-03-26-entropy-reduction/task_plan.md`
-- [ ] `docs/plans/p5-debt-baseline-2026-02-17.md`
 - [ ] `docs/qa-response-2026-01-23.md`
 - [ ] `docs/queue-observability.md`
 - [ ] `docs/session-learning-reports/2026-01-20-hook-fix.md`
