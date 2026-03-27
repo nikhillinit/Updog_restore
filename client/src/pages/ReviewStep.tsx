@@ -27,7 +27,20 @@ interface SummarySection {
   items: Array<{ label: string; value: string | number; status?: 'ok' | 'warning' | 'missing' }>;
 }
 
-type SubmitState = 'idle' | 'submitting' | 'saving-draft' | 'error';
+type SubmitState = 'idle' | 'submitting' | 'saving-draft' | 'publishing' | 'error';
+
+type ErrorBody = {
+  error?: string;
+  message?: string;
+  code?: string;
+  issues?: Array<{ path: (string | number)[]; message: string }>;
+};
+
+async function readApiError(response: Response, fallback: string): Promise<Error> {
+  const errBody = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
+  const message = errBody.error || errBody.message || `${fallback} (HTTP ${response.status})`;
+  return new Error(message);
+}
 
 /** Save full wizard config as draft via PUT /api/funds/:id/draft */
 async function saveDraft(fundId: number): Promise<void> {
@@ -41,15 +54,17 @@ async function saveDraft(fundId: number): Promise<void> {
   });
 
   if (!response.ok) {
-    // Parse structured error from server (FundErrorV1 shape)
-    type ErrorBody = {
-      error?: string;
-      code?: string;
-      issues?: Array<{ path: (string | number)[]; message: string }>;
-    };
-    const errBody = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
-    const msg = errBody.error || `Draft save failed (HTTP ${response.status})`;
-    throw new Error(msg);
+    throw await readApiError(response, 'Draft save failed');
+  }
+}
+
+async function publishConfig(fundId: number): Promise<void> {
+  const response = await fetch(`/api/funds/${fundId}/publish`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw await readApiError(response, 'Publish failed');
   }
 }
 
@@ -74,6 +89,7 @@ export default function ReviewStep() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Track created fund ID for retry logic (skip POST, retry PUT only)
   const [createdFundId, setCreatedFundId] = useState<number | null>(null);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   const navigateToResults = useCallback(
     (fundId: number) => {
@@ -173,53 +189,18 @@ export default function ReviewStep() {
     setLocation('/fund-setup?step=6');
   }, [setLocation]);
 
-  const handleCreate = useCallback(async () => {
-    if (submitState === 'submitting' || submitState === 'saving-draft') return;
-
-    // Retry guard: if POST succeeded but draft failed, skip POST and retry draft only
-    if (createdFundId) {
-      setSubmitState('saving-draft');
-      setSubmitError(null);
+  const finalizeSuccessfulPublish = useCallback(
+    async (fundId: number) => {
       try {
-        await saveDraft(createdFundId);
-
         await queryClient.invalidateQueries({ queryKey: ['funds'] });
-        navigateToResults(createdFundId);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Draft save failed';
-        setSubmitError(message);
-        setSubmitState('error');
+      } catch (error) {
+        console.warn('[ReviewStep] Failed to invalidate funds query after publish', error);
       }
-      return;
-    }
 
-    setSubmitState('submitting');
-    setSubmitError(null);
-
-    try {
-      // Build canonical create payload from fundStore
-      const storeState = fundStore.getState();
-      const payload = fundStoreToCreateV1(storeState);
-
-      // Create fund via API (idempotent + deduped)
-      const raw = await createFund({ ...payload });
-      const fund = normalizeCreateFundResponse(raw);
-
-      // Store fund ID for retry logic before attempting draft save
-      setCreatedFundId(fund.id);
-
-      // Save full wizard config as draft (all 30+ fields)
-      setSubmitState('saving-draft');
-      await saveDraft(fund.id);
-
-      // Invalidate funds cache so dashboard sees the new fund
-      await queryClient.invalidateQueries({ queryKey: ['funds'] });
-
-      // Update FundContext with the new fund
       setCurrentFund({
-        id: fund.id,
-        name: String(fund['name'] ?? fundName ?? ''),
-        size: Number(fund['size'] ?? fundSize ?? 0),
+        id: fundId,
+        name: String(fundName ?? ''),
+        size: Number(fundSize ?? 0),
         managementFee: (managementFeeRate ?? 0) / 100,
         carryPercentage: (carriedInterest ?? 0) / 100,
         vintageYear: vintageYear ?? new Date().getFullYear(),
@@ -229,25 +210,72 @@ export default function ReviewStep() {
         updatedAt: new Date().toISOString(),
       });
 
-      // Land on the canonical results route for the created fund.
-      navigateToResults(fund.id);
+      navigateToResults(fundId);
+    },
+    [
+      carriedInterest,
+      fundName,
+      fundSize,
+      managementFeeRate,
+      navigateToResults,
+      queryClient,
+      setCurrentFund,
+      vintageYear,
+    ]
+  );
+
+  const handleCreate = useCallback(async () => {
+    if (
+      submitState === 'submitting' ||
+      submitState === 'saving-draft' ||
+      submitState === 'publishing'
+    ) {
+      return;
+    }
+
+    let fundId = createdFundId;
+    let activeStage: SubmitState = 'idle';
+
+    setSubmitError(null);
+
+    try {
+      if (fundId == null) {
+        activeStage = 'submitting';
+        setSubmitState('submitting');
+
+        const storeState = fundStore.getState();
+        const payload = fundStoreToCreateV1(storeState);
+        const raw = await createFund({ ...payload });
+        const fund = normalizeCreateFundResponse(raw);
+
+        fundId = fund.id;
+        setCreatedFundId(fund.id);
+      }
+
+      if (!draftSaved) {
+        activeStage = 'saving-draft';
+        setSubmitState('saving-draft');
+        await saveDraft(fundId);
+        setDraftSaved(true);
+      }
+
+      activeStage = 'publishing';
+      setSubmitState('publishing');
+      await publishConfig(fundId);
+
+      await finalizeSuccessfulPublish(fundId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create fund';
+      const fallbackMessage =
+        activeStage === 'publishing'
+          ? 'Publish failed'
+          : activeStage === 'saving-draft'
+            ? 'Draft save failed'
+            : 'Failed to create fund';
+      const message = err instanceof Error ? err.message : fallbackMessage;
       setSubmitError(message);
       setSubmitState('error');
     }
-  }, [
-    submitState,
-    createdFundId,
-    fundName,
-    fundSize,
-    managementFeeRate,
-    carriedInterest,
-    vintageYear,
-    queryClient,
-    setCurrentFund,
-    navigateToResults,
-  ]);
+  }, [createdFundId, draftSaved, finalizeSuccessfulPublish, submitState]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
@@ -262,7 +290,8 @@ export default function ReviewStep() {
     }
   };
 
-  const isSubmitting = submitState === 'submitting' || submitState === 'saving-draft';
+  const isSubmitting =
+    submitState === 'submitting' || submitState === 'saving-draft' || submitState === 'publishing';
 
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
@@ -365,7 +394,11 @@ export default function ReviewStep() {
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {submitState === 'saving-draft' ? 'Saving Config...' : 'Creating Fund...'}
+                {submitState === 'saving-draft'
+                  ? 'Saving Config...'
+                  : submitState === 'publishing'
+                    ? 'Publishing Config...'
+                    : 'Creating Fund...'}
               </>
             ) : (
               <>

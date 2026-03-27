@@ -144,6 +144,21 @@ describe('wizard to results flow', () => {
         });
       }
 
+      if (url === '/api/funds/42/publish') {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: { id: 100, fundId: 42, version: 1, isPublished: true },
+            runId: 10,
+            dispatchState: 'dispatched',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
       if (url === '/api/funds/42/results') {
         return new Response(JSON.stringify(readyResponse()), {
           status: 200,
@@ -186,6 +201,7 @@ describe('wizard to results flow', () => {
 
       expect(sessionCalls).toHaveLength(0);
       expect(mockCreateFund).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/publish', { method: 'POST' });
       expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/results');
     });
   });
