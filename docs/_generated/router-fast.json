@@ -2,11 +2,18 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-03-27T20:04:39.604Z",
+  "generatedAt": "2026-03-27T22:29:04.447Z",
   "keyword_to_docs": {},
   "patterns": [],
   "scoring": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score": 2
   },
   "version": "2.0"

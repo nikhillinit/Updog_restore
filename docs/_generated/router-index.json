@@ -1,7 +1,14 @@
 {
   "agents": [],
   "config": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score_to_route": 2
   },
   "decision_tree": {
@@ -86,7 +93,12 @@
         "raw": "development:\n        keywords: ['develop', 'code', 'implement', 'feature']\n        route: 'docs/INDEX.md'\n      testing:\n        keywords: ['test', 'spec', 'coverage', 'jest', 'vitest']\n        route: 'docs/INDEX.md#testing'\n      deployment:\n        keywords: ['deploy', 'prod', 'release', 'ci', 'cd']\n        route: 'docs/workflows/PRODUCTION_SCRIPTS.md'\n      troubleshooting:\n        keywords: ['error', 'debug', 'fix', 'broken', 'issue']\n        route: 'docs/INDEX.md'"
       },
       "id": "'category_routing'",
-      "keywords": ["'develop'", "'code'", "'implement'", "'feature'"],
+      "keywords": [
+        "'develop'",
+        "'code'",
+        "'implement'",
+        "'feature'"
+      ],
       "next": "'Q6'",
       "question": "'Which"
     },
@@ -139,7 +151,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "routing", "discovery"],
+        "categories": [
+          "agents",
+          "routing",
+          "discovery"
+        ],
         "keywords": [
           "agent-directory",
           "agent-selection",
@@ -163,7 +179,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["agents", "metrics", "performance"],
+        "categories": [
+          "agents",
+          "metrics",
+          "performance"
+        ],
         "keywords": [
           "agent-metrics",
           "usage-tracking",
@@ -218,7 +238,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["discovery", "agents", "routing"],
+        "categories": [
+          "discovery",
+          "agents",
+          "routing"
+        ],
         "keywords": [
           "discovery-map",
           "routing",
@@ -1260,18 +1284,6 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
-      "path": ".claude/complexity-checkpoint.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
       "path": ".claude/discovery.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -1281,8 +1293,16 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["testing", "agents", "routing"],
-        "keywords": ["test-strategy", "test-agents", "test-selection"],
+        "categories": [
+          "testing",
+          "agents",
+          "routing"
+        ],
+        "keywords": [
+          "test-strategy",
+          "test-agents",
+          "test-selection"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Team'",
         "review_cadence": "P30D",
@@ -1374,447 +1394,22 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/active-context.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/progress.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-13-priority-planning.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-14-p1-financial-accuracy.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-14-pdf-complexity-refactor.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-15-cc-reduction-batch2.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-15-p2-completion.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-15-p2-wizard-reliability.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-15-pr3-store-migration.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-complexity-refactor.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-p3-monte-carlo-frontend.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-p3-phase6-tests.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-p4-implementation.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-p4-planning.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-16-p4.5-dnd.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-18-ci-gate-diagnosis.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-18-p5-completion.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-18-p5-debt-reduction.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-18-xirr-fix-rename.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-20-ci-recovery-pr522-session2.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-20-ci-recovery-pr522.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-20-tech-debt-batch-refactor.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-21-forbidden-tokens-remediation.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-21-server-infra-remediation-plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-21-server-infra-remediation.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-22-phase2-validation.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-02-24-phoenix-validation-closure.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-16-babysitter-project-install.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-16-tech-debt-process-planning.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-18-8pr-commit-push.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-18-8pr-plan-execution.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-18-eslint-wave0-harness.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-18-session-cleanup.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-19-eslint-wave1a-partial.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-20-phase-0b-cutover.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/memory/sessions/2026-03-23-phase3c-track-a.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "planning", "architecture"],
+        "categories": [
+          "tech-debt",
+          "planning",
+          "architecture"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 2,
         "review_cadence": "P30D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -2297,18 +1892,6 @@
       "path": ".claude/security-fixes-lp-reporting.md",
       "staleDays": 67,
       "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": ".claude/session-context.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
     },
     {
       "docType": "doc",
@@ -3597,7 +3180,12 @@
       "frontmatter": {
         "description": "Reduce regressions by discovering tests, running them, then editing code",
         "name": "test-first-change",
-        "tags": ["testing", "tdd", "quality", "regression"],
+        "tags": [
+          "testing",
+          "tdd",
+          "quality",
+          "regression"
+        ],
         "version": "1.0.0"
       },
       "hasExecutionClaims": false,
@@ -3883,7 +3471,10 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools"],
+        "categories": [
+          "development",
+          "skills-tools"
+        ],
         "keywords": [
           "capabilities",
           "agents",
@@ -3897,7 +3488,10 @@
         "priority": 5,
         "review_cadence": "'P90D'",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery", "feature_planning"]
+        "use_cases": [
+          "capability_discovery",
+          "feature_planning"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -5160,7 +4754,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["development", "skills-tools", "ai-automation"],
+        "categories": [
+          "development",
+          "skills-tools",
+          "ai-automation"
+        ],
         "keywords": [
           "agents",
           "tools",
@@ -5177,7 +4775,10 @@
         "route_hint": "'Complete inventory of AI tools and automation.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["tool_discovery", "agent_selection"]
+        "use_cases": [
+          "tool_discovery",
+          "agent_selection"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -5267,8 +4868,17 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["documentation", "navigation"],
-        "keywords": ["index", "docs", "navigation", "routing", "documentation"],
+        "categories": [
+          "documentation",
+          "navigation"
+        ],
+        "keywords": [
+          "index",
+          "docs",
+          "navigation",
+          "routing",
+          "documentation"
+        ],
         "last_updated": "2026-03-27",
         "owner": "'Core Team'",
         "priority": 2,
@@ -5276,7 +4886,10 @@
         "route_hint": "'Central navigation for all documentation.'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["doc_discovery", "onboarding"]
+        "use_cases": [
+          "doc_discovery",
+          "onboarding"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -5591,7 +5204,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["phoenix", "validation", "vc-modeling"],
+        "categories": [
+          "phoenix",
+          "validation",
+          "vc-modeling"
+        ],
         "keywords": [
           "phoenix",
           "truth-case",
@@ -5610,7 +5227,10 @@
         "route_hint": "Entry point for all Phoenix project work.",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_validation", "vc_modeling"]
+        "use_cases": [
+          "phoenix_validation",
+          "vc_modeling"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -6047,6 +5667,35 @@
       "owner": null,
       "path": "docs/SLO.md",
       "staleDays": 67,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "categories": [
+          "governance",
+          "roadmap",
+          "stabilization"
+        ],
+        "keywords": [
+          "global-rules",
+          "milestones",
+          "stabilization",
+          "roadmap",
+          "governance"
+        ],
+        "last_updated": "2026-03-27",
+        "owner": "Core Team",
+        "review_cadence": "P30D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-03-27",
+      "owner": "Core Team",
+      "path": "docs/STABILIZATION-ROADMAP.md",
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -7238,21 +6887,6 @@
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/deployment/MEMORY_PHASE2_DEPLOYMENT.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2026-01-19",
@@ -8130,7 +7764,11 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "categories": ["database", "performance", "architecture"],
+        "categories": [
+          "database",
+          "performance",
+          "architecture"
+        ],
         "last_updated": "2025-12-23",
         "status": "active",
         "title": "LP Reporting Dashboard - Database Optimization Guide"
@@ -9307,18 +8945,6 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-20-concurrent-beaming-pine-revised.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
       "frontmatter": {
         "- C": "\\Users\\nikhi\\.claude\\plans\\fluttering-yawning-pretzel.md",
         "base_commit": "7fbf1977e5fca6718dc71159b5142ce9d78cb0e3",
@@ -9332,30 +8958,6 @@
       "path": "docs/plans/2026-03-20-contract-integrity-final-counterproposal.md",
       "staleDays": 7,
       "status": "ACCEPTED"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-20-phase-0b-execution-spec.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/plans/2026-03-20-phase-0b-revised-counterproposal.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
     },
     {
       "docType": "doc",
@@ -9452,14 +9054,21 @@
       "exists": true,
       "frontmatter": {
         "audience": "agents",
-        "categories": ["phoenix", "foundation-hardening", "coordination"],
+        "categories": [
+          "phoenix",
+          "foundation-hardening",
+          "coordination"
+        ],
         "last_updated": "2025-12-16",
         "owner": "'Core Team'",
         "priority": 1,
         "review_cadence": "'P30D'",
         "source_of_truth": true,
         "status": "ACTIVE",
-        "use_cases": ["phoenix_hardening_coordination", "divergence_triage"]
+        "use_cases": [
+          "phoenix_hardening_coordination",
+          "divergence_triage"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -10850,9 +10459,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "server", "integration"],
+        "components": [
+          "tests",
+          "server",
+          "integration"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_MODULE_NOT_FOUND", "ECONNREFUSED", "SQLITE_ERROR"],
+        "error_codes": [
+          "ERR_MODULE_NOT_FOUND",
+          "ECONNREFUSED",
+          "SQLITE_ERROR"
+        ],
         "id": "REFL-001",
         "keywords": [
           "dynamic-import",
@@ -10868,7 +10485,9 @@
         "title": "Dynamic Imports Prevent Test Side Effects",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10882,9 +10501,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "workflows"],
+        "components": [
+          "ci",
+          "github-actions",
+          "workflows"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-002",
         "keywords": [
           "post-merge",
@@ -10900,7 +10525,9 @@
         "title": "Post-Merge Jobs Not Validated by PR CI",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10914,9 +10541,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "scripts", "filesystem"],
+        "components": [
+          "ci",
+          "scripts",
+          "filesystem"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-003",
         "keywords": [
           "cross-platform",
@@ -10933,7 +10566,9 @@
         "title": "Cross-Platform File Enumeration Fragility",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -10947,11 +10582,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [""],
+        "components": [
+          ""
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-004",
-        "keywords": [""],
+        "keywords": [
+          ""
+        ],
         "severity": "medium # critical | high | medium | low",
         "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
         "superseded_by": "null",
@@ -10959,7 +10600,9 @@
         "title": "Schema Format Backward Compatibility",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10973,11 +10616,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [""],
+        "components": [
+          ""
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-005",
-        "keywords": [""],
+        "keywords": [
+          ""
+        ],
         "severity": "medium # critical | high | medium | low",
         "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
         "superseded_by": "null",
@@ -10985,7 +10634,9 @@
         "title": "Stale Test Files with API Mismatch",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10999,9 +10650,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["xirr", "analytics", "calculations"],
+        "components": [
+          "xirr",
+          "analytics",
+          "calculations"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["XIRR_NO_CONVERGENCE", "XIRR_DIVERGED"],
+        "error_codes": [
+          "XIRR_NO_CONVERGENCE",
+          "XIRR_DIVERGED"
+        ],
         "id": "REFL-006",
         "keywords": [
           "xirr",
@@ -11018,7 +10676,9 @@
         "title": "XIRR Newton-Raphson Divergence on Extreme Returns",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11032,9 +10692,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "mocking"],
+        "components": [
+          "tests",
+          "vitest",
+          "mocking"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-007",
         "keywords": [
           "vi.mock",
@@ -11050,7 +10716,9 @@
         "title": "Global vi.mock Pollutes All Tests",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11064,11 +10732,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [""],
+        "components": [
+          ""
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-008",
-        "keywords": [""],
+        "keywords": [
+          ""
+        ],
         "severity": "medium # critical | high | medium | low",
         "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
         "superseded_by": "null",
@@ -11076,7 +10750,9 @@
         "title": "TypeScript Type Inference from Database Schemas",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11090,9 +10766,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["scripts", "parsing", "cross-platform"],
+        "components": [
+          "scripts",
+          "parsing",
+          "cross-platform"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-009",
         "keywords": [
           "crlf",
@@ -11111,7 +10793,9 @@
         "title": "CRLF Line Endings Break Frontmatter Parsing",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11125,9 +10809,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["server", "security", "express", "rate-limiting"],
+        "components": [
+          "server",
+          "security",
+          "express",
+          "rate-limiting"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_TRUST_PROXY", "RATE_LIMIT_BYPASS"],
+        "error_codes": [
+          "ERR_TRUST_PROXY",
+          "RATE_LIMIT_BYPASS"
+        ],
         "id": "REFL-010",
         "keywords": [
           "trust-proxy",
@@ -11144,7 +10836,9 @@
         "title": "Trust Proxy Configuration for Rate Limiters",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11158,9 +10852,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "charts", "recharts"],
+        "components": [
+          "client",
+          "charts",
+          "recharts"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["TS2345", "TS2322"],
+        "error_codes": [
+          "TS2345",
+          "TS2322"
+        ],
         "id": "REFL-011",
         "keywords": [
           "recharts",
@@ -11177,7 +10878,9 @@
         "title": "Recharts Formatter Type Signatures",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11191,9 +10894,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["server", "middleware", "idempotency", "redis"],
+        "components": [
+          "server",
+          "middleware",
+          "idempotency",
+          "redis"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_RACE_CONDITION", "ERR_DUPLICATE_REQUEST"],
+        "error_codes": [
+          "ERR_RACE_CONDITION",
+          "ERR_DUPLICATE_REQUEST"
+        ],
         "id": "REFL-012",
         "keywords": [
           "fire-and-forget",
@@ -11211,7 +10922,9 @@
         "title": "Fire-and-Forget Async Creates Race Conditions",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11225,9 +10938,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["routing", "discovery", "pattern-matching"],
+        "components": [
+          "routing",
+          "discovery",
+          "pattern-matching"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ERR_ROUTE_MISMATCH"],
+        "error_codes": [
+          "ERR_ROUTE_MISMATCH"
+        ],
         "id": "REFL-013",
         "keywords": [
           "router",
@@ -11244,7 +10963,9 @@
         "title": "Router Substring Matching Causes False Positives",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11258,9 +10979,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "redis", "fixtures"],
+        "components": [
+          "tests",
+          "vitest",
+          "redis",
+          "fixtures"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-014",
         "keywords": [
           "test-isolation",
@@ -11277,7 +11005,9 @@
         "title": "Test Key Reuse Across Test Cases",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11291,9 +11021,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "database", "postgresql", "github-actions"],
+        "components": [
+          "ci",
+          "database",
+          "postgresql",
+          "github-actions"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["ECONNREFUSED", "database_does_not_exist"],
+        "error_codes": [
+          "ECONNREFUSED",
+          "database_does_not_exist"
+        ],
         "id": "REFL-015",
         "keywords": [
           "postgresql",
@@ -11310,7 +11048,9 @@
         "title": "PostgreSQL Service Missing Test Database",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11324,9 +11064,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["tests", "vitest", "configuration"],
+        "components": [
+          "tests",
+          "vitest",
+          "configuration"
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-016",
         "keywords": [
           "vitest",
@@ -11343,7 +11089,9 @@
         "title": "Vitest Include Patterns Miss New Test Directories",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11357,9 +11105,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "permissions"],
+        "components": [
+          "ci",
+          "github-actions",
+          "permissions"
+        ],
         "date": "2026-01-18",
-        "error_codes": ["HttpError", "404", "403"],
+        "error_codes": [
+          "HttpError",
+          "404",
+          "403"
+        ],
         "id": "REFL-017",
         "keywords": [
           "github-actions",
@@ -11376,7 +11132,9 @@
         "title": "CI Workflow Permission Errors",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11399,7 +11157,9 @@
         "title": "Reserve Engine Null Safety",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": ["capital-structure"]
+        "wizard_steps": [
+          "capital-structure"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11441,7 +11201,9 @@
           "test-infrastructure"
         ],
         "date": "2026-02-15",
-        "error_codes": ["ERR_TEST_TIMEOUT"],
+        "error_codes": [
+          "ERR_TEST_TIMEOUT"
+        ],
         "id": "REFL-020",
         "keywords": [
           "test-timeout",
@@ -11457,7 +11219,9 @@
         "title": "Large-Iteration Tests Need Explicit Timeouts",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11471,9 +11235,19 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["typescript", "state", "client", "server", "drizzle"],
+        "components": [
+          "typescript",
+          "state",
+          "client",
+          "server",
+          "drizzle"
+        ],
         "date": "2026-02-16",
-        "error_codes": ["TS2375", "TS2412", "TS2769"],
+        "error_codes": [
+          "TS2375",
+          "TS2412",
+          "TS2769"
+        ],
         "id": "REFL-021",
         "severity": "medium",
         "status": "DRAFT",
@@ -11482,7 +11256,9 @@
         "title": "exactOptionalPropertyTypes Requires Spread Pattern",
         "type": "reflection",
         "version": 2,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11504,7 +11280,9 @@
           "integration-tests"
         ],
         "date": "2026-02-18",
-        "error_codes": ["ERR_METRIC_ALREADY_REGISTERED"],
+        "error_codes": [
+          "ERR_METRIC_ALREADY_REGISTERED"
+        ],
         "id": "REFL-022",
         "severity": "high",
         "status": "DRAFT",
@@ -11513,7 +11291,9 @@
         "title": "Prometheus Metrics Duplicate Registration on Hot Reload",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11527,9 +11307,16 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "security", "feature-flags", "rollout"],
+        "components": [
+          "client",
+          "security",
+          "feature-flags",
+          "rollout"
+        ],
         "date": "2026-02-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-023",
         "severity": "medium",
         "status": "DRAFT",
@@ -11538,7 +11325,9 @@
         "title": "Math.random in Production Identifiers",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11570,7 +11359,9 @@
         "title": "Integration Test Environment Leakage (5-Layer Defense)",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11593,7 +11384,11 @@
           "shared"
         ],
         "date": "2026-02-18",
-        "error_codes": ["TS4111", "TS2307", "TS2339"],
+        "error_codes": [
+          "TS4111",
+          "TS2307",
+          "TS2339"
+        ],
         "id": "REFL-025",
         "severity": "medium",
         "status": "DRAFT",
@@ -11602,7 +11397,9 @@
         "title": "CI Compilation Boundary Mismatch",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11616,9 +11413,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["drizzle", "vitest", "testing", "database"],
+        "components": [
+          "drizzle",
+          "vitest",
+          "testing",
+          "database"
+        ],
         "date": "2026-02-24",
-        "error_codes": ["TypeError", "ERR_DRIZZLE_CHAIN"],
+        "error_codes": [
+          "TypeError",
+          "ERR_DRIZZLE_CHAIN"
+        ],
         "id": "REFL-026",
         "severity": "high",
         "status": "DRAFT",
@@ -11627,7 +11432,9 @@
         "title": "Drizzle ORM Mock Chain Overwrite",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11641,9 +11448,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "typescript", "eslint"],
+        "components": [
+          "client",
+          "typescript",
+          "eslint"
+        ],
         "date": "2026-03-17",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-027",
         "severity": "medium",
         "status": "DRAFT",
@@ -11652,7 +11465,9 @@
         "title": "Redundant any on Inferred Callback Parameters",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11666,9 +11481,15 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["client", "typescript", "react-context"],
+        "components": [
+          "client",
+          "typescript",
+          "react-context"
+        ],
         "date": "2026-03-17",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-028",
         "severity": "medium",
         "status": "DRAFT",
@@ -11677,7 +11498,9 @@
         "title": "Duck-Type Context Access with Typed Bracket Notation",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11691,9 +11514,18 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": ["ci", "github-actions", "workflow", "secrets", "zap"],
+        "components": [
+          "ci",
+          "github-actions",
+          "workflow",
+          "secrets",
+          "zap"
+        ],
         "date": "2026-03-17",
-        "error_codes": ["ERR_WORKFLOW_INVALID", "ERR_NO_JOB_LOGS"],
+        "error_codes": [
+          "ERR_WORKFLOW_INVALID",
+          "ERR_NO_JOB_LOGS"
+        ],
         "id": "REFL-029",
         "severity": "medium",
         "status": "DRAFT",
@@ -11702,7 +11534,9 @@
         "title": "GitHub Actions Secrets in if Expressions Invalidate Workflows",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11720,7 +11554,12 @@
         "discovered": "2026-03-23",
         "id": "REFL-030",
         "severity": "high",
-        "tags": ["testing", "mock", "database", "type-safety"],
+        "tags": [
+          "testing",
+          "mock",
+          "database",
+          "type-safety"
+        ],
         "title": "Mock ID Generator Type Change Breaks Downstream Assertions"
       },
       "hasExecutionClaims": false,
@@ -11739,7 +11578,11 @@
         "discovered": "2026-03-23",
         "id": "REFL-031",
         "severity": "medium",
-        "tags": ["typescript", "type-safety", "as-const"],
+        "tags": [
+          "typescript",
+          "type-safety",
+          "as-const"
+        ],
         "title": "as-const Literal Types Prevent Arithmetic Reassignment"
       },
       "hasExecutionClaims": false,
@@ -11756,7 +11599,9 @@
       "frontmatter": {
         "category": "Infrastructure",
         "discovered": "2026-03-23",
-        "error_codes": ["TS4111"],
+        "error_codes": [
+          "TS4111"
+        ],
         "id": "REFL-032",
         "severity": "medium",
         "title": "TS4111 Index Signature Access Conflicts with ESLint Dot Notation"
@@ -11797,11 +11642,17 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [""],
+        "components": [
+          ""
+        ],
         "date": "2026-01-18",
-        "error_codes": [""],
+        "error_codes": [
+          ""
+        ],
         "id": "REFL-000",
-        "keywords": [""],
+        "keywords": [
+          ""
+        ],
         "severity": "medium # critical | high | medium | low",
         "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
         "superseded_by": "null",
@@ -11809,7 +11660,9 @@
         "title": "Short Descriptive Title",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [""]
+        "wizard_steps": [
+          ""
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11965,111 +11818,6 @@
       "isStale": false,
       "lastUpdated": "2026-01-19",
       "owner": null,
-      "path": "docs/staging/phase2.1/README.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "HISTORICAL"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/cluster-a-partial-success-report.md",
-      "staleDays": 67,
-      "status": "HISTORICAL"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/cluster-b-stage-validation-prep.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/cluster-c-APPLY-PATCHES.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/cluster-c-batch-gate-results.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/cluster-c-modeling-wizard-prep.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": true,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
-      "path": "docs/staging/phase2.1/seams/redis-webhook-contract.md",
-      "staleDays": 67,
-      "status": "ACTIVE"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
-      },
-      "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-01-19",
-      "owner": null,
       "path": "docs/standards.md",
       "staleDays": 67,
       "status": "ACTIVE"
@@ -12094,7 +11842,11 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "development", "type-safety"],
+        "categories": [
+          "tech-debt",
+          "development",
+          "type-safety"
+        ],
         "keywords": [
           "typescript",
           "any-elimination",
@@ -12106,7 +11858,9 @@
         "priority": 2,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution"]
+        "use_cases": [
+          "task_execution"
+        ]
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -12438,7 +12192,11 @@
         "- event": "'xirr_consolidation_complete'",
         "action": "'Update status to REFERENCE'",
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "financial-calculations"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "financial-calculations"
+        ],
         "keywords": [
           "xirr",
           "consolidation",
@@ -12450,7 +12208,10 @@
         "priority": 1,
         "review_cadence": "P60D",
         "status": "ACTIVE",
-        "use_cases": ["task_execution", "capability_discovery"]
+        "use_cases": [
+          "task_execution",
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -12465,14 +12226,24 @@
       "exists": true,
       "frontmatter": {
         "audience": "both",
-        "categories": ["tech-debt", "architecture", "documentation"],
-        "keywords": ["xirr", "executive-summary", "consolidation"],
+        "categories": [
+          "tech-debt",
+          "architecture",
+          "documentation"
+        ],
+        "keywords": [
+          "xirr",
+          "executive-summary",
+          "consolidation"
+        ],
         "last_updated": "2025-12-29",
         "owner": "'Platform Developer'",
         "priority": 1,
         "review_cadence": "P90D",
         "status": "ACTIVE",
-        "use_cases": ["capability_discovery"]
+        "use_cases": [
+          "capability_discovery"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -12543,24 +12314,24 @@
       "status": "HISTORICAL"
     }
   ],
-  "generatedAt": "2026-03-27T20:04:39.604Z",
+  "generatedAt": "2026-03-27T22:29:04.447Z",
   "patterns": [],
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
-      "ACTIVE": 529,
+      "ACTIVE": 523,
       "ARCHIVED": 1,
       "DRAFT": 18,
       "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
-      "HISTORICAL": 61,
-      "UNKNOWN": 169,
+      "HISTORICAL": 60,
+      "UNKNOWN": 128,
       "VERIFIED": 9,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 90,
-    "stale_docs": 213,
-    "total_docs": 797
+    "missing_frontmatter": 49,
+    "stale_docs": 172,
+    "total_docs": 749
   },
   "version": "2.0"
 }

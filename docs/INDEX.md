@@ -38,6 +38,7 @@ Humans AND Agents **Last Updated**: 2026-03-27
 | [Skills & Tools](#skills--tools)                 | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md      |
 | [CI Quality Gates](#ci-quality-gates)            | Baseline validation, schema drift, perf | CLAUDE-INFRA-V4-INTEGRATION-PLAN.md |
 | [Troubleshooting](#troubleshooting)              | Debugging, common issues                | cheatsheets/daily-workflow.md       |
+| [Stabilization](#stabilization)                  | Global rules, milestone roadmap         | STABILIZATION-ROADMAP.md            |
 
 ---
 
@@ -151,6 +152,16 @@ Hardening baseline)
 
 _Note: ADR-017/018/019 were renumbered from 010/011/012 to avoid conflicts with
 DECISIONS.md (2026-01-19)._
+
+---
+
+## Stabilization
+
+**Status**: [ACTIVE] **Audience**: Humans + Agents
+
+| Document                                                 | Description                                          | When to Use                                  |
+| -------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------- |
+| [STABILIZATION-ROADMAP.md](STABILIZATION-ROADMAP.md)     | Global rules and milestone roadmap (0A through 7)    | Before starting any milestone work, PR scoping |
 
 ---
 
