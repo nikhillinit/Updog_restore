@@ -1,15 +1,21 @@
 ---
 name: code-reviewer
-description: Comprehensive multi-AI code review system for Python, JavaScript, and TypeScript. Use when reviewing code for quality, security, performance, or best practices. Includes automated analysis scripts, language-specific patterns, and AI collaboration workflows for complex decisions.
+description:
+  Comprehensive multi-AI code review system for Python, JavaScript, and
+  TypeScript. Use when reviewing code for quality, security, performance, or
+  best practices. Includes automated analysis scripts, language-specific
+  patterns, and AI collaboration workflows for complex decisions.
 ---
 
 # Code Reviewer Skill
 
-Expert code review assistant with automated analysis tools, language-specific best practices, and multi-AI collaboration capabilities.
+Expert code review assistant with automated analysis tools, language-specific
+best practices, and multi-AI collaboration capabilities.
 
 ## When to Use This Skill
 
 Use this skill when:
+
 - Reviewing pull requests or code changes
 - Analyzing code for security vulnerabilities
 - Checking code quality and maintainability
@@ -25,28 +31,36 @@ Use this skill when:
 Run automated scans before manual review:
 
 **Complexity Analysis:**
+
 ```bash
 python scripts/analyze_complexity.py <file_or_directory>
 ```
+
 Identifies files with high complexity, deep nesting, and long functions.
 
 **Security Scan:**
+
 ```bash
 python scripts/security_scan.py <file_or_directory>
 ```
+
 Detects common vulnerabilities: SQL injection, XSS, hardcoded secrets, etc.
 
 ### 2. Language-Specific Review
 
 Consult language-specific pattern guides:
-- **Python:** Read `references/python_patterns.md` for PEP 8, type hints, security, testing patterns
-- **JavaScript/TypeScript:** Read `references/javascript_patterns.md` for modern patterns, React, async/await, security
+
+- **Python:** Read `references/python_patterns.md` for PEP 8, type hints,
+  security, testing patterns
+- **JavaScript/TypeScript:** Read `references/javascript_patterns.md` for modern
+  patterns, React, async/await, security
 
 ### 3. Structured Review Process
 
 Follow the comprehensive workflow in `references/review_workflow.md`:
+
 1. High-level architecture review
-2. Logic and correctness verification  
+2. Logic and correctness verification
 3. Security and safety analysis
 4. Tests and documentation check
 5. Style and best practices validation
@@ -55,31 +69,36 @@ Follow the comprehensive workflow in `references/review_workflow.md`:
 
 ### Multi-Pass Review Strategy
 
-Perform reviews in focused passes rather than trying to catch everything at once:
+Perform reviews in focused passes rather than trying to catch everything at
+once:
 
-**Pass 1: Architecture (5 min)** - Overall design, approach validity, structural soundness
-**Pass 2: Logic (15-20 min)** - Correctness, edge cases, error handling
-**Pass 3: Security (10 min)** - Vulnerabilities, input validation, authentication
-**Pass 4: Tests (10 min)** - Coverage, test quality, documentation
-**Pass 5: Style (5 min)** - Readability, maintainability, conventions
+**Pass 1: Architecture (5 min)** - Overall design, approach validity, structural
+soundness **Pass 2: Logic (15-20 min)** - Correctness, edge cases, error
+handling **Pass 3: Security (10 min)** - Vulnerabilities, input validation,
+authentication **Pass 4: Tests (10 min)** - Coverage, test quality,
+documentation **Pass 5: Style (5 min)** - Readability, maintainability,
+conventions
 
 ### AI Collaboration for Complex Reviews
 
 Leverage Multi-AI tools for different aspects:
 
 **For architectural decisions:**
+
 ```
 ai_consensus: Get consensus on design approach
 ai_debate: Explore trade-offs between competing solutions
 ```
 
 **For security-critical code:**
+
 ```
 ask_gemini: Deep security analysis with focus="security"
 collaborative_solve: Multi-AI approach to complex security issues
 ```
 
 **For performance optimization:**
+
 ```
 ask_all_ais: Compare optimization strategies
 openai_architecture: System design implications
@@ -89,10 +108,11 @@ openai_architecture: System design implications
 
 ### Feedback Severity Levels
 
-**🔴 Critical** - Must fix before merge (security, data loss, breaking changes)
-**🟠 Major** - Should fix (incorrect logic, missing error handling, poor architecture)
-**🟡 Minor** - Nice to have (style, naming, minor optimizations)
-**🟢 Praise** - Positive reinforcement (elegant solutions, good practices)
+**[Critical] Critical** - Must fix before merge (security, data loss, breaking
+changes) **[Major] Major** - Should fix (incorrect logic, missing error
+handling, poor architecture) **[Minor] Minor** - Nice to have (style, naming,
+minor optimizations) **[Praise] Praise** - Positive reinforcement (elegant
+solutions, good practices)
 
 ### Feedback Template
 
@@ -109,7 +129,7 @@ openai_architecture: System design implications
 ### Example Feedback
 
 ```
-🔴 Critical (Security): SQL Injection Vulnerability
+[Critical] Critical (Security): SQL Injection Vulnerability
 
 Line 45: String concatenation in SQL query allows injection attacks:
     cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
@@ -123,16 +143,18 @@ Reference: See references/python_patterns.md section 5 on SQL injection preventi
 ## Review Workflow
 
 ### Step 1: Understand Context
+
 - What problem is being solved?
 - What's the risk level?
 - Are there acceptance criteria?
 
 ### Step 2: Run Automated Tools
+
 ```bash
 # Complexity analysis
 python scripts/analyze_complexity.py <path>
 
-# Security scan  
+# Security scan
 python scripts/security_scan.py <path>
 ```
 
@@ -145,11 +167,13 @@ Execute all five passes methodically. Don't try to catch everything in one pass.
 ### Step 4: Consult Language-Specific Guides
 
 When reviewing Python code:
+
 - Read `references/python_patterns.md` sections relevant to code being reviewed
 - Check anti-patterns section for common mistakes
 - Verify security best practices are followed
 
 When reviewing JavaScript/TypeScript:
+
 - Read `references/javascript_patterns.md` for applicable sections
 - Check React patterns if reviewing React code
 - Verify async/await error handling
@@ -157,6 +181,7 @@ When reviewing JavaScript/TypeScript:
 ### Step 5: Use AI Collaboration for Complex Issues
 
 When encountering difficult decisions:
+
 - Use `ai_consensus` for architectural choices
 - Use `ai_debate` to explore trade-offs
 - Use `collaborative_solve` for complex problems
@@ -173,7 +198,9 @@ When encountering difficult decisions:
 ## Language Support
 
 ### Python
+
 Full support with patterns for:
+
 - PEP 8 style and formatting
 - Type hints and documentation
 - Error handling best practices
@@ -183,7 +210,9 @@ Full support with patterns for:
 - Common anti-patterns
 
 ### JavaScript/TypeScript
+
 Full support with patterns for:
+
 - Modern ES6+ features
 - TypeScript type system
 - Async/await patterns
@@ -193,7 +222,9 @@ Full support with patterns for:
 - Common pitfalls
 
 ### Other Languages
+
 For languages not explicitly supported:
+
 - Run automated tools if compatible
 - Apply general principles from workflow guide
 - Focus on security, logic, and architecture
@@ -203,8 +234,8 @@ For languages not explicitly supported:
 
 ### Multi-AI Collaboration Patterns
 
-**Consensus on Uncertain Decisions:**
-When reviewers are split or unsure:
+**Consensus on Uncertain Decisions:** When reviewers are split or unsure:
+
 ```
 ai_consensus(
   question="Should we use composition or inheritance for this design?",
@@ -212,18 +243,19 @@ ai_consensus(
 )
 ```
 
-**Debate Complex Trade-offs:**
-For exploring competing approaches:
+**Debate Complex Trade-offs:** For exploring competing approaches:
+
 ```
 ai_debate(
   ai1="gemini",
-  ai2="grok", 
+  ai2="grok",
   topic="Microservices vs monolith for this feature"
 )
 ```
 
-**Collaborative Problem-Solving:**
-For complex issues requiring multiple perspectives:
+**Collaborative Problem-Solving:** For complex issues requiring multiple
+perspectives:
+
 ```
 collaborative_solve(
   problem="Optimize this query that's slow at scale while maintaining ACID guarantees",
@@ -262,34 +294,32 @@ For performance-critical code:
 ## Best Practices
 
 ### Do's
-✅ Run automated tools first to catch obvious issues
-✅ Review in multiple focused passes
-✅ Be specific and actionable in feedback
-✅ Provide code examples for suggestions
-✅ Include both criticism and praise
-✅ Ask questions to understand intent
-✅ Use AI collaboration for complex decisions
-✅ Reference language-specific patterns
-✅ Check for tests and documentation
-✅ Consider the bigger picture (architecture, maintainability)
+
+[Do] Run automated tools first to catch obvious issues [Do] Review in multiple
+focused passes [Do] Be specific and actionable in feedback [Do] Provide code
+examples for suggestions [Do] Include both criticism and praise [Do] Ask
+questions to understand intent [Do] Use AI collaboration for complex decisions
+[Do] Reference language-specific patterns [Do] Check for tests and documentation
+[Do] Consider the bigger picture (architecture, maintainability)
 
 ### Don'ts
-❌ Don't try to catch everything in one pass
-❌ Don't be vague ("this is bad" without explanation)
-❌ Don't nitpick style if there are bigger issues
-❌ Don't make assumptions - ask questions
-❌ Don't review more than ~500 lines at once without breaks
-❌ Don't skip automated tools
-❌ Don't forget to acknowledge good work
-❌ Don't block on minor style issues
+
+[Avoid] Don't try to catch everything in one pass [Avoid] Don't be vague ("this
+is bad" without explanation) [Avoid] Don't nitpick style if there are bigger
+issues [Avoid] Don't make assumptions - ask questions [Avoid] Don't review more
+than ~500 lines at once without breaks [Avoid] Don't skip automated tools
+[Avoid] Don't forget to acknowledge good work [Avoid] Don't block on minor style
+issues
 
 ## Resources
 
 **Scripts:**
+
 - `scripts/analyze_complexity.py` - Code complexity metrics
 - `scripts/security_scan.py` - Security vulnerability detection
 
 **References:**
+
 - `references/python_patterns.md` - Python best practices and anti-patterns
 - `references/javascript_patterns.md` - JavaScript/TypeScript patterns
 - `references/review_workflow.md` - Comprehensive review methodology
@@ -299,18 +329,21 @@ For performance-critical code:
 Use this checklist for comprehensive reviews:
 
 **Functionality:**
+
 - [ ] Code solves the stated problem
 - [ ] Edge cases handled
 - [ ] Error conditions properly managed
 - [ ] Tests cover main functionality
 
 **Security:**
+
 - [ ] Input validation present
 - [ ] No injection vulnerabilities
 - [ ] Secrets not hardcoded
 - [ ] Authentication/authorization appropriate
 
 **Quality:**
+
 - [ ] Code is readable and maintainable
 - [ ] Follows language conventions
 - [ ] No overly complex functions
@@ -318,12 +351,14 @@ Use this checklist for comprehensive reviews:
 - [ ] Documentation exists and is clear
 
 **Testing:**
+
 - [ ] Tests are present
 - [ ] Tests cover edge cases
 - [ ] Tests are maintainable
 - [ ] Tests provide usage examples
 
 **Performance:**
+
 - [ ] No obvious performance issues
 - [ ] Appropriate data structures used
 - [ ] Algorithmic complexity reasonable
@@ -342,7 +377,7 @@ python scripts/security_scan.py /path/to/code
 # 3. Read code with multi-pass strategy
 [Pass 1: Architecture - 5 min]
 [Pass 2: Logic - 15-20 min]
-[Pass 3: Security - 10 min] 
+[Pass 3: Security - 10 min]
 [Pass 4: Tests - 10 min]
 [Pass 5: Style - 5 min]
 
@@ -359,10 +394,12 @@ ai_consensus(question="Best approach for handling this race condition?")
 ## Summary
 
 This skill provides a complete code review system combining:
+
 1. **Automated tools** for quick wins (complexity, security)
 2. **Structured methodology** for thorough review (multi-pass)
 3. **Language-specific expertise** for deep analysis (Python, JS/TS)
 4. **AI collaboration** for complex decisions
 5. **Clear communication** for effective feedback
 
-By following this systematic approach, you can provide high-quality, actionable code reviews that improve code quality, security, and maintainability.
+By following this systematic approach, you can provide high-quality, actionable
+code reviews that improve code quality, security, and maintainability.

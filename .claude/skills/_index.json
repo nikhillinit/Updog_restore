@@ -1,6 +1,6 @@
 {
-  "generated": "2026-03-19T02:38:14.926Z",
-  "count": 55,
+  "generated": "2026-03-27T17:51:13.401Z",
+  "count": 56,
   "skills": [
     {
       "name": "ai-model-selection",
@@ -73,6 +73,13 @@
       "description": "Multi-language code formatting and style enforcement with automatic linting fixes"
     },
     {
+      "name": "code-reviewer",
+      "path": ".claude/skills/code-reviewer/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Comprehensive multi-AI code review system for Python, JavaScript, and TypeScript. Use when reviewing code for quality, security, performance, or best practices. Includes automated analysis scripts, la"
+    },
+    {
       "name": "continuous-improvement",
       "path": ".claude/skills/continuous-improvement.md",
       "format": "flat",
@@ -126,7 +133,7 @@
       "path": ".claude/skills/frontend-ui-ux/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "Designer-turned-developer who crafts stunning UI/UX even without design mockups"
+      "description": "You are a designer who learned to code. You see what pure developers"
     },
     {
       "name": "integration-with-other-skills",
@@ -280,14 +287,14 @@
       "path": ".claude/skills/refactor-code/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "Safely improve code quality through test-driven refactoring with automatic validation and rollback. Use during quality review to reduce technical debt while preserving behavior."
+      "description": "Safely improve code quality through automated refactoring while maintaining"
     },
     {
       "name": "regression-checker",
       "path": ".claude/skills/regression-checker/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "Run full test suite to catch regressions after implementation changes. Auto-detects framework, reports pass/fail with counts. Use after code changes to verify nothing broke."
+      "description": "Runs the existing test suite to ensure no regressions after implementation"
     },
     {
       "name": "root-cause-tracing",
@@ -365,14 +372,14 @@
       "path": ".claude/skills/ui-design-system/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "UI design system toolkit for Senior UI Designer including design token generation, component documentation, responsive design calculations, and developer handoff tools. Use for creating design systems"
+      "description": "Professional toolkit for creating and maintaining scalable design systems."
     },
     {
       "name": "ui-ux-pro-max",
       "path": ".claude/skills/ui-ux-pro-max/SKILL.md",
       "format": "subdirectory",
       "status": "ACTIVE",
-      "description": "UI/UX design intelligence. 50 styles, 21 palettes, 50 font pairings, 20 charts, 9 stacks (React, Next.js, Vue, Svelte, SwiftUI, React Native, Flutter, Tailwind, shadcn/ui). Actions: plan, build, creat"
+      "description": "Comprehensive design guide for web and mobile applications. Contains 50+ styles,"
     },
     {
       "name": "writing-plans",

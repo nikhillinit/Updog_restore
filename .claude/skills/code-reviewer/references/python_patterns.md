@@ -1,6 +1,7 @@
 # Python Code Review Reference
 
 ## Table of Contents
+
 1. Code Style and Formatting
 2. Type Hints and Documentation
 3. Error Handling
@@ -12,12 +13,14 @@
 ## 1. Code Style and Formatting
 
 ### PEP 8 Essentials
+
 - Use 4 spaces for indentation
 - Max line length: 79 characters for code, 72 for docstrings
 - Use snake_case for functions and variables, PascalCase for classes
 - Two blank lines between top-level definitions, one between methods
 
 ### Import Organization
+
 ```python
 # Standard library imports
 import os
@@ -33,6 +36,7 @@ from myapp.utils import format_date
 ```
 
 ### Naming Conventions
+
 - `_single_leading_underscore`: weak "internal use" indicator
 - `__double_leading_underscore`: name mangling for class attributes
 - `UPPERCASE_WITH_UNDERSCORES`: constants
@@ -41,25 +45,26 @@ from myapp.utils import format_date
 ## 2. Type Hints and Documentation
 
 ### Type Hints
+
 ```python
 from typing import List, Dict, Optional, Union
 
 def process_items(
-    items: List[str], 
+    items: List[str],
     config: Dict[str, int],
     limit: Optional[int] = None
 ) -> Union[List[str], None]:
     """
     Process items according to configuration.
-    
+
     Args:
         items: List of items to process
         config: Configuration dictionary
         limit: Optional limit on items to process
-        
+
     Returns:
         Processed items or None if processing fails
-        
+
     Raises:
         ValueError: If config is invalid
     """
@@ -67,6 +72,7 @@ def process_items(
 ```
 
 ### Docstring Patterns
+
 - Use triple double quotes for docstrings
 - Include one-line summary, blank line, then detailed description
 - Document all public APIs
@@ -75,6 +81,7 @@ def process_items(
 ## 3. Error Handling
 
 ### Specific Exceptions
+
 ```python
 # ❌ Too broad
 try:
@@ -91,6 +98,7 @@ except KeyError as e:
 ```
 
 ### Context Managers
+
 ```python
 # ✅ Always use context managers for resources
 with open('file.txt', 'r') as f:
@@ -109,6 +117,7 @@ def managed_resource():
 ```
 
 ### Never Silence Exceptions
+
 ```python
 # ❌ Never do this
 try:
@@ -127,6 +136,7 @@ except Exception as e:
 ## 4. Performance Patterns
 
 ### List Comprehensions vs Loops
+
 ```python
 # ✅ Comprehensions for simple transformations
 squares = [x**2 for x in range(10)]
@@ -139,6 +149,7 @@ sum(x**2 for x in range(1000000))
 ```
 
 ### Avoid Repeated Calculations
+
 ```python
 # ❌ Inefficient
 for item in items:
@@ -153,6 +164,7 @@ for item in items:
 ```
 
 ### Use Built-in Functions
+
 ```python
 # ❌ Slower
 result = []
@@ -169,6 +181,7 @@ result = [transform(x) for x in data]
 ## 5. Security Best Practices
 
 ### Never Trust User Input
+
 ```python
 # ❌ SQL Injection risk
 cursor.execute(f"SELECT * FROM users WHERE name = '{user_input}'")
@@ -178,6 +191,7 @@ cursor.execute("SELECT * FROM users WHERE name = ?", (user_input,))
 ```
 
 ### Secrets Management
+
 ```python
 # ❌ Hardcoded secrets
 API_KEY = "sk_live_abc123xyz"
@@ -190,6 +204,7 @@ if not API_KEY:
 ```
 
 ### Cryptographic Operations
+
 ```python
 # ❌ Weak randomness for security
 import random
@@ -201,6 +216,7 @@ token = secrets.token_urlsafe(32)
 ```
 
 ### Path Traversal Prevention
+
 ```python
 import os
 from pathlib import Path
@@ -216,15 +232,16 @@ def safe_join(base_dir: Path, user_path: str) -> Path:
 ## 6. Testing Patterns
 
 ### Test Structure
+
 ```python
 def test_user_creation():
     # Arrange
     username = "testuser"
     email = "test@example.com"
-    
+
     # Act
     user = User.create(username=username, email=email)
-    
+
     # Assert
     assert user.username == username
     assert user.email == email
@@ -232,6 +249,7 @@ def test_user_creation():
 ```
 
 ### Fixtures and Mocking
+
 ```python
 import pytest
 from unittest.mock import Mock, patch
@@ -251,6 +269,7 @@ def test_with_mocked_api(mock_api):
 ```
 
 ### Test Coverage Goals
+
 - Aim for 80%+ code coverage
 - Test edge cases and error conditions
 - Test public APIs thoroughly
@@ -259,6 +278,7 @@ def test_with_mocked_api(mock_api):
 ## 7. Common Anti-Patterns
 
 ### Mutable Default Arguments
+
 ```python
 # ❌ Dangerous!
 def add_item(item, items=[]):
@@ -274,6 +294,7 @@ def add_item(item, items=None):
 ```
 
 ### Using `is` for Value Comparison
+
 ```python
 # ❌ Wrong for values
 if x is 1000:
@@ -289,6 +310,7 @@ if x is None:
 ```
 
 ### Global State
+
 ```python
 # ❌ Avoid global mutable state
 global_cache = {}
@@ -302,7 +324,7 @@ def process(key):
 class Processor:
     def __init__(self):
         self._cache = {}
-    
+
     def process(self, key):
         if key not in self._cache:
             self._cache[key] = expensive_operation(key)
@@ -310,6 +332,7 @@ class Processor:
 ```
 
 ### String Concatenation in Loops
+
 ```python
 # ❌ O(n²) complexity
 result = ""
@@ -321,6 +344,7 @@ result = "".join(str(item) for item in items)
 ```
 
 ### Bare `except:`
+
 ```python
 # ❌ Catches everything, including KeyboardInterrupt
 try:
