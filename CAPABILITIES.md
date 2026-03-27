@@ -1,13 +1,14 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-12
+last_updated: 2026-03-27
 categories: [development, skills-tools]
 keywords: [capabilities, agents, skills, tools, scripts, existing-solutions]
-source_of_truth: true
 agent_routing:
-  priority: 1
-  route_hint: 'Read this FIRST before implementing anything new.'
+  priority: 5
+  route_hint:
+    'Historical inventory only. Start with CLAUDE.md, repo search,
+    docs/INDEX.md, and .claude/DISCOVERY-MAP.md.'
   use_cases: [capability_discovery, feature_planning]
 maintenance:
   owner: 'Core Team'
@@ -16,33 +17,41 @@ maintenance:
 
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-12-12_
+_Last Updated: 2026-03-27_
 
-This document provides a persistent reference of ALL available capabilities to
-ensure optimal tool selection and prevent redundant implementations.
+This document is a historical inventory of capabilities. For current routing,
+start with `CLAUDE.md`, repo search, `docs/INDEX.md`, and
+`.claude/DISCOVERY-MAP.md`. Use this file when historical inventory context is
+helpful, not as the first required read for every task.
 
-**IMPORTANT:** This document is 85% complete as a capability inventory. For
-complete infrastructure understanding, also read:
+**IMPORTANT:** Treat this as a secondary reference. For current repo routing and
+infrastructure understanding, start with:
 
-1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
+1. **[CLAUDE.md](CLAUDE.md)** - Current operating guidance and documentation
+   doctrine
+2. **[docs/INDEX.md](docs/INDEX.md)** - Human-facing routing for active docs
+3. **[.claude/DISCOVERY-MAP.md](.claude/DISCOVERY-MAP.md)** - Agent-facing
+   routing for active docs
+4. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
    Complete infrastructure reference (permanent guide)
-2. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
+5. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
    Phoenix validation-first execution plan (current) _(Note:
    PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see
    docs/archive/phoenix/)_
-3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
-   agents, orchestration patterns
-4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
+6. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** -
+   Historical orchestration guide
+7. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
    Extended practical guide
 
 ## BEFORE STARTING ANY TASK
 
-1. **Read [.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)**
-   for complete infrastructure context
-2. Check this inventory for existing solutions
-3. Verify if an agent/tool already handles the requirement
-4. Look for similar patterns that can be adapted
-5. Only build new if nothing exists
+1. **Read [CLAUDE.md](CLAUDE.md)** for current operating guidance
+2. Search the repo for existing implementations
+3. Use [docs/INDEX.md](docs/INDEX.md) and
+   [.claude/DISCOVERY-MAP.md](.claude/DISCOVERY-MAP.md) for routing
+4. Check this inventory if historical capability context would help
+5. Verify if an agent/tool already handles the requirement
+6. Only build new if nothing active already exists
 
 ## Available Agents (250+ across all levels)
 
@@ -717,9 +726,11 @@ Overrides)
 ```
 User Request
     ↓
-[Check CAPABILITIES.md]
+[Start with CLAUDE.md + repo search + docs/INDEX.md + .claude/DISCOVERY-MAP.md]
     ↓
-Has existing agent? → YES → Use Task tool
+Need historical inventory context? → YES → Check CAPABILITIES.md
+    ↓
+Has existing agent/tool/pattern? → YES → Use it
     ↓ NO
 Needs multiple agents? → YES → Use context-orchestrator
     ↓ NO

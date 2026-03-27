@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-29
+last_updated: 2026-03-27
 owner: 'Platform Team'
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -24,10 +24,12 @@ Prevent re-implementation by routing agents to existing assets first.
 - Generated from: `docs/DISCOVERY-MAP.source.yaml`
 - Regenerate: `npm run docs:routing:generate`
 
-## Global Rule: CAPABILITIES-First
+## Global Rule: Start With Current Routing
 
-If a task sounds like "build / implement / add / create", check
-`CAPABILITIES.md` FIRST.
+If a task sounds like "build / implement / add / create", start with
+`CLAUDE.md`, then use repo search plus `docs/INDEX.md` and
+`.claude/DISCOVERY-MAP.md`. Consult `CAPABILITIES.md` only as a historical
+inventory.
 
 ---
 
@@ -81,50 +83,50 @@ resolved.
 
 Pattern matching uses OR logic: any match triggers the route.
 
-| Query Pattern                                                 | Route To                                              | Why                                      |
-| ------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------- |
-| "implement feature" OR "new agent" OR "add tool"              | CAPABILITIES.md                                       | Check existing solutions before building |
-| "domain knowledge" OR "vc modeling" OR "fund calculations"    | docs/notebooklm-sources/                              | Canonical domain truth (85K words)       |
-| "reserve engine" OR "pacing engine" OR "cohort engine"        | docs/notebooklm-sources/                              | Phase 2 engine documentation             |
-| "phoenix" OR "truth case" OR "validation"                     | docs/PHOENIX-SOT/README.md                            | Phoenix workflows entry point            |
-| "phase 2" OR "monte carlo" OR "probabilistic"                 | /phoenix-phase2 command                               | Phase 2 workflow                         |
-| "expectation mode" OR "deterministic parity"                  | /phoenix-phase2 command                               | Expectation Mode in command              |
-| "distribution table" OR "mc report"                           | /phoenix-prob-report command                          | Format Monte Carlo output                |
-| "test failing" OR "fix tests"                                 | /phoenix-truth + cheatsheets/pr-merge-verification.md | Baseline comparison                      |
-| "scaffold tests" OR "new test suite" OR "test infrastructure" | test-scaffolder agent                                 | Create test infrastructure for modules   |
-| "flaky test" OR "flakiness" OR "intermittent failure"         | test-repair agent (flakiness section)                 | Flakiness detection and management       |
-| "test fixtures" OR "factory functions" OR "golden dataset"    | test-fixture-generator skill                          | Fixture patterns and generators          |
-| "precision" OR "parseFloat" OR "Decimal"                      | phoenix-precision-guardian agent                      | Numeric drift                            |
-| "clawback" OR "ledger waterfall" OR "carry"                   | waterfall-specialist agent                            | Waterfall semantics                      |
-| "capital allocation" OR "exit recycling"                      | phoenix-capital-allocation-analyst agent              | Allocation module                        |
-| "fees" OR "irr" OR "xirr"                                     | xirr-fees-validator agent                             | XIRR/fees owner                          |
-| "reserves" OR "pro-rata" OR "ownership"                       | phoenix-reserves-optimizer agent                      | Reserve allocation                       |
-| "graduation" OR "moic" OR "forecasting"                       | phoenix-probabilistic-engineer agent                  | Phase 2 probabilistic                    |
-| "brand" OR "styling" OR "dashboard layout"                    | phoenix-brand-reporting-stylist agent                 | Brand consistency                        |
-| "phase 3" OR "LP reports" OR "PDF export"                     | docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md | Phase 3 planning                       |
-| "brand guidelines" OR "logo usage" OR "POV colors"            | docs/PHOENIX-SOT/brand-bridge.md                      | Press On Ventures brand specification    |
-| "print css" OR "print stylesheet" OR "dashboard print"        | client/src/styles/print.css                           | Print-optimized styling                  |
-| "design tokens" OR "brand tokens" OR "theme tokens"           | client/src/lib/brand-tokens.ts                        | Programmatic brand values                |
-| "pdf generation" OR "tear sheet" OR "quarterly report"        | client/src/utils/pdf/                                 | PDF export utilities                     |
-| "docs sync" OR "jsdoc" OR "calculations.md"                   | phoenix-docs-scribe agent                             | Documentation sync                       |
-| "deploy" OR "production" OR "rollout"                         | docs/workflows/PRODUCTION_SCRIPTS.md                  | Deployment docs                          |
-| "workflow" OR "ci" OR "github actions"                        | docs/workflows/README.md                              | CI/CD docs                               |
-| "architecture" OR "decision" OR "why"                         | DECISIONS.md                                          | ADR rationale                            |
-| "change history" OR "what changed"                            | CHANGELOG.md                                          | Chronological changes                    |
-| "log change" OR "changelog entry"                             | /log-change command                                   | Guided CHANGELOG.md entry                |
-| "log decision" OR "adr entry" OR "architectural decision"     | /log-decision command                                 | Guided ADR entry for DECISIONS.md        |
-| "which agent" OR "agent selection" OR "find agent"            | .claude/AGENT-DIRECTORY.md                            | Canonical agent locations                |
-| "test strategy" OR "test agent" OR "which test"               | .claude/docs/TEST-STRATEGY.md                         | Test agent routing guide                 |
-| "react performance" OR "re-render" OR "useMemo" OR "useCallback" | react-performance-optimization skill               | Memoization, code splitting              |
-| "async error" OR "retry" OR "circuit breaker" OR "resilience" | async-error-resilience skill                          | BullMQ patterns, graceful degradation    |
-| "phoenix workflow" OR "which phoenix skill"                   | phoenix-workflow-orchestrator skill                   | Phoenix skill routing master             |
-| "schema evolution" OR "drizzle migration" OR "db:push"        | database-schema-evolution skill                       | Zero-downtime migrations                 |
-| "pr ready" OR "pre-pr" OR "before pull request"               | /pr-ready command                                     | Full pre-PR validation workflow          |
-| "db validate" OR "schema check" OR "before db:push"           | /db-validate command                                  | Pre-push schema validation               |
-| "orchestrate" OR "chain agents" OR "auto validate"            | workflow-orchestrator agent                           | Auto-chain agents based on changes       |
-| "agent metrics" OR "agent performance" OR "usage tracking"    | .claude/AGENT-METRICS.md                              | Agent performance tracking               |
-| "error" OR "debug" OR "troubleshoot"                          | SIDECAR_GUIDE.md                                      | Platform issues                          |
-| "module not found" OR "typescript" OR "path"                  | SIDECAR_GUIDE.md                                      | TS/module resolution                     |
+| Query Pattern                                                    | Route To                                                | Why                                        |
+| ---------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
+| "implement feature" OR "new agent" OR "add tool"                 | CLAUDE.md                                               | Start with current routing before building |
+| "domain knowledge" OR "vc modeling" OR "fund calculations"       | docs/notebooklm-sources/                                | Canonical domain truth (85K words)         |
+| "reserve engine" OR "pacing engine" OR "cohort engine"           | docs/notebooklm-sources/                                | Phase 2 engine documentation               |
+| "phoenix" OR "truth case" OR "validation"                        | docs/PHOENIX-SOT/README.md                              | Phoenix workflows entry point              |
+| "phase 2" OR "monte carlo" OR "probabilistic"                    | /phoenix-phase2 command                                 | Phase 2 workflow                           |
+| "expectation mode" OR "deterministic parity"                     | /phoenix-phase2 command                                 | Expectation Mode in command                |
+| "distribution table" OR "mc report"                              | /phoenix-prob-report command                            | Format Monte Carlo output                  |
+| "test failing" OR "fix tests"                                    | /phoenix-truth + cheatsheets/pr-merge-verification.md   | Baseline comparison                        |
+| "scaffold tests" OR "new test suite" OR "test infrastructure"    | test-scaffolder agent                                   | Create test infrastructure for modules     |
+| "flaky test" OR "flakiness" OR "intermittent failure"            | test-repair agent (flakiness section)                   | Flakiness detection and management         |
+| "test fixtures" OR "factory functions" OR "golden dataset"       | test-fixture-generator skill                            | Fixture patterns and generators            |
+| "precision" OR "parseFloat" OR "Decimal"                         | phoenix-precision-guardian agent                        | Numeric drift                              |
+| "clawback" OR "ledger waterfall" OR "carry"                      | waterfall-specialist agent                              | Waterfall semantics                        |
+| "capital allocation" OR "exit recycling"                         | phoenix-capital-allocation-analyst agent                | Allocation module                          |
+| "fees" OR "irr" OR "xirr"                                        | xirr-fees-validator agent                               | XIRR/fees owner                            |
+| "reserves" OR "pro-rata" OR "ownership"                          | phoenix-reserves-optimizer agent                        | Reserve allocation                         |
+| "graduation" OR "moic" OR "forecasting"                          | phoenix-probabilistic-engineer agent                    | Phase 2 probabilistic                      |
+| "brand" OR "styling" OR "dashboard layout"                       | phoenix-brand-reporting-stylist agent                   | Brand consistency                          |
+| "phase 3" OR "LP reports" OR "PDF export"                        | docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md | Phase 3 planning                           |
+| "brand guidelines" OR "logo usage" OR "POV colors"               | docs/PHOENIX-SOT/brand-bridge.md                        | Press On Ventures brand specification      |
+| "print css" OR "print stylesheet" OR "dashboard print"           | client/src/styles/print.css                             | Print-optimized styling                    |
+| "design tokens" OR "brand tokens" OR "theme tokens"              | client/src/lib/brand-tokens.ts                          | Programmatic brand values                  |
+| "pdf generation" OR "tear sheet" OR "quarterly report"           | client/src/utils/pdf/                                   | PDF export utilities                       |
+| "docs sync" OR "jsdoc" OR "calculations.md"                      | phoenix-docs-scribe agent                               | Documentation sync                         |
+| "deploy" OR "production" OR "rollout"                            | docs/workflows/PRODUCTION_SCRIPTS.md                    | Deployment docs                            |
+| "workflow" OR "ci" OR "github actions"                           | docs/workflows/README.md                                | CI/CD docs                                 |
+| "architecture" OR "decision" OR "why"                            | DECISIONS.md                                            | ADR rationale                              |
+| "change history" OR "what changed"                               | CHANGELOG.md                                            | Chronological changes                      |
+| "log change" OR "changelog entry"                                | /log-change command                                     | Guided CHANGELOG.md entry                  |
+| "log decision" OR "adr entry" OR "architectural decision"        | /log-decision command                                   | Guided ADR entry for DECISIONS.md          |
+| "which agent" OR "agent selection" OR "find agent"               | .claude/AGENT-DIRECTORY.md                              | Canonical agent locations                  |
+| "test strategy" OR "test agent" OR "which test"                  | .claude/docs/TEST-STRATEGY.md                           | Test agent routing guide                   |
+| "react performance" OR "re-render" OR "useMemo" OR "useCallback" | react-performance-optimization skill                    | Memoization, code splitting                |
+| "async error" OR "retry" OR "circuit breaker" OR "resilience"    | async-error-resilience skill                            | BullMQ patterns, graceful degradation      |
+| "phoenix workflow" OR "which phoenix skill"                      | phoenix-workflow-orchestrator skill                     | Phoenix skill routing master               |
+| "schema evolution" OR "drizzle migration" OR "db:push"           | database-schema-evolution skill                         | Zero-downtime migrations                   |
+| "pr ready" OR "pre-pr" OR "before pull request"                  | /pr-ready command                                       | Full pre-PR validation workflow            |
+| "db validate" OR "schema check" OR "before db:push"              | /db-validate command                                    | Pre-push schema validation                 |
+| "orchestrate" OR "chain agents" OR "auto validate"               | workflow-orchestrator agent                             | Auto-chain agents based on changes         |
+| "agent metrics" OR "agent performance" OR "usage tracking"       | .claude/AGENT-METRICS.md                                | Agent performance tracking                 |
+| "error" OR "debug" OR "troubleshoot"                             | SIDECAR_GUIDE.md                                        | Platform issues                            |
+| "module not found" OR "typescript" OR "path"                     | SIDECAR_GUIDE.md                                        | TS/module resolution                       |
 
 ---
 
@@ -156,11 +158,13 @@ START
   v
 Q1: Does this involve implementing something NEW?
   |
-  +-- YES --> CAPABILITIES.md FIRST
+  +-- YES --> CLAUDE.md + repo search + docs/INDEX.md
   |           |
   |           +-- Found existing? --> Use it (cite file/command/agent)
   |           |
-  |           +-- Not found? --> Use DEVELOPMENT-TOOLING-CATALOG decision order:
+  |           +-- Need historical inventory? --> Check CAPABILITIES.md
+  |           |
+  |           +-- Still not found? --> Use DEVELOPMENT-TOOLING-CATALOG decision order:
   |                              Phoenix Agents > Project Agents > Commands > Generic
   |
   +-- NO --> Continue

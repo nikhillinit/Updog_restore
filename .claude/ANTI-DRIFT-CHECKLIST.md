@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-27
 ---
 
 # Anti-Drift Checklist - Session Protocol
@@ -8,7 +8,7 @@ last_updated: 2026-01-19
 **Purpose:** Mandatory checklist for all sessions to prevent AI context drift,
 hallucination, and gap analysis failures
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2026-03-27
 
 ---
 
@@ -20,8 +20,10 @@ protocol:**
 ### 1. Read Project Understanding
 
 ```
-- [ ] Read .claude/PROJECT-UNDERSTANDING.md (complete infrastructure reference)
-- [ ] Read CAPABILITIES.md (check-first discovery, 85% complete infrastructure inventory)
+- [ ] Read CLAUDE.md (current operating guidance and governance)
+- [ ] Read docs/INDEX.md and .claude/DISCOVERY-MAP.md (active routing surface)
+- [ ] Use repo search to confirm the current implementation surface
+- [ ] Read CAPABILITIES.md only if historical inventory context helps
 - [ ] Read CHANGELOG.md recent entries (last 2 weeks minimum)
 - [ ] Check git status for current branch and modified files
 ```
@@ -86,7 +88,7 @@ consistent in this project)
 
 ```
 - [ ] Am I working on what the user explicitly requested?
-- [ ] Have I checked CAPABILITIES.md for existing solutions?
+- [ ] Have I checked CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md first?
 - [ ] Am I using strategic sampling (not reading entire files)?
 - [ ] Am I staying within the current branch scope?
 ```
@@ -391,16 +393,15 @@ PREVENTION: Connect all metrics to actual deliverable files
 
 ---
 
-## QUICK REFERENCE: Four Source Files
+## QUICK REFERENCE: Current Discovery Set
 
 **Read these in order before starting any work:**
 
-1. **PROJECT-UNDERSTANDING.md** - This reference guide (complete infrastructure)
-2. **CAPABILITIES.md** - Check-first discovery (85% complete inventory)
-3. **docs/PHOENIX-SOT/execution-plan-v2.34.md** - Phoenix validation-first
-   execution plan (current)
-   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
-4. **AI-WORKFLOW-COMPLETE-GUIDE.md** - 28 agents, orchestration patterns
+1. **CLAUDE.md** - Current operating guidance and documentation doctrine
+2. **docs/INDEX.md** - Human-facing documentation routing
+3. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
+4. **CHANGELOG.md** - Recent repo history
+5. **CAPABILITIES.md** - Historical inventory only
 
 ---
 
