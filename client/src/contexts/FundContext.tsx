@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
+import { extractFundResultsRouteId } from '@/lib/fund-routes';
 
 export interface Fund {
   id: number;
@@ -53,14 +54,8 @@ export function FundProvider({ children }: FundProviderProps) {
   const [fundId, setFundId] = useState<number | null>(null);
   const [demoModeInitialized, setDemoModeInitialized] = useState(false);
 
-  // Detect route-based fund ID on /fund-model-results/:fundId
   const [location] = useLocation();
-  const routeFundId = React.useMemo(() => {
-    const match = location.match(/^\/fund-model-results\/(\d+)(?:[/?#]|$)/);
-    if (!match?.[1]) return null;
-    const parsed = Number(match[1]);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-  }, [location]);
+  const routeFundId = React.useMemo(() => extractFundResultsRouteId(location), [location]);
 
   // Fetch fund data
   const {

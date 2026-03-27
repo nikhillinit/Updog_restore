@@ -26,6 +26,8 @@ interface ImportMetaEnv {
   VITE_ENABLE_MODELING_WIZARD?: string;
   VITE_ENABLE_OPERATIONS_HUB?: string;
   VITE_ENABLE_LP_REPORTING?: string;
+  VITE_HIDE_PLANNING_SURFACE?: string;
+  VITE_HIDE_KPI_SURFACES?: string;
   DEMO_MODE?: string;
 
   // Support dynamic feature flags AND general string indexing
