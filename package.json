@@ -61,7 +61,7 @@
     "postbuild": "node scripts/verify-build.mjs",
     "preview": "npx vite@5.4.11 preview --port 4173 --strictPort",
     "preview:web": "npx vite@5.4.11 preview",
-    "lhci:run": "start-server-and-test preview http://localhost:4173 'lhci autorun'",
+    "lhci:run": "start-server-and-test preview http://localhost:4173 'lhci autorun --config=.lighthouserc.json'",
     "vercel-build": "npm run clean:spa-dist && vite build",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "baseline:save": "node scripts/typescript-baseline.cjs save",
