@@ -1,45 +1,14 @@
 import { Worker } from 'bullmq';
-import { db } from '../server/db';
-import { fundSnapshots } from '@shared/schema';
-import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
-import type { ReserveCompanyInput } from '@shared/types';
-import {
-  isFinalAttempt,
-  markCalcRunCompletedIfReady,
-  markCalcRunFailed,
-} from '../server/services/calc-run-tracking';
+import { isFinalAttempt, markCalcRunFailed } from '../server/services/calc-run-tracking';
+import { runReserveCalculation } from '../server/services/reserve-calculation-service';
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
 };
-
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  retries: number = MAX_RETRIES,
-  delay: number = RETRY_DELAY_MS
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries === 0) throw error;
-
-    logger.warn(`Retrying operation, ${retries} attempts remaining`, {
-      error: (error as Error).message,
-      remainingRetries: retries,
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    return retryWithBackoff(fn, retries - 1, delay * 2);
-  }
-}
 
 export const reserveWorker = new Worker(
   'reserve-calc',
@@ -49,112 +18,24 @@ export const reserveWorker = new Worker(
     logger.info('Processing reserve calculation', { fundId, correlationId, jobId: job.id });
 
     return withMetrics('reserve', async () => {
-      const startTime = performance.now();
-
       try {
-        // Load fund configuration with retry logic
-        const fundConfig = await retryWithBackoff(() =>
-          db.query.fundConfigs.findFirst({
-            where: (configs, { eq, and }) =>
-              and(eq(configs.fundId, fundId), eq(configs.isPublished, true)),
-            orderBy: (configs, { desc }) => desc(configs.version),
-          })
-        );
+        const result = await runReserveCalculation({
+          fundId,
+          correlationId,
+          runId,
+          configId,
+          configVersion,
+        });
 
-        // Fallback to funds table if no published config
-        const fund = await retryWithBackoff(() =>
-          db.query.funds.findFirst({
-            where: (funds, { eq }) => eq(funds.id, fundId),
-          })
-        );
-
-        if (!fund && !fundConfig) {
-          const error = new Error(`Fund ${fundId} not found`);
-          logger.error('Fund not found', error, { fundId, correlationId });
-          throw error;
-        }
-
-        // Load investments with company details
-        const investments = await retryWithBackoff(() =>
-          db.query.investments.findMany({
-            where: (inv, { eq }) => eq(inv.fundId, fundId),
-            with: {
-              company: true,
-            },
-          })
-        );
-
-        // If no investments, fallback to portfolio companies
-        let portfolio: ReserveCompanyInput[];
-
-        if (investments.length > 0) {
-          portfolio = investments.map((inv) => ({
-            id: inv.companyId || inv.id,
-            invested: parseFloat(inv.amount),
-            ownership: inv.ownershipPercentage ? parseFloat(inv.ownershipPercentage) : 0.15,
-            stage: inv.round || 'seed',
-            sector: inv.company?.sector || 'unknown',
-          }));
-        } else {
-          // Fallback to portfolio companies
-          const portfolioCompanies = await db.query.portfolioCompanies.findMany({
-            where: (companies, { eq }) => eq(companies.fundId, fundId),
-          });
-
-          portfolio = portfolioCompanies.map((company) => ({
-            id: company.id,
-            invested: parseFloat(company.investmentAmount || '0'),
-            ownership: 0.15, // Default 15% ownership
-            stage: company.stage,
-            sector: company.sector,
-          }));
-        }
-
-        // Generate reserve calculations
-        const reserves = generateReserveSummary(fundId, portfolio);
-
-        // Write snapshot to database (with run attribution if available)
-        const [snapshot] = await db
-          .insert(fundSnapshots)
-          .values({
-            fundId,
-            type: 'RESERVE',
-            payload: reserves as unknown as Record<string, unknown>,
-            calcVersion: process.env.ALG_RESERVE_VERSION || '1.0.0',
-            correlationId,
-            snapshotTime: new Date(),
-            ...(runId != null && { runId }),
-            ...(configId != null && { configId }),
-            ...(configVersion != null && { configVersion }),
-            metadata: {
-              portfolioCount: portfolio.length,
-              engineRuntime: performance.now() - startTime,
-            },
-          })
-          .returning();
-
-        // Record metrics
         metrics.recordSnapshotWrite('RESERVE', true);
 
         logger.info('Reserve calculation completed', {
           fundId,
           correlationId,
-          snapshotId: snapshot.id,
-          totalAllocation: reserves.totalAllocation,
-          avgConfidence: reserves.avgConfidence,
+          snapshotId: result.snapshotId,
         });
 
-        if (runId != null) {
-          await markCalcRunCompletedIfReady(runId);
-        }
-
-        return {
-          fundId,
-          snapshotId: snapshot.id,
-          reserves,
-          calculatedAt: snapshot.createdAt,
-          version: snapshot.calcVersion,
-        };
+        return result;
       } catch (error) {
         const err = error as Error;
         logger.error('Reserve calculation failed', err, {
@@ -172,7 +53,6 @@ export const reserveWorker = new Worker(
           await markCalcRunFailed(runId, err.message);
         }
 
-        // Re-throw for BullMQ retry handling
         throw error;
       }
     });
@@ -180,29 +60,26 @@ export const reserveWorker = new Worker(
   {
     connection,
     concurrency: 5,
-    attempts: 3, // Retry failed jobs 3 times
+    attempts: 3,
     backoff: {
       type: 'exponential',
-      delay: 2000, // Start with 2 second delay
+      delay: 2000,
     },
     removeOnComplete: {
-      age: 3600, // Keep completed jobs for 1 hour
-      count: 100, // Keep max 100 completed jobs
+      age: 3600,
+      count: 100,
     },
     removeOnFail: {
-      age: 86400, // Keep failed jobs for 24 hours
+      age: 86400,
     },
   }
 );
 
-// Register worker for health monitoring
 registerWorker('reserve-calc', reserveWorker);
 
-// Start health check server
 const HEALTH_PORT = parseInt(process.env.RESERVE_WORKER_HEALTH_PORT || '9001');
 createHealthServer(HEALTH_PORT);
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('Reserve worker shutting down gracefully...');
   await reserveWorker.close();

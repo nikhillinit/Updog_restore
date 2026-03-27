@@ -1,4 +1,5 @@
 import type { Queue, Worker } from 'bullmq';
+import type { FundCalculationAuthority } from '@shared/contracts/fund-authoritative-calculations.contract';
 
 export type QueueRegistryKey =
   | 'simulation'
@@ -17,6 +18,7 @@ export interface QueueCatalogEntry {
   displayName: string;
   healthMode: QueueHealthMode;
   owner: QueueOwner;
+  fundCalculationAuthority?: FundCalculationAuthority;
 }
 
 export interface RegisteredQueueRuntime {
@@ -53,6 +55,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Reserve Calculations',
     healthMode: 'producer',
     owner: 'route',
+    fundCalculationAuthority: 'authoritative',
   },
   {
     key: 'pacing-calc',
@@ -60,6 +63,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Pacing Calculations',
     healthMode: 'producer',
     owner: 'route',
+    fundCalculationAuthority: 'authoritative',
   },
   {
     key: 'cohort-calc',
@@ -67,6 +71,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Cohort Calculations',
     healthMode: 'producer',
     owner: 'route',
+    fundCalculationAuthority: 'experimental',
   },
 ] as const;
 

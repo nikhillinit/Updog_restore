@@ -1,8 +1,7 @@
 import { db } from '../db';
 import { calcRuns, fundSnapshots } from '@shared/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
-
-export const AUTHORITATIVE_SNAPSHOT_TYPES = ['RESERVE', 'PACING'] as const;
+import { AUTHORITATIVE_SNAPSHOT_TYPES } from '@shared/contracts/fund-authoritative-calculations.contract';
 
 export function isFinalAttempt(job: {
   attemptsMade: number;

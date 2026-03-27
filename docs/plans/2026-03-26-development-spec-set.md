@@ -418,67 +418,223 @@ lifecycle.
 
 ### Goal
 
-Make the publish pipeline truthful enough to trust operationally, then harden
-the test surface around the real lifecycle.
+Make the authoritative publish pipeline explicitly reserve-and-pacing based,
+keep queue-less mode truthful for development and test environments, and add one
+real-DB lifecycle lane that validates persisted publish state.
 
 ### Stories
 
-#### S3.1 Remove Mock-Only Cohort From The Authoritative Publish Path
+#### S3.1 Extract Reusable Authoritative Calculation Services
 
 - Size: `M`
 - Scope:
-  - short-term preferred fix: stop dispatching cohort from the authoritative
-    publish path until it has a truthful implementation
-  - alternative allowed only if equivalent truth is delivered in this sprint:
-    implement a real cohort path with persisted authoritative outputs
+  - extract pure reserve and pacing execution services from the BullMQ worker
+    wrappers
+  - keep queue, health-server, and signal-handling concerns inside worker entry
+    modules
+  - make the authoritative calculation path callable from both:
+    - queue workers
+    - queue-less publish flow
+  - do not call worker entry modules directly from request or publish code
+  - migrate static invariant proofs that inspect snapshot inserts from worker
+    wrappers to the extracted services
+  - keep the new service seam baseline-clean under the repo's strict TypeScript
+    settings, including `exactOptionalPropertyTypes`
 - Primary files:
-  - `server/services/fund-persistence-service.ts`
-  - `workers/cohort-worker.ts`
+  - `server/services/reserve-calculation-service.ts`
+  - `server/services/pacing-calculation-service.ts`
+  - `server/services/pacing-fund-size.ts`
+  - `workers/reserve-worker.ts`
+  - `workers/pacing-worker.ts`
+  - `tests/unit/phase2a/config-invariants.test.ts`
 
-#### S3.2 Establish One DB-Backed Lifecycle Test Lane
-
-- Size: `M`
-- Scope:
-  - stand up one test lane that exercises
-    `create -> save draft -> publish -> results` with real persistence
-    dependencies
-- Primary files:
-  - `tests/integration/*`
-  - test infra helpers
-
-#### S3.3 Re-Enable Highest-Value Blocked Persistence Tests
-
-- Size: `M`
-- Priority order:
-  1. one lifecycle integration suite
-  2. one SQL-backed unit/integration suite
-  3. one infrastructure smoke suite
-
-#### S3.4 Reduce Authoritative Worker Warning Debt
+#### S3.2 Introduce A Shared Authoritative Engine Registry
 
 - Size: `S`
 - Scope:
-  - lower the ratcheted warning baseline for reserve/pacing/cohort workers
+  - define one typed source of truth for engine metadata:
+    - engine key
+    - snapshot type
+    - authoritative vs experimental status
+    - queue key
+    - whether synchronous local execution is supported
+  - use that registry in:
+    - publish dispatch
+    - calc-run completion logic
+    - lifecycle derivation
+    - read contracts
+    - queue registration and operational classification
+  - keep reserve and pacing as the only authoritative engines for this sprint
+  - mark cohort as experimental in registry-backed operational surfaces instead
+    of leaving it classified like a primary lifecycle dependency
+- Primary files:
+  - `shared/contracts/fund-authoritative-calculations.contract.ts`
+  - `server/services/fund-persistence-service.ts`
+  - `server/services/calc-run-tracking.ts`
+  - `server/services/fund-state-derivation.ts`
+  - `shared/contracts/fund-state-read-v1.contract.ts`
+  - `server/queues/registry.ts`
+
+#### S3.3 Make Queue-Less Publish Truthful
+
+- Size: `M`
+- Scope:
+  - when queues are disabled or a producer queue is absent, do not let publish
+    fail solely because the queue layer is unavailable
+  - run authoritative reserve and pacing calculations synchronously using the
+    extracted services when the registry says they are sync-capable
+  - preserve the queue-backed asynchronous path when queues are enabled
+  - keep persisted attribution consistent across both execution modes:
+    - `calcRuns`
+    - `fundSnapshots`
+    - `runId`
+    - `configId`
+    - `configVersion`
+  - ensure redispatch only targets missing authoritative snapshots and does not
+    treat experimental cohort work as part of authoritative readiness
+  - make user-facing and API copy neutral between queued and inline execution;
+    use wording like `calculations started`, not `calculations queued`
+  - ensure `/api/funds/:id/state` and `/api/funds/:id/results` derive truthful
+    lifecycle state from persisted authoritative evidence
+- Primary files:
+  - `server/routes/fund-config.ts`
+  - `server/services/fund-persistence-service.ts`
+  - extracted authoritative calculation services from S3.1
+
+#### S3.4 Add Explicit Real-DB Backend Selection For Tests
+
+- Size: `S`
+- Scope:
+  - stop assuming the current Vitest integration project is a truthful
+    persistence lane
+  - add an explicit backend-selection mechanism so test runs can opt out of
+    `databaseMock`, for example `USE_REAL_DB_IN_VITEST=1`
+  - land this selection seam before building the real-DB lifecycle lane
+  - keep the existing lightweight mock-backed ratchets intact for fast feedback
+- Primary files:
+  - `server/db.ts`
+  - `tests/integration/setup.ts`
+  - `vitest.config.int.ts`
+  - any new DB-specific Vitest config or helper introduced by this sprint
+
+#### S3.5 Create One In-Process DB-Backed Lifecycle Suite
+
+- Size: `M`
+- Scope:
+  - add one dedicated lifecycle suite that validates
+    `create -> save draft -> publish -> state/results` against real persisted
+    rows
+  - prefer in-process app boot with explicit environment control over the
+    current spawned-server integration lane
+  - validate persisted lifecycle records directly where useful:
+    - `fund_configs`
+    - `calc_runs`
+    - `fund_snapshots`
+  - deliver the DB lifecycle lane behind a named `npm run test:lifecycle:db`
+    script instead of relying on ad hoc single-file runs
+- Primary files:
+  - new lifecycle DB suite under `tests/integration/*`
+  - `package.json`
+  - test infra helpers under `tests/helpers/*`
+  - any DB-specific Vitest config introduced by this sprint
+
+#### S3.6 Rewrite Or Retire Blocked Infra Tests Around The Supported Lane
+
+- Size: `S`
+- Scope:
+  - do not blindly unskip quarantined tests that still target obsolete runtime
+    assumptions
+  - rewrite only the highest-value blocked suites that align with the supported
+    real-DB lane
+  - treat generic Docker/testcontainers smoke as optional infra verification,
+    not the default lifecycle gate
+  - assume some legacy suites will be retired rather than revived if they still
+    depend on outdated DB exports or obsolete boot assumptions
+- Priority order:
+  1. one lifecycle DB-backed suite
+  2. one high-value persistence or SQL-backed suite rewritten against the new
+     lane
+  3. one optional infrastructure smoke suite
+- Primary files:
+  - `tests/integration/circuit-breaker-db.test.ts`
+  - `tests/integration/testcontainers-smoke.test.ts`
+  - any rewritten supporting suites selected in this sprint
+
+#### S3.7 Reduce Authoritative Worker Warning Debt
+
+- Size: `S`
+- Scope:
+  - lower the ratcheted warning baseline for reserve and pacing workers first
+  - treat cohort warning cleanup as secondary unless cohort returns to a
+    truthful supported path
   - do not weaken the existing guard
 
 ### Acceptance
 
-1. The publish path does not dispatch mock-only cohort work.
-2. At least one DB-backed lifecycle test is green.
-3. The worker warning baseline is reduced or, at minimum, does not regress.
-4. The authoritative publish/results path has both lightweight and infra-backed
-   proof.
+1. The authoritative publish contract is defined from one shared registry and is
+   explicitly `reserve + pacing`, while cohort is classified as experimental
+   unless the sprint also delivers truthful persisted cohort outputs.
+2. Core reserve and pacing execution logic no longer lives only inside BullMQ
+   worker entry modules; queue-backed and queue-less execution paths share the
+   same reusable services.
+3. Static invariant coverage follows the extracted services and still proves
+   authoritative snapshot inserts include `snapshotTime`.
+4. Queue-less publish does not fail solely because producer queues are absent.
+5. In queue-less mode, publish still creates a persisted `calcRun` and writes
+   attributed reserve and pacing snapshots with `runId`, `configId`, and
+   `configVersion`.
+6. Publish and redispatch target authoritative engines only; cohort is not
+   required for `calculating` or `ready` lifecycle state.
+7. Publish responses and logs do not promise queued execution when inline
+   fallback is possible.
+8. The repo has one explicit real-DB lifecycle validation lane in addition to
+   the existing lightweight phase-4 ratchets.
+9. Quarantined DB or testcontainers suites are not unskipped unchanged; they are
+   either rewritten against the supported lane or left explicitly outside this
+   sprint's scope.
+10. The worker warning baseline is reduced or, at minimum, does not regress.
 
 ### Validation
 
+- `npm run baseline:check`
+- `npm run test:publish-orchestration`
 - `npm run test:phase4`
-- targeted DB-backed integration test commands
 - `npm run lint:phase4`
+- optional infrastructure smoke verification may exist separately, but it is not
+  required to be part of the default lifecycle gate
+
+### Sprint-3 Revisions From Sandbox Validation
+
+1. Service extraction is viable, but the proof must move with it. The sandbox
+   spike kept runtime behavior correct, yet `config-invariants.test.ts` broke
+   until the `snapshotTime` assertions were repointed from worker wrappers to
+   the new reserve and pacing services.
+2. One typed registry is enough to drive both publish truth and operational
+   classification. The sandbox spike successfully aligned dispatch, calc-run
+   completion, read contracts, and queue registration around a single engine
+   catalog.
+3. Queue-less publish is first-class behavior, not a fallback edge case. The
+   spike validated inline reserve and pacing execution when queues are absent,
+   and it exposed that route copy must say calculations were `started`, not
+   necessarily `queued`.
+4. The real-DB switch is small and should land early. A deliberate backend
+   selection seam in `server/db.ts` is a prerequisite for the real lifecycle
+   lane, not a later refinement.
+5. The existing lightweight ratchets remain useful. `npm run test:phase4` and
+   the orchestration-focused phase-2A suite already provide fast proof while the
+   real-DB lane is being added.
+6. The current targeted orchestration suite was the right seed for
+   `test:publish-orchestration`; that named wrapper can exist now without
+   waiting for the real-DB lifecycle lane from S3.5.
 
 ### Non-Goals
 
-- full cohort feature expansion beyond what is needed for truthfulness
+- full cohort feature expansion beyond what is needed for publish truthfulness
 - broad cleanup of unrelated worker infrastructure
+- making Docker or testcontainers smoke the default validation path for every
+  local or CI run
+- reviving quarantined infrastructure tests unchanged when their runtime
+  assumptions are obsolete
 
 ## Sprint 4: Secondary Surfaces And Documentation Convergence
 

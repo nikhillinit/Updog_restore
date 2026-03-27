@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import { AUTHORITATIVE_SNAPSHOT_TYPES } from './fund-authoritative-calculations.contract';
 
 /**
  * Snapshot types that must ALL be present (for the published configVersion)
@@ -20,7 +21,7 @@ import { z } from 'zod';
  * If a new type is added (e.g. 'COHORT'), all existing funds without that
  * snapshot type will regress to `calculating`. Plan accordingly.
  */
-export const EXPECTED_SNAPSHOT_TYPES = ['RESERVE', 'PACING'] as const;
+export const EXPECTED_SNAPSHOT_TYPES = AUTHORITATIVE_SNAPSHOT_TYPES;
 
 /** Calculation lifecycle status derived from calcRuns + attributed snapshots */
 export const CalculationStatusSchema = z.enum([
