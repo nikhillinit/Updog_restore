@@ -1,6 +1,6 @@
 # Staleness Report
 
-*Generated: 2026-03-27T22:29:05.692Z*
+*Generated: 2026-03-27T23:55:46.722Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
@@ -18,9 +18,8 @@
 | ACTIVE | 523 |
 | UNKNOWN | 128 |
 | HISTORICAL | 60 |
-| DRAFT | 18 |
+| DRAFT | 22 |
 | VERIFIED | 9 |
-| DRAFT # VERIFIED | DRAFT | DEPRECATED | 4 |
 | ready | 3 |
 | active | 2 |
 | ARCHIVED | 1 |

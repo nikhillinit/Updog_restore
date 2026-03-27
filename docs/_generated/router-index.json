@@ -1,5 +1,72 @@
 {
-  "agents": [],
+  "agents": [
+    {
+      "name": "phoenix-truth-case-runner",
+      "phase": [
+        0
+      ],
+      "skill": "phoenix-truth-case-orchestrator"
+    },
+    {
+      "name": "phoenix-precision-guardian",
+      "phase": [
+        "1A"
+      ],
+      "skill": "phoenix-precision-guard"
+    },
+    {
+      "name": "waterfall-specialist",
+      "phase": [
+        0,
+        "1B"
+      ],
+      "skill": "phoenix-waterfall-ledger-semantics"
+    },
+    {
+      "name": "xirr-fees-validator",
+      "phase": [
+        0,
+        "1B"
+      ],
+      "skill": "phoenix-xirr-fees-validator"
+    },
+    {
+      "name": "phoenix-capital-allocation-analyst",
+      "phase": [
+        0,
+        "1A"
+      ],
+      "skill": "phoenix-capital-exit-investigator"
+    },
+    {
+      "name": "phoenix-docs-scribe",
+      "phase": [
+        "1A"
+      ],
+      "skill": "phoenix-docs-sync"
+    },
+    {
+      "name": "phoenix-probabilistic-engineer",
+      "phase": [
+        2
+      ],
+      "skill": "phoenix-advanced-forecasting"
+    },
+    {
+      "name": "phoenix-reserves-optimizer",
+      "phase": [
+        2
+      ],
+      "skill": "phoenix-reserves-optimizer"
+    },
+    {
+      "name": "phoenix-brand-reporting-stylist",
+      "phase": [
+        3
+      ],
+      "skill": "phoenix-brand-reporting"
+    }
+  ],
   "config": {
     "generic_terms": [
       "test",
@@ -13,106 +80,172 @@
   },
   "decision_tree": {
     "Q0": {
-      "action_if_false": "'CONTINUE'",
+      "action_if_false": "CONTINUE",
+      "action_if_true": "REQUIRE_EVIDENCE_CHECK",
       "condition": {
-        "raw": "or:\n        - field: 'risk_level'\n          equals: 'high'\n        - field: 'status'\n          not_equals: 'ACTIVE'"
+        "or": [
+          {
+            "equals": "high",
+            "field": "risk_level"
+          },
+          {
+            "field": "status",
+            "not_equals": "ACTIVE"
+          }
+        ]
       },
-      "id": "'risk_check'",
-      "next": "'Q1'",
-      "question": "'Is"
+      "id": "risk_check",
+      "next": "Q1",
+      "question": "Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?"
     },
     "Q1": {
-      "action_if_false": "'CONTINUE'",
+      "action_if_false": "CONTINUE",
       "action_if_true": {
-        "message": "'Start",
-        "route": "'CLAUDE.md'"
+        "message": "Start with CLAUDE.md, then use repo search plus docs/INDEX.md and .claude/DISCOVERY-MAP.md before consulting CAPABILITIES historical inventory",
+        "route": "CLAUDE.md"
       },
-      "id": "'capability_check'",
+      "id": "capability_check",
       "keywords": [
-        "'implement'",
-        "'create'",
-        "'add'",
-        "'build'",
-        "'new feature'"
+        "implement",
+        "create",
+        "add",
+        "build",
+        "new feature"
       ],
-      "next": "'Q2'",
-      "question": "'Does"
+      "next": "Q2",
+      "question": "Does this involve implementing something NEW?"
     },
     "Q2": {
-      "action_if_false": "'CONTINUE'",
+      "action_if_false": "CONTINUE",
       "action_if_true": {
-        "route": "'docs/PHOENIX-SOT/README.md'"
+        "route": "docs/PHOENIX-SOT/README.md",
+        "sub_routing": [
+          {
+            "condition": "deterministic validation",
+            "route": "/phoenix-truth"
+          },
+          {
+            "condition": "phase 2 OR probabilistic OR monte carlo",
+            "route": "/phoenix-phase2"
+          },
+          {
+            "condition": "distribution report",
+            "route": "/phoenix-prob-report"
+          }
+        ]
       },
-      "id": "'phoenix_check'",
+      "id": "phoenix_check",
       "keywords": [
-        "'phoenix'",
-        "'truth case'",
-        "'xirr'",
-        "'waterfall'",
-        "'fees'",
-        "'capital'",
-        "'recycling'"
+        "phoenix",
+        "truth case",
+        "xirr",
+        "waterfall",
+        "fees",
+        "capital",
+        "recycling"
       ],
-      "next": "'Q3'",
-      "question": "'Is"
+      "next": "Q3",
+      "question": "Is this a Phoenix project task?"
     },
     "Q3": {
-      "action_if_false": "'CONTINUE'",
+      "action_if_false": "CONTINUE",
       "action_if_true": {
-        "route": "'DECISIONS.md'"
+        "route": "DECISIONS.md"
       },
-      "id": "'decision_check'",
+      "id": "decision_check",
       "keywords": [
-        "'why'",
-        "'decision'",
-        "'rationale'",
-        "'adr'",
-        "'architecture decision'"
+        "why",
+        "decision",
+        "rationale",
+        "adr",
+        "architecture decision"
       ],
-      "next": "'Q4'",
-      "question": "'Is"
+      "next": "Q4",
+      "question": "Is this about understanding WHY a decision was made?"
     },
     "Q4": {
-      "action_if_false": "'CONTINUE'",
+      "action_if_false": "CONTINUE",
       "action_if_true": {
-        "route": "'CHANGELOG.md'"
+        "route": "CHANGELOG.md"
       },
-      "id": "'history_check'",
+      "id": "history_check",
       "keywords": [
-        "'changed'",
-        "'history'",
-        "'changelog'",
-        "'recent'",
-        "'update'"
+        "changed",
+        "history",
+        "changelog",
+        "recent",
+        "update"
       ],
-      "next": "'Q5'",
-      "question": "'Is"
+      "next": "Q5",
+      "question": "Is this about recent changes or history?"
     },
     "Q5": {
       "branches": {
-        "raw": "development:\n        keywords: ['develop', 'code', 'implement', 'feature']\n        route: 'docs/INDEX.md'\n      testing:\n        keywords: ['test', 'spec', 'coverage', 'jest', 'vitest']\n        route: 'docs/INDEX.md#testing'\n      deployment:\n        keywords: ['deploy', 'prod', 'release', 'ci', 'cd']\n        route: 'docs/workflows/PRODUCTION_SCRIPTS.md'\n      troubleshooting:\n        keywords: ['error', 'debug', 'fix', 'broken', 'issue']\n        route: 'docs/INDEX.md'"
+        "deployment": {
+          "keywords": [
+            "deploy",
+            "prod",
+            "release",
+            "ci",
+            "cd"
+          ],
+          "route": "docs/workflows/PRODUCTION_SCRIPTS.md"
+        },
+        "development": {
+          "keywords": [
+            "develop",
+            "code",
+            "implement",
+            "feature"
+          ],
+          "route": "docs/INDEX.md"
+        },
+        "testing": {
+          "keywords": [
+            "test",
+            "spec",
+            "coverage",
+            "jest",
+            "vitest"
+          ],
+          "route": "docs/INDEX.md#testing"
+        },
+        "troubleshooting": {
+          "keywords": [
+            "error",
+            "debug",
+            "fix",
+            "broken",
+            "issue"
+          ],
+          "route": "docs/INDEX.md"
+        }
       },
-      "id": "'category_routing'",
-      "keywords": [
-        "'develop'",
-        "'code'",
-        "'implement'",
-        "'feature'"
-      ],
-      "next": "'Q6'",
-      "question": "'Which"
+      "default_route": "docs/INDEX.md",
+      "id": "category_routing",
+      "next": "Q6",
+      "question": "Which category does this fall into?"
     },
     "Q6": {
-      "action_if_false": "'PROCEED'",
+      "action_if_false": "PROCEED",
       "action_if_true": {
-        "route": "'cheatsheets/document-review-workflow.md'",
-        "warning": "'Document"
+        "route": "cheatsheets/document-review-workflow.md",
+        "warning": "Document may be stale - apply Document Review Protocol"
       },
       "condition": {
-        "raw": "and:\n        - field: 'age_days'\n          greater_than: 30\n        - field: 'contains_execution_claims'\n          equals: true"
+        "and": [
+          {
+            "field": "age_days",
+            "greater_than": 30
+          },
+          {
+            "equals": true,
+            "field": "contains_execution_claims"
+          }
+        ]
       },
-      "id": "'staleness_check'",
-      "question": "'Is"
+      "id": "staleness_check",
+      "question": "Is the target document potentially stale?"
     }
   },
   "docs": [
@@ -162,14 +295,14 @@
           "canonical-locations"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Team'",
+        "owner": "Platform Team",
         "review_cadence": "P30D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Team'",
+      "owner": "Platform Team",
       "path": ".claude/AGENT-DIRECTORY.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -191,14 +324,14 @@
           "success-rate"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Team'",
+        "owner": "Platform Team",
         "review_cadence": "P7D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Team'",
+      "owner": "Platform Team",
       "path": ".claude/AGENT-METRICS.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -250,14 +383,14 @@
           "decision-tree"
         ],
         "last_updated": "2026-03-27",
-        "owner": "'Platform Team'",
+        "owner": "Platform Team",
         "review_cadence": "P30D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2026-03-27",
-      "owner": "'Platform Team'",
+      "owner": "Platform Team",
       "path": ".claude/DISCOVERY-MAP.md",
       "staleDays": 0,
       "status": "ACTIVE"
@@ -345,6 +478,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Design and execute chaos engineering experiments and resilience testing. Use for testing system recovery, planning game days, validating disaster recovery, or building antifragile systems.",
         "model": "inherit",
         "name": "chaos-engineer",
         "tools": "All tools"
@@ -361,6 +495,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Deeply understand how existing features or systems work. Use for understanding authentication flows, onboarding, debugging complex issues, or planning refactoring.",
         "model": "inherit",
         "name": "code-explorer",
         "tools": "All tools"
@@ -394,6 +529,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Simplifies code for clarity, consistency, and maintainability while preserving all functionality. Triggered automatically after completing coding tasks.",
         "model": "opus",
         "name": "code-simplifier"
       },
@@ -410,6 +546,7 @@
       "exists": true,
       "frontmatter": {
         "color": "green",
+        "description": "Analyzes code comments for accuracy, completeness, and long-term maintainability. Use after generating documentation, before finalizing PRs, or when reviewing existing comments.",
         "model": "inherit",
         "name": "comment-analyzer"
       },
@@ -425,6 +562,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Context management, memory systems, and multi-agent workflow orchestration. Use for RAG systems, multi-agent coordination, knowledge graphs, or semantic search.",
         "model": "inherit",
         "name": "context-orchestrator",
         "tools": "All tools"
@@ -441,6 +579,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Database architecture design, technology selection, schema design, and query optimization. Use for database architecture decisions, performance tuning, or schema design.",
         "model": "inherit",
         "name": "database-expert",
         "tools": "All tools"
@@ -457,7 +596,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
-        "Database schema change specialist. Use PROACTIVELY before any npm run db": "push",
+        "description": "Database schema change specialist. Use PROACTIVELY before any npm run db:push or when schema files are modified.",
         "model": "sonnet",
         "name": "db-migration",
         "tools": "Read, Edit, Bash, Grep, Glob"
@@ -474,6 +613,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Debugging, error analysis, and root cause investigation. Use for complex bugs, production issues, or hard-to-reproduce errors.",
         "model": "inherit",
         "name": "debug-expert",
         "tools": "All tools"
@@ -490,6 +630,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Production incidents, performance issues, deployment failures, and infrastructure problems. Use for outages, 500 errors, pod crashes, CI/CD failures, network issues, or database problems.",
         "model": "inherit",
         "name": "devops-troubleshooter",
         "tools": "All tools"
@@ -506,6 +647,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Comprehensive technical documentation creation. Use when completing major refactoring, documenting complex architectures, preparing for onboarding, or recording design decisions.",
         "model": "inherit",
         "name": "docs-architect",
         "tools": "All tools"
@@ -522,6 +664,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Developer experience optimization and tooling improvement. Use when setting up new projects, encountering workflow friction, or onboarding takes >10 minutes.",
         "model": "inherit",
         "name": "dx-optimizer",
         "tools": "All tools"
@@ -538,6 +681,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. Use when tasks require multiple rounds of exploration or don't fit specialized agents.",
         "model": "inherit",
         "name": "general-purpose",
         "tools": "All tools"
@@ -554,6 +698,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Production incident management and SRE practices. Use IMMEDIATELY for outages, errors, performance issues, or security breaches.",
         "model": "inherit",
         "name": "incident-responder",
         "tools": "All tools"
@@ -570,6 +715,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Modernize legacy codebases, migrate frameworks, reduce technical debt. Use when working with legacy code, outdated dependencies, or monolithic applications.",
         "model": "inherit",
         "name": "legacy-modernizer",
         "tools": "All tools"
@@ -605,6 +751,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Performance regression detection and bundle analysis. Use PROACTIVELY after significant code changes, dependency updates, or before deployment.",
         "model": "sonnet",
         "name": "perf-guard",
         "tools": "Read, Bash, Grep, Glob, Write"
@@ -640,6 +787,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Stylist agent for Press On Ventures brand-consistent reporting and UI.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-brand-reporting-stylist",
@@ -660,10 +808,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Analyst for capital allocation and exit recycling modules, focusing on provenance, coverage, and strategy alignment.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-capital-allocation-analyst",
         "permissionMode": "default",
+        "skills": "phoenix-capital-exit-investigator, phoenix-truth-case-orchestrator, systematic-debugging, iterative-improvement",
         "tenant_id": "agent:phoenix-capital-allocation-analyst",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -679,10 +829,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Documentation scribe for Phoenix calculation modules. Keeps docs and JSDoc aligned with reality.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-docs-scribe",
         "permissionMode": "default",
+        "skills": "phoenix-docs-sync, phoenix-truth-case-orchestrator, iterative-improvement",
         "tenant_id": "agent:phoenix-docs-scribe",
         "tools": "Read, Write, Grep, Glob"
       },
@@ -698,10 +850,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Guardian of numeric precision and type safety in Phoenix calculation paths.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-precision-guardian",
         "permissionMode": "default",
+        "skills": "phoenix-precision-guard, phoenix-truth-case-orchestrator, systematic-debugging, verification-before-completion",
         "tenant_id": "agent:phoenix-precision-guardian",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -717,10 +871,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Senior quant engineer for Phase 2. Builds graduation modeling, MOIC/reserves analytics, scenarios, and Monte Carlo on top of the deterministic core.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-probabilistic-engineer",
         "permissionMode": "default",
+        "skills": "phoenix-advanced-forecasting, phoenix-truth-case-orchestrator, systematic-debugging, multi-model-consensus",
         "tenant_id": "agent:phoenix-probabilistic-engineer",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -736,10 +892,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Agent for reserve sizing and follow-on allocation optimization using the deterministic reserve engine.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-reserves-optimizer",
         "permissionMode": "default",
+        "skills": "phoenix-reserves-optimizer, phoenix-capital-exit-investigator, systematic-debugging",
         "tenant_id": "agent:phoenix-reserves-optimizer",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -755,10 +913,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Specialized agent for Phoenix truth-case execution, triage, and phase-gate decisions.",
         "enabled": true,
         "model": "sonnet",
         "name": "phoenix-truth-case-runner",
         "permissionMode": "default",
+        "skills": "phoenix-truth-case-orchestrator, systematic-debugging, verification-before-completion, root-cause-tracing, test-driven-development",
         "tenant_id": "agent:phoenix-truth-case-runner",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -830,6 +990,7 @@
       "exists": true,
       "frontmatter": {
         "color": "yellow",
+        "description": "Detects silent failures, swallowed exceptions, and error handling issues.",
         "model": "inherit",
         "name": "silent-failure-hunter"
       },
@@ -845,6 +1006,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Proactive test automation strategy and comprehensive test coverage. Use when code changes are committed, new features discussed, quality issues arise, or CI/CD is modified.",
         "model": "inherit",
         "name": "test-automator",
         "tools": "All tools"
@@ -861,6 +1023,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Autonomous test failure detection and repair. Use PROACTIVELY after code changes that may affect tests, or when test failures are detected.",
         "model": "sonnet",
         "name": "test-repair",
         "tools": "Read, Edit, Write, Bash, Grep, Glob"
@@ -877,6 +1040,7 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Scaffolds test infrastructure for new modules, packages, or features. Use when creating new packages, adding test suites to existing code, or setting up testing patterns for a new domain.",
         "model": "sonnet",
         "name": "test-scaffolder",
         "tools": "Read, Write, Edit, Bash, Grep, Glob"
@@ -910,9 +1074,11 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Domain expert for waterfall (carry distribution) calculations. Use for ANY changes touching waterfall logic, validation, or UI components.",
         "enabled": true,
         "model": "sonnet",
         "name": "waterfall-specialist",
+        "skills": "phoenix-waterfall-ledger-semantics, phoenix-precision-guard, systematic-debugging, verification-before-completion",
         "tenant_id": "agent:waterfall-specialist",
         "tools": "Read, Edit, Grep, Glob, Bash"
       },
@@ -944,10 +1110,12 @@
       "docType": "agent",
       "exists": true,
       "frontmatter": {
+        "description": "Agent focused on validating XIRR and fee modules against truth cases and, where applicable, Excel parity.",
         "enabled": true,
         "model": "sonnet",
         "name": "xirr-fees-validator",
         "permissionMode": "default",
+        "skills": "phoenix-xirr-fees-validator, phoenix-truth-case-orchestrator, systematic-debugging",
         "tenant_id": "agent:xirr-fees-validator",
         "tools": "Read, Write, Grep, Glob, Bash"
       },
@@ -1038,6 +1206,7 @@
       "docType": "command",
       "exists": true,
       "frontmatter": {
+        "description": "Run AI tool evaluation framework to test calculation accuracy and performance",
         "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
@@ -1099,9 +1268,9 @@
       "docType": "command",
       "exists": true,
       "frontmatter": {
-        "'Phase 2 workflow": "validate Expectation Mode, run seeded Monte Carlo,",
-        "Read, Write, Edit, Grep, Glob, Bash(git status": "*), Bash(git diff:*), Bash(git",
-        "branch": "*), Bash(npm test:*), Bash(npm run phoenix:*)",
+        "allowed-tools": "Read, Write, Edit, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(npm test:*), Bash(npm run phoenix:*)",
+        "argument-hint": "[goal] seed=<int> iters=<int> scenario=<name> focus=<graduation|moic|reserves|monte-carlo>",
+        "description": "Phase 2 workflow: validate Expectation Mode, run seeded Monte Carlo, summarize distributions",
         "disable-model-invocation": true
       },
       "hasExecutionClaims": false,
@@ -1304,14 +1473,14 @@
           "test-selection"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Team'",
+        "owner": "Platform Team",
         "review_cadence": "P30D",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Team'",
+      "owner": "Platform Team",
       "path": ".claude/docs/TEST-STRATEGY.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -1401,9 +1570,22 @@
           "planning",
           "architecture"
         ],
+        "keywords": [
+          "technical-debt",
+          "remediation",
+          "type-safety",
+          "xirr",
+          "schema-drift",
+          "silent-failures"
+        ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Developer'",
+        "owner": "Platform Developer",
         "priority": 2,
+        "related_code": [
+          "shared/types.ts",
+          "shared/schemas.ts",
+          "client/src/lib/finance/xirr.ts"
+        ],
         "review_cadence": "P30D",
         "status": "ACTIVE",
         "use_cases": [
@@ -1414,7 +1596,7 @@
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Developer'",
+      "owner": "Platform Developer",
       "path": ".claude/plan.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -2059,8 +2241,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "This skill should be used when": "(1) analyzing bundle composition or total size,",
-        "description": "|",
+        "description": "Bundle size analysis, budget enforcement, and regression detection for Vite/Rollup builds.\nThis skill should be used when: (1) analyzing bundle composition or total size,\n(2) checking size budgets, (3) comparing PR vs baseline for regressions,\n(4) investigating why bundle size increased, or (5) optimizing bundle size.\nReads Vite manifest for chunk graph (Tier B). Cannot attribute sizes to specific\nnpm packages without stats.json (Tier C unavailable by default).\n",
         "name": "bundle-size"
       },
       "hasExecutionClaims": false,
@@ -2120,6 +2301,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Comprehensive multi-AI code review system for Python, JavaScript, and TypeScript. Use when reviewing code for quality, security, performance, or best practices. Includes automated analysis scripts, language-specific patterns, and AI collaboration workflows for complex decisions.",
         "name": "code-reviewer"
       },
       "hasExecutionClaims": false,
@@ -2257,6 +2439,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Designer-turned-developer who crafts stunning UI/UX even without design mockups",
         "name": "frontend-ui-ux"
       },
       "hasExecutionClaims": false,
@@ -2388,7 +2571,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "\"Architecture for the 'living model'": "graduation rates, multi-MOIC analysis,",
+        "description": "Architecture for the 'living model': graduation rates, multi-MOIC analysis, reserves ranking, scenarios, and Monte Carlo. Always sits on top of the deterministic core.",
         "name": "phoenix-advanced-forecasting"
       },
       "hasExecutionClaims": false,
@@ -2403,6 +2586,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Press On Ventures brand-consistent reporting. Use when designing charts, dashboards, exports, or LP-facing documents.",
         "name": "phoenix-brand-reporting"
       },
       "hasExecutionClaims": false,
@@ -2417,6 +2601,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Capital allocation and exit recycling investigator. Use when working on low-confidence modules like capital allocation and exit recycling.",
         "name": "phoenix-capital-exit-investigator"
       },
       "hasExecutionClaims": false,
@@ -2431,6 +2616,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Syncs calculations documentation and JSDoc with actual behavior. Use after non-trivial changes to calculation modules.",
         "name": "phoenix-docs-sync"
       },
       "hasExecutionClaims": false,
@@ -2445,6 +2631,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Precision and type-safety hardening for Phoenix calculation paths. Use when configuring ESLint/TypeScript, replacing parseFloat in P0 files, or validating Decimal.js precision.",
         "name": "phoenix-precision-guard"
       },
       "hasExecutionClaims": false,
@@ -2459,6 +2646,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Reserve allocation and follow-on optimization for the Phoenix fund model. Use when working on deterministic reserve engine logic and optimal reserves ranking.",
         "name": "phoenix-reserves-optimizer"
       },
       "hasExecutionClaims": false,
@@ -2473,6 +2661,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "End-to-end truth-case orchestration for the Phoenix VC fund-modeling platform. Use when running tests/truth-cases/runner.test.ts, computing module-level pass rates, updating docs/phase0-validation-report.md and docs/failure-triage.md, or deciding between Phase 1A/1B/1C.",
         "name": "phoenix-truth-case-orchestrator"
       },
       "hasExecutionClaims": false,
@@ -2487,6 +2676,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Waterfall ledger semantics and clawback behavior for the Phoenix VC fund model. Use when working on tier or ledger waterfall code, clawback behavior, or waterfall truth cases.",
         "name": "phoenix-waterfall-ledger-semantics"
       },
       "hasExecutionClaims": false,
@@ -2516,6 +2706,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Validation for XIRR and fee calculations. Use when working on server/analytics/xirr.ts, server/analytics/fees.ts, or their truth cases.",
         "name": "phoenix-xirr-fees-validator"
       },
       "hasExecutionClaims": false,
@@ -2770,6 +2961,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Safely improve code quality through test-driven refactoring with automatic validation and rollback. Use during quality review to reduce technical debt while preserving behavior.",
         "name": "refactor-code"
       },
       "hasExecutionClaims": true,
@@ -2784,6 +2976,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "Run full test suite to catch regressions after implementation changes. Auto-detects framework, reports pass/fail with counts. Use after code changes to verify nothing broke.",
         "name": "regression-checker"
       },
       "hasExecutionClaims": false,
@@ -2905,6 +3098,7 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "description": "UI design system toolkit for Senior UI Designer including design token generation, component documentation, responsive design calculations, and developer handoff tools. Use for creating design systems, maintaining visual consistency, and facilitating design-dev collaboration.",
         "name": "ui-design-system"
       },
       "hasExecutionClaims": false,
@@ -2919,12 +3113,8 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "Integrations": "shadcn/ui MCP for component search and examples.'",
-        "Tailwind, shadcn/ui). Actions": "plan, build, create, design, implement, review,",
-        "blog, mobile app, .html, .tsx, .vue, .svelte. Elements": "button, modal, navbar,",
-        "name": "ui-ux-pro-max",
-        "sidebar, card, table, form, chart. Styles": "glassmorphism, claymorphism,",
-        "skeuomorphism, flat design. Topics": "color palette, accessibility, animation,"
+        "description": "UI/UX design intelligence. 50 styles, 21 palettes, 50 font pairings, 20 charts, 9 stacks (React, Next.js, Vue, Svelte, SwiftUI, React Native, Flutter, Tailwind, shadcn/ui). Actions: plan, build, create, design, implement, review, fix, improve, optimize, enhance, refactor, check UI/UX code. Projects: website, landing page, dashboard, admin panel, e-commerce, SaaS, portfolio, blog, mobile app, .html, .tsx, .vue, .svelte. Elements: button, modal, navbar, sidebar, card, table, form, chart. Styles: glassmorphism, claymorphism, minimalism, brutalism, neumorphism, bento grid, dark mode, responsive, skeuomorphism, flat design. Topics: color palette, accessibility, animation, layout, typography, font pairing, spacing, hover, shadow, gradient. Integrations: shadcn/ui MCP for component search and examples.",
+        "name": "ui-ux-pro-max"
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -3130,8 +3320,17 @@
         "author": "Claude Memory Tool",
         "category": "code-quality",
         "created": "2025-10-20",
+        "dependencies": [
+          "python3",
+          "git"
+        ],
         "description": "Automated technical debt identification, tracking, and prioritization system",
         "execution_time": "~35ms",
+        "integrations": [
+          "codebase-navigator",
+          "code-formatter",
+          "semantic-search"
+        ],
         "name": "tech-debt-tracker",
         "tags": [
           "technical-debt",
@@ -3484,9 +3683,10 @@
           "existing-solutions"
         ],
         "last_updated": "2026-03-27",
-        "owner": "'Core Team'",
+        "owner": "Core Team",
         "priority": 5,
-        "review_cadence": "'P90D'",
+        "review_cadence": "P90D",
+        "route_hint": "Historical inventory only. Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md.",
         "status": "ACTIVE",
         "use_cases": [
           "capability_discovery",
@@ -3496,7 +3696,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2026-03-27",
-      "owner": "'Core Team'",
+      "owner": "Core Team",
       "path": "CAPABILITIES.md",
       "staleDays": 0,
       "status": "ACTIVE"
@@ -4769,10 +4969,10 @@
           "catalog"
         ],
         "last_updated": "2025-12-12",
-        "owner": "'Core Team'",
+        "owner": "Core Team",
         "priority": 2,
-        "review_cadence": "'P90D'",
-        "route_hint": "'Complete inventory of AI tools and automation.'",
+        "review_cadence": "P90D",
+        "route_hint": "Complete inventory of AI tools and automation.",
         "source_of_truth": true,
         "status": "ACTIVE",
         "use_cases": [
@@ -4783,7 +4983,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-12",
-      "owner": "'Core Team'",
+      "owner": "Core Team",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
       "staleDays": 105,
       "status": "ACTIVE"
@@ -4880,10 +5080,10 @@
           "documentation"
         ],
         "last_updated": "2026-03-27",
-        "owner": "'Core Team'",
+        "owner": "Core Team",
         "priority": 2,
-        "review_cadence": "'P90D'",
-        "route_hint": "'Central navigation for all documentation.'",
+        "review_cadence": "P90D",
+        "route_hint": "Central navigation for all documentation.",
         "source_of_truth": true,
         "status": "ACTIVE",
         "use_cases": [
@@ -4894,7 +5094,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2026-03-27",
-      "owner": "'Core Team'",
+      "owner": "Core Team",
       "path": "docs/INDEX.md",
       "staleDays": 0,
       "status": "ACTIVE"
@@ -8946,10 +9146,16 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "- C": "\\Users\\nikhi\\.claude\\plans\\fluttering-yawning-pretzel.md",
         "base_commit": "7fbf1977e5fca6718dc71159b5142ce9d78cb0e3",
         "last_updated": "2026-03-20",
-        "status": "ACCEPTED"
+        "status": "ACCEPTED",
+        "supersedes": [
+          "docs/plans/2026-03-20-contract-integrity-counterproposal.md",
+          "C:\\Users\\nikhi\\.claude\\plans\\fluttering-yawning-pretzel.md"
+        ],
+        "works_with": [
+          "docs/plans/2026-03-18-eslint-execution-counterproposal.md"
+        ]
       },
       "hasExecutionClaims": true,
       "isStale": false,
@@ -9023,6 +9229,12 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "depends_on": [
+          "docs/plans/2026-03-20-contract-integrity-final-counterproposal.md",
+          "docs/plans/2026-03-21-phase-2b-execution-spec.md",
+          "docs/plans/2026-03-22-phase-3-results-execution-spec.md",
+          "docs/plans/2026-03-22-phase-4-implementation-spec.md"
+        ],
         "last_updated": "2026-03-26",
         "status": "DRAFT"
       },
@@ -9059,10 +9271,18 @@
           "foundation-hardening",
           "coordination"
         ],
+        "keywords": [
+          "phoenix",
+          "foundation-hardening",
+          "truth-cases",
+          "implementation-parity",
+          "divergence"
+        ],
         "last_updated": "2025-12-16",
-        "owner": "'Core Team'",
+        "owner": "Core Team",
         "priority": 1,
-        "review_cadence": "'P30D'",
+        "review_cadence": "P30D",
+        "route_hint": "Coordination logic for Phoenix validation + Foundation Hardening implementation parity",
         "source_of_truth": true,
         "status": "ACTIVE",
         "use_cases": [
@@ -9073,7 +9293,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-16",
-      "owner": "'Core Team'",
+      "owner": "Core Team",
       "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
       "staleDays": 101,
       "status": "ACTIVE"
@@ -10480,14 +10700,12 @@
         ],
         "severity": "medium",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-001.test.ts",
         "title": "Dynamic Imports Prevent Test Side Effects",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10507,9 +10725,7 @@
           "workflows"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-002",
         "keywords": [
           "post-merge",
@@ -10520,14 +10736,12 @@
         ],
         "severity": "high",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-002.test.ts",
         "title": "Post-Merge Jobs Not Validated by PR CI",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10547,9 +10761,7 @@
           "filesystem"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-003",
         "keywords": [
           "cross-platform",
@@ -10561,14 +10773,12 @@
         ],
         "severity": "medium",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-003.test.ts",
         "title": "Cross-Platform File Enumeration Fragility",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -10582,27 +10792,19 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [
-          ""
-        ],
+        "components": [],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-004",
-        "keywords": [
-          ""
-        ],
-        "severity": "medium # critical | high | medium | low",
-        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
-        "superseded_by": "null",
+        "keywords": [],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-004.test.ts",
         "title": "Schema Format Backward Compatibility",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10610,33 +10812,25 @@
       "owner": null,
       "path": "docs/skills/REFL-004-schema-format-backward-compatibility.md",
       "staleDays": 999,
-      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+      "status": "DRAFT"
     },
     {
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [
-          ""
-        ],
+        "components": [],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-005",
-        "keywords": [
-          ""
-        ],
-        "severity": "medium # critical | high | medium | low",
-        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
-        "superseded_by": "null",
+        "keywords": [],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-005.test.ts",
         "title": "Stale Test Files with API Mismatch",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10644,7 +10838,7 @@
       "owner": null,
       "path": "docs/skills/REFL-005-stale-test-files-with-api-mismatch.md",
       "staleDays": 999,
-      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+      "status": "DRAFT"
     },
     {
       "docType": "skill",
@@ -10671,14 +10865,12 @@
         ],
         "severity": "critical",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-006.test.ts",
         "title": "XIRR Newton-Raphson Divergence on Extreme Returns",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10698,9 +10890,7 @@
           "mocking"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-007",
         "keywords": [
           "vi.mock",
@@ -10711,14 +10901,12 @@
         ],
         "severity": "high",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-007.test.ts",
         "title": "Global vi.mock Pollutes All Tests",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10732,27 +10920,19 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [
-          ""
-        ],
+        "components": [],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-008",
-        "keywords": [
-          ""
-        ],
-        "severity": "medium # critical | high | medium | low",
-        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
-        "superseded_by": "null",
+        "keywords": [],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-008.test.ts",
         "title": "TypeScript Type Inference from Database Schemas",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10760,7 +10940,7 @@
       "owner": null,
       "path": "docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md",
       "staleDays": 999,
-      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+      "status": "DRAFT"
     },
     {
       "docType": "skill",
@@ -10772,9 +10952,7 @@
           "cross-platform"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-009",
         "keywords": [
           "crlf",
@@ -10788,14 +10966,12 @@
         ],
         "severity": "medium",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-009.test.ts",
         "title": "CRLF Line Endings Break Frontmatter Parsing",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10831,14 +11007,12 @@
         ],
         "severity": "high",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-010.test.ts",
         "title": "Trust Proxy Configuration for Rate Limiters",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10873,14 +11047,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-011.test.ts",
         "title": "Recharts Formatter Type Signatures",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10917,14 +11089,12 @@
         ],
         "severity": "high",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-012.test.ts",
         "title": "Fire-and-Forget Async Creates Race Conditions",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10958,14 +11128,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-013.test.ts",
         "title": "Router Substring Matching Causes False Positives",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -10986,9 +11154,7 @@
           "fixtures"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-014",
         "keywords": [
           "test-isolation",
@@ -11000,14 +11166,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-014.test.ts",
         "title": "Test Key Reuse Across Test Cases",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11043,14 +11207,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-015.test.ts",
         "title": "PostgreSQL Service Missing Test Database",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11070,9 +11232,7 @@
           "configuration"
         ],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-016",
         "keywords": [
           "vitest",
@@ -11084,14 +11244,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-016.test.ts",
         "title": "Vitest Include Patterns Miss New Test Directories",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11113,8 +11271,8 @@
         "date": "2026-01-18",
         "error_codes": [
           "HttpError",
-          "404",
-          "403"
+          404,
+          403
         ],
         "id": "REFL-017",
         "keywords": [
@@ -11127,14 +11285,12 @@
         ],
         "severity": "low",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-017.test.ts",
         "title": "CI Workflow Permission Errors",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11148,11 +11304,26 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "components": [
+          "DeterministicReserveEngine",
+          "wizard-reserve-bridge"
+        ],
         "date": "2026-01-18",
+        "error_codes": [
+          "E_CTX_UNINITIALIZED",
+          "E_FIELD_MISSING",
+          "E_BUSINESS_RULE"
+        ],
         "id": "REFL-018",
+        "keywords": [
+          "null safety",
+          "validation",
+          "reserve calculation",
+          "wizard state"
+        ],
         "severity": "medium",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-018.test.ts",
         "title": "Reserve Engine Null Safety",
         "type": "reflection",
@@ -11173,11 +11344,23 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
+        "components": [
+          "K1TaxSummaryPDF",
+          "buildK1ReportData",
+          "pdf-generation-service"
+        ],
         "date": "2026-02-14",
         "id": "REFL-019",
+        "keywords": [
+          "pdf generation",
+          "footnotes",
+          "silent data loss",
+          "LP reports",
+          "template mismatch"
+        ],
         "severity": "medium",
         "status": "VERIFIED",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/unit/services/pdf-generation-service.test.ts",
         "title": "K-1 PDF Template Silently Drops Data Footnotes",
         "type": "reflection",
@@ -11214,14 +11397,12 @@
         ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-020.test.ts",
         "title": "Large-Iteration Tests Need Explicit Timeouts",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11249,16 +11430,22 @@
           "TS2769"
         ],
         "id": "REFL-021",
+        "keywords": [
+          "exactOptionalPropertyTypes",
+          "spread-pattern",
+          "optional-properties",
+          "undefined",
+          "TS2375",
+          "TS2412"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-021.test.ts",
         "title": "exactOptionalPropertyTypes Requires Spread Pattern",
         "type": "reflection",
         "version": 2,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11284,16 +11471,23 @@
           "ERR_METRIC_ALREADY_REGISTERED"
         ],
         "id": "REFL-022",
+        "keywords": [
+          "prometheus",
+          "prom-client",
+          "duplicate-metric",
+          "hot-reload",
+          "getOrCreate",
+          "registry",
+          "integration-test"
+        ],
         "severity": "high",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-022.test.ts",
         "title": "Prometheus Metrics Duplicate Registration on Hot Reload",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11314,20 +11508,24 @@
           "rollout"
         ],
         "date": "2026-02-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-023",
+        "keywords": [
+          "Math.random",
+          "crypto",
+          "randomUUID",
+          "security",
+          "predictable-ids",
+          "feature-flags"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-023.test.ts",
         "title": "Math.random in Production Identifiers",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11351,17 +11549,32 @@
           "vitest"
         ],
         "date": "2026-02-18",
+        "error_codes": [
+          "ERR_METRIC_ALREADY_REGISTERED",
+          "ECONNREFUSED",
+          "EADDRINUSE",
+          "ERR_ENV_LEAK"
+        ],
         "id": "REFL-024",
+        "keywords": [
+          "integration-test",
+          "environment-leakage",
+          "side-effects",
+          "import-time",
+          "port-conflict",
+          "secret-leak",
+          "env-markers",
+          "vitest-workers",
+          "5-layer-defense"
+        ],
         "severity": "high",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-024.test.ts",
         "title": "Integration Test Environment Leakage (5-Layer Defense)",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": true,
       "isStale": true,
@@ -11390,16 +11603,24 @@
           "TS2339"
         ],
         "id": "REFL-025",
+        "keywords": [
+          "tsc",
+          "baseline-check",
+          "ci-mismatch",
+          "ts4111",
+          "index-signature",
+          "noUncheckedIndexedAccess",
+          "separate-compilation",
+          "pre-push-hook"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-025.test.ts",
         "title": "CI Compilation Boundary Mismatch",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11425,16 +11646,22 @@
           "ERR_DRIZZLE_CHAIN"
         ],
         "id": "REFL-026",
+        "keywords": [
+          "drizzle",
+          "mock-chain",
+          "builder-pattern",
+          "mockResolvedValue",
+          "insert",
+          "values"
+        ],
         "severity": "high",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-026.test.ts",
         "title": "Drizzle ORM Mock Chain Overwrite",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11454,20 +11681,28 @@
           "eslint"
         ],
         "date": "2026-03-17",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-027",
+        "keywords": [
+          "no-unsafe-member-access",
+          "no-unsafe-argument",
+          "no-unsafe-assignment",
+          "no-explicit-any",
+          "reduce",
+          "map",
+          "filter",
+          "callback",
+          "type-inference",
+          "eslint"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-027.test.ts",
         "title": "Redundant any on Inferred Callback Parameters",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11487,20 +11722,25 @@
           "react-context"
         ],
         "date": "2026-03-17",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-028",
+        "keywords": [
+          "duck-typing",
+          "context",
+          "unsafe-member-access",
+          "bracket-notation",
+          "Record",
+          "FundContextType",
+          "type-assertion"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-028.test.ts",
         "title": "Duck-Type Context Access with Typed Bracket Notation",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11527,16 +11767,23 @@
           "ERR_NO_JOB_LOGS"
         ],
         "id": "REFL-029",
+        "keywords": [
+          "github-actions",
+          "workflow-validation",
+          "secrets",
+          "if-expression",
+          "env-guard",
+          "zap",
+          "no-jobs"
+        ],
         "severity": "medium",
         "status": "DRAFT",
-        "superseded_by": "null",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-029.test.ts",
         "title": "GitHub Actions Secrets in if Expressions Invalidate Workflows",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11604,6 +11851,13 @@
         ],
         "id": "REFL-032",
         "severity": "medium",
+        "tags": [
+          "typescript",
+          "eslint",
+          "lint-staged",
+          "index-signature",
+          "noPropertyAccessFromIndexSignature"
+        ],
         "title": "TS4111 Index Signature Access Conflicts with ESLint Dot Notation"
       },
       "hasExecutionClaims": false,
@@ -11642,27 +11896,19 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "components": [
-          ""
-        ],
+        "components": [],
         "date": "2026-01-18",
-        "error_codes": [
-          ""
-        ],
+        "error_codes": [],
         "id": "REFL-000",
-        "keywords": [
-          ""
-        ],
-        "severity": "medium # critical | high | medium | low",
-        "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED",
-        "superseded_by": "null",
+        "keywords": [],
+        "severity": "medium",
+        "status": "DRAFT",
+        "superseded_by": null,
         "test_file": "tests/regressions/REFL-000.test.ts",
         "title": "Short Descriptive Title",
         "type": "reflection",
         "version": 1,
-        "wizard_steps": [
-          ""
-        ]
+        "wizard_steps": []
       },
       "hasExecutionClaims": false,
       "isStale": true,
@@ -11670,7 +11916,7 @@
       "owner": null,
       "path": "docs/skills/template-refl.md",
       "staleDays": 999,
-      "status": "DRAFT # VERIFIED | DRAFT | DEPRECATED"
+      "status": "DRAFT"
     },
     {
       "docType": "doc",
@@ -11854,8 +12100,14 @@
           "branded-types"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Developer'",
+        "owner": "Platform Developer",
         "priority": 2,
+        "related_code": [
+          "shared/units.ts",
+          "shared/utils/type-guards.ts",
+          "client/src/stores/fundStore.ts",
+          "server/services/monte-carlo-engine.ts"
+        ],
         "review_cadence": "P90D",
         "status": "ACTIVE",
         "use_cases": [
@@ -11865,7 +12117,7 @@
       "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Developer'",
+      "owner": "Platform Developer",
       "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -12189,8 +12441,6 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "- event": "'xirr_consolidation_complete'",
-        "action": "'Update status to REFERENCE'",
         "audience": "both",
         "categories": [
           "tech-debt",
@@ -12204,8 +12454,20 @@
           "financial-accuracy"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Developer'",
+        "owner": "Platform Developer",
         "priority": 1,
+        "related_code": [
+          "client/src/lib/finance/xirr.ts",
+          "client/src/lib/xirr.ts",
+          "client/src/core/selectors/xirr.ts",
+          "server/services/actual-metrics-calculator.ts"
+        ],
+        "requires_update_trigger": [
+          {
+            "action": "Update status to REFERENCE",
+            "event": "xirr_consolidation_complete"
+          }
+        ],
         "review_cadence": "P60D",
         "status": "ACTIVE",
         "use_cases": [
@@ -12216,7 +12478,7 @@
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Developer'",
+      "owner": "Platform Developer",
       "path": "docs/xirr-consolidation-roadmap.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -12237,8 +12499,11 @@
           "consolidation"
         ],
         "last_updated": "2025-12-29",
-        "owner": "'Platform Developer'",
+        "owner": "Platform Developer",
         "priority": 1,
+        "related_code": [
+          "client/src/lib/finance/xirr.ts"
+        ],
         "review_cadence": "P90D",
         "status": "ACTIVE",
         "use_cases": [
@@ -12248,7 +12513,7 @@
       "hasExecutionClaims": true,
       "isStale": false,
       "lastUpdated": "2025-12-29",
-      "owner": "'Platform Developer'",
+      "owner": "Platform Developer",
       "path": "docs/xirr-consolidation-summary.md",
       "staleDays": 88,
       "status": "ACTIVE"
@@ -12314,15 +12579,1172 @@
       "status": "HISTORICAL"
     }
   ],
-  "generatedAt": "2026-03-27T22:29:04.447Z",
-  "patterns": [],
+  "generatedAt": "2026-03-27T23:55:42.571Z",
+  "patterns": [
+    {
+      "category": "Security",
+      "id": "security",
+      "keywords": [
+        "secret",
+        "key",
+        "token",
+        "password",
+        "auth",
+        "security",
+        "credential",
+        "env"
+      ],
+      "priority": 5,
+      "target": "SECURITY.md",
+      "warning": "Security-sensitive operation - verify permissions"
+    },
+    {
+      "category": "Phoenix",
+      "command": "/phoenix-truth",
+      "id": "phoenix_truth",
+      "keywords": [
+        "truth case",
+        "validation",
+        "deterministic",
+        "pass rate",
+        "baseline"
+      ],
+      "priority": 10,
+      "target": ".claude/commands/phoenix-truth.md"
+    },
+    {
+      "category": "Phoenix",
+      "command": "/phoenix-phase2",
+      "gate": "deterministic_must_pass",
+      "id": "phoenix_phase2",
+      "keywords": [
+        "monte carlo",
+        "probabilistic",
+        "expectation mode",
+        "seeded",
+        "distribution",
+        "phase 2"
+      ],
+      "priority": 11,
+      "target": ".claude/commands/phoenix-phase2.md"
+    },
+    {
+      "agent": "waterfall-specialist",
+      "category": "Phoenix",
+      "id": "phoenix_waterfall",
+      "keywords": [
+        "waterfall",
+        "clawback",
+        "carry",
+        "ledger",
+        "tier",
+        "gp",
+        "lp"
+      ],
+      "priority": 12,
+      "target": ".claude/agents/waterfall-specialist.md"
+    },
+    {
+      "agent": "phoenix-precision-guardian",
+      "category": "Phoenix",
+      "id": "phoenix_precision",
+      "keywords": [
+        "precision",
+        "parseFloat",
+        "decimal",
+        "numeric drift",
+        "rounding"
+      ],
+      "priority": 13,
+      "target": ".claude/agents/phoenix-precision-guardian.md"
+    },
+    {
+      "agent": "xirr-fees-validator",
+      "category": "Phoenix",
+      "id": "phoenix_xirr",
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
+      "priority": 14,
+      "target": ".claude/agents/xirr-fees-validator.md"
+    },
+    {
+      "category": "Governance",
+      "id": "stabilization_roadmap",
+      "keywords": [
+        "global rules",
+        "milestone",
+        "stabilization",
+        "roadmap",
+        "pr scope",
+        "validate:core"
+      ],
+      "priority": 15,
+      "target": "docs/STABILIZATION-ROADMAP.md"
+    },
+    {
+      "agent": "phoenix-capital-allocation-analyst",
+      "category": "Phoenix",
+      "id": "phoenix_allocation",
+      "keywords": [
+        "capital allocation",
+        "exit recycling",
+        "deployment",
+        "stage allocation"
+      ],
+      "priority": 15,
+      "target": ".claude/agents/phoenix-capital-allocation-analyst.md"
+    },
+    {
+      "category": "Domain Knowledge",
+      "id": "domain_knowledge",
+      "keywords": [
+        "domain knowledge",
+        "vc modeling",
+        "fund calculations",
+        "notebooklm",
+        "truth source",
+        "canonical"
+      ],
+      "message": "85K words of domain truth - XIRR, Waterfall, Fees, Capital, Reserves, Pacing, Cohorts, Monte Carlo",
+      "priority": 16,
+      "target": "docs/notebooklm-sources/"
+    },
+    {
+      "category": "Phoenix",
+      "id": "phoenix_engines",
+      "keywords": [
+        "reserve engine",
+        "pacing engine",
+        "cohort engine",
+        "reserves",
+        "pacing",
+        "cohorts"
+      ],
+      "message": "Phase 2 engine documentation (complete Nov 6, 2025)",
+      "priority": 17,
+      "target": "docs/notebooklm-sources/"
+    },
+    {
+      "category": "Architecture",
+      "id": "adr_directory",
+      "keywords": [
+        "adr",
+        "architecture decision",
+        "mem0",
+        "stage normalization",
+        "token budgeting",
+        "streaming"
+      ],
+      "message": "12 ADRs: Monte Carlo validation, mem0 integration, stage normalization, etc.",
+      "priority": 18,
+      "target": "docs/adr/"
+    },
+    {
+      "category": "Phoenix",
+      "id": "truth_schemas",
+      "keywords": [
+        "schema",
+        "json schema",
+        "truth case schema",
+        "validation schema"
+      ],
+      "message": "5 JSON schemas for truth case validation (XIRR, waterfall, fees, capital, recycling)",
+      "priority": 19,
+      "target": "docs/schemas/"
+    },
+    {
+      "category": "Capabilities",
+      "id": "capabilities",
+      "keywords": [
+        "capability",
+        "feature",
+        "existing solution",
+        "already built",
+        "what can"
+      ],
+      "message": "Historical capability inventory. Start current routing from CLAUDE.md and docs/INDEX.md",
+      "priority": 20,
+      "target": "CAPABILITIES.md"
+    },
+    {
+      "category": "Production",
+      "id": "production",
+      "keywords": [
+        "deploy",
+        "release",
+        "prod",
+        "production",
+        "rollout",
+        "shipping"
+      ],
+      "priority": 30,
+      "target": "docs/workflows/PRODUCTION_SCRIPTS.md"
+    },
+    {
+      "category": "CI/CD",
+      "id": "ci_cd",
+      "keywords": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
+      "priority": 31,
+      "target": "docs/workflows/README.md"
+    },
+    {
+      "category": "Testing",
+      "commands": [
+        "/test-smart",
+        "/fix-auto"
+      ],
+      "id": "testing",
+      "keywords": [
+        "test",
+        "unit test",
+        "integration",
+        "e2e",
+        "jest",
+        "vitest",
+        "coverage"
+      ],
+      "priority": 40,
+      "target": "docs/INDEX.md"
+    },
+    {
+      "agent": "database-expert",
+      "category": "Database",
+      "id": "database",
+      "keywords": [
+        "database",
+        "db",
+        "sql",
+        "migration",
+        "schema",
+        "postgres",
+        "drizzle"
+      ],
+      "priority": 50,
+      "target": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md"
+    },
+    {
+      "category": "Memory",
+      "id": "memory",
+      "keywords": [
+        "memory",
+        "context",
+        "vector",
+        "embedding",
+        "semantic search",
+        "pgvector"
+      ],
+      "priority": 60,
+      "target": "docs/INDEX.md"
+    },
+    {
+      "category": "AI Tools",
+      "id": "ai_tools",
+      "keywords": [
+        "ai",
+        "llm",
+        "model",
+        "inference",
+        "prompt",
+        "agent",
+        "claude"
+      ],
+      "priority": 70,
+      "target": "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    },
+    {
+      "category": "Performance",
+      "command": "/deploy-check",
+      "id": "performance",
+      "keywords": [
+        "perf",
+        "performance",
+        "slow",
+        "latency",
+        "benchmark",
+        "optimization"
+      ],
+      "priority": 80,
+      "target": "cheatsheets/pr-merge-verification.md"
+    },
+    {
+      "agent": "debug-expert",
+      "category": "Development",
+      "id": "debugging",
+      "keywords": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
+      "priority": 85,
+      "target": ".claude/agents/debug-expert.md"
+    },
+    {
+      "agent": "code-reviewer",
+      "category": "Development",
+      "id": "code_review",
+      "keywords": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
+      "priority": 86,
+      "target": ".claude/agents/code-reviewer.md"
+    },
+    {
+      "agent": "code-simplifier",
+      "category": "Development",
+      "id": "refactoring",
+      "keywords": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
+      "priority": 87,
+      "target": ".claude/agents/code-simplifier.md"
+    },
+    {
+      "agent": "test-repair",
+      "category": "Testing",
+      "id": "test_repair",
+      "keywords": [
+        "fix test",
+        "test fail",
+        "failing test",
+        "repair test",
+        "broken test"
+      ],
+      "priority": 88,
+      "target": ".claude/agents/test-repair.md"
+    },
+    {
+      "agent": "docs-architect",
+      "category": "Documentation",
+      "id": "documentation",
+      "keywords": [
+        "document",
+        "documentation",
+        "docs",
+        "jsdoc",
+        "readme",
+        "write docs"
+      ],
+      "priority": 89,
+      "target": ".claude/agents/docs-architect.md"
+    },
+    {
+      "category": "Operations",
+      "id": "runbooks",
+      "keywords": [
+        "runbook",
+        "incident",
+        "rollback",
+        "canary",
+        "blue green",
+        "disaster recovery",
+        "dr"
+      ],
+      "message": "10 runbooks: incident response, rollback, canary, blue-green, DR",
+      "priority": 91,
+      "target": "docs/runbooks/"
+    },
+    {
+      "category": "Operations",
+      "id": "observability",
+      "keywords": [
+        "metrics",
+        "prometheus",
+        "grafana",
+        "monitoring",
+        "alerting",
+        "dashboard",
+        "kpi"
+      ],
+      "message": "AI metrics, Prometheus, Grafana dashboards, business KPIs",
+      "priority": 92,
+      "target": "docs/observability/"
+    },
+    {
+      "category": "Testing",
+      "id": "chaos_engineering",
+      "keywords": [
+        "chaos",
+        "chaos engineering",
+        "rls testing",
+        "game day",
+        "failure injection"
+      ],
+      "message": "RLS chaos testing, game day runbooks, monitoring specs",
+      "priority": 93,
+      "target": "docs/chaos-engineering/"
+    },
+    {
+      "category": "Quality",
+      "id": "quality_gates",
+      "keywords": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
+      "message": "RACI matrix, gate tracking for releases",
+      "priority": 94,
+      "target": "docs/gates/"
+    },
+    {
+      "category": "Implementation",
+      "id": "wizard",
+      "keywords": [
+        "wizard",
+        "modeling wizard",
+        "xstate",
+        "state machine",
+        "wizard step"
+      ],
+      "message": "Wizard implementation, XState persistence plan (ADR-016)",
+      "priority": 95,
+      "secondary": "docs/plans/xstate-persistence-implementation.md",
+      "target": "docs/wizard/"
+    },
+    {
+      "category": "Phoenix",
+      "id": "forecasting",
+      "keywords": [
+        "forecasting",
+        "power law",
+        "calibration",
+        "streaming monte carlo"
+      ],
+      "message": "Power law implementation, Monte Carlo calibration guide",
+      "priority": 96,
+      "target": "docs/forecasting/"
+    },
+    {
+      "category": "AI Agents",
+      "id": "agent_memory",
+      "keywords": [
+        "agent memory",
+        "memory integration",
+        "pattern learning",
+        "hybrid memory",
+        "memory scope",
+        "tenant"
+      ],
+      "message": "Agent memory integration, pattern learning, multi-tenant isolation",
+      "priority": 97,
+      "secondary": "cheatsheets/memory-patterns.md",
+      "target": "cheatsheets/agent-memory-integration.md"
+    },
+    {
+      "category": "AI Agents",
+      "id": "agent_architecture",
+      "keywords": [
+        "agent architecture",
+        "base agent",
+        "agent core",
+        "agent framework",
+        "multi-agent",
+        "orchestration"
+      ],
+      "message": "Agent framework, BaseAgent class, multi-agent orchestration",
+      "priority": 98,
+      "secondary": "packages/bundle-optimization-agents.md",
+      "target": "cheatsheets/agent-architecture.md"
+    },
+    {
+      "category": "Performance",
+      "id": "bundle_optimization",
+      "keywords": [
+        "bundle",
+        "bundle size",
+        "bundle optimization",
+        "tree shaking",
+        "code splitting",
+        "lazy loading"
+      ],
+      "message": "AI-powered bundle optimization, dependency analysis, route optimization",
+      "priority": 99,
+      "target": "packages/bundle-optimization-agents.md"
+    },
+    {
+      "category": "Troubleshooting",
+      "id": "troubleshooting",
+      "keywords": [
+        "error",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
+      "priority": 100,
+      "secondary": "cheatsheets/document-review-workflow.md",
+      "target": "docs/INDEX.md"
+    },
+    {
+      "category": "Development",
+      "id": "planning",
+      "keywords": [
+        "plan",
+        "planning",
+        "design",
+        "architect",
+        "strategy",
+        "approach",
+        "blueprint"
+      ],
+      "priority": 101,
+      "secondary": ".claude/skills/brainstorming.md",
+      "target": ".claude/skills/writing-plans.md"
+    },
+    {
+      "category": "Development",
+      "id": "brainstorming",
+      "keywords": [
+        "brainstorm",
+        "ideate",
+        "explore options",
+        "alternatives",
+        "creative"
+      ],
+      "priority": 102,
+      "target": ".claude/skills/brainstorming.md"
+    },
+    {
+      "category": "Development",
+      "id": "task_decomposition",
+      "keywords": [
+        "break down",
+        "decompose",
+        "split task",
+        "subtasks",
+        "chunk"
+      ],
+      "priority": 103,
+      "target": ".claude/skills/task-decomposition.md"
+    },
+    {
+      "category": "Development",
+      "id": "implementation",
+      "keywords": [
+        "implement",
+        "build",
+        "create",
+        "develop",
+        "new feature",
+        "add feature"
+      ],
+      "message": "Start with CLAUDE.md, repo search, docs/INDEX.md, and .claude/DISCOVERY-MAP.md before using writing-plans",
+      "priority": 104,
+      "target": "CLAUDE.md"
+    },
+    {
+      "agent": "code-explorer",
+      "category": "Development",
+      "id": "code_exploration",
+      "keywords": [
+        "understand code",
+        "explore codebase",
+        "how does",
+        "find where",
+        "trace code",
+        "code flow"
+      ],
+      "priority": 105,
+      "target": ".claude/agents/code-explorer.md"
+    },
+    {
+      "agent": "test-scaffolder",
+      "category": "Testing",
+      "id": "test_scaffolding",
+      "keywords": [
+        "scaffold test",
+        "new test suite",
+        "test infrastructure",
+        "setup tests",
+        "test boilerplate"
+      ],
+      "priority": 106,
+      "target": ".claude/agents/test-scaffolder.md"
+    },
+    {
+      "agent": "test-automator",
+      "category": "Testing",
+      "id": "test_automation",
+      "keywords": [
+        "automate test",
+        "test automation",
+        "test strategy",
+        "test coverage",
+        "comprehensive test"
+      ],
+      "priority": 107,
+      "target": ".claude/agents/test-automator.md"
+    },
+    {
+      "agent": "playwright-test-author",
+      "category": "Testing",
+      "id": "playwright_tests",
+      "keywords": [
+        "playwright",
+        "e2e test",
+        "browser test",
+        "end to end",
+        "ui test"
+      ],
+      "priority": 108,
+      "target": ".claude/agents/playwright-test-author.md"
+    },
+    {
+      "agent": "pr-test-analyzer",
+      "category": "Testing",
+      "id": "pr_test_analysis",
+      "keywords": [
+        "pr tests",
+        "test gaps",
+        "missing tests",
+        "test coverage pr"
+      ],
+      "priority": 109,
+      "target": ".claude/agents/pr-test-analyzer.md"
+    },
+    {
+      "agent": "test-repair",
+      "category": "Testing",
+      "id": "flaky_tests",
+      "keywords": [
+        "flaky",
+        "intermittent",
+        "random failure",
+        "sometimes pass",
+        "race condition test"
+      ],
+      "message": "Test repair agent has dedicated flakiness detection",
+      "priority": 110,
+      "target": ".claude/agents/test-repair.md"
+    },
+    {
+      "agent": "silent-failure-hunter",
+      "category": "Quality",
+      "id": "silent_failures",
+      "keywords": [
+        "silent failure",
+        "swallowed exception",
+        "catch empty",
+        "error ignored",
+        "missing error handling"
+      ],
+      "priority": 111,
+      "target": ".claude/agents/silent-failure-hunter.md"
+    },
+    {
+      "agent": "type-design-analyzer",
+      "category": "Quality",
+      "id": "type_design",
+      "keywords": [
+        "type design",
+        "typescript types",
+        "type safety",
+        "generic types",
+        "type inference"
+      ],
+      "priority": 112,
+      "target": ".claude/agents/type-design-analyzer.md"
+    },
+    {
+      "agent": "comment-analyzer",
+      "category": "Quality",
+      "id": "comment_analysis",
+      "keywords": [
+        "comments",
+        "code comments",
+        "documentation accuracy",
+        "outdated comments"
+      ],
+      "priority": 113,
+      "target": ".claude/agents/comment-analyzer.md"
+    },
+    {
+      "agent": "devops-troubleshooter",
+      "category": "DevOps",
+      "id": "devops_issues",
+      "keywords": [
+        "devops",
+        "infrastructure",
+        "container",
+        "docker",
+        "kubernetes",
+        "k8s"
+      ],
+      "priority": 114,
+      "target": ".claude/agents/devops-troubleshooter.md"
+    },
+    {
+      "agent": "incident-responder",
+      "category": "DevOps",
+      "id": "incident_response",
+      "keywords": [
+        "incident",
+        "outage",
+        "production down",
+        "pager",
+        "on call",
+        "sev1",
+        "sev2"
+      ],
+      "priority": 115,
+      "target": ".claude/agents/incident-responder.md"
+    },
+    {
+      "agent": "chaos-engineer",
+      "category": "Testing",
+      "id": "chaos_testing",
+      "keywords": [
+        "chaos",
+        "resilience",
+        "fault injection",
+        "failure testing",
+        "chaos monkey"
+      ],
+      "priority": 116,
+      "target": ".claude/agents/chaos-engineer.md"
+    },
+    {
+      "agent": "schema-drift-checker",
+      "category": "Database",
+      "id": "schema_drift",
+      "keywords": [
+        "schema drift",
+        "schema mismatch",
+        "zod schema",
+        "drizzle schema",
+        "schema alignment"
+      ],
+      "priority": 117,
+      "target": ".claude/agents/schema-drift-checker.md"
+    },
+    {
+      "agent": "db-migration",
+      "category": "Database",
+      "command": "/db-validate",
+      "id": "db_migration",
+      "keywords": [
+        "migration",
+        "db:push",
+        "schema change",
+        "alter table",
+        "database migration"
+      ],
+      "priority": 118,
+      "target": ".claude/agents/db-migration.md"
+    },
+    {
+      "agent": "perf-guard",
+      "category": "Performance",
+      "id": "perf_guard",
+      "keywords": [
+        "performance regression",
+        "perf guard",
+        "bundle analysis",
+        "size regression"
+      ],
+      "priority": 119,
+      "target": ".claude/agents/perf-guard.md"
+    },
+    {
+      "agent": "perf-regression-triager",
+      "category": "Performance",
+      "id": "perf_regression",
+      "keywords": [
+        "perf regression",
+        "slower",
+        "benchmark failed",
+        "performance degraded"
+      ],
+      "priority": 120,
+      "target": ".claude/agents/perf-regression-triager.md"
+    },
+    {
+      "agent": "baseline-regression-explainer",
+      "category": "Quality",
+      "id": "baseline_regression",
+      "keywords": [
+        "baseline",
+        "baseline failed",
+        "quality regression",
+        "lint regression",
+        "type regression"
+      ],
+      "priority": 121,
+      "target": ".claude/agents/baseline-regression-explainer.md"
+    },
+    {
+      "agent": "parity-auditor",
+      "category": "Phoenix",
+      "id": "excel_parity",
+      "keywords": [
+        "excel parity",
+        "excel match",
+        "spreadsheet",
+        "calculation mismatch",
+        "truth case failed"
+      ],
+      "priority": 122,
+      "target": ".claude/agents/parity-auditor.md"
+    },
+    {
+      "agent": "workflow-orchestrator",
+      "category": "Orchestration",
+      "id": "workflow_orchestration",
+      "keywords": [
+        "orchestrate",
+        "chain agents",
+        "auto validate",
+        "multi-agent",
+        "agent chain"
+      ],
+      "priority": 123,
+      "target": ".claude/agents/workflow-orchestrator.md"
+    },
+    {
+      "agent": "context-orchestrator",
+      "category": "Orchestration",
+      "id": "context_management",
+      "keywords": [
+        "context",
+        "context window",
+        "memory management",
+        "conversation context"
+      ],
+      "priority": 124,
+      "target": ".claude/agents/context-orchestrator.md"
+    },
+    {
+      "agent": "dx-optimizer",
+      "category": "Development",
+      "id": "dx_optimization",
+      "keywords": [
+        "developer experience",
+        "dx",
+        "tooling",
+        "workflow friction",
+        "onboarding"
+      ],
+      "priority": 125,
+      "target": ".claude/agents/dx-optimizer.md"
+    },
+    {
+      "agent": "legacy-modernizer",
+      "category": "Development",
+      "id": "legacy_code",
+      "keywords": [
+        "legacy",
+        "modernize",
+        "technical debt",
+        "outdated",
+        "refactor legacy"
+      ],
+      "priority": 126,
+      "target": ".claude/agents/legacy-modernizer.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "thinking_frameworks",
+      "keywords": [
+        "think deeper",
+        "analyze thoroughly",
+        "critical thinking",
+        "systematic analysis"
+      ],
+      "priority": 130,
+      "target": ".claude/skills/extended-thinking-framework.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "inversion_thinking",
+      "keywords": [
+        "inversion",
+        "what could go wrong",
+        "failure modes",
+        "anti-patterns",
+        "avoid mistakes"
+      ],
+      "priority": 131,
+      "target": ".claude/skills/inversion-thinking.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "pattern_recognition",
+      "keywords": [
+        "pattern",
+        "recurring",
+        "similar issues",
+        "common pattern"
+      ],
+      "priority": 132,
+      "target": ".claude/skills/pattern-recognition.md"
+    },
+    {
+      "category": "Thinking",
+      "id": "analogical_thinking",
+      "keywords": [
+        "analogy",
+        "similar to",
+        "like",
+        "compare to"
+      ],
+      "priority": 133,
+      "target": ".claude/skills/analogical-thinking.md"
+    },
+    {
+      "category": "Orchestration",
+      "id": "parallel_agents",
+      "keywords": [
+        "parallel",
+        "concurrent",
+        "simultaneously",
+        "multiple agents"
+      ],
+      "priority": 134,
+      "target": ".claude/skills/dispatching-parallel-agents.md"
+    },
+    {
+      "category": "Development",
+      "id": "async_resilience",
+      "keywords": [
+        "async error",
+        "retry",
+        "circuit breaker",
+        "resilience",
+        "graceful degradation"
+      ],
+      "priority": 135,
+      "target": ".claude/skills/async-error-resilience.md"
+    },
+    {
+      "category": "Performance",
+      "id": "react_performance",
+      "keywords": [
+        "react performance",
+        "re-render",
+        "useMemo",
+        "useCallback",
+        "memoization"
+      ],
+      "priority": 136,
+      "target": ".claude/skills/react-performance-optimization.md"
+    },
+    {
+      "category": "Development",
+      "id": "api_design",
+      "keywords": [
+        "api design",
+        "rest api",
+        "endpoint design",
+        "api patterns"
+      ],
+      "priority": 137,
+      "target": ".claude/skills/api-design-principles.md"
+    },
+    {
+      "category": "Development",
+      "id": "architecture_patterns",
+      "keywords": [
+        "architecture pattern",
+        "design pattern",
+        "clean architecture",
+        "hexagonal"
+      ],
+      "priority": 138,
+      "target": ".claude/skills/architecture-patterns.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/log-change",
+      "id": "cmd_log_change",
+      "keywords": [
+        "log change",
+        "changelog",
+        "record change"
+      ],
+      "priority": 140,
+      "target": ".claude/commands/log-change.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/log-decision",
+      "id": "cmd_log_decision",
+      "keywords": [
+        "log decision",
+        "adr",
+        "record decision",
+        "architecture decision"
+      ],
+      "priority": 141,
+      "target": ".claude/commands/log-decision.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/pre-commit-check",
+      "id": "cmd_pre_commit",
+      "keywords": [
+        "pre-commit",
+        "before commit",
+        "commit check",
+        "quality check"
+      ],
+      "priority": 142,
+      "target": ".claude/commands/pre-commit-check.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/pr-ready",
+      "id": "cmd_pr_ready",
+      "keywords": [
+        "pr ready",
+        "pull request ready",
+        "before pr",
+        "pr validation"
+      ],
+      "priority": 143,
+      "target": ".claude/commands/pr-ready.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/catalog-tooling",
+      "id": "cmd_catalog",
+      "keywords": [
+        "catalog",
+        "list tools",
+        "available tools",
+        "what tools"
+      ],
+      "priority": 144,
+      "target": ".claude/commands/catalog-tooling.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/workflows",
+      "id": "cmd_workflows",
+      "keywords": [
+        "workflows",
+        "which tool",
+        "tool helper",
+        "find command"
+      ],
+      "priority": 145,
+      "target": ".claude/commands/workflows.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/wshobson:deps-audit",
+      "id": "cmd_deps_audit",
+      "keywords": [
+        "dependency audit",
+        "security audit",
+        "npm audit",
+        "vulnerable"
+      ],
+      "priority": 146,
+      "target": ".claude/commands/wshobson/deps-audit.md"
+    },
+    {
+      "category": "Commands",
+      "command": "/wshobson:tech-debt",
+      "id": "cmd_tech_debt",
+      "keywords": [
+        "tech debt",
+        "technical debt",
+        "debt analysis"
+      ],
+      "priority": 147,
+      "target": ".claude/commands/wshobson/tech-debt.md"
+    },
+    {
+      "category": "Quality",
+      "id": "cheat_anti_patterns",
+      "keywords": [
+        "anti-pattern",
+        "bad practice",
+        "code smell",
+        "avoid"
+      ],
+      "message": "24 cataloged anti-patterns with prevention strategies",
+      "priority": 150,
+      "target": "cheatsheets/anti-pattern-prevention.md"
+    },
+    {
+      "category": "Testing",
+      "id": "cheat_testing_patterns",
+      "keywords": [
+        "testing pattern",
+        "test pattern",
+        "service testing",
+        "api testing"
+      ],
+      "priority": 151,
+      "target": "cheatsheets/service-testing-patterns.md"
+    },
+    {
+      "category": "Testing",
+      "id": "cheat_testcontainers",
+      "keywords": [
+        "testcontainer",
+        "docker test",
+        "integration test docker"
+      ],
+      "priority": 152,
+      "target": "cheatsheets/testcontainers-guide.md"
+    },
+    {
+      "category": "Development",
+      "id": "cheat_daily_workflow",
+      "keywords": [
+        "daily workflow",
+        "how to start",
+        "getting started",
+        "workflow"
+      ],
+      "priority": 153,
+      "target": "cheatsheets/daily-workflow.md"
+    },
+    {
+      "category": "AI Tools",
+      "id": "cheat_codex",
+      "keywords": [
+        "codex",
+        "codex cli",
+        "openai codex",
+        "consult codex"
+      ],
+      "message": "Codex CLI integration for complex architectural decisions",
+      "priority": 154,
+      "target": "cheatsheets/codex-collaboration-protocol.md"
+    }
+  ],
   "stats": {
     "by_status": {
       "ACCEPTED": 1,
       "ACTIVE": 523,
       "ARCHIVED": 1,
-      "DRAFT": 18,
-      "DRAFT # VERIFIED | DRAFT | DEPRECATED": 4,
+      "DRAFT": 22,
       "HISTORICAL": 60,
       "UNKNOWN": 128,
       "VERIFIED": 9,
