@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 
@@ -47,6 +47,16 @@ describe('FundModelResultsPage (server-backed)', () => {
       await import('../../../client/src/pages/fund-model-results');
     const { Wrapper } = createWouterWrapper(path);
     return render(<FundModelResultsPage />, { wrapper: Wrapper });
+  }
+
+  function createDeferred<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
   }
 
   // -- sessionStorage prohibition --
@@ -249,26 +259,34 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- Error states --
 
   it('shows error state on 404 response', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ error: 'Fund not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
+    const fetchDeferred = createDeferred<Response>();
+    fetchSpy.mockReturnValue(fetchDeferred.promise);
     await renderPage('/fund-model-results/999');
 
-    await waitFor(() => {
-      expect(screen.getByText(/not found/i)).toBeInTheDocument();
+    await act(async () => {
+      fetchDeferred.resolve(
+        new Response(JSON.stringify({ error: 'Fund not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      await Promise.resolve();
     });
+
+    expect(await screen.findByText(/not found/i)).toBeInTheDocument();
   });
 
   it('shows error state on network failure', async () => {
-    fetchSpy.mockRejectedValue(new Error('Network error'));
+    const fetchDeferred = createDeferred<Response>();
+    fetchSpy.mockReturnValue(fetchDeferred.promise);
     await renderPage('/fund-model-results/123');
 
-    await waitFor(() => {
-      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+    await act(async () => {
+      fetchDeferred.reject(new Error('Network error'));
+      await Promise.resolve();
     });
+
+    expect(await screen.findByText(/network error/i)).toBeInTheDocument();
   });
 
   // -- Pending/calculating --
