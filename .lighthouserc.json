@@ -13,7 +13,11 @@
         "categories:seo": ["error", { "minScore": 0.95 }],
         "first-contentful-paint": ["error", { "maxNumericValue": 2000 }],
         "interactive": ["error", { "maxNumericValue": 3500 }],
-        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }]
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "byte-efficiency/total-byte-weight": [
+          "error",
+          { "maxNumericValue": 307200 }
+        ]
       }
     },
     "upload": {
