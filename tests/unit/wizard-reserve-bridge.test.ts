@@ -19,7 +19,7 @@ import type {
   StageAllocation,
   CapitalAllocationOutput,
 } from '@/schemas/modeling-wizard.schemas';
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
+import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 
 // ============================================================================
 // MOCK DATA
@@ -159,7 +159,7 @@ const mockCapitalAllocation: CapitalAllocationOutput = {
   ],
 };
 
-const mockWizardContext: ModelingWizardContext = {
+const mockWizardContext: SharedWizardComputationContext = {
   steps: {
     generalInfo: {
       fundName: 'Test Fund I',
@@ -196,35 +196,6 @@ const mockWizardContext: ModelingWizardContext = {
       },
     },
   },
-  currentStep: 'capitalAllocation',
-  currentStepIndex: 2,
-  totalSteps: 7,
-  completedSteps: new Set(['generalInfo', 'sectorProfiles']),
-  visitedSteps: new Set(['generalInfo', 'sectorProfiles', 'capitalAllocation']),
-  validationErrors: {
-    generalInfo: [],
-    sectorProfiles: [],
-    capitalAllocation: [],
-    feesExpenses: [],
-    exitRecycling: [],
-    waterfall: [],
-    scenarios: [],
-  },
-  isStepValid: {
-    generalInfo: true,
-    sectorProfiles: true,
-    capitalAllocation: true,
-    feesExpenses: false,
-    exitRecycling: false,
-    waterfall: false,
-    scenarios: false,
-  },
-  lastSaved: null,
-  isDirty: false,
-  submissionError: null,
-  submissionRetryCount: 0,
-  skipOptionalSteps: false,
-  autoSaveInterval: 30000,
 };
 
 // ============================================================================

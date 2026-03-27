@@ -6,13 +6,10 @@
  * concerns.
  */
 
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
+import type { SharedWizardComputationContext } from './wizard-computation-context';
 
 // Re-export types from wizard-reserve-bridge for convenience
-export type {
-  ReserveAllocation,
-  WizardPortfolioCompany
-} from './wizard-reserve-bridge';
+export type { ReserveAllocation, WizardPortfolioCompany } from './wizard-reserve-bridge';
 
 export { calculateReservesForWizard } from './wizard-reserve-bridge';
 
@@ -44,10 +41,10 @@ export interface EnrichedReserveAllocation {
 
   // Enriched insights
   insights: {
-    utilizationRate: number;        // % of fund used (including reserves)
-    reserveEfficiency: number;       // MOIC improvement from reserves
-    concentrationRisk: string;       // 'Low' | 'Medium' | 'High'
-    capitalDeployment: string;       // 'Conservative' | 'Balanced' | 'Aggressive'
+    utilizationRate: number; // % of fund used (including reserves)
+    reserveEfficiency: number; // MOIC improvement from reserves
+    concentrationRisk: string; // 'Low' | 'Medium' | 'High'
+    capitalDeployment: string; // 'Conservative' | 'Balanced' | 'Aggressive'
   };
 
   // Contextualized metrics
@@ -139,12 +136,14 @@ export function validateWizardPortfolio(
     }
 
     if (company.ownershipPercent > 30) {
-      warnings.push(`${prefix}: Ownership (${company.ownershipPercent.toFixed(1)}%) is unusually high`);
+      warnings.push(
+        `${prefix}: Ownership (${company.ownershipPercent.toFixed(1)}%) is unusually high`
+      );
     }
   });
 
   // Check for duplicate IDs
-  const ids = portfolio.map(c => c.id);
+  const ids = portfolio.map((c) => c.id);
   const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicateIds.length > 0) {
     errors.push(`Duplicate company IDs: ${duplicateIds.join(', ')}`);
@@ -153,7 +152,7 @@ export function validateWizardPortfolio(
   return {
     valid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
@@ -179,7 +178,7 @@ export function generatePortfolioSummary(
       totalValuation: 0,
       averageMOIC: 0,
       sectorBreakdown: {},
-      stageBreakdown: {}
+      stageBreakdown: {},
     };
   }
 
@@ -190,14 +189,14 @@ export function generatePortfolioSummary(
 
   // Sector breakdown (invested amount per sector)
   const sectorBreakdown: Record<string, number> = {};
-  portfolio.forEach(company => {
+  portfolio.forEach((company) => {
     const sector = company.sector || 'Unknown';
     sectorBreakdown[sector] = (sectorBreakdown[sector] || 0) + company.investedAmount;
   });
 
   // Stage breakdown (invested amount per stage)
   const stageBreakdown: Record<string, number> = {};
-  portfolio.forEach(company => {
+  portfolio.forEach((company) => {
     const stage = company.currentStage || 'Unknown';
     stageBreakdown[stage] = (stageBreakdown[stage] || 0) + company.investedAmount;
   });
@@ -208,7 +207,7 @@ export function generatePortfolioSummary(
     totalValuation,
     averageMOIC,
     sectorBreakdown,
-    stageBreakdown
+    stageBreakdown,
   };
 }
 
@@ -226,7 +225,7 @@ export function enrichWizardMetrics(
     companiesSupported: number;
     avgFollowOnSize: number;
   },
-  wizardContext: ModelingWizardContext
+  wizardContext: SharedWizardComputationContext
 ): EnrichedReserveAllocation {
   const generalInfo = wizardContext.steps.generalInfo;
   const capitalAllocation = wizardContext.steps.capitalAllocation;
@@ -258,9 +257,8 @@ export function enrichWizardMetrics(
 
   // Concentration risk assessment
   const companiesSupported = allocation.companiesSupported;
-  const avgReservePerCompany = companiesSupported > 0
-    ? allocation.totalPlanned / companiesSupported
-    : 0;
+  const avgReservePerCompany =
+    companiesSupported > 0 ? allocation.totalPlanned / companiesSupported : 0;
   const concentrationRatio = avgReservePerCompany / initialCheckSize;
 
   let concentrationRisk: 'Low' | 'Medium' | 'High';
@@ -292,14 +290,14 @@ export function enrichWizardMetrics(
       utilizationRate,
       reserveEfficiency,
       concentrationRisk,
-      capitalDeployment
+      capitalDeployment,
     },
 
     fundContext: {
       fundSize,
       initialCapitalDeployed,
       reservesDeployed,
-      remainingCapital
-    }
+      remainingCapital,
+    },
   };
 }

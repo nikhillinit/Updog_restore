@@ -126,6 +126,13 @@ export type FundState = {
   hydrated: boolean;
   setHydrated: (v: boolean) => void;
 
+  // Canonical fund identity once the routed wizard has bootstrapped a server draft.
+  draftFundId: number | null;
+  setDraftFundId: (fundId: number | null) => void;
+  // True once the server has an authoritative draft snapshot for draftFundId.
+  draftServerReady: boolean;
+  setDraftServerReady: (ready: boolean) => void;
+
   // Fund Basics
   fundName?: string;
   establishmentDate?: string; // ISO date string for fund establishment
@@ -437,6 +444,10 @@ function createFundStore() {
         (set, get): FundState => ({
           hydrated: false,
           setHydrated: (v: boolean) => set({ hydrated: v }),
+          draftFundId: null,
+          setDraftFundId: (fundId: number | null) => set({ draftFundId: fundId }),
+          draftServerReady: false,
+          setDraftServerReady: (ready: boolean) => set({ draftServerReady: ready }),
 
           // Fund Basics defaults
           // Note: undefined optional fields are omitted per exactOptionalPropertyTypes
@@ -904,8 +915,17 @@ function createFundStore() {
         }),
         {
           name: 'investment-strategy',
-          version: 2,
+          version: 3,
           partialize: (s: FundState) => ({
+            // Persist draft identity only after a server-backed draft snapshot
+            // exists. That keeps reload/resume tied to authoritative server
+            // hydration instead of a partial local slice.
+            ...(s.draftServerReady && s.draftFundId != null
+              ? {
+                  draftFundId: s.draftFundId,
+                  draftServerReady: true,
+                }
+              : {}),
             // Only persist primitive inputs
             stages: s.stages.map((r: StrategyStage) => ({
               id: r.id,
@@ -923,12 +943,19 @@ function createFundStore() {
           }),
           migrate: (persistedState: unknown, from: number) => {
             // Type guard for persisted state shape
-            const state = persistedState as { stages?: Array<{ months?: number }> };
+            const state = persistedState as {
+              stages?: Array<{ months?: number }>;
+              draftFundId?: number | null;
+              draftServerReady?: boolean;
+            };
             if (from < 2) {
               state.stages = (state.stages ?? []).map((r: { months?: number }) => ({
                 months: 12,
                 ...r,
               }));
+            }
+            if (from < 3) {
+              state.draftServerReady = false;
             }
             return state;
           },

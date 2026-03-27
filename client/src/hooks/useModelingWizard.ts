@@ -1,13 +1,17 @@
 /**
  * useModelingWizard Hook
  *
- * React hook that integrates the XState modeling wizard machine with React components.
+ * Compatibility-only React hook for the legacy XState modeling wizard UI.
+ * The routed store-based wizard under /fund-setup is the production owner.
+ *
  * Provides a clean API for:
  * - State management
  * - Navigation
  * - Validation
  * - Persistence
  * - Submission
+ *
+ * @deprecated Compatibility-only hook for the quarantined XState wizard UI.
  */
 
 import { useMachine } from '@xstate/react';
@@ -104,6 +108,7 @@ export interface UseModelingWizardReturn {
 // HOOK
 // ============================================================================
 
+/** @deprecated Compatibility-only hook for the quarantined XState wizard UI. */
 export function useModelingWizard(options: UseModelingWizardOptions = {}): UseModelingWizardReturn {
   const {
     skipOptionalSteps = false,

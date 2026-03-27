@@ -9,8 +9,8 @@
 
 import React from 'react';
 import { FLAGS } from '@/core/flags/featureFlags';
-import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 import type { SectorProfile, CapitalAllocationOutput } from '@/schemas/modeling-wizard.schemas';
+import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 import type { ReserveCalculationResult } from '@shared/schemas/reserves-schemas';
 import { calculateEngineComparison } from '@/lib/wizard-reserve-bridge';
 
@@ -28,7 +28,7 @@ export interface EngineComparisonState {
 }
 
 interface UseEngineComparisonOptions {
-  wizardContext: ModelingWizardContext;
+  wizardContext: SharedWizardComputationContext;
   sectorProfiles: SectorProfile[];
   capitalAllocation: CapitalAllocationOutput | null;
   /** Debounce delay in ms (default 800) */

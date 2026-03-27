@@ -63,6 +63,10 @@ const mockFundState = {
   fundExpenses: [],
   hydrated: true,
   setHydrated: vi.fn(),
+  draftFundId: null as number | null,
+  setDraftFundId: vi.fn(),
+  draftServerReady: false,
+  setDraftServerReady: vi.fn(),
 };
 
 vi.mock('@/stores/useFundSelector', () => ({
@@ -97,6 +101,10 @@ describe('ReviewStep draft failure handling', () => {
     mockFetch.mockReset();
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
+    mockFundState.draftFundId = null;
+    mockFundState.draftServerReady = false;
+    mockFundState.setDraftFundId.mockReset();
+    mockFundState.setDraftServerReady.mockReset();
     // Restore createFund implementation (restoreAllMocks wipes it)
     mockCreateFund.mockReset().mockResolvedValue({
       success: true,
@@ -338,6 +346,42 @@ describe('ReviewStep draft failure handling', () => {
     expect(mockFetch).toHaveBeenNthCalledWith(
       3,
       '/api/funds/42/publish',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('reuses the bootstrap fund identity and skips POST on review submission', async () => {
+    mockFundState.draftFundId = 84;
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+    const { default: ReviewStep } = await import('@/pages/ReviewStep');
+    render(<ReviewStep />);
+
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => {
+      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/84');
+    });
+
+    expect(mockCreateFund).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/funds/84/draft',
+      expect.objectContaining({ method: 'PUT' })
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/funds/84/publish',
       expect.objectContaining({ method: 'POST' })
     );
   });

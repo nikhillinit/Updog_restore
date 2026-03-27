@@ -1,30 +1,33 @@
 /**
  * Modeling Wizard - Main Component
  *
- * Complete implementation of the VC fund modeling wizard.
- * This is the main entry point for the wizard flow.
+ * Legacy XState wizard UI retained only as an opt-in compatibility surface.
+ * The routed store-based flow under /fund-setup is the production owner.
  *
- * Features:
+ * Features when explicitly enabled:
  * - 7-step sequential workflow
  * - Auto-save to localStorage
  * - Resume capability
  * - Validation at each step
  * - API submission with retry
  *
+ * @deprecated Non-authoritative wizard UI kept only for compatibility work.
+ *
  * @example
  * import { ModelingWizard } from '@/components/modeling-wizard/ModelingWizard';
  *
  * function App() {
- *   return <ModelingWizard />;
+ *   return <ModelingWizard allowLegacyAccess />;
  * }
  */
 
 import React from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { WizardShell } from './WizardShell';
 import { useModelingWizard } from '@/hooks/useModelingWizard';
-import type { GeneralInfoData } from '@/machines/modeling-wizard.machine';
-import type { FundFinancialsOutput } from '@/schemas/modeling-wizard.schemas';
+import type { GeneralInfoInput, FundFinancialsOutput } from '@/schemas/modeling-wizard.schemas';
 import {
   GeneralInfoStep,
   SectorProfilesStep,
@@ -40,6 +43,12 @@ import {
 // ============================================================================
 
 export interface ModelingWizardProps {
+  /**
+   * Explicit opt-in required to render the legacy XState wizard UI.
+   * Default: false
+   */
+  allowLegacyAccess?: boolean;
+
   /**
    * Skip optional steps (e.g., Exit Recycling)
    */
@@ -84,7 +93,7 @@ const DEFAULT_FUND_FINANCIALS: FundFinancialsOutput = {
   managementFee: { rate: 2, stepDown: { enabled: false } },
 };
 
-function buildFundFinancials(generalInfo?: GeneralInfoData): FundFinancialsOutput {
+function buildFundFinancials(generalInfo?: GeneralInfoInput): FundFinancialsOutput {
   return {
     ...DEFAULT_FUND_FINANCIALS,
     fundSize: generalInfo?.fundSize ?? DEFAULT_FUND_FINANCIALS.fundSize,
@@ -92,17 +101,36 @@ function buildFundFinancials(generalInfo?: GeneralInfoData): FundFinancialsOutpu
   };
 }
 
+function LegacyWizardNotice() {
+  return (
+    <div className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center p-8">
+      <Alert className="border-amber-300 bg-amber-50" data-testid="legacy-modeling-wizard-notice">
+        <AlertTitle>Legacy wizard UI is quarantined</AlertTitle>
+        <AlertDescription className="space-y-4">
+          <p>
+            The routed store-based wizard at <code>/fund-setup</code> is the only supported
+            production flow. This XState UI remains compatibility-only.
+          </p>
+          <Button asChild type="button">
+            <Link href="/fund-setup">Open Fund Setup</Link>
+          </Button>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function ModelingWizard({
+function LegacyModelingWizardFlow({
   skipOptionalSteps = false,
   autoSaveInterval = 30000,
   loadSavedProgress = true,
   onComplete,
   onError,
-}: ModelingWizardProps) {
+}: Omit<ModelingWizardProps, 'allowLegacyAccess'>) {
   const [, navigate] = useLocation();
 
   // Initialize wizard hook
@@ -232,6 +260,14 @@ export function ModelingWizard({
   );
 }
 
+export function ModelingWizard({ allowLegacyAccess = false, ...props }: ModelingWizardProps) {
+  if (!allowLegacyAccess) {
+    return <LegacyWizardNotice />;
+  }
+
+  return <LegacyModelingWizardFlow {...props} />;
+}
+
 // ============================================================================
 // DEBUG COMPONENT (Development Only)
 // ============================================================================
@@ -245,8 +281,8 @@ export function WizardDebugPanel({ wizard }: { wizard: ReturnType<typeof useMode
   }
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white border border-charcoal-300 rounded-lg p-4 shadow-lg max-w-md">
-      <h3 className="font-inter font-bold text-sm mb-2">Wizard Debug</h3>
+    <div className="fixed bottom-4 right-4 max-w-md rounded-lg border border-charcoal-300 bg-white p-4 shadow-lg">
+      <h3 className="mb-2 font-inter text-sm font-bold">Wizard Debug</h3>
 
       <div className="space-y-2 text-xs font-poppins">
         <div>
@@ -273,7 +309,7 @@ export function WizardDebugPanel({ wizard }: { wizard: ReturnType<typeof useMode
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-charcoal-200">
+      <div className="mt-3 border-t border-charcoal-200 pt-3">
         <button onClick={wizard.reset} className="text-xs text-error hover:underline">
           Reset Wizard
         </button>

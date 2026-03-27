@@ -18,6 +18,7 @@ import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
+import { saveFundDraft } from '@/services/fund-drafts';
 import { createFund, normalizeCreateFundResponse } from '@/services/funds';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
@@ -40,22 +41,6 @@ async function readApiError(response: Response, fallback: string): Promise<Error
   const errBody = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
   const message = errBody.error || errBody.message || `${fallback} (HTTP ${response.status})`;
   return new Error(message);
-}
-
-/** Save full wizard config as draft via PUT /api/funds/:id/draft */
-async function saveDraft(fundId: number): Promise<void> {
-  const storeState = fundStore.getState();
-  const draftPayload = fundStoreToDraftWriteV1(storeState);
-
-  const response = await fetch(`/api/funds/${fundId}/draft`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(draftPayload),
-  });
-
-  if (!response.ok) {
-    throw await readApiError(response, 'Draft save failed');
-  }
 }
 
 async function publishConfig(fundId: number): Promise<void> {
@@ -81,6 +66,7 @@ export default function ReviewStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const fundLife = useFundSelector((s) => s.fundLife);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
+  const draftFundId = useFundSelector((s) => s.draftFundId);
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
@@ -88,7 +74,7 @@ export default function ReviewStep() {
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Track created fund ID for retry logic (skip POST, retry PUT only)
-  const [createdFundId, setCreatedFundId] = useState<number | null>(null);
+  const [createdFundId, setCreatedFundId] = useState<number | null>(draftFundId);
   const [draftSaved, setDraftSaved] = useState(false);
 
   const navigateToResults = useCallback(
@@ -250,12 +236,15 @@ export default function ReviewStep() {
 
         fundId = fund.id;
         setCreatedFundId(fund.id);
+        fundStore.getState().setDraftFundId(fund.id);
+        fundStore.getState().setDraftServerReady(false);
       }
 
       if (!draftSaved) {
         activeStage = 'saving-draft';
         setSubmitState('saving-draft');
-        await saveDraft(fundId);
+        await saveFundDraft(fundId, fundStoreToDraftWriteV1(fundStore.getState()));
+        fundStore.getState().setDraftServerReady(true);
         setDraftSaved(true);
       }
 
