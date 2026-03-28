@@ -136,9 +136,15 @@ gate.
 - [x] Remove localStorage overrides for route/admin exposure in the canonical
       route-control path and align generated defaults with the current product
       perimeter.
-- [ ] Retire the remaining route-facing legacy consumers from
-      `client/src/core/flags/featureFlags.ts` once equivalent generated keys and
-      tests exist for every consumer.
+- [x] Retire the remaining route-adjacent legacy consumers by moving
+      `GuidedTour.tsx` and `dynamic-fund-header.tsx` off
+      `client/src/core/flags/featureFlags.ts` and shrinking the legacy shim to
+      compatibility-only exports.
+- [x] Add direct tests for `client/src/app/route-control-flags.ts` and trim the
+      old legacy route/admin flag tests accordingly.
+- [ ] Add a generated-registry key for engine integration, then migrate
+      `useEngineComparison.ts` and `CapitalAllocationStep.tsx` off the legacy
+      shim.
 - [ ] Ensure route mounting, navigation visibility, and docs all derive from the
       same control layer.
 

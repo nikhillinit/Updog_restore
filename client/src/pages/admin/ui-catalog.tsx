@@ -2,7 +2,7 @@
  * UI Catalog - Admin-only component showcase
  *
  * Displays all canonical UI primitives with variants for visual verification.
- * Access controlled by AdminRoute wrapper (FLAGS.UI_CATALOG - no localStorage override)
+ * Access controlled by AdminRoute wrapper via the canonical route-control admin flag.
  */
 
 import React from 'react';
@@ -11,7 +11,12 @@ import { KpiCard } from '@/components/ui/KpiCard';
 import { SwipeableMetricCards } from '@/components/ui/SwipeableMetricCards';
 import type { MetricCardData } from '@/components/ui/SwipeableMetricCards';
 import { DataTable } from '@/components/ui/DataTable';
-import { ContextualTooltip, IRRTooltip, MOICTooltip, DPITooltip } from '@/components/ui/contextual-tooltip';
+import {
+  ContextualTooltip,
+  IRRTooltip,
+  MOICTooltip,
+  DPITooltip,
+} from '@/components/ui/contextual-tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Building2, DollarSign, Target, BarChart3 } from 'lucide-react';
@@ -79,7 +84,8 @@ function TokensSection() {
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">Design Tokens</h2>
       <p className="text-presson-textMuted">
-        Canonical colors from <code className="bg-presson-surfaceSubtle px-1 rounded">presson.tokens.ts</code>
+        Canonical colors from{' '}
+        <code className="bg-presson-surfaceSubtle px-1 rounded">presson.tokens.ts</code>
       </p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -103,7 +109,8 @@ function KpiCardsSection() {
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">KPI Cards</h2>
       <p className="text-presson-textMuted">
-        Desktop metric display using <code className="bg-presson-surfaceSubtle px-1 rounded">KpiCard</code>
+        Desktop metric display using{' '}
+        <code className="bg-presson-surfaceSubtle px-1 rounded">KpiCard</code>
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -119,17 +126,8 @@ function KpiCardsSection() {
           delta="Up from last quarter"
           intent="positive"
         />
-        <KpiCard
-          label="Negative Intent"
-          value="-8.2%"
-          delta="Down from target"
-          intent="negative"
-        />
-        <KpiCard
-          label="No Delta"
-          value="42"
-          intent="neutral"
-        />
+        <KpiCard label="Negative Intent" value="-8.2%" delta="Down from target" intent="negative" />
+        <KpiCard label="No Delta" value="42" intent="neutral" />
       </div>
     </section>
   );
@@ -140,11 +138,14 @@ function MobileCardsSection() {
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">Mobile Metric Cards</h2>
       <p className="text-presson-textMuted">
-        Touch-optimized carousel using <code className="bg-presson-surfaceSubtle px-1 rounded">SwipeableMetricCards</code>
+        Touch-optimized carousel using{' '}
+        <code className="bg-presson-surfaceSubtle px-1 rounded">SwipeableMetricCards</code>
       </p>
 
       <div className="max-w-md mx-auto border border-presson-borderSubtle rounded-lg p-4 bg-presson-surfaceSubtle">
-        <p className="text-xs text-presson-textMuted mb-2 text-center">Mobile Preview (swipe enabled)</p>
+        <p className="text-xs text-presson-textMuted mb-2 text-center">
+          Mobile Preview (swipe enabled)
+        </p>
         <SwipeableMetricCards
           metrics={sampleMetrics}
           showNavigation={true}
@@ -161,7 +162,8 @@ function DataTableSection() {
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">Data Table</h2>
       <p className="text-presson-textMuted">
-        Sortable table using <code className="bg-presson-surfaceSubtle px-1 rounded">DataTable</code>
+        Sortable table using{' '}
+        <code className="bg-presson-surfaceSubtle px-1 rounded">DataTable</code>
       </p>
 
       <div className="space-y-4">
@@ -180,7 +182,8 @@ function TooltipsSection() {
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">Contextual Tooltips</h2>
       <p className="text-presson-textMuted">
-        VC concept explanations using <code className="bg-presson-surfaceSubtle px-1 rounded">ContextualTooltip</code>
+        VC concept explanations using{' '}
+        <code className="bg-presson-surfaceSubtle px-1 rounded">ContextualTooltip</code>
       </p>
 
       <div className="flex flex-wrap gap-4 items-center">
@@ -231,9 +234,7 @@ function ButtonsSection() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-bold text-presson-text">Buttons</h2>
-      <p className="text-presson-textMuted">
-        Button variants using Press On brand tokens
-      </p>
+      <p className="text-presson-textMuted">Button variants using Press On brand tokens</p>
 
       <div className="flex flex-wrap gap-4">
         <Button className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90">
@@ -242,9 +243,7 @@ function ButtonsSection() {
         <Button variant="outline" className="border-presson-borderSubtle">
           Secondary
         </Button>
-        <Button variant="ghost">
-          Ghost
-        </Button>
+        <Button variant="ghost">Ghost</Button>
         <Button disabled className="bg-presson-accent text-presson-accentOn">
           Disabled
         </Button>

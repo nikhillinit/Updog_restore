@@ -1,15 +1,10 @@
- 
- 
- 
- 
- 
-import { FLAGS } from '@/core/flags/featureFlags';
+import { useFlag } from '@/hooks/useUnifiedFlag';
 import HeaderKpis from './HeaderKpis';
-import { useFundContext } from "@/contexts/FundContext";
-import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { useFundContext } from '@/contexts/FundContext';
+import { useQuery } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { formatDPI } from '@/lib/format-metrics';
 import {
   TrendingUp,
@@ -18,8 +13,8 @@ import {
   Calendar,
   BarChart3,
   PieChart,
-  Activity
-} from "lucide-react";
+  Activity,
+} from 'lucide-react';
 
 interface FundMetrics {
   totalCommitted: number;
@@ -39,16 +34,17 @@ interface FundMetrics {
 export default function DynamicFundHeader() {
   // Call all hooks BEFORE any conditional returns
   const { currentFund } = useFundContext();
+  const useCompactHeader = useFlag('enable_kpi_selectors', { withDependencies: true });
 
   // Fetch real-time fund metrics from calculated-metrics endpoint
   const { data: metrics } = useQuery<FundMetrics>({
     queryKey: ['/api/funds', currentFund?.id, 'calculated-metrics'],
-    enabled: !!currentFund?.id && !FLAGS.ENABLE_SELECTOR_KPIS, // Only fetch if not using compact header
+    enabled: !!currentFund?.id && !useCompactHeader, // Only fetch if not using compact header
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // If KPI selector flag is enabled, use new compact header
-  if (FLAGS.ENABLE_SELECTOR_KPIS) {
+  if (useCompactHeader) {
     return <HeaderKpis />;
   }
 
@@ -65,7 +61,7 @@ export default function DynamicFundHeader() {
     exited: 0,
     avgCheckSize: 0,
     deploymentRate: 0,
-    remainingCapital: currentFund?.size || 0
+    remainingCapital: currentFund?.size || 0,
   };
 
   // Ensure all values are properly defined
@@ -81,7 +77,7 @@ export default function DynamicFundHeader() {
     exited: (metrics?.exited ?? sampleMetrics.exited) || 0,
     avgCheckSize: (metrics?.avgCheckSize ?? sampleMetrics.avgCheckSize) || 0,
     deploymentRate: (metrics?.deploymentRate ?? sampleMetrics.deploymentRate) || 0,
-    remainingCapital: (metrics?.remainingCapital ?? sampleMetrics.remainingCapital) || 0
+    remainingCapital: (metrics?.remainingCapital ?? sampleMetrics.remainingCapital) || 0,
   };
 
   const displayMetrics = safeMetrics;
@@ -90,7 +86,7 @@ export default function DynamicFundHeader() {
     if (!value && value !== 0) return '$0';
     const num = Number(value);
     if (isNaN(num)) return '$0';
-    
+
     if (num >= 1000000000) return `$${(num / 1000000000).toFixed(1)}B`;
     if (num >= 1000000) return `$${(num / 1000000).toFixed(0)}M`;
     if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`;
@@ -125,7 +121,7 @@ export default function DynamicFundHeader() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
               <Activity className="h-3 w-3 mr-1" />
