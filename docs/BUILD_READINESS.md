@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 ---
 
 # Build Readiness Verification Report
@@ -15,23 +15,26 @@ Authoritative product surface:
 - routed fund setup is the production modeling flow
 - review publishes before routing to results
 - model results is the post-publish destination
-- `planning`, `kpi-manager`, and `kpi-submission` are quarantined by default
+- `planning`, `kpi-manager`, and `kpi-submission` are archived redirect-only
+  entrypoints, not live product surfaces
+- `/shared/:shareId` remains an intentional public shared-link contract
+- `/portal/:rest*` remains an intentional public entrypoint that currently
+  resolves to access denied
 - Compass is unmounted and experimental, not part of build readiness
 
 ## Required Validation Commands
 
 ```bash
-npm run baseline:check
-npm run test:publish-orchestration
-npm run test:phase4
-npm run lint:phase4
+npm run validate:core
 ```
 
-## Secondary Surface Status
+## Surface Status
 
-- `planning`: redirected by default to `/portfolio?tab=reserve-planning`
-- `kpi-manager`: redirected by default to `/dashboard`
-- `kpi-submission`: redirected by default to `/dashboard`
+- `planning`: archived route that redirects to `/portfolio?tab=reserve-planning`
+- `kpi-manager`: archived route that redirects to `/dashboard`
+- `kpi-submission`: archived route that redirects to `/dashboard`
+- `/shared/:shareId`: public contract preserved for shared dashboard links
+- `/portal/:rest*`: public contract preserved as the access-denied portal entrypoint
 - `server/compass/routes.ts`: explicit experimental/unmounted status
 
 ## Authoritative References

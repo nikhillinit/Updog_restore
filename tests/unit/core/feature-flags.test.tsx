@@ -7,21 +7,20 @@ describe('Wave 2 feature-flags boundary', () => {
     vi.resetModules();
   });
 
-  it('keeps unfinished secondary surfaces quarantined by default', async () => {
+  it('keeps LP reporting disabled by default', async () => {
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
-    expect(FLAGS.HIDE_PLANNING_SURFACE).toBe(true);
-    expect(FLAGS.HIDE_KPI_SURFACES).toBe(true);
+    expect(FLAGS.ENABLE_LP_REPORTING).toBe(false);
   });
 
   it('prefers a localStorage override for standard client flags', async () => {
     localStorage.setItem('FF_NEW_IA', 'true');
-    localStorage.setItem('FF_HIDE_PLANNING_SURFACE', 'false');
+    localStorage.setItem('FF_ENABLE_LP_REPORTING', 'true');
 
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
     expect(FLAGS.NEW_IA).toBe(true);
-    expect(FLAGS.HIDE_PLANNING_SURFACE).toBe(false);
+    expect(FLAGS.ENABLE_LP_REPORTING).toBe(true);
   });
 
   it('uses environment values for admin-only flags', async () => {

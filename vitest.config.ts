@@ -29,6 +29,19 @@ const alias = {
   '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
 };
 
+// Resolve setup/teardown files against the config location so sandbox worktrees
+// don't depend on the primary workspace path when Vitest spawns Vite.
+const testPaths = {
+  vitestSetup: resolve(projectRoot, './tests/setup/vitest.setup.ts'),
+  globalTeardown: resolve(projectRoot, './tests/setup/global-teardown.ts'),
+  nodeSetupRedis: resolve(projectRoot, './tests/setup/node-setup-redis.ts'),
+  dbDelegateLink: resolve(projectRoot, './tests/setup/db-delegate-link.ts'),
+  testInfrastructure: resolve(projectRoot, './tests/setup/test-infrastructure.ts'),
+  nodeSetup: resolve(projectRoot, './tests/setup/node-setup.ts'),
+  jsdomSetup: resolve(projectRoot, './tests/setup/jsdom-setup.ts'),
+  coverageDir: resolve(projectRoot, './coverage'),
+};
+
 export default defineConfig({
   resolve: {
     alias, // Use shared constant
@@ -48,11 +61,11 @@ export default defineConfig({
     maxThreads: process.env['CI'] ? 4 : undefined,
     minThreads: 1,
     // Setup file for global mocks (Sentry, etc.)
-    setupFiles: ['./tests/setup/vitest.setup.ts'],
+    setupFiles: [testPaths.vitestSetup],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
-      reportsDirectory: './coverage',
+      reportsDirectory: testPaths.coverageDir,
       exclude: [
         'node_modules/**',
         'dist/**',
@@ -92,16 +105,16 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          globalTeardown: './tests/setup/global-teardown.ts',
+          globalTeardown: testPaths.globalTeardown,
           // Unit tests only - integration/api tests run via vitest.config.int.ts
           // Also includes reflection system regression tests
           include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/regressions/**/*.test.ts'],
           exclude: ['**/*.quarantine.test.ts', 'tests/quarantine/**/*'],
           setupFiles: [
-            './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
-            './tests/setup/db-delegate-link.ts', // wire delegate before any tests
-            './tests/setup/test-infrastructure.ts',
-            './tests/setup/node-setup.ts',
+            testPaths.nodeSetupRedis, // FIRST: Mock Redis before any imports
+            testPaths.dbDelegateLink, // wire delegate before any tests
+            testPaths.testInfrastructure,
+            testPaths.nodeSetup,
           ],
         },
       },
@@ -115,7 +128,7 @@ export default defineConfig({
           environment: 'jsdom',
           // Simplified: All .test.tsx files run in jsdom environment
           include: ['tests/unit/**/*.test.tsx'],
-          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/jsdom-setup.ts'],
+          setupFiles: [testPaths.testInfrastructure, testPaths.jsdomSetup],
           environmentOptions: {
             jsdom: {
               pretendToBeVisual: true, // enable rAF/timers like a visible tab

@@ -9,15 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { POVBrandHeader } from "@/components/ui/POVLogo";
-import { Link } from "wouter";
 import {
   Settings as SettingsIcon,
   User,
   Bell,
   Shield,
   Database,
-  Activity,
-  ExternalLink
+  Activity
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -119,53 +117,47 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Advanced Features */}
+        {/* Deferred Surfaces */}
         <Card className="border-pov-charcoal/20">
           <CardHeader>
             <div className="flex items-center gap-3">
               <SettingsIcon className="h-5 w-5 text-pov-charcoal" />
               <div>
-                <CardTitle className="font-inter text-lg">Advanced Features</CardTitle>
+                <CardTitle className="font-inter text-lg">Deferred Surfaces</CardTitle>
                 <CardDescription className="font-poppins text-sm">
-                  Specialized tools for complex fund operations
+                  These tools are intentionally outside the default runtime perimeter during stabilization
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
               <div className="flex items-center gap-3">
                 <Activity className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
                   <p className="font-inter text-sm font-medium text-pov-charcoal">Secondary Market</p>
                   <p className="font-poppins text-xs text-gray-500">
-                    Model LP interest transfers and secondary transactions
+                    Deferred until the core internal workflow perimeter is stabilized
                   </p>
                 </div>
               </div>
-              <Link href="/secondary-market">
-                <Button variant="outline" size="sm">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open
-                </Button>
-              </Link>
+              <Button variant="outline" size="sm" disabled aria-disabled="true">
+                Deferred
+              </Button>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
                   <p className="font-inter text-sm font-medium text-pov-charcoal">Notion Integration</p>
                   <p className="font-poppins text-xs text-gray-500">
-                    Sync portfolio data with Notion databases
+                    Deferred until the default runtime perimeter is reduced and hardened
                   </p>
                 </div>
               </div>
-              <Link href="/notion-integration">
-                <Button variant="outline" size="sm">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Configure
-                </Button>
-              </Link>
+              <Button variant="outline" size="sm" disabled aria-disabled="true">
+                Deferred
+              </Button>
             </div>
           </CardContent>
         </Card>
