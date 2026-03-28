@@ -12,6 +12,8 @@ import { buildProviders } from './providers.js';
 import { createServer } from './server.js';
 import { setReady } from './health/state.js';
 import { logger } from './lib/logger.js';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Socket } from 'net';
 
 export async function bootstrap() {
@@ -48,11 +50,14 @@ export async function bootstrap() {
     logger.info({ phase: 'server' }, 'Server created successfully');
 
     logger.info({ phase: 'listen' }, 'PHASE 4: LISTEN');
+    const testReadyFile = process.env['TEST_READY_FILE'];
+
     // Start server
     server.listen(cfg.PORT, () => {
       const address = server.address();
       const actualPort =
         typeof address === 'object' && address && 'port' in address ? address.port : cfg.PORT;
+      const baseUrl = `http://localhost:${actualPort}`;
       logger.info({ phase: 'ready' }, 'SERVER READY');
       logger.info(
         {
@@ -62,12 +67,24 @@ export async function bootstrap() {
           cache: providers.mode,
           rateLimit: providers.rateLimitStore ? 'redis' : 'memory',
         },
-        `api on http://localhost:${actualPort}`
+        `api on ${baseUrl}`
       );
 
       // Mark server as ready for requests
       setReady(true);
       logger.info({ phase: 'ready' }, 'Server ready for requests');
+
+      if (testReadyFile) {
+        try {
+          fs.mkdirSync(path.dirname(testReadyFile), { recursive: true });
+          fs.writeFileSync(
+            testReadyFile,
+            JSON.stringify({ port: actualPort, baseUrl, pid: process.pid })
+          );
+        } catch (error) {
+          logger.error({ phase: 'ready', err: error, testReadyFile }, 'Failed to write ready file');
+        }
+      }
     });
 
     // Track open sockets for graceful shutdown

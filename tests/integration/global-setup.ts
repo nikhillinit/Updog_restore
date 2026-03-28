@@ -78,6 +78,31 @@ function appendTail(target: string[], chunk: string): void {
   }
 }
 
+function readServerInfoFile(
+  filePath: string
+): { port: string; baseUrl: string; pid: number | null } | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw) as {
+      port?: number | string;
+      baseUrl?: string;
+      pid?: number | null;
+    };
+
+    if (!parsed.baseUrl || parsed.port === undefined || parsed.port === null) {
+      return null;
+    }
+
+    return {
+      port: String(parsed.port),
+      baseUrl: parsed.baseUrl,
+      pid: parsed.pid ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function killProcessTree(pid: number): void {
   if (os.platform() === 'win32') {
     try {
@@ -162,8 +187,14 @@ export async function setup(): Promise<void> {
 
   console.warn('[globalSetup] Starting integration test server (ephemeral port)...');
 
+  try {
+    fs.unlinkSync(PORT_FILE);
+  } catch {
+    // No stale file to remove
+  }
+
   serverProcess = spawn('npm', ['run', 'dev:api'], {
-    env: serverEnv,
+    env: { ...serverEnv, TEST_READY_FILE: PORT_FILE },
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
     detached: os.platform() !== 'win32', // process groups are POSIX-only
@@ -172,10 +203,6 @@ export async function setup(): Promise<void> {
   serverProcess.stdout?.on('data', (data: Buffer) => {
     const output = data.toString();
     appendTail(stdoutTail, output);
-    const portMatch = output.match(/api on http:\/\/[^:]+:(\d+)/);
-    if (portMatch && !actualPort) {
-      actualPort = portMatch[1] ?? null;
-    }
   });
 
   serverProcess.stderr?.on('data', (data: Buffer) => {
@@ -191,17 +218,23 @@ export async function setup(): Promise<void> {
         `[globalSetup] Server exited before reporting port (exit=${serverProcess.exitCode}).\n${summary}`
       );
     }
+    const serverInfo = readServerInfoFile(PORT_FILE);
+    if (serverInfo) {
+      actualPort = serverInfo.port;
+      break;
+    }
     await delay(100);
     waited += 100;
   }
 
   if (!actualPort) {
     throw new Error(
-      `[globalSetup] No port detected within ${PORT_DETECTION_TIMEOUT_MS / 1000}s.\nstdout:\n${stdoutTail.join('\n') || '(empty)'}\nstderr:\n${stderrTail.join('\n') || '(empty)'}`
+      `[globalSetup] No server info file detected within ${PORT_DETECTION_TIMEOUT_MS / 1000}s.\nstdout:\n${stdoutTail.join('\n') || '(empty)'}\nstderr:\n${stderrTail.join('\n') || '(empty)'}`
     );
   }
 
-  const baseUrl = `http://localhost:${actualPort}`;
+  const serverInfo = readServerInfoFile(PORT_FILE);
+  const baseUrl = serverInfo?.baseUrl ?? `http://localhost:${actualPort}`;
   const isReady = await waitForServer(`${baseUrl}/healthz`, HEALTHZ_TIMEOUT_MS);
   if (!isReady) {
     throw new Error(`[globalSetup] Server not healthy within 30s: ${baseUrl}/healthz`);
@@ -210,7 +243,11 @@ export async function setup(): Promise<void> {
   // Persist for the worker's setupFiles to read
   fs.writeFileSync(
     PORT_FILE,
-    JSON.stringify({ port: actualPort, baseUrl, pid: serverProcess.pid })
+    JSON.stringify({
+      port: actualPort,
+      baseUrl,
+      pid: serverInfo?.pid ?? serverProcess.pid ?? null,
+    })
   );
 
   console.warn(`[globalSetup] Server ready on port ${actualPort}`);
