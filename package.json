@@ -75,6 +75,7 @@
     "parity:validate": "TZ=UTC node --import tsx scripts/validate-excel-parity.ts",
     "parity:check": "npm run parity:validate",
     "check": "npm run baseline:check",
+    "validate:core": "npm run baseline:check && npm run test:publish-orchestration && npm run test:phase4 && npm run lint:phase4",
     "agents:track": "node scripts/track-agent-session.mjs",
     "agents:review": "node scripts/agents-daily-review.mjs",
     "agents:review:week": "node scripts/agents-daily-review.mjs --week",
