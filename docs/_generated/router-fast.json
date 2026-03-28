@@ -2,7 +2,7 @@
   "config": {
     "max_docs_per_keyword": 25
   },
-  "generatedAt": "2026-03-27T23:55:42.571Z",
+  "generatedAt": "2026-03-28T00:03:57.997Z",
   "keyword_to_docs": {
     "add feature": [
       "CLAUDE.md"
@@ -1380,28 +1380,6 @@
       "why": "Phoenix routing (priority 14)"
     },
     {
-      "id": "stabilization_roadmap",
-      "match_any": [
-        "global rules",
-        "milestone",
-        "stabilization",
-        "roadmap",
-        "pr scope",
-        "validate:core"
-      ],
-      "match_any_normalized": [
-        "global rules",
-        "milestone",
-        "stabilization",
-        "roadmap",
-        "pr scope",
-        "validate:core"
-      ],
-      "priority": 15,
-      "route_to": "docs/STABILIZATION-ROADMAP.md",
-      "why": "Governance routing (priority 15)"
-    },
-    {
       "agent": "phoenix-capital-allocation-analyst",
       "id": "phoenix_allocation",
       "match_any": [
@@ -1523,6 +1501,28 @@
       "priority": 20,
       "route_to": "CAPABILITIES.md",
       "why": "Historical capability inventory. Start current routing from CLAUDE.md and docs/INDEX.md"
+    },
+    {
+      "id": "stabilization_roadmap",
+      "match_any": [
+        "global rules",
+        "milestone",
+        "stabilization",
+        "roadmap",
+        "pr scope",
+        "validate:core"
+      ],
+      "match_any_normalized": [
+        "global rules",
+        "milestone",
+        "stabilization",
+        "roadmap",
+        "pr scope",
+        "validate:core"
+      ],
+      "priority": 21,
+      "route_to": "docs/STABILIZATION-ROADMAP.md",
+      "why": "Governance routing (priority 21)"
     },
     {
       "id": "production",

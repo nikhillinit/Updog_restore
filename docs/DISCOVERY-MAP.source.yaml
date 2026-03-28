@@ -192,7 +192,7 @@ patterns:
     gate: 'deterministic_must_pass'
 
   - id: 'stabilization_roadmap'
-    priority: 15
+    priority: 21
     category: 'Governance'
     keywords:
       - 'global rules'

@@ -1,6 +1,6 @@
 # Staleness Report
 
-*Generated: 2026-03-27T23:55:46.722Z*
+*Generated: 2026-03-28T00:03:58.856Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
@@ -103,7 +103,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **.claude/prompts/week2.5-phase3-continuation-v6.md** (999 days old)
 - [ ] **.claude/prompts/week2.5-phase3-continuation-v9.md** (999 days old)
 - [ ] **.claude/skills/refactor-code/SKILL.md** (999 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (67 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (68 days old)
 - [ ] **docs/plans/2026-03-22-phase-4-implementation-spec.md** (999 days old)
 - [ ] **docs/session-learning-reports/2026-01-20-hook-fix.md** (999 days old)
 - [ ] **docs/session-learning-reports/2026-02-14-p1-financial-accuracy.md** (999 days old)

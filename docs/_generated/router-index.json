@@ -261,7 +261,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".agents-feedback.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -276,7 +276,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".agents-metrics.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -304,7 +304,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Team",
       "path": ".claude/AGENT-DIRECTORY.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -333,7 +333,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Team",
       "path": ".claude/AGENT-METRICS.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -348,7 +348,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": ".claude/ANTI-DRIFT-CHECKLIST.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -363,7 +363,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/DELIVERY-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -392,7 +392,7 @@
       "lastUpdated": "2026-03-27",
       "owner": "Platform Team",
       "path": ".claude/DISCOVERY-MAP.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -407,7 +407,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/PHOENIX-AGENTS-REGISTRY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -422,7 +422,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/PHOENIX-TOOL-ROUTING.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -437,7 +437,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/PROJECT-UNDERSTANDING.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -452,7 +452,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": ".claude/WORKFLOW.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -1139,7 +1139,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/advise.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1215,7 +1215,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/evaluate-tools.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1354,7 +1354,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/retrospective.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1369,7 +1369,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/session-learnings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1427,7 +1427,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/wshobson/deps-audit.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1442,7 +1442,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/commands/wshobson/tech-debt.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1482,7 +1482,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Team",
       "path": ".claude/docs/TEST-STRATEGY.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -1497,7 +1497,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/integration-test-execution-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1512,7 +1512,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/integration-test-final-report.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1527,7 +1527,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/integration-test-plan-comparison.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1542,7 +1542,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/integration-test-reenable-plan-v2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1557,7 +1557,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/integration-test-reenable-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1598,7 +1598,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Developer",
       "path": ".claude/plan.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -1649,7 +1649,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/plans/2025-12-30-sprint2-quality-improvements.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1808,7 +1808,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/plans/snapshot-service-versioning.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1823,7 +1823,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/plans/typescript-error-elimination-debugging-report.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1838,7 +1838,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/plans/typescript-error-elimination.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1853,7 +1853,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/integration-test-continuation-prompt.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1868,7 +1868,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/portfolio-intelligence-timeout-fix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1883,7 +1883,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-next-session-kickoff.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -1898,7 +1898,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase2-quickstart.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1913,7 +1913,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation-v10.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1928,7 +1928,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation-v2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1943,7 +1943,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation-v3.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1958,7 +1958,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation-v4.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -1973,7 +1973,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation-v5.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2042,7 +2042,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase3-continuation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2057,7 +2057,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/prompts/week2.5-phase4-next-steps.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2072,7 +2072,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/security-fixes-lp-reporting.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -2087,7 +2087,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/session-summary-portfolio-intelligence-implementation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -2102,7 +2102,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/sessions/PHASE4-CONTINUATION-KICKOFF.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2129,7 +2129,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2144,7 +2144,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/ai-model-selection.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2159,7 +2159,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/analogical-thinking.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2174,7 +2174,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/api-design-principles.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2189,7 +2189,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/architecture-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2204,7 +2204,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/async-error-resilience.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2219,7 +2219,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/baseline-governance/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2234,7 +2234,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/brainstorming.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2264,7 +2264,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/bundle-size/references/capability-tiers.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2279,7 +2279,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/bundle-size/references/troubleshooting.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2294,7 +2294,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/claude-infra-integrity/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2372,7 +2372,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/continuous-improvement.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2387,7 +2387,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/database-schema-evolution.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2402,7 +2402,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/dispatching-parallel-agents.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2417,7 +2417,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/extended-thinking-framework.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2432,7 +2432,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/financial-calc-correctness/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2462,7 +2462,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/integration-with-other-skills.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2477,7 +2477,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/inversion-thinking.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2492,7 +2492,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/iterative-improvement.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2507,7 +2507,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/memory-management.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2522,7 +2522,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/multi-model-consensus.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2537,7 +2537,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/notebooklm.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2564,7 +2564,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/pattern-recognition.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2699,7 +2699,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/phoenix-workflow-orchestrator/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2729,7 +2729,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/CHANGELOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2744,7 +2744,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/MIGRATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2759,7 +2759,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2774,7 +2774,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/cursor.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2789,7 +2789,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/installation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2804,7 +2804,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/quickstart.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2819,7 +2819,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/troubleshooting.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2834,7 +2834,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/windows.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2849,7 +2849,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/docs/workflow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2864,7 +2864,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/examples/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2879,7 +2879,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/templates/findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2894,7 +2894,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/templates/progress.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2909,7 +2909,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/planning-with-files/templates/task_plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2924,7 +2924,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/prompt-caching-usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2939,7 +2939,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/react-hook-form-stability/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2954,7 +2954,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/react-performance-optimization.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -2999,7 +2999,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/root-cause-tracing.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3031,7 +3031,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/statistical-testing/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3046,7 +3046,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/systematic-debugging.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3061,7 +3061,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/task-decomposition.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3076,7 +3076,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/test-fixture-generator/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3091,7 +3091,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/test-pyramid/SKILL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3160,7 +3160,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/code-formatter/examples/usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3175,7 +3175,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/code-formatter/references/style-guides.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3217,7 +3217,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/dependency-guardian/examples/usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3232,7 +3232,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/dependency-guardian/references/vulnerability-databases.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3270,7 +3270,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/documentation-sync/examples/usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3310,7 +3310,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/security-scanner/examples/usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3370,7 +3370,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/workflow-engine/tech-debt-tracker/examples/usage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3407,7 +3407,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/writing-plans.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3422,7 +3422,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/skills/xlsx.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3437,7 +3437,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/HANDOFF-MEMO-v2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3452,7 +3452,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/HANDOFF-MEMO.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3467,7 +3467,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/immediate-actions-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3482,7 +3482,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/platform-test-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3497,7 +3497,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/platform-testing-rubric-index.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3512,7 +3512,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/rubric-api-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3527,7 +3527,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/rubric-calculation-engines.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3542,7 +3542,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/rubric-cross-cutting.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3557,7 +3557,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/rubric-fund-setup.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3572,7 +3572,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/scenario-comparison-manual-test-rubric.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3587,7 +3587,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/seed-script-remaining-fixes.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3602,7 +3602,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/test-baseline-report-2025-12-23.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3617,7 +3617,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/test-remediation-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3632,7 +3632,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": ".claude/testing/week2-execution-report.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -3647,7 +3647,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "AI-WORKFLOW-COMPLETE-GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3662,7 +3662,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "ANTI_PATTERNS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3698,7 +3698,7 @@
       "lastUpdated": "2026-03-27",
       "owner": "Core Team",
       "path": "CAPABILITIES.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -3715,7 +3715,7 @@
       "lastUpdated": "2026-03-26",
       "owner": "Core Team",
       "path": "CHANGELOG.md",
-      "staleDays": 1,
+      "staleDays": 2,
       "status": "ACTIVE"
     },
     {
@@ -3730,7 +3730,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": "CLAUDE.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -3745,7 +3745,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "CLAUDE_COOKBOOK_INTEGRATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3760,7 +3760,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "COMPREHENSIVE-WORKFLOW-GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3777,7 +3777,7 @@
       "lastUpdated": "2026-03-26",
       "owner": "Core Team",
       "path": "DECISIONS.md",
-      "staleDays": 1,
+      "staleDays": 2,
       "status": "ACTIVE"
     },
     {
@@ -3792,7 +3792,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "DEV_BOOTSTRAP_README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3807,7 +3807,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3822,7 +3822,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "ITERATION-A-QUICKSTART.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3837,7 +3837,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "MIGRATION-NATIVE-MEMORY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3852,7 +3852,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "MIGRATION-QUICK-START.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3867,7 +3867,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "NATIVE-MEMORY-INTEGRATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3882,7 +3882,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "PRE_MERGE_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3897,7 +3897,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "PRODUCTION_RUNBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3912,7 +3912,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "PROMPT_PATTERNS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3927,7 +3927,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": "README.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -3942,7 +3942,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "SECURITY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3957,7 +3957,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "STEP_2_AND_4_IMPROVEMENTS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3972,7 +3972,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "UNIFIED_METRICS_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -3989,7 +3989,7 @@
       "lastUpdated": "2026-03-27",
       "owner": "Core Team",
       "path": "cheatsheets/INDEX.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -4004,7 +4004,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/agent-architecture.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4019,7 +4019,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/agent-memory-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4034,7 +4034,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/agent-memory/database-expert-schema-tdd.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4049,7 +4049,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/ai-code-review.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4064,7 +4064,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/anti-pattern-prevention.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4079,7 +4079,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/api.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4094,7 +4094,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/baseline-governance.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4109,7 +4109,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/capability-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4124,7 +4124,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/ci-validator-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4139,7 +4139,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/claude-code-best-practices.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4154,7 +4154,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/claude-commands.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4169,7 +4169,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/claude-md-guidelines.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4184,7 +4184,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/codex-collaboration-protocol.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4199,7 +4199,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/coding-pairs-playbook.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4214,7 +4214,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/command-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -4229,7 +4229,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/correct-workflow-example.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4244,7 +4244,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/daily-workflow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4259,7 +4259,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/document-review-workflow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4274,7 +4274,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/documentation-validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4289,7 +4289,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/emoji-free-documentation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4304,7 +4304,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/evaluator-optimizer-workflow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4319,7 +4319,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/exact-optional-property-types.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4334,7 +4334,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/extended-thinking.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4349,7 +4349,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/init-vs-update.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4364,7 +4364,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/lp-deployment-quick-reference.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4394,7 +4394,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/memory-commands.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4409,7 +4409,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/memory-commit-strategy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4424,7 +4424,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/memory-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4439,7 +4439,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/multi-agent-orchestration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4454,7 +4454,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/pr-merge-verification.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4469,7 +4469,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/pr-review-workflow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4484,7 +4484,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/prompt-improver-hook.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4499,7 +4499,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/react-performance-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4514,7 +4514,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/rls-cheatsheet.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4529,7 +4529,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/schema-alignment.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4544,7 +4544,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/service-testing-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4559,7 +4559,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/test-fix-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4574,7 +4574,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/test-pyramid.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4589,7 +4589,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/testcontainers-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4604,7 +4604,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "cheatsheets/testing.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4619,7 +4619,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/.templates/DEPRECATION-HEADER.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4634,7 +4634,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/.templates/DOC-FRONTMATTER-SCHEMA.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4649,7 +4649,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ADR-00X-resilience-circuit-breaker.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4664,7 +4664,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ANALYTICS_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4679,7 +4679,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ARCHITECTURAL-DEBT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4694,7 +4694,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": "docs/BUILD_READINESS.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -4709,7 +4709,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CA-IMPLEMENTATION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4736,7 +4736,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CA-SEMANTIC-LOCK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4751,7 +4751,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CI-CD-STATUS-REPORT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -4766,7 +4766,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CI_GATING_TEST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4781,7 +4781,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CLAUDE-INFRA-V4-INTEGRATION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4796,7 +4796,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CLEANUP_PR_BODY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4811,7 +4811,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CLEANUP_PR_TEMPLATE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4826,7 +4826,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/COMMIT_REVIEW.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4841,7 +4841,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CONFIG_CONSOLIDATION_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -4856,7 +4856,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CONSOLIDATION_LEARNINGS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4871,7 +4871,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/CRITICAL_OPTIMIZATIONS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4886,7 +4886,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DECISIONS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4901,7 +4901,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DELIVERY_PLAYBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4916,7 +4916,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DEPLOYMENT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4931,7 +4931,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DEPLOYMENT_RUNBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -4946,7 +4946,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DEVELOPMENT-STRATEGY-2025-12-14.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -4985,7 +4985,7 @@
       "lastUpdated": "2025-12-12",
       "owner": "Core Team",
       "path": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
-      "staleDays": 105,
+      "staleDays": 106,
       "status": "ACTIVE"
     },
     {
@@ -5000,7 +5000,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/DEVELOPMENT_STRATEGY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5015,7 +5015,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/HANDOFF_JCURVE_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5030,7 +5030,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/Handoff-Memo-Phase-1-Validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5045,7 +5045,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/IDEMPOTENCY_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5060,7 +5060,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/INCIDENT_RESPONSE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5096,7 +5096,7 @@
       "lastUpdated": "2026-03-27",
       "owner": "Core Team",
       "path": "docs/INDEX.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -5111,7 +5111,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/INFRASTRUCTURE_REMEDIATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5126,7 +5126,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/INTEGRATION_PR_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5141,7 +5141,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/METRICS_LIMITATIONS_MVP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5156,7 +5156,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/METRICS_OPERATOR_RUNBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5171,7 +5171,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/MIGRATION_GUIDE_DB_CIRCUIT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5186,7 +5186,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/MILESTONE-XIRR-PHASE0-COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5201,7 +5201,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/MULTI-AI-DEVELOPMENT-WORKFLOW.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5216,7 +5216,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/NAV_TREATMENT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5231,7 +5231,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/OPERATOR_RUNBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5246,7 +5246,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/OPTIMIZED_ROADMAP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5261,7 +5261,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/OSS_INTEGRATION_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5276,7 +5276,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE-1C-COMPLETION-REPORT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5291,7 +5291,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE-1D-CHECKPOINT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5306,7 +5306,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE-1D-STATUS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5321,7 +5321,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1A-XIRR-COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5336,7 +5336,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1B-ASSEMBLY-INSTRUCTIONS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5351,7 +5351,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1B-FEES-COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5366,7 +5366,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1B-FEES-IN-PROGRESS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5381,7 +5381,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1B-TRUTH-CASES-REFERENCE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5396,7 +5396,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHASE1_INTEGRATION_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5437,7 +5437,7 @@
       "lastUpdated": "2025-12-14",
       "owner": "Phoenix Team",
       "path": "docs/PHOENIX-SOT/README.md",
-      "staleDays": 103,
+      "staleDays": 104,
       "status": "ACTIVE"
     },
     {
@@ -5452,7 +5452,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/brand-bridge.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5467,7 +5467,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/deferred-vesting-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5494,7 +5494,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/execution-plan-v2.34.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5509,7 +5509,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5524,7 +5524,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/mcp-tools-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5539,7 +5539,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/prompt-templates.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5566,7 +5566,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PHOENIX-SOT/skills-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5581,7 +5581,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PORTFOLIO_TABS_ARCHITECTURE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5596,7 +5596,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PRODUCTION_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5611,7 +5611,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PROPOSAL_WORKFLOW_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5626,7 +5626,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PR_DESCRIPTION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5641,7 +5641,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PR_INTEGRATION_PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5656,7 +5656,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/PR_NOTES/CODACY_JCURVE_NOTE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5671,7 +5671,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/RATE_LIMITING_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5686,7 +5686,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/RLS-DEVELOPMENT-GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5701,7 +5701,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/RLS-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5716,7 +5716,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ROLLBACK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5731,7 +5731,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ROLLBACK_TRIGGERS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5746,7 +5746,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ROLLOUT_STRATEGY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5761,7 +5761,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SAFETY_CHECK_REPORT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5776,7 +5776,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SCENARIO_ANALYSIS_IMPLEMENTATION_STATUS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5791,7 +5791,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SCENARIO_ANALYSIS_STABILITY_REVIEW.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5806,7 +5806,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SCENARIO_ANALYSIS_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5821,7 +5821,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SCENARIO_DEPLOY_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5836,7 +5836,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SESSION-5-PHASE-1D-KICKOFF.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5851,7 +5851,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SETUP_NOTES.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5866,7 +5866,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/SLO.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5895,7 +5895,7 @@
       "lastUpdated": "2026-03-27",
       "owner": "Core Team",
       "path": "docs/STABILIZATION-ROADMAP.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -5910,7 +5910,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/TYPESCRIPT_BASELINE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5925,7 +5925,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/VALIDATION-FRAMEWORK-IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5940,7 +5940,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/VERIFICATION_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -5955,7 +5955,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/VERIFICATION_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5970,7 +5970,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/WEEK1_VALIDATION_HANDOFF_MEMO.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -5985,7 +5985,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/WINDOWS_NODE_CORRUPTION_PREVENTION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6000,7 +6000,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/WIZARD_RESERVE_BRIDGE_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6015,7 +6015,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/WSL2_BUILD_TEST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6030,7 +6030,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -6045,7 +6045,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/action-plans/CODEX-ISSUES-RESOLUTION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6060,7 +6060,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/0001-evaluator-metrics.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6075,7 +6075,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/0002-token-budgeting.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6090,7 +6090,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/0003-streaming-architecture.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6105,7 +6105,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-004-waterfall-names.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6120,7 +6120,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-005-xirr-excel-parity.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6135,7 +6135,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-006-fee-calculation-standards.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6150,7 +6150,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-007-exit-recycling-policy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6165,7 +6165,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-008-capital-allocation-policy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6180,7 +6180,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-009-RESERVED.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6195,7 +6195,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-013-scenario-comparison-activation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6210,7 +6210,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-014-RESERVED.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6225,7 +6225,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-015-XIRR-BOUNDED-RATES.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6240,7 +6240,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-017-monte-carlo-validation-strategy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6255,7 +6255,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-018-stage-normalization-v2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6270,7 +6270,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/ADR-019-mem0-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6285,7 +6285,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/adr/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6300,7 +6300,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/agent-2-mobile-executive-dashboard.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6315,7 +6315,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-enhanced-components-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6330,7 +6330,7 @@
       "lastUpdated": "2026-03-17",
       "owner": null,
       "path": "docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md",
-      "staleDays": 10,
+      "staleDays": 11,
       "status": "ARCHIVED"
     },
     {
@@ -6345,7 +6345,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-optimization/AI_COLLABORATION_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6360,7 +6360,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-optimization/AI_ORCHESTRATOR_IMPLEMENTATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6375,7 +6375,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-optimization/BACKTEST_QUICKSTART.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6390,7 +6390,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-optimization/CODEX-REVIEW-AGENT-SETUP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6405,7 +6405,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ai-optimization/CODEX_AGENT_MIGRATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6420,7 +6420,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/perf-watch-memoization-root-cause.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6435,7 +6435,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/00-INDEX.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6450,7 +6450,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/01-EXECUTIVE-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -6465,7 +6465,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/02-PHASE1-PLAN-ANALYSIS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6480,7 +6480,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/03-PROJECT-UNDERSTANDING-ANALYSIS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6495,7 +6495,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6510,7 +6510,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/05-CROSS-DOCUMENT-SYNTHESIS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6525,7 +6525,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/06-ACTION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6540,7 +6540,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/07-METRICS-AND-VERIFICATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6555,7 +6555,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/strategic-review-2025-11-27/EVIDENCE-VALIDATION-REPORT.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -6570,7 +6570,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/analysis/wizard-steps-pattern-analysis.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6585,7 +6585,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/api/architecture/portfolio-route-api.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6600,7 +6600,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/api/contracts/portfolio-route-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6615,7 +6615,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/api/fund-allocations-phase1b.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6630,7 +6630,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/api/patterns/existing-route-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6645,7 +6645,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/api/testing/portfolio-route-test-strategy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6660,7 +6660,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/array-safety-adoption-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6675,7 +6675,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/auth/RS256-SETUP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6690,7 +6690,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/behavioral-specs/time-travel-analytics-service-specs.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6705,7 +6705,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-and-retention.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6720,7 +6720,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-engineering/QUICK-REFERENCE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6735,7 +6735,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-engineering/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6750,7 +6750,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6765,7 +6765,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-engineering/RLS-GAME-DAY-RUNBOOK.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6780,7 +6780,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos-engineering/RLS-MONITORING-SPECS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6795,7 +6795,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chaos/catalog.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6810,7 +6810,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/chart-migration-decision.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6825,7 +6825,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ci/triage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6840,7 +6840,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/circuit-notion-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6855,7 +6855,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/code-review/CODEX-BOT-FINDINGS-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -6870,7 +6870,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/commands-and-plugins-inventory.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6885,7 +6885,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/NumericInput.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6900,7 +6900,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/reallocation-tab-implementation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6915,7 +6915,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/reserve-engine-architecture.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6930,7 +6930,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/reserve-engine-delivery.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6945,7 +6945,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/reserve-engine-spec.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6960,7 +6960,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/components/worker-implementation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6975,7 +6975,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/contracts/parallel-foundation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -6990,7 +6990,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/contracts/selector-contract-readme.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7005,7 +7005,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7020,7 +7020,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/debugging/profiling-playbook.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7035,7 +7035,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/debugging/triage-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7062,7 +7062,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment-audit.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7077,7 +7077,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/CODEX-FIXES-DEPLOYMENT-STATUS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7092,7 +7092,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/ROLLBACK_PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7107,7 +7107,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/STAGING_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7122,7 +7122,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/STAGING_DEPLOYMENT_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -7137,7 +7137,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/STAGING_METRICS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7152,7 +7152,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/deployment/vercel-setup.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7167,7 +7167,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/dev-environment-reset.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7198,7 +7198,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/dev/foreach-fix-improved.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7213,7 +7213,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/dev/foreach-fix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7228,7 +7228,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/dev/wsl2-quickstart.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7243,7 +7243,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/development/windows-setup.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7258,7 +7258,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/enhanced-design-system-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7285,7 +7285,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/extended-thinking-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7300,7 +7300,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/fail-open-close-matrix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7315,7 +7315,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/failure-triage.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7330,7 +7330,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/feature-flags.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7357,7 +7357,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/fixes/PR-112-MANAGEMENT-FEE-HORIZON-FIX.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7372,7 +7372,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/fixes/vite-build-vercel-fix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7387,7 +7387,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/forecasting/CALIBRATION_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7402,7 +7402,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/forecasting/power-law-implementation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7417,7 +7417,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/forecasting/streaming-monte-carlo-migration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7432,7 +7432,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE0.5-TEST-DATA-INFRASTRUCTURE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7447,7 +7447,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE2-ROADMAP-IMPROVEMENTS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7462,7 +7462,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE2-ROADMAP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7477,7 +7477,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE3-KICKOFF.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7492,7 +7492,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE4-KICKOFF.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7507,7 +7507,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/foundation/PHASE4-SESSION1-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -7522,7 +7522,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/fund-allocation-phase1b.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7537,7 +7537,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/governance/abort-matrix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7552,7 +7552,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/governance/decision-log.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7567,7 +7567,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/governance/risk-matrix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7582,7 +7582,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/governance/sync-point-failure-plans.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7597,7 +7597,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/ia-consolidation-strategy.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7612,7 +7612,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/integration/SCHEMA-MIGRATION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7627,7 +7627,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/integration/mem0-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7642,7 +7642,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/integration/upstash-setup.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7657,7 +7657,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/architecture/state-flow.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7672,7 +7672,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/checklists/definition-of-done.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7687,7 +7687,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/checklists/self-review.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7702,7 +7702,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/database/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7717,7 +7717,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/database/02-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7732,7 +7732,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/database/03-optimization.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7747,7 +7747,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/index.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7762,7 +7762,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/validation/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7777,7 +7777,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/validation/02-zod-patterns.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7792,7 +7792,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/validation/03-type-system.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7807,7 +7807,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/internal/validation/04-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7822,7 +7822,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/investigation/ci-failure-analysis-2026-01-10.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -7837,7 +7837,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/ALIGNMENT-STATUS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7852,7 +7852,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/IMPLEMENTATION-STATUS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7867,7 +7867,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/PR2-PROGRESS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7882,7 +7882,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/PRE-TEST-HARDENING.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7897,7 +7897,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/REVIEW-ACTION-PLAN.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7912,7 +7912,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/STRATEGY-SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -7927,7 +7927,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/iterations/iteration-a-implementation-guide.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7942,7 +7942,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/lp-deployment-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7957,7 +7957,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/lp-observability-implementation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -7978,7 +7978,7 @@
       "lastUpdated": "2025-12-23",
       "owner": null,
       "path": "docs/lp-reporting-database-optimization.md",
-      "staleDays": 94,
+      "staleDays": 95,
       "status": "active"
     },
     {
@@ -7993,7 +7993,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/lp-slo-definitions.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8008,7 +8008,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/metrics-meanings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8023,7 +8023,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/PHASE2-COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8038,7 +8038,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/capital-allocation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8053,7 +8053,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/cohorts/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8068,7 +8068,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/cohorts/02-metrics.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8083,7 +8083,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/cohorts/03-analysis.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8098,7 +8098,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/exit-recycling.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8113,7 +8113,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/fees.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8128,7 +8128,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/monte-carlo/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8143,7 +8143,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/monte-carlo/02-simulation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8158,7 +8158,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/monte-carlo/03-statistics.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8173,7 +8173,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/monte-carlo/04-validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8188,7 +8188,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/pacing/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8203,7 +8203,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/pacing/02-strategies.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8218,7 +8218,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/pacing/03-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8233,7 +8233,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/pacing/VALIDATION-NOTES.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8248,7 +8248,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/reserves/01-overview.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8263,7 +8263,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/reserves/02-algorithms.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8278,7 +8278,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/reserves/03-examples.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8293,7 +8293,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/reserves/04-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8308,7 +8308,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/waterfall.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8323,7 +8323,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/notebooklm-sources/xirr.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8338,7 +8338,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/npm-bin-resolution-investigation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8353,7 +8353,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8368,7 +8368,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/EDITORIAL-V2-CHANGELOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8383,7 +8383,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8398,7 +8398,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/ai-metrics.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8413,7 +8413,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8428,7 +8428,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-fundcalc-comment-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8443,7 +8443,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-merge-review-final-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8458,7 +8458,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-review-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8473,7 +8473,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8488,7 +8488,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/archive/2025-10-06/pr-113-summary-v1.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8503,7 +8503,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/auth-comment.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8518,7 +8518,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/business-kpis.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8533,7 +8533,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/fundcalc-comment.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8548,7 +8548,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/rum.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8563,7 +8563,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/observability/split-plan-comment.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8578,7 +8578,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/perf-baseline.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8593,7 +8593,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/performance-logging-automation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8608,7 +8608,7 @@
       "lastUpdated": "2026-01-21",
       "owner": null,
       "path": "docs/phase0-validation-report.md",
-      "staleDays": 65,
+      "staleDays": 66,
       "status": "ACTIVE"
     },
     {
@@ -8623,7 +8623,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase0-xirr-analysis-eda20590.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8638,7 +8638,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-1-1-analysis.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8653,7 +8653,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-2-completion-report.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8668,7 +8668,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-2-investigation-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8683,7 +8683,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-2-session-handoff.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8698,7 +8698,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-implementation-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8713,7 +8713,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-next-session-handoff.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -8728,7 +8728,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-xirr-baseline-heatmap.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8743,7 +8743,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1-xirr-waterfall-roadmap.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8758,7 +8758,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase1b-waterfall-evaluator-hardening.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8773,7 +8773,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase2 docs/CHECKLIST-Phase2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8788,7 +8788,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase2 docs/PR_BODY-Phase2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8803,7 +8803,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase2 docs/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8818,7 +8818,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phase2 docs/STRATEGY-Phase2-CapitalAllocation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8845,7 +8845,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/phoenix-v2.32-command-enhancements.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8860,7 +8860,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/build-stabilization/00-ITERATION-LOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8959,7 +8959,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/phase2-hardening/findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8974,7 +8974,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/phase2-hardening/progress.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -8989,7 +8989,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/phase2-hardening/task_plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9004,7 +9004,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/00-ITERATION-LOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9019,7 +9019,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/01-codex-findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9034,7 +9034,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/02-strategy-validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9049,7 +9049,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/03-risk-register.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9064,7 +9064,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/04-decision-log.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9079,7 +9079,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/05-phase1-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9094,7 +9094,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/06-phase2-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9109,7 +9109,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/07-asset-inventory.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9124,7 +9124,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/08-execution-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9139,7 +9139,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/planning/reflection-remediation/09-open-questions.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9162,7 +9162,7 @@
       "lastUpdated": "2026-03-20",
       "owner": null,
       "path": "docs/plans/2026-03-20-contract-integrity-final-counterproposal.md",
-      "staleDays": 7,
+      "staleDays": 8,
       "status": "ACCEPTED"
     },
     {
@@ -9243,7 +9243,7 @@
       "lastUpdated": "2026-03-26",
       "owner": null,
       "path": "docs/plans/2026-03-26-development-spec-set.md",
-      "staleDays": 1,
+      "staleDays": 2,
       "status": "DRAFT"
     },
     {
@@ -9258,7 +9258,7 @@
       "lastUpdated": "2026-03-27",
       "owner": null,
       "path": "docs/plans/2026-03-27-secondary-surface-decisions.md",
-      "staleDays": 0,
+      "staleDays": 1,
       "status": "ACTIVE"
     },
     {
@@ -9295,7 +9295,7 @@
       "lastUpdated": "2025-12-16",
       "owner": "Core Team",
       "path": "docs/plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md",
-      "staleDays": 101,
+      "staleDays": 102,
       "status": "ACTIVE"
     },
     {
@@ -9310,7 +9310,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0-validation/conclusion.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9325,7 +9325,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0-validation/findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9340,7 +9340,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0-validation/progress.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9355,7 +9355,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0-validation/task_plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9370,7 +9370,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0/findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9385,7 +9385,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0/progress.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9400,7 +9400,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/integration-test-phase0/task_plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9415,7 +9415,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/phase3-validation-findings.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9430,7 +9430,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/phase3-validation-progress.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9445,7 +9445,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/plans/phase3-validation-task-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9460,7 +9460,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/policies/feasibility-constraints.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9475,7 +9475,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/portfolio-construction-modeling.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9490,7 +9490,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/portfolio-intelligence-systems-technical-memo.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9505,7 +9505,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/power-law-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9520,7 +9520,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/prd.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9535,7 +9535,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/AUTOMATION_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9550,7 +9550,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/COMMIT_LOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9565,7 +9565,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/CONTRIBUTING.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9580,7 +9580,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/DEPLOYMENT_COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9595,7 +9595,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/DEPLOYMENT_TODO.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9610,7 +9610,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/FINAL_VALIDATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9625,7 +9625,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/GITHUB_COMMIT_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9640,7 +9640,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/GITHUB_SETUP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9655,7 +9655,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/PEER_REVIEW.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9670,7 +9670,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/PIPELINE_SCHEMA_COMPLETE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9685,7 +9685,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/PIPELINE_TODO.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9700,7 +9700,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/PRE_PUSH_CHECKLIST.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9715,7 +9715,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/TEAM_SETUP.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9730,7 +9730,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/processes/code-review-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9745,7 +9745,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/production-deployment-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9784,7 +9784,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/reallocation-api-quickstart.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9799,7 +9799,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/1-general_1752964042172.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9814,7 +9814,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/2-sector-profiles_1752964042178.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9829,7 +9829,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/3-allocations_1752964042179.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9844,7 +9844,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/4-fees-expenses_1752964042179.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9859,7 +9859,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/5-exit-recycling_1752964042179.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9874,7 +9874,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/6-waterfall_1752964042180.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9889,7 +9889,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/7-limited-partners_1752964042180.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9904,7 +9904,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/README_1752917121255.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9919,7 +9919,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/README_1752964042182.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9934,7 +9934,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/content-1752982029235.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9949,7 +9949,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/attached_assets/content-1752988962282.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9964,7 +9964,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/capital-allocation-follow-on.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9979,7 +9979,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/claude-agent-engines.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -9994,7 +9994,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/claude-agent-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10009,7 +10009,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/claude-agent-schema.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10024,7 +10024,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/claude-agent-testing.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10039,7 +10039,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/replit.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10054,7 +10054,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/references/seed-cases-ca-007-020.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10069,7 +10069,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/release/compat-matrix.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10084,7 +10084,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/SlackBatchAPI-v1.0.0.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10099,7 +10099,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/stage-norm-phase4.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10114,7 +10114,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/stage-norm-phase5.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10129,7 +10129,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/stage-norm-v3.4-option-b.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10144,7 +10144,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/stage-norm-v3.4-review.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10159,7 +10159,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/releases/stage-normalization-v3.4.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10174,7 +10174,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/replit.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10189,7 +10189,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10204,7 +10204,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/reviews/CA-IMPLEMENTATION-EVALUATION-REFINED.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10219,7 +10219,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/rollback-playbook.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10234,7 +10234,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbook.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10249,7 +10249,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/blue-green.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10264,7 +10264,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/canary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10279,7 +10279,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/dr.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10294,7 +10294,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/incident.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10309,7 +10309,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/rollback.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10324,7 +10324,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/stage-normalization-migration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10339,7 +10339,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/stage-normalization-rollout.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10354,7 +10354,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/stage-validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10369,7 +10369,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/synthetic-monitoring.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10384,7 +10384,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/schema.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10399,7 +10399,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/schemas/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10414,7 +10414,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/schemas/schema-helpers-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10429,7 +10429,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/CODACY_REMEDIATION_2025.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10444,7 +10444,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/cve-exceptions.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10459,7 +10459,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/00-ITERATION-LOG.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10474,7 +10474,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/01-dependency-audit.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10489,7 +10489,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/02-risk-assessment.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10504,7 +10504,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/03-remediation-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10519,7 +10519,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/04-verification-log.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10534,7 +10534,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/security/remediation-2026-01-18/05-lockfile-changes.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10549,7 +10549,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/session-learning-reports/2026-01-01-to-01-07-extraction.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -10564,7 +10564,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/session-learning-reports/2026-01-08-to-01-18-extraction.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -10579,7 +10579,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/session-learning-reports/2026-01-18-extraction.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -10642,7 +10642,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/skills-application-log.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10657,7 +10657,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/skills-application-synthesis.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -10672,7 +10672,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/skills/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -11930,7 +11930,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-automation-kickoff.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -11945,7 +11945,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-backlog.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -11960,7 +11960,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-ceremony-calendar.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -11975,7 +11975,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-master-checklist.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -11990,7 +11990,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-planning-agenda.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12005,7 +12005,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-sanity-check.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12020,7 +12020,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/sprint-g2c-stakeholder-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -12035,7 +12035,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/stage-normalization-scripts.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12050,7 +12050,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/stage-normalization-v3.4.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12065,7 +12065,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/standards.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12080,7 +12080,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/strategies/PHOENIX-PLAN-2025-11-30.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -12119,7 +12119,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Developer",
       "path": "docs/tech-debt/TYPE-SAFETY-ACTION-PLAN.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -12134,7 +12134,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/templates/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12149,7 +12149,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/templates/design-system-template.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12164,7 +12164,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/templates/feature-flow-template.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12179,7 +12179,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/test-improvement-status.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12194,7 +12194,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/type-safety-action-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12209,7 +12209,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/type-safety-migration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12224,7 +12224,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/type-safety-progress-report.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -12239,7 +12239,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/validation/DeterministicReserveEngine.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12254,7 +12254,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/validation/stage-validation-patched.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12269,7 +12269,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/validation/stage-validation-v3.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12284,7 +12284,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard-calculations-integration.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12299,7 +12299,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard/COMPLETION_SUMMARY.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -12314,7 +12314,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard/MIGRATION_GUIDE.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12329,7 +12329,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard/RESERVES_CARD_IMPROVEMENTS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12344,7 +12344,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard/WIZARD_INTEGRATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12359,7 +12359,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/wizard/modeling-wizard-design.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12374,7 +12374,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/workflows/CONSOLIDATION_PLAN_V2.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12389,7 +12389,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/workflows/CONSOLIDATION_PLAN_V3_FINAL.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12404,7 +12404,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/workflows/PAIRED-AGENT-VALIDATION.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12419,7 +12419,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/workflows/PRODUCTION_SCRIPTS.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12434,7 +12434,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/workflows/README.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12480,7 +12480,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Developer",
       "path": "docs/xirr-consolidation-roadmap.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -12515,7 +12515,7 @@
       "lastUpdated": "2025-12-29",
       "owner": "Platform Developer",
       "path": "docs/xirr-consolidation-summary.md",
-      "staleDays": 88,
+      "staleDays": 89,
       "status": "ACTIVE"
     },
     {
@@ -12530,7 +12530,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/xirr-excel-validation.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12545,7 +12545,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/xirr-golden-set-addition-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     },
     {
@@ -12560,7 +12560,7 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/xirr-golden-set-migration-plan.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "ACTIVE"
     },
     {
@@ -12575,11 +12575,11 @@
       "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/zen-mcp-integration-summary.md",
-      "staleDays": 67,
+      "staleDays": 68,
       "status": "HISTORICAL"
     }
   ],
-  "generatedAt": "2026-03-27T23:55:42.571Z",
+  "generatedAt": "2026-03-28T00:03:57.997Z",
   "patterns": [
     {
       "category": "Security",
@@ -12673,20 +12673,6 @@
       "target": ".claude/agents/xirr-fees-validator.md"
     },
     {
-      "category": "Governance",
-      "id": "stabilization_roadmap",
-      "keywords": [
-        "global rules",
-        "milestone",
-        "stabilization",
-        "roadmap",
-        "pr scope",
-        "validate:core"
-      ],
-      "priority": 15,
-      "target": "docs/STABILIZATION-ROADMAP.md"
-    },
-    {
       "agent": "phoenix-capital-allocation-analyst",
       "category": "Phoenix",
       "id": "phoenix_allocation",
@@ -12770,6 +12756,20 @@
       "message": "Historical capability inventory. Start current routing from CLAUDE.md and docs/INDEX.md",
       "priority": 20,
       "target": "CAPABILITIES.md"
+    },
+    {
+      "category": "Governance",
+      "id": "stabilization_roadmap",
+      "keywords": [
+        "global rules",
+        "milestone",
+        "stabilization",
+        "roadmap",
+        "pr scope",
+        "validate:core"
+      ],
+      "priority": 21,
+      "target": "docs/STABILIZATION-ROADMAP.md"
     },
     {
       "category": "Production",

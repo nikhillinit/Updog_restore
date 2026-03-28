@@ -16,6 +16,12 @@ and milestone plan. It governs PR scope, milestone sequencing, and development
 constraints during the stabilization program. All contributors and agents must
 follow these rules.
 
+Milestone 0A describes the target validation gate and integration readiness
+contract that still need to be landed. Until that milestone is complete, use
+`npm run baseline:check`, `npm run test:publish-orchestration`,
+`npm run test:phase4`, and `npm run lint:phase4` as the closest equivalent
+validation sequence.
+
 ## Global Rules
 
 1. **Do not start milestone N+1 until milestone N is merged and `npm run
@@ -49,11 +55,12 @@ follow these rules.
 
 **Goal:** Merge the sandbox-proven validation fix and make it the canonical gate.
 
-- [ ] Commit the readiness-handshake change in `server/bootstrap.ts:21` and
-  `tests/integration/global-setup.ts:81`.
-- [ ] Keep the machine-readable `TEST_READY_FILE` contract from
-  `tests/integration/global-setup.ts:188` and stop relying on log scraping.
-- [ ] Keep the consolidated validation command in `package.json:77`.
+- [ ] Implement a readiness handshake between `server/bootstrap.ts` and
+  `tests/integration/global-setup.ts` so integration tests no longer depend on
+  human-readable log parsing.
+- [ ] Add a machine-readable `TEST_READY_FILE` contract and remove log-based
+  port detection from the integration harness.
+- [ ] Add a consolidated `validate:core` command to `package.json`.
 - [ ] Update the docs so the authoritative validation command is `npm run
   validate:core`.
 - [ ] Add one short engineering rule to docs: integration harnesses must
@@ -243,7 +250,7 @@ follow these rules.
 
 ## Immediate Next Actions
 
-1. Merge the validated Milestone 0A changes from `server/bootstrap.ts`,
+1. Land the Milestone 0A changes in `server/bootstrap.ts`,
    `tests/integration/global-setup.ts`, and `package.json`.
 2. Add the route allowlist test before touching `client/src/App.tsx`.
 3. Build the perimeter matrix and begin Milestone 1 route removal in one
