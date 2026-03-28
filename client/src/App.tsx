@@ -16,63 +16,24 @@ import './styles/demo-animations.css';
 // Layout components
 import Sidebar from '@/components/layout/sidebar';
 import { getActiveNavigationId } from '@/components/layout/navigation-config';
-import { getSecondarySurfaceRedirect } from '@/lib/secondary-surface-policy';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
 const Portfolio = React.lazy(() => import('@/pages/portfolio'));
-const Investments = React.lazy(() => import('@/pages/investments'));
-const Planning = React.lazy(() => import('@/pages/planning'));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import('@/pages/fund-setup'));
-const InvestmentDetail = React.lazy(() => import('@/pages/investment-detail'));
-const KPIManager = React.lazy(() => import('@/pages/kpi-manager'));
-const KPISubmission = React.lazy(() => import('@/pages/kpi-submission'));
-const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
-const ScenarioBuilderPage = React.lazy(() => import('@/pages/scenario-builder'));
-const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
-const MOICAnalysisPage = React.lazy(() => import('@/pages/moic-analysis'));
-const ReturnTheFundPage = React.lazy(() => import('@/pages/return-the-fund'));
-const PartialSalesPage = React.lazy(() => import('@/pages/partial-sales'));
-const FinancialModeling = React.lazy(() => import('@/pages/financial-modeling'));
-const Performance = React.lazy(() => import('@/pages/performance'));
-const Analytics = React.lazy(() => import('@/pages/analytics'));
 const Reports = React.lazy(() => import('@/pages/reports'));
-const AllocationManagerPage = React.lazy(() => import('@/pages/allocation-manager'));
 const NotFound = React.lazy(() => import('@/pages/not-found'));
-const EnhancedPortfolioAnalytics = React.lazy(
-  () => import('@/components/portfolio/enhanced-portfolio-analytics')
-);
-const CustomFields = React.lazy(() => import('@/pages/CustomFields'));
-const InvestmentsTable = React.lazy(() => import('@/pages/investments-table'));
-const CapTables = React.lazy(() => import('@/pages/CapTables'));
-const CashManagement = React.lazy(() => import('@/pages/cash-management'));
-const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
-// New analytics features
-const TimeTravelPage = React.lazy(() => import('@/pages/time-travel'));
-const VarianceTrackingPage = React.lazy(() => import('@/pages/variance-tracking'));
-const PortfolioConstructor = React.lazy(() => import('@/pages/portfolio-constructor'));
-const MonteCarloPage = React.lazy(() => import('@/pages/monte-carlo'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
-// Development dashboard for solo developer productivity
-const DevDashboardPage = React.lazy(() => import('@/pages/DevDashboardPage'));
-// Agent 2: Mobile Executive Dashboard
-const MobileExecutiveDashboardPage = React.lazy(() => import('@/pages/mobile-executive-dashboard'));
 // LP Sharing
 const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
-// Secondary Market Analysis
-const SecondaryMarketPage = React.lazy(() => import('@/pages/secondary-market'));
-// Notion Integration
-const NotionIntegrationPage = React.lazy(() => import('@/pages/notion-integration'));
 // New IA pages (Codex-validated restructure)
 const PipelinePage = React.lazy(() => import('@/pages/pipeline'));
 const SettingsPage = React.lazy(() => import('@/pages/settings'));
 const HelpPage = React.lazy(() => import('@/pages/help'));
-// Modern Dashboard (replaces legacy dashboard)
-const ModernDashboard = React.lazy(() => import('@/pages/dashboard-modern'));
 // LP Reporting Dashboard
 const LPDashboard = React.lazy(() => import('@/pages/lp/dashboard'));
 const LPFundDetail = React.lazy(() => import('@/pages/lp/fund-detail'));
@@ -308,67 +269,53 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
 // Route config arrays (order-preserving, first-match routing)
 // ---------------------------------------------------------------------------
 
-interface AppRouteEntry {
+export interface AppRouteEntry {
   path: string;
   component: React.ComponentType<Record<string, unknown>>;
   isProtected?: boolean;
 }
 
-const APP_ROUTES: AppRouteEntry[] = [
+export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
-  { path: '/investments', component: Investments, isProtected: true },
-  { path: '/investments/:id', component: InvestmentDetail, isProtected: true },
-  { path: '/custom-fields', component: CustomFields, isProtected: true },
-  { path: '/investments-table', component: InvestmentsTable, isProtected: true },
-  { path: '/investments/company/:id', component: Investments, isProtected: true },
-  { path: '/cap-tables', component: CapTables, isProtected: true },
-  { path: '/kpi-manager', component: KPIManager, isProtected: true },
-  { path: '/kpi-submission', component: KPISubmission },
-  {
-    path: '/allocation-manager',
-    component: AllocationManagerPage as React.ComponentType<Record<string, unknown>>,
-  },
-  { path: '/planning', component: Planning, isProtected: true },
-  { path: '/forecasting', component: ForecastingPage, isProtected: true },
-  { path: '/scenario-builder', component: ScenarioBuilderPage, isProtected: true },
-  { path: '/reserves-demo', component: ReservesDemo, isProtected: true },
-  { path: '/moic-analysis', component: MOICAnalysisPage, isProtected: true },
-  { path: '/return-the-fund', component: ReturnTheFundPage, isProtected: true },
-  { path: '/partial-sales', component: PartialSalesPage, isProtected: true },
-  { path: '/financial-modeling', component: FinancialModeling, isProtected: true },
-  { path: '/performance', component: Performance, isProtected: true },
-  { path: '/analytics', component: Analytics, isProtected: true },
-  { path: '/portfolio-analytics', component: EnhancedPortfolioAnalytics, isProtected: true },
-  { path: '/cash-management', component: CashManagement, isProtected: true },
-  { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
-  { path: '/time-travel', component: TimeTravelPage, isProtected: true },
-  { path: '/variance-tracking', component: VarianceTrackingPage, isProtected: true },
-  { path: '/portfolio-constructor', component: PortfolioConstructor, isProtected: true },
-  { path: '/monte-carlo', component: MonteCarloPage, isProtected: true },
-  { path: '/secondary-market', component: SecondaryMarketPage, isProtected: true },
-  { path: '/notion-integration', component: NotionIntegrationPage, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
-  { path: '/dev-dashboard', component: DevDashboardPage },
-  {
-    path: '/mobile-executive-dashboard',
-    component: MobileExecutiveDashboardPage,
-    isProtected: true,
-  },
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
-  { path: '/dashboard-modern', component: ModernDashboard, isProtected: true },
 ];
 
-interface LPRouteEntry {
+export interface ArchivedPlaceholderRouteEntry {
+  path: string;
+  redirectTarget: string;
+  notes: string;
+}
+
+export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
+  {
+    path: '/planning',
+    redirectTarget: '/portfolio?tab=reserve-planning',
+    notes: 'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
+  },
+  {
+    path: '/kpi-manager',
+    redirectTarget: '/dashboard',
+    notes: 'Legacy KPI manager is archived until there is an owned, persistent KPI workflow.',
+  },
+  {
+    path: '/kpi-submission',
+    redirectTarget: '/dashboard',
+    notes: 'Legacy KPI submission is archived until there is an owned, persistent KPI workflow.',
+  },
+];
+
+export interface LPRouteEntry {
   path: string;
   component: React.ComponentType;
 }
 
-const LP_ROUTES: LPRouteEntry[] = [
+export const LP_ROUTES: LPRouteEntry[] = [
   { path: '/lp/dashboard', component: LPDashboard },
   { path: '/lp/fund-detail/:fundId', component: LPFundDetail },
   { path: '/lp/capital-account', component: LPCapitalAccount },
@@ -377,17 +324,21 @@ const LP_ROUTES: LPRouteEntry[] = [
   { path: '/lp/settings', component: LPSettings },
 ];
 
+export const LEGACY_REDIRECT_ROUTES = {
+  analyticsLegacy: '/analytics-legacy',
+  planningLegacy: '/planning-legacy',
+} as const;
+
+export const PUBLIC_ENTRY_ROUTES = {
+  sharedDashboard: '/shared/:shareId',
+  portalCatchAll: '/portal/:rest*',
+} as const;
+
+export const ADMIN_GATED_ROUTES = {
+  uiCatalog: '/admin/ui-catalog',
+} as const;
+
 function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
-  const redirectTarget = getSecondarySurfaceRedirect(path);
-
-  if (redirectTarget != null) {
-    return (
-      <Route key={path} path={path}>
-        {() => <Redirect to={redirectTarget} />}
-      </Route>
-    );
-  }
-
   if (isProtected) {
     return (
       <Route key={path} path={path}>
@@ -398,6 +349,17 @@ function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
   return (
     <Route key={path} path={path}>
       {() => <C />}
+    </Route>
+  );
+}
+
+function renderArchivedPlaceholderRoute({
+  path,
+  redirectTarget,
+}: ArchivedPlaceholderRouteEntry) {
+  return (
+    <Route key={path} path={path}>
+      {() => <Redirect to={redirectTarget} />}
     </Route>
   );
 }
@@ -426,25 +388,30 @@ function PageLoadingFallback() {
 }
 
 function Router() {
+  const lpRoutes = FLAGS.ENABLE_LP_REPORTING ? LP_ROUTES : [];
+
   return (
     <Suspense fallback={<PageLoadingFallback />}>
       <Switch>
         <Route path="/" component={HomeRoute} />
         {APP_ROUTES.map(renderAppRoute)}
-        <Route path="/analytics-legacy">{() => <Redirect to="/dashboard?tab=performance" />}</Route>
-        <Route path="/planning-legacy">
+        {ARCHIVED_PLACEHOLDER_ROUTES.map(renderArchivedPlaceholderRoute)}
+        <Route path={LEGACY_REDIRECT_ROUTES.analyticsLegacy}>
+          {() => <Redirect to="/dashboard?tab=performance" />}
+        </Route>
+        <Route path={LEGACY_REDIRECT_ROUTES.planningLegacy}>
           {() => <Redirect to="/portfolio?tab=reserve-planning" />}
         </Route>
-        <Route path="/shared/:shareId" component={SharedDashboard} />
-        {LP_ROUTES.map(renderLPRoute)}
-        <Route path="/admin/ui-catalog">
+        <Route path={PUBLIC_ENTRY_ROUTES.sharedDashboard} component={SharedDashboard} />
+        {lpRoutes.map(renderLPRoute)}
+        <Route path={ADMIN_GATED_ROUTES.uiCatalog}>
           {() => (
             <AdminRoute flag="UI_CATALOG">
               <UICatalog />
             </AdminRoute>
           )}
         </Route>
-        <Route path="/portal/:rest*" component={PortalAccessDenied} />
+        <Route path={PUBLIC_ENTRY_ROUTES.portalCatchAll} component={PortalAccessDenied} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

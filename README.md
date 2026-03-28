@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 ---
 
 # POVC Fund-Modeling Platform
@@ -13,10 +13,13 @@ The authoritative user flow is:
 
 Current secondary-surface exposure is intentionally narrow:
 
-- `planning` is quarantined by default and redirects to
+- `planning` is an archived entrypoint and permanently redirects to
   `/portfolio?tab=reserve-planning`
-- `kpi-manager` and `kpi-submission` are quarantined by default and redirect to
-  `/dashboard`
+- `kpi-manager` and `kpi-submission` are archived entrypoints and permanently
+  redirect to `/dashboard`
+- `/shared/:shareId` is an intentional public shared-link contract
+- `/portal/:rest*` is an intentional public entrypoint that currently resolves
+  to access denied
 - Compass remains experimental and unmounted on the server
 
 ## Development
@@ -29,10 +32,7 @@ npm run dev
 ## Validation
 
 ```bash
-npm run baseline:check
-npm run test:publish-orchestration
-npm run test:phase4
-npm run lint:phase4
+npm run validate:core
 ```
 
 ## Authoritative Docs

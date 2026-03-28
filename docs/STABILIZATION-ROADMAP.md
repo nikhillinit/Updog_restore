@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 owner: Core Team
 review_cadence: P30D
 categories: [governance, roadmap, stabilization]
@@ -27,11 +27,14 @@ through a machine-readable ready-file contract instead of human log parsing.
 2. **Never use human log parsing for test coordination again.** Integration
    harnesses must coordinate through files, environment variables, or IPC --
    never log text.
-3. **No route removal without an allowlist smoke test first.**
-4. **Default action for uncertain surfaces is unmount, not improve.**
-5. **No LP, KPI, portal, or Compass expansion during this program.**
+3. **No route removal until structural route-governance tests cover all mounted
+   entrypoints.**
+4. **Public contracts and internal surfaces must be classified separately.**
+5. **Default action for uncertain surfaces is unmount, not improve.** No LP,
+   KPI, portal, or Compass expansion during this program.
 6. **Every PR must state which milestone it belongs to and must touch only that
-   concern.**
+   concern.** Sandbox validation is required where practical, and route or nav
+   changes should validate against the exported governance registry.
 
 ## Milestone Summary
 
@@ -39,7 +42,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | --------- | ------------------------------------- | ------------- | --------------------------------------------------- |
 | 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                     |
 | 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry             |
-| 1         | Reduce The Runtime Perimeter          | [NOT STARTED] | Route allowlist passes, no dead-end placeholders    |
+| 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
 | 2         | Consolidate Route And Flag Control    | [NOT STARTED] | One flag API for route exposure                     |
 | 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math |
 | 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                     |
@@ -95,26 +98,29 @@ gate.
 
 **Goal:** Make the mounted app match the internal-tool product truth.
 
-- [ ] Create a route allowlist test for the routes that should remain live from
-      `client/src/App.tsx:239` and `client/src/App.tsx:355`.
-- [ ] Keep live only the core internal surfaces: `/fund-setup`,
-      `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`, `/pipeline`,
-      `/reports`, `/settings`, `/help`.
-- [ ] Unmount LP routes currently mounted at `client/src/App.tsx:293` and
-      `client/src/App.tsx:361`.
-- [ ] Remove or archive placeholder surfaces evidenced in
-      `client/src/pages/planning.tsx:65`, `client/src/pages/planning.tsx:113`,
-      `client/src/pages/kpi-manager/index.tsx:13`, and
-      `client/src/pages/kpi-submission.tsx:58`.
-- [ ] Sync sidebar/navigation in
-      `client/src/components/layout/navigation-config.ts` to the reduced route
-      set.
-- [ ] Update README and build-readiness docs immediately after route changes.
+- [x] Make client route tests work from sandbox/worktree checkouts by resolving
+      Vitest setup files from project-root-relative paths in `vitest.config.ts`.
+- [x] Export the mounted route surfaces from `client/src/App.tsx` and add a
+      central route-governance registry at
+      `client/src/app/route-governance-registry.ts`.
+- [x] Add structural and behavioral client tests covering `APP_ROUTES`,
+      `LP_ROUTES`, legacy redirects, public contracts, and admin entrypoints.
+- [x] Wire `ENABLE_LP_REPORTING` into route mounting or remove LP routes from
+      the main shell so LP exposure is explicitly governed.
+- [x] Reduce default exposure down to the core internal workflow:
+      `/fund-setup`, `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`,
+      `/pipeline`, `/reports`, `/settings`, `/help`.
+- [x] Remove or archive placeholder surfaces, including the standalone planning
+      and KPI pages, after the registry-backed perimeter tests guard the change.
+- [x] Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract
+      decisions instead of incidental leftovers.
+- [x] Sync README and build-readiness docs to the reduced route set after the
+      public-contract and placeholder cleanup decisions are finalized.
 
 **Exit criteria:**
 
 - Mounted routes match product truth.
-- The route allowlist test passes.
+- Registry-backed route-governance tests cover every mounted entrypoint.
 - No dead-end placeholder page is reachable.
 
 ---
@@ -242,7 +248,12 @@ gate.
   first fix and showed that hardening it is separate work.
 - `validate:core` is now mandatory infrastructure, not just a convenience
   command.
-- Route allowlist testing is now required before perimeter reduction.
+- Milestone 1 now starts with Vitest worktree portability and an exported route
+  registry instead of jumping straight to route removal.
+- Route-governance testing now covers all mounted entrypoints, not just the
+  quarantined secondary surfaces.
+- LP route control is pulled slightly forward so LP exposure cannot stay mounted
+  outside the perimeter decision path.
 - A dedicated test boot script moved from "must do early" to "optional later
   improvement," because the existing API-only boot path already works.
 - Log cleanup in fund routes moved out of Milestone 0 and into lifecycle/backend
@@ -250,7 +261,9 @@ gate.
 
 ## Immediate Next Actions
 
-1. Add the route allowlist test before touching `client/src/App.tsx`.
-2. Build the perimeter matrix and begin Milestone 1 route removal in one focused
-   branch.
-3. Keep new work inside the reduced route set while Milestone 1 is in progress.
+1. Choose the canonical route-control layer so runtime exposure does not stay
+   split between `featureFlags.ts` and the broader unified client-flag system.
+2. Remove product-surface localStorage overrides that no longer belong in the
+   stabilized perimeter.
+3. Keep future route or nav changes flowing through the exported governance
+   registry and its structural tests.

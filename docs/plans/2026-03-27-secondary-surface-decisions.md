@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-03-28
 ---
 
 # Secondary Surface Decisions
@@ -9,9 +9,11 @@ last_updated: 2026-03-27
 
 | Surface          | State                      | Owner Path                                                                                                              | Exposure Control                               | Rollback                                                                   |
 | ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| `planning`       | Quarantined by default     | `client/src/App.tsx`, `client/src/components/layout/navigation-config.ts`, `client/src/lib/secondary-surface-policy.ts` | route redirect + nav removal via feature flags | set `FF_HIDE_PLANNING_SURFACE=false` or `VITE_HIDE_PLANNING_SURFACE=false` |
-| `kpi-manager`    | Quarantined by default     | `client/src/App.tsx`, `client/src/lib/secondary-surface-policy.ts`                                                      | route redirect via feature flags               | set `FF_HIDE_KPI_SURFACES=false` or `VITE_HIDE_KPI_SURFACES=false`         |
-| `kpi-submission` | Quarantined by default     | `client/src/App.tsx`, `client/src/lib/secondary-surface-policy.ts`                                                      | route redirect via feature flags               | set `FF_HIDE_KPI_SURFACES=false` or `VITE_HIDE_KPI_SURFACES=false`         |
+| `planning`       | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
+| `kpi-manager`    | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
+| `kpi-submission` | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
+| `/shared/:shareId` | Public contract         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount                       | remove only with an explicit external-link migration                       |
+| `/portal/:rest*` | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount to access denied      | change only with an explicit portal activation or deprecation plan         |
 | Compass          | Experimental and unmounted | `server/compass/routes.ts` plus future server mount gate                                                                | no server mount                                | mount only behind an explicit activation decision                          |
 
 ## Planning
@@ -24,15 +26,15 @@ last_updated: 2026-03-27
   `/portfolio?tab=reserve-planning`.
 - Black: keeping the page live increases support burden and undermines trust in
   the rest of the modeling flow.
-- Green: redirect the route and remove the nav destination by default while
-  keeping an explicit opt-back-in switch.
-- Blue: final decision is quarantine by default with redirect to the truthful
-  reserve-planning destination.
+- Green: redirect the route and remove the nav destination completely instead of
+  leaving a local re-enable escape hatch.
+- Blue: final decision is an archived redirect to the truthful reserve-planning
+  destination.
 
 Benefits: removes a dead-end primary-nav promise without deleting the
 implementation. Trade-off: the standalone planning workspace is no longer a
-default entry point. Rollback: re-enable with `FF_HIDE_PLANNING_SURFACE=false`
-or `VITE_HIDE_PLANNING_SURFACE=false`.
+recoverable runtime surface. Rollback requires a new owned implementation and a
+fresh route-mount decision.
 
 ## KPI Manager And KPI Submission
 
@@ -45,15 +47,35 @@ or `VITE_HIDE_PLANNING_SURFACE=false`.
   deletion is premature.
 - Black: quarantining only one of the two pages would leave the KPI surface
   inconsistent.
-- Green: gate both KPI routes together and send them to a neutral safe
-  destination.
-- Blue: final decision is to quarantine both routes together and redirect them
-  to `/dashboard` by default.
+- Green: archive both KPI routes together and send them to a neutral safe
+  destination instead of keeping a local override.
+- Blue: final decision is to keep both routes as archived redirects to
+  `/dashboard`.
 
 Benefits: removes misleading direct-route exposure while preserving a fast
-opt-back-in path for future work. Trade-off: KPI pages are no longer casually
-discoverable until ownership returns. Rollback: re-enable with
-`FF_HIDE_KPI_SURFACES=false` or `VITE_HIDE_KPI_SURFACES=false`.
+future reactivation path in source control. Trade-off: KPI pages are no longer
+recoverable through client-side flags. Rollback requires a new owned
+implementation and route decision.
+
+## Public Contracts
+
+- White: `/shared/:shareId` and `/portal/:rest*` are not sidebar destinations,
+  but they are still mounted entrypoints.
+- Red: treating them like incidental leftovers risks breaking externally
+  addressable links during perimeter reduction.
+- Yellow: the portal is not active product scope yet, but the catch-all is
+  still the current auth/access-denied entrypoint.
+- Black: deleting either route without an explicit contract decision would
+  create accidental regressions while hiding them from internal navigation
+  review.
+- Green: keep both routes mounted and label them as public contracts in the
+  governance registry and active docs.
+- Blue: final decision is to preserve `/shared/:shareId` and `/portal/:rest*`
+  as intentional public contracts during stabilization.
+
+Benefits: makes the perimeter reduction honest without breaking external entry
+points. Trade-off: two non-core routes remain mounted by design. Rollback:
+replace only through an explicit deprecation or activation plan.
 
 ## Compass
 
