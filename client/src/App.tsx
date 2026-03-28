@@ -1,8 +1,7 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Switch, Route, Redirect, useLocation } from 'wouter';
 import { queryClient } from './lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FundProvider, useFundContext } from '@/contexts/FundContext';
 import { LPProvider } from '@/contexts/LPContext';
@@ -10,8 +9,8 @@ import { FeatureFlagProvider } from '@/providers/FeatureFlagProvider';
 import { StagingRibbon } from '@/components/StagingRibbon';
 import { ErrorBoundary } from './components/ui/error-boundary';
 import { BrandChartThemeProvider } from '@/lib/chart-theme/chart-theme-provider';
-import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { AdminRoute } from '@/components/AdminRoute';
+import { FLAGS } from '@/core/flags/featureFlags';
 import './styles/demo-animations.css';
 
 // Layout components
@@ -20,7 +19,6 @@ import { getActiveNavigationId } from '@/components/layout/navigation-config';
 import { getSecondarySurfaceRedirect } from '@/lib/secondary-surface-policy';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
-import DemoBanner from '@/components/demo/DemoBanner';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
@@ -86,6 +84,15 @@ const LPSettings = React.lazy(() => import('@/pages/lp/settings'));
 const UICatalog = React.lazy(() => import('@/pages/admin/ui-catalog'));
 // Portal pages (LP Portal scaffolding)
 const PortalAccessDenied = React.lazy(() => import('@/pages/portal/access-denied'));
+const DeferredToasterView = React.lazy(() =>
+  import('@/components/ui/toaster').then((mod) => ({ default: mod.Toaster }))
+);
+const DeferredGuidedTourView = React.lazy(() =>
+  import('@/components/onboarding/GuidedTour').then((mod) => ({ default: mod.GuidedTour }))
+);
+const DeferredDemoBannerView = React.lazy(() => import('@/components/demo/DemoBanner'));
+
+const ONBOARDING_TOUR_STORAGE_KEY = 'onboarding_seen_gp_v1';
 
 const _moduleConfig = {
   dashboard: {
@@ -186,6 +193,77 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
       </div>
     </div>
+  );
+}
+
+function DeferredToaster() {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShouldRender(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!shouldRender) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <DeferredToasterView />
+    </Suspense>
+  );
+}
+
+function DeferredGuidedTour() {
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    if (!FLAGS.ONBOARDING_TOUR) {
+      return;
+    }
+
+    try {
+      if (localStorage.getItem(ONBOARDING_TOUR_STORAGE_KEY) == null) {
+        setShouldLoad(true);
+      }
+    } catch {
+      setShouldLoad(true);
+    }
+  }, []);
+
+  if (!shouldLoad) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <DeferredGuidedTourView />
+    </Suspense>
+  );
+}
+
+function DeferredDemoBanner() {
+  const [shouldLoad, setShouldLoad] = useState(import.meta.env.DEMO_MODE === 'true');
+
+  useEffect(() => {
+    if (import.meta.env.DEMO_MODE === 'true') {
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.location.search.includes('DEMO_MODE')) {
+      setShouldLoad(true);
+    }
+  }, []);
+
+  if (!shouldLoad) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <DeferredDemoBannerView />
+    </Suspense>
   );
 }
 
@@ -382,9 +460,9 @@ function App() {
             <StagingRibbon />
             <FundProvider>
               <TooltipProvider>
-                <DemoBanner />
-                <Toaster />
-                <GuidedTour />
+                <DeferredDemoBanner />
+                <DeferredToaster />
+                <DeferredGuidedTour />
                 <AppLayout>
                   <Router />
                 </AppLayout>
