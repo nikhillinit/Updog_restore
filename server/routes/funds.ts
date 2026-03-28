@@ -2,13 +2,16 @@
 
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { eq } from 'drizzle-orm';
 import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
+import { funds as persistedFunds } from '@shared/schema';
 import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
 import type { ApiError } from '@shared/types';
 import { toNumber, NumberParseError } from '@shared/number';
 import { hashPayload } from '../lib/hash';
+import { db } from '../db';
 import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
@@ -20,6 +23,46 @@ import { sendApiError } from '../lib/apiError';
 import { detectPostFormat, parseCanonical } from '../adapters/fund-create-adapter';
 
 const router = Router();
+
+type PersistedFund = typeof persistedFunds.$inferSelect;
+type StoredFund = Awaited<ReturnType<typeof storage.getAllFunds>>[number];
+
+function normalizeStoredFund(fund: StoredFund): PersistedFund {
+  return {
+    ...fund,
+    establishmentDate: (fund as Partial<PersistedFund>).establishmentDate ?? null,
+    isActive: (fund as Partial<PersistedFund>).isActive ?? true,
+  };
+}
+
+async function getCanonicalFunds(): Promise<PersistedFund[]> {
+  const [dbFunds, memoryFunds] = await Promise.all([
+    db.select().from(persistedFunds),
+    storage.getAllFunds(),
+  ]);
+
+  const mergedFunds = new Map<number, PersistedFund>();
+
+  for (const fund of memoryFunds) {
+    mergedFunds.set(fund.id, normalizeStoredFund(fund));
+  }
+
+  for (const fund of dbFunds) {
+    mergedFunds.set(fund.id, fund);
+  }
+
+  return [...mergedFunds.values()].sort((left, right) => left.id - right.id);
+}
+
+async function getCanonicalFundById(id: number): Promise<PersistedFund | undefined> {
+  const [fund] = await db.select().from(persistedFunds).where(eq(persistedFunds.id, id));
+  if (fund) {
+    return fund;
+  }
+
+  const storedFund = await storage.getFund(id);
+  return storedFund ? normalizeStoredFund(storedFund) : undefined;
+}
 
 /**
  * @deprecated Use FundCreateV1Schema (canonical format) for new callers.
@@ -66,7 +109,7 @@ type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 
 router['get']('/funds', async (_req: Request, res: Response) => {
   try {
-    const funds = await storage.getAllFunds();
+    const funds = await getCanonicalFunds();
     return res['json'](funds);
   } catch (error) {
     const apiError: ApiError = {
@@ -90,7 +133,7 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
       return res['status'](400)['json'](error);
     }
 
-    const fund = await storage.getFund(id);
+    const fund = await getCanonicalFundById(id);
     if (!fund) {
       const error: ApiError = {
         error: 'Fund not found',

@@ -1,0 +1,98 @@
+name: Core Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate-core:
+    name: validate-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Detect code changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - 'package*.json'
+              - 'package-lock.json'
+              - '.github/workflows/**'
+              - 'server/**'
+              - 'client/**'
+              - 'shared/**'
+              - 'scripts/**'
+              - 'tests/**'
+
+      - name: Skip docs-only changes
+        if: steps.filter.outputs.code != 'true' && github.event_name != 'workflow_dispatch'
+        run: |
+          echo "No code-path changes detected; validate:core skipped." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job stays green so it can be used as a required branch check." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup Node.js
+        if: steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit || \
+          npm ci --prefer-offline --no-audit
+
+      - name: Prepare database
+        if: steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run validate:core
+        if: steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run validate:core
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          REDIS_URL: redis://localhost:6379
+          TZ: UTC

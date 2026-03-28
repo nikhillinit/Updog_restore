@@ -38,7 +38,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | Milestone | Title                                 | Status        | Exit Gate                                           |
 | --------- | ------------------------------------- | ------------- | --------------------------------------------------- |
 | 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                     |
-| 0B        | Lock The Gate                         | [NOT STARTED] | Regression test, CI gate, runbook entry             |
+| 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry             |
 | 1         | Reduce The Runtime Perimeter          | [NOT STARTED] | Route allowlist passes, no dead-end placeholders    |
 | 2         | Consolidate Route And Flag Control    | [NOT STARTED] | One flag API for route exposure                     |
 | 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math |
@@ -77,11 +77,11 @@ gate.
 
 **Goal:** Make it hard to regress the validation lane.
 
-- [ ] Add a CI job or required local pre-merge checklist item for
+- [x] Add a CI job or required local pre-merge checklist item for
       `npm run validate:core`.
-- [ ] Add a small regression test around the readiness contract so future
+- [x] Add a small regression test around the readiness contract so future
       startup refactors do not silently break integration tests.
-- [ ] Add a short runbook entry describing how the integration server handshake
+- [x] Add a short runbook entry describing how the integration server handshake
       works and where the ready file is written.
 
 **Exit criteria:**
@@ -250,8 +250,7 @@ gate.
 
 ## Immediate Next Actions
 
-1. Add a CI job or required pre-merge check for `npm run validate:core` and
-   close out Milestone 0B.
-2. Add the route allowlist test before touching `client/src/App.tsx`.
-3. Build the perimeter matrix and begin Milestone 1 route removal in one focused
+1. Add the route allowlist test before touching `client/src/App.tsx`.
+2. Build the perimeter matrix and begin Milestone 1 route removal in one focused
    branch.
+3. Keep new work inside the reduced route set while Milestone 1 is in progress.
