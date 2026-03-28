@@ -5,7 +5,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
 import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
-import { funds as persistedFunds, type Fund } from '@shared/schema';
+import { funds as persistedFunds } from '@shared/schema';
 import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
 import type { ApiError } from '@shared/types';
@@ -24,16 +24,27 @@ import { detectPostFormat, parseCanonical } from '../adapters/fund-create-adapte
 
 const router = Router();
 
-async function getCanonicalFunds(): Promise<Fund[]> {
+type PersistedFund = typeof persistedFunds.$inferSelect;
+type StoredFund = Awaited<ReturnType<typeof storage.getAllFunds>>[number];
+
+function normalizeStoredFund(fund: StoredFund): PersistedFund {
+  return {
+    ...fund,
+    establishmentDate: (fund as Partial<PersistedFund>).establishmentDate ?? null,
+    isActive: (fund as Partial<PersistedFund>).isActive ?? true,
+  };
+}
+
+async function getCanonicalFunds(): Promise<PersistedFund[]> {
   const [dbFunds, memoryFunds] = await Promise.all([
     db.select().from(persistedFunds),
     storage.getAllFunds(),
   ]);
 
-  const mergedFunds = new Map<number, Fund>();
+  const mergedFunds = new Map<number, PersistedFund>();
 
   for (const fund of memoryFunds) {
-    mergedFunds.set(fund.id, fund);
+    mergedFunds.set(fund.id, normalizeStoredFund(fund));
   }
 
   for (const fund of dbFunds) {
@@ -43,10 +54,16 @@ async function getCanonicalFunds(): Promise<Fund[]> {
   return [...mergedFunds.values()].sort((left, right) => left.id - right.id);
 }
 
-async function getCanonicalFundById(id: number): Promise<Fund | undefined> {
+async function getCanonicalFundById(id: number): Promise<PersistedFund | undefined> {
   const [fund] = await db.select().from(persistedFunds).where(eq(persistedFunds.id, id));
-  return fund ?? (await storage.getFund(id));
+  if (fund) {
+    return fund;
+  }
+
+  const storedFund = await storage.getFund(id);
+  return storedFund ? normalizeStoredFund(storedFund) : undefined;
 }
+
 /**
  * @deprecated Use FundCreateV1Schema (canonical format) for new callers.
  * Retained for legacy-basics format support during migration.
