@@ -11,7 +11,6 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const fg = require('fast-glob');
 
 const ROOT = process.cwd();
 const DIST_ROOT = path.join(ROOT, 'dist', 'public');
@@ -93,17 +92,42 @@ function measureManifestEntryClosure(budget, manifest) {
   };
 }
 
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expandGlob(pattern) {
+  if (typeof pattern !== 'string' || pattern.length === 0) {
+    return [];
+  }
+
+  const normalizedPattern = pattern.split(/[\\/]+/).join(path.sep);
+  const directory = path.resolve(ROOT, path.dirname(normalizedPattern));
+  const filePattern = path.basename(normalizedPattern);
+
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+
+  if (!filePattern.includes('*')) {
+    const filePath = path.join(directory, filePattern);
+    return fs.existsSync(filePath) ? [filePath] : [];
+  }
+
+  const matcher = new RegExp(`^${escapeRegex(filePattern).replace(/\\\*/g, '.*')}$`);
+
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && matcher.test(entry.name))
+    .map((entry) => path.join(directory, entry.name));
+}
+
 function measureGlobSum(budget) {
   if (typeof budget.path !== 'string' || budget.path.length === 0) {
     throw new Error(`Budget "${budget.name}" requires a path`);
   }
 
-  const files = fg.sync(budget.path, {
-    cwd: ROOT,
-    absolute: true,
-    onlyFiles: true,
-    unique: true,
-  });
+  const files = expandGlob(budget.path);
 
   const size = files.reduce((sum, filePath) => {
     return sum + getFileSize(filePath, Boolean(budget.gzip));
