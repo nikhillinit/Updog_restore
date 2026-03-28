@@ -191,6 +191,18 @@ patterns:
     command: '/phoenix-phase2'
     gate: 'deterministic_must_pass'
 
+  - id: 'stabilization_roadmap'
+    priority: 21
+    category: 'Governance'
+    keywords:
+      - 'global rules'
+      - 'milestone'
+      - 'stabilization'
+      - 'roadmap'
+      - 'pr scope'
+      - 'validate:core'
+    target: 'docs/STABILIZATION-ROADMAP.md'
+
   - id: 'phoenix_waterfall'
     priority: 12
     category: 'Phoenix'

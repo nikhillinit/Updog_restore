@@ -14,18 +14,15 @@
  *
  * Frontmatter Validation Notes:
  * -----------------------------
- * This script uses a simplified frontmatter parser that extracts key-value
- * pairs between the first `---` and second `---` markers.
+ * This script parses both the discovery source YAML and per-document frontmatter
+ * with the installed `yaml` package so multi-line strings, quoted scalars, and
+ * nested maps are handled consistently.
  *
- * Known limitations:
- * - Simple grep-based extraction may match `name:` in non-frontmatter content
- * - Nested YAML structures are not fully supported
- * - Multi-line values may not parse correctly
+ * Nested frontmatter maps are flattened to leaf keys in the generated index for
+ * backward compatibility with existing consumers.
  *
- * For production use, consider:
- * - Installing `gray-matter` package for robust frontmatter parsing
- * - Installing `js-yaml` for full YAML support
- * - Adding schema validation against DOC-FRONTMATTER-SCHEMA.md
+ * Remaining improvement area:
+ * - Add schema validation against DOC-FRONTMATTER-SCHEMA.md
  *
  * To validate agent/skill names, use frontmatter-aware extraction:
  *   1. Parse only content between first `---` and next `---`
@@ -35,11 +32,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-
-// Note: In production, use proper packages. This is a self-contained version.
-// import glob from 'fast-glob';
-// import matter from 'gray-matter';
-// import yaml from 'js-yaml';
+import { parse as parseYamlContent } from 'yaml';
 
 // =============================================================================
 // TYPES
@@ -218,6 +211,65 @@ function normalizeLineEndings(content: string): string {
   return content.replace(/\r\n/g, '\n');
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseYamlObject<T extends Record<string, unknown>>(content: string): T {
+  const parsed = parseYamlContent(content);
+  if (!isPlainObject(parsed)) {
+    throw new Error('Expected YAML document to parse into an object.');
+  }
+  return parsed as T;
+}
+
+function isLeafValue(value: unknown): value is string | number | boolean | null | unknown[] {
+  return (
+    value === null ||
+    Array.isArray(value) ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
+}
+
+function collectNestedLeafValues(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>
+): void {
+  for (const [key, value] of Object.entries(source)) {
+    if (isPlainObject(value)) {
+      collectNestedLeafValues(value, target);
+      continue;
+    }
+    if (isLeafValue(value) && !(key in target)) {
+      target[key] = value;
+    }
+  }
+}
+
+function flattenFrontmatterData(source: Record<string, unknown>): Record<string, unknown> {
+  const flattened: Record<string, unknown> = {};
+
+  for (const value of Object.values(source)) {
+    if (isPlainObject(value)) {
+      collectNestedLeafValues(value, flattened);
+    }
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    if (isLeafValue(value)) {
+      flattened[key] = value;
+    }
+  }
+
+  return flattened;
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+}
+
 /**
  * Determine document type from path
  */
@@ -248,85 +300,19 @@ function parseDuration(iso8601: string): number {
 }
 
 /**
- * Simple YAML parser (handles subset needed for config)
- * In production, use js-yaml package
- */
-function parseYaml(content: string): unknown {
-  // This is a simplified parser - in production use js-yaml
-  // For now, we'll use a basic approach that handles our config structure
-  try {
-    // Remove comments
-    const lines = content.split('\n').filter((line) => !line.trim().startsWith('#'));
-    const cleanContent = lines.join('\n');
-
-    // Use Function constructor to safely evaluate YAML-like structure
-    // This is a workaround - in production, use proper yaml parser
-    const jsonLike = cleanContent
-      .replace(/:\s*\n/g, ': null\n')
-      .replace(/(\w+):/g, '"$1":')
-      .replace(/:\s*([^"\[\{,\n][^\n,\]]*)/g, (_, v) => {
-        const trimmed = v.trim();
-        if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null') {
-          return `: ${trimmed}`;
-        }
-        if (/^\d+$/.test(trimmed)) {
-          return `: ${trimmed}`;
-        }
-        return `: "${trimmed}"`;
-      });
-
-    return JSON.parse(`{${jsonLike}}`);
-  } catch {
-    throw new Error('Failed to parse YAML. Install js-yaml for proper parsing.');
-  }
-}
-
-/**
- * Simple frontmatter parser
- * In production, use gray-matter package
+ * YAML frontmatter parser that preserves multi-line and nested values.
+ * Nested objects are flattened to leaf keys for backward compatibility with
+ * the existing generated index shape.
  */
 function parseFrontmatter(content: string): { data: Record<string, unknown>; content: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
   if (!match) {
     return { data: {}, content };
   }
 
   try {
-    // Simple key-value parsing
-    const data: Record<string, unknown> = {};
-    const lines = match[1].split('\n');
-
-    for (const line of lines) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0) {
-        const key = line.slice(0, colonIdx).trim();
-        let value: unknown = line.slice(colonIdx + 1).trim();
-
-        // Handle arrays
-        if (value === '') {
-          continue;
-        }
-        if (value.startsWith('[') && value.endsWith(']')) {
-          value = value
-            .slice(1, -1)
-            .split(',')
-            .map((s) => s.trim().replace(/"/g, ''));
-        }
-        // Handle booleans
-        else if (value === 'true') value = true;
-        else if (value === 'false') value = false;
-        // Handle numbers
-        else if (/^\d+$/.test(value as string)) value = parseInt(value as string, 10);
-        // Remove quotes
-        else if ((value as string).startsWith('"') && (value as string).endsWith('"')) {
-          value = (value as string).slice(1, -1);
-        }
-
-        data[key] = value;
-      }
-    }
-
-    return { data, content: match[2] };
+    const data = flattenFrontmatterData(parseYamlObject<Record<string, unknown>>(match[1]));
+    return { data, content: content.slice(match[0].length) };
   } catch {
     return { data: {}, content };
   }
@@ -587,6 +573,84 @@ function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
   return tree;
 }
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => (typeof item === 'string' ? item : String(item)))
+    .filter((item) => item.length > 0);
+}
+
+function toStringRecord(value: unknown): Record<string, string> {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+
+  const record: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') {
+      record[key] = entry;
+    }
+  }
+  return record;
+}
+
+function normalizePatternEntry(value: unknown): Pattern | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+
+  const id = typeof value.id === 'string' ? value.id : null;
+  const category = typeof value.category === 'string' ? value.category : null;
+  const target = typeof value.target === 'string' ? value.target : null;
+  const priority =
+    typeof value.priority === 'number'
+      ? value.priority
+      : Number.parseInt(String(value.priority ?? ''), 10);
+
+  if (!id || !category || !target || Number.isNaN(priority)) {
+    return null;
+  }
+
+  return {
+    id,
+    priority,
+    category,
+    keywords: toStringArray(value.keywords),
+    target,
+    ...(typeof value.command === 'string' ? { command: value.command } : {}),
+    ...(typeof value.agent === 'string' ? { agent: value.agent } : {}),
+    ...(typeof value.warning === 'string' ? { warning: value.warning } : {}),
+    ...(typeof value.message === 'string' ? { message: value.message } : {}),
+    ...(typeof value.gate === 'string' ? { gate: value.gate } : {}),
+    ...(typeof value.secondary === 'string' ? { secondary: value.secondary } : {}),
+    ...(Array.isArray(value.commands) ? { commands: toStringArray(value.commands) } : {}),
+  };
+}
+
+function normalizeAgentEntry(value: unknown): AgentEntry | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+
+  const name = typeof value.name === 'string' ? value.name : null;
+  const skill = typeof value.skill === 'string' ? value.skill : null;
+  const phase = Array.isArray(value.phase)
+    ? value.phase
+        .filter(
+          (item): item is string | number => typeof item === 'string' || typeof item === 'number'
+        )
+        .map((item) => item)
+    : [];
+
+  if (!name || !skill) {
+    return null;
+  }
+
+  return { name, skill, phase };
+}
+
 /**
  * Helper to extract a simple field value from YAML-like content
  */
@@ -625,89 +689,45 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // For this implementation, we'll read the YAML manually
-  // In production, use js-yaml package
+  const sourceConfig = parseYamlObject<Record<string, unknown>>(rawConfig);
+  const configuration = isPlainObject(sourceConfig.configuration) ? sourceConfig.configuration : {};
+  const staleness = isPlainObject(sourceConfig.staleness) ? sourceConfig.staleness : {};
+  const agents = isPlainObject(sourceConfig.agents) ? sourceConfig.agents : {};
+
   const config: DiscoveryConfig = {
-    version: '2.0',
+    version: typeof sourceConfig.version === 'string' ? sourceConfig.version : '2.0',
     configuration: {
-      min_score_to_route: 2,
-      staleness_cadence_default: 'P180D',
-      scan_paths: [
-        '*.md', // Root-level docs (CAPABILITIES.md, etc.)
-        'docs/*.md', // Top-level docs/ files (INDEX.md, etc.)
-        'docs/**/*.md', // Nested docs/ subdirectories
-        'cheatsheets/**/*.md',
-        '.claude/*.md', // Root-level .claude files (DISCOVERY-MAP.md, WORKFLOW.md)
-        '.claude/agents/*.md',
-        '.claude/skills/**/*.md',
-        '.claude/commands/*.md',
-      ],
-      exclude_paths: [
-        'docs/_generated/**',
-        'docs/archive/**',
-        '**/node_modules/**',
-        '_archive/**',
-        'scripts/archive/**',
-      ],
-      generic_terms: ['test', 'error', 'fix', 'update', 'change', 'help'],
+      min_score_to_route:
+        typeof configuration.min_score_to_route === 'number' ? configuration.min_score_to_route : 2,
+      staleness_cadence_default:
+        typeof configuration.staleness_cadence_default === 'string'
+          ? configuration.staleness_cadence_default
+          : 'P180D',
+      scan_paths: toStringArray(configuration.scan_paths),
+      exclude_paths: toStringArray(configuration.exclude_paths),
+      generic_terms: toStringArray(configuration.generic_terms),
     },
-    decision_tree: {},
-    patterns: [],
-    agents: { phoenix: [] },
+    decision_tree: isPlainObject(sourceConfig.decision_tree)
+      ? (sourceConfig.decision_tree as Record<string, DecisionNode>)
+      : {},
+    patterns: Array.isArray(sourceConfig.patterns)
+      ? sourceConfig.patterns
+          .map(normalizePatternEntry)
+          .filter((entry): entry is Pattern => entry !== null)
+      : [],
+    agents: {
+      phoenix:
+        isPlainObject(agents.phoenix) || !Array.isArray(agents.phoenix)
+          ? []
+          : agents.phoenix
+              .map(normalizeAgentEntry)
+              .filter((entry): entry is AgentEntry => entry !== null),
+    },
     staleness: {
-      execution_claim_patterns: [
-        'tests pass',
-        'PR merged',
-        'deployed to',
-        'completed on',
-        'verified that',
-        'confirmed working',
-      ],
-      cadence_overrides: {
-        'docs/PHOENIX-SOT/**': 'P30D',
-        'CHANGELOG.md': 'P7D',
-        'cheatsheets/**': 'P90D',
-        'docs/archive/**': 'P365D',
-      },
+      execution_claim_patterns: toStringArray(staleness.execution_claim_patterns),
+      cadence_overrides: toStringRecord(staleness.cadence_overrides),
     },
   };
-
-  // Parse patterns from YAML (simplified extraction)
-  // Enhanced regex to capture optional agent, command fields
-  const patternMatches = rawConfig.matchAll(
-    /- id: "([^"]+)"\s+priority: (\d+)\s+category: "([^"]+)"\s+keywords:\s+([\s\S]*?)target: "([^"]+)"(?:\s+(?:agent: "([^"]+)")?)?(?:\s+(?:command: "([^"]+)")?)?/g
-  );
-
-  for (const match of patternMatches) {
-    const keywordsBlock = match[4];
-    const keywords = [...keywordsBlock.matchAll(/- "([^"]+)"/g)].map((m) => m[1]);
-
-    config.patterns.push({
-      id: match[1],
-      priority: parseInt(match[2], 10),
-      category: match[3],
-      keywords,
-      target: match[5],
-      ...(match[6] && { agent: match[6] }),
-      ...(match[7] && { command: match[7] }),
-    });
-  }
-
-  // Parse agents from YAML
-  const agentMatches = rawConfig.matchAll(
-    /- name: "([^"]+)"\s+skill: "([^"]+)"\s+phase: \[([^\]]+)\]/g
-  );
-
-  for (const match of agentMatches) {
-    config.agents.phoenix.push({
-      name: match[1],
-      skill: match[2],
-      phase: match[3].split(',').map((s) => s.trim()),
-    });
-  }
-
-  // Parse decision_tree from YAML
-  config.decision_tree = parseDecisionTree(rawConfig);
 
   if (isVerbose) {
     console.log(`Loaded ${config.patterns.length} patterns`);
@@ -876,7 +896,7 @@ async function main(): Promise<void> {
 |--------|-------|
 ${Object.entries(stats.by_status)
   .sort(([, a], [, b]) => b - a)
-  .map(([status, count]) => `| ${status} | ${count} |`)
+  .map(([status, count]) => `| ${escapeMarkdownTableCell(status)} | ${count} |`)
   .join('\n')}
 
 ## Stale Documents
@@ -896,8 +916,9 @@ Documents that need review (older than their cadence threshold):
     for (const doc of staleDocs.slice(0, 50)) {
       // Limit to top 50
       const claims = doc.hasExecutionClaims ? 'YES - verify!' : 'No';
-      const owner = doc.owner || 'Unassigned';
-      mdOutput += `| \`${doc.path}\` | ${doc.lastUpdated || 'Never'} | ${doc.staleDays} | ${claims} | ${owner} |\n`;
+      const owner = escapeMarkdownTableCell(doc.owner || 'Unassigned');
+      const docPath = escapeMarkdownTableCell(doc.path);
+      mdOutput += `| \`${docPath}\` | ${doc.lastUpdated || 'Never'} | ${doc.staleDays} | ${claims} | ${owner} |\n`;
     }
 
     if (staleDocs.length > 50) {
@@ -975,37 +996,36 @@ Documents without proper YAML frontmatter:
     const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
     const newFastParsed = JSON.parse(fastOutput);
 
-    // Remove environment-variable fields for comparison
-    // These fields vary by OS, timezone, gitignored files, or file system enumeration order
-    // We only validate the routing STRUCTURE (patterns, decision_tree, agents) not doc inventory
-    function stripNonStructuralFields(obj: any): void {
-      if (!obj || typeof obj !== 'object') return;
-
-      // Strip timestamp fields (present in both RouterIndex and RouterFast)
-      delete obj.generatedAt;
-      delete obj.staleDays;
-      delete obj.isStale;
-
-      // Strip all stats (counts can vary by environment due to gitignored files)
-      delete obj.stats;
-
-      // Strip entire docs array - varies by environment due to gitignored files
-      // CI and local dev environments have different file sets
-      delete obj.docs;
-
-      // Strip RouterFast-specific fields that vary by environment
-      if (obj.scoring && typeof obj.scoring === 'object') {
-        delete obj.scoring.generatedAt;
-      }
+    // Compare only the structural routing payload. Doc inventory and timestamps
+    // vary by environment and are intentionally excluded from sync checks.
+    function toStructuralRouterIndex(obj: any): Record<string, unknown> | null {
+      if (!obj || typeof obj !== 'object') return null;
+      return {
+        version: obj.version ?? null,
+        config: obj.config ?? null,
+        decision_tree: obj.decision_tree ?? null,
+        patterns: obj.patterns ?? null,
+        agents: obj.agents ?? null,
+      };
     }
 
-    if (existingParsed) stripNonStructuralFields(existingParsed);
-    stripNonStructuralFields(newParsed);
-    if (existingFastParsed) stripNonStructuralFields(existingFastParsed);
-    stripNonStructuralFields(newFastParsed);
+    function toStructuralRouterFast(obj: any): Record<string, unknown> | null {
+      if (!obj || typeof obj !== 'object') return null;
+      return {
+        version: obj.version ?? null,
+        scoring: obj.scoring ?? null,
+        config: obj.config ?? null,
+        patterns: obj.patterns ?? null,
+        keyword_to_docs: obj.keyword_to_docs ?? null,
+      };
+    }
 
-    const jsonMatch = stableStringify(existingParsed) === stableStringify(newParsed);
-    const fastMatch = stableStringify(existingFastParsed) === stableStringify(newFastParsed);
+    const jsonMatch =
+      stableStringify(toStructuralRouterIndex(existingParsed)) ===
+      stableStringify(toStructuralRouterIndex(newParsed));
+    const fastMatch =
+      stableStringify(toStructuralRouterFast(existingFastParsed)) ===
+      stableStringify(toStructuralRouterFast(newFastParsed));
 
     // For staleness report, just check if it exists (content will differ due to timestamps)
     const stalenessExists = existingStaleness.length > 0;

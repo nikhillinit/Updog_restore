@@ -122,6 +122,7 @@ For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 | Precision/numeric drift         | `phoenix-precision-guardian` agent        |
 | XIRR/fees issues                | `xirr-fees-validator` agent               |
 | Architecture decisions          | DECISIONS.md                              |
+| Milestone governance / PR scope | docs/STABILIZATION-ROADMAP.md             |
 | Troubleshooting                 | cheatsheets/daily-workflow.md             |
 
 **Machine-readable index**: `docs/_generated/router-index.json` **Staleness

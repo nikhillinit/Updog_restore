@@ -1,0 +1,257 @@
+---
+status: ACTIVE
+last_updated: 2026-03-27
+owner: Core Team
+review_cadence: P30D
+categories: [governance, roadmap, stabilization]
+keywords: [global-rules, milestones, stabilization, roadmap, governance]
+---
+
+# Stabilization Roadmap
+
+## Purpose
+
+This document is the single canonical reference for the project's global rules
+and milestone plan. It governs PR scope, milestone sequencing, and development
+constraints during the stabilization program. All contributors and agents must
+follow these rules.
+
+Milestone 0A is now landed on `main`. The canonical validation command is
+`npm run validate:core`, and the integration harness now coordinates startup
+through a machine-readable ready-file contract instead of human log parsing.
+
+## Global Rules
+
+1. **Do not start milestone N+1 until milestone N is merged and
+   `npm run validate:core` is green.**
+2. **Never use human log parsing for test coordination again.** Integration
+   harnesses must coordinate through files, environment variables, or IPC --
+   never log text.
+3. **No route removal without an allowlist smoke test first.**
+4. **Default action for uncertain surfaces is unmount, not improve.**
+5. **No LP, KPI, portal, or Compass expansion during this program.**
+6. **Every PR must state which milestone it belongs to and must touch only that
+   concern.**
+
+## Milestone Summary
+
+| Milestone | Title                                 | Status        | Exit Gate                                           |
+| --------- | ------------------------------------- | ------------- | --------------------------------------------------- |
+| 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                     |
+| 0B        | Lock The Gate                         | [NOT STARTED] | Regression test, CI gate, runbook entry             |
+| 1         | Reduce The Runtime Perimeter          | [NOT STARTED] | Route allowlist passes, no dead-end placeholders    |
+| 2         | Consolidate Route And Flag Control    | [NOT STARTED] | One flag API for route exposure                     |
+| 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math |
+| 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                     |
+| 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration     |
+| 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only              |
+| 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path               |
+
+## Milestone Details
+
+### Milestone 0A: Land The Validated Core Gate
+
+**Goal:** Merge the sandbox-proven validation fix and make it the canonical
+gate.
+
+- [x] Implement a readiness handshake between `server/bootstrap.ts` and
+      `tests/integration/global-setup.ts` so integration tests no longer depend
+      on human-readable log parsing.
+- [x] Add a machine-readable `TEST_READY_FILE` contract and remove log-based
+      port detection from the integration harness.
+- [x] Add a consolidated `validate:core` command to `package.json`.
+- [x] Update the docs so the authoritative validation command is
+      `npm run validate:core`.
+- [x] Add one short engineering rule to docs: integration harnesses must
+      coordinate through files/env/IPC, never log text.
+
+**Exit criteria:**
+
+- `npm run test:phase4:integration` passes.
+- `npm run validate:core` passes.
+- The fix is merged, not just present in a dirty worktree.
+
+---
+
+### Milestone 0B: Lock The Gate
+
+**Goal:** Make it hard to regress the validation lane.
+
+- [ ] Add a CI job or required local pre-merge checklist item for
+      `npm run validate:core`.
+- [ ] Add a small regression test around the readiness contract so future
+      startup refactors do not silently break integration tests.
+- [ ] Add a short runbook entry describing how the integration server handshake
+      works and where the ready file is written.
+
+**Exit criteria:**
+
+- The team has one obvious command and one obvious failure mode.
+- A future change to startup logging cannot break integration setup.
+
+---
+
+### Milestone 1: Reduce The Runtime Perimeter
+
+**Goal:** Make the mounted app match the internal-tool product truth.
+
+- [ ] Create a route allowlist test for the routes that should remain live from
+      `client/src/App.tsx:239` and `client/src/App.tsx:355`.
+- [ ] Keep live only the core internal surfaces: `/fund-setup`,
+      `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`, `/pipeline`,
+      `/reports`, `/settings`, `/help`.
+- [ ] Unmount LP routes currently mounted at `client/src/App.tsx:293` and
+      `client/src/App.tsx:361`.
+- [ ] Remove or archive placeholder surfaces evidenced in
+      `client/src/pages/planning.tsx:65`, `client/src/pages/planning.tsx:113`,
+      `client/src/pages/kpi-manager/index.tsx:13`, and
+      `client/src/pages/kpi-submission.tsx:58`.
+- [ ] Sync sidebar/navigation in
+      `client/src/components/layout/navigation-config.ts` to the reduced route
+      set.
+- [ ] Update README and build-readiness docs immediately after route changes.
+
+**Exit criteria:**
+
+- Mounted routes match product truth.
+- The route allowlist test passes.
+- No dead-end placeholder page is reachable.
+
+---
+
+### Milestone 2: Consolidate Route And Flag Control
+
+**Goal:** One control plane for route exposure.
+
+- [ ] Choose one canonical client flag runtime. Recommendation: use the
+      generated/unified path centered on
+      `client/src/core/flags/unifiedClientFlags.ts` and retire route decisions
+      from `client/src/core/flags/featureFlags.ts:1`.
+- [ ] Move route gating and secondary-surface policy to that one runtime.
+- [ ] Remove localStorage overrides for product route exposure.
+- [ ] Ensure route mounting, navigation visibility, and docs all derive from the
+      same control layer.
+
+**Exit criteria:**
+
+- One flag API determines route exposure.
+- No product route is mounted outside that control path.
+
+---
+
+### Milestone 3: Make Shared Domain Logic Authoritative
+
+**Goal:** Remove drift between client and shared math.
+
+- [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
+- [ ] Migrate callers away from duplicated client engines such as
+      `client/src/core/LiquidityEngine.ts:18` toward
+      `shared/core/liquidity/LiquidityEngine.ts:22`.
+- [ ] Do the same for reserve, pacing, and cohort engines, starting with the
+      largest or most business-critical diffs.
+- [ ] Delete client duplicates only after parity tests and caller migration are
+      complete.
+
+**Exit criteria:**
+
+- Shared code is the single source of truth for core fund math.
+- No duplicated engine pair remains mounted in production paths.
+
+---
+
+### Milestone 4: Move Finalization Authority To The Server
+
+**Goal:** One server-owned lifecycle transaction.
+
+- [ ] Replace the client orchestration in `client/src/pages/ReviewStep.tsx:213`
+      with one server finalize endpoint.
+- [ ] Shrink the review page so it submits once and renders progress/result
+      state only.
+- [ ] Keep `client/src/stores/fundStore.ts:124` as draft UI state, not lifecycle
+      authority.
+- [ ] Finish migration away from deprecated create payload support in
+      `server/routes/funds.ts:25` and `server/routes/funds.ts:28`.
+- [ ] Replace route-level `console.warn` usage in `server/routes/funds.ts:155`
+      and `server/routes/funds.ts:206` with structured logger calls.
+
+**Exit criteria:**
+
+- One request owns create, draft persistence, publish, and result kickoff.
+- The review page is orchestration-light.
+
+---
+
+### Milestone 5: Clean Backend Boundaries
+
+**Goal:** No mixed ownership and no fake persistence on mounted paths.
+
+- [ ] Split remaining inline endpoints out of `server/routes.ts:35`, especially
+      the ones still defined directly at `server/routes.ts:131` and
+      `server/routes.ts:315`.
+- [ ] Tighten runtime storage selection from `server/storage.ts:627` so
+      unsupported environments fail fast instead of silently dropping to memory.
+- [ ] Remove or implement methods still returning mock objects, including the
+      areas flagged at `server/storage.ts:565` and `server/storage.ts:584`.
+- [ ] Add a boot smoke test proving live routes register with the supported
+      storage mode.
+
+**Exit criteria:**
+
+- No mounted endpoint pretends to persist data it does not.
+- Route registration is modular and explicit.
+
+---
+
+### Milestone 6: Add Narrow Internal Features Only
+
+**Goal:** Improve analyst throughput inside the stabilized perimeter.
+
+- [ ] Put reserve-planning persistence into the live portfolio surface, not the
+      old planning page.
+- [ ] Add publish history, recalculation controls, and config-versus-results
+      diffing to `client/src/pages/fund-model-results.tsx:86`.
+- [ ] Replace blind polling in `client/src/pages/fund-model-results.tsx:121`
+      with operation-aware status where practical.
+- [ ] Keep every new feature inside the reduced route set.
+
+**Exit criteria:**
+
+- New work improves the internal team's core workflow directly.
+- No new side surface is created.
+
+---
+
+### Milestone 7: Reduce Tooling Entropy
+
+**Goal:** Make the repo operable without archaeology.
+
+- [ ] Inventory scripts into supported, internal migration, and archive.
+- [ ] Keep a small supported command set in `README.md` and
+      `docs/BUILD_READINESS.md`.
+- [ ] Archive obsolete plans/docs after each milestone instead of letting them
+      accumulate.
+
+**Exit criteria:**
+
+- The supported command path is short and obvious.
+- Historical docs no longer compete with live docs.
+
+## What Changed From The Prior Plan
+
+- Milestone 0 is now split into 0A and 0B because the sandbox proved the exact
+  first fix and showed that hardening it is separate work.
+- `validate:core` is now mandatory infrastructure, not just a convenience
+  command.
+- Route allowlist testing is now required before perimeter reduction.
+- A dedicated test boot script moved from "must do early" to "optional later
+  improvement," because the existing API-only boot path already works.
+- Log cleanup in fund routes moved out of Milestone 0 and into lifecycle/backend
+  cleanup, where it belongs.
+
+## Immediate Next Actions
+
+1. Add a CI job or required pre-merge check for `npm run validate:core` and
+   close out Milestone 0B.
+2. Add the route allowlist test before touching `client/src/App.tsx`.
+3. Build the perimeter matrix and begin Milestone 1 route removal in one focused
+   branch.
