@@ -138,6 +138,19 @@ describe('route perimeter governance', () => {
     }
   );
 
+  it.each([
+    '/analytics',
+    '/monte-carlo',
+    '/secondary-market',
+    '/notion-integration',
+    '/dev-dashboard',
+  ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
+    await renderAt(path);
+
+    expect(await screen.findByText('Not Found Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe(path);
+  });
+
   it('hides the LP dashboard when LP reporting is disabled', async () => {
     await renderAt('/lp/dashboard', { ENABLE_LP_REPORTING: false });
 

@@ -77,13 +77,36 @@ describe('sidebar results navigation', () => {
     expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
   });
 
-  it('restores planning to the legacy navigation when the surface is explicitly re-enabled', async () => {
+  it('keeps planning out of navigation even when the route is explicitly re-enabled', async () => {
     const { getNavigationItems } = await loadNavigationModules({
       NEW_IA: false,
       HIDE_PLANNING_SURFACE: false,
     });
 
-    expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(true);
+    expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
+  });
+
+  it('keeps the main navigation limited to the reduced core perimeter', async () => {
+    const { getNavigationItems } = await loadNavigationModules({ NEW_IA: false });
+
+    expect(getNavigationItems().map((item) => item.id)).toEqual([
+      'dashboard',
+      'portfolio',
+      'pipeline',
+      'model-results',
+      'reports',
+    ]);
+  });
+
+  it('shows settings and help in the sidebar footer for both navigation modes', async () => {
+    const legacy = await loadNavigationModules({ NEW_IA: false });
+    const simplified = await loadNavigationModules({ NEW_IA: true });
+
+    expect(legacy.getFooterNavigationItems().map((item) => item.id)).toEqual(['settings', 'help']);
+    expect(simplified.getFooterNavigationItems().map((item) => item.id)).toEqual([
+      'settings',
+      'help',
+    ]);
   });
 
   it('prefers the route fund ID over currentFund when resolving the results href', async () => {

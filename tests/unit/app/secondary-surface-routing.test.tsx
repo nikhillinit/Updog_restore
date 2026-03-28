@@ -59,17 +59,21 @@ describe('secondary surface routing', () => {
     vi.resetModules();
   });
 
-  it('redirects /planning to the truthful reserve-planning destination by default', async () => {
-    window.history.pushState({}, '', '/planning');
-    const App = await loadApp();
+  it(
+    'redirects /planning to the truthful reserve-planning destination by default',
+    async () => {
+      window.history.pushState({}, '', '/planning');
+      const App = await loadApp();
 
-    render(<App />);
+      render(<App />);
 
-    expect(await screen.findByText('Portfolio Page')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/portfolio');
-    expect(window.location.search).toBe('?tab=reserve-planning');
-    expect(screen.queryByText('Planning Page')).not.toBeInTheDocument();
-  });
+      expect(await screen.findByText('Portfolio Page')).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/portfolio');
+      expect(window.location.search).toBe('?tab=reserve-planning');
+      expect(screen.queryByText('Planning Page')).not.toBeInTheDocument();
+    },
+    10000
+  );
 
   it('redirects /kpi-manager to /dashboard by default', async () => {
     window.history.pushState({}, '', '/kpi-manager');

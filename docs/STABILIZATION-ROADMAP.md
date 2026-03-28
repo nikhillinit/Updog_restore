@@ -107,15 +107,15 @@ gate.
       `LP_ROUTES`, legacy redirects, public contracts, and admin entrypoints.
 - [x] Wire `ENABLE_LP_REPORTING` into route mounting or remove LP routes from
       the main shell so LP exposure is explicitly governed.
-- [ ] Reduce default exposure down to the core internal workflow:
+- [x] Reduce default exposure down to the core internal workflow:
       `/fund-setup`, `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`,
       `/pipeline`, `/reports`, `/settings`, `/help`.
 - [ ] Remove or archive placeholder surfaces, including the standalone planning
       and KPI pages, after the registry-backed perimeter tests guard the change.
 - [ ] Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract
       decisions instead of incidental leftovers.
-- [ ] Sync `client/src/components/layout/navigation-config.ts`, README, and
-      build-readiness docs to the reduced route set.
+- [ ] Sync README and build-readiness docs to the reduced route set after the
+      public-contract and placeholder cleanup decisions are finalized.
 
 **Exit criteria:**
 
@@ -261,9 +261,9 @@ gate.
 
 ## Immediate Next Actions
 
-1. Use the new route registry/tests to reduce default runtime exposure in one
-   focused branch.
-2. Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract decisions
+1. Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract decisions
    during the perimeter cut instead of incidental leftovers.
-3. Sync navigation and docs only after the reduced perimeter is enforced by the
-   registry-backed tests.
+2. Remove or archive the standalone placeholder pages once the redirect-backed
+   path is confirmed stable.
+3. Sync README and build-readiness docs after the public-contract perimeter is
+   finalized.

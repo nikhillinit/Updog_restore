@@ -1,25 +1,13 @@
-import { FLAGS } from '@/core/flags/featureFlags';
 import { extractFundResultsRouteId, getLocationPathname } from '@/lib/fund-routes';
 import { isSecondarySurfaceNavVisible } from '@/lib/secondary-surface-policy';
 import {
-  BarChart3,
-  Building2,
-  TrendingUp,
   FileText,
   Settings,
   Calculator,
-  Activity,
   Briefcase,
-  Target,
-  Percent,
-  DollarSign,
-  Clock,
-  AlertTriangle,
-  Monitor,
   LayoutDashboard,
   LineChart,
   HelpCircle,
-  FlaskConical,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -70,11 +58,7 @@ const MODEL_RESULTS_ITEM: NavigationItem = {
   target: FUND_RESULTS_TARGET,
 };
 
-/**
- * Simplified IA (NEW_IA enabled)
- * Uses the same route-aware results destination as the full navigation.
- */
-const SIMPLE_NAV: readonly NavigationItem[] = [
+const CORE_NAV: readonly NavigationItem[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -84,12 +68,6 @@ const SIMPLE_NAV: readonly NavigationItem[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, target: staticTarget('/portfolio') },
   { id: 'pipeline', label: 'Pipeline', icon: LineChart, target: staticTarget('/pipeline') },
   MODEL_RESULTS_ITEM,
-  {
-    id: 'monte-carlo',
-    label: 'Monte Carlo',
-    icon: FlaskConical,
-    target: staticTarget('/monte-carlo'),
-  },
   { id: 'reports', label: 'Reports', icon: FileText, target: staticTarget('/reports') },
 ];
 
@@ -101,130 +79,6 @@ const FOOTER_NAV: readonly NavigationItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, target: staticTarget('/settings') },
   { id: 'help', label: 'Help', icon: HelpCircle, target: staticTarget('/help') },
 ];
-
-// Full navigation (streamlined)
-const FULL_NAV: readonly NavigationItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, target: staticTarget('/dashboard') },
-  { id: 'portfolio', label: 'Portfolio', icon: Building2, target: staticTarget('/portfolio') },
-  {
-    id: 'allocation-manager',
-    label: 'Allocation Manager',
-    icon: Calculator,
-    target: staticTarget('/allocation-manager'),
-  },
-  { id: 'planning', label: 'Planning', icon: Briefcase, target: staticTarget('/planning') },
-  {
-    id: 'forecasting',
-    label: 'Forecasting',
-    icon: TrendingUp,
-    target: staticTarget('/forecasting'),
-  },
-  {
-    id: 'scenario-builder',
-    label: 'Scenario Builder',
-    icon: Target,
-    target: staticTarget('/scenario-builder'),
-  },
-  {
-    id: 'moic-analysis',
-    label: 'MOIC Analysis',
-    icon: Calculator,
-    target: staticTarget('/moic-analysis'),
-  },
-  {
-    id: 'return-the-fund',
-    label: 'Return the Fund',
-    icon: TrendingUp,
-    target: staticTarget('/return-the-fund'),
-  },
-  {
-    id: 'partial-sales',
-    label: 'Partial Sales',
-    icon: Percent,
-    target: staticTarget('/partial-sales'),
-  },
-  {
-    id: 'financial-modeling',
-    label: 'Financial Modeling',
-    icon: Calculator,
-    target: staticTarget('/financial-modeling'),
-  },
-  MODEL_RESULTS_ITEM,
-  {
-    id: 'performance',
-    label: 'Performance',
-    icon: TrendingUp,
-    target: staticTarget('/performance'),
-  },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, target: staticTarget('/analytics') },
-  {
-    id: 'portfolio-analytics',
-    label: 'Portfolio Analytics',
-    icon: Activity,
-    target: staticTarget('/portfolio-analytics'),
-  },
-  {
-    id: 'cash-management',
-    label: 'Cash Management',
-    icon: DollarSign,
-    target: staticTarget('/cash-management'),
-  },
-  {
-    id: 'secondary-market',
-    label: 'Secondary Market',
-    icon: Activity,
-    target: staticTarget('/secondary-market'),
-  },
-  {
-    id: 'notion-integration',
-    label: 'Notion Integration',
-    icon: Settings,
-    target: staticTarget('/notion-integration'),
-  },
-  {
-    id: 'sensitivity-analysis',
-    label: 'Sensitivity Analysis',
-    icon: Target,
-    target: staticTarget('/sensitivity-analysis'),
-  },
-  {
-    id: 'time-travel',
-    label: 'Time-Travel Analytics',
-    icon: Clock,
-    target: staticTarget('/time-travel'),
-  },
-  {
-    id: 'variance-tracking',
-    label: 'Variance Tracking',
-    icon: AlertTriangle,
-    target: staticTarget('/variance-tracking'),
-  },
-  {
-    id: 'portfolio-constructor',
-    label: 'Portfolio Constructor',
-    icon: Settings,
-    target: staticTarget('/portfolio-constructor'),
-  },
-  {
-    id: 'monte-carlo',
-    label: 'Monte Carlo',
-    icon: FlaskConical,
-    target: staticTarget('/monte-carlo'),
-  },
-  {
-    id: 'dev-dashboard',
-    label: 'Dev Dashboard',
-    icon: Monitor,
-    target: staticTarget('/dev-dashboard'),
-  },
-  { id: 'reports', label: 'Reports', icon: FileText, target: staticTarget('/reports') },
-  { id: 'settings', label: 'Settings', icon: Settings, target: staticTarget('/settings') },
-];
-
-// Note: Removed redundant items:
-// - 'investments' and 'investments-table' (redundant with Portfolio)
-// - 'cap-tables' (not relevant for fund dashboard)
-// - 'kpi-manager' (moved to Settings page)
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -264,12 +118,12 @@ export function isNavigationItemEnabled(item: NavigationItem, context: Navigatio
 }
 
 export function getNavigationItems(): readonly NavigationItem[] {
-  const items = FLAGS.NEW_IA ? SIMPLE_NAV : FULL_NAV;
+  const items = CORE_NAV;
   return items.filter((item) => isSecondarySurfaceNavVisible(item.id));
 }
 
 export function getFooterNavigationItems(): readonly NavigationItem[] {
-  return FLAGS.NEW_IA ? FOOTER_NAV : [];
+  return FOOTER_NAV;
 }
 
 export function getActiveNavigationId(location: string): string {
