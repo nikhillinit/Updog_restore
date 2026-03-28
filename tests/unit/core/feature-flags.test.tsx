@@ -13,15 +13,14 @@ describe('legacy feature-flags compatibility', () => {
     expect('ENABLE_LP_REPORTING' in FLAGS).toBe(false);
     expect('ONBOARDING_TOUR' in FLAGS).toBe(false);
     expect('UI_CATALOG' in FLAGS).toBe(false);
+    expect('ENABLE_ENGINE_INTEGRATION' in FLAGS).toBe(false);
   });
 
   it('prefers a localStorage override for remaining compatibility flags', async () => {
     localStorage.setItem('FF_NEW_IA', 'true');
-    localStorage.setItem('FF_ENABLE_ENGINE_INTEGRATION', 'true');
 
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
     expect(FLAGS.NEW_IA).toBe(true);
-    expect(FLAGS.ENABLE_ENGINE_INTEGRATION).toBe(true);
   });
 });

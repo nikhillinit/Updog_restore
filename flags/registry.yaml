@@ -113,6 +113,20 @@ flags:
     dependencies: ['enable_kpi_selectors']
     expiresAt: null
 
+  enable_engine_integration:
+    default: false
+    description: 'Wizard engine comparison and recommendations panel'
+    owner: 'analytics'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_ENGINE_INTEGRATION']
+
   # ============================================
   # ENGINE FLAGS
   # ============================================

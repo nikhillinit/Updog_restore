@@ -20,7 +20,6 @@ import {
 import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
 import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { useEngineComparison } from '@/hooks/useEngineComparison';
-import { FLAGS } from '@/core/flags/featureFlags';
 import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
 import { EngineRecommendationsPanel } from './capital-allocation/EngineRecommendationsPanel';
@@ -294,7 +293,7 @@ export function CapitalAllocationStep({
       </div>
 
       {/* Engine Recommendations (feature-flagged) */}
-      {FLAGS.ENABLE_ENGINE_INTEGRATION && (
+      {engineState.isEnabled && (
         <EngineRecommendationsPanel engineState={engineState} userReserveRatio={reserveRatio} />
       )}
 
