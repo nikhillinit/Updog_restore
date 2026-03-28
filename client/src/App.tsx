@@ -308,13 +308,13 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
 // Route config arrays (order-preserving, first-match routing)
 // ---------------------------------------------------------------------------
 
-interface AppRouteEntry {
+export interface AppRouteEntry {
   path: string;
   component: React.ComponentType<Record<string, unknown>>;
   isProtected?: boolean;
 }
 
-const APP_ROUTES: AppRouteEntry[] = [
+export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
@@ -363,12 +363,12 @@ const APP_ROUTES: AppRouteEntry[] = [
   { path: '/dashboard-modern', component: ModernDashboard, isProtected: true },
 ];
 
-interface LPRouteEntry {
+export interface LPRouteEntry {
   path: string;
   component: React.ComponentType;
 }
 
-const LP_ROUTES: LPRouteEntry[] = [
+export const LP_ROUTES: LPRouteEntry[] = [
   { path: '/lp/dashboard', component: LPDashboard },
   { path: '/lp/fund-detail/:fundId', component: LPFundDetail },
   { path: '/lp/capital-account', component: LPCapitalAccount },
@@ -376,6 +376,20 @@ const LP_ROUTES: LPRouteEntry[] = [
   { path: '/lp/reports', component: LPReports },
   { path: '/lp/settings', component: LPSettings },
 ];
+
+export const LEGACY_REDIRECT_ROUTES = {
+  analyticsLegacy: '/analytics-legacy',
+  planningLegacy: '/planning-legacy',
+} as const;
+
+export const PUBLIC_ENTRY_ROUTES = {
+  sharedDashboard: '/shared/:shareId',
+  portalCatchAll: '/portal/:rest*',
+} as const;
+
+export const ADMIN_GATED_ROUTES = {
+  uiCatalog: '/admin/ui-catalog',
+} as const;
 
 function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
   const redirectTarget = getSecondarySurfaceRedirect(path);
@@ -426,25 +440,29 @@ function PageLoadingFallback() {
 }
 
 function Router() {
+  const lpRoutes = FLAGS.ENABLE_LP_REPORTING ? LP_ROUTES : [];
+
   return (
     <Suspense fallback={<PageLoadingFallback />}>
       <Switch>
         <Route path="/" component={HomeRoute} />
         {APP_ROUTES.map(renderAppRoute)}
-        <Route path="/analytics-legacy">{() => <Redirect to="/dashboard?tab=performance" />}</Route>
-        <Route path="/planning-legacy">
+        <Route path={LEGACY_REDIRECT_ROUTES.analyticsLegacy}>
+          {() => <Redirect to="/dashboard?tab=performance" />}
+        </Route>
+        <Route path={LEGACY_REDIRECT_ROUTES.planningLegacy}>
           {() => <Redirect to="/portfolio?tab=reserve-planning" />}
         </Route>
-        <Route path="/shared/:shareId" component={SharedDashboard} />
-        {LP_ROUTES.map(renderLPRoute)}
-        <Route path="/admin/ui-catalog">
+        <Route path={PUBLIC_ENTRY_ROUTES.sharedDashboard} component={SharedDashboard} />
+        {lpRoutes.map(renderLPRoute)}
+        <Route path={ADMIN_GATED_ROUTES.uiCatalog}>
           {() => (
             <AdminRoute flag="UI_CATALOG">
               <UICatalog />
             </AdminRoute>
           )}
         </Route>
-        <Route path="/portal/:rest*" component={PortalAccessDenied} />
+        <Route path={PUBLIC_ENTRY_ROUTES.portalCatchAll} component={PortalAccessDenied} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
