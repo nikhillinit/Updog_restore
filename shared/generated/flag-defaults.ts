@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-02-17T01:16:12.286Z
+ * Generated at: 2026-03-28T18:32:58.960Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -99,7 +99,7 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     exposeToClient: true,
 
     environments: {
-      development: true,
+      development: false,
       staging: false,
       production: false,
     },
@@ -256,7 +256,7 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     exposeToClient: true,
     adminOnly: true,
     environments: {
-      development: true,
+      development: false,
       staging: false,
       production: false,
     },
@@ -272,7 +272,7 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
     exposeToClient: true,
 
     environments: {
-      development: true,
+      development: false,
       staging: false,
       production: false,
     },

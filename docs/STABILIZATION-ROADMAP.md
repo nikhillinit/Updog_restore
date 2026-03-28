@@ -38,17 +38,17 @@ through a machine-readable ready-file contract instead of human log parsing.
 
 ## Milestone Summary
 
-| Milestone | Title                                 | Status        | Exit Gate                                           |
-| --------- | ------------------------------------- | ------------- | --------------------------------------------------- |
-| 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                     |
-| 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry             |
+| Milestone | Title                                 | Status        | Exit Gate                                                     |
+| --------- | ------------------------------------- | ------------- | ------------------------------------------------------------- |
+| 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                               |
+| 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry                       |
 | 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
-| 2         | Consolidate Route And Flag Control    | [NOT STARTED] | One flag API for route exposure                     |
-| 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math |
-| 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                     |
-| 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration     |
-| 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only              |
-| 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path               |
+| 2         | Consolidate Route And Flag Control    | [IN PROGRESS] | One flag API for route exposure                               |
+| 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math           |
+| 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                               |
+| 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
+| 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
+| 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path                         |
 
 ## Milestone Details
 
@@ -107,9 +107,9 @@ gate.
       `LP_ROUTES`, legacy redirects, public contracts, and admin entrypoints.
 - [x] Wire `ENABLE_LP_REPORTING` into route mounting or remove LP routes from
       the main shell so LP exposure is explicitly governed.
-- [x] Reduce default exposure down to the core internal workflow:
-      `/fund-setup`, `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`,
-      `/pipeline`, `/reports`, `/settings`, `/help`.
+- [x] Reduce default exposure down to the core internal workflow: `/fund-setup`,
+      `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`, `/pipeline`,
+      `/reports`, `/settings`, `/help`.
 - [x] Remove or archive placeholder surfaces, including the standalone planning
       and KPI pages, after the registry-backed perimeter tests guard the change.
 - [x] Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract
@@ -129,12 +129,16 @@ gate.
 
 **Goal:** One control plane for route exposure.
 
-- [ ] Choose one canonical client flag runtime. Recommendation: use the
-      generated/unified path centered on
-      `client/src/core/flags/unifiedClientFlags.ts` and retire route decisions
-      from `client/src/core/flags/featureFlags.ts:1`.
-- [ ] Move route gating and secondary-surface policy to that one runtime.
-- [ ] Remove localStorage overrides for product route exposure.
+- [x] Introduce a route-control adapter over the generated registry for
+      route/admin exposure, centered on `client/src/app/route-control-flags.ts`.
+- [x] Move LP route mounting, onboarding-tour shell mounting, and admin route
+      gating onto that route-control layer.
+- [x] Remove localStorage overrides for route/admin exposure in the canonical
+      route-control path and align generated defaults with the current product
+      perimeter.
+- [ ] Retire the remaining route-facing legacy consumers from
+      `client/src/core/flags/featureFlags.ts` once equivalent generated keys and
+      tests exist for every consumer.
 - [ ] Ensure route mounting, navigation visibility, and docs all derive from the
       same control layer.
 

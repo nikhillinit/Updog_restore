@@ -78,7 +78,7 @@ describe('route governance registry', () => {
       expect(getRouteGovernanceEntry(route.path)).toMatchObject({
         exposure: 'lp-surface',
         surface: 'lp-route',
-        flag: 'ENABLE_LP_REPORTING',
+        flag: 'enable_lp_reporting',
       });
     }
 
@@ -101,7 +101,7 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry(ADMIN_GATED_ROUTES.uiCatalog)).toMatchObject({
       exposure: 'admin-gated',
       surface: 'admin-gated',
-      flag: 'UI_CATALOG',
+      flag: 'ui_catalog',
     });
   });
 

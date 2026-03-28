@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-02-17T01:16:12.283Z
+ * Generated at: 2026-03-28T18:32:58.956Z
  *
  * Run `npm run flags:generate` to regenerate
  */

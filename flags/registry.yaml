@@ -93,7 +93,7 @@ flags:
     risk: medium
     exposeToClient: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: ['enable_kpi_selectors', 'enable_operations_hub']
@@ -240,7 +240,7 @@ flags:
     exposeToClient: true # But no localStorage override (admin flag)
     adminOnly: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: []
@@ -254,7 +254,7 @@ flags:
     risk: low
     exposeToClient: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: []
