@@ -125,6 +125,7 @@ Pattern matching uses OR logic: any match triggers the route.
 | "db validate" OR "schema check" OR "before db:push"              | /db-validate command                                    | Pre-push schema validation                 |
 | "orchestrate" OR "chain agents" OR "auto validate"               | workflow-orchestrator agent                             | Auto-chain agents based on changes         |
 | "agent metrics" OR "agent performance" OR "usage tracking"       | .claude/AGENT-METRICS.md                                | Agent performance tracking                 |
+| "global rules" OR "milestone" OR "stabilization" OR "pr scope"   | docs/STABILIZATION-ROADMAP.md                           | Governance rules and milestone sequencing  |
 | "error" OR "debug" OR "troubleshoot"                             | cheatsheets/daily-workflow.md                           | Platform issues                            |
 | "module not found" OR "typescript" OR "path"                     | cheatsheets/daily-workflow.md                           | TS/module resolution                       |
 
