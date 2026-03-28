@@ -33,8 +33,8 @@ through a machine-readable ready-file contract instead of human log parsing.
 5. **Default action for uncertain surfaces is unmount, not improve.** No LP,
    KPI, portal, or Compass expansion during this program.
 6. **Every PR must state which milestone it belongs to and must touch only that
-   concern.** Sandbox validation is required where practical, but client route
-   tests may run in the primary workspace until worktree portability is fixed.
+   concern.** Sandbox validation is required where practical, and route or nav
+   changes should validate against the exported governance registry.
 
 ## Milestone Summary
 
@@ -42,7 +42,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | --------- | ------------------------------------- | ------------- | --------------------------------------------------- |
 | 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                     |
 | 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry             |
-| 1         | Reduce The Runtime Perimeter          | [IN PROGRESS] | Registry/tests cover all mounted entrypoints, runtime reduced |
+| 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
 | 2         | Consolidate Route And Flag Control    | [NOT STARTED] | One flag API for route exposure                     |
 | 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math |
 | 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                     |
@@ -110,11 +110,11 @@ gate.
 - [x] Reduce default exposure down to the core internal workflow:
       `/fund-setup`, `/fund-model-results/:fundId`, `/dashboard`, `/portfolio`,
       `/pipeline`, `/reports`, `/settings`, `/help`.
-- [ ] Remove or archive placeholder surfaces, including the standalone planning
+- [x] Remove or archive placeholder surfaces, including the standalone planning
       and KPI pages, after the registry-backed perimeter tests guard the change.
-- [ ] Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract
+- [x] Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract
       decisions instead of incidental leftovers.
-- [ ] Sync README and build-readiness docs to the reduced route set after the
+- [x] Sync README and build-readiness docs to the reduced route set after the
       public-contract and placeholder cleanup decisions are finalized.
 
 **Exit criteria:**
@@ -261,9 +261,9 @@ gate.
 
 ## Immediate Next Actions
 
-1. Treat `/shared/:shareId` and `/portal/:rest*` as explicit contract decisions
-   during the perimeter cut instead of incidental leftovers.
-2. Remove or archive the standalone placeholder pages once the redirect-backed
-   path is confirmed stable.
-3. Sync README and build-readiness docs after the public-contract perimeter is
-   finalized.
+1. Choose the canonical route-control layer so runtime exposure does not stay
+   split between `featureFlags.ts` and the broader unified client-flag system.
+2. Remove product-surface localStorage overrides that no longer belong in the
+   stabilized perimeter.
+3. Keep future route or nav changes flowing through the exported governance
+   registry and its structural tests.

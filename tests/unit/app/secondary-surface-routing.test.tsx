@@ -60,7 +60,7 @@ describe('secondary surface routing', () => {
   });
 
   it(
-    'redirects /planning to the truthful reserve-planning destination by default',
+    'archives /planning as a permanent redirect to the truthful reserve-planning destination',
     async () => {
       window.history.pushState({}, '', '/planning');
       const App = await loadApp();
@@ -95,16 +95,5 @@ describe('secondary surface routing', () => {
     expect(await screen.findByText('Dashboard Page')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/dashboard');
     expect(screen.queryByText('KPI Submission Page')).not.toBeInTheDocument();
-  });
-
-  it('allows planning to be explicitly re-enabled', async () => {
-    localStorage.setItem('FF_HIDE_PLANNING_SURFACE', 'false');
-    window.history.pushState({}, '', '/planning');
-    const App = await loadApp();
-
-    render(<App />);
-
-    expect(await screen.findByText('Planning Page')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/planning');
   });
 });

@@ -1,5 +1,6 @@
 import {
   ADMIN_GATED_ROUTES,
+  ARCHIVED_PLACEHOLDER_ROUTES,
   APP_ROUTES,
   LEGACY_REDIRECT_ROUTES,
   LP_ROUTES,
@@ -10,6 +11,7 @@ import type { Flags } from '@/core/flags/featureFlags';
 export type RouteSurface =
   | 'root-entry'
   | 'app-route'
+  | 'archived-placeholder'
   | 'lp-route'
   | 'public-contract'
   | 'legacy-redirect'
@@ -18,7 +20,7 @@ export type RouteSurface =
 export type RouteExposure =
   | 'core-live'
   | 'internal-live'
-  | 'quarantined'
+  | 'archived-placeholder'
   | 'lp-surface'
   | 'public-contract'
   | 'legacy-redirect'
@@ -47,35 +49,6 @@ const CORE_LIVE_ROUTE_PATHS = [
   '/help',
 ] as const;
 
-const QUARANTINED_ROUTE_METADATA: Readonly<
-  Record<
-    string,
-    {
-      flag: keyof Flags;
-      navId?: string;
-      redirectTarget: string;
-      notes: string;
-    }
-  >
-> = {
-  '/planning': {
-    flag: 'HIDE_PLANNING_SURFACE',
-    navId: 'planning',
-    redirectTarget: '/portfolio?tab=reserve-planning',
-    notes: 'Standalone planning remains quarantined while reserve planning is folded into portfolio.',
-  },
-  '/kpi-manager': {
-    flag: 'HIDE_KPI_SURFACES',
-    redirectTarget: '/dashboard',
-    notes: 'Legacy KPI manager is quarantined until the product perimeter is reduced.',
-  },
-  '/kpi-submission': {
-    flag: 'HIDE_KPI_SURFACES',
-    redirectTarget: '/dashboard',
-    notes: 'Legacy KPI submission is quarantined until the product perimeter is reduced.',
-  },
-} as const;
-
 function ensureUniquePaths(entries: RouteGovernanceEntry[]): readonly RouteGovernanceEntry[] {
   const seen = new Set<string>();
 
@@ -90,22 +63,6 @@ function ensureUniquePaths(entries: RouteGovernanceEntry[]): readonly RouteGover
 }
 
 function toAppRouteGovernanceEntry(route: (typeof APP_ROUTES)[number]): RouteGovernanceEntry {
-  const quarantineMetadata =
-    QUARANTINED_ROUTE_METADATA[route.path as keyof typeof QUARANTINED_ROUTE_METADATA];
-
-  if (quarantineMetadata != null) {
-    return {
-      path: route.path,
-      surface: 'app-route',
-      exposure: 'quarantined',
-      isProtected: Boolean(route.isProtected),
-      flag: quarantineMetadata.flag,
-      ...(quarantineMetadata.navId != null ? { navId: quarantineMetadata.navId } : {}),
-      redirectTarget: quarantineMetadata.redirectTarget,
-      notes: quarantineMetadata.notes,
-    };
-  }
-
   return {
     path: route.path,
     surface: 'app-route',
@@ -113,6 +70,19 @@ function toAppRouteGovernanceEntry(route: (typeof APP_ROUTES)[number]): RouteGov
       ? 'core-live'
       : 'internal-live',
     isProtected: Boolean(route.isProtected),
+  };
+}
+
+function toArchivedPlaceholderEntry(
+  route: (typeof ARCHIVED_PLACEHOLDER_ROUTES)[number]
+): RouteGovernanceEntry {
+  return {
+    path: route.path,
+    surface: 'archived-placeholder',
+    exposure: 'archived-placeholder',
+    isProtected: false,
+    redirectTarget: route.redirectTarget,
+    notes: route.notes,
   };
 }
 
@@ -177,6 +147,7 @@ const SPECIAL_ROUTE_GOVERNANCE: RouteGovernanceEntry[] = [
 export const ROUTE_GOVERNANCE_REGISTRY = ensureUniquePaths([
   ...SPECIAL_ROUTE_GOVERNANCE,
   ...APP_ROUTES.map(toAppRouteGovernanceEntry),
+  ...ARCHIVED_PLACEHOLDER_ROUTES.map(toArchivedPlaceholderEntry),
   ...LP_ROUTES.map(toLPRouteGovernanceEntry),
 ]);
 
@@ -184,8 +155,8 @@ export const CORE_LIVE_GOVERNED_PATHS = ROUTE_GOVERNANCE_REGISTRY.filter(
   (entry) => entry.exposure === 'core-live'
 ).map((entry) => entry.path);
 
-export const QUARANTINED_GOVERNED_PATHS = ROUTE_GOVERNANCE_REGISTRY.filter(
-  (entry) => entry.exposure === 'quarantined'
+export const ARCHIVED_PLACEHOLDER_GOVERNED_PATHS = ROUTE_GOVERNANCE_REGISTRY.filter(
+  (entry) => entry.exposure === 'archived-placeholder'
 ).map((entry) => entry.path);
 
 export function getRouteGovernanceEntry(path: string): RouteGovernanceEntry | undefined {

@@ -31,9 +31,6 @@ export const FLAGS = {
   ENABLE_MODELING_WIZARD: getFlag('VITE_ENABLE_MODELING_WIZARD', 'FF_ENABLE_MODELING_WIZARD'),
   ENABLE_OPERATIONS_HUB: getFlag('VITE_ENABLE_OPERATIONS_HUB', 'FF_ENABLE_OPERATIONS_HUB'),
   ENABLE_LP_REPORTING: getFlag('VITE_ENABLE_LP_REPORTING', 'FF_ENABLE_LP_REPORTING'),
-  // Secondary surface quarantine switches (default: unfinished surfaces stay hidden until explicitly re-enabled)
-  HIDE_PLANNING_SURFACE: getFlag('VITE_HIDE_PLANNING_SURFACE', 'FF_HIDE_PLANNING_SURFACE', true),
-  HIDE_KPI_SURFACES: getFlag('VITE_HIDE_KPI_SURFACES', 'FF_HIDE_KPI_SURFACES', true),
   // GP Modernization flags
   ONBOARDING_TOUR: getFlag('VITE_ONBOARDING_TOUR', 'FF_ONBOARDING_TOUR'),
   UI_CATALOG: getAdminFlag('VITE_UI_CATALOG'), // Admin flag - no localStorage override

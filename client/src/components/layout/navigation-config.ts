@@ -1,5 +1,4 @@
 import { extractFundResultsRouteId, getLocationPathname } from '@/lib/fund-routes';
-import { isSecondarySurfaceNavVisible } from '@/lib/secondary-surface-policy';
 import {
   FileText,
   Settings,
@@ -118,8 +117,7 @@ export function isNavigationItemEnabled(item: NavigationItem, context: Navigatio
 }
 
 export function getNavigationItems(): readonly NavigationItem[] {
-  const items = CORE_NAV;
-  return items.filter((item) => isSecondarySurfaceNavVisible(item.id));
+  return CORE_NAV;
 }
 
 export function getFooterNavigationItems(): readonly NavigationItem[] {

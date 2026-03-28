@@ -10,8 +10,6 @@ type MockFundContext = {
 
 type NavigationFlagOverrides = {
   NEW_IA?: boolean;
-  HIDE_PLANNING_SURFACE?: boolean;
-  HIDE_KPI_SURFACES?: boolean;
 };
 
 let mockFundContext: MockFundContext = {
@@ -28,8 +26,6 @@ async function loadNavigationModules(flagOverrides: NavigationFlagOverrides = {}
   vi.doMock('@/core/flags/featureFlags', () => ({
     FLAGS: {
       NEW_IA: flagOverrides.NEW_IA ?? false,
-      HIDE_PLANNING_SURFACE: flagOverrides.HIDE_PLANNING_SURFACE ?? true,
-      HIDE_KPI_SURFACES: flagOverrides.HIDE_KPI_SURFACES ?? true,
     },
   }));
   vi.doMock('@/contexts/FundContext', () => ({
@@ -73,15 +69,6 @@ describe('sidebar results navigation', () => {
 
   it('omits planning from the legacy navigation by default', async () => {
     const { getNavigationItems } = await loadNavigationModules({ NEW_IA: false });
-
-    expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
-  });
-
-  it('keeps planning out of navigation even when the route is explicitly re-enabled', async () => {
-    const { getNavigationItems } = await loadNavigationModules({
-      NEW_IA: false,
-      HIDE_PLANNING_SURFACE: false,
-    });
 
     expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
   });

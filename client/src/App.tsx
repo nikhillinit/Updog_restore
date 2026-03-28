@@ -16,18 +16,14 @@ import './styles/demo-animations.css';
 // Layout components
 import Sidebar from '@/components/layout/sidebar';
 import { getActiveNavigationId } from '@/components/layout/navigation-config';
-import { getSecondarySurfaceRedirect } from '@/lib/secondary-surface-policy';
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import('@/pages/dashboard'));
 const Portfolio = React.lazy(() => import('@/pages/portfolio'));
-const Planning = React.lazy(() => import('@/pages/planning'));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import('@/pages/fund-setup'));
-const KPIManager = React.lazy(() => import('@/pages/kpi-manager'));
-const KPISubmission = React.lazy(() => import('@/pages/kpi-submission'));
 const Reports = React.lazy(() => import('@/pages/reports'));
 const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
@@ -283,14 +279,35 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/fund-setup', component: FundSetup },
   { path: '/dashboard', component: Dashboard, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
-  { path: '/kpi-manager', component: KPIManager, isProtected: true },
-  { path: '/kpi-submission', component: KPISubmission },
-  { path: '/planning', component: Planning, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
+];
+
+export interface ArchivedPlaceholderRouteEntry {
+  path: string;
+  redirectTarget: string;
+  notes: string;
+}
+
+export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
+  {
+    path: '/planning',
+    redirectTarget: '/portfolio?tab=reserve-planning',
+    notes: 'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
+  },
+  {
+    path: '/kpi-manager',
+    redirectTarget: '/dashboard',
+    notes: 'Legacy KPI manager is archived until there is an owned, persistent KPI workflow.',
+  },
+  {
+    path: '/kpi-submission',
+    redirectTarget: '/dashboard',
+    notes: 'Legacy KPI submission is archived until there is an owned, persistent KPI workflow.',
+  },
 ];
 
 export interface LPRouteEntry {
@@ -322,16 +339,6 @@ export const ADMIN_GATED_ROUTES = {
 } as const;
 
 function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
-  const redirectTarget = getSecondarySurfaceRedirect(path);
-
-  if (redirectTarget != null) {
-    return (
-      <Route key={path} path={path}>
-        {() => <Redirect to={redirectTarget} />}
-      </Route>
-    );
-  }
-
   if (isProtected) {
     return (
       <Route key={path} path={path}>
@@ -342,6 +349,17 @@ function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
   return (
     <Route key={path} path={path}>
       {() => <C />}
+    </Route>
+  );
+}
+
+function renderArchivedPlaceholderRoute({
+  path,
+  redirectTarget,
+}: ArchivedPlaceholderRouteEntry) {
+  return (
+    <Route key={path} path={path}>
+      {() => <Redirect to={redirectTarget} />}
     </Route>
   );
 }
@@ -377,6 +395,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         {APP_ROUTES.map(renderAppRoute)}
+        {ARCHIVED_PLACEHOLDER_ROUTES.map(renderArchivedPlaceholderRoute)}
         <Route path={LEGACY_REDIRECT_ROUTES.analyticsLegacy}>
           {() => <Redirect to="/dashboard?tab=performance" />}
         </Route>

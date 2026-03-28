@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_GATED_ROUTES,
+  ARCHIVED_PLACEHOLDER_ROUTES,
   APP_ROUTES,
   LEGACY_REDIRECT_ROUTES,
   LP_ROUTES,
   PUBLIC_ENTRY_ROUTES,
 } from '@/App';
 import {
+  ARCHIVED_PLACEHOLDER_GOVERNED_PATHS,
   CORE_LIVE_GOVERNED_PATHS,
-  QUARANTINED_GOVERNED_PATHS,
   ROUTE_GOVERNANCE_REGISTRY,
   getRouteGovernanceEntry,
 } from '@/app/route-governance-registry';
@@ -22,6 +23,7 @@ describe('route governance registry', () => {
     const expectedPaths = [
       '/',
       ...APP_ROUTES.map((route) => route.path),
+      ...ARCHIVED_PLACEHOLDER_ROUTES.map((route) => route.path),
       ...LP_ROUTES.map((route) => route.path),
       ...Object.values(LEGACY_REDIRECT_ROUTES),
       ...Object.values(PUBLIC_ENTRY_ROUTES),
@@ -49,25 +51,24 @@ describe('route governance registry', () => {
     );
   });
 
-  it('tracks quarantined routes with their redirect targets and controlling flags', () => {
-    expect(sorted(QUARANTINED_GOVERNED_PATHS)).toEqual(
+  it('tracks archived placeholder routes as redirect-only entrypoints', () => {
+    expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
       sorted(['/planning', '/kpi-manager', '/kpi-submission'])
     );
 
     expect(getRouteGovernanceEntry('/planning')).toMatchObject({
-      exposure: 'quarantined',
-      flag: 'HIDE_PLANNING_SURFACE',
-      navId: 'planning',
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
       redirectTarget: '/portfolio?tab=reserve-planning',
     });
     expect(getRouteGovernanceEntry('/kpi-manager')).toMatchObject({
-      exposure: 'quarantined',
-      flag: 'HIDE_KPI_SURFACES',
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
       redirectTarget: '/dashboard',
     });
     expect(getRouteGovernanceEntry('/kpi-submission')).toMatchObject({
-      exposure: 'quarantined',
-      flag: 'HIDE_KPI_SURFACES',
+      exposure: 'archived-placeholder',
+      surface: 'archived-placeholder',
       redirectTarget: '/dashboard',
     });
   });

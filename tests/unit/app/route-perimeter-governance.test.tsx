@@ -9,8 +9,6 @@ function passthrough(children: React.ReactNode) {
 type FlagOverrides = Partial<{
   NEW_IA: boolean;
   ENABLE_LP_REPORTING: boolean;
-  HIDE_PLANNING_SURFACE: boolean;
-  HIDE_KPI_SURFACES: boolean;
   ONBOARDING_TOUR: boolean;
   UI_CATALOG: boolean;
 }>;
@@ -22,8 +20,6 @@ async function loadApp(flagOverrides: FlagOverrides = {}) {
     FLAGS: {
       NEW_IA: flagOverrides.NEW_IA ?? false,
       ENABLE_LP_REPORTING: flagOverrides.ENABLE_LP_REPORTING ?? false,
-      HIDE_PLANNING_SURFACE: flagOverrides.HIDE_PLANNING_SURFACE ?? true,
-      HIDE_KPI_SURFACES: flagOverrides.HIDE_KPI_SURFACES ?? true,
       ONBOARDING_TOUR: flagOverrides.ONBOARDING_TOUR ?? false,
       UI_CATALOG: flagOverrides.UI_CATALOG ?? false,
     },
@@ -128,7 +124,7 @@ describe('route perimeter governance', () => {
     ['/kpi-manager', '/dashboard', '', 'Dashboard Page'],
     ['/kpi-submission', '/dashboard', '', 'Dashboard Page'],
   ])(
-    'redirects quarantined route %s to %s%s',
+    'redirects archived placeholder route %s to %s%s',
     async (path, expectedPathname, expectedSearch, expectedText) => {
       await renderAt(path);
 
