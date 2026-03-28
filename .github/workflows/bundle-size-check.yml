@@ -9,6 +9,8 @@ on:
       - 'vite.config.ts'
       - 'package.json'
       - '.size-limit.json'
+      - 'scripts/check-budgets.cjs'
+      - '.github/workflows/bundle-size-check.yml'
 
 permissions:
   contents: read
@@ -21,26 +23,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          path: pr-tools
+
+      - uses: actions/checkout@v4
+        with:
           ref: ${{ github.base_ref }}
+          path: base-branch
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            pr-tools/package-lock.json
+            base-branch/package-lock.json
 
       - run: npm ci
+        working-directory: base-branch
 
       - run: npm run build
+        working-directory: base-branch
         env:
           NODE_ENV: production
           BUILD_WITH_PREACT: '1'
 
-      - run: npm run size-limit:json
+      - run: node ../pr-tools/scripts/check-budgets.cjs --json > size-limit-report.json
+        working-directory: base-branch
 
       - uses: actions/upload-artifact@v4
         with:
           name: base-size-results
-          path: size-limit-report.json
+          path: base-branch/size-limit-report.json
 
   build-pr:
     name: Build PR Branch
@@ -60,7 +73,7 @@ jobs:
           NODE_ENV: production
           BUILD_WITH_PREACT: '1'
 
-      - run: npm run size-limit:json
+      - run: node scripts/check-budgets.cjs --json > size-limit-report.json
 
       - uses: actions/upload-artifact@v4
         with:

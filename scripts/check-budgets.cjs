@@ -1,139 +1,213 @@
 /**
- * Bundle Budget Checker for CI
- * Ensures critical bundles stay within size limits to prevent performance regressions
+ * Bundle budget checker for local use and CI.
+ *
+ * Supports two measurement strategies:
+ * - manifest-entry-closure: sums the actual initial-load closure for a Vite entry
+ * - glob-sum: sums all files matching a glob
+ *
+ * Output is compatible with the JSON shape expected by scripts/compare-bundle-size.js.
  */
 
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const fg = require('fast-glob');
 
-// Check if we should use compressed sizes
-const USE_COMPRESSED = process.env.BUNDLE_CHECK_COMPRESSED === 'true' || process.argv.includes('--compressed');
+const ROOT = process.cwd();
+const DIST_ROOT = path.join(ROOT, 'dist', 'public');
+const MANIFEST_PATH = path.join(DIST_ROOT, '.vite', 'manifest.json');
+const CONFIG_PATH = path.join(ROOT, '.size-limit.json');
+const JSON_MODE = process.argv.includes('--json');
 
-// Define budget limits (in KB)
-// Tighter limits when checking compressed sizes
-const BUDGETS = USE_COMPRESSED ? {
-  'vendor-charts': 120,    // Charts library bundle (compressed)
-  'vendor-ui-core': 45,     // UI components (compressed)
-  'vendor-forms': 25,       // Form handling (compressed)
-  'planning': 40,           // Planning page (compressed)
-  'index': 25,              // Main entry bundle (compressed)
-} : {
-  'vendor-charts': 400,    // Charts library bundle (uncompressed - tightened from 450)
-  'vendor-ui-core': 150,    // UI components
-  'vendor-forms': 100,      // Form handling
-  'planning': 150,          // Planning page
-  'index': 100,             // Main entry bundle
-};
-
-// Colors for console output
-const RED = '\x1b[31m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const RESET = '\x1b[0m';
-
-/**
- * Get size of file, optionally compressed
- */
-function getFileSize(filePath) {
-  const stats = fs.statSync(filePath);
-  
-  if (!USE_COMPRESSED) {
-    return stats.size;
-  }
-  
-  // Get gzip compressed size
-  const fileContent = fs.readFileSync(filePath);
-  const compressed = zlib.gzipSync(fileContent, { level: 9 });
-  return compressed.length;
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function checkBudgets() {
-  const manifestPath = path.join(process.cwd(), 'dist/public/.vite/manifest.json');
-  
-  // Check if manifest exists
-  if (!fs.existsSync(manifestPath)) {
-    console.log(`${YELLOW}Warning: Manifest file not found at ${manifestPath}${RESET}`);
-    console.log('Skipping budget checks. Make sure to run build with manifest enabled in CI.');
-    return 0; // Don't fail if manifest doesn't exist
+function parseLimitToBytes(limit) {
+  if (typeof limit !== 'string') {
+    throw new Error(`Invalid limit: ${String(limit)}`);
   }
 
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const violations = [];
-    const results = [];
+  const match = limit.trim().match(/^([\d.]+)\s*(B|KB|MB)$/i);
+  if (!match) {
+    throw new Error(`Invalid limit format: ${limit}`);
+  }
 
-    // Check each entry in the manifest
-    Object.entries(manifest).forEach(([key, value]) => {
-      if (value.file) {
-        const filePath = path.join(process.cwd(), 'dist/public', value.file);
-        
-        if (fs.existsSync(filePath)) {
-          const sizeBytes = getFileSize(filePath);
-          const sizeKB = Math.round(sizeBytes / 1024);
-          
-          // Check against budgets
-          Object.entries(BUDGETS).forEach(([budgetKey, limitKB]) => {
-            if (value.file.includes(budgetKey)) {
-              results.push({
-                file: value.file,
-                size: sizeKB,
-                limit: limitKB,
-                key: budgetKey
-              });
-              
-              if (sizeKB > limitKB) {
-                violations.push({
-                  file: value.file,
-                  size: sizeKB,
-                  limit: limitKB,
-                  excess: sizeKB - limitKB,
-                  key: budgetKey
-                });
-              }
-            }
-          });
-        }
-      }
-    });
+  const value = Number.parseFloat(match[1]);
+  const unit = match[2].toUpperCase();
 
-    // Report results
-    console.log(`\n📊 Bundle Size Report ${USE_COMPRESSED ? '(gzip compressed)' : '(uncompressed)'}:\n`);
-    console.log('─'.repeat(60));
-    
-    results.forEach(result => {
-      const percentage = Math.round((result.size / result.limit) * 100);
-      const color = result.size > result.limit ? RED : 
-                    percentage > 80 ? YELLOW : GREEN;
-      const status = result.size > result.limit ? '❌' : '✅';
-      
-      console.log(
-        `${status} ${result.key.padEnd(20)} ${color}${result.size}KB${RESET} / ${result.limit}KB (${percentage}%)`
-      );
-    });
-    
-    console.log('─'.repeat(60));
+  if (unit === 'B') return value;
+  if (unit === 'KB') return value * 1024;
+  if (unit === 'MB') return value * 1024 * 1024;
 
-    // Report violations
-    if (violations.length > 0) {
-      console.error(`\n${RED}❌ Budget violations detected:${RESET}\n`);
-      violations.forEach(v => {
-        console.error(
-          `  ${RED}• ${v.key}: ${v.size}KB exceeds limit of ${v.limit}KB by ${v.excess}KB${RESET}`
-        );
-      });
-      console.error('\nPlease optimize the bundles or update the budget limits if the increase is justified.\n');
-      return 1;
-    } else {
-      console.log(`\n${GREEN}✅ All bundles within budget limits!${RESET}\n`);
-      return 0;
+  throw new Error(`Unsupported unit in limit: ${limit}`);
+}
+
+function getFileSize(filePath, gzip) {
+  const content = fs.readFileSync(filePath);
+  return gzip ? zlib.gzipSync(content).length : content.length;
+}
+
+function collectManifestEntryClosure(manifest, entryKey) {
+  const visited = new Set();
+  const files = new Set();
+
+  function visit(key) {
+    if (visited.has(key)) {
+      return;
     }
-  } catch (error) {
-    console.error(`${RED}Error checking budgets: ${error.message}${RESET}`);
-    return 1;
+
+    const entry = manifest[key];
+    if (!entry) {
+      throw new Error(`Manifest entry not found: ${key}`);
+    }
+
+    visited.add(key);
+
+    if (entry.file) {
+      files.add(entry.file);
+    }
+
+    for (const css of entry.css || []) {
+      files.add(css);
+    }
+
+    for (const importedKey of entry.imports || []) {
+      visit(importedKey);
+    }
   }
+
+  visit(entryKey);
+  return [...files];
 }
 
-// Run the check
-const exitCode = checkBudgets();
-process.exit(exitCode);
+function measureManifestEntryClosure(budget, manifest) {
+  const files = collectManifestEntryClosure(manifest, budget.entry || 'index.html');
+  const size = files.reduce((sum, relativeFile) => {
+    return sum + getFileSize(path.join(DIST_ROOT, relativeFile), Boolean(budget.gzip));
+  }, 0);
+
+  return {
+    size,
+    files,
+  };
+}
+
+function measureGlobSum(budget) {
+  if (typeof budget.path !== 'string' || budget.path.length === 0) {
+    throw new Error(`Budget "${budget.name}" requires a path`);
+  }
+
+  const files = fg.sync(budget.path, {
+    cwd: ROOT,
+    absolute: true,
+    onlyFiles: true,
+    unique: true,
+  });
+
+  const size = files.reduce((sum, filePath) => {
+    return sum + getFileSize(filePath, Boolean(budget.gzip));
+  }, 0);
+
+  return {
+    size,
+    files: files.map((filePath) => path.relative(ROOT, filePath)),
+  };
+}
+
+function measureBudget(budget, manifest) {
+  const strategy =
+    budget.strategy ||
+    (budget.name === 'Initial Load (Critical Path)' ? 'manifest-entry-closure' : 'glob-sum');
+
+  if (strategy === 'manifest-entry-closure') {
+    return measureManifestEntryClosure(budget, manifest);
+  }
+
+  if (strategy === 'glob-sum') {
+    return measureGlobSum(budget);
+  }
+
+  throw new Error(`Unsupported strategy "${strategy}" for budget "${budget.name}"`);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) {
+    return `${bytes.toFixed(0)} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function printTable(results) {
+  console.log('\nBundle Size Report\n');
+  console.log('Name'.padEnd(34) + 'Current'.padEnd(16) + 'Limit'.padEnd(14) + 'Status');
+  console.log('-'.repeat(74));
+
+  for (const result of results) {
+    console.log(
+      result.name.padEnd(34) +
+        formatBytes(result.size).padEnd(16) +
+        formatBytes(result.sizeLimit).padEnd(14) +
+        (result.passed ? 'PASS' : 'FAIL')
+    );
+  }
+
+  console.log('');
+}
+
+function main() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    throw new Error(`Budget config not found: ${CONFIG_PATH}`);
+  }
+
+  if (!fs.existsSync(MANIFEST_PATH)) {
+    throw new Error(`Manifest not found: ${MANIFEST_PATH}. Run "npm run build" first.`);
+  }
+
+  const budgets = readJson(CONFIG_PATH);
+  const manifest = readJson(MANIFEST_PATH);
+
+  const results = budgets.map((budget) => {
+    const measurement = measureBudget(budget, manifest);
+    const sizeLimit = parseLimitToBytes(budget.limit);
+
+    return {
+      name: budget.name,
+      size: measurement.size,
+      sizeLimit,
+      passed: measurement.size <= sizeLimit,
+    };
+  });
+
+  if (JSON_MODE) {
+    process.stdout.write(JSON.stringify(results, null, 2));
+    process.exit(results.every((result) => result.passed) ? 0 : 1);
+  }
+
+  printTable(results);
+
+  const failures = results.filter((result) => !result.passed);
+  if (failures.length > 0) {
+    console.error('Bundle budget violations detected.\n');
+    for (const failure of failures) {
+      console.error(
+        `- ${failure.name}: ${formatBytes(failure.size)} exceeds ${formatBytes(failure.sizeLimit)}`
+      );
+    }
+    process.exit(1);
+  }
+
+  console.log('All bundle budgets are within limits.\n');
+}
+
+try {
+  main();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
