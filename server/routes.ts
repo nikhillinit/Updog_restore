@@ -1,32 +1,9 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import type { RequestListener } from 'http';
 import { createServer, type Server } from 'http';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { storage } from './storage';
-import {
-} from '@shared/schema';
-import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
-import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
-import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
-import { toNumber } from '@shared/number';
-import type {
-  ReserveCompanyInput,
-  PacingInput,
-  CohortInput,
-  ApiError,
-  ReserveSummary,
-  PacingSummary,
-  CohortSummary,
-} from '@shared/types';
 import { monitor } from './middleware/performance-monitor.js';
-import { getConfig } from './config/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Performance monitoring middleware - track all API requests
@@ -55,6 +32,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const activitiesRoutes = await import('./routes/activities.js');
   app.use('/api', activitiesRoutes.default);
+
+  const legacyFundMetricsRoutes = await import('./routes/fund-metrics-legacy.js');
+  app.use('/api', legacyFundMetricsRoutes.default);
+
+  const engineSummaryRoutes = await import('./routes/engine-summaries.js');
+  app.use('/api', engineSummaryRoutes.default);
 
   // Operations polling routes
   const operationsRoutes = await import('./routes/operations.js');
@@ -135,235 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
 
-  // Fund metrics routes - Type-safe parameter validation
-  app['get']('/api/fund-metrics/:fundId', async (req: Request, res: Response) => {
-    try {
-      const fundIdParam = req.params['fundId'];
-      const fundId = toNumber(fundIdParam, 'fund ID');
-
-      if (fundId <= 0) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      const metrics = await storage.getFundMetrics(fundId);
-      res['json'](metrics);
-    } catch (error) {
-      const apiError: ApiError = {
-        error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch fund metrics',
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
-
-  // Portfolio company, activity, dashboard summary, and investment routes have
-  // been extracted into dedicated modules.
-
-  // Reserve Engine routes - Type-safe with comprehensive error handling
-  app['get']('/api/reserves/:fundId', async (req: Request, res: Response) => {
-    try {
-      const fundIdParam = req.params['fundId'];
-      const fundId = toNumber(fundIdParam, 'fund ID');
-
-      if (fundId <= 0) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      // Load portfolio fixture data
-      const portfolioPath = join(__dirname, '../tests/fixtures/portfolio.json');
-
-      // Type for portfolio fixture JSON structure
-      interface PortfolioFixtureCompany {
-        invested?: number;
-        ownership?: number;
-        stage?: string;
-        sector?: string;
-      }
-      interface PortfolioFixtureData {
-        companies: PortfolioFixtureCompany[];
-      }
-
-      let portfolioData: PortfolioFixtureData;
-
-      try {
-        const rawData: unknown = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
-        // Validate basic structure
-        if (
-          !rawData ||
-          typeof rawData !== 'object' ||
-          !('companies' in rawData) ||
-          !Array.isArray((rawData as PortfolioFixtureData).companies)
-        ) {
-          throw new Error('Invalid portfolio fixture format');
-        }
-        portfolioData = rawData as PortfolioFixtureData;
-      } catch {
-        const error: ApiError = {
-          error: 'Portfolio data unavailable',
-          message: 'Could not load portfolio fixture data',
-        };
-        return res['status'](500)['json'](error);
-      }
-
-      // Transform to ReserveCompanyInput format with validation
-      const portfolio: ReserveCompanyInput[] = portfolioData.companies.map(
-        (company: PortfolioFixtureCompany, index: number) => ({
-          id: index + 1,
-          invested: typeof company.invested === 'number' ? company.invested : 500000,
-          ownership: typeof company.ownership === 'number' ? company.ownership : 0.15,
-          stage: typeof company.stage === 'string' ? company.stage : 'Series A',
-          sector: typeof company.sector === 'string' ? company.sector : 'Tech',
-        })
-      );
-
-      // Generate comprehensive reserve summary
-      const summary: ReserveSummary = generateReserveSummary(fundId, portfolio);
-
-      res['json'](summary);
-    } catch (error) {
-      console.error('ReserveEngine error:', error);
-      const apiError: ApiError = {
-        error: 'Reserve engine processing failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: { fundId: req.params['fundId'] },
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
-
-  // Pacing Engine routes - Type-safe with query parameter support
-  app['get']('/api/pacing/summary', async (req: Request, res: Response) => {
-    try {
-      // Extract and validate query parameters
-      const fundSizeParam = req.query['fundSize'] as string;
-      const quarterParam = req.query['deploymentQuarter'] as string;
-      const marketConditionParam = req.query['marketCondition'] as string;
-
-      const pacingInput: PacingInput = {
-        fundSize: fundSizeParam ? toNumber(fundSizeParam, 'fund size') : 50000000, // $50M default
-        deploymentQuarter: quarterParam ? toNumber(quarterParam, 'deployment quarter') : 1, // Q1 default
-        marketCondition: (marketConditionParam as 'bull' | 'bear' | 'neutral') || 'neutral',
-      };
-
-      // Validate market condition
-      if (!['bull', 'bear', 'neutral'].includes(pacingInput.marketCondition)) {
-        const error: ApiError = {
-          error: 'Invalid market condition',
-          message: `Market condition must be 'bull', 'bear', or 'neutral', received: ${marketConditionParam}`,
-        };
-        return res['status'](400)['json'](error);
-      }
-
-      // Generate comprehensive pacing summary
-      const summary: PacingSummary = generatePacingSummary(pacingInput);
-
-      res['json'](summary);
-    } catch (error) {
-      console.error('PacingEngine error:', error);
-      const apiError: ApiError = {
-        error: 'Pacing engine processing failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: { query: req.query },
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
-
-  // Cohort Engine routes - Type-safe vintage cohort analysis (SCAFFOLD)
-  app['get']('/api/cohorts/analysis', async (req: Request, res: Response) => {
-    try {
-      // Extract and validate query parameters
-      const fundIdQuery = req.query['fundId'];
-      const vintageYearQuery = req.query['vintageYear'];
-      const cohortSizeQuery = req.query['cohortSize'];
-
-      let fundId = getConfig().DEFAULT_FUND_ID; // Default fund (from env config)
-      let vintageYear = new Date().getFullYear() - 1; // Default to last year
-      let cohortSize = 10; // Default cohort size
-
-      if (fundIdQuery) {
-        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
-        if (parsedId <= 0) {
-          const error: ApiError = {
-            error: 'Invalid fund ID',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
-          };
-          return res['status'](400)['json'](error);
-        }
-        fundId = parsedId;
-      }
-
-      if (vintageYearQuery) {
-        try {
-          const parsedYear = toNumber(vintageYearQuery as string, 'vintage year');
-          if (parsedYear < 2000 || parsedYear > 2030) {
-            const error: ApiError = {
-              error: 'Invalid vintage year',
-              message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`,
-            };
-            return res['status'](400)['json'](error);
-          }
-          vintageYear = parsedYear;
-        } catch {
-          const error: ApiError = {
-            error: 'Invalid vintage year',
-            message: `Vintage year must be a valid number, received: ${vintageYearQuery}`,
-          };
-          return res['status'](400)['json'](error);
-        }
-      }
-
-      if (cohortSizeQuery) {
-        try {
-          const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
-          if (parsedSize <= 0 || parsedSize > 1000) {
-            const error: ApiError = {
-              error: 'Invalid cohort size',
-              message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`,
-            };
-            return res['status'](400)['json'](error);
-          }
-          cohortSize = parsedSize;
-        } catch {
-          const error: ApiError = {
-            error: 'Invalid cohort size',
-            message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`,
-          };
-          return res['status'](400)['json'](error);
-        }
-      }
-
-      const cohortInput: CohortInput = {
-        fundId,
-        vintageYear,
-        cohortSize,
-      };
-
-      // Generate comprehensive cohort summary
-      const summary: CohortSummary = generateCohortSummary(cohortInput);
-
-      res['json'](summary);
-    } catch (error) {
-      console.error('CohortEngine error:', error);
-      const apiError: ApiError = {
-        error: 'Cohort analysis failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: {
-          query: req.query,
-          note: 'This is a scaffolded endpoint for future cohort analysis features',
-        },
-      };
-      res['status'](500)['json'](apiError);
-    }
-  });
+  // Dashboard, investments, portfolio companies, activities, legacy fund
+  // metrics, and engine summary routes have been extracted into dedicated
+  // modules.
 
   // Register fund configuration routes
   registerFundConfigRoutes(app);
