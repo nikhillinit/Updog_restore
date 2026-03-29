@@ -222,17 +222,16 @@ describe('Input Adapter', () => {
   });
 
   describe('shouldSkipTruthCase', () => {
-    it('skips CA-005', () => {
+    it('does not skip CA-005 now that dynamic_ratio is implemented', () => {
       const result = shouldSkipTruthCase('CA-005');
 
-      expect(result.skip).toBe(true);
-      expect(result.reason).toContain('dynamic_ratio');
+      expect(result.skip).toBe(false);
     });
 
-    it('skips dynamic_ratio policy', () => {
+    it('does not skip dynamic_ratio policy', () => {
       const result = shouldSkipTruthCase('CA-099', 'dynamic_ratio');
 
-      expect(result.skip).toBe(true);
+      expect(result.skip).toBe(false);
     });
 
     it('does not skip static_pct policy', () => {

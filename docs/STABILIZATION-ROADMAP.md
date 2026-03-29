@@ -172,13 +172,13 @@ gate.
       shared-authoritative implementations.
 - [x] Delete client duplicates only after parity tests and caller migration are
       complete for liquidity, graduation, and deterministic reserve flows.
-- [ ] Explicitly resolve or defer `CapitalAllocationEngine`, whose client-side
-      `dynamic_ratio` behavior still differs from the shared implementation.
+- [x] Converge `CapitalAllocationEngine` by porting `dynamic_ratio` into the
+      shared implementation, validating parity, and shimming the client engine.
 
 **Exit criteria:**
 
 - Shared code is the single source of truth for the active liquidity,
-  graduation, reserve, pacing, and cohort math paths.
+  graduation, reserve, capital-allocation, pacing, and cohort math paths.
 - Any remaining non-shim client engine is either converged or explicitly
   deferred by milestone policy.
 
@@ -280,9 +280,9 @@ gate.
 
 ## Immediate Next Actions
 
-1. Start Milestone 3 with parity tests around reserves, pacing, cohorts, and
-   liquidity before deleting any duplicated client-side engine logic.
+1. Start Milestone 4 by introducing a single server-owned finalize flow for
+   create, draft persistence, publish, and result kickoff.
 2. Keep future route or nav changes flowing through the exported governance
    registry and the generated route-control adapter.
-3. Treat `client/src/core/flags/featureFlags.ts` as a short-lived compatibility
-   file only; do not reintroduce new runtime consumers there.
+3. Keep shared math authoritative; do not introduce new client-side engine
+   forks outside explicitly deferred milestones.

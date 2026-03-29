@@ -143,6 +143,10 @@ const reExportPairs = [
     shim: 'client/src/core/graduation/GraduationRateEngine.ts',
     allowedShimExtras: ['fromFundDataGraduationRates'],
   },
+  {
+    source: 'shared/core/capitalAllocation/CapitalAllocationEngine.ts',
+    shim: 'client/src/core/capitalAllocation/CapitalAllocationEngine.ts',
+  },
   { source: 'shared/lib/fund-calc.ts', shim: 'client/src/lib/fund-calc.ts' },
   { source: 'shared/utils/resilientLimit.ts', shim: 'client/src/utils/resilientLimit.ts' },
   { source: 'shared/utils/pLimit.ts', shim: 'client/src/utils/pLimit.ts' },
