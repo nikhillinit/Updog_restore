@@ -44,7 +44,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry                       |
 | 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
 | 2         | Consolidate Route And Flag Control    | [COMPLETE]    | One flag API for route exposure                               |
-| 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math           |
+| 3         | Make Shared Domain Logic Authority    | [IN PROGRESS] | Shared code is single source of truth for fund math           |
 | 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                               |
 | 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
 | 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
@@ -159,8 +159,10 @@ gate.
 
 **Goal:** Remove drift between client and shared math.
 
+- [x] Extend the boundary completeness guard to cover existing shared-authority
+      shims, including constrained reserves and the new liquidity shim.
 - [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
-- [ ] Migrate callers away from duplicated client engines such as
+- [x] Migrate callers away from duplicated client engines such as
       `client/src/core/LiquidityEngine.ts:18` toward
       `shared/core/liquidity/LiquidityEngine.ts:22`.
 - [ ] Do the same for reserve, pacing, and cohort engines, starting with the

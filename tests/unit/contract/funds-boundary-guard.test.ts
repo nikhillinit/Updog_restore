@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { describe, it, expect } from 'vitest';
 
 const phase4BoundaryFiles = [
@@ -121,10 +121,18 @@ const reExportPairs = [
     source: 'shared/core/reserves/ReserveEngine.ts',
     shim: 'client/src/core/reserves/ReserveEngine.ts',
   },
+  {
+    source: 'shared/core/reserves/ConstrainedReserveEngine.ts',
+    shim: 'client/src/core/reserves/ConstrainedReserveEngine.ts',
+  },
   { source: 'shared/core/pacing/PacingEngine.ts', shim: 'client/src/core/pacing/PacingEngine.ts' },
   {
     source: 'shared/core/cohorts/CohortEngine.ts',
     shim: 'client/src/core/cohorts/CohortEngine.ts',
+  },
+  {
+    source: 'shared/core/liquidity/LiquidityEngine.ts',
+    shim: 'client/src/core/LiquidityEngine.ts',
   },
   { source: 'shared/lib/fund-calc.ts', shim: 'client/src/lib/fund-calc.ts' },
   { source: 'shared/utils/resilientLimit.ts', shim: 'client/src/utils/resilientLimit.ts' },
@@ -133,12 +141,50 @@ const reExportPairs = [
 
 const namedExportPattern = /export\s+(?:function|const|class|enum)\s+(\w+)/g;
 const reExportPattern = /export\s+(?:type\s+)?\{\s*([^}]+)\}/g;
+const exportAllPattern = /export\s+\*\s+from\s+['"]([^'"]+)['"]/g;
 const typeExportPattern = /export\s+(?:type|interface)\s+(\w+)/g;
 const defaultExportPattern = /export\s+default\s+function\s+(\w+)/g;
 const reExportDefaultPattern = /export\s+\{\s*default\s*\}/g;
 
-async function getExportedNames(relativePath: string): Promise<string[]> {
-  const absolutePath = path.resolve(process.cwd(), relativePath);
+function resolveImportSpecifier(fromPath: string, specifier: string): string | null {
+  if (specifier.startsWith('@shared/')) {
+    return path.resolve(process.cwd(), specifier.replace('@shared/', 'shared/'));
+  }
+  if (specifier.startsWith('@/')) {
+    return path.resolve(process.cwd(), specifier.replace('@/', 'client/src/'));
+  }
+  if (specifier.startsWith('.')) {
+    return path.resolve(path.dirname(fromPath), specifier);
+  }
+
+  return null;
+}
+
+async function resolveSourceFile(candidatePath: string): Promise<string | null> {
+  const extensions = path.extname(candidatePath) ? [''] : ['.ts', '.tsx', '.js', '.jsx'];
+
+  for (const extension of extensions) {
+    const absolutePath = `${candidatePath}${extension}`;
+    try {
+      await access(absolutePath);
+      return absolutePath;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+
+async function getExportedNames(relativePath: string, visited = new Set<string>()): Promise<string[]> {
+  const absolutePath = await resolveSourceFile(path.resolve(process.cwd(), relativePath));
+  if (!absolutePath) {
+    throw new Error(`Could not resolve source file for ${relativePath}`);
+  }
+  if (visited.has(absolutePath)) {
+    return [];
+  }
+  visited.add(absolutePath);
   const source = await readFile(absolutePath, 'utf8');
   const names = new Set<string>();
 
@@ -164,6 +210,19 @@ async function getExportedNames(relativePath: string): Promise<string[]> {
   }
   for (const _match of source.matchAll(reExportDefaultPattern)) {
     names.add('default');
+  }
+  for (const match of source.matchAll(exportAllPattern)) {
+    const specifier = match[1]!;
+    const target = resolveImportSpecifier(absolutePath, specifier);
+    if (!target) continue;
+
+    const relativeTarget = path.relative(process.cwd(), target).replace(/\\/g, '/');
+    const targetExports = await getExportedNames(relativeTarget, visited);
+    for (const exportName of targetExports) {
+      if (exportName !== 'default') {
+        names.add(exportName);
+      }
+    }
   }
 
   return [...names].sort();
