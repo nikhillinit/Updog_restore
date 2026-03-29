@@ -449,8 +449,8 @@ describe('DeterministicReserveEngine parity harness', () => {
     });
   });
 
-  describe('characterized divergence', () => {
-    it('documents explicit shared validation for zero currentValuation', async () => {
+  describe('shared-authority validation parity', () => {
+    it('matches explicit validation for zero currentValuation', async () => {
       const input = createAllocationInput({
         portfolio: [createCompany({ currentValuation: 0 })],
       });
@@ -464,11 +464,11 @@ describe('DeterministicReserveEngine parity harness', () => {
         input
       );
 
-      expect(clientMessage).not.toBe(sharedMessage);
+      expect(clientMessage).toBe(sharedMessage);
       expect(sharedMessage).toMatch(/Invalid currentValuation .* Must be positive/);
     });
 
-    it('documents explicit shared validation for zero totalInvested', async () => {
+    it('matches explicit validation for zero totalInvested', async () => {
       const input = createAllocationInput({
         portfolio: [createCompany({ totalInvested: 0 })],
       });
@@ -482,11 +482,11 @@ describe('DeterministicReserveEngine parity harness', () => {
         input
       );
 
-      expect(clientMessage).not.toBe(sharedMessage);
+      expect(clientMessage).toBe(sharedMessage);
       expect(sharedMessage).toMatch(/Invalid totalInvested .* Must be positive/);
     });
 
-    it('documents fallback graduation drift for canonical stage names with empty matrices', async () => {
+    it('matches canonical stage fallback defaults with empty matrices', async () => {
       const input = createAllocationInput({
         portfolio: [createCompany({ currentStage: 'series_a' })],
         graduationMatrix: createGraduationMatrix([]),
@@ -497,12 +497,8 @@ describe('DeterministicReserveEngine parity harness', () => {
 
       const { client, shared } = await runBoth(input);
 
-      expect(shared).not.toEqual(client);
-      expect(shared.allocations[0]?.expectedValue).toBeLessThan(
-        client.allocations[0]?.expectedValue ?? 0
-      );
-      expect(shared.allocations[0]?.calculationMetadata.graduationProbability).toBe(0.4);
-      expect(client.allocations[0]?.calculationMetadata.graduationProbability).toBe(0.5);
+      expect(shared.allocations[0]?.calculationMetadata.graduationProbability).toBe(0.5);
+      expect(shared).toEqual(client);
     });
   });
 });

@@ -159,16 +159,16 @@ describe('DeterministicReserveEngine', () => {
       expect(allocation.expectedMOIC).toBeGreaterThan(0);
     });
 
-    it('should handle companies with zero valuation', async () => {
+    it('should reject companies with zero valuation', async () => {
       const company = createMockCompany({
         currentValuation: 0,
         totalInvested: 1000000,
       });
       const input = createMockInput({ portfolio: [company] });
-      
-      // Should not throw error, but allocation should be zero or very low
-      const result = await engine.calculateOptimalReserveAllocation(input);
-      expect(result.allocations).toHaveLength(0);
+
+      await expect(engine.calculateOptimalReserveAllocation(input)).rejects.toThrow(
+        ReserveCalculationError
+      );
     });
 
     it('should prioritize companies with higher MOIC potential', async () => {

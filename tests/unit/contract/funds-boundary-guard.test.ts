@@ -125,6 +125,10 @@ const reExportPairs = [
     source: 'shared/core/reserves/ConstrainedReserveEngine.ts',
     shim: 'client/src/core/reserves/ConstrainedReserveEngine.ts',
   },
+  {
+    source: 'shared/core/reserves/DeterministicReserveEngine.ts',
+    shim: 'client/src/core/reserves/DeterministicReserveEngine.ts',
+  },
   { source: 'shared/core/pacing/PacingEngine.ts', shim: 'client/src/core/pacing/PacingEngine.ts' },
   {
     source: 'shared/core/cohorts/CohortEngine.ts',

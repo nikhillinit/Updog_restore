@@ -160,24 +160,27 @@ gate.
 **Goal:** Remove drift between client and shared math.
 
 - [x] Extend the boundary completeness guard to cover existing shared-authority
-      shims, including constrained reserves and the new liquidity shim.
+      shims, including constrained reserves, liquidity, graduation, and
+      deterministic reserves.
 - [x] Add a normalized `DeterministicReserveEngine` parity harness comparing
-      direct inputs plus wizard-transformed requests, with characterized
-      divergences for shared-only validation and fallback behavior.
-- [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
+      direct inputs plus wizard-transformed requests, including shared-authority
+      validation and canonical fallback coverage.
 - [x] Migrate callers away from duplicated client engines such as
-      `client/src/core/LiquidityEngine.ts:18` and
-      `client/src/core/graduation/GraduationRateEngine.ts:1` toward their
+      `client/src/core/LiquidityEngine.ts:18`,
+      `client/src/core/graduation/GraduationRateEngine.ts:1`, and
+      `client/src/core/reserves/DeterministicReserveEngine.ts:1` toward their
       shared-authoritative implementations.
-- [ ] Do the same for reserve, pacing, and cohort engines, starting with the
-      largest or most business-critical diffs.
-- [ ] Delete client duplicates only after parity tests and caller migration are
-      complete.
+- [x] Delete client duplicates only after parity tests and caller migration are
+      complete for liquidity, graduation, and deterministic reserve flows.
+- [ ] Explicitly resolve or defer `CapitalAllocationEngine`, whose client-side
+      `dynamic_ratio` behavior still differs from the shared implementation.
 
 **Exit criteria:**
 
-- Shared code is the single source of truth for core fund math.
-- No duplicated engine pair remains mounted in production paths.
+- Shared code is the single source of truth for the active liquidity,
+  graduation, reserve, pacing, and cohort math paths.
+- Any remaining non-shim client engine is either converged or explicitly
+  deferred by milestone policy.
 
 ---
 
