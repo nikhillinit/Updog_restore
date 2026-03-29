@@ -21,6 +21,7 @@ import type {
   ScorecardPayload,
   WaterfallSetupSection,
 } from '@shared/contracts/fund-results-v1.contract';
+import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 
 // ============================================================================
 // TYPES
@@ -116,8 +117,8 @@ function useFundResults(fundId: string | null): FetchState {
   // Polling: refetch every 5s when status is pending or calculating
   useEffect(() => {
     if (state.kind !== 'data') return;
-    const status = state.results.status;
-    if (status !== 'pending' && status !== 'calculating') return;
+    const status = state.results.lifecycle.calculationState.status;
+    if (status !== 'submitted' && status !== 'calculating') return;
     const timer = setInterval(() => void fetchResults(), 5000);
     return () => clearInterval(timer);
   }, [state, fetchResults]);
@@ -271,6 +272,94 @@ function FactTile({ label, value }: { label: string; value: string }) {
     <div className="bg-beige-50 rounded-md p-3">
       <p className="text-xs text-charcoal-400 font-poppins">{label}</p>
       <p className="text-lg font-medium text-charcoal">{value}</p>
+    </div>
+  );
+}
+
+function formatDateOrFallback(value: string | null, fallback = 'Not available') {
+  return value ? new Date(value).toLocaleDateString() : fallback;
+}
+
+function formatLifecycleStatus(status: FundStateReadV1['calculationState']['status']) {
+  switch (status) {
+    case 'not_requested':
+      return 'Not requested';
+    case 'submitted':
+      return 'Submitted';
+    case 'calculating':
+      return 'Calculating';
+    case 'ready':
+      return 'Ready';
+    case 'failed':
+      return 'Failed';
+    default:
+      return status;
+  }
+}
+
+function LifecycleStatusCard({ lifecycle }: { lifecycle: FundStateReadV1 }) {
+  const { configState, calculationState } = lifecycle;
+
+  return (
+    <div className="bg-white rounded-lg border border-beige-200 p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-medium text-charcoal">Lifecycle Status</h2>
+        <p className="text-sm text-charcoal-500 font-poppins mt-1">
+          Server-backed publication and calculation state for this fund.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <FactTile
+          label="Published Version"
+          value={
+            configState.publishedVersion != null
+              ? `v${configState.publishedVersion}`
+              : 'Not published'
+          }
+        />
+        <FactTile
+          label="Published At"
+          value={formatDateOrFallback(configState.publishedAt, 'Not published')}
+        />
+        <FactTile
+          label="Calculation Status"
+          value={formatLifecycleStatus(calculationState.status)}
+        />
+        <FactTile
+          label="Last Calculated"
+          value={formatDateOrFallback(calculationState.lastCalculatedAt)}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <FactTile
+          label="Draft Version"
+          value={configState.draftVersion != null ? `v${configState.draftVersion}` : 'No draft'}
+        />
+        <FactTile
+          label="Run ID"
+          value={calculationState.runId != null ? String(calculationState.runId) : 'Not started'}
+        />
+        <FactTile
+          label="Dispatch State"
+          value={calculationState.dispatchState ?? 'Not dispatched'}
+        />
+        <FactTile
+          label="Snapshot Coverage"
+          value={`${calculationState.availableSnapshotTypes.length}/${calculationState.expectedSnapshotTypes.length}`}
+        />
+      </div>
+
+      {calculationState.lastError && (
+        <Alert className="border-beige-200">
+          <AlertCircle className="h-4 w-4 text-charcoal-400" />
+          <AlertTitle>Latest calculation error</AlertTitle>
+          <AlertDescription className="font-poppins text-charcoal-500">
+            {calculationState.lastError}
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
@@ -432,10 +521,11 @@ function FundModelResultsPage() {
           Vintage {results.fund.vintageYear} | Fund size: $
           {(results.fund.size / 1_000_000).toFixed(0)}M
         </p>
-        {results.status !== 'ready' && (
-          <p className="text-sm text-charcoal-400 mt-1">Status: {results.status}</p>
-        )}
       </div>
+
+      <FadeInSection>
+        <LifecycleStatusCard lifecycle={results.lifecycle} />
+      </FadeInSection>
 
       {/* Reserve section */}
       <FadeInSection>

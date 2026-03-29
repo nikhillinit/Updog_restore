@@ -296,6 +296,13 @@ describe('FundModelResultsPage (server-backed)', () => {
       jsonResponse({
         ...readyResponse(),
         status: 'calculating',
+        lifecycle: {
+          ...readyResponse().lifecycle,
+          calculationState: {
+            ...readyResponse().lifecycle.calculationState,
+            status: 'calculating',
+          },
+        },
         sections: {
           reserve: { status: 'pending', reason: 'Calculations are still in progress' },
           pacing: { status: 'pending', reason: 'Calculations not yet requested' },
@@ -314,8 +321,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     await waitFor(() => {
       expect(screen.getByText(/Test Fund/)).toBeInTheDocument();
     });
-    // Status indicator for non-ready top-level
-    expect(screen.getByText(/Status: calculating/)).toBeInTheDocument();
+    expect(screen.getByText('Lifecycle Status')).toBeInTheDocument();
+    expect(screen.getByText('Calculating')).toBeInTheDocument();
     expect(screen.getByText(/Calculations are still in progress/)).toBeInTheDocument();
     expect(screen.getByText(/Calculations not yet requested/)).toBeInTheDocument();
   });
@@ -353,6 +360,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     // $100M appears in both header and overview card
     const sizeMatches = screen.getAllByText(/\$100M/);
     expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Published Version')).toBeInTheDocument();
+    expect(screen.getByText('v1')).toBeInTheDocument();
+    expect(screen.getByText('Dispatch State')).toBeInTheDocument();
+    expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
   });
 
   // -- Legacy evidence --
