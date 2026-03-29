@@ -163,8 +163,9 @@ gate.
       shims, including constrained reserves and the new liquidity shim.
 - [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
 - [x] Migrate callers away from duplicated client engines such as
-      `client/src/core/LiquidityEngine.ts:18` toward
-      `shared/core/liquidity/LiquidityEngine.ts:22`.
+      `client/src/core/LiquidityEngine.ts:18` and
+      `client/src/core/graduation/GraduationRateEngine.ts:1` toward their
+      shared-authoritative implementations.
 - [ ] Do the same for reserve, pacing, and cohort engines, starting with the
       largest or most business-critical diffs.
 - [ ] Delete client duplicates only after parity tests and caller migration are

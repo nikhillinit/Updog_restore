@@ -134,6 +134,11 @@ const reExportPairs = [
     source: 'shared/core/liquidity/LiquidityEngine.ts',
     shim: 'client/src/core/LiquidityEngine.ts',
   },
+  {
+    source: 'shared/core/graduation/GraduationRateEngine.ts',
+    shim: 'client/src/core/graduation/GraduationRateEngine.ts',
+    allowedShimExtras: ['fromFundDataGraduationRates'],
+  },
   { source: 'shared/lib/fund-calc.ts', shim: 'client/src/lib/fund-calc.ts' },
   { source: 'shared/utils/resilientLimit.ts', shim: 'client/src/utils/resilientLimit.ts' },
   { source: 'shared/utils/pLimit.ts', shim: 'client/src/utils/pLimit.ts' },
@@ -198,6 +203,7 @@ async function getExportedNames(relativePath: string, visited = new Set<string>(
     for (const name of match[1]!.split(',')) {
       const trimmed = name
         .trim()
+        .replace(/^type\s+/, '')
         .split(/\s+as\s+/)
         .pop()!
         .trim();
@@ -229,10 +235,14 @@ async function getExportedNames(relativePath: string, visited = new Set<string>(
 }
 
 describe('re-export completeness guard', () => {
-  it.each(reExportPairs)('$source shim forwards all public exports', async ({ source, shim }) => {
-    const sourceExports = await getExportedNames(source);
-    const shimExports = await getExportedNames(shim);
+  it.each(reExportPairs)(
+    '$source shim forwards all public exports',
+    async ({ source, shim, allowedShimExtras = [] }) => {
+      const sourceExports = await getExportedNames(source);
+      const shimExports = await getExportedNames(shim);
+      const filteredShimExports = shimExports.filter((name) => !allowedShimExtras.includes(name));
 
-    expect(shimExports).toEqual(sourceExports);
-  });
+      expect(filteredShimExports).toEqual(sourceExports);
+    }
+  );
 });
