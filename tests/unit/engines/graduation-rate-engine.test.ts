@@ -12,9 +12,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   GraduationRateEngine,
   createDefaultGraduationConfig,
+  fromFundDataGraduationRates,
   type GraduationConfig,
   type Stage,
 } from '@/core/graduation/GraduationRateEngine';
+import type { FundDataForReserves } from '@/core/reserves/computeReservesFromGraduation';
 
 describe('GraduationRateEngine', () => {
   describe('Configuration Validation', () => {
@@ -302,6 +304,25 @@ describe('GraduationRateEngine', () => {
         const t = config.transitions[key];
         expect(t.graduate + t.fail + t.remain).toBe(100);
       }
+    });
+  });
+
+  describe('fromFundDataGraduationRates', () => {
+    it('preserves legacy graduation rows and supplies the default c-to-exit transition', () => {
+      const fundGraduationRates: FundDataForReserves['graduationRates'] = {
+        seedToA: { graduate: 30, fail: 40, remain: 30, months: 18 },
+        aToB: { graduate: 25, fail: 50, remain: 25, months: 24 },
+        bToC: { graduate: 20, fail: 55, remain: 25, months: 30 },
+      };
+
+      const config = fromFundDataGraduationRates(fundGraduationRates, false, 123);
+
+      expect(config.expectationMode).toBe(false);
+      expect(config.seed).toBe(123);
+      expect(config.transitions.seedToA).toEqual({ graduate: 30, fail: 40, remain: 30 });
+      expect(config.transitions.aToB).toEqual({ graduate: 25, fail: 50, remain: 25 });
+      expect(config.transitions.bToC).toEqual({ graduate: 20, fail: 55, remain: 25 });
+      expect(config.transitions.cToExit).toEqual({ graduate: 65, fail: 15, remain: 20 });
     });
   });
 

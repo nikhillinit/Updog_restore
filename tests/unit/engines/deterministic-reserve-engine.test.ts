@@ -222,7 +222,7 @@ describe('DeterministicReserveEngine - MOIC Calculations', () => {
     expect(result.allocations[0]?.expectedMOIC).toBeGreaterThan(3.0);
   });
 
-  it('should handle zero valuation gracefully', async () => {
+  it('should reject zero valuation with canonical shared validation', async () => {
     const engine = new DeterministicReserveEngine();
     const company = createCompany({
       currentValuation: 0,
@@ -230,10 +230,9 @@ describe('DeterministicReserveEngine - MOIC Calculations', () => {
     });
     const input = createAllocationInput({ portfolio: [company] });
 
-    const result = await engine.calculateOptimalReserveAllocation(input);
-
-    // Should skip company with zero valuation or handle it gracefully
-    expect(result.allocations.length).toBeGreaterThanOrEqual(0);
+    await expect(engine.calculateOptimalReserveAllocation(input)).rejects.toThrow(
+      /Invalid currentValuation .* Must be positive/
+    );
   });
 
   it('should calculate MOIC for multiple companies', async () => {

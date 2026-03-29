@@ -265,7 +265,25 @@ export function executeCapitalAllocation(input: NormalizedInput): CAEngineOutput
   const cashLedger = calculateCashLedger(input);
 
   // Step 2: Calculate effective buffer
-  const effectiveBufferCents = input.effectiveBufferCents;
+  // For dynamic_ratio policy (CA-005): reserve = NAV × target_pct.
+  let effectiveBufferCents = input.effectiveBufferCents;
+
+  if (input.reservePolicy === 'dynamic_ratio') {
+    const contributionsCents = input.contributionsCents.reduce(
+      (sum, flow) => sum + (flow.amountCents ?? 0),
+      0
+    );
+    const distributionsCents = input.distributionsCents.reduce(
+      (sum, flow) => sum + Math.abs(flow.amountCents ?? 0),
+      0
+    );
+    const navCents = contributionsCents - distributionsCents;
+    const dynamicReserveCents = roundPercentDerivedToCents(
+      Math.max(0, navCents) * input.targetReservePct
+    );
+
+    effectiveBufferCents = Math.max(input.minCashBufferCents, dynamicReserveCents);
+  }
 
   // Step 3: Calculate reserve balance
   // Per CA-SEMANTIC-LOCK.md: reserve_balance = min(ending_cash, effective_buffer)
