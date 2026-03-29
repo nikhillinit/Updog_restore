@@ -208,22 +208,50 @@ gate.
 
 ### Milestone 5: Clean Backend Boundaries
 
-**Goal:** No mixed ownership and no fake persistence on mounted paths.
+**Goal:** No mixed ownership, no fake-success writes on mounted paths, and no
+implicit storage mode.
 
-- [ ] Split remaining inline endpoints out of `server/routes.ts:35`, especially
-      the ones still defined directly at `server/routes.ts:131` and
-      `server/routes.ts:315`.
-- [ ] Tighten runtime storage selection from `server/storage.ts:627` so
-      unsupported environments fail fast instead of silently dropping to memory.
-- [ ] Remove or implement methods still returning mock objects, including the
-      areas flagged at `server/storage.ts:565` and `server/storage.ts:584`.
-- [ ] Add a boot smoke test proving live routes register with the supported
-      storage mode.
+- [x] Build the ownership matrix for the remaining inline routes in
+      `server/routes.ts`.
+      Remaining inline ownership has been collapsed to dedicated route modules:
+      dashboard summary, investments, portfolio companies, activities, legacy
+      fund metrics, and engine summaries. Unsupported scenario writes remain
+      explicit `501` contracts until real persistence exists.
+- [x] Remove fake-success semantics from mounted write routes first.
+      `POST /api/investments/:id/rounds` and `POST /api/investments/:id/cases`
+      now return explicit `501 UNSUPPORTED_STORAGE_OPERATION` until real
+      persistence exists.
+- [x] Add observable storage runtime state in `server/storage.ts` and expose it
+      through `/readyz` and `/health/detailed`.
+- [x] Extract the safest remaining boundaries first.
+      Dashboard summary now lives behind
+      `server/services/dashboard-summary-read-service.ts` and
+      `server/routes/dashboard-summary.ts`, and investment routes now live in
+      `server/routes/investments.ts`.
+- [x] Extract the remaining real CRUD route modules from `server/routes.ts`.
+      Portfolio companies and activities now live in
+      `server/routes/portfolio-companies.ts` and `server/routes/activities.ts`.
+- [x] Move remaining composed reads into dedicated services as needed.
+      Dashboard summary now reads through
+      `server/services/dashboard-summary-read-service.ts`, and the remaining
+      summary endpoints live in dedicated route modules instead of the central
+      registrar.
+- [x] Tighten storage enforcement after observability is in place.
+      `server/db.ts` and `server/storage.ts` now share explicit boot policy via
+      `server/storage-runtime-policy.ts`, with fail-fast behavior when neither
+      DB mode nor explicit dev memory mode is allowed.
+- [x] Add regression guards:
+      boot-surface route tests, storage-mode assertions, and no-fake-mounted-
+      writes coverage are now enforced by the M5 integration/unit suites.
 
 **Exit criteria:**
 
 - No mounted endpoint pretends to persist data it does not.
-- Route registration is modular and explicit.
+- Storage mode and capabilities are explicit and testable.
+- `server/routes.ts` is registration-focused rather than a mixed business-logic
+  module.
+
+**Status:** [COMPLETE]
 
 ---
 
@@ -280,8 +308,8 @@ gate.
 
 ## Immediate Next Actions
 
-1. Start Milestone 4 by introducing a single server-owned finalize flow for
-   create, draft persistence, publish, and result kickoff.
+1. Start Milestone 6 with the highest-leverage internal workflow feature:
+   reserve-planning persistence inside the live portfolio surface.
 2. Keep future route or nav changes flowing through the exported governance
    registry and the generated route-control adapter.
 3. Keep shared math authoritative; do not introduce new client-side engine

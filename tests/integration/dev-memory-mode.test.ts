@@ -22,6 +22,9 @@ describe('Dev memory mode', () => {
     process.env.REDIS_URL = 'memory://';
     process.env._EXPLICIT_REDIS_URL = process.env.REDIS_URL;
     process.env.ENABLE_QUEUES = '0';
+    process.env.ALLOW_MEMORY_STORAGE = '1';
+    delete process.env.DATABASE_URL;
+    delete process.env.NEON_DATABASE_URL;
     delete process.env.RATE_LIMIT_REDIS_URL;
     delete process.env.QUEUE_REDIS_URL;
     delete process.env.SESSION_REDIS_URL;
@@ -54,6 +57,13 @@ describe('Dev memory mode', () => {
     const res = await request(app).get('/healthz').expect(200);
 
     expect(res.body.status).toBe('ok');
+  });
+
+  it('should expose memory storage through readiness checks', async () => {
+    const res = await request(app).get('/readyz').expect(200);
+
+    expect(res.body).toHaveProperty('checks.storage', 'memory');
+    expect(res.body).toHaveProperty('storage.kind', 'memory');
   });
 
   it('should handle API requests with memory cache', async () => {

@@ -115,8 +115,10 @@ const envSchema = z.object({
     return Number.isNaN(num) ? undefined : num;
   }, z.number().int().min(0).default(5000)),
 
-  // Database (optional in memory mode)
-  DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock').optional(),
+  // Database (optional only in explicit memory mode)
+  DATABASE_URL: z.string().min(1).optional(),
+  NEON_DATABASE_URL: z.string().min(1).optional(),
+  ALLOW_MEMORY_STORAGE: bool.default(false),
 
   // Cache & Queue - explicit scheme validation
   REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),
@@ -242,7 +244,6 @@ export function loadEnv() {
 
     // Required configuration
     const requiredInProduction = [
-      'DATABASE_URL',
       'REDIS_URL',
       'CORS_ORIGIN',
       'SESSION_SECRET',
@@ -250,9 +251,16 @@ export function loadEnv() {
       'METRICS_KEY',
     ] as const;
 
-    const missing = requiredInProduction.filter(
+    const missing: string[] = requiredInProduction.filter(
       (key) => !process.env[key] || process.env[key]?.startsWith('mock')
     );
+
+    const hasProductionDatabase =
+      (process.env['DATABASE_URL'] && !process.env['DATABASE_URL']?.startsWith('mock')) ||
+      (process.env['NEON_DATABASE_URL'] && !process.env['NEON_DATABASE_URL']?.startsWith('mock'));
+    if (!hasProductionDatabase) {
+      missing.unshift('DATABASE_URL|NEON_DATABASE_URL');
+    }
 
     if (missing.length > 0) {
       console.error(`❌ Missing required production configuration: ${missing.join(', ')}`);
@@ -296,10 +304,11 @@ export function loadEnv() {
     }
 
     // Validate database URL doesn't use default credentials
+    const databaseUrlToValidate = config.DATABASE_URL ?? config.NEON_DATABASE_URL;
     if (
-      config.DATABASE_URL &&
-      (config.DATABASE_URL.includes('postgres:postgres') ||
-        config.DATABASE_URL.includes('user:password'))
+      databaseUrlToValidate &&
+      (databaseUrlToValidate.includes('postgres:postgres') ||
+        databaseUrlToValidate.includes('user:password'))
     ) {
       console.error('❌ Database URL contains default credentials');
       throw new Error('Database URL contains default credentials - use secure credentials');
@@ -351,11 +360,18 @@ export function loadEnv() {
   if (config.NODE_ENV === 'staging') {
     logger.info('[config] Running staging environment validation...');
 
-    const requiredInStaging = ['DATABASE_URL', 'REDIS_URL', 'SESSION_SECRET'] as const;
+    const requiredInStaging = ['REDIS_URL', 'SESSION_SECRET'] as const;
 
-    const missing = requiredInStaging.filter(
+    const missing: string[] = requiredInStaging.filter(
       (key) => !process.env[key] || process.env[key]?.startsWith('mock')
     );
+
+    const hasStagingDatabase =
+      (process.env['DATABASE_URL'] && !process.env['DATABASE_URL']?.startsWith('mock')) ||
+      (process.env['NEON_DATABASE_URL'] && !process.env['NEON_DATABASE_URL']?.startsWith('mock'));
+    if (!hasStagingDatabase) {
+      missing.unshift('DATABASE_URL|NEON_DATABASE_URL');
+    }
 
     if (missing.length > 0) {
       logger.warn(`Missing recommended staging configuration: ${missing.join(', ')}`);
@@ -368,6 +384,7 @@ export function loadEnv() {
   const logConfig = {
     ...config,
     DATABASE_URL: config.DATABASE_URL?.replace(/\/\/[^@]+@/, '//***:***@') ?? '',
+    NEON_DATABASE_URL: config.NEON_DATABASE_URL?.replace(/\/\/[^@]+@/, '//***:***@') ?? '',
     REDIS_URL: config.REDIS_URL.startsWith('redis://') ? 'redis://***' : config.REDIS_URL,
     ERROR_TRACKING_DSN: config.ERROR_TRACKING_DSN ? '***' : undefined,
     HEALTH_KEY: config.HEALTH_KEY ? '***' : undefined,
