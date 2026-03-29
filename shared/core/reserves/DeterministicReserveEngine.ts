@@ -17,6 +17,7 @@ import {
   ReserveCalculationError,
   DEFAULT_STAGE_STRATEGIES,
 } from '@shared/schemas/reserves-schemas';
+import { normalizeStageOrUndefined } from '@shared/schemas/stage';
 import { getLogger, getPerf } from '@shared/instrumentation';
 import { validateReserveAllocationConservation } from '@shared/validation/conservation';
 
@@ -541,17 +542,21 @@ export class DeterministicReserveEngine {
       return new Decimal(graduationRate.probability);
     }
 
-    // Improved stage-specific defaults based on industry data
+    const canonicalStage =
+      normalizeStageOrUndefined(company.currentStage) ??
+      normalizeStageOrUndefined(company.currentStage.toLowerCase().replace(/\s+/g, '_'));
+
+    // Canonical defaults keep wizard/reserve inputs on the same stage vocabulary.
     const stageDefaults: Record<string, number> = {
       seed: 0.3, // 30% seed to Series A
-      'series-a': 0.5, // 50% Series A to Series B
-      'series-b': 0.6, // 60% Series B to Series C
-      'series-c': 0.7, // 70% Series C to later stages
+      series_a: 0.5, // 50% Series A to Series B
+      series_b: 0.6, // 60% Series B to Series C
+      series_c: 0.7, // 70% Series C to later stages
       growth: 0.75, // 75% growth to exit
-      'late-stage': 0.8, // 80% late-stage to exit
+      late_stage: 0.8, // 80% late-stage to exit
     };
 
-    return new Decimal(stageDefaults[company.currentStage.toLowerCase()] || 0.4);
+    return new Decimal(stageDefaults[canonicalStage ?? company.currentStage.toLowerCase()] || 0.4);
   }
 
   /**

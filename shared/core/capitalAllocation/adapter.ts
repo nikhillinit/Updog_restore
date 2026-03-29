@@ -432,24 +432,14 @@ const PACING_MODEL_DEFERRED_CASES = new Set([
 
 /**
  * Check if a truth case should be skipped.
- * Per CA-SEMANTIC-LOCK.md Section 6: CA-005 (dynamic_ratio) is deferred.
- * Per FOUNDATION-HARDENING-EXECUTION-PLAN.md: Pacing model cases deferred to Parity Sprint.
+ *
+ * Dynamic reserve policy is implemented; only the remaining pacing-model parity
+ * cases stay deferred in the shared adapter path.
  */
 export function shouldSkipTruthCase(
   caseId: string,
-  reservePolicy?: string
+  _reservePolicy?: string
 ): { skip: boolean; reason?: string } {
-  // CA-005 uses dynamic_ratio which requires NAV calculation
-  if (caseId === 'CA-005' || reservePolicy === 'dynamic_ratio') {
-    return {
-      skip: true,
-      reason:
-        'CA-005 (dynamic_ratio) deferred to Phase 2 per CA-SEMANTIC-LOCK.md Section 6. ' +
-        'Requires NAV calculation formula which is not yet specified.',
-    };
-  }
-
-  // Pacing model cases - engine implements cash model, not pacing model
   if (PACING_MODEL_DEFERRED_CASES.has(caseId)) {
     return {
       skip: true,
@@ -460,6 +450,7 @@ export function shouldSkipTruthCase(
     };
   }
 
+  void caseId;
   return { skip: false };
 }
 
