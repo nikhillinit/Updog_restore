@@ -161,6 +161,9 @@ gate.
 
 - [x] Extend the boundary completeness guard to cover existing shared-authority
       shims, including constrained reserves and the new liquidity shim.
+- [x] Add a normalized `DeterministicReserveEngine` parity harness comparing
+      direct inputs plus wizard-transformed requests, with characterized
+      divergences for shared-only validation and fallback behavior.
 - [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
 - [x] Migrate callers away from duplicated client engines such as
       `client/src/core/LiquidityEngine.ts:18` and
