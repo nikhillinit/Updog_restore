@@ -8,10 +8,6 @@ type MockFundContext = {
   needsSetup: boolean;
 };
 
-type NavigationFlagOverrides = {
-  NEW_IA?: boolean;
-};
-
 let mockFundContext: MockFundContext = {
   currentFund: {
     id: 7,
@@ -21,13 +17,8 @@ let mockFundContext: MockFundContext = {
   needsSetup: false,
 };
 
-async function loadNavigationModules(flagOverrides: NavigationFlagOverrides = {}) {
+async function loadNavigationModules() {
   vi.resetModules();
-  vi.doMock('@/core/flags/featureFlags', () => ({
-    FLAGS: {
-      NEW_IA: flagOverrides.NEW_IA ?? false,
-    },
-  }));
   vi.doMock('@/contexts/FundContext', () => ({
     useFundContext: () => mockFundContext,
   }));
@@ -54,27 +45,23 @@ describe('sidebar results navigation', () => {
       },
       needsSetup: false,
     };
-    vi.unmock('@/core/flags/featureFlags');
     vi.unmock('@/contexts/FundContext');
     vi.resetModules();
   });
 
-  it('includes model results in both legacy and NEW_IA navigation modes', async () => {
-    const legacy = await loadNavigationModules({ NEW_IA: false });
-    expect(legacy.getNavigationItems().some((item) => item.id === 'model-results')).toBe(true);
-
-    const simplified = await loadNavigationModules({ NEW_IA: true });
-    expect(simplified.getNavigationItems().some((item) => item.id === 'model-results')).toBe(true);
+  it('includes model results in the stabilized navigation', async () => {
+    const navigation = await loadNavigationModules();
+    expect(navigation.getNavigationItems().some((item) => item.id === 'model-results')).toBe(true);
   });
 
-  it('omits planning from the legacy navigation by default', async () => {
-    const { getNavigationItems } = await loadNavigationModules({ NEW_IA: false });
+  it('omits planning from the navigation by default', async () => {
+    const { getNavigationItems } = await loadNavigationModules();
 
     expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
   });
 
   it('keeps the main navigation limited to the reduced core perimeter', async () => {
-    const { getNavigationItems } = await loadNavigationModules({ NEW_IA: false });
+    const { getNavigationItems } = await loadNavigationModules();
 
     expect(getNavigationItems().map((item) => item.id)).toEqual([
       'dashboard',
@@ -85,21 +72,17 @@ describe('sidebar results navigation', () => {
     ]);
   });
 
-  it('shows settings and help in the sidebar footer for both navigation modes', async () => {
-    const legacy = await loadNavigationModules({ NEW_IA: false });
-    const simplified = await loadNavigationModules({ NEW_IA: true });
+  it('shows settings and help in the sidebar footer', async () => {
+    const navigation = await loadNavigationModules();
 
-    expect(legacy.getFooterNavigationItems().map((item) => item.id)).toEqual(['settings', 'help']);
-    expect(simplified.getFooterNavigationItems().map((item) => item.id)).toEqual([
+    expect(navigation.getFooterNavigationItems().map((item) => item.id)).toEqual([
       'settings',
       'help',
     ]);
   });
 
   it('prefers the route fund ID over currentFund when resolving the results href', async () => {
-    const { getNavigationItems, resolveNavigationHref } = await loadNavigationModules({
-      NEW_IA: false,
-    });
+    const { getNavigationItems, resolveNavigationHref } = await loadNavigationModules();
     const resultsItem = getNavigationItems().find((item) => item.id === 'model-results');
 
     expect(resultsItem).toBeDefined();
@@ -113,14 +96,14 @@ describe('sidebar results navigation', () => {
   });
 
   it('matches deep-linked results routes back to the stable navigation id', async () => {
-    const { getActiveNavigationId } = await loadNavigationModules({ NEW_IA: false });
+    const { getActiveNavigationId } = await loadNavigationModules();
 
     expect(getActiveNavigationId('/fund-model-results/42')).toBe('model-results');
     expect(getActiveNavigationId('/fund-model-results/42?tab=summary')).toBe('model-results');
   });
 
   it('renders a fund-scoped model results link when a current fund is available', async () => {
-    const { Sidebar } = await loadNavigationModules({ NEW_IA: false });
+    const { Sidebar } = await loadNavigationModules();
     const { Wrapper } = createWouterWrapper('/dashboard');
     const { container } = render(
       <Wrapper>
@@ -140,7 +123,7 @@ describe('sidebar results navigation', () => {
       needsSetup: false,
     };
 
-    const { Sidebar, getActiveNavigationId } = await loadNavigationModules({ NEW_IA: false });
+    const { Sidebar, getActiveNavigationId } = await loadNavigationModules();
     const initialLocation = '/fund-model-results/42';
     const { Wrapper } = createWouterWrapper(initialLocation);
     const { container } = render(
@@ -162,7 +145,7 @@ describe('sidebar results navigation', () => {
       needsSetup: false,
     };
 
-    const { Sidebar } = await loadNavigationModules({ NEW_IA: false });
+    const { Sidebar } = await loadNavigationModules();
     const { Wrapper } = createWouterWrapper('/dashboard');
     const { container } = render(
       <Wrapper>

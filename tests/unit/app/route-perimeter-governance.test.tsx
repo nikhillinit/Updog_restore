@@ -7,22 +7,23 @@ function passthrough(children: React.ReactNode) {
 }
 
 type FlagOverrides = Partial<{
-  NEW_IA: boolean;
-  ENABLE_LP_REPORTING: boolean;
-  ONBOARDING_TOUR: boolean;
-  UI_CATALOG: boolean;
+  enable_lp_reporting: boolean;
+  onboarding_tour: boolean;
+  ui_catalog: boolean;
 }>;
 
 async function loadApp(flagOverrides: FlagOverrides = {}) {
   vi.resetModules();
 
-  vi.doMock('@/core/flags/featureFlags', () => ({
-    FLAGS: {
-      NEW_IA: flagOverrides.NEW_IA ?? false,
-      ENABLE_LP_REPORTING: flagOverrides.ENABLE_LP_REPORTING ?? false,
-      ONBOARDING_TOUR: flagOverrides.ONBOARDING_TOUR ?? false,
-      UI_CATALOG: flagOverrides.UI_CATALOG ?? false,
-    },
+  const resolvedFlags = {
+    enable_lp_reporting: flagOverrides.enable_lp_reporting ?? false,
+    onboarding_tour: flagOverrides.onboarding_tour ?? false,
+    ui_catalog: flagOverrides.ui_catalog ?? false,
+  } as const;
+
+  vi.doMock('@/app/route-control-flags', () => ({
+    resolveRouteControlFlag: (flag: keyof typeof resolvedFlags) => resolvedFlags[flag],
+    useRouteControlFlag: (flag: keyof typeof resolvedFlags) => resolvedFlags[flag],
   }));
 
   vi.doMock('@/contexts/FundContext', () => ({
@@ -76,7 +77,9 @@ async function loadApp(flagOverrides: FlagOverrides = {}) {
   vi.doMock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
   vi.doMock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
   vi.doMock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));
-  vi.doMock('@/pages/shared-dashboard', () => ({ default: () => <div>Shared Dashboard Page</div> }));
+  vi.doMock('@/pages/shared-dashboard', () => ({
+    default: () => <div>Shared Dashboard Page</div>,
+  }));
   vi.doMock('@/pages/portal/access-denied', () => ({
     default: () => <div>Portal Access Denied Page</div>,
   }));
@@ -148,14 +151,14 @@ describe('route perimeter governance', () => {
   });
 
   it('hides the LP dashboard when LP reporting is disabled', async () => {
-    await renderAt('/lp/dashboard', { ENABLE_LP_REPORTING: false });
+    await renderAt('/lp/dashboard', { enable_lp_reporting: false });
 
     expect(await screen.findByText('Not Found Page')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/lp/dashboard');
   });
 
   it('keeps the LP dashboard reachable when LP reporting is enabled', async () => {
-    await renderAt('/lp/dashboard', { ENABLE_LP_REPORTING: true });
+    await renderAt('/lp/dashboard', { enable_lp_reporting: true });
 
     expect(await screen.findByText('LP Dashboard Page')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/lp/dashboard');

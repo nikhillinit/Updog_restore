@@ -2,8 +2,9 @@
  * AdminRoute - Protected route wrapper for admin/internal pages
  *
  * Security: Admin routes can only be accessed when:
- * 1. The corresponding feature flag is enabled via environment variable
- *    (localStorage overrides are NOT supported for admin flags)
+ * 1. The corresponding route-control flag is enabled by generated registry
+ *    defaults or environment variables
+ *    (localStorage overrides are NOT supported for admin or route flags)
  * 2. Optionally, only in development mode
  *
  * This prevents client-side bypass attacks where users could set
@@ -12,11 +13,11 @@
 
 import { type ReactNode } from 'react';
 import { Redirect } from 'wouter';
-import { FLAGS } from '@/core/flags/featureFlags';
+import { resolveRouteControlFlag, type AdminRouteFlag } from '@/app/route-control-flags';
 
 interface AdminRouteProps {
-  /** The admin flag to check (must be an admin flag without localStorage override) */
-  flag: keyof typeof FLAGS;
+  /** The admin flag to check (must be an admin route-control flag) */
+  flag: AdminRouteFlag;
   /** The component to render if access is granted */
   children: ReactNode;
   /** Optional: only allow access in development mode */
@@ -62,14 +63,9 @@ function AccessDenied() {
   );
 }
 
-export function AdminRoute({
-  flag,
-  children,
-  devOnly = false,
-  redirectTo,
-}: AdminRouteProps) {
+export function AdminRoute({ flag, children, devOnly = false, redirectTo }: AdminRouteProps) {
   const isDev = import.meta.env.DEV;
-  const flagEnabled = FLAGS[flag];
+  const flagEnabled = resolveRouteControlFlag(flag);
 
   // Check dev-only restriction
   if (devOnly && !isDev) {
@@ -79,7 +75,7 @@ export function AdminRoute({
     return <AccessDenied />;
   }
 
-  // Check feature flag (admin flags have no localStorage override)
+  // Check feature flag (admin/route flags have no localStorage override)
   if (!flagEnabled) {
     if (redirectTo) {
       return <Redirect to={redirectTo} />;

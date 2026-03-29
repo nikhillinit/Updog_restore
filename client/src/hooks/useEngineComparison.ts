@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { FLAGS } from '@/core/flags/featureFlags';
+import { useFlag } from '@/hooks/useUnifiedFlag';
 import type { SectorProfile, CapitalAllocationOutput } from '@/schemas/modeling-wizard.schemas';
 import type { SharedWizardComputationContext } from '@/lib/wizard-computation-context';
 import type { ReserveCalculationResult } from '@shared/schemas/reserves-schemas';
@@ -41,7 +41,7 @@ export function useEngineComparison({
   capitalAllocation,
   debounceMs = 800,
 }: UseEngineComparisonOptions): EngineComparisonState {
-  const isEnabled = FLAGS.ENABLE_ENGINE_INTEGRATION;
+  const isEnabled = useFlag('enable_engine_integration', { withDependencies: true });
   const [result, setResult] = React.useState<ReserveCalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);

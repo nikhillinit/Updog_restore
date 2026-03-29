@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from: flags/registry.yaml
- * Generated at: 2026-02-17T01:16:12.283Z
+ * Generated at: 2026-03-28T19:42:52.531Z
  *
  * Run `npm run flags:generate` to regenerate
  */
@@ -17,6 +17,7 @@ export type FlagKey =
   | 'enable_operations_hub'
   | 'enable_lp_reporting'
   | 'enable_reserve_engine'
+  | 'enable_engine_integration'
   | 'ts_reserves'
   | 'wasm_reserves'
   | 'shadow_compare'
@@ -49,6 +50,7 @@ export type ClientFlagKey =
   | 'enable_operations_hub'
   | 'enable_lp_reporting'
   | 'enable_reserve_engine'
+  | 'enable_engine_integration'
   | 'ts_reserves'
   | 'wasm_reserves'
   | 'shadow_compare'
@@ -70,12 +72,16 @@ export type ClientFlagKey =
 /**
  * Server-only flags (not exposed to client)
  */
-export type ServerOnlyFlagKey = 'demo_mode' | 'require_auth' | 'enable_faults';
+export type ServerOnlyFlagKey =
+  | 'demo_mode'
+  | 'require_auth'
+  | 'enable_faults';
 
 /**
  * Admin flags (no localStorage override)
  */
-export type AdminFlagKey = 'ui_catalog';
+export type AdminFlagKey =
+  | 'ui_catalog';
 
 /**
  * Flag risk levels
@@ -124,6 +130,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_operations_hub',
   'enable_lp_reporting',
   'enable_reserve_engine',
+  'enable_engine_integration',
   'ts_reserves',
   'wasm_reserves',
   'shadow_compare',
@@ -157,6 +164,7 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
   'enable_operations_hub',
   'enable_lp_reporting',
   'enable_reserve_engine',
+  'enable_engine_integration',
   'ts_reserves',
   'wasm_reserves',
   'shadow_compare',
@@ -179,7 +187,9 @@ export const CLIENT_FLAG_KEYS: readonly ClientFlagKey[] = [
 /**
  * Array of admin flag keys (no localStorage override)
  */
-export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = ['ui_catalog'] as const;
+export const ADMIN_FLAG_KEYS: readonly AdminFlagKey[] = [
+  'ui_catalog',
+] as const;
 
 /**
  * Check if a key is a valid flag key

@@ -34,6 +34,7 @@ const CANONICAL_TO_LEGACY_ALIASES: Record<ClientFlagKey, string[]> = {
   enable_operations_hub: [],
   enable_lp_reporting: [],
   enable_reserve_engine: [],
+  enable_engine_integration: [],
   ts_reserves: [],
   wasm_reserves: [],
   shadow_compare: [],

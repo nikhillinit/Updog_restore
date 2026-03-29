@@ -3,11 +3,11 @@
  *
  * Shows a guided tour for new GP users, highlighting the 5 main navigation areas.
  * Appears once per user (tracked via localStorage).
- * Gated by FLAGS.ONBOARDING_TOUR feature flag.
+ * Gated by the canonical route-control onboarding_tour flag.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { FLAGS } from '@/core/flags/featureFlags';
+import { useRouteControlFlag } from '@/app/route-control-flags';
 import { track } from '@/lib/telemetry';
 import {
   Dialog,
@@ -85,19 +85,18 @@ const TOUR_STEPS: TourStep[] = [
 export function GuidedTour() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const onboardingTourEnabled = useRouteControlFlag('onboarding_tour');
 
-  // Check if tour should show
   useEffect(() => {
-    if (!FLAGS.ONBOARDING_TOUR) return;
+    if (!onboardingTourEnabled) return;
 
     const hasSeenTour = localStorage.getItem(STORAGE_KEY);
     if (!hasSeenTour) {
       setIsOpen(true);
       track('tour_started', { version: TOUR_VERSION });
     }
-  }, []);
+  }, [onboardingTourEnabled]);
 
-  // Track step views
   useEffect(() => {
     if (isOpen) {
       track('tour_step_viewed', { stepIndex: currentStep });
@@ -124,7 +123,7 @@ export function GuidedTour() {
     setIsOpen(false);
   }, []);
 
-  if (!FLAGS.ONBOARDING_TOUR || !isOpen) {
+  if (!onboardingTourEnabled || !isOpen) {
     return null;
   }
 
