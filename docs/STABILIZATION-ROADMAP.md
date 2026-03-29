@@ -224,8 +224,9 @@ implicit storage mode.
       `server/services/dashboard-summary-read-service.ts` and
       `server/routes/dashboard-summary.ts`, and investment routes now live in
       `server/routes/investments.ts`.
-- [ ] Extract the remaining real CRUD route modules from `server/routes.ts`
-      (portfolio companies and activities).
+- [x] Extract the remaining real CRUD route modules from `server/routes.ts`.
+      Portfolio companies and activities now live in
+      `server/routes/portfolio-companies.ts` and `server/routes/activities.ts`.
 - [ ] Move remaining composed reads into dedicated services as needed.
 - [ ] Tighten storage enforcement after observability is in place.
       This must include `server/db.ts`, not just `server/storage.ts`.
