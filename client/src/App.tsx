@@ -10,7 +10,7 @@ import { StagingRibbon } from '@/components/StagingRibbon';
 import { ErrorBoundary } from './components/ui/error-boundary';
 import { BrandChartThemeProvider } from '@/lib/chart-theme/chart-theme-provider';
 import { AdminRoute } from '@/components/AdminRoute';
-import { FLAGS } from '@/core/flags/featureFlags';
+import { resolveRouteControlFlag, useRouteControlFlag } from '@/app/route-control-flags';
 import './styles/demo-animations.css';
 
 // Layout components
@@ -178,9 +178,10 @@ function DeferredToaster() {
 
 function DeferredGuidedTour() {
   const [shouldLoad, setShouldLoad] = useState(false);
+  const onboardingTourEnabled = useRouteControlFlag('onboarding_tour');
 
   useEffect(() => {
-    if (!FLAGS.ONBOARDING_TOUR) {
+    if (!onboardingTourEnabled) {
       return;
     }
 
@@ -191,7 +192,7 @@ function DeferredGuidedTour() {
     } catch {
       setShouldLoad(true);
     }
-  }, []);
+  }, [onboardingTourEnabled]);
 
   if (!shouldLoad) {
     return null;
@@ -296,7 +297,8 @@ export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
   {
     path: '/planning',
     redirectTarget: '/portfolio?tab=reserve-planning',
-    notes: 'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
+    notes:
+      'Standalone planning is archived; reserve planning remains inside the portfolio workspace.',
   },
   {
     path: '/kpi-manager',
@@ -353,10 +355,7 @@ function renderAppRoute({ path, component: C, isProtected }: AppRouteEntry) {
   );
 }
 
-function renderArchivedPlaceholderRoute({
-  path,
-  redirectTarget,
-}: ArchivedPlaceholderRouteEntry) {
+function renderArchivedPlaceholderRoute({ path, redirectTarget }: ArchivedPlaceholderRouteEntry) {
   return (
     <Route key={path} path={path}>
       {() => <Redirect to={redirectTarget} />}
@@ -388,7 +387,7 @@ function PageLoadingFallback() {
 }
 
 function Router() {
-  const lpRoutes = FLAGS.ENABLE_LP_REPORTING ? LP_ROUTES : [];
+  const lpRoutes = resolveRouteControlFlag('enable_lp_reporting') ? LP_ROUTES : [];
 
   return (
     <Suspense fallback={<PageLoadingFallback />}>
@@ -406,7 +405,7 @@ function Router() {
         {lpRoutes.map(renderLPRoute)}
         <Route path={ADMIN_GATED_ROUTES.uiCatalog}>
           {() => (
-            <AdminRoute flag="UI_CATALOG">
+            <AdminRoute flag="ui_catalog">
               <UICatalog />
             </AdminRoute>
           )}

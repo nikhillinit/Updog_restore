@@ -93,7 +93,7 @@ flags:
     risk: medium
     exposeToClient: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: ['enable_kpi_selectors', 'enable_operations_hub']
@@ -112,6 +112,20 @@ flags:
       production: false
     dependencies: ['enable_kpi_selectors']
     expiresAt: null
+
+  enable_engine_integration:
+    default: false
+    description: 'Wizard engine comparison and recommendations panel'
+    owner: 'analytics'
+    risk: medium
+    exposeToClient: true
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_ENGINE_INTEGRATION']
 
   # ============================================
   # ENGINE FLAGS
@@ -240,7 +254,7 @@ flags:
     exposeToClient: true # But no localStorage override (admin flag)
     adminOnly: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: []
@@ -254,7 +268,7 @@ flags:
     risk: low
     exposeToClient: true
     environments:
-      development: true
+      development: false
       staging: false
       production: false
     dependencies: []

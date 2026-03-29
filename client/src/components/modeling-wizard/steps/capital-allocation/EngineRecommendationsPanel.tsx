@@ -6,7 +6,7 @@
  * cards for reserve ratio, expected MOIC, and concentration risk,
  * plus risk-assessment badges when thresholds are breached.
  *
- * Gated behind FLAGS.ENABLE_ENGINE_INTEGRATION at the mount site.
+ * Gated behind the generated enable_engine_integration flag at the mount site.
  */
 
 import React from 'react';

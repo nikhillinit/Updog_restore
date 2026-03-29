@@ -6,7 +6,7 @@ import {
   LP_ROUTES,
   PUBLIC_ENTRY_ROUTES,
 } from '@/App';
-import type { Flags } from '@/core/flags/featureFlags';
+import type { RouteControlFlag } from '@/app/route-control-flags';
 
 export type RouteSurface =
   | 'root-entry'
@@ -31,7 +31,7 @@ export interface RouteGovernanceEntry {
   surface: RouteSurface;
   exposure: RouteExposure;
   isProtected: boolean;
-  flag?: keyof Flags;
+  flag?: RouteControlFlag;
   navId?: string;
   redirectTarget?: string;
   notes?: string;
@@ -92,8 +92,8 @@ function toLPRouteGovernanceEntry(route: (typeof LP_ROUTES)[number]): RouteGover
     surface: 'lp-route',
     exposure: 'lp-surface',
     isProtected: false,
-    flag: 'ENABLE_LP_REPORTING',
-    notes: 'LP routes only mount when ENABLE_LP_REPORTING is enabled.',
+    flag: 'enable_lp_reporting',
+    notes: 'LP routes only mount when enable_lp_reporting is enabled.',
   };
 }
 
@@ -125,21 +125,23 @@ const SPECIAL_ROUTE_GOVERNANCE: RouteGovernanceEntry[] = [
     surface: 'public-contract',
     exposure: 'public-contract',
     isProtected: false,
-    notes: 'Shared LP/dashboard links are externally addressable and must be treated as a public contract.',
+    notes:
+      'Shared LP/dashboard links are externally addressable and must be treated as a public contract.',
   },
   {
     path: PUBLIC_ENTRY_ROUTES.portalCatchAll,
     surface: 'public-contract',
     exposure: 'public-contract',
     isProtected: false,
-    notes: 'Portal catch-all remains a public entrypoint even though it currently resolves to access denied.',
+    notes:
+      'Portal catch-all remains a public entrypoint even though it currently resolves to access denied.',
   },
   {
     path: ADMIN_GATED_ROUTES.uiCatalog,
     surface: 'admin-gated',
     exposure: 'admin-gated',
     isProtected: false,
-    flag: 'UI_CATALOG',
+    flag: 'ui_catalog',
     notes: 'Admin-only catalog route must stay explicitly gated.',
   },
 ];

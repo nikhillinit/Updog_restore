@@ -1,33 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-describe('Wave 2 feature-flags boundary', () => {
+describe('legacy feature-flags compatibility', () => {
   afterEach(() => {
     localStorage.clear();
     vi.unstubAllEnvs();
     vi.resetModules();
   });
 
-  it('keeps LP reporting disabled by default', async () => {
+  it('keeps route-facing flags out of the legacy compatibility shim', async () => {
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
-    expect(FLAGS.ENABLE_LP_REPORTING).toBe(false);
+    expect('ENABLE_LP_REPORTING' in FLAGS).toBe(false);
+    expect('ONBOARDING_TOUR' in FLAGS).toBe(false);
+    expect('UI_CATALOG' in FLAGS).toBe(false);
+    expect('ENABLE_ENGINE_INTEGRATION' in FLAGS).toBe(false);
   });
 
-  it('prefers a localStorage override for standard client flags', async () => {
+  it('prefers a localStorage override for remaining compatibility flags', async () => {
     localStorage.setItem('FF_NEW_IA', 'true');
-    localStorage.setItem('FF_ENABLE_LP_REPORTING', 'true');
 
     const { FLAGS } = await import('@/core/flags/featureFlags');
 
     expect(FLAGS.NEW_IA).toBe(true);
-    expect(FLAGS.ENABLE_LP_REPORTING).toBe(true);
-  });
-
-  it('uses environment values for admin-only flags', async () => {
-    vi.stubEnv('VITE_UI_CATALOG', 'true');
-
-    const { FLAGS } = await import('@/core/flags/featureFlags');
-
-    expect(FLAGS.UI_CATALOG).toBe(true);
   });
 });
