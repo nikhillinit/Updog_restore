@@ -30,6 +30,16 @@ async function checkDatabase(): Promise<HealthComponent> {
   try {
     const runtime = getStorageRuntimeState(storage);
 
+    if (runtime.kind === 'memory') {
+      healthStatus['set']({ component: 'database' }, 1);
+      return {
+        name: 'database',
+        status: 'healthy',
+        message: 'Database-backed routes are using explicit memory mode',
+        details: { storage: runtime.kind },
+      };
+    }
+
     // In dev mode with mock database, just return healthy
     if (runtime.mockDatabase) {
       healthStatus['set']({ component: 'database' }, 1);

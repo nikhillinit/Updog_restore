@@ -9,6 +9,10 @@ import * as lpSprint3Schema from '@shared/schema-lp-sprint3';
 import * as approvalSchema from '@shared/schemas/reserve-approvals';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createRequire } from 'node:module';
+import {
+  getStorageConfigurationError,
+  resolveStorageBootMode,
+} from './storage-runtime-policy';
 
 // Combined schema for LP reporting + reserve approval support + Sprint 3
 const combinedSchema = { ...schema, ...lpSchema, ...lpSprint3Schema, ...approvalSchema };
@@ -20,29 +24,30 @@ type CombinedSchema = typeof schema &
 // ESM-safe require for conditional imports
 const require = createRequire(import.meta.url);
 
-// Detect test environment
-const isVitest = process.env['VITEST'] === 'true';
-const isTest = process.env['NODE_ENV'] === 'test' || isVitest;
-const useRealDbInVitest = process.env['USE_REAL_DB_IN_VITEST'] === '1';
-
 // Detect if running on Vercel
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
+const storageBootMode = resolveStorageBootMode(process.env);
 
 // Dynamic imports based on environment
 let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
 
-// Use mock database in test environment
-if (isTest && !useRealDbInVitest) {
+async function loadDatabaseMock(): Promise<NodePgDatabase<CombinedSchema>> {
   // Import the database mock for testing
   const vitestMockPath = '../tests/helpers/database-mock';
   const mockModule = (
-    isVitest ? await import(vitestMockPath) : require('../tests/helpers/database-mock.cjs')
+    process.env['VITEST'] === 'true'
+      ? await import(vitestMockPath)
+      : require('../tests/helpers/database-mock.cjs')
   ) as {
     databaseMock: NodePgDatabase<CombinedSchema>;
   };
-  const { databaseMock } = mockModule;
-  db = databaseMock;
+  return mockModule.databaseMock;
+}
+
+// Use mock database in test environment and explicit dev memory mode
+if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory') {
+  db = await loadDatabaseMock();
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
@@ -75,12 +80,12 @@ if (isTest && !useRealDbInVitest) {
 
   neonConfig.webSocketConstructor = ws;
 
-  if (!process.env['DATABASE_URL']) {
-    console.warn('DATABASE_URL not set - using mock mode for API testing');
-    process.env['DATABASE_URL'] = 'postgresql://mock:mock@localhost:5432/mock';
+  const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
+  if (!connectionString) {
+    throw new Error(getStorageConfigurationError(process.env));
   }
 
-  pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
+  pool = new Pool({ connectionString });
   // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
   db = drizzle(pool, { schema: combinedSchema });
 }

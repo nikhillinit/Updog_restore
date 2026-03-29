@@ -20,6 +20,10 @@ import {
 } from '../schema/src/index.js';
 import { db } from './db';
 import { eq, sql } from 'drizzle-orm';
+import {
+  getStorageConfigurationError,
+  resolveStorageBootMode,
+} from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -602,7 +606,16 @@ export class DatabaseStorage implements IStorage {
 export function createStorageFromEnvironment(
   env: NodeJS.ProcessEnv = process.env
 ): IStorage {
-  return env['DATABASE_URL'] ? new DatabaseStorage() : new MemStorage();
+  const mode = resolveStorageBootMode(env);
+  if (mode === 'database') {
+    return new DatabaseStorage();
+  }
+
+  if (mode === 'test-mock-db' || mode === 'explicit-memory') {
+    return new MemStorage();
+  }
+
+  throw new Error(getStorageConfigurationError(env));
 }
 
 export function getStorageRuntimeState(
@@ -614,7 +627,10 @@ export function getStorageRuntimeState(
     capabilities: {
       ...instance.capabilities,
     },
-    mockDatabase: instance.kind === 'database' && (env['DATABASE_URL']?.includes('mock') ?? false),
+    mockDatabase:
+      instance.kind === 'database' &&
+      ((env['DATABASE_URL']?.includes('mock') ?? false) ||
+        (env['NEON_DATABASE_URL']?.includes('mock') ?? false)),
   };
 }
 
