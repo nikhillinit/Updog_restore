@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  DATABASE_URL: z.string().url().describe('PostgreSQL connection string'),
+  DATABASE_URL: z.string().url().optional().describe('PostgreSQL connection string'),
+  NEON_DATABASE_URL: z.string().url().optional().describe('Neon PostgreSQL connection string'),
+  ALLOW_MEMORY_STORAGE: z.coerce
+    .boolean()
+    .default(false)
+    .describe('Allow explicit in-memory storage mode when no database URL is configured'),
   REDIS_URL: z.string().url().optional().describe('Redis connection string for BullMQ'),
   PORT: z.coerce.number().int().positive().default(5000).describe('Server port'),
   SESSION_SECRET: z.string().min(32).optional().describe('Session secret for authentication'),

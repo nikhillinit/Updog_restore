@@ -20,6 +20,10 @@ import {
 } from '../schema/src/index.js';
 import { db } from './db';
 import { eq, sql } from 'drizzle-orm';
+import {
+  getStorageConfigurationError,
+  resolveStorageBootMode,
+} from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -44,7 +48,31 @@ export interface PerformanceCase {
   description?: string;
 }
 
+export type StorageKind = 'memory' | 'database';
+
+export interface StorageCapabilities {
+  investmentScenarioWrites: boolean;
+}
+
+export interface StorageRuntimeState {
+  kind: StorageKind;
+  capabilities: StorageCapabilities;
+  mockDatabase: boolean;
+}
+
+export class UnsupportedStorageOperationError extends Error {
+  readonly code = 'UNSUPPORTED_STORAGE_OPERATION';
+
+  constructor(operation: string) {
+    super(`${operation} is not supported by the current storage implementation`);
+    this.name = 'UnsupportedStorageOperationError';
+  }
+}
+
 export interface IStorage {
+  readonly kind: StorageKind;
+  readonly capabilities: StorageCapabilities;
+
   // Health check methods
   ping(): Promise<boolean>;
   isRedisHealthy?(): Promise<boolean>;
@@ -87,6 +115,11 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  readonly kind = 'memory' as const;
+  readonly capabilities = {
+    investmentScenarioWrites: false,
+  } as const satisfies StorageCapabilities;
+
   private users: Map<number, User>;
   private funds: Map<number, Fund>;
   private portfolioCompanies: Map<number, PortfolioCompany>;
@@ -353,53 +386,17 @@ export class MemStorage implements IStorage {
   }
 
   async addInvestmentRound(
-    investmentId: number,
-    roundData: Partial<InvestmentRound>
+    _investmentId: number,
+    _roundData: Partial<InvestmentRound>
   ): Promise<InvestmentRound> {
-    const investment = this.investments.get(investmentId);
-    if (!investment) {
-      throw new Error('Investment not found');
-    }
-
-    const round: InvestmentRound = {
-      id: Date.now(),
-      name: roundData.name ?? '',
-      date: roundData.date ?? '',
-      valuation: roundData.valuation ?? 0,
-      amount: roundData.amount ?? 0,
-      ownership: roundData.ownership ?? 0,
-      ...(roundData.leadInvestor !== undefined && { leadInvestor: roundData.leadInvestor }),
-      ...(roundData.status !== undefined && { status: roundData.status }),
-      ...(roundData.type !== undefined && { type: roundData.type }),
-    };
-
-    // Note: In a real implementation, rounds would be stored in a separate table
-    // For now, we're just returning the round data
-    return round;
+    throw new UnsupportedStorageOperationError('addInvestmentRound');
   }
 
   async addPerformanceCase(
-    investmentId: number,
-    caseData: Partial<PerformanceCase>
+    _investmentId: number,
+    _caseData: Partial<PerformanceCase>
   ): Promise<PerformanceCase> {
-    const investment = this.investments.get(investmentId);
-    if (!investment) {
-      throw new Error('Investment not found');
-    }
-
-    const performanceCase: PerformanceCase = {
-      id: Date.now(),
-      name: caseData.name ?? '',
-      exitValuation: caseData.exitValuation ?? 0,
-      exitDate: caseData.exitDate ?? '',
-      probability: caseData.probability ?? 0,
-      ...(caseData.type !== undefined && { type: caseData.type }),
-      ...(caseData.description !== undefined && { description: caseData.description }),
-    };
-
-    // Note: In a real implementation, performance cases would be stored in a separate table
-    // For now, we're just returning the performance case data
-    return performanceCase;
+    throw new UnsupportedStorageOperationError('addPerformanceCase');
   }
 
   // Metrics methods
@@ -447,6 +444,11 @@ export class MemStorage implements IStorage {
 
 // DatabaseStorage implementation using Drizzle ORM
 export class DatabaseStorage implements IStorage {
+  readonly kind = 'database' as const;
+  readonly capabilities = {
+    investmentScenarioWrites: false,
+  } as const satisfies StorageCapabilities;
+
   async ping(): Promise<boolean> {
     try {
       // Lightweight O(1) database connectivity check using Drizzle sql template
@@ -558,39 +560,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addInvestmentRound(
-    investmentId: number,
-    roundData: Partial<InvestmentRound>
+    _investmentId: number,
+    _roundData: Partial<InvestmentRound>
   ): Promise<InvestmentRound> {
-    // For database implementation, this would involve a separate rounds table
-    // For now, we'll return mock data as the schema might need extending
-    return {
-      id: Date.now(),
-      name: roundData.name ?? '',
-      date: roundData.date ?? '',
-      valuation: roundData.valuation ?? 0,
-      amount: roundData.amount ?? 0,
-      ownership: roundData.ownership ?? 0,
-      ...(roundData.leadInvestor !== undefined && { leadInvestor: roundData.leadInvestor }),
-      ...(roundData.status !== undefined && { status: roundData.status }),
-      ...(roundData.type !== undefined && { type: roundData.type }),
-    };
+    throw new UnsupportedStorageOperationError('addInvestmentRound');
   }
 
   async addPerformanceCase(
-    investmentId: number,
-    caseData: Partial<PerformanceCase>
+    _investmentId: number,
+    _caseData: Partial<PerformanceCase>
   ): Promise<PerformanceCase> {
-    // For database implementation, this would involve a separate performance_cases table
-    // For now, we'll return mock data as the schema might need extending
-    return {
-      id: Date.now(),
-      name: caseData.name ?? '',
-      exitValuation: caseData.exitValuation ?? 0,
-      exitDate: caseData.exitDate ?? '',
-      probability: caseData.probability ?? 0,
-      ...(caseData.type !== undefined && { type: caseData.type }),
-      ...(caseData.description !== undefined && { description: caseData.description }),
-    };
+    throw new UnsupportedStorageOperationError('addPerformanceCase');
   }
 
   async getFundMetrics(fundId: number): Promise<FundMetrics[]> {
@@ -623,5 +603,36 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+export function createStorageFromEnvironment(
+  env: NodeJS.ProcessEnv = process.env
+): IStorage {
+  const mode = resolveStorageBootMode(env);
+  if (mode === 'database') {
+    return new DatabaseStorage();
+  }
+
+  if (mode === 'test-mock-db' || mode === 'explicit-memory') {
+    return new MemStorage();
+  }
+
+  throw new Error(getStorageConfigurationError(env));
+}
+
+export function getStorageRuntimeState(
+  instance: IStorage = storage,
+  env: NodeJS.ProcessEnv = process.env
+): StorageRuntimeState {
+  return {
+    kind: instance.kind,
+    capabilities: {
+      ...instance.capabilities,
+    },
+    mockDatabase:
+      instance.kind === 'database' &&
+      ((env['DATABASE_URL']?.includes('mock') ?? false) ||
+        (env['NEON_DATABASE_URL']?.includes('mock') ?? false)),
+  };
+}
+
 // Use DatabaseStorage when DATABASE_URL is available, otherwise use MemStorage
-export const storage = process.env['DATABASE_URL'] ? new DatabaseStorage() : new MemStorage();
+export const storage = createStorageFromEnvironment();
