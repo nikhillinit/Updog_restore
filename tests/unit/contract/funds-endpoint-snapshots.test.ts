@@ -134,6 +134,16 @@ describe('POST /api/funds contract snapshot', () => {
     expect(res.body).toHaveProperty('code', 'FUND_NO_MARKERS');
   });
 
+  it('returns 400 when the removed legacy basics format is submitted', async () => {
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', 'snapshot-legacy-format-01')
+      .send({ basics: { name: 'Legacy Fund', size: 50_000_000 } });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('code', 'FUND_LEGACY_FORMAT_REMOVED');
+  });
+
   it('creates a fund that becomes visible through the canonical GET list endpoint', async () => {
     const postRes = await request(app)
       .post('/api/funds')

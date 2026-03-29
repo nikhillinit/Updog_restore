@@ -6,9 +6,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   detectPostFormat,
   parseCanonical,
-  parseLegacyBasics,
 } from '../../../server/adapters/fund-create-adapter';
 import { validCreatePayload } from '../../fixtures/fund-contract-v1-fixtures';
+import { logger } from '../../../server/lib/logger';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -38,10 +38,10 @@ describe('detectPostFormat', () => {
   });
 
   it('returns legacy-basics when both markers present (documented precedence)', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
     const result = detectPostFormat({ name: 'Fund I', basics: { name: 'Fund I' } });
     expect(result).toBe('legacy-basics');
-    expect(warnSpy).toHaveBeenCalledWith('create-both-markers', expect.any(Object));
+    expect(warnSpy).toHaveBeenCalled();
   });
 });
 
@@ -62,21 +62,6 @@ describe('parseCanonical', () => {
 
   it('rejects unknown keys', () => {
     const result = parseCanonical({ ...validCreatePayload, bogus: true });
-    expect(result.ok).toBe(false);
-  });
-});
-
-describe('parseLegacyBasics', () => {
-  it('parses valid legacy-basics payload', () => {
-    const result = parseLegacyBasics({
-      basics: { name: 'Fund I', size: 50_000_000 },
-      strategy: { stages: [{ name: 'Seed', graduate: 30, exit: 10, months: 18 }] },
-    });
-    expect(result.ok).toBe(true);
-  });
-
-  it('returns error when basics.name missing', () => {
-    const result = parseLegacyBasics({ basics: { size: 50_000_000 } });
     expect(result.ok).toBe(false);
   });
 });

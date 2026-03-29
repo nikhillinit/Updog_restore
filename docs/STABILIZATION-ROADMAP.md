@@ -45,7 +45,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
 | 2         | Consolidate Route And Flag Control    | [COMPLETE]    | One flag API for route exposure                               |
 | 3         | Make Shared Domain Logic Authority    | [COMPLETE]    | Shared code is single source of truth for fund math           |
-| 4         | Move Finalization Authority To Server | [IN PROGRESS] | One request owns full lifecycle                               |
+| 4         | Move Finalization Authority To Server | [COMPLETE]    | One request owns full lifecycle                               |
 | 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
 | 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
 | 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path                         |
@@ -159,14 +159,16 @@ gate.
 
 **Goal:** Remove drift between client and shared math.
 
-- [ ] Add parity tests for reserves, pacing, cohorts, and liquidity.
-- [ ] Migrate callers away from duplicated client engines such as
-      `client/src/core/LiquidityEngine.ts:18` toward
-      `shared/core/liquidity/LiquidityEngine.ts:22`.
-- [ ] Do the same for reserve, pacing, and cohort engines, starting with the
-      largest or most business-critical diffs.
-- [ ] Delete client duplicates only after parity tests and caller migration are
-      complete.
+- [x] Convert the client liquidity and graduation engines to
+      shared-authoritative shims and extend the boundary guard accordingly.
+- [x] Add a deterministic reserve parity harness covering direct engine inputs,
+      wizard-transformed inputs, and characterized divergence cases.
+- [x] Normalize canonical-stage fallback behavior in the shared deterministic
+      reserve engine, then convert the client deterministic reserve engine into
+      a shared-authoritative shim.
+- [x] Port `dynamic_ratio` capital allocation behavior into the shared engine,
+      add a parity harness, and convert the client capital-allocation engine
+      into a shared-authoritative shim.
 
 **Exit criteria:**
 
@@ -185,13 +187,15 @@ gate.
       state only.
 - [x] Keep `client/src/stores/fundStore.ts` as draft UI state, not lifecycle
       authority.
-- [ ] Consolidate draft save/read ownership behind
+- [x] Consolidate draft save/read ownership behind
       `server/services/fund-persistence-service.ts` instead of keeping the draft
       upsert logic inline in `server/routes/fund-config.ts`.
-- [ ] Finish migration away from deprecated create payload support in
+- [x] Finish migration away from deprecated create payload support in
       `server/routes/funds.ts:25` and `server/routes/funds.ts:28`.
-- [ ] Replace route-level `console.warn` usage in `server/routes/funds.ts:155`
-      and `server/routes/funds.ts:206` with structured logger calls.
+- [x] Replace route-level console logging in the fund create/finalize routes
+      with structured logger calls.
+- [x] Validate the full draft round-trip path, including repeat `PUT /draft`
+      updates, against the integration database mock and the core gate.
 
 **Exit criteria:**
 

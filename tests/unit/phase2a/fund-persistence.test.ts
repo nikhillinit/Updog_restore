@@ -30,6 +30,13 @@ describe('FundPersistenceService', () => {
       await import('../../../server/services/fund-persistence-service');
     expect(typeof fundPersistenceService.allocateNextVersion).toBe('function');
   });
+
+  it('has saveDraftConfig and getDraftConfig methods', async () => {
+    const { fundPersistenceService } =
+      await import('../../../server/services/fund-persistence-service');
+    expect(typeof fundPersistenceService.saveDraftConfig).toBe('function');
+    expect(typeof fundPersistenceService.getDraftConfig).toBe('function');
+  });
 });
 
 // ============================================================================
@@ -56,9 +63,9 @@ describe('Funds route uses FundPersistenceService', () => {
 // ============================================================================
 
 describe('Draft upsert version allocation', () => {
-  it('fund-config.ts INSERT path queries MAX(version)', async () => {
+  it('service INSERT path queries MAX(version)', async () => {
     const fs = await import('fs/promises');
-    const source = await fs.readFile('server/routes/fund-config.ts', 'utf-8');
+    const source = await fs.readFile('server/services/fund-persistence-service.ts', 'utf-8');
     // Must contain max(fundConfigs.version) query
     expect(source).toContain('max(fundConfigs.version)');
     // Must use nextVersion in insert
@@ -66,10 +73,17 @@ describe('Draft upsert version allocation', () => {
     expect(source).toContain('version: nextVersion');
   });
 
-  it('fund-config.ts imports max from drizzle-orm', async () => {
+  it('service imports max from drizzle-orm', async () => {
+    const fs = await import('fs/promises');
+    const source = await fs.readFile('server/services/fund-persistence-service.ts', 'utf-8');
+    expect(source).toMatch(/import\s*\{[^}]*max[^}]*\}\s*from\s*'drizzle-orm'/);
+  });
+
+  it('fund-config.ts draft routes delegate to the service', async () => {
     const fs = await import('fs/promises');
     const source = await fs.readFile('server/routes/fund-config.ts', 'utf-8');
-    expect(source).toMatch(/import\s*\{[^}]*max[^}]*\}\s*from\s*'drizzle-orm'/);
+    expect(source).toContain('fundPersistenceService.saveDraftConfig');
+    expect(source).toContain('fundPersistenceService.getDraftConfig');
   });
 });
 

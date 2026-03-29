@@ -2,9 +2,9 @@
  * Fund Create Adapter
  *
  * Detects POST /api/funds payload format and parses accordingly.
- * Two formats are supported:
+ * Runtime handling:
  *   - 'canonical': FundCreateV1 shape (name, size, managementFee, ...)
- *   - 'legacy-basics': Legacy wizard format with { basics: { name, size, ... } }
+ *   - 'legacy-basics': detected only so the route can reject it explicitly
  *   - 'unknown': Neither marker present
  *
  * Precedence: `basics` key -> legacy-basics, `name` key -> canonical, else unknown.
@@ -12,6 +12,7 @@
 
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { z } from 'zod';
+import { logger } from '../lib/logger';
 
 export type PostFormat = 'canonical' | 'legacy-basics' | 'unknown';
 
@@ -20,7 +21,7 @@ export type ParseResult<T> = { ok: true; data: T } | { ok: false; error: z.ZodEr
 /**
  * Detect POST body format by inspecting top-level keys.
  * If both `basics` and `name` are present, defaults to legacy-basics
- * (documented precedence) and emits a telemetry warning.
+ * (documented precedence) so the route can reject the legacy marker.
  */
 export function detectPostFormat(body: unknown): PostFormat {
   if (body == null || typeof body !== 'object') return 'unknown';
@@ -31,7 +32,7 @@ export function detectPostFormat(body: unknown): PostFormat {
 
   if (hasBasics && hasName) {
     // Both markers -- legacy-basics takes precedence
-    console.warn('create-both-markers', { keys });
+    logger.warn({ keys }, 'Fund create payload included both canonical and legacy markers');
     return 'legacy-basics';
   }
 
@@ -47,42 +48,6 @@ export function parseCanonical(body: unknown): ParseResult<z.infer<typeof FundCr
   const result = FundCreateV1Schema.safeParse(body);
   if (result.success) {
     return { ok: true, data: result.data };
-  }
-  return { ok: false, error: result.error };
-}
-
-/**
- * Parse body as legacy-basics format.
- * Uses the existing CreateFundSchema shape (accepts .passthrough() for legacy compat).
- */
-export function parseLegacyBasics(body: unknown): ParseResult<Record<string, unknown>> {
-  // Legacy format: { basics: { name, size }, strategy?: { stages }, ... }
-  // Minimal validation -- just ensure basics.name exists
-  const LegacyBasicsSchema = z
-    .object({
-      basics: z.object({
-        name: z.string().min(1),
-        size: z.number().optional(),
-        modelVersion: z.string().optional(),
-      }),
-      strategy: z
-        .object({
-          stages: z.array(
-            z.object({
-              name: z.string().min(1),
-              graduate: z.number(),
-              exit: z.number(),
-              months: z.number().int().min(1),
-            })
-          ),
-        })
-        .optional(),
-    })
-    .passthrough();
-
-  const result = LegacyBasicsSchema.safeParse(body);
-  if (result.success) {
-    return { ok: true, data: result.data as Record<string, unknown> };
   }
   return { ok: false, error: result.error };
 }

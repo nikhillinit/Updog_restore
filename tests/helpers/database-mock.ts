@@ -801,19 +801,27 @@ class DatabaseMock {
     const tableName = this.getTableNameFromObject(table);
     return {
       set: vi.fn((updateData: Record<string, unknown>) => ({
-        where: vi.fn((_condition: SQL<unknown> | undefined) => {
-          // Get existing data
+        where: vi.fn((condition: SQL<unknown> | undefined) => {
           const tableData = this.mockData.get(tableName) || [];
+          const updatedRows: MockQueryResult[] = [];
 
-          // Update the first matching row (simplified - real implementation would parse condition)
-          if (tableData.length > 0) {
-            const updated = { ...tableData[0], ...updateData };
-            tableData[0] = updated;
+          for (let index = 0; index < tableData.length; index++) {
+            const row = tableData[index];
+            if (condition && !this.matchesWhereClause(row, condition)) {
+              continue;
+            }
+
+            const updated = { ...row, ...updateData };
+            tableData[index] = updated;
+            updatedRows.push(updated);
+          }
+
+          if (updatedRows.length > 0) {
             this.mockData.set(tableName, tableData);
 
             return {
-              returning: vi.fn(() => Promise.resolve([updated])),
-              execute: vi.fn(() => Promise.resolve([updated])),
+              returning: vi.fn(() => Promise.resolve(updatedRows)),
+              execute: vi.fn(() => Promise.resolve(updatedRows)),
             };
           }
 

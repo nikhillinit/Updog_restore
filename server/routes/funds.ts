@@ -6,8 +6,6 @@ import { eq } from 'drizzle-orm';
 import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { funds as persistedFunds } from '@shared/schema';
-import { positiveInt, percent100 } from '@shared/schema-helpers';
-import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
 import type { ApiError } from '@shared/types';
 import { toNumber, NumberParseError } from '@shared/number';
 import { hashPayload } from '../lib/hash';
@@ -21,6 +19,7 @@ import { storage } from '../storage';
 import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { detectPostFormat, parseCanonical } from '../adapters/fund-create-adapter';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -63,43 +62,6 @@ async function getCanonicalFundById(id: number): Promise<PersistedFund | undefin
   const storedFund = await storage.getFund(id);
   return storedFund ? normalizeStoredFund(storedFund) : undefined;
 }
-
-/**
- * @deprecated Use FundCreateV1Schema (canonical format) for new callers.
- * Retained for legacy-basics format support during migration.
- */
-const CreateFundSchema = z.object({
-  name: z.string().min(1, 'Fund name is required'),
-  size: z.number().positive('Fund size must be positive'),
-  managementFee: z.number().min(0).max(0.1).default(0.02),
-  carryPercentage: z.number().min(0).max(0.5).default(0.2),
-  vintageYear: z
-    .number()
-    .int()
-    .min(2000)
-    .max(2100)
-    .default(() => new Date().getFullYear()),
-  engineResults: engineResultsSchema.nullable().optional(),
-  basics: z
-    .object({
-      name: z.string().min(1),
-      size: z.number().positive(),
-      modelVersion: z.literal('reserves-ev1').optional(),
-    })
-    .optional(),
-  strategy: z
-    .object({
-      stages: z.array(
-        z.object({
-          name: z.string().min(1),
-          graduate: percent100(),
-          exit: percent100(),
-          months: positiveInt(),
-        })
-      ),
-    })
-    .optional(),
-});
 
 // Local fund calculation DTO for this endpoint
 const FundCalculationSchema = z.object({
@@ -163,90 +125,42 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
 router['post']('/funds', idempotency, async (req: Request, res: Response) => {
   const format = detectPostFormat(req.body);
 
-  // Unknown format -- reject
   if (format === 'unknown') {
     return sendApiError(res, 400, {
-      error: 'Request must include either a top-level "name" (canonical) or "basics" (legacy) key',
+      error: 'Request must include canonical FundCreateV1 fields starting with top-level "name"',
       code: 'FUND_NO_MARKERS',
     });
   }
 
-  // Canonical format (FundCreateV1)
-  if (format === 'canonical') {
-    const parsed = parseCanonical(req.body);
-    if (!parsed.ok) {
-      return sendApiError(res, 400, {
-        error: 'Validation failed',
-        code: 'FUND_CREATE_VALIDATION_ERROR',
-        issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
-      });
-    }
-
-    try {
-      const data = parsed.data;
-      const fundInput = {
-        name: data.name,
-        size: String(data.size),
-        managementFee: String(data.managementFee),
-        carryPercentage: String(data.carryPercentage),
-        vintageYear: data.vintageYear,
-        ...(data.engineResults != null && { engineResults: data.engineResults }),
-      };
-
-      // Atomic create: fund + initial draft in one transaction
-      const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
-      console.warn('create-canonical', { fundId: fund.id });
-
-      res['status'](201);
-      return res['json']({
-        success: true,
-        data: {
-          id: fund.id,
-          name: fund.name,
-          size: fund.size,
-          managementFee: fund.managementFee,
-          carryPercentage: fund.carryPercentage,
-          vintageYear: fund.vintageYear,
-          status: fund.status,
-          engineResults: fund.engineResults ?? null,
-          createdAt: fund.createdAt,
-        },
-        message: 'Fund created successfully',
-      });
-    } catch (error) {
-      console.error('Fund creation error:', error);
-      res['status'](500);
-      return res['json']({
-        error: 'Failed to create fund',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
+  if (format === 'legacy-basics') {
+    return sendApiError(res, 400, {
+      error: 'Legacy fund create payloads are no longer supported',
+      code: 'FUND_LEGACY_FORMAT_REMOVED',
+    });
   }
 
-  // Legacy-basics format (existing behavior)
-  const parsed = CreateFundSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res['status'](400);
-    return res['json']({ error: parsed.error.format() });
+  const parsed = parseCanonical(req.body);
+  if (!parsed.ok) {
+    return sendApiError(res, 400, {
+      error: 'Validation failed',
+      code: 'FUND_CREATE_VALIDATION_ERROR',
+      issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    });
   }
 
   try {
     const data = parsed.data;
-    const size = data.size || data.basics?.size || 0;
-    const managementFee = data.managementFee ?? 0.02;
-    const carryPercentage = data.carryPercentage ?? 0.2;
     const fundInput = {
-      name: data.name || data.basics?.name || '',
-      size: String(size),
-      managementFee: String(managementFee),
-      carryPercentage: String(carryPercentage),
-      vintageYear: data.vintageYear ?? new Date().getFullYear(),
+      name: data.name,
+      size: String(data.size),
+      managementFee: String(data.managementFee),
+      carryPercentage: String(data.carryPercentage),
+      vintageYear: data.vintageYear,
       ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
-    // Atomic create: fund + initial draft in one transaction
     const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
-    console.warn('create-legacy-basics', { fundId: fund.id });
+    logger.info({ fundId: fund.id }, 'Fund created through canonical route');
 
     res['status'](201);
     return res['json']({
@@ -265,7 +179,7 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
       message: 'Fund created successfully',
     });
   } catch (error) {
-    console.error('Fund creation error:', error);
+    logger.error({ err: error }, 'Fund creation error');
     res['status'](500);
     return res['json']({
       error: 'Failed to create fund',

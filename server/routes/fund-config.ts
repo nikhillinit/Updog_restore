@@ -1,13 +1,14 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
-import { funds, fundConfigs, fundEvents, fundSnapshots } from '@schema';
-import { eq, and, desc, max } from 'drizzle-orm';
+import { fundSnapshots } from '@schema';
+import { eq, and, desc } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';
 import { toNumber, NumberParseError } from '@shared/number';
 import idempotency from '../middleware/idempotency';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
+import { logger } from '../lib/logger';
 
 const queueConfig = getQueueConfig();
 const connection = (() => {
@@ -85,92 +86,8 @@ export function registerFundConfigRoutes(app: Express) {
         });
       }
 
-      // Check if fund exists
-      const fund = await db.query.funds.findFirst({
-        where: eq(funds.id, fundId),
-      });
-
-      if (!fund) {
-        const error: ApiError = {
-          error: 'Fund not found',
-          message: `No fund exists with ID: ${fundId}`,
-        };
-        return res['status'](404)['json'](error);
-      }
-
-      // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
-      const existingDraft = await db.query.fundConfigs.findFirst({
-        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        orderBy: desc(fundConfigs.version),
-      });
-
-      const fieldCount = Object.keys(validation.data).length;
-      let savedConfig;
-
-      if (existingDraft) {
-        const priorFieldCount = existingDraft.config
-          ? Object.keys(existingDraft.config as Record<string, unknown>).length
-          : 0;
-        console.warn('draft-save', { fundId, fieldCount, priorFieldCount });
-
-        const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
-          config: validation.data,
-          updatedAt: new Date(),
-        };
-        const [updated] = await db
-          .update(fundConfigs)
-          .set(updateValues)
-          .where(eq(fundConfigs.id, existingDraft.id))
-          .returning();
-        savedConfig = updated;
-      } else {
-        // No active draft: allocate next version (MAX(version)+1)
-        const [versionResult] = await db
-          .select({ maxVersion: max(fundConfigs.version) })
-          .from(fundConfigs)
-          .where(eq(fundConfigs.fundId, fundId));
-        const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
-
-        console.warn('draft-save', { fundId, fieldCount, nextVersion });
-
-        try {
-          const [inserted] = await db
-            .insert(fundConfigs)
-            .values({
-              fundId,
-              version: nextVersion,
-              config: validation.data,
-            })
-            .returning();
-          savedConfig = inserted;
-        } catch (insertErr) {
-          // Unique constraint race: retry as UPDATE targeting isDraft=true
-          const retryDraft = await db.query.fundConfigs.findFirst({
-            where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-          });
-          if (retryDraft) {
-            const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
-              config: validation.data,
-              updatedAt: new Date(),
-            };
-            const [updated] = await db
-              .update(fundConfigs)
-              .set(retryValues)
-              .where(eq(fundConfigs.id, retryDraft.id))
-              .returning();
-            savedConfig = updated;
-          } else {
-            throw insertErr;
-          }
-        }
-      }
-
-      // Log event
-      await db.insert(fundEvents).values({
-        fundId,
-        eventType: 'DRAFT_SAVED',
-        eventTime: new Date(),
-      });
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+      const savedConfig = await fundPersistenceService.saveDraftConfig(fundId, validation.data);
 
       res['json']({
         success: true,
@@ -178,7 +95,15 @@ export function registerFundConfigRoutes(app: Express) {
         message: 'Draft saved successfully',
       });
     } catch (error) {
-      console.error('Draft save error:', error);
+      if (error instanceof Error && error.message.startsWith('Fund not found:')) {
+        const apiError: ApiError = {
+          error: 'Fund not found',
+          message: error.message,
+        };
+        return res['status'](404)['json'](apiError);
+      }
+
+      logger.error({ err: error }, 'Draft save error');
       const apiError: ApiError = {
         error: 'Failed to save draft',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -250,7 +175,7 @@ export function registerFundConfigRoutes(app: Express) {
         return res.status(400).json(apiError);
       }
 
-      console.error('Finalize error:', error);
+      logger.error({ err: error }, 'Finalize error');
       const apiError: ApiError = {
         error: 'Failed to finalize fund',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -276,10 +201,8 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      const draft = await db.query.fundConfigs.findFirst({
-        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        orderBy: desc(fundConfigs.version),
-      });
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+      const draft = await fundPersistenceService.getDraftConfig(fundId);
 
       if (!draft) {
         const error: ApiError = {
@@ -291,6 +214,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res['json'](draft);
     } catch (error) {
+      logger.error({ err: error }, 'Draft read error');
       const apiError: ApiError = {
         error: 'Failed to fetch draft',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -342,7 +266,7 @@ export function registerFundConfigRoutes(app: Express) {
         };
         return res['status'](400)['json'](apiError);
       }
-      console.error('Publish error:', error);
+      logger.error({ err: error }, 'Publish error');
       const apiError: ApiError = {
         error: 'Failed to publish configuration',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -432,7 +356,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       res['json'](state);
     } catch (error) {
-      console.error('Fund state read error:', error);
+      logger.error({ err: error }, 'Fund state read error');
       const apiError: ApiError = {
         error: 'Failed to read fund state',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -455,7 +379,7 @@ export function registerFundConfigRoutes(app: Express) {
       }
       return res.json(results);
     } catch (err) {
-      console.error('[fund-results] Error:', err);
+      logger.error({ err }, 'Fund results read error');
       return res.status(500).json({ error: 'Failed to read fund results' });
     }
   });

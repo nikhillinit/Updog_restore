@@ -71,8 +71,12 @@ async function validateProduction() {
       name: 'Idempotency: Initial Create',
       test: () => {
         const body = JSON.stringify({
-          basics: { name: "Test Fund", size: 1000000, modelVersion: "reserves-ev1" },
-          strategy: { stages: [] }
+          name: "Test Fund",
+          size: 1000000,
+          managementFee: 0.02,
+          carryPercentage: 0.2,
+          vintageYear: 2026,
+          modelVersion: "reserves-ev1"
         });
         
         const cmd = `curl -s -w "\\n%%{http_code}" -H "Idempotency-Key: ${TEST_KEY}" -H "Content-Type: application/json" -d '${body}' ${PROD_HOST}/api/funds`;
@@ -90,8 +94,12 @@ async function validateProduction() {
       name: 'Idempotency: Replay Detection',
       test: () => {
         const body = JSON.stringify({
-          basics: { name: "Test Fund", size: 1000000, modelVersion: "reserves-ev1" },
-          strategy: { stages: [] }
+          name: "Test Fund",
+          size: 1000000,
+          managementFee: 0.02,
+          carryPercentage: 0.2,
+          vintageYear: 2026,
+          modelVersion: "reserves-ev1"
         });
         
         const cmd = `curl -s -w "\\n%%{http_code}" -H "Idempotency-Key: ${TEST_KEY}" -H "Content-Type: application/json" -d '${body}' ${PROD_HOST}/api/funds`;
@@ -109,8 +117,12 @@ async function validateProduction() {
       name: 'Idempotency: Conflict Detection',
       test: () => {
         const body = JSON.stringify({
-          basics: { name: "Different Fund", size: 2000000, modelVersion: "reserves-ev1" },
-          strategy: { stages: [] }
+          name: "Different Fund",
+          size: 2000000,
+          managementFee: 0.02,
+          carryPercentage: 0.2,
+          vintageYear: 2026,
+          modelVersion: "reserves-ev1"
         });
         
         const cmd = `curl -s -w "\\n%%{http_code}" -H "Idempotency-Key: ${TEST_KEY}" -H "Content-Type: application/json" -d '${body}' ${PROD_HOST}/api/funds`;
@@ -129,8 +141,12 @@ async function validateProduction() {
       test: () => {
         const perfKey = `perf-${Date.now()}`;
         const body = JSON.stringify({
-          basics: { name: "Perf Test", size: 1000000, modelVersion: "reserves-ev1" },
-          strategy: { stages: [] }
+          name: "Perf Test",
+          size: 1000000,
+          managementFee: 0.02,
+          carryPercentage: 0.2,
+          vintageYear: 2026,
+          modelVersion: "reserves-ev1"
         });
         
         const startTime = Date.now();

@@ -97,6 +97,17 @@ class FundNotFoundError extends Error {
 }
 
 export class FundPersistenceService {
+  private async findLatestDraft(fundId: number): Promise<FundConfig | null> {
+    const [draft] = await db
+      .select()
+      .from(fundConfigs)
+      .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+      .orderBy(desc(fundConfigs.version))
+      .limit(1);
+
+    return draft ?? null;
+  }
+
   async createFundWithInitialDraft(
     fundInput: CreateFundInput,
     configInput?: Record<string, unknown>
@@ -156,18 +167,13 @@ export class FundPersistenceService {
   }
 
   async saveDraftConfig(fundId: number, configInput: Record<string, unknown>): Promise<FundConfig> {
-    const fund = await db.query.funds.findFirst({
-      where: eq(funds.id, fundId),
-    });
+    const [fund] = await db.select().from(funds).where(eq(funds.id, fundId));
 
     if (!fund) {
       throw new FundNotFoundError(fundId);
     }
 
-    const existingDraft = await db.query.fundConfigs.findFirst({
-      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-      orderBy: desc(fundConfigs.version),
-    });
+    const existingDraft = await this.findLatestDraft(fundId);
 
     let savedConfig: FundConfig | undefined;
 
@@ -197,9 +203,7 @@ export class FundPersistenceService {
 
         savedConfig = inserted;
       } catch (insertErr) {
-        const retryDraft = await db.query.fundConfigs.findFirst({
-          where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        });
+        const retryDraft = await this.findLatestDraft(fundId);
 
         if (!retryDraft) {
           throw insertErr;
@@ -229,6 +233,10 @@ export class FundPersistenceService {
     });
 
     return savedConfig;
+  }
+
+  async getDraftConfig(fundId: number): Promise<FundConfig | null> {
+    return this.findLatestDraft(fundId);
   }
 
   async finalizeFundSetup(
