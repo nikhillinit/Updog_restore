@@ -12,10 +12,6 @@ import FundModelResultsPage from '@/pages/fund-model-results';
 
 const mockSetCurrentFund = vi.fn();
 const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined);
-const mockCreateFund = vi.fn().mockResolvedValue({
-  success: true,
-  data: { id: 42, name: 'Test Fund', size: '50000000' },
-});
 const mockFetch = vi.fn();
 
 const mockFundState = {
@@ -83,14 +79,6 @@ vi.mock('@/stores/fundStore', () => ({
   },
 }));
 
-vi.mock('@/services/funds', () => ({
-  createFund: (...args: unknown[]) => mockCreateFund(...args),
-  normalizeCreateFundResponse: (raw: Record<string, unknown>) => {
-    const data = (raw as { data?: Record<string, unknown> }).data ?? raw;
-    return { id: Number(data['id']), name: data['name'], size: data['size'] };
-  },
-}));
-
 function FlowHarness() {
   const [location] = useLocation();
   const reviewMatch = location.startsWith('/fund-setup');
@@ -114,10 +102,6 @@ describe('wizard to results flow', () => {
     mockFundState.draftServerReady = false;
     mockFundState.setDraftFundId.mockClear();
     mockFundState.setDraftServerReady.mockClear();
-    mockCreateFund.mockReset().mockResolvedValue({
-      success: true,
-      data: { id: 42, name: 'Test Fund', size: '50000000' },
-    });
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
     vi.stubGlobal(
@@ -149,20 +133,18 @@ describe('wizard to results flow', () => {
     mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
 
-      if (url === '/api/funds/42/draft') {
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (url === '/api/funds/42/publish') {
+      if (url === '/api/funds/finalize') {
         return new Response(
           JSON.stringify({
             success: true,
-            data: { id: 100, fundId: 42, version: 1, isPublished: true },
-            runId: 10,
-            dispatchState: 'dispatched',
+            data: {
+              fundId: 42,
+              publishedConfigId: 100,
+              publishedVersion: 1,
+              runId: 10,
+              correlationId: 'test-corr-id',
+              dispatchState: 'dispatched',
+            },
           }),
           {
             status: 200,
@@ -212,8 +194,10 @@ describe('wizard to results flow', () => {
         );
 
       expect(sessionCalls).toHaveLength(0);
-      expect(mockCreateFund).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/publish', { method: 'POST' });
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/funds/finalize',
+        expect.objectContaining({ method: 'POST' })
+      );
       expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/results');
     });
   });

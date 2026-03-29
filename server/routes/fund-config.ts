@@ -5,6 +5,7 @@ import { eq, and, desc, max } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { Queue } from 'bullmq';
 import { toNumber, NumberParseError } from '@shared/number';
+import idempotency from '../middleware/idempotency';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
 
@@ -49,6 +50,7 @@ function ensureProducerQueuesRegistered(): void {
 }
 
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { FundFinalizeV1Schema } from '@shared/contracts/fund-finalize-v1.contract';
 import { sendApiError } from '../lib/apiError';
 
 type RequestWithOptionalUser = Request & { user?: { id?: string } };
@@ -182,6 +184,78 @@ export function registerFundConfigRoutes(app: Express) {
         message: error instanceof Error ? error.message : 'Unknown error',
       };
       res['status'](500)['json'](apiError);
+    }
+  });
+
+  app.post('/api/funds/finalize', idempotency, async (req: Request, res: Response) => {
+    try {
+      const validation = FundFinalizeV1Schema.safeParse(req.body);
+      if (!validation.success) {
+        return sendApiError(res, 400, {
+          error: 'Finalize request is invalid',
+          code: 'FUND_FINALIZE_VALIDATION_ERROR',
+          issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+        });
+      }
+
+      const currentUserId = (req as RequestWithOptionalUser).user?.id;
+      const userId = currentUserId ? parseInt(currentUserId, 10) : undefined;
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+
+      const result = await fundPersistenceService.finalizeFundSetup(
+        {
+          ...(validation.data.fundId != null && { fundId: validation.data.fundId }),
+          create: {
+            name: validation.data.create.name,
+            size: String(validation.data.create.size),
+            managementFee: String(validation.data.create.managementFee),
+            carryPercentage: String(validation.data.create.carryPercentage),
+            vintageYear: validation.data.create.vintageYear,
+            ...(validation.data.create.engineResults != null && {
+              engineResults: validation.data.create.engineResults,
+            }),
+          },
+          draft: validation.data.draft,
+        },
+        { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+        userId
+      );
+
+      return res.json({
+        success: true,
+        data: {
+          fundId: result.fundId,
+          publishedConfigId: result.published.id,
+          publishedVersion: result.published.version,
+          runId: result.run.id,
+          correlationId: result.correlationId,
+          dispatchState: result.run.dispatchState,
+        },
+        message: 'Fund finalized successfully',
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Fund not found:')) {
+        const apiError: ApiError = {
+          error: 'Fund not found',
+          message: error.message,
+        };
+        return res.status(404).json(apiError);
+      }
+
+      if (error instanceof Error && error.message === 'No draft to publish') {
+        const apiError: ApiError = {
+          error: 'No draft to publish',
+          message: 'Create a draft configuration first',
+        };
+        return res.status(400).json(apiError);
+      }
+
+      console.error('Finalize error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to finalize fund',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      return res.status(500).json(apiError);
     }
   });
 

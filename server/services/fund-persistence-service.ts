@@ -10,7 +10,7 @@
 
 import { db } from '../db';
 import { funds, fundConfigs, fundEvents, calcRuns, fundSnapshots } from '@shared/schema';
-import { eq, and, max } from 'drizzle-orm';
+import { eq, and, desc, max } from 'drizzle-orm';
 import type { Fund, FundConfig, CalcRun, DispatchState } from '@shared/schema/fund';
 import type { EngineResults } from '@shared/schemas/engine-results-schema';
 import {
@@ -49,6 +49,19 @@ export interface PublishResult {
   correlationId: string;
 }
 
+export interface FinalizeFundInput {
+  fundId?: number;
+  create: CreateFundInput;
+  draft: Record<string, unknown>;
+}
+
+export interface FinalizeFundResult {
+  fundId: number;
+  published: FundConfig;
+  run: CalcRun;
+  correlationId: string;
+}
+
 interface PublishJobData {
   fundId: number;
   correlationId: string;
@@ -74,6 +87,12 @@ class NoPublishableDraftError extends Error {
 class PublishDraftRaceLostError extends Error {
   constructor() {
     super('Draft was already published by another request');
+  }
+}
+
+class FundNotFoundError extends Error {
+  constructor(fundId: number) {
+    super(`Fund not found: ${fundId}`);
   }
 }
 
@@ -134,6 +153,106 @@ export class FundPersistenceService {
 
     const currentMax = result?.maxVersion ?? 0;
     return currentMax + 1;
+  }
+
+  async saveDraftConfig(fundId: number, configInput: Record<string, unknown>): Promise<FundConfig> {
+    const fund = await db.query.funds.findFirst({
+      where: eq(funds.id, fundId),
+    });
+
+    if (!fund) {
+      throw new FundNotFoundError(fundId);
+    }
+
+    const existingDraft = await db.query.fundConfigs.findFirst({
+      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
+      orderBy: desc(fundConfigs.version),
+    });
+
+    let savedConfig: FundConfig | undefined;
+
+    if (existingDraft) {
+      const [updated] = await db
+        .update(fundConfigs)
+        .set({
+          config: configInput,
+          updatedAt: new Date(),
+        })
+        .where(eq(fundConfigs.id, existingDraft.id))
+        .returning();
+
+      savedConfig = updated;
+    } else {
+      const nextVersion = await this.allocateNextVersion(fundId);
+
+      try {
+        const [inserted] = await db
+          .insert(fundConfigs)
+          .values({
+            fundId,
+            version: nextVersion,
+            config: configInput,
+          })
+          .returning();
+
+        savedConfig = inserted;
+      } catch (insertErr) {
+        const retryDraft = await db.query.fundConfigs.findFirst({
+          where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
+        });
+
+        if (!retryDraft) {
+          throw insertErr;
+        }
+
+        const [updated] = await db
+          .update(fundConfigs)
+          .set({
+            config: configInput,
+            updatedAt: new Date(),
+          })
+          .where(eq(fundConfigs.id, retryDraft.id))
+          .returning();
+
+        savedConfig = updated;
+      }
+    }
+
+    if (!savedConfig) {
+      throw new Error('Failed to persist draft config');
+    }
+
+    await db.insert(fundEvents).values({
+      fundId,
+      eventType: 'DRAFT_SAVED',
+      eventTime: new Date(),
+    });
+
+    return savedConfig;
+  }
+
+  async finalizeFundSetup(
+    input: FinalizeFundInput,
+    queues: PublishQueues,
+    userId?: number
+  ): Promise<FinalizeFundResult> {
+    let fundId = input.fundId;
+
+    if (fundId == null) {
+      const created = await this.createFundWithInitialDraft(input.create, input.draft);
+      fundId = created.fund.id;
+    } else {
+      await this.saveDraftConfig(fundId, input.draft);
+    }
+
+    const published = await this.publishDraft(fundId, queues, userId);
+
+    return {
+      fundId,
+      published: published.published,
+      run: published.run,
+      correlationId: published.correlationId,
+    };
   }
 
   async publishDraft(

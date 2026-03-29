@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-28
+last_updated: 2026-03-29
 owner: Core Team
 review_cadence: P30D
 categories: [governance, roadmap, stabilization]
@@ -44,8 +44,8 @@ through a machine-readable ready-file contract instead of human log parsing.
 | 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry                       |
 | 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
 | 2         | Consolidate Route And Flag Control    | [COMPLETE]    | One flag API for route exposure                               |
-| 3         | Make Shared Domain Logic Authority    | [NOT STARTED] | Shared code is single source of truth for fund math           |
-| 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                               |
+| 3         | Make Shared Domain Logic Authority    | [COMPLETE]    | Shared code is single source of truth for fund math           |
+| 4         | Move Finalization Authority To Server | [IN PROGRESS] | One request owns full lifecycle                               |
 | 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
 | 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
 | 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path                         |
@@ -179,12 +179,15 @@ gate.
 
 **Goal:** One server-owned lifecycle transaction.
 
-- [ ] Replace the client orchestration in `client/src/pages/ReviewStep.tsx:213`
+- [x] Replace the client orchestration in `client/src/pages/ReviewStep.tsx`
       with one server finalize endpoint.
-- [ ] Shrink the review page so it submits once and renders progress/result
+- [x] Shrink the review page so it submits once and renders progress/result
       state only.
-- [ ] Keep `client/src/stores/fundStore.ts:124` as draft UI state, not lifecycle
+- [x] Keep `client/src/stores/fundStore.ts` as draft UI state, not lifecycle
       authority.
+- [ ] Consolidate draft save/read ownership behind
+      `server/services/fund-persistence-service.ts` instead of keeping the draft
+      upsert logic inline in `server/routes/fund-config.ts`.
 - [ ] Finish migration away from deprecated create payload support in
       `server/routes/funds.ts:25` and `server/routes/funds.ts:28`.
 - [ ] Replace route-level `console.warn` usage in `server/routes/funds.ts:155`
@@ -271,9 +274,9 @@ gate.
 
 ## Immediate Next Actions
 
-1. Start Milestone 3 with parity tests around reserves, pacing, cohorts, and
-   liquidity before deleting any duplicated client-side engine logic.
-2. Keep future route or nav changes flowing through the exported governance
-   registry and the generated route-control adapter.
-3. Treat `client/src/core/flags/featureFlags.ts` as a short-lived compatibility
-   file only; do not reintroduce new runtime consumers there.
+1. Complete Milestone 4 by moving draft save/read ownership behind
+   `server/services/fund-persistence-service.ts`.
+2. Remove legacy create-format support and route-level `console.warn` logging
+   from `server/routes/funds.ts` once all callers are cut over.
+3. Keep future math or route changes flowing through shared-authoritative
+   engines and the exported route-governance registry.
