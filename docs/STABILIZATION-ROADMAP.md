@@ -231,13 +231,13 @@ gate.
 
 **Goal:** Improve analyst throughput inside the stabilized perimeter.
 
-- [ ] Put reserve-planning persistence into the live portfolio surface, not the
+- [x] Put reserve-planning persistence into the live portfolio surface, not the
       old planning page.
-- [ ] Add publish history, recalculation controls, and config-versus-results
-      diffing to `client/src/pages/fund-model-results.tsx:86`.
-- [ ] Replace blind polling in `client/src/pages/fund-model-results.tsx:121`
-      with operation-aware status where practical.
-- [ ] Keep every new feature inside the reduced route set.
+- [x] Add publish history, stale-evidence alerting, and recalculation controls
+      to `client/src/pages/fund-model-results.tsx`.
+- [x] Replace coarse results polling with lifecycle-aware exponential backoff
+      polling and keep history refresh tied to the same results-status model.
+- [x] Keep every new feature inside the reduced route set.
 
 **Exit criteria:**
 
