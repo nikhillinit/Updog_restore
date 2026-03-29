@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { readinessCheck, livenessCheck } from '../health';
-import { storage } from '../storage';
+import { getStorageRuntimeState, storage } from '../storage';
 import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
 import type { Request, Response } from 'express';
@@ -243,9 +243,13 @@ router['get']('/readyz', async (req: Request, res: Response) => {
 
   const checks = {
     api: 'ok',
+    storage: 'unknown',
     database: 'unknown',
     redis: 'degraded', // Redis is optional per PR #39
   };
+
+  const storageRuntime = getStorageRuntimeState(storage);
+  checks.storage = storageRuntime.kind;
 
   // Check database connectivity (critical) - using lightweight ping
   try {
@@ -268,6 +272,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   const response = {
     ready: isReady,
     checks,
+    storage: storageRuntime,
     timestamp: new Date().toISOString(),
   };
 
@@ -300,6 +305,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
 
   const detailed = {
     api: 'ok',
+    storage: getStorageRuntimeState(storage),
     database: 'unknown',
     redis: 'unknown',
     workers: 'unknown',
@@ -326,6 +332,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   // Memory and uptime
   detailed.metrics['uptimeSeconds'] = Math.floor(process.uptime());
   detailed.metrics['memoryMB'] = Math.round(process.memoryUsage().heapUsed / 1048576);
+  detailed.metrics['mockDatabase'] = detailed.storage.mockDatabase ? 1 : 0;
   detailed.metrics['version'] = process.env['npm_package_version'] || '1.3.2';
 
   res['json'](detailed);

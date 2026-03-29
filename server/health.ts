@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { db } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';
+import { getStorageRuntimeState, storage } from './storage';
 // Circuit breaker metrics disabled for dev mode
 // import { getBreakerTrips } from '../client/src/utils/resilientLimit';
 
@@ -27,13 +28,16 @@ interface HealthResponse {
 
 async function checkDatabase(): Promise<HealthComponent> {
   try {
+    const runtime = getStorageRuntimeState(storage);
+
     // In dev mode with mock database, just return healthy
-    if (process.env['DATABASE_URL']?.includes('mock')) {
+    if (runtime.mockDatabase) {
       healthStatus['set']({ component: 'database' }, 1);
       return {
         name: 'database',
         status: 'healthy',
-        message: 'Database in mock mode (development)',
+        message: 'Database in mock mode',
+        details: { storage: runtime.kind },
       };
     }
 
