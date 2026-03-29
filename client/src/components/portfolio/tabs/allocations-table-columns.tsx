@@ -156,6 +156,21 @@ export const createAllocationsColumns = (
     ),
   },
   {
+    id: 'allocation_reason',
+    accessorKey: 'allocation_reason',
+    header: 'Planning Note',
+    cell: ({ row }) => {
+      const note = row.original.allocation_reason?.trim();
+      return note ? (
+        <div className="max-w-xs truncate text-sm text-gray-600" title={note}>
+          {note}
+        </div>
+      ) : (
+        <span className="text-gray-400 italic">No note</span>
+      );
+    },
+  },
+  {
     id: 'last_allocation_at',
     accessorKey: 'last_allocation_at',
     header: 'Last Updated',

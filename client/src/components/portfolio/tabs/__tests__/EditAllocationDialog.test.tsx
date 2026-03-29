@@ -94,6 +94,8 @@ describe('EditAllocationDialog', () => {
 
     expect(screen.getByText('FinTech')).toBeTruthy();
     expect(screen.getByText('Series A')).toBeTruthy();
+    expect(screen.getByText('v1')).toBeTruthy();
+    expect(screen.getByText('Jan 1, 2024')).toBeTruthy();
   });
 
   it('pre-fills form with company data', () => {

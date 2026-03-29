@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateAllocations } from './hooks/useUpdateAllocations';
 import { centsToDollars, dollarsToCents, formatCents } from '@/lib/units';
+import { format } from 'date-fns';
 import type { AllocationCompany } from './types';
 
 interface EditAllocationDialogProps {
@@ -109,6 +110,10 @@ export function EditAllocationDialog({
 
   if (!company) return null;
 
+  const lastUpdatedLabel = company.last_allocation_at
+    ? format(new Date(company.last_allocation_at), 'MMM d, yyyy')
+    : 'Never';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
@@ -141,6 +146,14 @@ export function EditAllocationDialog({
               <p className="text-sm font-medium text-blue-600">
                 {formatCents(company.deployed_reserves_cents, { compact: true })}
               </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Allocation Version</p>
+              <p className="text-sm font-medium">v{company.allocation_version}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Last Updated</p>
+              <p className="text-sm font-medium">{lastUpdatedLabel}</p>
             </div>
           </div>
 

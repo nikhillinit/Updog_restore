@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { format } from 'date-fns';
 import { Search, AlertCircle, RefreshCw } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
 import { EditAllocationDialog } from './EditAllocationDialog';
@@ -44,6 +45,18 @@ export function AllocationsTab() {
   const columns = useMemo(() => createAllocationsColumns(handleEdit), [handleEdit]);
 
   const companies = data?.companies;
+  const reservePlanCount = useMemo(
+    () => companies?.filter((company) => company.planned_reserves_cents > 0).length ?? 0,
+    [companies]
+  );
+  const documentedPlanCount = useMemo(
+    () => companies?.filter((company) => Boolean(company.allocation_reason?.trim())).length ?? 0,
+    [companies]
+  );
+  const lastUpdatedLabel = useMemo(() => {
+    const lastUpdatedAt = data?.metadata.last_updated_at;
+    return lastUpdatedAt ? format(new Date(lastUpdatedAt), 'MMM d, yyyy') : 'Not yet synced';
+  }, [data?.metadata.last_updated_at]);
 
   // Extract unique sectors and statuses for filters
   const sectors = useMemo(() => {
@@ -179,6 +192,36 @@ export function AllocationsTab() {
           Refresh
         </Button>
       </div>
+
+      <Card className="border-purple-200 bg-purple-50/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg text-purple-950">Reserve Planning Workspace</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div>
+            <div className="text-sm text-purple-900/70">Companies with plans</div>
+            <div className="text-2xl font-semibold text-purple-950 mt-1">
+              {reservePlanCount}
+            </div>
+          </div>
+          <div>
+            <div className="text-sm text-purple-900/70">Documented notes</div>
+            <div className="text-2xl font-semibold text-purple-950 mt-1">
+              {documentedPlanCount}
+            </div>
+          </div>
+          <div>
+            <div className="text-sm text-purple-900/70">Last synced</div>
+            <div className="text-2xl font-semibold text-purple-950 mt-1">
+              {lastUpdatedLabel}
+            </div>
+          </div>
+          <p className="text-sm text-purple-900/80 md:col-span-3">
+            This is the canonical persisted reserve-planning surface for the live portfolio.
+            Archived planning routes redirect here.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
