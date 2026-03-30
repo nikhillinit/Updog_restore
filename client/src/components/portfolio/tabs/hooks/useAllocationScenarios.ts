@@ -1,8 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
 import type {
+  AllocationScenarioActionPayload,
+  AllocationScenarioApplyPreview,
+  AllocationScenarioApplyResult,
   AllocationScenarioDetail,
   AllocationScenarioListResponse,
+  AllocationScenarioSyncResult,
+  ApplyAllocationScenarioPayload,
   CreateAllocationScenarioPayload,
   UpdateAllocationScenarioPayload,
 } from '../types';
@@ -13,6 +18,18 @@ interface ApiErrorBody {
 
 function buildErrorMessage(errorData: ApiErrorBody, fallback: string) {
   return errorData.message || fallback;
+}
+
+function getScenarioDetailQueryKey(fundId: number | null | undefined, scenarioId: string | null) {
+  return ['allocations', 'scenarios', fundId, scenarioId] as const;
+}
+
+function getScenarioListQueryKey(fundId: number | null | undefined) {
+  return ['allocations', 'scenarios', fundId] as const;
+}
+
+function getLatestAllocationsQueryKey(fundId: number | null | undefined) {
+  return ['allocations', 'latest', fundId] as const;
 }
 
 export function useAllocationScenarioList() {
@@ -90,8 +107,8 @@ export function useCreateAllocationScenario() {
       return response.json() as Promise<AllocationScenarioDetail>;
     },
     onSuccess: async (scenario) => {
-      await queryClient.invalidateQueries({ queryKey: ['allocations', 'scenarios', fundId] });
-      queryClient.setQueryData(['allocations', 'scenarios', fundId, scenario.id], scenario);
+      await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
+      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, scenario.id), scenario);
     },
   });
 }
@@ -120,8 +137,96 @@ export function useUpdateAllocationScenario(scenarioId: string | null) {
       return response.json() as Promise<AllocationScenarioDetail>;
     },
     onSuccess: async (scenario) => {
-      await queryClient.invalidateQueries({ queryKey: ['allocations', 'scenarios', fundId] });
-      queryClient.setQueryData(['allocations', 'scenarios', fundId, scenario.id], scenario);
+      await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
+      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, scenario.id), scenario);
+    },
+  });
+}
+
+export function useAllocationScenarioApplyPreview(scenarioId: string | null) {
+  const { fundId } = useFundContext();
+
+  return useMutation<AllocationScenarioApplyPreview, Error, void>({
+    mutationFn: async () => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(
+        `/api/funds/${fundId}/allocation-scenarios/${scenarioId}/apply-preview`
+      );
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(
+          buildErrorMessage(errorData, 'Failed to preview allocation scenario apply')
+        );
+      }
+
+      return response.json() as Promise<AllocationScenarioApplyPreview>;
+    },
+  });
+}
+
+export function useSyncAllocationScenario(scenarioId: string | null) {
+  const { fundId } = useFundContext();
+  const queryClient = useQueryClient();
+
+  return useMutation<AllocationScenarioSyncResult, Error, AllocationScenarioActionPayload>({
+    mutationFn: async (payload) => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(buildErrorMessage(errorData, 'Failed to sync allocation scenario'));
+      }
+
+      return response.json() as Promise<AllocationScenarioSyncResult>;
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
+      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
+    },
+  });
+}
+
+export function useApplyAllocationScenario(scenarioId: string | null) {
+  const { fundId } = useFundContext();
+  const queryClient = useQueryClient();
+
+  return useMutation<AllocationScenarioApplyResult, Error, ApplyAllocationScenarioPayload>({
+    mutationFn: async (payload) => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(buildErrorMessage(errorData, 'Failed to apply allocation scenario'));
+      }
+
+      return response.json() as Promise<AllocationScenarioApplyResult>;
+    },
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) }),
+        queryClient.invalidateQueries({ queryKey: getLatestAllocationsQueryKey(fundId) }),
+      ]);
+      queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
     },
   });
 }
