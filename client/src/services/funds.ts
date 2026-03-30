@@ -364,3 +364,26 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
     throw err;
   }
 }
+
+// ---------- Single-submit finalize endpoint ----------
+export async function finalizeFund(
+  payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
+): Promise<import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1> {
+  const response = await fetch('/api/funds/finalize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errBody = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+    };
+    throw new Error(
+      errBody.error || errBody.message || `Finalize failed (HTTP ${response.status})`
+    );
+  }
+  return response.json() as Promise<
+    import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1
+  >;
+}

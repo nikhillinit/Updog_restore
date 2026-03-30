@@ -319,3 +319,70 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
     ),
   };
 }
+
+/**
+ * Maps fund store state to FundFinalizeV1 (POST /api/funds/finalize).
+ *
+ * Merges the required create fields (with unit conversion) and all optional
+ * draft config fields into a single atomic payload for the finalize endpoint.
+ *
+ * @unit managementFee: decimal ratio (store percent / 100)
+ * @unit carryPercentage: decimal ratio (store percent / 100)
+ */
+export function fundStoreToFinalizeV1(
+  state: FundStateSlice
+): import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1 {
+  const currentYear = new Date().getFullYear();
+
+  // ── Required fund-level fields (same logic as fundStoreToCreateV1) ──
+  const result: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1 = {
+    name: state.fundName?.trim() || 'Untitled Fund',
+    size: state.fundSize ?? 0,
+    managementFee: (state.managementFeeRate ?? 0) / 100,
+    carryPercentage: (state.carriedInterest ?? 0) / 100,
+    vintageYear: state.vintageYear ?? currentYear,
+  };
+
+  // ── Optional draft config fields (same logic as fundStoreToDraftWriteV1) ──
+  if (state.establishmentDate != null) result.establishmentDate = state.establishmentDate;
+  if (state.isEvergreen != null) result.isEvergreen = state.isEvergreen;
+  if (state.fundLife != null) result.fundLife = state.fundLife;
+  if (state.investmentPeriod != null) result.investmentPeriod = state.investmentPeriod;
+  if (state.gpCommitment != null) result.gpCommitment = state.gpCommitment;
+
+  // Capital Structure
+  if (state.lpClasses.length > 0) result.lpClasses = state.lpClasses;
+  if (state.lps.length > 0) result.lps = state.lps;
+
+  // Investment Strategy
+  if (state.stages.length > 0) result.stages = state.stages;
+  if (state.sectorProfiles.length > 0) result.sectorProfiles = state.sectorProfiles;
+  if (state.allocations.length > 0) result.allocations = state.allocations;
+  if (state.followOnChecks) result.followOnChecks = state.followOnChecks;
+
+  // Capital Plan
+  if (state.capitalStageAllocations.length > 0)
+    result.capitalStageAllocations = state.capitalStageAllocations;
+  if (state.capitalPlanAllocations.length > 0)
+    result.capitalPlanAllocations = state.capitalPlanAllocations;
+
+  // Investment Pipeline
+  if (state.pipelineProfiles.length > 0) result.pipelineProfiles = state.pipelineProfiles;
+
+  // Distributions & Carry
+  if (state.waterfallType != null) result.waterfallType = state.waterfallType;
+  if (state.waterfallTiers.length > 0) result.waterfallTiers = state.waterfallTiers;
+  if (state.recyclingEnabled != null) result.recyclingEnabled = state.recyclingEnabled;
+  if (state.recyclingType != null) result.recyclingType = state.recyclingType;
+  if (state.recyclingCap != null) result.recyclingCap = state.recyclingCap;
+  if (state.recyclingPeriod != null) result.recyclingPeriod = state.recyclingPeriod;
+  if (state.exitRecyclingRate != null) result.exitRecyclingRate = state.exitRecyclingRate;
+  if (state.mgmtFeeRecyclingRate != null) result.mgmtFeeRecyclingRate = state.mgmtFeeRecyclingRate;
+  if (state.allowFutureRecycling != null) result.allowFutureRecycling = state.allowFutureRecycling;
+
+  // Fees & Expenses
+  if (state.feeProfiles.length > 0) result.feeProfiles = state.feeProfiles;
+  if (state.fundExpenses.length > 0) result.fundExpenses = state.fundExpenses;
+
+  return result;
+}
