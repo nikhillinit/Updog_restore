@@ -142,6 +142,12 @@ describe('AllocationsTab', () => {
       expect(screen.getByText('TechCorp')).toBeTruthy();
       expect(screen.getByText('HealthStart')).toBeTruthy();
       expect(screen.getByText('ExitedCo')).toBeTruthy();
+      expect(screen.getByText('Reserve Planning Workspace')).toBeTruthy();
+      expect(screen.getByText('Companies with plans')).toBeTruthy();
+      expect(screen.getByText('Documented notes')).toBeTruthy();
+      expect(screen.getByText('Last synced')).toBeTruthy();
+      expect(screen.getByText('Strong growth trajectory')).toBeTruthy();
+      expect(screen.getByText('Feb 15, 2024')).toBeTruthy();
     });
   });
 

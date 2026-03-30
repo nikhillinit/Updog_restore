@@ -3,6 +3,7 @@
 ## Overview
 
 The Allocations Tab is a comprehensive UI component for Fund Allocation Management (Phase 1c). It provides a data table interface for viewing and editing allocation state across all portfolio companies.
+It is also the canonical live reserve-planning surface; archived planning routes redirect here instead of maintaining a separate planning page.
 
 ## Features
 
@@ -16,6 +17,7 @@ The Allocations Tab is a comprehensive UI component for Fund Allocation Manageme
   - Deployed Reserves (formatted as compact currency)
   - Planned Reserves (sortable, formatted as compact currency)
   - Allocation Cap (formatted or "No cap")
+  - Planning Note (persisted allocation rationale)
   - Last Updated (relative time formatting)
   - Actions (Edit button)
 
@@ -28,6 +30,10 @@ The Allocations Tab is a comprehensive UI component for Fund Allocation Manageme
 - **Edit Dialog:** In-place editing with validation
 
 ### 3. Summary Cards
+- Reserve Planning Workspace summary
+  - Companies with active reserve plans
+  - Companies with documented planning notes
+  - Last synced timestamp for persisted planning state
 - Total Planned Reserves
 - Total Deployed Reserves
 - Remaining to Deploy (calculated)
@@ -171,6 +177,11 @@ interface AllocationMetadata {
    - Optional field
    - Max 500 characters
    - Character counter displayed
+
+### Persisted Context
+
+- Allocation version is shown in the edit dialog for optimistic-lock context
+- Last updated date is shown in the edit dialog and the workspace summary
 
 ## Currency Formatting
 

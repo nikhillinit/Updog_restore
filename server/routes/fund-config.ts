@@ -277,6 +277,64 @@ export function registerFundConfigRoutes(app: Express) {
     }
   });
 
+  // Recalculate published configuration
+  app.post('/api/funds/:id/recalculate', async (req: Request, res: Response) => {
+    try {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message,
+          };
+          return res['status'](400)['json'](error);
+        }
+        throw err;
+      }
+
+      const currentUserId = (req as RequestWithOptionalUser).user?.id;
+      const userId = currentUserId ? parseInt(currentUserId, 10) : undefined;
+
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+
+      const result = await fundPersistenceService.recalculatePublished(
+        fundId,
+        { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+        userId
+      );
+
+      res['json']({
+        success: true,
+        correlationId: result.correlationId,
+        runId: result.run.id,
+        dispatchState: result.run.dispatchState,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NoPublishedConfigError') {
+        const apiError: ApiError = {
+          error: 'No published configuration',
+          message: 'Publish a configuration first',
+        };
+        return res['status'](400)['json'](apiError);
+      }
+      if (error instanceof Error && error.name === 'CalculationInProgressError') {
+        const apiError: ApiError = {
+          error: 'Calculation already in progress',
+          message: 'Wait for the current calculation to complete',
+        };
+        return res['status'](409)['json'](apiError);
+      }
+      console.error('Recalculate error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to recalculate',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      res['status'](500)['json'](apiError);
+    }
+  });
+
   // Get fund reserves (from snapshots)
   app['get']('/api/funds/:id/reserves', async (req: Request, res: Response) => {
     try {
@@ -383,6 +441,47 @@ export function registerFundConfigRoutes(app: Express) {
     } catch (err) {
       console.error('[fund-results] Error:', err);
       return res.status(500).json({ error: 'Failed to read fund results' });
+    }
+  });
+
+  // GET /api/funds/:id/lifecycle-history -- M6 lifecycle history read model
+  app['get']('/api/funds/:id/lifecycle-history', async (req: Request, res: Response) => {
+    try {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message,
+          };
+          return res['status'](400)['json'](error);
+        }
+        throw err;
+      }
+
+      const { fundLifecycleHistoryService } = await import(
+        '../services/fund-lifecycle-history-service'
+      );
+      const history = await fundLifecycleHistoryService.getHistory(fundId);
+
+      if (!history) {
+        const error: ApiError = {
+          error: 'Fund not found',
+          message: `No fund exists with ID: ${fundId}`,
+        };
+        return res['status'](404)['json'](error);
+      }
+
+      res['json'](history);
+    } catch (error) {
+      console.error('[lifecycle-history] Error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to read lifecycle history',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      res['status'](500)['json'](apiError);
     }
   });
 }

@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 
@@ -39,6 +39,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -59,10 +60,55 @@ describe('FundModelResultsPage (server-backed)', () => {
     return { promise, resolve, reject };
   }
 
+  function mockFundPageFetches(options?: {
+    results?: ReturnType<typeof readyResponse>;
+    history?: ReturnType<typeof lifecycleHistoryResponse>;
+    recalculateResponse?: { success: boolean; correlationId: string; runId: number; dispatchState: string };
+    recalculateStatus?: number;
+  }) {
+    const results = options?.results ?? readyResponse();
+    const history = options?.history ?? lifecycleHistoryResponse();
+    const recalculateStatus = options?.recalculateStatus ?? 200;
+    const recalculateResponse =
+      options?.recalculateResponse ?? {
+        success: true,
+        correlationId: 'recalc-corr-id',
+        runId: 88,
+        dispatchState: 'dispatched',
+      };
+
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url.endsWith('/results')) {
+        return Promise.resolve(jsonResponse(results));
+      }
+
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(history));
+      }
+
+      if (url.endsWith('/recalculate')) {
+        return Promise.resolve(
+          new Response(JSON.stringify(recalculateResponse), {
+            status: recalculateStatus,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url} (${init?.method ?? 'GET'})`));
+    });
+  }
+
+  function countFetches(url: string) {
+    return fetchSpy.mock.calls.filter(([calledUrl]) => calledUrl === url).length;
+  }
+
   // -- sessionStorage prohibition --
 
   it('never reads engine-results-* from sessionStorage', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
@@ -74,7 +120,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   });
 
   it('never reads wizard-completion-data from sessionStorage', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
@@ -88,18 +134,21 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- Server fetch --
 
   it('fetches GET /api/funds/:id/results on mount', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith('/api/funds/123/results');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/results',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
   });
 
   // -- Available sections --
 
   it('renders reserve section payload when status is available', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -110,7 +159,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   });
 
   it('renders pacing section payload when status is available', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -149,7 +198,7 @@ describe('FundModelResultsPage (server-backed)', () => {
         allowFutureRecycling: false,
       },
     };
-    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -163,7 +212,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- Unavailable sections --
 
   it('renders overview section with typed scorecard facts', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -176,7 +225,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   });
 
   it('renders unavailable reason text for scenarios and waterfall sections', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -192,7 +241,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       status: 'unavailable',
       reason: 'No calculation results available',
     };
-    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -207,7 +256,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       reason: 'A newer configuration was published. Request recalculation to update.',
       reasonCode: 'STALE_EVIDENCE',
     };
-    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -224,7 +273,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       reason: 'Published config is invalid',
       reasonCode: 'INVALID_PUBLISHED_CONFIG',
     };
-    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -292,10 +341,17 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- Pending/calculating --
 
   it('renders pending sections when status is calculating', async () => {
-    fetchSpy.mockResolvedValue(
-      jsonResponse({
+    mockFundPageFetches({
+      results: {
         ...readyResponse(),
         status: 'calculating',
+        lifecycle: {
+          ...readyResponse().lifecycle,
+          calculationState: {
+            ...readyResponse().lifecycle.calculationState,
+            status: 'calculating',
+          },
+        },
         sections: {
           reserve: { status: 'pending', reason: 'Calculations are still in progress' },
           pacing: { status: 'pending', reason: 'Calculations not yet requested' },
@@ -307,15 +363,15 @@ describe('FundModelResultsPage (server-backed)', () => {
           scenarios: { status: 'unavailable', reason: 'No authoritative source' },
           waterfall: { status: 'unavailable', reason: 'No authoritative source' },
         },
-      })
-    );
+      },
+    });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
       expect(screen.getByText(/Test Fund/)).toBeInTheDocument();
     });
-    // Status indicator for non-ready top-level
-    expect(screen.getByText(/Status: calculating/)).toBeInTheDocument();
+    expect(screen.getByText('Lifecycle Status')).toBeInTheDocument();
+    expect(screen.getByText('Calculating')).toBeInTheDocument();
     expect(screen.getByText(/Calculations are still in progress/)).toBeInTheDocument();
     expect(screen.getByText(/Calculations not yet requested/)).toBeInTheDocument();
   });
@@ -323,7 +379,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- No fabricated data --
 
   it('does not render hardcoded MOIC 2.5 or reserveRatio 40', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -343,7 +399,7 @@ describe('FundModelResultsPage (server-backed)', () => {
   // -- Fund identity header --
 
   it('renders fund name and vintage year from server data', async () => {
-    fetchSpy.mockResolvedValue(jsonResponse(readyResponse()));
+    mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
@@ -353,6 +409,10 @@ describe('FundModelResultsPage (server-backed)', () => {
     // $100M appears in both header and overview card
     const sizeMatches = screen.getAllByText(/\$100M/);
     expect(sizeMatches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Published Version')).toBeInTheDocument();
+    expect(screen.getByText('v1')).toBeInTheDocument();
+    expect(screen.getByText('Dispatch State')).toBeInTheDocument();
+    expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
   });
 
   // -- Legacy evidence --
@@ -363,12 +423,339 @@ describe('FundModelResultsPage (server-backed)', () => {
       ...resp.sections.reserve,
       legacyEvidence: true,
     };
-    fetchSpy.mockResolvedValue(jsonResponse(resp));
+    mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
       expect(screen.getByText(/legacy data/i)).toBeInTheDocument();
     });
+  });
+
+  it('shows stale-evidence banner when published version is ahead of calculated version', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.publishedVersion = 2;
+    resp.lifecycle.calculationState.configVersion = 1;
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Results are stale/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(
+        /Latest published configuration is v2, but the current calculation is still on v1/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('does not show stale-evidence banner when calculated version matches published version', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Lifecycle Status/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Results are stale/i)).not.toBeInTheDocument();
+  });
+
+  it('renders publish history entries when expanded', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Publish History/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /show history/i }));
+
+    expect(await screen.findByText('Version v2')).toBeInTheDocument();
+    expect(screen.getByText('Version v1')).toBeInTheDocument();
+    expect(screen.getByText('Run 10')).toBeInTheDocument();
+    expect(screen.getByText('No calculation run')).toBeInTheDocument();
+  });
+
+  it('disables recalculate when no published configuration exists', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.hasPublished = false;
+    resp.lifecycle.configState.publishedVersion = null;
+    resp.lifecycle.configState.publishedAt = null;
+
+    mockFundPageFetches({ results: resp, history: { fundId: 123, entries: [] } });
+    await renderPage('/fund-model-results/123');
+
+    const button = await screen.findByTestId('recalculate-button');
+    expect(button).toBeDisabled();
+    expect(
+      screen.getByText(/Publish a configuration before recalculating results/i)
+    ).toBeInTheDocument();
+  });
+
+  it('disables recalculate while lifecycle status is calculating', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.calculationState.status = 'calculating';
+
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const button = await screen.findByTestId('recalculate-button');
+    expect(button).toBeDisabled();
+    expect(
+      screen.getByText(/Calculation is already in progress for the published configuration/i)
+    ).toBeInTheDocument();
+  });
+
+  it('posts recalculate and refreshes results/history when enabled', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const button = await screen.findByTestId('recalculate-button');
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/funds/123/recalculate',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+
+    const resultsCalls = fetchSpy.mock.calls.filter(([url]) => url === '/api/funds/123/results');
+    const historyCalls = fetchSpy.mock.calls.filter(
+      ([url]) => url === '/api/funds/123/lifecycle-history'
+    );
+
+    expect(resultsCalls.length).toBeGreaterThanOrEqual(2);
+    expect(historyCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders recalculation error when the server rejects the request', async () => {
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) return Promise.resolve(jsonResponse(readyResponse()));
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      if (url.endsWith('/recalculate')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: 'Calculation already in progress',
+              message: 'Wait for the current calculation to complete',
+            }),
+            {
+              status: 409,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          )
+        );
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url} (${init?.method ?? 'GET'})`));
+    });
+
+    await renderPage('/fund-model-results/123');
+
+    fireEvent.click(await screen.findByTestId('recalculate-button'));
+
+    expect(
+      await screen.findByText(/Wait for the current calculation to complete/i)
+    ).toBeInTheDocument();
+  });
+
+  it('uses exponential backoff while calculation remains active', async () => {
+    vi.useFakeTimers();
+
+    const activeResponse = calculatingResponse();
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) return Promise.resolve(jsonResponse(activeResponse));
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    await renderPage('/fund-model-results/123');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(1);
+    expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1999);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3999);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(3);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(5);
+
+    expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+  });
+
+  it('resets backoff when runId changes during active polling', async () => {
+    vi.useFakeTimers();
+
+    const responses = [
+      calculatingResponse({ runId: 10 }),
+      calculatingResponse({ runId: 11 }),
+      calculatingResponse({ runId: 11 }),
+    ];
+
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) {
+        return Promise.resolve(jsonResponse(responses.shift() ?? calculatingResponse({ runId: 11 })));
+      }
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    await renderPage('/fund-model-results/123');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1999);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(3);
+  });
+
+  it('stops polling and refreshes history when lifecycle reaches a terminal state', async () => {
+    vi.useFakeTimers();
+
+    const responses = [calculatingResponse(), readyResponse()];
+
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) {
+        return Promise.resolve(jsonResponse(responses.shift() ?? readyResponse()));
+      }
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    await renderPage('/fund-model-results/123');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(1);
+    expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+    expect(countFetches('/api/funds/123/lifecycle-history')).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+  });
+
+  it('preserves last good data on background polling failure and retries with backoff', async () => {
+    vi.useFakeTimers();
+
+    let resultsCall = 0;
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) {
+        resultsCall += 1;
+        if (resultsCall === 1) return Promise.resolve(jsonResponse(calculatingResponse()));
+        if (resultsCall === 2) return Promise.reject(new Error('temporary outage'));
+        return Promise.resolve(jsonResponse(calculatingResponse()));
+      }
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    await renderPage('/fund-model-results/123');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Test Fund')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(countFetches('/api/funds/123/results')).toBe(2);
+    expect(screen.getByText('Test Fund')).toBeInTheDocument();
+    expect(screen.queryByText(/Error loading results/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(3);
+  });
+
+  it('clears pending polling timeout on unmount', async () => {
+    vi.useFakeTimers();
+
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) return Promise.resolve(jsonResponse(calculatingResponse()));
+      if (url.endsWith('/lifecycle-history')) {
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+
+    const { unmount } = await renderPage('/fund-model-results/123');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(countFetches('/api/funds/123/results')).toBe(1);
+
+    unmount();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+
+    expect(countFetches('/api/funds/123/results')).toBe(1);
   });
 });
 
@@ -453,5 +840,59 @@ function readyResponse() {
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
     },
+  };
+}
+
+function calculatingResponse(
+  overrides?: Partial<{
+    runId: number;
+    configVersion: number;
+    publishedVersion: number;
+  }>
+) {
+  const resp = readyResponse();
+  resp.status = 'calculating';
+  resp.lifecycle.calculationState.status = 'calculating';
+  resp.lifecycle.calculationState.runId = overrides?.runId ?? 10;
+  resp.lifecycle.calculationState.configVersion = overrides?.configVersion ?? 1;
+  resp.lifecycle.configState.publishedVersion = overrides?.publishedVersion ?? 1;
+  resp.lifecycle.calculationState.lastCalculatedAt = null;
+  resp.sections.reserve = { status: 'pending', reason: 'Calculations are still in progress' };
+  resp.sections.pacing = { status: 'pending', reason: 'Calculations are still in progress' };
+  resp.sections.scorecard = {
+    status: 'pending',
+    reason: 'Calculations have not produced results yet',
+    reasonCode: 'CALCULATION_PENDING',
+  };
+  return resp;
+}
+
+function lifecycleHistoryResponse() {
+  return {
+    fundId: 123,
+    entries: [
+      {
+        version: 2,
+        publishedAt: '2026-03-20T12:00:00.000Z',
+        publishedBy: 1,
+        fundSize: 100_000_000,
+        numCompanies: 5,
+        calcRun: {
+          runId: 10,
+          status: 'ready' as const,
+          dispatchState: 'dispatched' as const,
+          lastCalculatedAt: '2026-03-20T12:30:00.000Z',
+          correlationId: 'corr-abc-123',
+        },
+      },
+      {
+        version: 1,
+        publishedAt: '2026-03-15T10:00:00.000Z',
+        publishedBy: null,
+        fundSize: 80_000_000,
+        numCompanies: null,
+        calcRun: null,
+      },
+    ],
   };
 }
