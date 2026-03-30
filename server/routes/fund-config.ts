@@ -56,6 +56,41 @@ type RequestWithOptionalUser = Request & { user?: { id?: string } };
 export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
 
+  // Atomic finalize: create fund + save config + publish in one call
+  app.post('/api/funds/finalize', async (req: Request, res: Response) => {
+    try {
+      const { FundFinalizeV1Schema: Schema } =
+        await import('@shared/contracts/fund-finalize-v1.contract');
+      const validation = Schema.safeParse(req.body);
+      if (!validation.success) {
+        return sendApiError(res, 400, {
+          error: 'Finalize payload is invalid',
+          code: 'FINALIZE_VALIDATION_ERROR',
+          issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+        });
+      }
+
+      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+      const result = await fundPersistenceService.finalize(validation.data, {
+        reserve: reserveQueue,
+        pacing: pacingQueue,
+        cohort: cohortQueue,
+      });
+
+      res['status'](201)['json']({
+        success: true as const,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Finalize error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to finalize fund',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      res['status'](500)['json'](apiError);
+    }
+  });
+
   // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
   app.put('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
@@ -461,9 +496,8 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      const { fundLifecycleHistoryService } = await import(
-        '../services/fund-lifecycle-history-service'
-      );
+      const { fundLifecycleHistoryService } =
+        await import('../services/fund-lifecycle-history-service');
       const history = await fundLifecycleHistoryService.getHistory(fundId);
 
       if (!history) {
@@ -502,9 +536,8 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      const { fundResultsComparisonService } = await import(
-        '../services/fund-results-comparison-service'
-      );
+      const { fundResultsComparisonService } =
+        await import('../services/fund-results-comparison-service');
       const comparison = await fundResultsComparisonService.getComparison(fundId);
 
       if (!comparison) {
