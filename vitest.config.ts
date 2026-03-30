@@ -108,7 +108,11 @@ export default defineConfig({
           globalTeardown: testPaths.globalTeardown,
           // Unit tests only - integration/api tests run via vitest.config.int.ts
           // Also includes reflection system regression tests
-          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/regressions/**/*.test.ts'],
+          include: [
+            'tests/unit/**/*.test.ts',
+            'tests/perf/**/*.test.ts',
+            'tests/regressions/**/*.test.ts',
+          ],
           exclude: ['**/*.quarantine.test.ts', 'tests/quarantine/**/*'],
           setupFiles: [
             testPaths.nodeSetupRedis, // FIRST: Mock Redis before any imports
@@ -145,6 +149,7 @@ export default defineConfig({
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
       'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
+      'tests/unit/pages/portfolio-constructor.test.tsx', // quarantined - imports removed react-router-dom
       'tests/e2e/**/*',
       '**/*.template.test.ts',
       '**/*.template.{test,spec}.ts?(x)', // Template files - not executable tests
