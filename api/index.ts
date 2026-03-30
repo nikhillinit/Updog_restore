@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_types';
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
@@ -6,8 +6,8 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
     endpoints: {
       health: '/api/health',
       test: '/api/test',
-      version: '/api/version'
+      version: '/api/version',
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }
