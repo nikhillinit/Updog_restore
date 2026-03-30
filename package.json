@@ -47,7 +47,7 @@
     "rls:quickstart:ps": "powershell -ExecutionPolicy Bypass -File scripts/rls-quickstart.ps1",
     "test": "npm run test:unit",
     "test:unit": "cross-env TZ=UTC vitest run --project=server --project=client",
-    "test:integration": "cross-env TZ=UTC vitest -c vitest.config.int.ts run",
+    "test:integration": "cross-env TZ=UTC vitest run -c vitest.config.int.ts",
     "test:memory": "cross-env REDIS_URL=memory:// npm run test:unit",
     "verify:no-redis": "npx tsx scripts/verify-no-redis.ts",
     "test:smart": "node scripts/test-smart.mjs",

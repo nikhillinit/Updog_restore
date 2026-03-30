@@ -2,8 +2,8 @@
  * Vitest globalSetup for integration tests.
  *
  * Spawns a SINGLE Express server for the entire test run (instead of per-file
- * via setupFiles). Writes the detected port to a temp file so the worker
- * process can pick it up in setupFiles.
+ * via setupFiles). The worker process inherits BASE_URL/PORT directly from
+ * this setup, so setupFiles no longer participates in server lifecycle.
  *
  * This eliminates the ~31-cycle spawn/kill ceiling that exhausted CI runners.
  */
@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export const PORT_FILE = path.join(os.tmpdir(), 'vitest-int-server.json');
+const READY_FILE = path.join(os.tmpdir(), `vitest-int-server-${process.pid}.json`);
 
 const PORT_DETECTION_TIMEOUT_MS = 30_000;
 const HEALTHZ_TIMEOUT_MS = 30_000;
@@ -26,6 +26,31 @@ const VALID_TEST_JWT_AUDIENCE = 'updog-client';
 const VALID_TEST_CORS_ORIGIN = 'http://localhost:5173,http://localhost:5174,http://localhost:5175';
 
 let serverProcess: ChildProcess | null = null;
+
+function applyIntegrationEnv(env: NodeJS.ProcessEnv): void {
+  env.TZ = 'UTC';
+  env.NODE_ENV = 'test';
+  env._EXPLICIT_NODE_ENV = 'test';
+  env.REDIS_URL = env.REDIS_URL || 'memory://';
+  env._EXPLICIT_REDIS_URL = env.REDIS_URL;
+  env.ENABLE_QUEUES = '0';
+  env.CORS_ORIGIN = VALID_TEST_CORS_ORIGIN;
+  env.DATABASE_URL =
+    env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test';
+
+  sanitizeSecrets(env);
+  env._EXPLICIT_JWT_SECRET = env.JWT_SECRET;
+  env._EXPLICIT_JWT_ISSUER = env.JWT_ISSUER;
+  env._EXPLICIT_JWT_AUDIENCE = env.JWT_AUDIENCE;
+  env.JWT_ALG = env.JWT_ALG || 'HS256';
+  env._EXPLICIT_JWT_ALG = env.JWT_ALG;
+}
+
+function setWorkerServerEnv(baseUrl: string, port: string): void {
+  process.env.PORT = port;
+  process.env._EXPLICIT_PORT = port;
+  process.env.BASE_URL = baseUrl;
+}
 
 function sanitizeSecrets(env: NodeJS.ProcessEnv): void {
   if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {
@@ -155,11 +180,9 @@ export async function setup(): Promise<void> {
     if (!isReady) {
       throw new Error(`[globalSetup] External server not healthy within 30s: ${healthUrl}`);
     }
+    applyIntegrationEnv(process.env);
     const parsed = new URL(externalBaseUrl);
-    fs.writeFileSync(
-      PORT_FILE,
-      JSON.stringify({ port: parsed.port || '80', baseUrl: externalBaseUrl, pid: null })
-    );
+    setWorkerServerEnv(externalBaseUrl, parsed.port || '80');
     console.warn('[globalSetup] Using external server:', externalBaseUrl);
     return;
   }
@@ -167,18 +190,11 @@ export async function setup(): Promise<void> {
   // Build server environment
   const serverEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    NODE_ENV: 'test',
-    _EXPLICIT_NODE_ENV: 'test',
     PORT: '0',
     _EXPLICIT_PORT: '0',
-    REDIS_URL: process.env.REDIS_URL || 'memory://',
-    _EXPLICIT_REDIS_URL: process.env.REDIS_URL || 'memory://',
-    CORS_ORIGIN: VALID_TEST_CORS_ORIGIN,
-    DATABASE_URL:
-      process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_test',
-    ENABLE_QUEUES: '0',
   };
-  sanitizeSecrets(serverEnv);
+  applyIntegrationEnv(serverEnv);
+  applyIntegrationEnv(process.env);
   delete serverEnv.VITEST;
 
   let actualPort: string | null = null;
@@ -188,13 +204,13 @@ export async function setup(): Promise<void> {
   console.warn('[globalSetup] Starting integration test server (ephemeral port)...');
 
   try {
-    fs.unlinkSync(PORT_FILE);
+    fs.unlinkSync(READY_FILE);
   } catch {
     // No stale file to remove
   }
 
   serverProcess = spawn('npm', ['run', 'dev:api'], {
-    env: { ...serverEnv, TEST_READY_FILE: PORT_FILE },
+    env: { ...serverEnv, TEST_READY_FILE: READY_FILE },
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
     detached: os.platform() !== 'win32', // process groups are POSIX-only
@@ -218,7 +234,7 @@ export async function setup(): Promise<void> {
         `[globalSetup] Server exited before reporting port (exit=${serverProcess.exitCode}).\n${summary}`
       );
     }
-    const serverInfo = readServerInfoFile(PORT_FILE);
+    const serverInfo = readServerInfoFile(READY_FILE);
     if (serverInfo) {
       actualPort = serverInfo.port;
       break;
@@ -233,29 +249,21 @@ export async function setup(): Promise<void> {
     );
   }
 
-  const serverInfo = readServerInfoFile(PORT_FILE);
+  const serverInfo = readServerInfoFile(READY_FILE);
   const baseUrl = serverInfo?.baseUrl ?? `http://localhost:${actualPort}`;
   const isReady = await waitForServer(`${baseUrl}/healthz`, HEALTHZ_TIMEOUT_MS);
   if (!isReady) {
     throw new Error(`[globalSetup] Server not healthy within 30s: ${baseUrl}/healthz`);
   }
 
-  // Persist for the worker's setupFiles to read
-  fs.writeFileSync(
-    PORT_FILE,
-    JSON.stringify({
-      port: actualPort,
-      baseUrl,
-      pid: serverInfo?.pid ?? serverProcess.pid ?? null,
-    })
-  );
+  setWorkerServerEnv(baseUrl, actualPort);
 
   console.warn(`[globalSetup] Server ready on port ${actualPort}`);
 }
 
 export async function teardown(): Promise<void> {
   try {
-    fs.unlinkSync(PORT_FILE);
+    fs.unlinkSync(READY_FILE);
   } catch {
     // Already cleaned or never written
   }
