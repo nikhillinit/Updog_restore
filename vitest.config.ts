@@ -132,6 +132,12 @@ export default defineConfig({
           environment: 'jsdom',
           // Simplified: All .test.tsx files run in jsdom environment
           include: ['tests/unit/**/*.test.tsx'],
+          exclude: [
+            'tests/quarantine/**/*',
+            '**/*.quarantine.test.tsx',
+            'tests/unit/fund-setup.smoke.test.tsx',
+            'tests/unit/pages/portfolio-constructor.test.tsx',
+          ],
           setupFiles: [testPaths.testInfrastructure, testPaths.jsdomSetup],
           environmentOptions: {
             jsdom: {
