@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_types';
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   // Simple stub status for MVP - no complex security needed
