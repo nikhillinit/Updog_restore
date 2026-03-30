@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-03-30
 owner: Core Team
 review_cadence: P30D
 categories: [testing, runbook, stabilization]
@@ -18,16 +18,19 @@ This runbook documents the machine-readable startup handshake used by the Phase
 ## Contract
 
 - `server/bootstrap.ts` writes a JSON file when `TEST_READY_FILE` is set.
-- `tests/integration/global-setup.ts` sets `TEST_READY_FILE` to
-  `os.tmpdir()/vitest-int-server.json` before starting `npm run dev:api`.
+- `tests/integration/global-setup.ts` sets a unique temp `TEST_READY_FILE`
+  before starting `npm run dev:api`.
 - The file shape is:
 
 ```json
 { "port": 40123, "baseUrl": "http://localhost:40123", "pid": 12345 }
 ```
 
-- `global-setup.ts` waits for that file, then verifies `${baseUrl}/healthz`
-  before letting the integration worker continue.
+- `global-setup.ts` waits for that file, verifies `${baseUrl}/healthz`, then
+  exports `BASE_URL`, `PORT`, and `_EXPLICIT_PORT` to the worker process.
+- `tests/integration/setup.ts` no longer participates in server lifecycle or
+  ready-file parsing. It now only restores Node's native `fetch` and keeps
+  worker-local test hygiene.
 
 ## Canonical Command
 
@@ -47,19 +50,19 @@ That command must stay green before milestone work proceeds.
    port but did not finish booting. Check provider setup, env loading, and route
    initialization.
 
-3. **Stale temp file** `global-setup.ts` removes the temp file before spawn. If
-   you are debugging manually and reusing the same temp path, remove the old
-   file before retrying.
+3. **Stale temp file** `global-setup.ts` removes its temp file before spawn and
+   during teardown. If you are debugging manually and reusing the same temp
+   path, remove the old file before retrying.
 
 ## Operator Steps
 
 1. Run `npm run test:phase4:integration` for the focused reproduction.
 2. Inspect the temp file path from `tests/integration/global-setup.ts`
-   (`PORT_FILE`).
-3. If the file is missing, inspect the integration harness stderr tail in the
+   (`READY_FILE`).
+3. If the file is missing, inspect the integration harness process output in the
    test failure output.
-4. If the file exists, request `${baseUrl}/healthz` manually and inspect the API
-   boot logs.
+4. If the file exists, request `${baseUrl}/healthz` manually and confirm
+   `BASE_URL` and `PORT` were populated for the worker process.
 5. If startup behavior changes, keep the handshake machine-readable. Do not
    reintroduce log parsing.
 

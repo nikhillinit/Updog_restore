@@ -7,28 +7,32 @@
  * IMPORTANT: Only includes tests that actually require Docker containers.
  * tests/api/** are excluded - they test client engines and run via vitest.config.int.ts
  */
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 // Complete alias configuration (mirrors vitest.config.ts)
 const alias = {
   // Primary path aliases - order matters: more specific first
-  '@/core': path.resolve(__dirname, './client/src/core'),
-  '@/lib': path.resolve(__dirname, './client/src/lib'),
-  '@/utils': path.resolve(__dirname, './client/src/utils'),
-  '@/server': path.resolve(__dirname, './server'),
-  '@/': path.resolve(__dirname, './client/src/'),
-  '@': path.resolve(__dirname, './client/src'),
+  '@/core': resolve(projectRoot, './client/src/core'),
+  '@/lib': resolve(projectRoot, './client/src/lib'),
+  '@/utils': resolve(projectRoot, './client/src/utils'),
+  '@/server': resolve(projectRoot, './server'),
+  '@/': resolve(projectRoot, './client/src/'),
+  '@': resolve(projectRoot, './client/src'),
 
   // Shared and assets
-  '@shared/': path.resolve(__dirname, './shared/'),
-  '@shared': path.resolve(__dirname, './shared'),
-  '@schema': path.resolve(__dirname, './shared/schema'),
-  '@assets/': path.resolve(__dirname, './assets/'),
-  '@assets': path.resolve(__dirname, './assets'),
+  '@shared/': resolve(projectRoot, './shared/'),
+  '@shared': resolve(projectRoot, './shared'),
+  '@schema': resolve(projectRoot, './shared/schema'),
+  '@assets/': resolve(projectRoot, './assets/'),
+  '@assets': resolve(projectRoot, './assets'),
 };
 
 export default defineConfig({
+  root: projectRoot,
   resolve: { alias },
   test: {
     name: 'testcontainers',

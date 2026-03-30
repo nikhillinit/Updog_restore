@@ -1,15 +1,19 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  root: projectRoot,
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './client/src'),
-      '@/core': path.resolve(__dirname, './client/src/core'),
-      '@/lib': path.resolve(__dirname, './client/src/lib'),
-      '@shared': path.resolve(__dirname, './shared'),
-      '@assets': path.resolve(__dirname, './assets'),
-      '@server': path.resolve(__dirname, './server'),
+      '@': resolve(projectRoot, './client/src'),
+      '@/core': resolve(projectRoot, './client/src/core'),
+      '@/lib': resolve(projectRoot, './client/src/lib'),
+      '@shared': resolve(projectRoot, './shared'),
+      '@assets': resolve(projectRoot, './assets'),
+      '@server': resolve(projectRoot, './server'),
     }
   },
   test: {

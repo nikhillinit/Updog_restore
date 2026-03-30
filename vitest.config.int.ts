@@ -1,22 +1,26 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  root: projectRoot,
   resolve: {
     alias: {
-      '@/core': path.resolve(__dirname, './client/src/core'),
-      '@/lib': path.resolve(__dirname, './client/src/lib'),
-      '@/server': path.resolve(__dirname, './server'),
-      '@/metrics/reserves-metrics': path.resolve(__dirname, './tests/mocks/metrics-mock.ts'),
-      '@/server/utils/logger': path.resolve(__dirname, './tests/mocks/server-logger.ts'),
-      '@/': path.resolve(__dirname, './client/src/'),
-      '@': path.resolve(__dirname, './client/src'),
-      '@shared/': path.resolve(__dirname, './shared/'),
-      '@shared': path.resolve(__dirname, './shared'),
-      '@schema': path.resolve(__dirname, './shared/schema'),
-      '@assets/': path.resolve(__dirname, './assets/'),
-      '@assets': path.resolve(__dirname, './assets'),
-      '@upstash/redis': path.resolve(__dirname, './tests/mocks/upstash-redis.ts'),
+      '@/core': resolve(projectRoot, './client/src/core'),
+      '@/lib': resolve(projectRoot, './client/src/lib'),
+      '@/server': resolve(projectRoot, './server'),
+      '@/metrics/reserves-metrics': resolve(projectRoot, './tests/mocks/metrics-mock.ts'),
+      '@/server/utils/logger': resolve(projectRoot, './tests/mocks/server-logger.ts'),
+      '@/': resolve(projectRoot, './client/src/'),
+      '@': resolve(projectRoot, './client/src'),
+      '@shared/': resolve(projectRoot, './shared/'),
+      '@shared': resolve(projectRoot, './shared'),
+      '@schema': resolve(projectRoot, './shared/schema'),
+      '@assets/': resolve(projectRoot, './assets/'),
+      '@assets': resolve(projectRoot, './assets'),
+      '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
     },
   },
   test: {

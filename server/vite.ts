@@ -99,7 +99,7 @@ export async function setupVite(app: Express, server?: Server) {
   const vite = viteCandidate;
 
   app.use(vite.middlewares);
-  app.use('*', async (req: Request, res: Response, next: NextFunction) => {
+  app.use('/{*splat}', async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
 
     try {
@@ -129,7 +129,7 @@ export function serveStatic(app: Express, distPath?: string) {
   app.use(express.static(resolvedDistPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use('*', (_req: Request, res: Response) => {
+  app.use('/{*splat}', (_req: Request, res: Response) => {
     res.sendFile(path.resolve(resolvedDistPath, 'index.html'));
   });
 }
