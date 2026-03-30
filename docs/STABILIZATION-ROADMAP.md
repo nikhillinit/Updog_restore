@@ -48,7 +48,7 @@ through a machine-readable ready-file contract instead of human log parsing.
 | 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                               |
 | 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
 | 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
-| 7         | Reduce Tooling Entropy                | [NOT STARTED] | Short, obvious supported command path                         |
+| 7         | Reduce Tooling Entropy                | [COMPLETE]    | Short, obvious supported command path                         |
 
 ## Milestone Details
 
@@ -250,11 +250,15 @@ gate.
 
 **Goal:** Make the repo operable without archaeology.
 
-- [ ] Inventory scripts into supported, internal migration, and archive.
-- [ ] Keep a small supported command set in `README.md` and
-      `docs/BUILD_READINESS.md`.
-- [ ] Archive obsolete plans/docs after each milestone instead of letting them
-      accumulate.
+- [x] Inventory scripts into supported, internal migration, and archive.
+      Classification recorded in `docs/script-classification.json`. 340 scripts
+      triaged: 65 supported, 21 internal-migration, 254 archived.
+- [x] Keep a small supported command set in `README.md` and
+      `docs/BUILD_READINESS.md`. Dead `test:run` reference removed from
+      `CLAUDE.md`. All docs now reference only scripts that exist.
+- [x] Archive obsolete plans/docs after each milestone instead of letting them
+      accumulate. 87 files archived to `docs/archive/m7-cleanup/` with manifest.
+      8 ephemeral log files deleted. 22 source-of-truth files kept.
 
 **Exit criteria:**
 
@@ -284,5 +288,5 @@ gate.
    create, draft persistence, publish, and result kickoff.
 2. Keep future route or nav changes flowing through the exported governance
    registry and the generated route-control adapter.
-3. Keep shared math authoritative; do not introduce new client-side engine
-   forks outside explicitly deferred milestones.
+3. Keep shared math authoritative; do not introduce new client-side engine forks
+   outside explicitly deferred milestones.
