@@ -390,12 +390,12 @@ const MemoizedOverviewTab = React.memo(OverviewTab);
 ## Dependencies
 
 ```json
-{
-  "react": "^18.0.0",
-  "react-router-dom": "^6.0.0",
-  "@radix-ui/react-tabs": "^1.0.0",
-  "lucide-react": "^0.263.0"
-}
+  {
+    "react": "^18.0.0",
+    "wouter": "^3.0.0",
+    "@radix-ui/react-tabs": "^1.0.0",
+    "lucide-react": "^0.263.0"
+  }
 ```
 
 ## Contributing

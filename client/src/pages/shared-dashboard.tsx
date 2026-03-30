@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useRoute } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -236,12 +236,13 @@ const useSharedDashboard = (shareId: string) => {
 };
 
 const SharedDashboard: React.FC = () => {
-  const { shareId } = useParams<{ shareId: string }>();
+  const [, params] = useRoute('/shared/:shareId');
+  const shareId = params?.shareId ?? '';
   const [enteredPasskey, setEnteredPasskey] = useState('');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const { shareConfig, dashboardData, isLoading, error, requiresPasskey, verifyPasskey } =
-    useSharedDashboard(shareId || '');
+    useSharedDashboard(shareId);
 
   // Track view analytics (server-side via recordShareView)
   useEffect(() => {

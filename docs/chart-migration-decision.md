@@ -1,123 +1,53 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-03-30
 ---
 
-# Chart Library Migration Decision
+# Chart Library Decision
 
 ## Executive Summary
-**Recommendation**: Consolidate on **Recharts** with staged migration from Nivo
+**Decision**: Recharts is the live app standard. The remaining Nivo-backed
+components have been migrated, and Nivo has been removed from runtime
+dependencies.
 
-## Current State Analysis
+## Current State
 
-### Library Usage (As of 2025-08-27)
-- **Recharts**: 27 components (93% of charts)
-- **Nivo**: 2 components (7% of charts)  
-- **Chart.js**: 0 components
+### Runtime Status
+- **Recharts**: canonical chart library for app-facing chart components
+- **Nivo**: no live runtime imports remain in `client/`, `server/`, or `shared/`
+- **Chart.js**: still used by dedicated dashboard/chart.js components and is not
+  part of this migration
 
-### Comparison Matrix
+### Why Recharts Remains
+1. Already dominant in the application
+2. Native React ergonomics fit the current component model
+3. Smaller long-term maintenance surface than a mixed Recharts/Nivo stack
 
-| Criteria | Recharts | Nivo | Chart.js |
-|----------|----------|------|----------|
-| **Current Usage** | 27 files ✅ | 2 files | 0 files |
-| **Bundle Size** | ~100KB | ~150KB | ~200KB |
-| **TypeScript Support** | Good | Excellent | Fair |
-| **Tree-shaking** | Yes ✅ | Partial | Limited |
-| **Performance** | Good | Excellent | Good |
-| **Documentation** | Excellent ✅ | Good | Excellent |
-| **React Integration** | Native ✅ | Native | Wrapper needed |
-| **SSR Support** | Yes | Yes | Limited |
-| **Accessibility** | Built-in ✅ | Built-in | Manual |
-| **Animation** | Good | Excellent | Good |
+## Completed Cleanup
 
-## Decision: Recharts
+- [x] Migrate `nivo-performance-chart.tsx` off `@nivo/line`
+- [x] Migrate `nivo-moic-scatter.tsx` off `@nivo/scatterplot`
+- [x] Remove root `@nivo/*` dependencies
+- [x] Collapse runtime chart selection to Recharts-only behavior
 
-### Why Recharts Wins
-1. **Already Dominant**: 93% of existing charts use Recharts
-2. **Smaller Bundle**: Better tree-shaking, smaller size
-3. **Native React**: Built for React from ground up
-4. **Active Maintenance**: Regular updates, large community
-5. **Good TypeScript**: Types are good enough for our needs
+## Validation
 
-### Migration Plan
-
-#### Phase 1: Dual-Adapter (Week 1)
-```typescript
-// Enable feature flag control
-CHART_IMPL=recharts  // Keep as default
-CHART_FALLBACK=true   // Enable safety net
-```
-
-#### Phase 2: Pilot Migration (Week 2)
-1. Migrate 2 Nivo components to Recharts:
-   - `nivo-performance-chart.tsx`
-   - `nivo-moic-scatter.tsx`
-2. A/B test with 10% of users
-3. Monitor performance metrics
-
-#### Phase 3: Full Migration (Week 3-4)
-- Complete migration if metrics are green
-- Remove Nivo dependency
-- Bundle size reduction: ~150KB
-
-### Risk Mitigation
-
-#### Feature Parity Validation
 ```bash
-# Before migration
-npm run test:chart-interactions
-npm run test:visual-regression
-
-# After migration  
-npm run test:chart-parity
+rg -n --hidden -e "from '@nivo" -e 'from "@nivo' client server shared packages
+npm run build
 ```
 
-#### Rollback Strategy
-```typescript
-// Instant rollback via environment variable
-CHART_IMPL=legacy npm run deploy
+Expected result:
+- no `@nivo/*` imports in live code
+- successful production build
 
-// Or via runtime flag
-window.__FORCE_CHART_IMPL = 'legacy';
+## Rollback
+
+```bash
+git revert <chart-cleanup-commit>
 ```
-
-#### Success Metrics
-- No performance regression (render time <100ms)
-- No visual regression (screenshot tests pass)
-- Bundle size reduced by >100KB
-- Zero user complaints
-
-## Implementation Checklist
-
-- [x] Analysis complete: Recharts dominant (93%)
-- [x] Dual-adapter configuration created
-- [ ] Feature flags configured
-- [ ] Visual regression tests established
-- [ ] Pilot components identified
-- [ ] Monitoring dashboard updated
-- [ ] Rollback procedure tested
-
-## Rejected Alternatives
-
-### Why Not Nivo?
-- Only 2 components currently use it
-- Larger bundle size
-- Would require migrating 27 components
-
-### Why Not Chart.js?
-- No current usage
-- Not React-native
-- Requires wrapper components
-- Larger bundle
-
-## Timeline
-- **Week 1**: Dual-adapter + feature flags
-- **Week 2**: Pilot migration (2 components)
-- **Week 3**: Full migration if metrics green
-- **Week 4**: Cleanup and optimization
 
 ## Expected Outcomes
-- Bundle size: -150KB (removing Nivo)
-- Maintenance: Single chart library
-- TypeScript: Fewer type conflicts
-- Performance: Consistent rendering
+- Smaller dependency surface
+- Fewer chart-specific type conflicts
+- No ambiguity about which charting library new work should use
