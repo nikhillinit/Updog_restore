@@ -4,21 +4,21 @@
     "client": {
       "errors": [],
       "total": 0,
-      "lastUpdated": "2026-03-26T23:13:40.125Z"
+      "lastUpdated": "2026-03-30T17:03:36.684Z"
     },
     "server": {
       "errors": [],
       "total": 0,
-      "lastUpdated": "2026-03-26T23:13:40.125Z"
+      "lastUpdated": "2026-03-30T17:03:36.684Z"
     },
     "shared": {
       "errors": [],
       "total": 0,
-      "lastUpdated": "2026-03-26T23:13:40.125Z"
+      "lastUpdated": "2026-03-30T17:03:36.684Z"
     }
   },
   "totalErrors": 0,
-  "timestamp": "2026-03-26T23:13:40.125Z",
+  "timestamp": "2026-03-30T17:03:36.684Z",
   "buildMode": "per-project",
-  "elapsedMs": 7
+  "elapsedMs": 21687
 }
