@@ -125,6 +125,10 @@ type _UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
 interface CompanyAllocationRow {
   company_id: number;
   company_name: string;
+  sector: string;
+  stage: string;
+  status: string;
+  invested_amount: string;
   planned_reserves_cents: string;
   deployed_reserves_cents: string;
   allocation_cap_cents: string | null;
@@ -138,6 +142,10 @@ interface _LatestAllocationResponse {
   companies: Array<{
     company_id: number;
     company_name: string;
+    sector: string;
+    stage: string;
+    status: string;
+    invested_amount_cents: number;
     planned_reserves_cents: number;
     deployed_reserves_cents: number;
     allocation_cap_cents: number | null;
@@ -608,6 +616,10 @@ router['get'](
         `SELECT
            id as company_id,
            name as company_name,
+           sector,
+           stage,
+           status,
+           investment_amount as invested_amount,
            planned_reserves_cents,
            deployed_reserves_cents,
            allocation_cap_cents,
@@ -624,6 +636,10 @@ router['get'](
       const companies = companiesResult.rows.map((row) => ({
         company_id: row.company_id,
         company_name: row.company_name,
+        sector: row.sector,
+        stage: row.stage,
+        status: row.status,
+        invested_amount_cents: Math.round(parseFloat(row.invested_amount || '0') * 100),
         planned_reserves_cents: parseInt(row.planned_reserves_cents, 10),
         deployed_reserves_cents: parseInt(row.deployed_reserves_cents, 10),
         allocation_cap_cents: row.allocation_cap_cents

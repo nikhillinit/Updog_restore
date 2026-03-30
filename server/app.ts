@@ -23,6 +23,7 @@ import aiRouter from './routes/ai.js';
 import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import allocationsRouter from './routes/allocations.js';
+import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
 import { swaggerSpec } from './config/swagger.js';
@@ -81,7 +82,7 @@ export function makeApp() {
       res['setHeader']('Vary', 'Origin');
       res['setHeader']('Access-Control-Allow-Credentials', 'true');
       res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
-      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
     if (!ok && origin) return res.sendStatus(403);
@@ -170,6 +171,7 @@ export function makeApp() {
 
   // Fund Allocation Management API (Phase 1b - Reserve allocations with optimistic locking)
   app.use('/api', allocationsRouter);
+  app.use('/api', allocationScenariosRouter);
 
   // Deal Pipeline API (Sprint 1 - Deal tracking, DD, scoring)
   app.use('/api/deals', dealPipelineRouter);

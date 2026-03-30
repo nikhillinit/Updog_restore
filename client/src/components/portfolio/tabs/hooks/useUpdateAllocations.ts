@@ -19,7 +19,7 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, UpdateAllocationPayload>({
-    mutationFn: async (updates) => {
+    mutationFn: async (update) => {
       if (!fundId) {
         throw new Error('Fund ID is required');
       }
@@ -27,7 +27,17 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
       const response = await fetch(`/api/funds/${fundId}/allocations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+          expected_version: update.allocation_version,
+          updates: [
+            {
+              company_id: update.company_id,
+              planned_reserves_cents: update.planned_reserves_cents,
+              allocation_cap_cents: update.allocation_cap_cents,
+              allocation_reason: update.allocation_reason,
+            },
+          ],
+        }),
       });
 
       if (!response.ok) {
@@ -35,7 +45,9 @@ export function useUpdateAllocations(options?: UpdateAllocationsOptions) {
 
         // Handle optimistic locking conflict
         if (response.status === 409) {
-          throw new Error('Allocation has been modified by another user. Please refresh and try again.');
+          throw new Error(
+            'Allocation has been modified by another user. Please refresh and try again.'
+          );
         }
 
         throw new Error(errorData.message || 'Failed to update allocation');
