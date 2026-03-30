@@ -14,6 +14,11 @@ interface AllocationScenarioHeaderRow {
   source_allocation_version: number | null;
   company_count: number;
   total_planned_cents: string;
+  last_applied_at: Date | null;
+  last_applied_by: string | null;
+  last_applied_allocation_version: number | null;
+  last_synced_at: Date | null;
+  last_synced_by: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -51,6 +56,11 @@ export interface AllocationScenarioSummary {
   source_allocation_version: number | null;
   company_count: number;
   total_planned_cents: number;
+  last_applied_at: string | null;
+  last_applied_by: string | null;
+  last_applied_allocation_version: number | null;
+  last_synced_at: string | null;
+  last_synced_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -143,6 +153,11 @@ function mapScenarioHeader(row: AllocationScenarioHeaderRow): AllocationScenario
     source_allocation_version: row.source_allocation_version,
     company_count: row.company_count,
     total_planned_cents: parseInt(row.total_planned_cents, 10),
+    last_applied_at: row.last_applied_at ? row.last_applied_at.toISOString() : null,
+    last_applied_by: row.last_applied_by ?? null,
+    last_applied_allocation_version: row.last_applied_allocation_version,
+    last_synced_at: row.last_synced_at ? row.last_synced_at.toISOString() : null,
+    last_synced_by: row.last_synced_by ?? null,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
   };
@@ -244,6 +259,11 @@ async function getScenarioHeaderOrThrow(
        source_allocation_version,
        company_count,
        total_planned_cents,
+       last_applied_at,
+       last_applied_by,
+       last_applied_allocation_version,
+       last_synced_at,
+       last_synced_by,
        created_at,
        updated_at
      FROM allocation_scenarios
@@ -441,6 +461,11 @@ export async function listAllocationScenarios(
          source_allocation_version,
          company_count,
          total_planned_cents,
+         last_applied_at,
+         last_applied_by,
+         last_applied_allocation_version,
+         last_synced_at,
+         last_synced_by,
          created_at,
          updated_at
        FROM allocation_scenarios

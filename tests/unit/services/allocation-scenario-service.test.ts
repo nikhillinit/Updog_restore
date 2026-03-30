@@ -9,7 +9,11 @@ vi.mock('../../../server/db/pg-circuit.js', () => ({
   transaction: transactionMock,
 }));
 
-import { getAllocationScenarioApplyPreview } from '../../../server/services/allocation-scenario-service';
+import {
+  getAllocationScenario,
+  getAllocationScenarioApplyPreview,
+  listAllocationScenarios,
+} from '../../../server/services/allocation-scenario-service';
 
 const scenarioId = '00000000-0000-0000-0000-000000000101';
 
@@ -46,6 +50,11 @@ function queuePreviewQueries(options: {
           total_planned_cents: options.scenarioItems
             .reduce((sum, item) => sum + parseInt(item.planned_reserves_cents, 10), 0)
             .toString(),
+          last_applied_at: null,
+          last_applied_by: null,
+          last_applied_allocation_version: null,
+          last_synced_at: null,
+          last_synced_by: null,
           created_at: new Date('2026-03-30T15:00:00.000Z'),
           updated_at: new Date('2026-03-30T16:00:00.000Z'),
         },
@@ -225,6 +234,109 @@ describe('allocation scenario apply preview', () => {
         live_only_count: 1,
         total_planned_delta_cents: -25000000,
       },
+    });
+  });
+});
+
+describe('allocation scenario read model metadata', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(
+      async (callback: (client: { query: typeof queryMock }) => unknown) => callback({ query: queryMock })
+    );
+  });
+
+  it('maps last apply and sync metadata in list reads', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: scenarioId,
+            fund_id: 1,
+            name: 'Upside reserve plan',
+            notes: 'Follow-on heavy scenario',
+            source_allocation_version: 3,
+            company_count: 2,
+            total_planned_cents: '350000000',
+            last_applied_at: new Date('2026-03-30T18:00:00.000Z'),
+            last_applied_by: 'nikhil@example.com',
+            last_applied_allocation_version: 7,
+            last_synced_at: new Date('2026-03-30T17:30:00.000Z'),
+            last_synced_by: 'system',
+            created_at: new Date('2026-03-30T15:00:00.000Z'),
+            updated_at: new Date('2026-03-30T18:00:00.000Z'),
+          },
+        ],
+      });
+
+    const result = await listAllocationScenarios(1);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: scenarioId,
+        last_applied_at: '2026-03-30T18:00:00.000Z',
+        last_applied_by: 'nikhil@example.com',
+        last_applied_allocation_version: 7,
+        last_synced_at: '2026-03-30T17:30:00.000Z',
+        last_synced_by: 'system',
+      }),
+    ]);
+  });
+
+  it('maps last apply and sync metadata in detail reads', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: scenarioId,
+            fund_id: 1,
+            name: 'Upside reserve plan',
+            notes: 'Follow-on heavy scenario',
+            source_allocation_version: 3,
+            company_count: 2,
+            total_planned_cents: '350000000',
+            last_applied_at: new Date('2026-03-30T18:00:00.000Z'),
+            last_applied_by: 'nikhil@example.com',
+            last_applied_allocation_version: 7,
+            last_synced_at: new Date('2026-03-30T17:30:00.000Z'),
+            last_synced_by: 'system',
+            created_at: new Date('2026-03-30T15:00:00.000Z'),
+            updated_at: new Date('2026-03-30T18:00:00.000Z'),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            company_id: 1,
+            planned_reserves_cents: '200000000',
+            allocation_cap_cents: '250000000',
+            allocation_reason: 'Series B support',
+          },
+          {
+            company_id: 2,
+            planned_reserves_cents: '150000000',
+            allocation_cap_cents: null,
+            allocation_reason: null,
+          },
+        ],
+      });
+
+    const result = await getAllocationScenario(1, scenarioId);
+
+    expect(result).toMatchObject({
+      id: scenarioId,
+      last_applied_at: '2026-03-30T18:00:00.000Z',
+      last_applied_by: 'nikhil@example.com',
+      last_applied_allocation_version: 7,
+      last_synced_at: '2026-03-30T17:30:00.000Z',
+      last_synced_by: 'system',
+      snapshot_items: [
+        expect.objectContaining({ company_id: 1, planned_reserves_cents: 200000000 }),
+        expect.objectContaining({ company_id: 2, planned_reserves_cents: 150000000 }),
+      ],
     });
   });
 });
