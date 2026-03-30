@@ -22,6 +22,7 @@ import {
 import type { Queue } from 'bullmq';
 import { runReserveCalculation } from './reserve-calculation-service';
 import { runPacingCalculation } from './pacing-calculation-service';
+import { fundStateReadService } from './fund-state-read-service';
 
 export interface CreateFundInput {
   name: string;
@@ -64,6 +65,25 @@ const inlineExecutionByEngine: Record<
   reserve: runReserveCalculation,
   pacing: runPacingCalculation,
 };
+
+export interface RecalcResult {
+  run: CalcRun;
+  correlationId: string;
+}
+
+export class NoPublishedConfigError extends Error {
+  constructor() {
+    super('No published configuration');
+    this.name = 'NoPublishedConfigError';
+  }
+}
+
+export class CalculationInProgressError extends Error {
+  constructor() {
+    super('Calculation already in progress');
+    this.name = 'CalculationInProgressError';
+  }
+}
 
 class NoPublishableDraftError extends Error {
   constructor() {
@@ -235,6 +255,94 @@ export class FundPersistenceService {
         correlationId: run.correlationId,
       };
     }
+  }
+
+  async recalculatePublished(
+    fundId: number,
+    queues: PublishQueues,
+    userId?: number
+  ): Promise<RecalcResult> {
+    const { v4: generateUuid } = await import('uuid');
+    const engines = [...AUTHORITATIVE_ENGINE_KEYS];
+
+    // 1. Load fund state to check preconditions
+    const state = await fundStateReadService.getState(fundId);
+    if (!state || !state.configState.hasPublished) {
+      throw new NoPublishedConfigError();
+    }
+
+    const calcStatus = state.calculationState.status;
+    if (calcStatus === 'submitted' || calcStatus === 'calculating') {
+      throw new CalculationInProgressError();
+    }
+
+    // 2. Load the published fundConfig
+    const publishedConfig = await db.query.fundConfigs.findFirst({
+      where: and(
+        eq(fundConfigs.fundId, fundId),
+        eq(fundConfigs.isPublished, true)
+      ),
+      orderBy: (configs, { desc }) => desc(configs.version),
+    });
+
+    if (!publishedConfig) {
+      throw new NoPublishedConfigError();
+    }
+
+    // 3. Check for existing calcRun for this configVersion
+    const existingRun = await db.query.calcRuns.findFirst({
+      where: and(
+        eq(calcRuns.fundId, fundId),
+        eq(calcRuns.configVersion, publishedConfig.version)
+      ),
+      orderBy: (runs, { desc }) => desc(runs.requestedAt),
+    });
+
+    // 4. If pending or partial: redispatch existing run (no new transaction)
+    if (
+      existingRun &&
+      (existingRun.dispatchState === 'pending' || existingRun.dispatchState === 'partial')
+    ) {
+      const redispatched = await this.dispatchCalcJobs(existingRun, queues, {
+        redispatchExistingRun: true,
+      });
+      return { run: redispatched, correlationId: existingRun.correlationId };
+    }
+
+    // 5. Failed or no existing run: create new calcRun in transaction
+    const correlationId = generateUuid();
+
+    const newRun = await db.transaction(async (tx) => {
+      const [run] = await tx
+        .insert(calcRuns)
+        .values({
+          fundId,
+          configId: publishedConfig.id,
+          configVersion: publishedConfig.version,
+          correlationId,
+          engines,
+          dispatchState: 'pending',
+          requestedAt: new Date(),
+        })
+        .returning();
+
+      if (!run) throw new Error('Failed to create calcRun');
+
+      await tx.insert(fundEvents).values({
+        fundId,
+        eventType: 'CALC_TRIGGERED',
+        eventTime: new Date(),
+        payload: { engines, correlationId },
+        ...(userId != null && { userId }),
+        correlationId,
+      });
+
+      return run;
+    });
+
+    // 6. Dispatch
+    const dispatchedRun = await this.dispatchCalcJobs(newRun, queues);
+    return { run: dispatchedRun, correlationId };
   }
 
   private async dispatchCalcJobs(

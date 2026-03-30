@@ -214,7 +214,11 @@ describe('wizard to results flow', () => {
       expect(sessionCalls).toHaveLength(0);
       expect(mockCreateFund).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/publish', { method: 'POST' });
-      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/results');
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/funds/42/results',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/lifecycle-history');
     });
   });
 });
