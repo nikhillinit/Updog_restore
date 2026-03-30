@@ -1,53 +1,36 @@
 /**
  * Chart Adapter Configuration
- * Controls which chart library implementation to use
- * Allows for gradual migration with feature flags
+ * Recharts is now the only supported chart runtime.
  */
 
-export type ChartImplementation = 'recharts' | 'nivo' | 'legacy';
+export type ChartImplementation = 'recharts';
 
 export interface ChartAdapterConfig {
   implementation: ChartImplementation;
-  enableFallback: boolean;
+  enableFallback: false;
   performanceMode: boolean;
   debugMode: boolean;
 }
 
-// Get configuration from environment or feature flags
+// Chart selection is no longer runtime-configurable after the Nivo retirement.
 export function getChartConfig(): ChartAdapterConfig {
-  const impl = process.env['REACT_APP_CHART_IMPL'] || 
-                process.env['CHART_IMPL'] || 
-                'recharts'; // Default to Recharts since it's most used
-
   return {
-    implementation: impl as ChartImplementation,
-    enableFallback: process.env['CHART_FALLBACK'] === 'true',
+    implementation: 'recharts',
+    enableFallback: false,
     performanceMode: process.env['CHART_PERFORMANCE'] === 'true',
     debugMode: process.env['NODE_ENV'] === 'development'
   };
 }
 
-// Feature flag helper for gradual rollout
 export function shouldUseNewCharts(componentName?: string): boolean {
-  const config = getChartConfig();
-  
-  // Component-specific flags for granular control
-  if (componentName) {
-    const componentFlag = process.env[`CHART_${componentName.toUpperCase()}_NEW`];
-    if (componentFlag !== undefined) {
-      return componentFlag === 'true';
-    }
-  }
-
-  // Global flag
-  return config.implementation === 'recharts';
+  void componentName;
+  return true;
 }
 
-// Rollback helper for emergencies
 export function forceChartImplementation(impl: ChartImplementation): void {
   if (typeof window !== 'undefined') {
     (window as unknown as Record<string, ChartImplementation>)['__FORCE_CHART_IMPL'] = impl;
-    console.warn(`Chart implementation forced to: ${impl}`);
+    console.warn(`Chart implementation is fixed to: ${impl}`);
   }
 }
 

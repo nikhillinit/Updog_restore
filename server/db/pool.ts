@@ -5,7 +5,8 @@ import * as lpSchema from '@shared/schema-lp-reporting';
 import { logger } from './logger';
 
 // Combined schema type for full type safety
-type CombinedSchema = typeof schema & typeof lpSchema;
+export type CombinedSchema = typeof schema & typeof lpSchema;
+export type { NodePgDatabase };
 
 // Parse connection string to get database name
 const dbName = process.env['DATABASE_URL']?.split('/').pop()?.split('?')[0] || 'unknown';

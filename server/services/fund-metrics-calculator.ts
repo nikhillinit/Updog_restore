@@ -53,7 +53,7 @@ export interface CalculatedFundMetrics {
 /**
  * Simple IRR approximation using modified Dietz method
  * This is a simplified calculation suitable for display purposes
- * For precise IRR, use the client-side xirrNewtonBisection function
+ * For precise IRR, use the canonical shared xirrNewtonBisection implementation
  */
 function calculateSimpleIRR(
   totalInvested: number,

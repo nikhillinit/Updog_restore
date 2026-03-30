@@ -73,7 +73,7 @@ We adopt a **three-tier fallback strategy** for maximum speed and robustness:
 ```
 
 **Implementation**:
-[`client/src/lib/finance/xirr.ts:39-145`](https://github.com/nikhillinit/Updog_restore/blob/c0e0979/client/src/lib/finance/xirr.ts#L39-L145)
+[`shared/lib/finance/xirr.ts`](../../shared/lib/finance/xirr.ts)
 
 #### Tier 1: Newton-Raphson (Lines 54-78)
 
@@ -123,7 +123,7 @@ const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000; // Includes leap year adjustment
 - **Timezone handling**: Normalize to UTC midnight before calculation
 
 **Implementation**:
-[`client/src/lib/finance/xirr.ts:14-21`](https://github.com/nikhillinit/Updog_restore/blob/c0e0979/client/src/lib/finance/xirr.ts#L14-L21)
+[`shared/lib/finance/xirr.ts`](../../shared/lib/finance/xirr.ts)
 
 #### Same-Day Cashflow Aggregation
 
@@ -138,7 +138,7 @@ const aggregated = aggregateSameDayCashflows(cashflows);
 - **Opt-in**: Controlled by `sortAndAggregateSameDay: true` (default)
 
 **Implementation**:
-[`client/src/lib/xirr.ts:142-156`](https://github.com/nikhillinit/Updog_restore/blob/7b35655/client/src/lib/xirr.ts#L142-L156)
+[`shared/lib/finance/xirr.ts`](../../shared/lib/finance/xirr.ts)
 
 #### Convergence Tolerance: 1e-6
 
@@ -406,37 +406,34 @@ support
 ### Current State (October 2025)
 
 **Primary Implementation**:
-[`client/src/lib/finance/xirr.ts`](https://github.com/nikhillinit/Updog_restore/blob/c0e0979/client/src/lib/finance/xirr.ts)
+[`shared/lib/finance/xirr.ts`](../../shared/lib/finance/xirr.ts)
 
 - **Function**: `xirrNewtonBisection(flows, guess?, tolerance?, maxIterations?)`
 - **Algorithm**: Hybrid (Newton → Brent → Bisection)
 - **Precision**: Native JavaScript `Math` (fast, sufficient for 2dp display)
 
-**Legacy Implementation**:
-[`client/src/lib/xirr.ts`](https://github.com/nikhillinit/Updog_restore/blob/7b35655/client/src/lib/xirr.ts)
+**Client Compatibility Layer**:
+[`client/src/lib/finance/xirr.ts`](../../client/src/lib/finance/xirr.ts)
 
-- **Function**: `calculateXIRR(cashflows, guess?, config?)`
-- **Algorithm**: Newton-Raphson with bisection fallback
-- **Precision**: `Decimal.js` (slower, higher precision)
-- **Status**: ⚠️ Deprecated - migrate to `xirr.ts` in finance/ folder
+- **Role**: Re-export shim for client-side imports
+- **Status**: Supported for import stability, no longer an independent solver
 
 **Selectors**:
-[`client/src/core/selectors/xirr.ts`](https://github.com/nikhillinit/Updog_restore/blob/7b35655/client/src/core/selectors/xirr.ts)
+[`client/src/core/selectors/fund-kpis.ts`](../../client/src/core/selectors/fund-kpis.ts)
 
-- **Integration**: State management for XIRR caching
-- **Memoization**: Prevents redundant calculations in UI
+- **Integration**: Uses `safeXIRR()` from the canonical finance path
 
 ### Migration Path
 
-**Phase 1A (Current)**: Dual implementation (legacy + new) **Phase 1B
-(Q4 2025)**: Migrate all callers to `finance/xirr.ts` **Phase 2 (Q1 2026)**:
-Remove legacy `xirr.ts` (breaking change)
+**Current state**: Shared canonical implementation is active, and the client
+finance module is a thin re-export for compatibility.
 
-**Breaking Changes**: None planned for Phase 1A
+**Next cleanup**:
 
-- Both implementations co-exist
-- Callers can migrate incrementally
-- Tests validate both implementations
+1. Remove stale references to the deleted `client/src/lib/xirr.ts` path from
+   planning documents.
+2. Continue collapsing isolated server-side approximations onto the canonical
+   shared implementation where appropriate.
 
 ### Integration Points
 
@@ -566,8 +563,9 @@ observed) **Mitigation**:
 ## References
 
 - **Code (Primary)**:
+  [`shared/lib/finance/xirr.ts`](../../shared/lib/finance/xirr.ts)
+- **Code (Client Shim)**:
   [`client/src/lib/finance/xirr.ts`](../../client/src/lib/finance/xirr.ts)
-- **Code (Legacy)**: [`client/src/lib/xirr.ts`](../../client/src/lib/xirr.ts)
 - **Tests (Golden Set)**:
   [`tests/unit/xirr-golden-set.test.ts`](../../tests/unit/xirr-golden-set.test.ts)
 - **Tests (Server)**:

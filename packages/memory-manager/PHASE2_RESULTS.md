@@ -222,11 +222,11 @@ archive/2026-q1/package-demos/memory-manager/demo/phase2-poc.ts
 ## Dependencies Added
 
 ```json
-{
-  "dependencies": {
-    "openai": "^4.x.x",
-    "pg": "^8.x.x"
-  },
+  {
+    "dependencies": {
+      "openai": "^6.22.0",
+      "pg": "^8.x.x"
+    },
   "devDependencies": {
     "@types/pg": "^8.x.x"
   }

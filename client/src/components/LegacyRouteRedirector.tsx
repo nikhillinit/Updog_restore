@@ -2,7 +2,7 @@
  * Legacy Route Redirector
  *
  * Automatically redirects legacy routes to new IA when enable_new_ia flag is ON.
- * Mount once at app root inside router context.
+ * Mount once inside the main routing tree.
  *
  * Features:
  * - Only active when enable_new_ia=true
@@ -10,42 +10,41 @@
  * - Logs redirects in development for debugging
  *
  * Usage:
- *   <BrowserRouter>
- *     <LegacyRouteRedirector />
- *     <Routes>...</Routes>
- *   </BrowserRouter>
+ *   <LegacyRouteRedirector />
  */
 
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useFlag } from '@/shared/useFlags';
 import { LEGACY_ROUTE_MAP } from '@/config/routes';
 
 export function LegacyRouteRedirector() {
   const isNewIA = useFlag('enable_new_ia');
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     // Only redirect when flag is enabled
     if (!isNewIA) return;
 
-    const currentPath = location.pathname;
+    const currentPath =
+      typeof window !== 'undefined' ? window.location.pathname : location.split(/[?#]/)[0] ?? location;
     const newPath = LEGACY_ROUTE_MAP.get(currentPath);
 
     if (newPath && newPath !== currentPath) {
       // Preserve query strings and hash fragments to maintain deep links
-      const target = `${newPath}${location.search}${location.hash}`;
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      const target = `${newPath}${search}${hash}`;
 
       // Log in development
-        if (import.meta.env?.DEV) {
-          console.warn(`[LegacyRouteRedirector] ${currentPath} → ${target}`);
-        }
+      if (import.meta.env?.DEV) {
+        console.warn(`[LegacyRouteRedirector] ${currentPath} → ${target}`);
+      }
 
       // Idempotent redirect (replace: true prevents history pollution)
       navigate(target, { replace: true });
     }
-  }, [isNewIA, location.pathname, location.search, location.hash, navigate]);
+  }, [isNewIA, location, navigate]);
 
   // Renders nothing - pure side-effect component
   return null;

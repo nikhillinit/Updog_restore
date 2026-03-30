@@ -66,9 +66,11 @@ This document becomes the backlog for the Implementation Parity Sprint:
 
 ### XIRR Implementation Divergence
 
-**Discovered:** [Phase X.Y - To be filled during sprint] **Impact:** 4 separate
-XIRR implementations with different algorithms, error handling, and precision.
-Same cashflows may converge to different rates or fail differently.
+**Discovered:** [Phase X.Y - To be filled during sprint] **Impact:** Multiple
+active XIRR calculation paths still exist, but the old standalone client
+implementation has already been collapsed into a compatibility shim. Remaining
+divergence is now concentrated in isolated server-side approximations and error
+handling differences.
 
 **Severity:** CRITICAL (P0) **Effort:** 2-3 days **Status:** DEFERRED (unless
 blocks test repair)
@@ -77,7 +79,9 @@ blocks test repair)
 
 - `client/src/lib/finance/xirr.ts` - CANONICAL (ADR-005): Newton → Brent →
   Bisection, Result object
-- `client/src/lib/xirr.ts` - SECONDARY: Newton → Bisection, returns null
+- `client/src/lib/finance/xirr.ts` consumers - SHIMMED: client imports now
+  re-export the shared canonical solver instead of carrying an independent
+  secondary implementation
 - `client/src/core/selectors/xirr.ts` - LEGACY: Newton only, **THROWS
   exceptions**
 - `server/services/actual-metrics-calculator.ts` - ISOLATED: Newton only,

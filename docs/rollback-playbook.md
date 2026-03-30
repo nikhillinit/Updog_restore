@@ -43,10 +43,6 @@ last_updated: 2026-01-19
 npm run test:chart-interactions  # Functional test
 npm run test:visual-regression   # Visual test
 
-# Rollback (Feature Flag)
-export CHART_IMPL=legacy        # Instant revert
-npm run flags:kill -- --flag=NEW_CHARTS
-
 # Rollback (Code Revert)
 git revert <chart-migration-commit>
 git push origin main --force-with-lease

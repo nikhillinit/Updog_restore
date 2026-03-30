@@ -5,18 +5,12 @@
 
 // Drizzle ORM exports
 import { db as dbInstance } from './pool';
-// @ts-expect-error TS2459: NodePgDatabase is declared in pool.ts but not explicitly exported.
-// This is a known type resolution issue - the runtime behavior is correct, but TypeScript
-// cannot resolve the type through the module boundary. Fixing this by re-exporting from
-// pool.ts causes cascade failures in scenario-comparison.ts where CaseType resolves to never.
-// Workaround: Accept this type error as documented technical debt until Drizzle ORM upgrade.
-import type { NodePgDatabase } from './pool';
-import type * as schema from '@shared/schema';
+import type { CombinedSchema, NodePgDatabase } from './pool';
 import { logger } from '../lib/logger';
 
 const log = logger.child({ module: 'db:index' });
 
-export const db: NodePgDatabase<typeof schema> = dbInstance;
+export const db: NodePgDatabase<CombinedSchema> = dbInstance;
 export type { NodePgDatabase };
 
 // PostgreSQL exports

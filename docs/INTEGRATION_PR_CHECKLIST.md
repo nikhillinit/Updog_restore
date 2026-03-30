@@ -137,27 +137,25 @@ export function FundPage() {
 // client/src/App.tsx or router file
 import { OLD_TO_NEW_REDIRECTS } from '@core/routes/ia';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
-import { Navigate } from 'react-router-dom';
+import { Redirect, Route } from 'wouter';
 
 // In your router configuration:
 {
   Object.entries(OLD_TO_NEW_REDIRECTS).map(([oldPath, newPath]) => (
-    <Route
-      key={oldPath}
-      path={oldPath}
-      element={
-        useFeatureFlag('enable_route_redirects') ? (
-          <Navigate to={newPath} replace />
-        ) : (
-          <>
-            <DeprecationBanner newRoute={newPath} />
-            {/* Render old component */}
-          </>
-        )
-      }
-    />
-  ));
-}
+     <Route key={oldPath} path={oldPath}>
+       {() =>
+         useFeatureFlag('enable_route_redirects') ? (
+           <Redirect to={newPath} />
+         ) : (
+           <>
+             <DeprecationBanner newRoute={newPath} />
+             {/* Render old component */}
+           </>
+         )
+       }
+     </Route>
+   ));
+  }
 ```
 
 ---
@@ -169,7 +167,7 @@ import { Navigate } from 'react-router-dom';
 - [ ] Visit `/fund` - KPI header displays with real data
 - [ ] Check as-of date renders correctly
 - [ ] Toggle `VITE_NEW_IA=false` - old header still works
-- [ ] Navigate to `/investments` - see deprecation banner (soft redirect)
+- [ ] Visit `/investments` - see deprecation banner (soft redirect)
 - [ ] Enable `enable_route_redirects` - hard redirect works
 - [ ] Verify brand tokens applied (Inter headings, Poppins body)
 
