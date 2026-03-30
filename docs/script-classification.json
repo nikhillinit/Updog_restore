@@ -1,0 +1,1377 @@
+{
+  "generated": "2026-03-29",
+  "totalScripts": 340,
+  "summary": {
+    "supported": 65,
+    "internalMigration": 21,
+    "archive": 254,
+    "needsReview": 0
+  },
+  "supported": [
+    {
+      "name": "ai",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "baseline:check",
+      "reason": "seed: ci-unified.yml setup job"
+    },
+    {
+      "name": "build",
+      "reason": "seed: ci-unified.yml + bundle-size-check.yml CI workflows"
+    },
+    {
+      "name": "build:prod",
+      "reason": "transitive: called by build"
+    },
+    {
+      "name": "build:server",
+      "reason": "transitive: called by build:prod"
+    },
+    {
+      "name": "build:web",
+      "reason": "transitive: called by build:prod"
+    },
+    {
+      "name": "bundle:check",
+      "reason": "seed: ci-unified.yml build job + bundle-size-check.yml"
+    },
+    {
+      "name": "check",
+      "reason": "seed: ci-unified.yml + code-quality.yml + CLAUDE.md"
+    },
+    {
+      "name": "clean:spa-dist",
+      "reason": "transitive: called by vercel-build"
+    },
+    {
+      "name": "db:push",
+      "reason": "seed: ci-unified.yml + core-validation.yml + security-tests.yml + CLAUDE.md"
+    },
+    {
+      "name": "db:seed:test",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "db:seed:test:minimal",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "db:seed:test:reset",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "db:studio",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "dev",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "dev:api",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "dev:client",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "docs:check-links",
+      "reason": "seed: verify-strategic-docs.yml CI workflow"
+    },
+    {
+      "name": "docs:lint",
+      "reason": "seed: verify-strategic-docs.yml CI workflow"
+    },
+    {
+      "name": "docs:routing:check",
+      "reason": "seed: docs-routing-check.yml CI workflow"
+    },
+    {
+      "name": "docs:routing:generate",
+      "reason": "seed: docs-routing-check.yml CI workflow"
+    },
+    {
+      "name": "docs:routing:query",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "doctor",
+      "reason": "seed: dependency-validation.yml + CLAUDE.md"
+    },
+    {
+      "name": "doctor:quick",
+      "reason": "seed: CLAUDE.md + cheatsheets/daily-workflow.md"
+    },
+    {
+      "name": "doctor:shell",
+      "reason": "transitive: called by doctor"
+    },
+    {
+      "name": "guard:console:check",
+      "reason": "transitive: called by guardrails:check"
+    },
+    {
+      "name": "guard:eslint-disable:check",
+      "reason": "transitive: called by guardrails:check"
+    },
+    {
+      "name": "guard:phase4:workers:check",
+      "reason": "transitive: called by lint:phase4"
+    },
+    {
+      "name": "guardrails:check",
+      "reason": "seed: ci-unified.yml lint job"
+    },
+    {
+      "name": "lint",
+      "reason": "seed: ci-unified.yml + code-quality.yml CI workflows"
+    },
+    {
+      "name": "lint:eslint",
+      "reason": "transitive: called by lint"
+    },
+    {
+      "name": "lint:fix",
+      "reason": "seed: code-quality.yml + CLAUDE.md"
+    },
+    {
+      "name": "lint:phase4",
+      "reason": "transitive: called by validate:core"
+    },
+    {
+      "name": "lint:phase4:strict",
+      "reason": "transitive: called by lint:phase4"
+    },
+    {
+      "name": "phoenix:truth",
+      "reason": "seed: CLAUDE.md Discovery Routing"
+    },
+    {
+      "name": "postbuild",
+      "reason": "seed: npm lifecycle hook after build"
+    },
+    {
+      "name": "pre-push",
+      "reason": "seed: git pre-push hook via scripts/validate-pr.sh"
+    },
+    {
+      "name": "preinstall",
+      "reason": "seed: npm lifecycle hook"
+    },
+    {
+      "name": "prepare",
+      "reason": "seed: npm lifecycle hook (husky)"
+    },
+    {
+      "name": "rls:quickstart",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "rls:quickstart:ps",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "seed:multi-tenant",
+      "reason": "seed: CLAUDE.md + cheatsheets/rls-cheatsheet.md"
+    },
+    {
+      "name": "seed:reset",
+      "reason": "seed: CLAUDE.md + cheatsheets/rls-cheatsheet.md"
+    },
+    {
+      "name": "start",
+      "reason": "seed: production entry point"
+    },
+    {
+      "name": "test",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "test:affected",
+      "reason": "seed: ci-unified.yml PR test path"
+    },
+    {
+      "name": "test:e2e:smoke",
+      "reason": "seed: ci-unified.yml e2e path"
+    },
+    {
+      "name": "test:integration",
+      "reason": "seed: ci-unified.yml full matrix"
+    },
+    {
+      "name": "test:memory",
+      "reason": "seed: ci-unified.yml memory-mode job"
+    },
+    {
+      "name": "test:phase4",
+      "reason": "transitive: called by validate:core"
+    },
+    {
+      "name": "test:phase4:client",
+      "reason": "transitive: called by test:phase4"
+    },
+    {
+      "name": "test:phase4:integration",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "test:phase4:server",
+      "reason": "transitive: called by test:phase4"
+    },
+    {
+      "name": "test:publish-orchestration",
+      "reason": "transitive: called by validate:core"
+    },
+    {
+      "name": "test:quick",
+      "reason": "seed: ci-unified.yml fallback + CLAUDE.md"
+    },
+    {
+      "name": "test:rls",
+      "reason": "seed: CLAUDE.md + cheatsheets/rls-cheatsheet.md"
+    },
+    {
+      "name": "test:security",
+      "reason": "seed: security-tests.yml CI workflow"
+    },
+    {
+      "name": "test:smart",
+      "reason": "seed: ci-unified.yml change detection"
+    },
+    {
+      "name": "test:smoke",
+      "reason": "seed: ci-unified.yml e2e fallback"
+    },
+    {
+      "name": "test:ui",
+      "reason": "seed: CLAUDE.md Essential Commands"
+    },
+    {
+      "name": "test:unit",
+      "reason": "seed: ci-unified.yml full matrix"
+    },
+    {
+      "name": "validate:claude-md",
+      "reason": "seed: CLAUDE.md + cheatsheets/INDEX.md"
+    },
+    {
+      "name": "validate:core",
+      "reason": "seed: core-validation.yml CI workflow"
+    },
+    {
+      "name": "vercel-build",
+      "reason": "seed: Vercel deployment hook"
+    },
+    {
+      "name": "verify:no-redis",
+      "reason": "seed: ci-unified.yml memory-mode job"
+    }
+  ],
+  "internalMigration": [
+    {
+      "name": "lint:wave4",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "lint:wave5:policy",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "lint:wave6:residual",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "phase0",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "preflight:phase0",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave1b",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave1b:runtime",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave2",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave3",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave4",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave5",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave5:integration",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave5:root",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave6:client-workers",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave6:dev-runtime",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave6:ops",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "test:wave6:packages",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "validate:phase1",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "validate:phase1:ps",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "validate:phase4",
+      "reason": "wave/phase governance script, not in supported closure"
+    },
+    {
+      "name": "validate:wave6",
+      "reason": "wave/phase governance script, not in supported closure"
+    }
+  ],
+  "archive": [
+    {
+      "name": "agents:review",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "agents:review:week",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "agents:track",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:dlq:list",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:dlq:replay",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:dlq:stats",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:metrics",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:orchestrate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:orchestrate:financial",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:orchestrate:list",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:orchestrate:performance",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:orchestrate:security",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:review",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:review:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:review:health",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:review:hf",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:review:local",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:type-safety",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:type-safety:dry",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ai:validate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "analyze",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "analyze:prompts",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "analyze:prompts:week",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "api:build",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "api:lint",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "api:types",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "audit:cleanup",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "audit:strictness",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "audit:strictness:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "backtest",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:progress",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:save",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:test:analyze",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:test:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:test:init",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:test:run",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "baseline:test:update",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bench",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bench:async",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bench:load",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bmad:metrics",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bmad:report",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bmad:status",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:affected",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:parallel",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:prod:with-verify",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:smart",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:stats",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:types",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:web:preact",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:web:preact:clean",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "build:web:react",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "bundle:report",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "chaos:break",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "chaos:heal",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "chaos:reset",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "chaos:start",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "chaos:stop",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:client",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:incremental",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:server",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:shared",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "check:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:build",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:demo",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:e2e",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:ship-gate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:smart",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ci:triage",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "circuit-breaker",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "codemod:logger",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "codemod:logger:write",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "db:migrate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "db:migrate:custom",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "db:migrate:status",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "db:rollback",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "db:verify",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "debug:redis",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "deploy:gate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "deploy:monitor",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "deploy:prod",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "deploy:rollout",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "deploy:staging",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:clean",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:dashboard",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:debug",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:docker",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:env",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:fix",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:health",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:infra",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:memory",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:parallel",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:qa",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:quick",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:turbo",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:web:preact",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:web:react",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:worker:pacing",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "dev:worker:reserve",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "diagnose",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "docs:verify",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "docs:verify:all",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "doctor:parallel",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:all",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:pacing",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:report",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:reserves",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:tools",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "evaluate:waterfall",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "fix:all",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "fix:types",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "fix:typescript",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "fix:typescript:help",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:demo",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:demo:auto",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:generate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:lint",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:test-propagation",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:test:hardening",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:validate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:validate:hardening",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "flags:validate:strict",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ga:canary",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ga:checklist",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ga:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "ga:rollback",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "gen-rollback",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "generate:golden",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "guard:console:baseline",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "guard:eslint-disable:baseline",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "guard:phase4:workers:baseline",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "lhci:run",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "lint:affected",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "lint:disable-warnings",
+      "reason": "disables all lint rules, no CI reference"
+    },
+    {
+      "name": "lint:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "measure:errors",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "metrics:local",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "metrics:type-safety",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "orchestrator",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "parity:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "parity:validate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "perf:guard",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "pgcron:schedule",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "pgcron:status",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "pgcron:unschedule",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "phoenix:truth:capital",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "phoenix:truth:recycling",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "phoenix:truth:waterfall",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "phoenix:truth:xirr",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "playwright:install",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "pretest:smoke",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "preview",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "preview:web",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "qa:checklist",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "quarantine:report",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:metrics",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:new",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:rebuild",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:rebuild:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:validate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:wizard-index",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reflection:wizard-index:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "reset:deps",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "review:help",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "review:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "schema:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "schema:generate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "schema:test",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "secret:gen",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:audit",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:console-logs",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:fix-logs",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:headers",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:inputs",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:monte-carlo",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:scan",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "security:validate",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "size-limit",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "size-limit:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "size-limit:json",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "skills:check",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "skills:index",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "smart-fix",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:affected:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:affected:verbose",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:all",
+      "reason": "uses npm-run-all with test:types/test:lint not in primary path"
+    },
+    {
+      "name": "test:baseline",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:build-affected",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:chaos",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:chaos:pg",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:chaos:wasm",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:ci",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:coverage",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:coverage:upload",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:demo",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:accessibility",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:all",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:core",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:cross-browser",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:debug",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:extended",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:headed",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:mobile",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:performance",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:production",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:report",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:e2e:wizard",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:emergency",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:integration:old",
+      "reason": "superseded by test:integration, hardcoded DB URL"
+    },
+    {
+      "name": "test:integration:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:intelligent",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:intelligent:changed",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:intelligent:failed",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:intelligent:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:lint",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:main",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:optimize",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:parallel",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:plan",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:priority",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:quarantine",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:repair",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:schema",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:smoke:e2e",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:smoke:old",
+      "reason": "superseded by test:smoke, references old test path"
+    },
+    {
+      "name": "test:staging",
+      "reason": "references ./scripts/smoke.sh, staging-only"
+    },
+    {
+      "name": "test:super",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:super:emergency",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:super:performance",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:types",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:unit:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "test:watch",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "triage",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "triage:analyze",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "triage:auto",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "triage:clean",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "validate-cluster",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "validate:architecture",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "validate:fast",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "validate:full",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "verify:opt",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    },
+    {
+      "name": "workers:dev",
+      "reason": "aggressive prune: not in supported transitive closure or internal-migration set"
+    }
+  ],
+  "needsReview": []
+}
