@@ -12,10 +12,6 @@ import FundModelResultsPage from '@/pages/fund-model-results';
 
 const mockSetCurrentFund = vi.fn();
 const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined);
-const mockCreateFund = vi.fn().mockResolvedValue({
-  success: true,
-  data: { id: 42, name: 'Test Fund', size: '50000000' },
-});
 const mockFetch = vi.fn();
 
 const mockFundState = {
@@ -83,14 +79,6 @@ vi.mock('@/stores/fundStore', () => ({
   },
 }));
 
-vi.mock('@/services/funds', () => ({
-  createFund: (...args: unknown[]) => mockCreateFund(...args),
-  normalizeCreateFundResponse: (raw: Record<string, unknown>) => {
-    const data = (raw as { data?: Record<string, unknown> }).data ?? raw;
-    return { id: Number(data['id']), name: data['name'], size: data['size'] };
-  },
-}));
-
 function FlowHarness() {
   const [location] = useLocation();
   const reviewMatch = location.startsWith('/fund-setup');
@@ -114,10 +102,6 @@ describe('wizard to results flow', () => {
     mockFundState.draftServerReady = false;
     mockFundState.setDraftFundId.mockClear();
     mockFundState.setDraftServerReady.mockClear();
-    mockCreateFund.mockReset().mockResolvedValue({
-      success: true,
-      data: { id: 42, name: 'Test Fund', size: '50000000' },
-    });
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
     vi.stubGlobal(
@@ -146,23 +130,24 @@ describe('wizard to results flow', () => {
     const sessionGetSpy = vi.spyOn(Storage.prototype, 'getItem');
     sandbox.addCleanup(() => sessionGetSpy.mockRestore());
 
-    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
-      const url = String(input);
+    mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === 'string' || input instanceof URL
+          ? String(input)
+          : input instanceof Request
+            ? input.url
+            : String(input);
 
-      if (url === '/api/funds/42/draft') {
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (url === '/api/funds/42/publish') {
+      if (url === '/api/funds/finalize') {
         return new Response(
           JSON.stringify({
             success: true,
-            data: { id: 100, fundId: 42, version: 1, isPublished: true },
-            runId: 10,
-            dispatchState: 'dispatched',
+            data: {
+              fundId: 42,
+              configVersion: 1,
+              correlationId: 'corr-finalize-42',
+              published: true,
+            },
           }),
           {
             status: 200,
@@ -178,7 +163,21 @@ describe('wizard to results flow', () => {
         });
       }
 
-      throw new Error(`Unexpected fetch: ${url}`);
+      if (url === '/api/funds/42/lifecycle-history') {
+        return new Response(JSON.stringify(lifecycleHistoryResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url === '/api/funds/42/results-comparison') {
+        return new Response(JSON.stringify(resultsComparisonResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url} (${init?.method ?? 'GET'})`);
     });
 
     await sandbox.isolate(async () => {
@@ -212,13 +211,20 @@ describe('wizard to results flow', () => {
         );
 
       expect(sessionCalls).toHaveLength(0);
-      expect(mockCreateFund).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/publish', { method: 'POST' });
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/funds/finalize',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.any(String),
+        })
+      );
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/funds/42/results',
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
       expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/lifecycle-history');
+      expect(mockFetch).toHaveBeenCalledWith('/api/funds/42/results-comparison');
     });
   });
 });
@@ -294,5 +300,53 @@ function readyResponse() {
       scenarios: { status: 'unavailable' as const, reason: 'No authoritative source' },
       waterfall: { status: 'unavailable' as const, reason: 'No authoritative source' },
     },
+  };
+}
+
+function lifecycleHistoryResponse() {
+  return {
+    fundId: 42,
+    entries: [
+      {
+        version: 1,
+        publishedAt: '2026-03-20T12:00:00.000Z',
+        publishedBy: 1,
+        fundSize: 50_000_000,
+        numCompanies: 1,
+        calcRun: {
+          runId: 10,
+          status: 'ready' as const,
+          dispatchState: 'dispatched' as const,
+          lastCalculatedAt: '2026-03-20T12:30:00.000Z',
+          correlationId: 'corr-finalize-42',
+        },
+      },
+    ],
+  };
+}
+
+function resultsComparisonResponse() {
+  return {
+    fundId: 42,
+    comparisonStatus: 'no_previous_version' as const,
+    currentVersion: {
+      version: 1,
+      publishedAt: '2026-03-20T12:00:00.000Z',
+      calcRun: {
+        runId: 10,
+        status: 'ready' as const,
+        dispatchState: 'dispatched' as const,
+        lastCalculatedAt: '2026-03-20T12:30:00.000Z',
+        correlationId: 'corr-finalize-42',
+      },
+      metrics: {
+        fundSize: 50_000_000,
+        reserveRatio: 0.4,
+        avgConfidence: 0.85,
+        yearsToFullDeploy: 5,
+      },
+    },
+    previousVersion: null,
+    metricDeltas: [],
   };
 }
