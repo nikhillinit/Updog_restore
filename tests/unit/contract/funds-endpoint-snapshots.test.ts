@@ -124,14 +124,14 @@ describe('POST /api/funds contract snapshot', () => {
     expect(res.body.data).toHaveProperty('name', 'Zero Size Fund');
   });
 
-  it('returns 400 FUND_NO_MARKERS when neither name nor basics present', async () => {
+  it('returns 400 validation error when required name field is missing', async () => {
     const res = await request(app)
       .post('/api/funds')
       .set('Idempotency-Key', 'snapshot-no-markers-01')
       .send({ fundSize: 50_000_000 });
 
     expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty('code', 'FUND_NO_MARKERS');
+    expect(res.body).toHaveProperty('code', 'FUND_CREATE_VALIDATION_ERROR');
   });
 
   it('creates a fund that becomes visible through the canonical GET list endpoint', async () => {
