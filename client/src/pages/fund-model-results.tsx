@@ -132,7 +132,6 @@ function useFundResults(fundId: string | null) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
-  const inFlightRef = useRef(false);
   const fetchResultsRef = useRef<(options?: FetchOptions) => Promise<void>>();
   const lastLifecycleKeyRef = useRef<LifecyclePollingKey | null>(null);
 
@@ -148,7 +147,6 @@ function useFundResults(fundId: string | null) {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    inFlightRef.current = false;
   }, []);
 
   const scheduleNextPoll = useCallback(() => {
@@ -174,7 +172,7 @@ function useFundResults(fundId: string | null) {
       clearScheduledPoll();
     }
 
-    if (inFlightRef.current) {
+    if (abortRef.current) {
       if (options.background) {
         return;
       }
@@ -183,7 +181,6 @@ function useFundResults(fundId: string | null) {
 
     const controller = new AbortController();
     abortRef.current = controller;
-    inFlightRef.current = true;
 
     try {
       const res = await fetch(`/api/funds/${fundId}/results`, {
@@ -255,7 +252,6 @@ function useFundResults(fundId: string | null) {
       if (abortRef.current === controller) {
         abortRef.current = null;
       }
-      inFlightRef.current = false;
     }
   }, [cancelInFlight, clearScheduledPoll, fundId, scheduleNextPoll]);
 
