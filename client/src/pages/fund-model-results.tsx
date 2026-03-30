@@ -694,6 +694,74 @@ function hasStaleEvidence(lifecycle: FundStateReadV1) {
   );
 }
 
+function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'success') {
+  switch (tone) {
+    case 'danger':
+      return 'border-rose-200 bg-rose-50';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50';
+    case 'success':
+      return 'border-emerald-200 bg-emerald-50';
+    default:
+      return 'border-beige-200 bg-beige-50';
+  }
+}
+
+function getLifecycleDiagnostic(lifecycle: FundStateReadV1) {
+  const { configState, calculationState } = lifecycle;
+  const publishedVersion =
+    configState.publishedVersion != null ? `v${configState.publishedVersion}` : 'an unpublished draft';
+  const runLabel =
+    calculationState.runId != null ? `run ${calculationState.runId}` : 'the next calculation run';
+
+  if (!configState.hasPublished) {
+    return {
+      tone: 'neutral' as const,
+      title: 'No published configuration yet',
+      description:
+        'This fund does not have a published configuration yet, so authoritative calculations have not started. Publish a configuration before relying on lifecycle-backed results.',
+    };
+  }
+
+  if (calculationState.status === 'failed') {
+    return {
+      tone: 'danger' as const,
+      title: 'Published configuration exists, but the latest calculation failed',
+      description: `${publishedVersion} is published, but ${runLabel} did not complete successfully. Review the latest calculation error and retry once the issue is resolved.`,
+    };
+  }
+
+  if (calculationState.status === 'submitted' || calculationState.status === 'calculating') {
+    return {
+      tone: 'warning' as const,
+      title: 'Calculation is in progress',
+      description: `${publishedVersion} is currently being processed under ${runLabel}. The page will keep polling the results endpoint until the lifecycle reaches a terminal state.`,
+    };
+  }
+
+  if (hasStaleEvidence(lifecycle)) {
+    return {
+      tone: 'warning' as const,
+      title: 'Published configuration is ahead of the current calculation',
+      description: `The latest publish is ${publishedVersion}, but the current evidence is still tied to v${calculationState.configVersion}. Recalculate to bring the displayed results back in sync.`,
+    };
+  }
+
+  if (calculationState.status === 'ready') {
+    return {
+      tone: 'success' as const,
+      title: 'Results are current',
+      description: `${publishedVersion} has a completed calculation run, and the results page is showing current server-backed evidence for that publish.`,
+    };
+  }
+
+  return {
+    tone: 'neutral' as const,
+    title: 'Calculation has not been requested',
+    description: `${publishedVersion} is published, but no calculation run has been requested yet.`,
+  };
+}
+
 function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
   if (!hasStaleEvidence(lifecycle)) return null;
 
@@ -973,14 +1041,26 @@ function LifecycleStatusCard({
   onRecalculate: () => void;
 }) {
   const { configState, calculationState } = lifecycle;
+  const diagnostic = getLifecycleDiagnostic(lifecycle);
+  const availableSnapshotList =
+    calculationState.availableSnapshotTypes.length > 0
+      ? calculationState.availableSnapshotTypes.join(', ')
+      : 'None yet';
+  const expectedSnapshotList =
+    calculationState.expectedSnapshotTypes.length > 0
+      ? calculationState.expectedSnapshotTypes.join(', ')
+      : 'None';
 
   return (
-    <div className="bg-white rounded-lg border border-beige-200 p-6 space-y-4">
+    <div
+      className="bg-white rounded-lg border border-beige-200 p-6 space-y-4"
+      data-testid="run-diagnostics-card"
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-medium text-charcoal">Lifecycle Status</h2>
           <p className="text-sm text-charcoal-500 font-poppins mt-1">
-            Server-backed publication and calculation state for this fund.
+            Server-backed publication, calculation, and run diagnostics for this fund.
           </p>
         </div>
 
@@ -990,6 +1070,14 @@ function LifecycleStatusCard({
           onRecalculate={onRecalculate}
         />
       </div>
+
+      <Alert className={diagnosticAlertClasses(diagnostic.tone)}>
+        <AlertCircle className="h-4 w-4 text-charcoal-500" />
+        <AlertTitle>{diagnostic.title}</AlertTitle>
+        <AlertDescription className="font-poppins text-charcoal-600">
+          {diagnostic.description}
+        </AlertDescription>
+      </Alert>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <FactTile
@@ -1014,7 +1102,7 @@ function LifecycleStatusCard({
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <FactTile
           label="Draft Version"
           value={configState.draftVersion != null ? `v${configState.draftVersion}` : 'No draft'}
@@ -1028,9 +1116,24 @@ function LifecycleStatusCard({
           value={calculationState.dispatchState ?? 'Not dispatched'}
         />
         <FactTile
+          label="Correlation ID"
+          value={calculationState.correlationId ?? 'Not available'}
+        />
+        <FactTile
           label="Snapshot Coverage"
           value={`${calculationState.availableSnapshotTypes.length}/${calculationState.expectedSnapshotTypes.length}`}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
+          <p className="text-xs text-charcoal-400 font-poppins">Available Snapshots</p>
+          <p className="mt-1 text-sm text-charcoal font-medium">{availableSnapshotList}</p>
+        </div>
+        <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
+          <p className="text-xs text-charcoal-400 font-poppins">Expected Snapshots</p>
+          <p className="mt-1 text-sm text-charcoal font-medium">{expectedSnapshotList}</p>
+        </div>
       </div>
 
       {calculationState.lastError && (

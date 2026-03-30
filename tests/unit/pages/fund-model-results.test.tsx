@@ -418,7 +418,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(screen.getByText('Published Version')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
     expect(screen.getByText('Dispatch State')).toBeInTheDocument();
+    expect(screen.getByText('Correlation ID')).toBeInTheDocument();
     expect(screen.getByText('Snapshot Coverage')).toBeInTheDocument();
+    expect(screen.getAllByText('RESERVE, PACING').length).toBeGreaterThanOrEqual(1);
   });
 
   // -- Legacy evidence --
@@ -463,6 +465,51 @@ describe('FundModelResultsPage (server-backed)', () => {
       expect(screen.getByText(/Lifecycle Status/i)).toBeInTheDocument();
     });
     expect(screen.queryByText(/Results are stale/i)).not.toBeInTheDocument();
+  });
+
+  it('shows no-publish diagnostics when no published configuration exists', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.hasPublished = false;
+    resp.lifecycle.configState.publishedVersion = null;
+    resp.lifecycle.configState.publishedAt = null;
+    resp.lifecycle.calculationState.status = 'not_requested';
+    resp.lifecycle.calculationState.configVersion = null;
+    resp.lifecycle.calculationState.runId = null;
+    resp.lifecycle.calculationState.correlationId = null;
+    resp.lifecycle.calculationState.dispatchState = null;
+    resp.lifecycle.calculationState.availableSnapshotTypes = [];
+    resp.lifecycle.calculationState.lastCalculatedAt = null;
+
+    mockFundPageFetches({ results: resp, history: { fundId: 123, entries: [] } });
+    await renderPage('/fund-model-results/123');
+
+    const diagnosticsCard = await screen.findByTestId('run-diagnostics-card');
+    expect(
+      within(diagnosticsCard).getByText(/No published configuration yet/i)
+    ).toBeInTheDocument();
+    expect(
+      within(diagnosticsCard).getByText(
+        /Publish a configuration before relying on lifecycle-backed results/i
+      )
+    ).toBeInTheDocument();
+    expect(within(diagnosticsCard).getAllByText('Not published').length).toBeGreaterThanOrEqual(1);
+    expect(within(diagnosticsCard).getAllByText('Not available').length).toBeGreaterThanOrEqual(1);
+    expect(within(diagnosticsCard).getByText('None yet')).toBeInTheDocument();
+  });
+
+  it('shows failed-run diagnostics when a published calculation fails', async () => {
+    mockFundPageFetches({ results: failedResponse() });
+    await renderPage('/fund-model-results/123');
+
+    const diagnosticsCard = await screen.findByTestId('run-diagnostics-card');
+    expect(
+      within(diagnosticsCard).getByText(
+        /Published configuration exists, but the latest calculation failed/i
+      )
+    ).toBeInTheDocument();
+    expect(within(diagnosticsCard).getByText(/run 10 did not complete successfully/i)).toBeInTheDocument();
+    expect(within(diagnosticsCard).getByText('test-corr-id')).toBeInTheDocument();
+    expect(await screen.findByText(/Worker timed out during reserve snapshot generation/i)).toBeInTheDocument();
   });
 
   it('renders publish history entries when expanded', async () => {
@@ -983,6 +1030,27 @@ function calculatingResponse(
     status: 'pending',
     reason: 'Calculations have not produced results yet',
     reasonCode: 'CALCULATION_PENDING',
+  };
+  return resp;
+}
+
+function failedResponse() {
+  const resp = readyResponse();
+  resp.status = 'failed';
+  resp.lifecycle.calculationState.status = 'failed';
+  resp.lifecycle.calculationState.lastError =
+    'Worker timed out during reserve snapshot generation';
+  resp.sections.reserve = {
+    status: 'failed',
+    reason: 'Reserve calculation failed for the latest published version',
+  };
+  resp.sections.pacing = {
+    status: 'failed',
+    reason: 'Pacing calculation failed for the latest published version',
+  };
+  resp.sections.scorecard = {
+    status: 'failed',
+    reason: 'Scorecard unavailable because the latest calculation failed',
   };
   return resp;
 }
