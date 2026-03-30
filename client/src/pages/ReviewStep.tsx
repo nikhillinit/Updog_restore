@@ -2,7 +2,7 @@
  * ReviewStep - Step 7: Review & Create
  *
  * Final step in the fund setup wizard showing a summary of all configurations
- * and allowing the user to create the fund.
+ * and allowing the user to create the fund via a single finalize endpoint.
  */
 
 import { useMemo, useState, useCallback } from 'react';
@@ -17,9 +17,8 @@ import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-r
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { fundStore } from '@/stores/fundStore';
-import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
-import { saveFundDraft } from '@/services/fund-drafts';
-import { createFund, normalizeCreateFundResponse } from '@/services/funds';
+import { fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
+import { finalizeFund } from '@/services/funds';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
 
@@ -28,30 +27,7 @@ interface SummarySection {
   items: Array<{ label: string; value: string | number; status?: 'ok' | 'warning' | 'missing' }>;
 }
 
-type SubmitState = 'idle' | 'submitting' | 'saving-draft' | 'publishing' | 'error';
-
-type ErrorBody = {
-  error?: string;
-  message?: string;
-  code?: string;
-  issues?: Array<{ path: (string | number)[]; message: string }>;
-};
-
-async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const errBody = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
-  const message = errBody.error || errBody.message || `${fallback} (HTTP ${response.status})`;
-  return new Error(message);
-}
-
-async function publishConfig(fundId: number): Promise<void> {
-  const response = await fetch(`/api/funds/${fundId}/publish`, {
-    method: 'POST',
-  });
-
-  if (!response.ok) {
-    throw await readApiError(response, 'Publish failed');
-  }
-}
+type SubmitState = 'idle' | 'submitting' | 'error';
 
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
@@ -66,16 +42,12 @@ export default function ReviewStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const fundLife = useFundSelector((s) => s.fundLife);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
-  const draftFundId = useFundSelector((s) => s.draftFundId);
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
 
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // Track created fund ID for retry logic (skip POST, retry PUT only)
-  const [createdFundId, setCreatedFundId] = useState<number | null>(draftFundId);
-  const [draftSaved, setDraftSaved] = useState(false);
 
   const navigateToResults = useCallback(
     (fundId: number) => {
@@ -211,60 +183,22 @@ export default function ReviewStep() {
   );
 
   const handleCreate = useCallback(async () => {
-    if (
-      submitState === 'submitting' ||
-      submitState === 'saving-draft' ||
-      submitState === 'publishing'
-    ) {
-      return;
-    }
-
-    let fundId = createdFundId;
-    let activeStage: SubmitState = 'idle';
+    if (submitState === 'submitting') return;
 
     setSubmitError(null);
+    setSubmitState('submitting');
 
     try {
-      if (fundId == null) {
-        activeStage = 'submitting';
-        setSubmitState('submitting');
-
-        const storeState = fundStore.getState();
-        const payload = fundStoreToCreateV1(storeState);
-        const raw = await createFund({ ...payload });
-        const fund = normalizeCreateFundResponse(raw);
-
-        fundId = fund.id;
-        setCreatedFundId(fund.id);
-        fundStore.getState().setDraftFundId(fund.id);
-        fundStore.getState().setDraftServerReady(false);
-      }
-
-      if (!draftSaved) {
-        activeStage = 'saving-draft';
-        setSubmitState('saving-draft');
-        await saveFundDraft(fundId, fundStoreToDraftWriteV1(fundStore.getState()));
-        fundStore.getState().setDraftServerReady(true);
-        setDraftSaved(true);
-      }
-
-      activeStage = 'publishing';
-      setSubmitState('publishing');
-      await publishConfig(fundId);
-
+      const payload = fundStoreToFinalizeV1(fundStore.getState());
+      const result = await finalizeFund(payload);
+      const fundId = result.data.fundId;
       await finalizeSuccessfulPublish(fundId);
     } catch (err) {
-      const fallbackMessage =
-        activeStage === 'publishing'
-          ? 'Publish failed'
-          : activeStage === 'saving-draft'
-            ? 'Draft save failed'
-            : 'Failed to create fund';
-      const message = err instanceof Error ? err.message : fallbackMessage;
+      const message = err instanceof Error ? err.message : 'Failed to create fund';
       setSubmitError(message);
       setSubmitState('error');
     }
-  }, [createdFundId, draftSaved, finalizeSuccessfulPublish, submitState]);
+  }, [submitState, finalizeSuccessfulPublish]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
@@ -279,8 +213,7 @@ export default function ReviewStep() {
     }
   };
 
-  const isSubmitting =
-    submitState === 'submitting' || submitState === 'saving-draft' || submitState === 'publishing';
+  const isSubmitting = submitState === 'submitting';
 
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
@@ -383,11 +316,7 @@ export default function ReviewStep() {
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {submitState === 'saving-draft'
-                  ? 'Saving Config...'
-                  : submitState === 'publishing'
-                    ? 'Publishing Config...'
-                    : 'Creating Fund...'}
+                Creating Fund...
               </>
             ) : (
               <>

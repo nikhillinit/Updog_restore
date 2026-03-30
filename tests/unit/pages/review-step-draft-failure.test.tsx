@@ -1,10 +1,13 @@
 /**
- * Tests for ReviewStep draft/publish failure + retry logic
+ * Tests for ReviewStep finalize failure + retry logic
  *
  * Validates:
- * - Draft PUT returns non-2xx -> stays on ReviewStep with error, no navigation
- * - POST succeeds + draft fails + retry -> skips POST, retries draft + publish
- * - Draft succeeds + publish fails + retry -> skips POST and draft, retries publish only
+ * - Finalize returns non-2xx -> stays on ReviewStep with error, no navigation
+ * - Retry after failure -> calls finalizeFund again, navigates on success
+ * - Non-Error thrown -> uses fallback message
+ *
+ * History: Originally tested the 3-step create/draft/publish flow.
+ * Refactored to test the single-submit finalize endpoint (Phase 3).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -79,81 +82,68 @@ vi.mock('@/stores/fundStore', () => ({
   },
 }));
 
-// Mock createFund to return success
-const mockCreateFund = vi.fn().mockResolvedValue({
-  success: true,
-  data: { id: 42, name: 'Test Fund', size: '50000000' },
-});
+// Mock finalizeFund
+const mockFinalizeFund = vi.fn();
 
 vi.mock('@/services/funds', () => ({
-  createFund: (...args: unknown[]) => mockCreateFund(...args),
-  normalizeCreateFundResponse: (raw: Record<string, unknown>) => {
-    const data = (raw as { data?: Record<string, unknown> }).data ?? raw;
-    return { id: Number(data['id']), name: data['name'], size: data['size'] };
-  },
+  finalizeFund: (...args: unknown[]) => mockFinalizeFund(...args),
+  createFund: vi.fn(),
+  normalizeCreateFundResponse: vi.fn(),
 }));
 
-// Track fetch calls
-const mockFetch = vi.fn();
+// Mock adapter
+vi.mock('@/adapters/fund-store-adapters', () => ({
+  fundStoreToFinalizeV1: () => ({
+    name: 'Test Fund',
+    size: 50_000_000,
+    managementFee: 0.02,
+    carryPercentage: 0.2,
+    vintageYear: 2026,
+  }),
+  fundStoreToCreateV1: vi.fn(),
+  fundStoreToDraftWriteV1: vi.fn(),
+}));
 
-describe('ReviewStep draft failure handling', () => {
+const successResponse = {
+  success: true as const,
+  data: {
+    fundId: 42,
+    configVersion: 1,
+    correlationId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    published: true,
+  },
+};
+
+describe('ReviewStep finalize failure handling', () => {
   beforeEach(() => {
-    mockFetch.mockReset();
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
     mockFundState.draftFundId = null;
-    mockFundState.draftServerReady = false;
-    mockFundState.setDraftFundId.mockReset();
-    mockFundState.setDraftServerReady.mockReset();
-    // Restore createFund implementation (restoreAllMocks wipes it)
-    mockCreateFund.mockReset().mockResolvedValue({
-      success: true,
-      data: { id: 42, name: 'Test Fund', size: '50000000' },
-    });
-    // Override global fetch for draft PUT
-    vi.stubGlobal('fetch', mockFetch);
+    mockFinalizeFund.mockReset().mockResolvedValue(successResponse);
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
-  it('shows error when draft PUT returns 400', async () => {
-    // Draft PUT returns 400 (strict validation failure)
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () =>
-        Promise.resolve({
-          error: 'Draft configuration is invalid',
-          code: 'DRAFT_VALIDATION_ERROR',
-          issues: [{ path: ['fundName'], message: 'Required' }],
-        }),
-    });
+  it('shows error when finalize returns validation error', async () => {
+    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Draft configuration is invalid'));
 
-    // Dynamic import to ensure mocks are in place
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
     await userEvent.click(button);
 
-    // Should show error state (not navigate away)
     await waitFor(() => {
       expect(screen.getByText(/Draft configuration is invalid/i)).toBeInTheDocument();
     });
+
+    expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
-  it('POST succeeds but draft fails -> error shown, no navigation', async () => {
-    // Re-stub fetch for this test (afterEach unstubs)
-    vi.stubGlobal('fetch', mockFetch);
-
-    // Draft PUT returns 500
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Draft DB error' }),
-    });
+  it('shows error when finalize returns server error, no navigation', async () => {
+    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Finalize failed (HTTP 500)'));
 
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
@@ -161,31 +151,15 @@ describe('ReviewStep draft failure handling', () => {
     const button = screen.getByTestId('create-fund-button');
     await userEvent.click(button);
 
-    // Wait for error state to render
     await waitFor(() => {
       expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
     });
 
-    // POST was called once (fund was created)
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    // Draft fetch was called once (and failed)
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
-  it('navigates to the concrete results route after successful create, draft save, and publish', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true }),
-      });
-
+  it('navigates to results route after successful finalize', async () => {
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
 
@@ -196,18 +170,7 @@ describe('ReviewStep draft failure handling', () => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
     });
 
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      1,
-      '/api/funds/42/draft',
-      expect.objectContaining({ method: 'PUT' })
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      '/api/funds/42/publish',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     expect(mockSetCurrentFund).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 42,
@@ -216,23 +179,10 @@ describe('ReviewStep draft failure handling', () => {
     );
   });
 
-  it('retries draft save without repeating POST and then navigates to results', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: 'Draft DB error' }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true }),
-      });
+  it('retries finalize after failure and navigates on success', async () => {
+    mockFinalizeFund
+      .mockRejectedValueOnce(new Error('Finalize failed (HTTP 500)'))
+      .mockResolvedValueOnce(successResponse);
 
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
@@ -240,47 +190,23 @@ describe('ReviewStep draft failure handling', () => {
     const button = screen.getByTestId('create-fund-button');
     await userEvent.click(button);
 
-    // First attempt: draft fails
+    // First attempt: fails
     await waitFor(() => {
       expect(screen.getByText('Fund Creation Failed')).toBeInTheDocument();
     });
 
     // Retry
-    const retryButton = screen.getByTestId('create-fund-button');
-    await userEvent.click(retryButton);
+    await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
     });
 
-    // POST was called only once (retry skips POST)
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    // Draft fetch was called twice (fail + retry), then publish once
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      '/api/funds/42/draft',
-      expect.objectContaining({ method: 'PUT' })
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      3,
-      '/api/funds/42/publish',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(mockFinalizeFund).toHaveBeenCalledTimes(2);
   });
 
-  it('draft succeeds but publish fails -> error shown, no navigation', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: 'Publish queue error' }),
-      });
+  it('shows error when publish queue fails via finalize', async () => {
+    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Publish queue error'));
 
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
@@ -292,28 +218,13 @@ describe('ReviewStep draft failure handling', () => {
       expect(screen.getByText(/Publish queue error/i)).toBeInTheDocument();
     });
 
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
-  it('retries publish without repeating POST or draft save and then navigates to results', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: 'Publish queue error' }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true }),
-      });
+  it('retries after publish failure and navigates on success', async () => {
+    mockFinalizeFund
+      .mockRejectedValueOnce(new Error('Publish queue error'))
+      .mockResolvedValueOnce(successResponse);
 
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
@@ -331,38 +242,11 @@ describe('ReviewStep draft failure handling', () => {
       expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/42');
     });
 
-    expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      1,
-      '/api/funds/42/draft',
-      expect.objectContaining({ method: 'PUT' })
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      '/api/funds/42/publish',
-      expect.objectContaining({ method: 'POST' })
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      3,
-      '/api/funds/42/publish',
-      expect.objectContaining({ method: 'POST' })
-    );
+    expect(mockFinalizeFund).toHaveBeenCalledTimes(2);
   });
 
-  it('reuses the bootstrap fund identity and skips POST on review submission', async () => {
-    mockFundState.draftFundId = 84;
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true }),
-      });
+  it('uses fallback message for non-Error thrown values', async () => {
+    mockFinalizeFund.mockReset().mockRejectedValue('raw string error');
 
     const { default: ReviewStep } = await import('@/pages/ReviewStep');
     render(<ReviewStep />);
@@ -370,19 +254,7 @@ describe('ReviewStep draft failure handling', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/84');
+      expect(screen.getByText('Failed to create fund')).toBeInTheDocument();
     });
-
-    expect(mockCreateFund).not.toHaveBeenCalled();
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      1,
-      '/api/funds/84/draft',
-      expect.objectContaining({ method: 'PUT' })
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      '/api/funds/84/publish',
-      expect.objectContaining({ method: 'POST' })
-    );
   });
 });
