@@ -70,7 +70,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 - `npm test -- --project=server` - Run server tests only (Node.js environment)
 - `npm test -- --project=client` - Run client tests only (jsdom environment)
 - `npm run test:ui` - Tests with interactive dashboard
-- `npm run test:run` - Single test run (CI mode)
 - `npm run test:quick` - Skip API tests for faster feedback
 - `npm run lint` - ESLint code quality check
 - `npm run lint:fix` - Auto-fix linting issues
