@@ -66,6 +66,24 @@ const inlineExecutionByEngine: Record<
   pacing: runPacingCalculation,
 };
 
+export interface FinalizeInput {
+  name: string;
+  size: number;
+  managementFee?: number | undefined;
+  carryPercentage?: number | undefined;
+  vintageYear?: number | undefined;
+  modelVersion?: string | undefined;
+  engineResults?: EngineResults | null | undefined;
+  [key: string]: unknown;
+}
+
+export interface FinalizeResult {
+  fundId: number;
+  configVersion: number;
+  correlationId: string;
+  published: boolean;
+}
+
 export interface RecalcResult {
   run: CalcRun;
   correlationId: string;
@@ -257,6 +275,58 @@ export class FundPersistenceService {
     }
   }
 
+  /**
+   * Atomic finalize: create fund + save draft config + publish in one call.
+   * Orchestrates existing methods; no logic duplication.
+   */
+  async finalize(input: FinalizeInput, queues: PublishQueues): Promise<FinalizeResult> {
+    if (!input.name || input.name.trim().length === 0) {
+      throw new Error('Fund name is required');
+    }
+
+    // Extract fund-level fields for createFundWithInitialDraft
+    const currentYear = new Date().getFullYear();
+    const fundInput: CreateFundInput = {
+      name: input.name.trim(),
+      size: String(input.size),
+      managementFee: String(input.managementFee ?? 0.02),
+      carryPercentage: String(input.carryPercentage ?? 0.2),
+      vintageYear: input.vintageYear ?? currentYear,
+      ...(input.engineResults != null && { engineResults: input.engineResults }),
+    };
+
+    // Extract draft config fields (everything except fund-level fields)
+    const {
+      name: _name,
+      size: _size,
+      managementFee: _mf,
+      carryPercentage: _cp,
+      vintageYear: _vy,
+      modelVersion: _mv,
+      engineResults: _er,
+      ...draftConfig
+    } = input;
+
+    // Build config object matching FundDraftWriteV1 shape for persistence
+    const configInput: Record<string, unknown> = {
+      fundName: input.name.trim(),
+      ...draftConfig,
+    };
+
+    // Step 1+2: Create fund with initial draft containing full config
+    const { fund, draft } = await this.createFundWithInitialDraft(fundInput, configInput);
+
+    // Step 3: Publish the draft (creates calcRun, dispatches engines)
+    const publishResult = await this.publishDraft(fund.id, queues);
+
+    return {
+      fundId: fund.id,
+      configVersion: draft.version,
+      correlationId: publishResult.correlationId,
+      published: true,
+    };
+  }
+
   async recalculatePublished(
     fundId: number,
     queues: PublishQueues,
@@ -278,10 +348,7 @@ export class FundPersistenceService {
 
     // 2. Load the published fundConfig
     const publishedConfig = await db.query.fundConfigs.findFirst({
-      where: and(
-        eq(fundConfigs.fundId, fundId),
-        eq(fundConfigs.isPublished, true)
-      ),
+      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)),
       orderBy: (configs, { desc }) => desc(configs.version),
     });
 
@@ -291,10 +358,7 @@ export class FundPersistenceService {
 
     // 3. Check for existing calcRun for this configVersion
     const existingRun = await db.query.calcRuns.findFirst({
-      where: and(
-        eq(calcRuns.fundId, fundId),
-        eq(calcRuns.configVersion, publishedConfig.version)
-      ),
+      where: and(eq(calcRuns.fundId, fundId), eq(calcRuns.configVersion, publishedConfig.version)),
       orderBy: (runs, { desc }) => desc(runs.requestedAt),
     });
 
