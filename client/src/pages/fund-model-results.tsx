@@ -26,7 +26,6 @@ import type {
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type {
   FundLifecycleHistoryV1,
-  LifecycleHistoryEntry,
 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
 import type {
   FundResultsComparisonV1,
@@ -59,7 +58,6 @@ type ResultsComparisonState =
   | { kind: 'data'; comparison: FundResultsComparisonV1 };
 
 type LifecycleStatus = FundStateReadV1['calculationState']['status'];
-type LifecycleHistoryRunStatus = NonNullable<LifecycleHistoryEntry['calcRun']>['status'];
 
 interface FetchOptions {
   initial?: boolean;
