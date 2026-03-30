@@ -19,6 +19,7 @@ import {
 } from '@shared/utils/scenario-math';
 import type { ScenarioAnalysisResponse, ScenarioCase } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -116,7 +117,7 @@ router['get'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { fundId } = req.params;
+      const fundId = firstString(req.params['fundId']);
 
       if (!fundId) {
         return res['status'](400)['json']({ error: 'Missing fund ID' });
@@ -187,13 +188,14 @@ router['get'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { companyId, scenarioId } = req.params;
+      const companyId = firstString(req.params['companyId']);
+      const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
         return res['status'](400)['json']({ error: 'Missing required parameters' });
       }
 
-      const include = (req.query['include'] as string)?.split(',') || ['cases', 'weighted_summary'];
+      const include = firstString(req.query['include'])?.split(',') || ['cases', 'weighted_summary'];
 
       const scenario = await db
         .select()
@@ -289,7 +291,7 @@ router['post'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { companyId } = req.params;
+      const companyId = firstString(req.params['companyId']);
 
       if (!companyId) {
         return res['status'](400)['json']({ error: 'Missing company ID' });
@@ -341,7 +343,8 @@ router['patch'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { companyId, scenarioId } = req.params;
+      const companyId = firstString(req.params['companyId']);
+      const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
         return res['status'](400)['json']({ error: 'Missing required parameters' });
@@ -483,7 +486,8 @@ router['delete'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { companyId, scenarioId } = req.params;
+      const companyId = firstString(req.params['companyId']);
+      const scenarioId = firstString(req.params['scenarioId']);
 
       if (!companyId || !scenarioId) {
         return res['status'](400)['json']({ error: 'Missing required parameters' });
@@ -545,7 +549,7 @@ router['post'](
   extractUserId,
   async (req: Request, res: Response) => {
     try {
-      const { companyId } = req.params;
+      const companyId = firstString(req.params['companyId']);
 
       // Validate request body before destructuring to preserve types
       const { scenario_id } = ReserveSuggestionsSchema.parse(req.body);

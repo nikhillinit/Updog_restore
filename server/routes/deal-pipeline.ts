@@ -18,6 +18,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { firstString } from '../lib/request-values';
 import { z } from 'zod';
 import { db } from '../db';
 import {
@@ -339,7 +340,7 @@ router['get']('/opportunities', async (req: Request, res: Response) => {
  * GET /api/deals/opportunities/:id - Get deal by ID
  */
 router['get']('/opportunities/:id', async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }
@@ -402,7 +403,7 @@ router['get']('/opportunities/:id', async (req: Request, res: Response) => {
  * Idempotency-enabled
  */
 router['put']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }
@@ -481,7 +482,7 @@ router['put']('/opportunities/:id', idempotency, async (req: Request, res: Respo
  * DELETE /api/deals/opportunities/:id - Archive deal (soft delete)
  */
 router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }
@@ -538,7 +539,7 @@ router['delete']('/opportunities/:id', idempotency, async (req: Request, res: Re
  * POST /api/deals/:id/stage - Move deal to new stage
  */
 router['post']('/:id/stage', idempotency, async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }
@@ -697,7 +698,7 @@ router['get']('/stages', async (_req: Request, res: Response) => {
  * POST /api/deals/:id/diligence - Add due diligence item
  */
 router['post']('/:id/diligence', idempotency, async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }
@@ -759,7 +760,7 @@ router['post']('/:id/diligence', idempotency, async (req: Request, res: Response
  * GET /api/deals/:id/diligence - Get due diligence items for deal
  */
 router['get']('/:id/diligence', async (req: Request, res: Response) => {
-  const paramId = req['params']['id'];
+  const paramId = firstString(req.params['id']);
   if (!paramId) {
     return res['status'](400)['json']({ error: 'invalid_id', message: 'Deal ID is required' });
   }

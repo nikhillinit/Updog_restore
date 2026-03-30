@@ -15,6 +15,7 @@ import jwksClient from 'jwks-rsa';
 import type { Request, Response, NextFunction } from 'express';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
+import { firstString } from '../request-values';
 
 export type JWTClaims = JwtPayload & {
   sub: string;
@@ -162,7 +163,7 @@ export const requireRole = (role: string) => (req: Request, res: Response, next:
  * Use after requireAuth to check fund-level permissions
  */
 export const requireFundAccess = (req: Request, res: Response, next: NextFunction) => {
-  const fundIdParam = req.params['fundId'];
+  const fundIdParam = firstString(req.params['fundId']);
 
   if (!fundIdParam) {
     return res.status(400).json({

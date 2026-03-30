@@ -14,6 +14,7 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { calculateSandboxValuation } from './calculator';
+import { firstString } from '../lib/request-values';
 import type {
   GetValuationContextResponse,
   SearchCompsRequest,
@@ -47,7 +48,7 @@ router['get']('/health', (_req: Request, res: Response) => {
  */
 router['get']('/portfolio-companies/:id/valuation-context', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params['id']);
     if (!id) {
       res.status(400).json({ error: 'Missing company ID' });
       return;

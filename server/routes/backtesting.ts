@@ -29,6 +29,8 @@ import {
   ScenarioCompareRequestSchema,
   BacktestHistoryQuerySchema,
 } from '@shared/validation/backtesting-schemas';
+import { header } from '../lib/headers-helper';
+import { firstString } from '../lib/request-values';
 import type {
   BacktestConfig,
   HistoricalScenarioName,
@@ -187,7 +189,7 @@ router.post(
   validateRequest(BacktestConfigSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
-    const correlationId = req.headers['x-correlation-id'] as string | undefined;
+    const correlationId = header(req.headers, 'x-correlation-id');
 
     if (!hasFundAccess(req, config.fundId)) {
       return res.status(403).json({
@@ -239,8 +241,7 @@ router.post(
     }
 
     const config = (req as Request & { validatedBody: BacktestConfig }).validatedBody;
-    const correlationId =
-      (req.headers['x-correlation-id'] as string | undefined) ?? `bt_async_${Date.now()}`;
+    const correlationId = header(req.headers, 'x-correlation-id') ?? `bt_async_${Date.now()}`;
 
     if (!hasFundAccess(req, config.fundId)) {
       return res.status(403).json({
@@ -251,8 +252,7 @@ router.post(
     }
 
     const idempotencyKey =
-      (req.headers['idempotency-key'] as string | undefined) ??
-      (req.headers['x-idempotency-key'] as string | undefined);
+      header(req.headers, 'idempotency-key') ?? header(req.headers, 'x-idempotency-key');
 
     const { jobId, estimatedWaitMs, deduplicated } = await enqueueBacktestJob({
       config,
@@ -297,7 +297,7 @@ router.get(
   requireAuth(),
   monitorPerformance,
   asyncHandler(async (req: Request, res: Response) => {
-    const jobId = req.params['jobId'];
+    const jobId = firstString(req.params['jobId']);
     if (!jobId) {
       return res.status(400).json({
         error: 'INVALID_JOB_ID',
@@ -362,7 +362,7 @@ router.get(
   '/jobs/:jobId/stream',
   requireAuth(),
   asyncHandler(async (req: Request, res: Response) => {
-    const jobId = req.params['jobId'];
+    const jobId = firstString(req.params['jobId']);
     if (!jobId) {
       return res.status(400).json({
         error: 'INVALID_JOB_ID',
@@ -453,7 +453,7 @@ router.get(
   monitorPerformance,
   validateQuery(BacktestHistoryQuerySchema),
   asyncHandler(async (req: Request, res: Response) => {
-    const fundId = parseInt(req.params['fundId']!, 10);
+    const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
     const query = (req as Request & { validatedQuery: z.infer<typeof BacktestHistoryQuerySchema> })
       .validatedQuery;
 
@@ -516,7 +516,13 @@ router.get(
   requireAuth(),
   monitorPerformance,
   asyncHandler(async (req: Request, res: Response) => {
-    const backtestId = req.params['backtestId']!;
+    const backtestId = firstString(req.params['backtestId']);
+    if (!backtestId) {
+      return res.status(400).json({
+        error: 'INVALID_BACKTEST_ID',
+        message: 'Backtest ID is required',
+      });
+    }
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -587,7 +593,7 @@ router.post(
     const { fundId, scenarios, simulationRuns } = (
       req as Request & { validatedBody: ScenarioCompareBody }
     ).validatedBody;
-    const correlationId = req.headers['x-correlation-id'] as string | undefined;
+    const correlationId = header(req.headers, 'x-correlation-id');
 
     if (!hasFundAccess(req, fundId)) {
       return res.status(403).json({
@@ -663,7 +669,7 @@ router.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({
     error: 'INTERNAL_ERROR',
     message: 'An unexpected error occurred',
-    correlationId: req.headers['x-correlation-id'],
+    correlationId: header(req.headers, 'x-correlation-id'),
   });
 });
 

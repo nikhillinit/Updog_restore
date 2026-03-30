@@ -17,6 +17,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { limitedPartners, lpFundCommitments } from '@shared/schema-lp-reporting';
+import { firstString } from '../lib/request-values';
 
 /**
  * Require user to have LP role
@@ -152,7 +153,7 @@ export function requireLPFundAccess(req: Request, res: Response, next: NextFunct
     return;
   }
 
-  const fundIdParam = req.params['fundId'];
+  const fundIdParam = firstString(req.params['fundId']);
 
   if (!fundIdParam) {
     res.status(400).json({

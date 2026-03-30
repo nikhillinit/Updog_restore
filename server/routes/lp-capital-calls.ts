@@ -25,6 +25,7 @@ import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -275,7 +276,7 @@ router.get(
 
     try {
       const lpId = req.lpProfile?.id;
-      const callId = req.params['callId'];
+      const callId = firstString(req.params['callId']);
 
       if (!lpId) {
         const duration = endTimer();
@@ -422,7 +423,7 @@ router.get(
 
     try {
       const lpId = req.lpProfile?.id;
-      const callId = req.params['callId'];
+      const callId = firstString(req.params['callId']);
 
       if (!lpId) {
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
@@ -525,7 +526,7 @@ router.post(
 
     try {
       const lpId = req.lpProfile?.id;
-      const callId = req.params['callId'];
+      const callId = firstString(req.params['callId']);
       const userId = req.user?.id as string | number | undefined;
 
       if (!lpId) {

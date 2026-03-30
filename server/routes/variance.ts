@@ -13,6 +13,7 @@ import { varianceTrackingService } from '../services/variance-tracking';
 import { toNumber, NumberParseError } from '@shared/number';
 import { positiveInt } from '@shared/schema-helpers';
 import type { ApiError } from '@shared/types';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -204,7 +205,7 @@ router['post'](
         throw err;
       }
 
-      const baselineId = req.params['baselineId'];
+      const baselineId = firstString(req.params['baselineId']);
       if (!baselineId) {
         const error: ApiError = {
           error: 'Invalid baseline ID',
@@ -236,7 +237,7 @@ router['post'](
  */
 router['delete']('/api/funds/:id/baselines/:baselineId', async (req: Request, res: Response) => {
   try {
-    const baselineId = req.params['baselineId'];
+    const baselineId = firstString(req.params['baselineId']);
     if (!baselineId) {
       const error: ApiError = {
         error: 'Invalid baseline ID',
@@ -535,7 +536,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  */
 router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Response) => {
   try {
-    const alertId = req.params['alertId'];
+    const alertId = firstString(req.params['alertId']);
     if (!alertId) {
       const error: ApiError = {
         error: 'Invalid alert ID',
@@ -585,7 +586,7 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
  */
 router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Response) => {
   try {
-    const alertId = req.params['alertId'];
+    const alertId = firstString(req.params['alertId']);
     if (!alertId) {
       const error: ApiError = {
         error: 'Invalid alert ID',

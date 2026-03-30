@@ -20,6 +20,7 @@ import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
+import { firstString } from '../lib/request-values';
 import {
   enqueueSimulation,
   getJobStatus,
@@ -410,7 +411,7 @@ router['post'](
  */
 router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
-    const { jobId } = req.params;
+    const jobId = firstString(req.params['jobId']);
     if (!jobId) {
       return res['status'](400)['json']({
         error: 'INVALID_JOB_ID',
@@ -462,7 +463,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
  * SSE endpoint for real-time job progress updates
  */
 router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
-  const { jobId } = req.params;
+  const jobId = firstString(req.params['jobId']);
   if (!jobId) {
     return res['status'](400)['json']({
       error: 'INVALID_JOB_ID',

@@ -48,6 +48,7 @@ import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { sanitizeForLogging } from '../lib/crypto/pii-sanitizer';
 import { enforceSchemaIsolation, handleSchemaViolation } from '../middleware/schema-isolation';
 import { logger } from '../lib/logger.js';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -890,7 +891,7 @@ router.get(
   lpLimiter,
   async (req: Request, res: Response) => {
     try {
-      const reportId = req.params['reportId'];
+      const reportId = firstString(req.params['reportId']);
       const lpId = req.lpProfile?.id;
 
       if (!reportId) {
@@ -945,7 +946,7 @@ router.get(
   lpLimiter,
   async (req: Request, res: Response) => {
     try {
-      const reportId = req.params['reportId'];
+      const reportId = firstString(req.params['reportId']);
       const lpId = req.lpProfile?.id;
 
       if (!reportId) {

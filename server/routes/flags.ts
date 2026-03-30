@@ -19,6 +19,7 @@ import {
 } from '../lib/flags.js';
 import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
+import { firstString } from '../lib/request-values';
 
 export const flagsRouter = Router();
 
@@ -196,7 +197,7 @@ const updateFlagSchema = z.object({
  */
 adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
   try {
-    const { key } = req.params;
+    const key = firstString(req.params['key']);
     const validation = updateFlagSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -266,7 +267,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
       ...(updates.exposeToClient !== undefined ? { exposeToClient: updates.exposeToClient } : {}),
       ...(targeting !== undefined ? { targeting } : {}),
     };
-    await updateFlag(key!, flagUpdates, userContext, reason!);
+    await updateFlag(key ?? '', flagUpdates, userContext, reason!);
 
     const newVersion = await getFlagsVersion();
 
@@ -292,7 +293,10 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
  */
 adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
   try {
-    const { key } = req.params;
+    const key = firstString(req.params['key']);
+    if (!key) {
+      return res['status'](400)['json']({ error: 'Flag key is required' });
+    }
     const history = await getFlagHistory(key);
 
     res['json']({

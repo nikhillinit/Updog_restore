@@ -12,6 +12,7 @@ import {
   getRegisteredQueueRuntime,
   type QueueCatalogEntry,
 } from '../queues/registry';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -590,7 +591,13 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
 
 // Worker health endpoints
 router['get']('/api/health/workers/:workerType', async (req: Request, res: Response) => {
-  const { workerType } = req.params;
+  const workerType = firstString(req.params['workerType']);
+  if (!workerType) {
+    return res['status'](400)['json']({
+      error: 'Invalid worker type',
+      message: 'Worker type is required',
+    });
+  }
 
   try {
     const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;

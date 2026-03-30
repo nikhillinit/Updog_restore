@@ -21,6 +21,7 @@ import { db } from '../db';
 import { shares, shareAnalytics, SHARE_ACCESS_LEVELS } from '@shared/schema/shares';
 import { eq, desc, sql } from 'drizzle-orm';
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
+import { firstString } from '../lib/request-values';
 
 // Password hashing utilities using PBKDF2
 const HASH_ITERATIONS = 100000;
@@ -143,7 +144,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
  */
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const fundId = req.query['fundId'] as string;
+    const fundId = firstString(req.query['fundId']);
     if (!fundId) {
       return res.status(400).json({ success: false, error: 'fundId query parameter required' });
     }
@@ -180,7 +181,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  */
 router.get('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { shareId } = req.params;
+    const shareId = firstString(req.params['shareId']);
     if (!shareId) {
       return res.status(400).json({ success: false, error: 'Share ID is required' });
     }
@@ -240,7 +241,7 @@ router.get('/:shareId', async (req: Request, res: Response, next: NextFunction) 
  */
 router.post('/:shareId/verify', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { shareId } = req.params;
+    const shareId = firstString(req.params['shareId']);
     if (!shareId) {
       return res.status(400).json({ success: false, error: 'Share ID is required' });
     }
@@ -300,7 +301,7 @@ router.post('/:shareId/verify', async (req: Request, res: Response, next: NextFu
  */
 router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { shareId } = req.params;
+    const shareId = firstString(req.params['shareId']);
     if (!shareId) {
       return res.status(400).json({ success: false, error: 'Share ID is required' });
     }
@@ -378,7 +379,7 @@ router.patch('/:shareId', async (req: Request, res: Response, next: NextFunction
  */
 router.delete('/:shareId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { shareId } = req.params;
+    const shareId = firstString(req.params['shareId']);
     if (!shareId) {
       return res.status(400).json({ success: false, error: 'Share ID is required' });
     }
@@ -404,7 +405,7 @@ router.delete('/:shareId', async (req: Request, res: Response, next: NextFunctio
  */
 router.get('/:shareId/analytics', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { shareId } = req.params;
+    const shareId = firstString(req.params['shareId']);
     if (!shareId) {
       return res.status(400).json({ success: false, error: 'Share ID is required' });
     }

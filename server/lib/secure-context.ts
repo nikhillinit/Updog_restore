@@ -6,6 +6,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
+import { firstString } from './request-values';
 
 export interface UserContext {
   userId: string; // JWT 'sub' claim
@@ -55,8 +56,9 @@ export async function extractUserContext(req: Request): Promise<UserContext | nu
     };
 
     // Fund ID comes from route params, not headers
-    if (req.params['fundId']) {
-      context.fundId = req.params['fundId'];
+    const fundId = firstString(req.params['fundId']);
+    if (fundId) {
+      context.fundId = fundId;
     }
 
     return context;
