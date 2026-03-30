@@ -38,17 +38,17 @@ through a machine-readable ready-file contract instead of human log parsing.
 
 ## Milestone Summary
 
-| Milestone | Title                                 | Status        | Exit Gate                                                     |
-| --------- | ------------------------------------- | ------------- | ------------------------------------------------------------- |
-| 0A        | Land The Validated Core Gate          | [COMPLETE]    | validate:core green, fix merged                               |
-| 0B        | Lock The Gate                         | [COMPLETE]    | Regression test, CI gate, runbook entry                       |
-| 1         | Reduce The Runtime Perimeter          | [COMPLETE]    | Registry/tests cover all mounted entrypoints, runtime reduced |
-| 2         | Consolidate Route And Flag Control    | [COMPLETE]    | One flag API for route exposure                               |
-| 3         | Make Shared Domain Logic Authority    | [IN PROGRESS] | Shared code is single source of truth for fund math           |
-| 4         | Move Finalization Authority To Server | [NOT STARTED] | One request owns full lifecycle                               |
-| 5         | Clean Backend Boundaries              | [NOT STARTED] | No fake persistence, modular route registration               |
-| 6         | Add Narrow Internal Features Only     | [NOT STARTED] | New work inside reduced route set only                        |
-| 7         | Reduce Tooling Entropy                | [COMPLETE]    | Short, obvious supported command path                         |
+| Milestone | Title                                 | Status     | Exit Gate                                                     |
+| --------- | ------------------------------------- | ---------- | ------------------------------------------------------------- |
+| 0A        | Land The Validated Core Gate          | [COMPLETE] | validate:core green, fix merged                               |
+| 0B        | Lock The Gate                         | [COMPLETE] | Regression test, CI gate, runbook entry                       |
+| 1         | Reduce The Runtime Perimeter          | [COMPLETE] | Registry/tests cover all mounted entrypoints, runtime reduced |
+| 2         | Consolidate Route And Flag Control    | [COMPLETE] | One flag API for route exposure                               |
+| 3         | Make Shared Domain Logic Authority    | [COMPLETE] | Shared code is single source of truth for fund math           |
+| 4         | Move Finalization Authority To Server | [COMPLETE] | One request owns full lifecycle                               |
+| 5         | Clean Backend Boundaries              | [COMPLETE] | No fake persistence, modular route registration               |
+| 6         | Add Narrow Internal Features Only     | [COMPLETE] | New work inside reduced route set only                        |
+| 7         | Reduce Tooling Entropy                | [COMPLETE] | Short, obvious supported command path                         |
 
 ## Milestone Details
 
@@ -188,15 +188,15 @@ gate.
 
 **Goal:** One server-owned lifecycle transaction.
 
-- [ ] Replace the client orchestration in `client/src/pages/ReviewStep.tsx:213`
+- [x] Replace the client orchestration in `client/src/pages/ReviewStep.tsx:213`
       with one server finalize endpoint.
-- [ ] Shrink the review page so it submits once and renders progress/result
+- [x] Shrink the review page so it submits once and renders progress/result
       state only.
-- [ ] Keep `client/src/stores/fundStore.ts:124` as draft UI state, not lifecycle
+- [x] Keep `client/src/stores/fundStore.ts:124` as draft UI state, not lifecycle
       authority.
-- [ ] Finish migration away from deprecated create payload support in
+- [x] Finish migration away from deprecated create payload support in
       `server/routes/funds.ts:25` and `server/routes/funds.ts:28`.
-- [ ] Replace route-level `console.warn` usage in `server/routes/funds.ts:155`
+- [x] Replace route-level `console.warn` usage in `server/routes/funds.ts:155`
       and `server/routes/funds.ts:206` with structured logger calls.
 
 **Exit criteria:**
@@ -212,27 +212,26 @@ gate.
 implicit storage mode.
 
 - [x] Build the ownership matrix for the remaining inline routes in
-      `server/routes.ts`.
-      Remaining inline ownership has been collapsed to dedicated route modules:
-      dashboard summary, investments, portfolio companies, activities, legacy
-      fund metrics, and engine summaries. Unsupported scenario writes remain
-      explicit `501` contracts until real persistence exists.
+      `server/routes.ts`. Remaining inline ownership has been collapsed to
+      dedicated route modules: dashboard summary, investments, portfolio
+      companies, activities, legacy fund metrics, and engine summaries.
+      Unsupported scenario writes remain explicit `501` contracts until real
+      persistence exists.
 - [x] Remove fake-success semantics from mounted write routes first.
       `POST /api/investments/:id/rounds` and `POST /api/investments/:id/cases`
       now return explicit `501 UNSUPPORTED_STORAGE_OPERATION` until real
       persistence exists.
 - [x] Add observable storage runtime state in `server/storage.ts` and expose it
       through `/readyz` and `/health/detailed`.
-- [x] Extract the safest remaining boundaries first.
-      Dashboard summary now lives behind
-      `server/services/dashboard-summary-read-service.ts` and
+- [x] Extract the safest remaining boundaries first. Dashboard summary now lives
+      behind `server/services/dashboard-summary-read-service.ts` and
       `server/routes/dashboard-summary.ts`, and investment routes now live in
       `server/routes/investments.ts`.
 - [x] Extract the remaining real CRUD route modules from `server/routes.ts`.
       Portfolio companies and activities now live in
       `server/routes/portfolio-companies.ts` and `server/routes/activities.ts`.
-- [x] Move remaining composed reads into dedicated services as needed.
-      Dashboard summary now reads through
+- [x] Move remaining composed reads into dedicated services as needed. Dashboard
+      summary now reads through
       `server/services/dashboard-summary-read-service.ts`, and the remaining
       summary endpoints live in dedicated route modules instead of the central
       registrar.
@@ -240,9 +239,9 @@ implicit storage mode.
       `server/db.ts` and `server/storage.ts` now share explicit boot policy via
       `server/storage-runtime-policy.ts`, with fail-fast behavior when neither
       DB mode nor explicit dev memory mode is allowed.
-- [x] Add regression guards:
-      boot-surface route tests, storage-mode assertions, and no-fake-mounted-
-      writes coverage are now enforced by the M5 integration/unit suites.
+- [x] Add regression guards: boot-surface route tests, storage-mode assertions,
+      and no-fake-mounted- writes coverage are now enforced by the M5
+      integration/unit suites.
 
 **Exit criteria:**
 
