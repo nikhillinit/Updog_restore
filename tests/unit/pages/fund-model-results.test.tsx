@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 
@@ -63,11 +63,13 @@ describe('FundModelResultsPage (server-backed)', () => {
   function mockFundPageFetches(options?: {
     results?: ReturnType<typeof readyResponse>;
     history?: ReturnType<typeof lifecycleHistoryResponse>;
+    comparison?: ReturnType<typeof resultsComparisonResponse>;
     recalculateResponse?: { success: boolean; correlationId: string; runId: number; dispatchState: string };
     recalculateStatus?: number;
   }) {
     const results = options?.results ?? readyResponse();
     const history = options?.history ?? lifecycleHistoryResponse();
+    const comparison = options?.comparison ?? resultsComparisonResponse();
     const recalculateStatus = options?.recalculateStatus ?? 200;
     const recalculateResponse =
       options?.recalculateResponse ?? {
@@ -86,6 +88,10 @@ describe('FundModelResultsPage (server-backed)', () => {
 
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(history));
+      }
+
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(comparison));
       }
 
       if (url.endsWith('/recalculate')) {
@@ -219,9 +225,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       expect(screen.getByText('Overview')).toBeInTheDocument();
     });
     // Typed fact tiles render formatted values
-    expect(screen.getByText('$100M')).toBeInTheDocument();
-    expect(screen.getByText('40.0%')).toBeInTheDocument(); // reserveRatio
-    expect(screen.getByText('5 yrs')).toBeInTheDocument(); // yearsToFullDeploy
+    expect(screen.getAllByText('$100M').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('40.0%').length).toBeGreaterThanOrEqual(1); // reserveRatio
+    expect(screen.getAllByText('5 yrs').length).toBeGreaterThanOrEqual(1); // yearsToFullDeploy
   });
 
   it('renders unavailable reason text for scenarios and waterfall sections', async () => {
@@ -469,10 +475,98 @@ describe('FundModelResultsPage (server-backed)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /show history/i }));
 
-    expect(await screen.findByText('Version v2')).toBeInTheDocument();
-    expect(screen.getByText('Version v1')).toBeInTheDocument();
-    expect(screen.getByText('Run 10')).toBeInTheDocument();
-    expect(screen.getByText('No calculation run')).toBeInTheDocument();
+    const historyCard = await screen.findByTestId('publish-history-card');
+    expect(within(historyCard).getByText('Version v2')).toBeInTheDocument();
+    expect(within(historyCard).getByText('Version v1')).toBeInTheDocument();
+    expect(within(historyCard).getByText('Run 10')).toBeInTheDocument();
+    expect(within(historyCard).getByText('No calculation run')).toBeInTheDocument();
+  });
+
+  it('renders publish comparison deltas when comparable history exists', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    expect(within(comparisonCard).getByText(/Publish Comparison/i)).toBeInTheDocument();
+    expect(within(comparisonCard).getByText('Current Published Version v2')).toBeInTheDocument();
+    expect(within(comparisonCard).getByText('Previous Published Version v1')).toBeInTheDocument();
+    expect(within(comparisonCard).getByText('Fund Size')).toBeInTheDocument();
+    expect(within(comparisonCard).getByText('$100M')).toBeInTheDocument();
+    expect(within(comparisonCard).getByText('Previous $80M')).toBeInTheDocument();
+    expect(
+      within(comparisonCard).getByText((_, element) =>
+        element?.textContent === 'Delta +$20M (+25.0%)'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('renders a comparison fallback when no previous published version exists', async () => {
+    mockFundPageFetches({
+      comparison: {
+        fundId: 123,
+        comparisonStatus: 'no_previous_version',
+        currentVersion: {
+          version: 1,
+          publishedAt: '2026-03-20T12:00:00.000Z',
+          calcRun: {
+            runId: 10,
+            status: 'ready',
+            dispatchState: 'dispatched',
+            lastCalculatedAt: '2026-03-20T12:30:00.000Z',
+            correlationId: 'corr-abc-123',
+          },
+          metrics: {
+            fundSize: 100_000_000,
+            reserveRatio: 0.4,
+            avgConfidence: 0.85,
+            yearsToFullDeploy: 5,
+          },
+        },
+        previousVersion: null,
+        metricDeltas: [],
+      },
+    });
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    await waitFor(() => {
+      expect(within(comparisonCard).getByText('Current Published Version v1')).toBeInTheDocument();
+    });
+    expect(within(comparisonCard).getByText(/Previous version unavailable/i)).toBeInTheDocument();
+    expect(
+      within(comparisonCard).getByText(
+        /Publish at least two versions to see metric deltas between releases/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('renders a comparison fallback when no published version exists', async () => {
+    const resp = readyResponse();
+    resp.lifecycle.configState.hasPublished = false;
+    resp.lifecycle.configState.publishedVersion = null;
+    resp.lifecycle.configState.publishedAt = null;
+
+    mockFundPageFetches({
+      results: resp,
+      comparison: {
+        fundId: 123,
+        comparisonStatus: 'no_published_version',
+        currentVersion: null,
+        previousVersion: null,
+        metricDeltas: [],
+      },
+    });
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    await waitFor(() => {
+      expect(within(comparisonCard).getByText(/No published version yet/i)).toBeInTheDocument();
+    });
+    expect(
+      within(comparisonCard).getByText(
+        /Publish a configuration to unlock publish-to-publish comparison/i
+      )
+    ).toBeInTheDocument();
   });
 
   it('disables recalculate when no published configuration exists', async () => {
@@ -525,9 +619,13 @@ describe('FundModelResultsPage (server-backed)', () => {
     const historyCalls = fetchSpy.mock.calls.filter(
       ([url]) => url === '/api/funds/123/lifecycle-history'
     );
+    const comparisonCalls = fetchSpy.mock.calls.filter(
+      ([url]) => url === '/api/funds/123/results-comparison'
+    );
 
     expect(resultsCalls.length).toBeGreaterThanOrEqual(2);
     expect(historyCalls.length).toBeGreaterThanOrEqual(2);
+    expect(comparisonCalls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders recalculation error when the server rejects the request', async () => {
@@ -536,6 +634,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       if (url.endsWith('/results')) return Promise.resolve(jsonResponse(readyResponse()));
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
       }
       if (url.endsWith('/recalculate')) {
         return Promise.resolve(
@@ -573,6 +674,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
       }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
+      }
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     });
 
@@ -582,6 +686,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     expect(countFetches('/api/funds/123/results')).toBe(1);
     expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+    expect(countFetches('/api/funds/123/results-comparison')).toBe(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1999);
@@ -614,6 +719,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(countFetches('/api/funds/123/results')).toBe(5);
 
     expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+    expect(countFetches('/api/funds/123/results-comparison')).toBe(1);
   });
 
   it('resets backoff when runId changes during active polling', async () => {
@@ -632,6 +738,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       }
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
       }
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     });
@@ -671,6 +780,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
       }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
+      }
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     });
 
@@ -680,12 +792,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     expect(countFetches('/api/funds/123/results')).toBe(1);
     expect(countFetches('/api/funds/123/lifecycle-history')).toBe(1);
+    expect(countFetches('/api/funds/123/results-comparison')).toBe(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
     expect(countFetches('/api/funds/123/results')).toBe(2);
     expect(countFetches('/api/funds/123/lifecycle-history')).toBe(2);
+    expect(countFetches('/api/funds/123/results-comparison')).toBe(2);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30000);
@@ -707,6 +821,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       }
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
       }
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     });
@@ -739,6 +856,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       if (url.endsWith('/results')) return Promise.resolve(jsonResponse(calculatingResponse()));
       if (url.endsWith('/lifecycle-history')) {
         return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      }
+      if (url.endsWith('/results-comparison')) {
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
       }
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     });
@@ -892,6 +1012,75 @@ function lifecycleHistoryResponse() {
         fundSize: 80_000_000,
         numCompanies: null,
         calcRun: null,
+      },
+    ],
+  };
+}
+
+function resultsComparisonResponse() {
+  return {
+    fundId: 123,
+    comparisonStatus: 'comparable' as const,
+    currentVersion: {
+      version: 2,
+      publishedAt: '2026-03-20T12:00:00.000Z',
+      calcRun: {
+        runId: 10,
+        status: 'ready' as const,
+        dispatchState: 'dispatched' as const,
+        lastCalculatedAt: '2026-03-20T12:30:00.000Z',
+        correlationId: 'corr-abc-123',
+      },
+      metrics: {
+        fundSize: 100_000_000,
+        reserveRatio: 0.4,
+        avgConfidence: 0.85,
+        yearsToFullDeploy: 5,
+      },
+    },
+    previousVersion: {
+      version: 1,
+      publishedAt: '2026-03-15T10:00:00.000Z',
+      calcRun: null,
+      metrics: {
+        fundSize: 80_000_000,
+        reserveRatio: 0.35,
+        avgConfidence: 0.8,
+        yearsToFullDeploy: 6,
+      },
+    },
+    metricDeltas: [
+      {
+        metric: 'fundSize' as const,
+        displayName: 'Fund Size',
+        currentValue: 100_000_000,
+        previousValue: 80_000_000,
+        absoluteDelta: 20_000_000,
+        percentageDelta: 25,
+      },
+      {
+        metric: 'reserveRatio' as const,
+        displayName: 'Reserve Ratio',
+        currentValue: 0.4,
+        previousValue: 0.35,
+        absoluteDelta: 0.05,
+        percentageDelta: 14.2857142857,
+      },
+      {
+        metric: 'avgConfidence' as const,
+        displayName: 'Average Confidence',
+        currentValue: 0.85,
+        previousValue: 0.8,
+        absoluteDelta: 0.05,
+        percentageDelta: 6.25,
+      },
+      {
+        metric: 'yearsToFullDeploy' as const,
+        displayName: 'Years To Full Deploy',
+        currentValue: 5,
+        previousValue: 6,
+        absoluteDelta: -1,
+        percentageDelta: -16.6666666667,
       },
     ],
   };
