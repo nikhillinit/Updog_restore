@@ -484,4 +484,45 @@ export function registerFundConfigRoutes(app: Express) {
       res['status'](500)['json'](apiError);
     }
   });
+
+  // GET /api/funds/:id/results-comparison -- Post-stabilization results comparison read model
+  app['get']('/api/funds/:id/results-comparison', async (req: Request, res: Response) => {
+    try {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message,
+          };
+          return res['status'](400)['json'](error);
+        }
+        throw err;
+      }
+
+      const { fundResultsComparisonService } = await import(
+        '../services/fund-results-comparison-service'
+      );
+      const comparison = await fundResultsComparisonService.getComparison(fundId);
+
+      if (!comparison) {
+        const error: ApiError = {
+          error: 'Fund not found',
+          message: `No fund exists with ID: ${fundId}`,
+        };
+        return res['status'](404)['json'](error);
+      }
+
+      res['json'](comparison);
+    } catch (error) {
+      console.error('[results-comparison] Error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to read results comparison',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+      res['status'](500)['json'](apiError);
+    }
+  });
 }

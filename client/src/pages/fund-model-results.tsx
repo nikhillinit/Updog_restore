@@ -26,8 +26,12 @@ import type {
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import type {
   FundLifecycleHistoryV1,
-  LifecycleHistoryEntry,
 } from '@shared/contracts/fund-lifecycle-history-v1.contract';
+import type {
+  FundResultsComparisonV1,
+  MetricDelta,
+  PublishedVersionSummary,
+} from '@shared/contracts/fund-results-comparison-v1.contract';
 
 // ============================================================================
 // TYPES
@@ -48,7 +52,11 @@ type RecalculateState =
   | { kind: 'submitting' }
   | { kind: 'error'; message: string };
 
-type LifecycleHistoryRunStatus = NonNullable<LifecycleHistoryEntry['calcRun']>['status'];
+type ResultsComparisonState =
+  | { kind: 'loading'; comparison: FundResultsComparisonV1 | null }
+  | { kind: 'error'; message: string; comparison: FundResultsComparisonV1 | null }
+  | { kind: 'data'; comparison: FundResultsComparisonV1 };
+
 type LifecycleStatus = FundStateReadV1['calculationState']['status'];
 
 interface FetchOptions {
@@ -338,6 +346,55 @@ function useFundLifecycleHistory(fundId: string | null) {
   return { state, refresh: fetchHistory };
 }
 
+function useFundResultsComparison(fundId: string | null) {
+  const [state, setState] = useState<ResultsComparisonState>({
+    kind: 'loading',
+    comparison: null,
+  });
+
+  const fetchComparison = useCallback(async () => {
+    if (!fundId || fundId === 'latest') return;
+    try {
+      const res = await fetch(`/api/funds/${fundId}/results-comparison`);
+      if (res.status === 404) {
+        setState({
+          kind: 'error',
+          message: 'Results comparison unavailable',
+          comparison: null,
+        });
+        return;
+      }
+      if (!res.ok) {
+        setState({
+          kind: 'error',
+          message: `Results comparison unavailable (${res.status})`,
+          comparison: null,
+        });
+        return;
+      }
+
+      const comparison = (await res.json()) as FundResultsComparisonV1;
+      setState({ kind: 'data', comparison });
+    } catch {
+      setState({
+        kind: 'error',
+        message: 'Results comparison unavailable',
+        comparison: null,
+      });
+    }
+  }, [fundId]);
+
+  useEffect(() => {
+    if (!fundId || fundId === 'latest') {
+      setState({ kind: 'loading', comparison: null });
+      return;
+    }
+    void fetchComparison();
+  }, [fundId, fetchComparison]);
+
+  return { state, refresh: fetchComparison };
+}
+
 function useRecalculatePublished(
   fundId: string | null,
   onSuccess: () => void
@@ -554,12 +611,12 @@ function formatLifecycleStatus(status: FundStateReadV1['calculationState']['stat
   }
 }
 
-function formatHistoryRunStatus(status: LifecycleHistoryRunStatus | null) {
+function formatHistoryRunStatus(status: LifecycleStatus | null) {
   if (!status) return 'Not started';
   return formatLifecycleStatus(status);
 }
 
-function historyBadgeClasses(status: LifecycleHistoryRunStatus | null) {
+function historyBadgeClasses(status: LifecycleStatus | null) {
   switch (status) {
     case 'ready':
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
@@ -573,6 +630,58 @@ function historyBadgeClasses(status: LifecycleHistoryRunStatus | null) {
   }
 }
 
+function formatComparisonMetricValue(metric: MetricDelta['metric'], value: number | null) {
+  if (value == null) return 'Not available';
+
+  switch (metric) {
+    case 'fundSize':
+      return `$${(value / 1_000_000).toFixed(0)}M`;
+    case 'reserveRatio':
+    case 'avgConfidence':
+      return `${(value * 100).toFixed(1)}%`;
+    case 'yearsToFullDeploy':
+      return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} yrs`;
+    default:
+      return String(value);
+  }
+}
+
+function formatComparisonDelta(delta: MetricDelta) {
+  if (delta.absoluteDelta == null) return 'No delta available';
+
+  const sign = delta.absoluteDelta > 0 ? '+' : delta.absoluteDelta < 0 ? '-' : '';
+  const magnitude = formatComparisonMetricValue(delta.metric, Math.abs(delta.absoluteDelta));
+
+  if (delta.percentageDelta == null) {
+    return `${sign}${magnitude}`;
+  }
+
+  const percentSign = delta.percentageDelta > 0 ? '+' : '';
+  return `${sign}${magnitude} (${percentSign}${delta.percentageDelta.toFixed(1)}%)`;
+}
+
+function renderRunSummary(summary: PublishedVersionSummary) {
+  if (!summary.calcRun) {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className={historyBadgeClasses(null)}>
+          Not started
+        </Badge>
+        <span className="text-sm text-charcoal-500 font-poppins">No calculation run</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge variant="outline" className={historyBadgeClasses(summary.calcRun.status)}>
+        {formatLifecycleStatus(summary.calcRun.status)}
+      </Badge>
+      <span className="text-sm text-charcoal-500 font-poppins">Run {summary.calcRun.runId}</span>
+    </div>
+  );
+}
+
 function hasStaleEvidence(lifecycle: FundStateReadV1) {
   const publishedVersion = lifecycle.configState.publishedVersion;
   const calculationVersion = lifecycle.calculationState.configVersion;
@@ -581,6 +690,74 @@ function hasStaleEvidence(lifecycle: FundStateReadV1) {
     calculationVersion != null &&
     calculationVersion < publishedVersion
   );
+}
+
+function diagnosticAlertClasses(tone: 'neutral' | 'warning' | 'danger' | 'success') {
+  switch (tone) {
+    case 'danger':
+      return 'border-rose-200 bg-rose-50';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50';
+    case 'success':
+      return 'border-emerald-200 bg-emerald-50';
+    default:
+      return 'border-beige-200 bg-beige-50';
+  }
+}
+
+function getLifecycleDiagnostic(lifecycle: FundStateReadV1) {
+  const { configState, calculationState } = lifecycle;
+  const publishedVersion =
+    configState.publishedVersion != null ? `v${configState.publishedVersion}` : 'an unpublished draft';
+  const runLabel =
+    calculationState.runId != null ? `run ${calculationState.runId}` : 'the next calculation run';
+
+  if (!configState.hasPublished) {
+    return {
+      tone: 'neutral' as const,
+      title: 'No published configuration yet',
+      description:
+        'This fund does not have a published configuration yet, so authoritative calculations have not started. Publish a configuration before relying on lifecycle-backed results.',
+    };
+  }
+
+  if (calculationState.status === 'failed') {
+    return {
+      tone: 'danger' as const,
+      title: 'Published configuration exists, but the latest calculation failed',
+      description: `${publishedVersion} is published, but ${runLabel} did not complete successfully. Review the latest calculation error and retry once the issue is resolved.`,
+    };
+  }
+
+  if (calculationState.status === 'submitted' || calculationState.status === 'calculating') {
+    return {
+      tone: 'warning' as const,
+      title: 'Calculation is in progress',
+      description: `${publishedVersion} is currently being processed under ${runLabel}. The page will keep polling the results endpoint until the lifecycle reaches a terminal state.`,
+    };
+  }
+
+  if (hasStaleEvidence(lifecycle)) {
+    return {
+      tone: 'warning' as const,
+      title: 'Published configuration is ahead of the current calculation',
+      description: `The latest publish is ${publishedVersion}, but the current evidence is still tied to v${calculationState.configVersion}. Recalculate to bring the displayed results back in sync.`,
+    };
+  }
+
+  if (calculationState.status === 'ready') {
+    return {
+      tone: 'success' as const,
+      title: 'Results are current',
+      description: `${publishedVersion} has a completed calculation run, and the results page is showing current server-backed evidence for that publish.`,
+    };
+  }
+
+  return {
+    tone: 'neutral' as const,
+    title: 'Calculation has not been requested',
+    description: `${publishedVersion} is published, but no calculation run has been requested yet.`,
+  };
 }
 
 function ConfigDiffBanner({ lifecycle }: { lifecycle: FundStateReadV1 }) {
@@ -605,7 +782,10 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
     historyState.kind === 'data' ? historyState.history.entries.length : historyState.history?.entries.length ?? 0;
 
   return (
-    <div className="bg-white rounded-lg border border-beige-200 p-6 space-y-4">
+    <div
+      className="bg-white rounded-lg border border-beige-200 p-6 space-y-4"
+      data-testid="publish-history-card"
+    >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -681,6 +861,133 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
   );
 }
 
+function PublishComparisonCard({
+  comparisonState,
+}: {
+  comparisonState: ResultsComparisonState;
+}) {
+  return (
+    <div
+      className="bg-white rounded-lg border border-beige-200 p-6 space-y-4"
+      data-testid="publish-comparison-card"
+    >
+      <div>
+        <h2 className="text-lg font-medium text-charcoal">Publish Comparison</h2>
+        <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+          Compare the current published version with the immediately previous publication.
+        </p>
+      </div>
+
+      {comparisonState.kind === 'loading' && (
+        <p className="text-sm text-charcoal-500 font-poppins">Loading publish comparison…</p>
+      )}
+
+      {comparisonState.kind === 'error' && (
+        <Alert className="border-beige-200">
+          <AlertCircle className="h-4 w-4 text-charcoal-400" />
+          <AlertTitle>Comparison unavailable</AlertTitle>
+          <AlertDescription className="font-poppins text-charcoal-500">
+            {comparisonState.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {comparisonState.kind === 'data' &&
+        comparisonState.comparison.comparisonStatus === 'no_published_version' && (
+          <Alert className="border-beige-200">
+            <AlertCircle className="h-4 w-4 text-charcoal-400" />
+            <AlertTitle>No published version yet</AlertTitle>
+            <AlertDescription className="font-poppins text-charcoal-500">
+              Publish a configuration to unlock publish-to-publish comparison.
+            </AlertDescription>
+          </Alert>
+        )}
+
+      {comparisonState.kind === 'data' &&
+        comparisonState.comparison.comparisonStatus === 'no_previous_version' &&
+        comparisonState.comparison.currentVersion && (
+          <>
+            <div className="rounded-md border border-beige-200 p-4 space-y-3">
+              <div>
+                <p className="font-medium text-charcoal">
+                  Current Published Version v{comparisonState.comparison.currentVersion.version}
+                </p>
+                <p className="text-sm text-charcoal-500 font-poppins">
+                  Published{' '}
+                  {formatDateOrFallback(comparisonState.comparison.currentVersion.publishedAt)}
+                </p>
+              </div>
+              {renderRunSummary(comparisonState.comparison.currentVersion)}
+            </div>
+
+            <Alert className="border-beige-200">
+              <AlertCircle className="h-4 w-4 text-charcoal-400" />
+              <AlertTitle>Previous version unavailable</AlertTitle>
+              <AlertDescription className="font-poppins text-charcoal-500">
+                Publish at least two versions to see metric deltas between releases.
+              </AlertDescription>
+            </Alert>
+          </>
+        )}
+
+      {comparisonState.kind === 'data' &&
+        comparisonState.comparison.comparisonStatus === 'comparable' &&
+        comparisonState.comparison.currentVersion &&
+        comparisonState.comparison.previousVersion && (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-md border border-beige-200 p-4 space-y-3">
+                <div>
+                  <p className="font-medium text-charcoal">
+                    Current Published Version v{comparisonState.comparison.currentVersion.version}
+                  </p>
+                  <p className="text-sm text-charcoal-500 font-poppins">
+                    Published{' '}
+                    {formatDateOrFallback(comparisonState.comparison.currentVersion.publishedAt)}
+                  </p>
+                </div>
+                {renderRunSummary(comparisonState.comparison.currentVersion)}
+              </div>
+
+              <div className="rounded-md border border-beige-200 p-4 space-y-3">
+                <div>
+                  <p className="font-medium text-charcoal">
+                    Previous Published Version v{comparisonState.comparison.previousVersion.version}
+                  </p>
+                  <p className="text-sm text-charcoal-500 font-poppins">
+                    Published{' '}
+                    {formatDateOrFallback(comparisonState.comparison.previousVersion.publishedAt)}
+                  </p>
+                </div>
+                {renderRunSummary(comparisonState.comparison.previousVersion)}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {comparisonState.comparison.metricDeltas.map((delta) => (
+                <div
+                  key={delta.metric}
+                  className="rounded-md border border-beige-200 bg-beige-50 p-4 space-y-2"
+                >
+                  <p className="text-xs text-charcoal-400 font-poppins">{delta.displayName}</p>
+                  <p className="text-lg font-medium text-charcoal">
+                    {formatComparisonMetricValue(delta.metric, delta.currentValue)}
+                  </p>
+                  <p className="text-sm text-charcoal-500 font-poppins">
+                    Previous {formatComparisonMetricValue(delta.metric, delta.previousValue)}
+                  </p>
+                  <p className="text-sm font-medium text-charcoal">
+                    Delta {formatComparisonDelta(delta)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+    </div>
+  );
+}
+
 function RecalcButton({
   lifecycle,
   recalculateState,
@@ -732,14 +1039,26 @@ function LifecycleStatusCard({
   onRecalculate: () => void;
 }) {
   const { configState, calculationState } = lifecycle;
+  const diagnostic = getLifecycleDiagnostic(lifecycle);
+  const availableSnapshotList =
+    calculationState.availableSnapshotTypes.length > 0
+      ? calculationState.availableSnapshotTypes.join(', ')
+      : 'None yet';
+  const expectedSnapshotList =
+    calculationState.expectedSnapshotTypes.length > 0
+      ? calculationState.expectedSnapshotTypes.join(', ')
+      : 'None';
 
   return (
-    <div className="bg-white rounded-lg border border-beige-200 p-6 space-y-4">
+    <div
+      className="bg-white rounded-lg border border-beige-200 p-6 space-y-4"
+      data-testid="run-diagnostics-card"
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-medium text-charcoal">Lifecycle Status</h2>
           <p className="text-sm text-charcoal-500 font-poppins mt-1">
-            Server-backed publication and calculation state for this fund.
+            Server-backed publication, calculation, and run diagnostics for this fund.
           </p>
         </div>
 
@@ -749,6 +1068,14 @@ function LifecycleStatusCard({
           onRecalculate={onRecalculate}
         />
       </div>
+
+      <Alert className={diagnosticAlertClasses(diagnostic.tone)}>
+        <AlertCircle className="h-4 w-4 text-charcoal-500" />
+        <AlertTitle>{diagnostic.title}</AlertTitle>
+        <AlertDescription className="font-poppins text-charcoal-600">
+          {diagnostic.description}
+        </AlertDescription>
+      </Alert>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <FactTile
@@ -773,7 +1100,7 @@ function LifecycleStatusCard({
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <FactTile
           label="Draft Version"
           value={configState.draftVersion != null ? `v${configState.draftVersion}` : 'No draft'}
@@ -787,9 +1114,24 @@ function LifecycleStatusCard({
           value={calculationState.dispatchState ?? 'Not dispatched'}
         />
         <FactTile
+          label="Correlation ID"
+          value={calculationState.correlationId ?? 'Not available'}
+        />
+        <FactTile
           label="Snapshot Coverage"
           value={`${calculationState.availableSnapshotTypes.length}/${calculationState.expectedSnapshotTypes.length}`}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
+          <p className="text-xs text-charcoal-400 font-poppins">Available Snapshots</p>
+          <p className="mt-1 text-sm text-charcoal font-medium">{availableSnapshotList}</p>
+        </div>
+        <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
+          <p className="text-xs text-charcoal-400 font-poppins">Expected Snapshots</p>
+          <p className="mt-1 text-sm text-charcoal font-medium">{expectedSnapshotList}</p>
+        </div>
       </div>
 
       {calculationState.lastError && (
@@ -948,9 +1290,11 @@ function FundModelResultsPage() {
   // Hook must be called unconditionally (React rules of hooks)
   const { state: fetchState, refresh: refreshResults } = useFundResults(fundId);
   const { state: historyState, refresh: refreshHistory } = useFundLifecycleHistory(fundId);
+  const { state: comparisonState, refresh: refreshComparison } = useFundResultsComparison(fundId);
   const { state: recalculateState, recalculate } = useRecalculatePublished(fundId, () => {
     void refreshResults();
     void refreshHistory();
+    void refreshComparison();
   });
   const previousCalculationStatusRef = useRef<LifecycleStatus | null>(null);
 
@@ -965,10 +1309,11 @@ function FundModelResultsPage() {
       isTerminalCalculationStatus(status)
     ) {
       void refreshHistory();
+      void refreshComparison();
     }
 
     previousCalculationStatusRef.current = status;
-  }, [fetchState, refreshHistory]);
+  }, [fetchState, refreshComparison, refreshHistory]);
 
   // Handle /latest or missing fundId
   if (fundId === 'latest' || !fundId) {
@@ -1010,6 +1355,10 @@ function FundModelResultsPage() {
 
       <FadeInSection>
         <PublishHistoryCard historyState={historyState} />
+      </FadeInSection>
+
+      <FadeInSection>
+        <PublishComparisonCard comparisonState={comparisonState} />
       </FadeInSection>
 
       {/* Reserve section */}
