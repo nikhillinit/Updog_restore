@@ -15,6 +15,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { query, transaction, type PoolClient } from '../db/index';
 import { dollarsToCents, centsToDollars } from '@shared/units';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -301,7 +302,7 @@ async function getFundSize(fundId: number): Promise<number> {
  */
 router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, res: Response) => {
   try {
-    const fundId = parseInt(req.params['fundId'] ?? '', 10);
+    const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
     if (isNaN(fundId) || fundId <= 0) {
       return res['status'](400)['json']({ error: 'Invalid fund ID' });
     }
@@ -400,7 +401,7 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
  */
 router['post']('/api/funds/:fundId/reallocation/commit', async (req: Request, res: Response) => {
   try {
-    const fundId = parseInt(req.params['fundId'] ?? '', 10);
+    const fundId = parseInt(firstString(req.params['fundId']) ?? '', 10);
     if (isNaN(fundId) || fundId <= 0) {
       return res['status'](400)['json']({ error: 'Invalid fund ID' });
     }

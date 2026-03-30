@@ -25,6 +25,7 @@ import {
   recordUnknownStage,
 } from '../observability/stage-metrics';
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+import { firstString } from '../lib/request-values';
 
 // Type for portfolio storage
 type PortfolioStorage = {
@@ -417,7 +418,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
  */
 router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
   try {
-    const strategyId = req.params['id'];
+    const strategyId = firstString(req.params['id']);
     if (!strategyId) {
       const error: ApiError = {
         error: 'Invalid strategy ID',
@@ -497,7 +498,7 @@ router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Respons
  */
 router['delete']('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
   try {
-    const strategyId = req.params['id'];
+    const strategyId = firstString(req.params['id']);
     if (!strategyId) {
       const error: ApiError = {
         error: 'Invalid strategy ID',
@@ -737,7 +738,7 @@ router['post'](
   idempotency,
   async (req: Request, res: Response) => {
     try {
-      const scenarioId = req.params['id'];
+      const scenarioId = firstString(req.params['id']);
       if (!scenarioId) {
         const error: ApiError = {
           error: 'Invalid scenario ID',
@@ -1163,7 +1164,7 @@ router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res
  */
 router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: Response) => {
   try {
-    const scenarioId = req.params['scenarioId'];
+    const scenarioId = firstString(req.params['scenarioId']);
     if (!scenarioId) {
       const error: ApiError = {
         error: 'Invalid scenario ID',
@@ -1172,8 +1173,8 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       return res['status'](400)['json'](error);
     }
 
-    const forecastType = req.query['forecastType'] as string | undefined;
-    const status = req.query['status'] as string | undefined;
+    const forecastType = firstString(req.query['forecastType']);
+    const status = firstString(req.query['status']);
 
     // Fetch forecasts from database
     const forecasts = await portfolioIntelligenceService.forecasts.getByScenario(scenarioId, {
@@ -1299,8 +1300,8 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
  */
 router['get']('/api/portfolio/templates', async (req: Request, res: Response) => {
   try {
-    const category = req.query['category'] as string;
-    const riskProfile = req.query['riskProfile'] as string;
+    const category = firstString(req.query['category']);
+    const riskProfile = firstString(req.query['riskProfile']);
 
     // MVP: Static strategy templates - database-backed templates deferred to Phase 2
     const templates = [
@@ -1437,7 +1438,7 @@ router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Respon
  */
 router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Response) => {
   try {
-    const scenarioId = req.params['scenarioId'];
+    const scenarioId = firstString(req.params['scenarioId']);
     if (!scenarioId) {
       const error: ApiError = {
         error: 'Invalid scenario ID',
@@ -1446,8 +1447,8 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       return res['status'](400)['json'](error);
     }
 
-    const _metricType = req.query['metricType'] as string;
-    const _timeRange = (req.query['timeRange'] as string) || '1y';
+    const _metricType = firstString(req.query['metricType']);
+    const _timeRange = firstString(req.query['timeRange']) || '1y';
 
     // MVP STUB: Scenario metrics returns sample data
     // Real-time calculation from portfolio data deferred to Phase 2

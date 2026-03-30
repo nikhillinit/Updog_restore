@@ -27,6 +27,7 @@ import {
   HistoryQuerySchema,
 } from '../../../shared/schemas/version-schemas.js';
 import { optionalProps } from '../../../shared/utils/type-safety.js';
+import { firstString } from '../../lib/request-values';
 
 const router = Router({ mergeParams: true });
 const versionService = new SnapshotVersionService();
@@ -599,7 +600,7 @@ router.post(
 router.get(
   '/compare/:comparisonId',
   asyncHandler(async (req: Request, res: Response) => {
-    const { comparisonId } = req.params;
+    const comparisonId = firstString(req.params['comparisonId']);
 
     if (!comparisonId) {
       return res.status(400).json({

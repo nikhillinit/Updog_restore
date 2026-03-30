@@ -28,6 +28,7 @@ import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
 import { v4 as uuidv4 } from 'uuid';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -390,7 +391,7 @@ router.get(
 
     try {
       const lpId = req.lpProfile?.id;
-      const documentId = req.params['documentId'];
+      const documentId = firstString(req.params['documentId']);
 
       if (!lpId) {
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
@@ -502,7 +503,7 @@ router.get(
 
     try {
       const lpId = req.lpProfile?.id;
-      const documentId = req.params['documentId'];
+      const documentId = firstString(req.params['documentId']);
 
       if (!lpId) {
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));

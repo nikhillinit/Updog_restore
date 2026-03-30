@@ -3,8 +3,10 @@
  * Centralizes header access pattern for type safety
  */
 
+import { firstString, type RequestValue } from './request-values';
+
 interface RequestHeaders {
-  [key: string]: string | string[] | undefined;
+  [key: string]: RequestValue;
 }
 
 /**
@@ -12,16 +14,10 @@ interface RequestHeaders {
  * Handles the string | string[] | undefined type properly
  */
 export function header(
-  headers: RequestHeaders, 
+  headers: RequestHeaders,
   name: string
 ): string | undefined {
-  const value = headers[name.toLowerCase()];
-  
-  if (Array.isArray(value)) {
-    return value[0]!; // Take first value if array
-  }
-  
-  return value;
+  return firstString(headers[name.toLowerCase()]);
 }
 
 /**

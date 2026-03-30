@@ -27,6 +27,7 @@ import { lpNotifications, lpNotificationPreferences } from '@shared/schema-lp-sp
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -325,7 +326,7 @@ router.post(
 
     try {
       const lpId = req.lpProfile?.id;
-      const notificationId = req.params['notificationId'];
+      const notificationId = firstString(req.params['notificationId']);
 
       if (!lpId) {
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));

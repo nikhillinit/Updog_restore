@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { errorBudgetManager } from '../lib/error-budget';
 import type { Request, Response } from 'express';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router['get']('/', async (_req: Request, res: Response) => {
 // Get specific SLO error budget
 router['get']('/:slo', async (req: Request, res: Response) => {
   try {
-    const { slo } = req.params;
+    const slo = firstString(req.params['slo']);
     if (!slo) {
       res.status(400).json({ error: 'Missing SLO parameter' });
       return;

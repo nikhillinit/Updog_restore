@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { logger } from '@/lib/logger';
 import { config } from '../config/index.js';
+import { firstString } from '../lib/request-values';
 
 const MAX_BUFFER_BYTES = config.STREAM_BUFFER_SIZE_BYTES; // Default 10 MB per stream
 const KEEPALIVE_INTERVAL_MS = 25_000; // 25 seconds
@@ -24,7 +25,7 @@ const KEEPALIVE_INTERVAL_MS = 25_000; // 25 seconds
  */
 
 export async function stream(req: Request, res: Response) {
-  const { runId } = req.params;
+  const runId = firstString(req.params['runId']);
 
   if (!runId) {
     logger.warn('Stream endpoint called without runId', { path: req.path });

@@ -18,6 +18,7 @@ import cors from 'cors';
 import { requestId } from './middleware/requestId.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
 import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
+import { firstString } from './lib/request-values';
 import { correlation } from './middleware/correlation.js';
 import { engineGuardExpress } from './middleware/engineGuardExpress.js';
 import { requireSecureContext } from './lib/secure-context.js';
@@ -247,12 +248,13 @@ export async function createServer(
     // For development, you might want to bypass auth - remove this in production!
     if (config.NODE_ENV === 'development' && !process.env['REQUIRE_AUTH']) {
       // Mock context for development
+      const fundId = firstString(req.params['fundId']) ?? firstString(req.query['fundId']);
       req.context = {
         userId: 'dev-user',
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',
-        fundId: req.params['fundId'] || (req.query['fundId'] as string),
+        ...(fundId ? { fundId } : {}),
       };
       return next();
     }

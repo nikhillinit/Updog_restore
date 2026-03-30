@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { logger } from '../logger';
+import { firstString } from '../lib/request-values';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ export type SSEEventType =
  * Client will receive events as they occur
  */
 router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
-  const fundIdParam = req.params['fundId'];
+  const fundIdParam = firstString(req.params['fundId']);
   const fundId = parseInt(fundIdParam || '0', 10);
 
   if (isNaN(fundId) || fundId <= 0) {
@@ -122,7 +123,7 @@ router['get']('/api/events/fund/:fundId', (req: Request, res: Response) => {
  * Streams progress updates and final results
  */
 router['get']('/api/events/simulation/:simulationId', (req: Request, res: Response) => {
-  const simulationId = req.params['simulationId'];
+  const simulationId = firstString(req.params['simulationId']);
 
   if (!simulationId) {
     return res['status'](400)['json']({
