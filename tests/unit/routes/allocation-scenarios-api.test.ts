@@ -7,12 +7,16 @@ const {
   getAllocationScenarioMock,
   getAllocationScenarioApplyPreviewMock,
   createAllocationScenarioMock,
+  syncAllocationScenarioMock,
+  applyAllocationScenarioMock,
   updateAllocationScenarioMock,
 } = vi.hoisted(() => ({
   listAllocationScenariosMock: vi.fn(),
   getAllocationScenarioMock: vi.fn(),
   getAllocationScenarioApplyPreviewMock: vi.fn(),
   createAllocationScenarioMock: vi.fn(),
+  syncAllocationScenarioMock: vi.fn(),
+  applyAllocationScenarioMock: vi.fn(),
   updateAllocationScenarioMock: vi.fn(),
 }));
 
@@ -21,6 +25,8 @@ vi.mock('../../../server/services/allocation-scenario-service.js', () => ({
   getAllocationScenario: getAllocationScenarioMock,
   getAllocationScenarioApplyPreview: getAllocationScenarioApplyPreviewMock,
   createAllocationScenario: createAllocationScenarioMock,
+  syncAllocationScenario: syncAllocationScenarioMock,
+  applyAllocationScenario: applyAllocationScenarioMock,
   updateAllocationScenario: updateAllocationScenarioMock,
 }));
 
@@ -95,12 +101,88 @@ const scenarioApplyPreview = {
   },
 };
 
+const scenarioSyncResult = {
+  scenario: {
+    ...scenarioDetail,
+    source_allocation_version: 7,
+    company_count: 2,
+    total_planned_cents: 325000000,
+    last_synced_at: '2026-03-30T18:15:00.000Z',
+    last_synced_by: 'analyst@example.com',
+    updated_at: '2026-03-30T18:15:00.000Z',
+  },
+  event: {
+    id: '00000000-0000-0000-0000-000000000202',
+    event_type: 'synced',
+    actor_user_id: 17,
+    actor_label: 'analyst@example.com',
+    note: 'Refresh from live before committee review',
+    source_allocation_version: 3,
+    resulting_allocation_version: 7,
+    change_summary: {
+      companies_changed: 1,
+      companies_unchanged: 1,
+      scenario_only_count: 0,
+      live_only_count: 0,
+      total_planned_delta_cents: -25000000,
+      headline: 'Synced 1 company',
+    },
+    created_at: '2026-03-30T18:15:00.000Z',
+  },
+};
+
+const scenarioApplyResult = {
+  scenario: {
+    ...scenarioDetail,
+    source_allocation_version: 8,
+    last_applied_at: '2026-03-30T18:30:00.000Z',
+    last_applied_by: 'analyst@example.com',
+    last_applied_allocation_version: 8,
+    updated_at: '2026-03-30T18:30:00.000Z',
+  },
+  event: {
+    id: '00000000-0000-0000-0000-000000000203',
+    event_type: 'applied',
+    actor_user_id: 17,
+    actor_label: 'analyst@example.com',
+    note: 'Apply approved reserve plan',
+    source_allocation_version: 7,
+    resulting_allocation_version: 8,
+    change_summary: {
+      companies_changed: 1,
+      companies_unchanged: 1,
+      scenario_only_count: 0,
+      live_only_count: 0,
+      total_planned_delta_cents: 25000000,
+      headline: 'Applied 1 company',
+    },
+    created_at: '2026-03-30T18:30:00.000Z',
+  },
+  live: {
+    updated_count: 1,
+    resulting_allocation_version: 8,
+    previous_preview_token: 'preview-token',
+    current_live_token: 'next-preview-token',
+  },
+};
+
 describe('Allocation scenarios API', () => {
   let app: express.Express;
 
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = {
+        id: '17',
+        sub: '17',
+        email: 'analyst@example.com',
+        roles: ['analyst'],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
     app.use(allocationScenarioRouter);
     vi.clearAllMocks();
   });
@@ -193,6 +275,51 @@ describe('Allocation scenarios API', () => {
     expect(updateAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId, payload);
   });
 
+  it('syncs a scenario from live allocations', async () => {
+    syncAllocationScenarioMock.mockResolvedValue(scenarioSyncResult);
+
+    const payload = {
+      note: 'Refresh from live before committee review',
+    };
+
+    const response = await request(app)
+      .post(`/funds/1/allocation-scenarios/${scenarioId}/sync`)
+      .send(payload)
+      .expect(200);
+
+    expect(response.body).toEqual(scenarioSyncResult);
+    expect(syncAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId, {
+      ...payload,
+      actor: {
+        user_id: 17,
+        label: 'analyst@example.com',
+      },
+    });
+  });
+
+  it('applies a scenario with a preview token', async () => {
+    applyAllocationScenarioMock.mockResolvedValue(scenarioApplyResult);
+
+    const payload = {
+      preview_token: 'a'.repeat(64),
+      note: 'Apply approved reserve plan',
+    };
+
+    const response = await request(app)
+      .post(`/funds/1/allocation-scenarios/${scenarioId}/apply`)
+      .send(payload)
+      .expect(200);
+
+    expect(response.body).toEqual(scenarioApplyResult);
+    expect(applyAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId, {
+      ...payload,
+      actor: {
+        user_id: 17,
+        label: 'analyst@example.com',
+      },
+    });
+  });
+
   it('rejects invalid fund ids before touching the service', async () => {
     const response = await request(app).get('/funds/not-a-number/allocation-scenarios').expect(400);
 
@@ -227,5 +354,45 @@ describe('Allocation scenarios API', () => {
       })
     );
     expect(updateAllocationScenarioMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid apply payloads before touching the service', async () => {
+    const response = await request(app)
+      .post(`/funds/1/allocation-scenarios/${scenarioId}/apply`)
+      .send({ preview_token: 'stale' })
+      .expect(400);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: 'invalid_request_body',
+      })
+    );
+    expect(applyAllocationScenarioMock).not.toHaveBeenCalled();
+  });
+
+  it('maps service conflicts to 409 responses', async () => {
+    applyAllocationScenarioMock.mockRejectedValue(
+      Object.assign(new Error('Apply preview has expired; refresh preview and try again'), {
+        statusCode: 409,
+        code: 'preview_token_mismatch',
+        details: {
+          current_live_token: 'fresh-token',
+        },
+      })
+    );
+
+    const response = await request(app)
+      .post(`/funds/1/allocation-scenarios/${scenarioId}/apply`)
+      .send({ preview_token: 'a'.repeat(64) })
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: 'conflict',
+      code: 'preview_token_mismatch',
+      message: 'Apply preview has expired; refresh preview and try again',
+      details: {
+        current_live_token: 'fresh-token',
+      },
+    });
   });
 });

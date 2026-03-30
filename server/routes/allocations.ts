@@ -15,6 +15,7 @@ import { transaction } from '../db/pg-circuit';
 import type { PoolClient } from 'pg';
 import { db } from '../db';
 import { logger } from '../lib/logger.js';
+import { applyAllocationUpdates } from '../services/allocation-write-service.js';
 import { portfolioCompanies } from '@shared/schema';
 import { eq, lt, sql, desc, asc, and } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
@@ -32,12 +33,6 @@ import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 interface HttpError extends Error {
   statusCode: number;
   conflicts?: Array<{ company_id: number; expected_version: number; actual_version: number }>;
-}
-
-// Request type with user context
-interface RequestContext {
-  rid?: string;
-  user?: { id?: number };
 }
 
 // Type guard for HttpError
@@ -172,12 +167,6 @@ interface _UpdateAllocationResponse {
   }>;
 }
 
-interface ConflictInfo {
-  company_id: number;
-  expected_version: number;
-  actual_version: number;
-}
-
 interface CompanyListItem {
   id: number;
   name: string;
@@ -221,136 +210,20 @@ async function verifyFundExists(client: PoolClient, fundId: number): Promise<voi
   }
 }
 
-/**
- * Verify that all company IDs belong to the specified fund
- * @throws {Error} with 404 status if any company not found or doesn't belong to fund
- */
-async function verifyCompaniesInFund(
-  client: PoolClient,
-  fundId: number,
-  companyIds: number[]
-): Promise<void> {
-  const companyCheck = await client.query(
-    `SELECT id FROM portfoliocompanies
-     WHERE fund_id = $1 AND id = ANY($2::int[])`,
-    [fundId, companyIds]
-  );
-
-  if (companyCheck.rows.length !== companyIds.length) {
-    const foundIds = companyCheck.rows.map((r: { id: number }) => r.id);
-    const missingIds = companyIds.filter((id) => !foundIds.includes(id));
-    const error = new Error(
-      `Companies not found in fund ${fundId}: ${missingIds.join(', ')}`
-    ) as HttpError;
-    error.statusCode = 404;
-    throw error;
-  }
-}
-
-/**
- * Update a single company's allocation with version check
- * Returns null if successful, or conflict info if version mismatch
- */
-async function updateCompanyAllocation(
-  client: PoolClient,
-  fundId: number,
-  expectedVersion: number,
-  update: CompanyAllocationUpdate,
-  _userId: number | null
-): Promise<ConflictInfo | null> {
-  // First, check the current version with row lock
-  const versionCheck = await client.query<{ allocation_version: number }>(
-    `SELECT allocation_version
-     FROM portfoliocompanies
-     WHERE fund_id = $1 AND id = $2
-     FOR UPDATE`,
-    [fundId, update.company_id]
-  );
-
-  if (versionCheck.rows.length === 0) {
-    const error = new Error(
-      `Company ${update.company_id} not found in fund ${fundId}`
-    ) as HttpError;
-    error.statusCode = 404;
-    throw error;
+function parseActorUserId(req: Request): number | null {
+  const rawUserId = req.user?.id as string | number | undefined;
+  if (typeof rawUserId === 'number' && Number.isSafeInteger(rawUserId) && rawUserId > 0) {
+    return rawUserId;
   }
 
-  const currentVersion = versionCheck.rows[0]!.allocation_version;
-
-  // Check for version conflict
-  if (currentVersion !== expectedVersion) {
-    return {
-      company_id: update.company_id,
-      expected_version: expectedVersion,
-      actual_version: currentVersion,
-    };
+  if (typeof rawUserId === 'string' && /^\d+$/.test(rawUserId)) {
+    const parsed = Number(rawUserId);
+    if (Number.isSafeInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
 
-  // Version matches - proceed with update
-  const result = await client.query(
-    `UPDATE portfoliocompanies
-     SET
-       planned_reserves_cents = $1,
-       allocation_cap_cents = $2,
-       allocation_reason = $3,
-       allocation_version = allocation_version + 1,
-       last_allocation_at = NOW()
-     WHERE fund_id = $4 AND id = $5 AND allocation_version = $6
-     RETURNING allocation_version`,
-    [
-      update.planned_reserves_cents,
-      update.allocation_cap_cents,
-      update.allocation_reason,
-      fundId,
-      update.company_id,
-      expectedVersion,
-    ]
-  );
-
-  // Double-check that update succeeded
-  if (result.rows.length === 0) {
-    // This should not happen due to FOR UPDATE lock, but handle it anyway
-    return {
-      company_id: update.company_id,
-      expected_version: expectedVersion,
-      actual_version: currentVersion,
-    };
-  }
-
-  return null; // Success
-}
-
-/**
- * Log allocation change to fund_events table for audit trail
- */
-async function logAllocationEvent(
-  client: PoolClient,
-  fundId: number,
-  userId: number | null,
-  updates: CompanyAllocationUpdate[],
-  newVersion: number
-): Promise<void> {
-  await client.query(
-    `INSERT INTO fund_events
-     (fund_id, event_type, payload, user_id, event_time, operation, entity_type, metadata)
-     VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)`,
-    [
-      fundId,
-      'ALLOCATION_UPDATED',
-      JSON.stringify({
-        updates,
-        new_version: newVersion,
-        update_count: updates.length,
-      }),
-      userId,
-      'UPDATE',
-      'allocation',
-      JSON.stringify({
-        timestamp: new Date().toISOString(),
-        company_count: updates.length,
-      }),
-    ]
-  );
+  return null;
 }
 
 // ============================================================================
@@ -378,7 +251,7 @@ router['get'](
   '/funds/:fundId/companies',
   asyncHandler(async (req: Request, res: Response) => {
     const startTime = Date.now();
-    const requestId = (req as unknown as RequestContext).rid ?? 'unknown';
+    const requestId = req.rid ?? 'unknown';
 
     // Validate fundId parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
@@ -713,54 +586,26 @@ router['post'](
     const { expected_version, updates } = bodyValidation.data;
 
     // Get user ID from auth context (if available)
-    const userId = (req as unknown as RequestContext).user?.id ?? null;
+    const userId = parseActorUserId(req);
 
     // Execute updates in transaction
     const result = await transaction(async (client) => {
-      // Verify fund exists
-      await verifyFundExists(client, fundId);
-
-      // Verify all companies belong to the fund
-      const companyIds = updates.map((u) => u.company_id);
-      await verifyCompaniesInFund(client, fundId, companyIds);
-
-      // Update each company and collect conflicts
-      const conflicts: ConflictInfo[] = [];
-      let successCount = 0;
-
-      for (const update of updates) {
-        const conflict = await updateCompanyAllocation(
-          client,
-          fundId,
+      const writeResult = await applyAllocationUpdates(client, {
+        fundId,
+        updates: updates.map((update) => ({
+          company_id: update.company_id,
+          planned_reserves_cents: update.planned_reserves_cents,
+          allocation_cap_cents: update.allocation_cap_cents ?? null,
+          allocation_reason: update.allocation_reason ?? null,
           expected_version,
-          update,
-          userId
-        );
-
-        if (conflict) {
-          conflicts.push(conflict);
-        } else {
-          successCount++;
-        }
-      }
-
-      // If any conflicts occurred, rollback and return conflict details
-      if (conflicts.length > 0) {
-        throw {
-          statusCode: 409,
-          conflicts,
-          message: `Version conflict: ${conflicts.length} companies have been updated by another user`,
-        };
-      }
-
-      // All updates succeeded - log the event
-      const newVersion = expected_version + 1;
-      await logAllocationEvent(client, fundId, userId, updates, newVersion);
+        })),
+        userId,
+      });
 
       return {
         success: true,
-        new_version: newVersion,
-        updated_count: successCount,
+        new_version: writeResult.new_version,
+        updated_count: writeResult.updated_count,
       };
     });
 

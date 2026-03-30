@@ -1,20 +1,33 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { asyncHandler } from '../middleware/async.js';
+import type { NextFunction } from 'express';
 import {
+  applyAllocationScenario,
   createAllocationScenario,
   getAllocationScenario,
   getAllocationScenarioApplyPreview,
   listAllocationScenarios,
+  syncAllocationScenario,
   updateAllocationScenario,
 } from '../services/allocation-scenario-service.js';
 
 interface HttpError extends Error {
   statusCode?: number;
+  code?: string;
+  details?: unknown;
+  conflicts?: Array<{ company_id: number; expected_version: number; actual_version: number }>;
 }
 
 const router = Router();
+
+function routeHandler(
+  handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
 
 const FundIdParamSchema = z.object({
   fundId: z.string().regex(/^\d+$/).transform(Number),
@@ -79,6 +92,14 @@ const UpdateAllocationScenarioSchema = z
     }
   );
 
+const SyncAllocationScenarioSchema = z.object({
+  note: z.string().max(4000).nullable().optional(),
+});
+
+const ApplyAllocationScenarioSchema = SyncAllocationScenarioSchema.extend({
+  preview_token: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
 function parseFundId(req: Request, res: Response): number | null {
   const result = FundIdParamSchema.safeParse(req.params);
   if (!result.success) {
@@ -107,9 +128,35 @@ function parseScenarioId(req: Request, res: Response): string | null {
   return result.data.scenarioId;
 }
 
+function parseActor(req: Request) {
+  const rawUserId = req.user?.id as string | number | undefined;
+  let user_id: number | null = null;
+
+  if (typeof rawUserId === 'number' && Number.isSafeInteger(rawUserId) && rawUserId > 0) {
+    user_id = rawUserId;
+  } else if (typeof rawUserId === 'string' && /^\d+$/.test(rawUserId)) {
+    const parsed = Number(rawUserId);
+    if (Number.isSafeInteger(parsed) && parsed > 0) {
+      user_id = parsed;
+    }
+  }
+
+  const label =
+    req.user?.email?.trim() ||
+    req.user?.name?.trim() ||
+    req.user?.sub?.trim() ||
+    (typeof rawUserId === 'string' ? rawUserId.trim() : null) ||
+    null;
+
+  return {
+    user_id,
+    label,
+  };
+}
+
 router.get(
   '/funds/:fundId/allocation-scenarios',
-  asyncHandler(async (req: Request, res: Response) => {
+  routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
       return;
@@ -122,7 +169,7 @@ router.get(
 
 router.get(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
-  asyncHandler(async (req: Request, res: Response) => {
+  routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
       return;
@@ -140,7 +187,7 @@ router.get(
 
 router.get(
   '/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview',
-  asyncHandler(async (req: Request, res: Response) => {
+  routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
       return;
@@ -158,7 +205,7 @@ router.get(
 
 router.post(
   '/funds/:fundId/allocation-scenarios',
-  asyncHandler(async (req: Request, res: Response) => {
+  routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
       return;
@@ -180,7 +227,7 @@ router.post(
 
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
-  asyncHandler(async (req: Request, res: Response) => {
+  routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
     if (fundId === null) {
       return;
@@ -205,10 +252,87 @@ router.patch(
   })
 );
 
+router.post(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/sync',
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const body = SyncAllocationScenarioSchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      return res.status(400).json({
+        error: 'invalid_request_body',
+        message: 'Invalid allocation scenario action payload',
+        details: body.error.format(),
+      });
+    }
+
+    const result = await syncAllocationScenario(fundId, scenarioId, {
+      ...body.data,
+      actor: parseActor(req),
+    });
+    return res.status(200).json(result);
+  })
+);
+
+router.post(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/apply',
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const body = ApplyAllocationScenarioSchema.safeParse(req.body);
+    if (!body.success) {
+      return res.status(400).json({
+        error: 'invalid_request_body',
+        message: 'Invalid allocation scenario action payload',
+        details: body.error.format(),
+      });
+    }
+
+    const result = await applyAllocationScenario(fundId, scenarioId, {
+      ...body.data,
+      actor: parseActor(req),
+    });
+    return res.status(200).json(result);
+  })
+);
+
 router.use((error: HttpError, _req: Request, res: Response, _next: unknown) => {
+  if (error.statusCode === 409) {
+    return res.status(409).json({
+      error: 'conflict',
+      code: error.code ?? 'conflict',
+      message: error.message,
+      ...(error.details !== undefined ? { details: error.details } : {}),
+      ...(error.conflicts ? { conflicts: error.conflicts } : {}),
+    });
+  }
+
   res.status(error.statusCode ?? 500).json({
-    error: error.statusCode === 404 ? 'not_found' : 'internal_error',
+    error:
+      error.statusCode === 400
+        ? 'invalid_request'
+        : error.statusCode === 404
+          ? 'not_found'
+          : 'internal_error',
+    ...(error.code ? { code: error.code } : {}),
     message: error.message,
+    ...(error.details !== undefined ? { details: error.details } : {}),
   });
 });
 
