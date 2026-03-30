@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 
@@ -24,6 +25,17 @@ interface AllocationScenarioItemRow {
   allocation_reason: string | null;
 }
 
+interface LiveAllocationSnapshotRow {
+  company_id: number;
+  company_name: string;
+  planned_reserves_cents: string;
+  deployed_reserves_cents: string;
+  allocation_cap_cents: string | null;
+  allocation_reason: string | null;
+  allocation_version: number;
+  last_allocation_at: Date | null;
+}
+
 export interface AllocationScenarioSnapshotItem {
   company_id: number;
   planned_reserves_cents: number;
@@ -45,6 +57,34 @@ export interface AllocationScenarioSummary {
 
 export interface AllocationScenarioDetail extends AllocationScenarioSummary {
   snapshot_items: AllocationScenarioSnapshotItem[];
+}
+
+type AllocationScenarioApplyPreviewDriftStatus =
+  | 'exact_match'
+  | 'stale_but_mappable'
+  | 'company_set_changed';
+type AllocationScenarioApplyPreviewState = 'apply_allowed' | 'confirmable_with_drift' | 'blocked';
+
+export interface AllocationScenarioApplyPreview {
+  scenario: AllocationScenarioSummary;
+  live: {
+    fund_id: number;
+    company_count: number;
+    total_planned_cents: number;
+    total_deployed_cents: number;
+    max_allocation_version: number | null;
+    last_updated_at: string | null;
+  };
+  drift_status: AllocationScenarioApplyPreviewDriftStatus;
+  apply_state: AllocationScenarioApplyPreviewState;
+  live_token: string;
+  summary: {
+    companies_changed: number;
+    companies_unchanged: number;
+    scenario_only_count: number;
+    live_only_count: number;
+    total_planned_delta_cents: number;
+  };
 }
 
 export interface CreateAllocationScenarioInput {
@@ -115,6 +155,51 @@ function mapSnapshotItem(row: AllocationScenarioItemRow): AllocationScenarioSnap
     allocation_cap_cents: row.allocation_cap_cents ? parseInt(row.allocation_cap_cents, 10) : null,
     allocation_reason: row.allocation_reason,
   };
+}
+
+function mapLiveAllocationSnapshotItem(row: LiveAllocationSnapshotRow) {
+  return {
+    company_id: row.company_id,
+    company_name: row.company_name,
+    planned_reserves_cents: parseInt(row.planned_reserves_cents, 10),
+    deployed_reserves_cents: parseInt(row.deployed_reserves_cents, 10),
+    allocation_cap_cents: row.allocation_cap_cents ? parseInt(row.allocation_cap_cents, 10) : null,
+    allocation_reason: normalizeNotes(row.allocation_reason),
+    allocation_version: row.allocation_version,
+    last_allocation_at: row.last_allocation_at ? row.last_allocation_at.toISOString() : null,
+  };
+}
+
+function buildLiveAllocationToken(
+  fundId: number,
+  items: ReturnType<typeof mapLiveAllocationSnapshotItem>[]
+): string {
+  const payload = items.map((item) => ({
+    company_id: item.company_id,
+    allocation_version: item.allocation_version,
+  }));
+
+  return createHash('sha256').update(JSON.stringify({ fundId, payload })).digest('hex');
+}
+
+async function getLiveAllocationSnapshot(client: PoolClient, fundId: number) {
+  const result = await client.query<LiveAllocationSnapshotRow>(
+    `SELECT
+       id AS company_id,
+       name AS company_name,
+       planned_reserves_cents,
+       deployed_reserves_cents,
+       allocation_cap_cents,
+       allocation_reason,
+       allocation_version,
+       last_allocation_at
+     FROM portfoliocompanies
+     WHERE fund_id = $1
+     ORDER BY id ASC`,
+    [fundId]
+  );
+
+  return result.rows.map(mapLiveAllocationSnapshotItem);
 }
 
 async function verifyFundExists(client: PoolClient, fundId: number): Promise<void> {
@@ -231,6 +316,114 @@ async function fetchScenarioDetail(
     ...mapScenarioHeader(header),
     snapshot_items,
   };
+}
+
+export async function getAllocationScenarioApplyPreview(
+  fundId: number,
+  scenarioId: string
+): Promise<AllocationScenarioApplyPreview> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+
+    const scenario = await fetchScenarioDetail(client, fundId, scenarioId);
+    const liveItems = await getLiveAllocationSnapshot(client, fundId);
+    const { snapshot_items: _snapshotItems, ...scenarioSummary } = scenario;
+
+    const scenarioByCompanyId = new Map(
+      scenario.snapshot_items.map((item) => [item.company_id, item] as const)
+    );
+    const liveByCompanyId = new Map(liveItems.map((item) => [item.company_id, item] as const));
+
+    let companiesChanged = 0;
+    let companiesUnchanged = 0;
+    let scenarioOnlyCount = 0;
+    let liveOnlyCount = 0;
+    let totalPlannedDeltaCents = 0;
+
+    for (const snapshotItem of scenario.snapshot_items) {
+      const liveItem = liveByCompanyId.get(snapshotItem.company_id);
+
+      if (!liveItem) {
+        scenarioOnlyCount++;
+        totalPlannedDeltaCents += snapshotItem.planned_reserves_cents;
+        continue;
+      }
+
+      const changed =
+        snapshotItem.planned_reserves_cents !== liveItem.planned_reserves_cents ||
+        snapshotItem.allocation_cap_cents !== liveItem.allocation_cap_cents ||
+        normalizeNotes(snapshotItem.allocation_reason) !== normalizeNotes(liveItem.allocation_reason);
+
+      if (changed) {
+        companiesChanged++;
+      } else {
+        companiesUnchanged++;
+      }
+
+      totalPlannedDeltaCents += snapshotItem.planned_reserves_cents - liveItem.planned_reserves_cents;
+    }
+
+    for (const liveItem of liveItems) {
+      if (!scenarioByCompanyId.has(liveItem.company_id)) {
+        liveOnlyCount++;
+        totalPlannedDeltaCents -= liveItem.planned_reserves_cents;
+      }
+    }
+
+    const maxAllocationVersion =
+      liveItems.length > 0 ? Math.max(...liveItems.map((item) => item.allocation_version)) : null;
+    const lastUpdatedAt =
+      liveItems
+        .map((item) => item.last_allocation_at)
+        .filter((value): value is string => value !== null)
+        .sort()
+        .reverse()[0] ?? null;
+    const companySetChanged = scenarioOnlyCount > 0 || liveOnlyCount > 0;
+    const exactMatch =
+      !companySetChanged &&
+      scenario.source_allocation_version !== null &&
+      maxAllocationVersion !== null &&
+      scenario.source_allocation_version === maxAllocationVersion;
+
+    const driftStatus: AllocationScenarioApplyPreviewDriftStatus = companySetChanged
+      ? 'company_set_changed'
+      : exactMatch
+        ? 'exact_match'
+        : 'stale_but_mappable';
+    const applyState: AllocationScenarioApplyPreviewState = companySetChanged
+      ? 'blocked'
+      : exactMatch
+        ? 'apply_allowed'
+        : 'confirmable_with_drift';
+
+    return {
+      scenario: scenarioSummary,
+      live: {
+        fund_id: fundId,
+        company_count: liveItems.length,
+        total_planned_cents: liveItems.reduce(
+          (sum, item) => sum + item.planned_reserves_cents,
+          0
+        ),
+        total_deployed_cents: liveItems.reduce(
+          (sum, item) => sum + item.deployed_reserves_cents,
+          0
+        ),
+        max_allocation_version: maxAllocationVersion,
+        last_updated_at: lastUpdatedAt,
+      },
+      drift_status: driftStatus,
+      apply_state: applyState,
+      live_token: buildLiveAllocationToken(fundId, liveItems),
+      summary: {
+        companies_changed: companiesChanged,
+        companies_unchanged: companiesUnchanged,
+        scenario_only_count: scenarioOnlyCount,
+        live_only_count: liveOnlyCount,
+        total_planned_delta_cents: totalPlannedDeltaCents,
+      },
+    };
+  });
 }
 
 export async function listAllocationScenarios(

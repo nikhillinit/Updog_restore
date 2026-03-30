@@ -5,11 +5,13 @@ import request from 'supertest';
 const {
   listAllocationScenariosMock,
   getAllocationScenarioMock,
+  getAllocationScenarioApplyPreviewMock,
   createAllocationScenarioMock,
   updateAllocationScenarioMock,
 } = vi.hoisted(() => ({
   listAllocationScenariosMock: vi.fn(),
   getAllocationScenarioMock: vi.fn(),
+  getAllocationScenarioApplyPreviewMock: vi.fn(),
   createAllocationScenarioMock: vi.fn(),
   updateAllocationScenarioMock: vi.fn(),
 }));
@@ -17,6 +19,7 @@ const {
 vi.mock('../../../server/services/allocation-scenario-service.js', () => ({
   listAllocationScenarios: listAllocationScenariosMock,
   getAllocationScenario: getAllocationScenarioMock,
+  getAllocationScenarioApplyPreview: getAllocationScenarioApplyPreviewMock,
   createAllocationScenario: createAllocationScenarioMock,
   updateAllocationScenario: updateAllocationScenarioMock,
 }));
@@ -48,6 +51,38 @@ const scenarioDetail = {
       allocation_reason: null,
     },
   ],
+};
+
+const scenarioApplyPreview = {
+  scenario: {
+    id: scenarioId,
+    fund_id: 1,
+    name: 'Upside reserve plan',
+    notes: 'Follow-on heavy scenario',
+    source_allocation_version: 3,
+    company_count: 2,
+    total_planned_cents: 350000000,
+    created_at: '2026-03-30T15:00:00.000Z',
+    updated_at: '2026-03-30T16:00:00.000Z',
+  },
+  live: {
+    fund_id: 1,
+    company_count: 2,
+    total_planned_cents: 325000000,
+    total_deployed_cents: 100000000,
+    max_allocation_version: 3,
+    last_updated_at: '2026-03-30T17:00:00.000Z',
+  },
+  drift_status: 'exact_match',
+  apply_state: 'apply_allowed',
+  live_token: 'preview-token',
+  summary: {
+    companies_changed: 1,
+    companies_unchanged: 1,
+    scenario_only_count: 0,
+    live_only_count: 0,
+    total_planned_delta_cents: 25000000,
+  },
 };
 
 describe('Allocation scenarios API', () => {
@@ -91,6 +126,17 @@ describe('Allocation scenarios API', () => {
 
     expect(response.body).toEqual(scenarioDetail);
     expect(getAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId);
+  });
+
+  it('fetches scenario apply preview', async () => {
+    getAllocationScenarioApplyPreviewMock.mockResolvedValue(scenarioApplyPreview);
+
+    const response = await request(app)
+      .get(`/funds/1/allocation-scenarios/${scenarioId}/apply-preview`)
+      .expect(200);
+
+    expect(response.body).toEqual(scenarioApplyPreview);
+    expect(getAllocationScenarioApplyPreviewMock).toHaveBeenCalledWith(1, scenarioId);
   });
 
   it('creates a scenario snapshot', async () => {

@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/async.js';
 import {
   createAllocationScenario,
   getAllocationScenario,
+  getAllocationScenarioApplyPreview,
   listAllocationScenarios,
   updateAllocationScenario,
 } from '../services/allocation-scenario-service.js';
@@ -134,6 +135,24 @@ router.get(
 
     const scenario = await getAllocationScenario(fundId, scenarioId);
     res.status(200).json(scenario);
+  })
+);
+
+router.get(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview',
+  asyncHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const preview = await getAllocationScenarioApplyPreview(fundId, scenarioId);
+    res.status(200).json(preview);
   })
 );
 
