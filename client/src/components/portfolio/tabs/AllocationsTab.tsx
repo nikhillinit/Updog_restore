@@ -24,9 +24,12 @@ import { format } from 'date-fns';
 import { AlertCircle, ArrowLeft, RefreshCw, Save, Search } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
 import {
+  useAllocationScenarioApplyPreview,
   useAllocationScenarioDetail,
   useAllocationScenarioList,
+  useApplyAllocationScenario,
   useCreateAllocationScenario,
+  useSyncAllocationScenario,
   useUpdateAllocationScenario,
 } from './hooks/useAllocationScenarios';
 import { EditAllocationDialog } from './EditAllocationDialog';
@@ -34,6 +37,7 @@ import { createAllocationsColumns } from './allocations-table-columns';
 import { formatCents } from '@/lib/units';
 import type {
   AllocationCompany,
+  AllocationScenarioApplyPreview,
   AllocationScenarioDetail,
   AllocationScenarioSnapshotItem,
   CreateAllocationScenarioPayload,
@@ -86,6 +90,79 @@ function formatDateLabel(value: string | null | undefined, emptyLabel: string) {
   return value ? format(new Date(value), 'MMM d, yyyy') : emptyLabel;
 }
 
+function formatActionStatusLabel(
+  actionLabel: string,
+  value: string | null | undefined,
+  actor: string | null | undefined,
+  emptyLabel: string
+) {
+  if (!value) {
+    return emptyLabel;
+  }
+
+  const formattedDate = format(new Date(value), 'MMM d, yyyy');
+  return actor ? `${actionLabel} ${formattedDate} by ${actor}` : `${actionLabel} ${formattedDate}`;
+}
+
+function getApplyPreviewDescription(preview: AllocationScenarioApplyPreview) {
+  if (preview.apply_state === 'blocked') {
+    return 'The live company set changed. Sync from live or save a new scenario before applying.';
+  }
+
+  if (preview.apply_state === 'confirmable_with_drift') {
+    return 'Live allocations moved since this scenario version. Review the drift summary before applying.';
+  }
+
+  return 'This scenario is ready to apply to the live allocation surface.';
+}
+
+function getApplyStateBadgeLabel(preview: AllocationScenarioApplyPreview) {
+  if (preview.apply_state === 'blocked') {
+    return 'Apply blocked';
+  }
+
+  if (preview.apply_state === 'confirmable_with_drift') {
+    return 'Confirm with drift';
+  }
+
+  return 'Apply allowed';
+}
+
+function getDriftStatusBadgeLabel(preview: AllocationScenarioApplyPreview) {
+  if (preview.drift_status === 'company_set_changed') {
+    return 'Company set changed';
+  }
+
+  if (preview.drift_status === 'stale_but_mappable') {
+    return 'Live drift detected';
+  }
+
+  return 'Exact live match';
+}
+
+function formatDeltaLabel(value: number) {
+  if (value === 0) {
+    return formatCents(0);
+  }
+
+  const absoluteValue = formatCents(Math.abs(value), { compact: true });
+  return `${value > 0 ? '+' : '-'}${absoluteValue}`;
+}
+
+function formatAppliedStatusLabel(
+  value: string | null | undefined,
+  actor: string | null | undefined,
+  allocationVersion: number | null | undefined
+) {
+  const baseLabel = formatActionStatusLabel('Applied', value, actor, 'Not applied to live');
+
+  if (!value || !allocationVersion) {
+    return baseLabel;
+  }
+
+  return `${baseLabel} (v${allocationVersion})`;
+}
+
 export function AllocationsTab() {
   const { toast } = useToast();
   const { data, isLoading, error, refetch } = useLatestAllocations();
@@ -105,6 +182,8 @@ export function AllocationsTab() {
   const [workspaceSourceLabel, setWorkspaceSourceLabel] = useState('Live portfolio');
   const [scenarioName, setScenarioName] = useState('');
   const [scenarioNotes, setScenarioNotes] = useState('');
+  const [scenarioActionNote, setScenarioActionNote] = useState('');
+  const [applyPreview, setApplyPreview] = useState<AllocationScenarioApplyPreview | null>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof AllocationCompany;
     direction: 'asc' | 'desc';
@@ -116,14 +195,22 @@ export function AllocationsTab() {
   });
   const createScenarioMutation = useCreateAllocationScenario();
   const updateScenarioMutation = useUpdateAllocationScenario(activeScenarioId);
+  const previewApplyMutation = useAllocationScenarioApplyPreview(activeScenarioId);
+  const syncScenarioMutation = useSyncAllocationScenario(activeScenarioId);
+  const applyScenarioMutation = useApplyAllocationScenario(activeScenarioId);
 
   const liveCompanies = useMemo(() => data?.companies ?? [], [data?.companies]);
   const displayedCompanies = workspaceCompanies.length > 0 ? workspaceCompanies : liveCompanies;
   const activeScenarioSummary =
-    scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     activeScenarioDetail.data ??
+    scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     null;
-  const isScenarioPending = createScenarioMutation.isPending || updateScenarioMutation.isPending;
+  const isScenarioPending =
+    createScenarioMutation.isPending ||
+    updateScenarioMutation.isPending ||
+    previewApplyMutation.isPending ||
+    syncScenarioMutation.isPending ||
+    applyScenarioMutation.isPending;
 
   useEffect(() => {
     if (liveCompanies.length === 0 || activeScenarioId) {
@@ -151,6 +238,16 @@ export function AllocationsTab() {
     setScenarioName(activeScenarioDetail.data.name);
     setScenarioNotes(activeScenarioDetail.data.notes ?? '');
   }, [activeScenarioDetail.data, activeScenarioId, liveCompanies]);
+
+  useEffect(() => {
+    if (!activeScenarioId || workspaceDirty) {
+      setApplyPreview(null);
+    }
+  }, [activeScenarioId, workspaceDirty]);
+
+  useEffect(() => {
+    setApplyPreview(null);
+  }, [activeScenarioDetail.data?.updated_at]);
 
   const selectedCompany = useMemo(
     () => displayedCompanies.find((company) => company.company_id === selectedCompanyId) ?? null,
@@ -211,6 +308,31 @@ export function AllocationsTab() {
   const activeScenarioLastModifiedLabel = useMemo(
     () => formatDateLabel(activeScenarioSummary?.updated_at, 'Not yet saved'),
     [activeScenarioSummary?.updated_at]
+  );
+
+  const activeScenarioLastSyncedLabel = useMemo(
+    () =>
+      formatActionStatusLabel(
+        'Synced',
+        activeScenarioSummary?.last_synced_at,
+        activeScenarioSummary?.last_synced_by,
+        'Not synced from live'
+      ),
+    [activeScenarioSummary?.last_synced_at, activeScenarioSummary?.last_synced_by]
+  );
+
+  const activeScenarioLastAppliedLabel = useMemo(
+    () =>
+      formatAppliedStatusLabel(
+        activeScenarioSummary?.last_applied_at,
+        activeScenarioSummary?.last_applied_by,
+        activeScenarioSummary?.last_applied_allocation_version
+      ),
+    [
+      activeScenarioSummary?.last_applied_allocation_version,
+      activeScenarioSummary?.last_applied_at,
+      activeScenarioSummary?.last_applied_by,
+    ]
   );
 
   const sectors = useMemo(
@@ -287,6 +409,8 @@ export function AllocationsTab() {
     setWorkspaceSourceLabel('Live portfolio');
     setScenarioName('');
     setScenarioNotes('');
+    setScenarioActionNote('');
+    setApplyPreview(null);
     setSelectedCompanyId(null);
   }, [liveCompanies]);
 
@@ -294,6 +418,8 @@ export function AllocationsTab() {
     setActiveScenarioId(scenarioId);
     setWorkspaceDirty(false);
     setWorkspaceSourceLabel('Loading scenario...');
+    setScenarioActionNote('');
+    setApplyPreview(null);
     setSelectedCompanyId(null);
   }, []);
 
@@ -333,6 +459,7 @@ export function AllocationsTab() {
       setWorkspaceSourceLabel(`Scenario: ${scenario.name}`);
       setScenarioName(scenario.name);
       setScenarioNotes(scenario.notes ?? '');
+      setApplyPreview(null);
 
       toast({
         title: activeScenarioId ? 'Scenario saved' : 'Scenario created',
@@ -383,6 +510,7 @@ export function AllocationsTab() {
       setWorkspaceSourceLabel(`Scenario: ${scenario.name}`);
       setScenarioName(scenario.name);
       setScenarioNotes(scenario.notes ?? '');
+      setApplyPreview(null);
 
       toast({
         title: 'Scenario renamed',
@@ -399,6 +527,154 @@ export function AllocationsTab() {
       });
     }
   }, [activeScenarioId, scenarioName, scenarioNotes, toast, updateScenarioMutation]);
+
+  const handleLoadApplyPreview = useCallback(async () => {
+    if (!activeScenarioId) {
+      return;
+    }
+
+    if (workspaceDirty) {
+      toast({
+        title: 'Save scenario changes first',
+        description: 'Save or discard local edits before previewing apply.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const preview = await previewApplyMutation.mutateAsync();
+      setApplyPreview(preview);
+    } catch (mutationError) {
+      toast({
+        title: 'Preview failed',
+        description:
+          mutationError instanceof Error
+            ? mutationError.message
+            : 'Failed to preview allocation scenario apply',
+        variant: 'destructive',
+      });
+    }
+  }, [activeScenarioId, previewApplyMutation, toast, workspaceDirty]);
+
+  const handleSyncFromLive = useCallback(async () => {
+    if (!activeScenarioId) {
+      return;
+    }
+
+    if (workspaceDirty) {
+      toast({
+        title: 'Save scenario changes first',
+        description: 'Save or discard local edits before syncing from live.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await syncScenarioMutation.mutateAsync({
+        note: scenarioActionNote.trim() || null,
+      });
+
+      setWorkspaceCompanies((current) =>
+        hydrateScenarioWorkspace(liveCompanies.length > 0 ? liveCompanies : current, result.scenario)
+      );
+      setWorkspaceDirty(false);
+      setWorkspaceSourceLabel(`Scenario: ${result.scenario.name}`);
+      setScenarioName(result.scenario.name);
+      setScenarioNotes(result.scenario.notes ?? '');
+      setScenarioActionNote('');
+      setApplyPreview(null);
+
+      toast({
+        title: 'Scenario synced',
+        description:
+          result.event.change_summary.headline ??
+          `${result.scenario.name} now matches the current live allocation surface.`,
+      });
+    } catch (mutationError) {
+      toast({
+        title: 'Scenario sync failed',
+        description:
+          mutationError instanceof Error
+            ? mutationError.message
+            : 'Failed to sync allocation scenario',
+        variant: 'destructive',
+      });
+    }
+  }, [activeScenarioId, liveCompanies, scenarioActionNote, syncScenarioMutation, toast, workspaceDirty]);
+
+  const handleApplyScenario = useCallback(async () => {
+    if (!activeScenarioId || !applyPreview) {
+      toast({
+        title: 'Preview required',
+        description: 'Run apply preview before applying this scenario to live allocations.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (workspaceDirty) {
+      toast({
+        title: 'Save scenario changes first',
+        description: 'Save or discard local edits before applying this scenario.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (applyPreview.apply_state === 'blocked') {
+      toast({
+        title: 'Apply blocked',
+        description: 'Sync from live or save a new scenario before applying.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await applyScenarioMutation.mutateAsync({
+        preview_token: applyPreview.live_token,
+        note: scenarioActionNote.trim() || null,
+      });
+
+      setWorkspaceCompanies((current) =>
+        hydrateScenarioWorkspace(liveCompanies.length > 0 ? liveCompanies : current, result.scenario)
+      );
+      setWorkspaceDirty(false);
+      setWorkspaceSourceLabel(`Scenario: ${result.scenario.name}`);
+      setScenarioName(result.scenario.name);
+      setScenarioNotes(result.scenario.notes ?? '');
+      setScenarioActionNote('');
+      setApplyPreview(null);
+      await refetch();
+
+      toast({
+        title: 'Scenario applied',
+        description:
+          result.event.change_summary.headline ??
+          `${result.scenario.name} has been applied to the live allocation surface.`,
+      });
+    } catch (mutationError) {
+      toast({
+        title: 'Scenario apply failed',
+        description:
+          mutationError instanceof Error
+            ? mutationError.message
+            : 'Failed to apply allocation scenario',
+        variant: 'destructive',
+      });
+    }
+  }, [
+    activeScenarioId,
+    applyPreview,
+    applyScenarioMutation,
+    liveCompanies,
+    refetch,
+    scenarioActionNote,
+    toast,
+    workspaceDirty,
+  ]);
 
   if (isLoading) {
     return (
@@ -473,6 +749,16 @@ export function AllocationsTab() {
                     ? `Last modified ${activeScenarioLastModifiedLabel}`
                     : `Last synced ${lastUpdatedLabel}`}
                 </Badge>
+                {activeScenarioId ? (
+                  <>
+                    <Badge variant="outline" className="border-purple-200 text-purple-950">
+                      {activeScenarioLastSyncedLabel}
+                    </Badge>
+                    <Badge variant="outline" className="border-purple-200 text-purple-950">
+                      {activeScenarioLastAppliedLabel}
+                    </Badge>
+                  </>
+                ) : null}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -532,6 +818,152 @@ export function AllocationsTab() {
                   className="min-h-[110px] bg-white/80"
                 />
               </div>
+
+              {activeScenarioId ? (
+                <div className="space-y-4 rounded-lg border border-purple-200 bg-white/80 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-purple-950">Live Sync and Apply</div>
+                      <div className="text-xs text-purple-900/70">
+                        Sync refreshes this saved scenario from current live allocations. Apply
+                        preview computes drift and captures the live concurrency token.
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleSyncFromLive}
+                        disabled={workspaceDirty || isScenarioPending}
+                      >
+                        {syncScenarioMutation.isPending ? 'Syncing...' : 'Sync From Live'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleLoadApplyPreview}
+                        disabled={workspaceDirty || isScenarioPending}
+                      >
+                        {previewApplyMutation.isPending ? 'Loading Preview...' : 'Preview Apply'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="scenario-action-note">Action Note</Label>
+                    <Textarea
+                      id="scenario-action-note"
+                      value={scenarioActionNote}
+                      onChange={(event) => setScenarioActionNote(event.target.value)}
+                      placeholder="Optional note saved with the next sync or apply event."
+                      className="min-h-[90px] bg-white"
+                    />
+                  </div>
+
+                  {workspaceDirty ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Save or discard local scenario edits before syncing from live or applying
+                        to the live allocation surface.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  {applyPreview ? (
+                    <div className="space-y-4 rounded-lg border border-purple-200 bg-purple-50/60 p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-purple-950">Apply Preview</div>
+                          <div className="text-xs text-purple-900/80">
+                            {getApplyPreviewDescription(applyPreview)}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="outline" className="border-purple-300 text-purple-950">
+                            {getDriftStatusBadgeLabel(applyPreview)}
+                          </Badge>
+                          <Badge variant="secondary">{getApplyStateBadgeLabel(applyPreview)}</Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Companies Changed
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {applyPreview.summary.companies_changed}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Companies Unchanged
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {applyPreview.summary.companies_unchanged}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Planned Delta
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {formatDeltaLabel(applyPreview.summary.total_planned_delta_cents)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Scenario-only Companies
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {applyPreview.summary.scenario_only_count}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Live-only Companies
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {applyPreview.summary.live_only_count}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide text-purple-900/60">
+                            Live Allocation Version
+                          </div>
+                          <div className="mt-1 text-lg font-semibold text-purple-950">
+                            {applyPreview.live.max_allocation_version !== null
+                              ? `v${applyPreview.live.max_allocation_version}`
+                              : 'No live version'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="text-xs text-purple-900/70">
+                          Live snapshot:{' '}
+                          {formatDateLabel(
+                            applyPreview.live.last_updated_at,
+                            'Live allocations have not been updated yet'
+                          )}
+                        </div>
+                        <Button
+                          onClick={handleApplyScenario}
+                          disabled={
+                            applyPreview.apply_state === 'blocked' || applyScenarioMutation.isPending
+                          }
+                        >
+                          {applyScenarioMutation.isPending ? 'Applying...' : 'Confirm Apply'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-purple-900/70">
+                      Preview apply to compute drift against the current live allocation surface
+                      before confirming.
+                    </p>
+                  )}
+                </div>
+              ) : null}
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
@@ -595,6 +1027,21 @@ export function AllocationsTab() {
                           <div className="text-xs text-gray-500">
                             {scenario.company_count} companies ·{' '}
                             {formatCents(scenario.total_planned_cents, { compact: true })}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatActionStatusLabel(
+                              'Synced',
+                              scenario.last_synced_at,
+                              scenario.last_synced_by,
+                              'Not synced from live'
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatAppliedStatusLabel(
+                              scenario.last_applied_at,
+                              scenario.last_applied_by,
+                              scenario.last_applied_allocation_version
+                            )}
                           </div>
                         </div>
                         <Button

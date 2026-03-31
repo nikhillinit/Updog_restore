@@ -182,6 +182,12 @@ Scope:
 
 `feat/results-comparison-v1`
 
+## Detailed Follow-Through Specs
+
+- `docs/plans/2026-03-30-priority-2b-2c-3a-3b-execution-spec.md`
+  expands Priority `2B`, Priority `2C`, and continuous Priority `3A`/`3B`
+  into owned files, batch order, validation, and rollback criteria.
+
 ## Out Of Scope
 
 - LP portal expansion
