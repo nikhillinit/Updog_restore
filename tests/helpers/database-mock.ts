@@ -772,8 +772,21 @@ class DatabaseMock {
     const tableName = this.getTableNameFromObject(table);
     return {
       values: vi.fn((data: Record<string, unknown>) => {
+        const timestamp = new Date();
         const id = data.id ?? this.generateIdForTable(tableName, table);
-        const result = { ...data, id };
+        const result = {
+          createdAt: data.createdAt ?? timestamp,
+          updatedAt: data.updatedAt ?? timestamp,
+          ...(tableName === 'fundconfigs'
+            ? {
+                isDraft: data.isDraft ?? true,
+                isPublished: data.isPublished ?? false,
+                version: data.version ?? 1,
+              }
+            : {}),
+          ...data,
+          id,
+        };
 
         // Add to mock data
         const tableData = this.mockData.get(tableName) || [];
@@ -787,6 +800,7 @@ class DatabaseMock {
 
         return {
           ...chain,
+          onConflictDoNothing: vi.fn(() => Promise.resolve({ rowsAffected: 0 })),
           onConflictDoUpdate: vi.fn((_config: unknown) => chain),
         };
       }),
@@ -799,30 +813,49 @@ class DatabaseMock {
    */
   update = vi.fn((table: unknown) => {
     const tableName = this.getTableNameFromObject(table);
+    const applyUpdate = (
+      updateData: Record<string, unknown>,
+      condition?: SQL<unknown> | Record<string, unknown>
+    ) => {
+      const tableData = this.mockData.get(tableName) || [];
+      const matchedRows = condition ? this.filterData(tableData, condition) : tableData;
+
+      if (matchedRows.length === 0) {
+        return [] as MockQueryResult[];
+      }
+
+      const updatedRows: MockQueryResult[] = [];
+      const nextTableData = tableData.map((row: MockQueryResult) => {
+        if (!matchedRows.includes(row)) {
+          return row;
+        }
+
+        const updatedRow = {
+          ...row,
+          ...updateData,
+          ...(row.updatedAt !== undefined && updateData.updatedAt === undefined
+            ? { updatedAt: new Date() }
+            : {}),
+        };
+        updatedRows.push(updatedRow);
+        return updatedRow;
+      });
+
+      this.mockData.set(tableName, nextTableData);
+      return updatedRows;
+    };
+
     return {
       set: vi.fn((updateData: Record<string, unknown>) => ({
-        where: vi.fn((_condition: SQL<unknown> | undefined) => {
-          // Get existing data
-          const tableData = this.mockData.get(tableName) || [];
-
-          // Update the first matching row (simplified - real implementation would parse condition)
-          if (tableData.length > 0) {
-            const updated = { ...tableData[0], ...updateData };
-            tableData[0] = updated;
-            this.mockData.set(tableName, tableData);
-
-            return {
-              returning: vi.fn(() => Promise.resolve([updated])),
-              execute: vi.fn(() => Promise.resolve([updated])),
-            };
-          }
-
+        where: vi.fn((condition: SQL<unknown> | Record<string, unknown> | undefined) => {
+          const updatedRows = applyUpdate(updateData, condition);
           return {
-            returning: vi.fn(() => Promise.resolve([])),
-            execute: vi.fn(() => Promise.resolve([])),
+            returning: vi.fn(() => Promise.resolve(updatedRows)),
+            execute: vi.fn(() => Promise.resolve(updatedRows)),
           };
         }),
-        execute: vi.fn(() => Promise.resolve([])),
+        returning: vi.fn(() => Promise.resolve(applyUpdate(updateData))),
+        execute: vi.fn(() => Promise.resolve(applyUpdate(updateData))),
       })),
     };
   });

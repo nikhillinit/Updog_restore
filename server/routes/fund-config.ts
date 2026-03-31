@@ -119,9 +119,7 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       // Check if fund exists
-      const fund = await db.query.funds.findFirst({
-        where: eq(funds.id, fundId),
-      });
+      const [fund] = await db.select().from(funds).where(eq(funds.id, fundId)).limit(1);
 
       if (!fund) {
         const error: ApiError = {
@@ -132,10 +130,12 @@ export function registerFundConfigRoutes(app: Express) {
       }
 
       // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
-      const existingDraft = await db.query.fundConfigs.findFirst({
-        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        orderBy: desc(fundConfigs.version),
-      });
+      const [existingDraft] = await db
+        .select()
+        .from(fundConfigs)
+        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+        .orderBy(desc(fundConfigs.version))
+        .limit(1);
 
       const fieldCount = Object.keys(validation.data).length;
       let savedConfig;
@@ -178,9 +178,11 @@ export function registerFundConfigRoutes(app: Express) {
           savedConfig = inserted;
         } catch (insertErr) {
           // Unique constraint race: retry as UPDATE targeting isDraft=true
-          const retryDraft = await db.query.fundConfigs.findFirst({
-            where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-          });
+          const [retryDraft] = await db
+            .select()
+            .from(fundConfigs)
+            .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+            .limit(1);
           if (retryDraft) {
             const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
               config: validation.data,
@@ -237,10 +239,12 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      const draft = await db.query.fundConfigs.findFirst({
-        where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)),
-        orderBy: desc(fundConfigs.version),
-      });
+      const [draft] = await db
+        .select()
+        .from(fundConfigs)
+        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+        .orderBy(desc(fundConfigs.version))
+        .limit(1);
 
       if (!draft) {
         const error: ApiError = {
@@ -387,10 +391,12 @@ export function registerFundConfigRoutes(app: Express) {
         throw err;
       }
 
-      const snapshot = await db.query.fundSnapshots.findFirst({
-        where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
-        orderBy: desc(fundSnapshots.createdAt),
-      });
+      const [snapshot] = await db
+        .select()
+        .from(fundSnapshots)
+        .where(and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')))
+        .orderBy(desc(fundSnapshots.createdAt))
+        .limit(1);
 
       if (!snapshot) {
         const error: ApiError = {

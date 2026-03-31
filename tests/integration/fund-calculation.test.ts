@@ -19,7 +19,7 @@ beforeAll(async () => {
 
   // Routes first
   app.use(healthRouter);
-  app.use(fundsRouter);
+  app.use('/api', fundsRouter);
   app.use(metricsRouter); // exposes /metrics
 
   // Final error handler
