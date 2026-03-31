@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,8 +7,11 @@ import { AllocationsTab } from '../../../../client/src/components/portfolio/tabs
 import { EditAllocationDialog } from '../../../../client/src/components/portfolio/tabs/EditAllocationDialog';
 import type {
   AllocationCompany,
+  AllocationScenarioApplyPreview,
+  AllocationScenarioApplyResult,
   AllocationScenarioDetail,
   AllocationScenarioListResponse,
+  AllocationScenarioSyncResult,
   AllocationsResponse,
 } from '../../../../client/src/components/portfolio/tabs/types';
 
@@ -16,6 +19,9 @@ const {
   latestAllocationsHookMock,
   scenarioListHookMock,
   scenarioDetailHookMock,
+  previewScenarioMutateAsyncMock,
+  syncScenarioMutateAsyncMock,
+  applyScenarioMutateAsyncMock,
   createScenarioMutateAsyncMock,
   updateScenarioMutateAsyncMock,
   liveAllocationMutateMock,
@@ -25,6 +31,9 @@ const {
   latestAllocationsHookMock: vi.fn(),
   scenarioListHookMock: vi.fn(),
   scenarioDetailHookMock: vi.fn(),
+  previewScenarioMutateAsyncMock: vi.fn(),
+  syncScenarioMutateAsyncMock: vi.fn(),
+  applyScenarioMutateAsyncMock: vi.fn(),
   createScenarioMutateAsyncMock: vi.fn(),
   updateScenarioMutateAsyncMock: vi.fn(),
   liveAllocationMutateMock: vi.fn(),
@@ -55,6 +64,18 @@ vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useAllocationSce
   }),
   useUpdateAllocationScenario: () => ({
     mutateAsync: updateScenarioMutateAsyncMock,
+    isPending: false,
+  }),
+  useAllocationScenarioApplyPreview: () => ({
+    mutateAsync: previewScenarioMutateAsyncMock,
+    isPending: false,
+  }),
+  useSyncAllocationScenario: () => ({
+    mutateAsync: syncScenarioMutateAsyncMock,
+    isPending: false,
+  }),
+  useApplyAllocationScenario: () => ({
+    mutateAsync: applyScenarioMutateAsyncMock,
     isPending: false,
   }),
 }));
@@ -127,6 +148,11 @@ const mockScenarioDetail: AllocationScenarioDetail = {
   source_allocation_version: 2,
   company_count: 3,
   total_planned_cents: 500000000,
+  last_applied_at: '2026-03-27T11:00:00.000Z',
+  last_applied_by: 'analyst@example.com',
+  last_applied_allocation_version: 7,
+  last_synced_at: '2026-03-29T09:30:00.000Z',
+  last_synced_by: 'system',
   created_at: '2026-03-28T12:00:00.000Z',
   updated_at: '2026-02-15T16:00:00.000Z',
   snapshot_items: [
@@ -161,10 +187,122 @@ const mockScenarioList: AllocationScenarioListResponse = {
       source_allocation_version: mockScenarioDetail.source_allocation_version,
       company_count: mockScenarioDetail.company_count,
       total_planned_cents: mockScenarioDetail.total_planned_cents,
+      last_applied_at: mockScenarioDetail.last_applied_at,
+      last_applied_by: mockScenarioDetail.last_applied_by,
+      last_applied_allocation_version: mockScenarioDetail.last_applied_allocation_version,
+      last_synced_at: mockScenarioDetail.last_synced_at,
+      last_synced_by: mockScenarioDetail.last_synced_by,
       created_at: mockScenarioDetail.created_at,
       updated_at: mockScenarioDetail.updated_at,
     },
   ],
+};
+
+const mockApplyPreview: AllocationScenarioApplyPreview = {
+  scenario: {
+    id: mockScenarioDetail.id,
+    fund_id: 1,
+    name: mockScenarioDetail.name,
+    notes: mockScenarioDetail.notes,
+    source_allocation_version: mockScenarioDetail.source_allocation_version,
+    company_count: mockScenarioDetail.company_count,
+    total_planned_cents: mockScenarioDetail.total_planned_cents,
+    last_applied_at: mockScenarioDetail.last_applied_at,
+    last_applied_by: mockScenarioDetail.last_applied_by,
+    last_applied_allocation_version: mockScenarioDetail.last_applied_allocation_version,
+    last_synced_at: mockScenarioDetail.last_synced_at,
+    last_synced_by: mockScenarioDetail.last_synced_by,
+    created_at: mockScenarioDetail.created_at,
+    updated_at: mockScenarioDetail.updated_at,
+  },
+  live: {
+    fund_id: 1,
+    company_count: 3,
+    total_planned_cents: 450000000,
+    total_deployed_cents: 150000000,
+    max_allocation_version: 2,
+    last_updated_at: '2026-03-30T18:00:00.000Z',
+  },
+  drift_status: 'exact_match',
+  apply_state: 'apply_allowed',
+  live_token: 'a'.repeat(64),
+  summary: {
+    companies_changed: 1,
+    companies_unchanged: 2,
+    scenario_only_count: 0,
+    live_only_count: 0,
+    total_planned_delta_cents: 50000000,
+  },
+};
+
+const mockSyncResult: AllocationScenarioSyncResult = {
+  scenario: {
+    ...mockScenarioDetail,
+    source_allocation_version: 3,
+    total_planned_cents: 450000000,
+    last_synced_at: '2026-03-30T18:15:00.000Z',
+    last_synced_by: 'analyst@example.com',
+    updated_at: '2026-03-30T18:15:00.000Z',
+    snapshot_items: mockAllocationsData.companies.map((company) => ({
+      company_id: company.company_id,
+      planned_reserves_cents: company.planned_reserves_cents,
+      allocation_cap_cents: company.allocation_cap_cents,
+      allocation_reason: company.allocation_reason,
+    })),
+  },
+  event: {
+    id: '00000000-0000-0000-0000-000000000202',
+    event_type: 'synced',
+    actor_user_id: 17,
+    actor_label: 'analyst@example.com',
+    note: 'Refresh from live before committee review',
+    source_allocation_version: 2,
+    resulting_allocation_version: 3,
+    change_summary: {
+      companies_changed: 1,
+      companies_unchanged: 2,
+      scenario_only_count: 0,
+      live_only_count: 0,
+      total_planned_delta_cents: -50000000,
+      headline: 'Synced 1 company',
+    },
+    created_at: '2026-03-30T18:15:00.000Z',
+  },
+};
+
+const mockApplyResult: AllocationScenarioApplyResult = {
+  scenario: {
+    ...mockScenarioDetail,
+    source_allocation_version: 8,
+    last_applied_at: '2026-03-30T18:30:00.000Z',
+    last_applied_by: 'analyst@example.com',
+    last_applied_allocation_version: 8,
+    updated_at: '2026-03-30T18:30:00.000Z',
+  },
+  event: {
+    id: '00000000-0000-0000-0000-000000000203',
+    event_type: 'applied',
+    actor_user_id: 17,
+    actor_label: 'analyst@example.com',
+    note: 'Apply approved reserve plan',
+    source_allocation_version: 7,
+    resulting_allocation_version: 8,
+    change_summary: {
+      companies_changed: 1,
+      companies_unchanged: 2,
+      scenario_only_count: 0,
+      live_only_count: 0,
+      total_planned_delta_cents: 50000000,
+      headline: 'Applied 1 company',
+    },
+    created_at: '2026-03-30T18:30:00.000Z',
+  },
+  live: {
+    updated_count: 1,
+    resulting_allocation_version: 8,
+    previous_preview_token: mockApplyPreview.live_token,
+    current_live_token: 'b'.repeat(64),
+  },
 };
 
 const mockCompany: AllocationCompany = mockAllocationsData.companies[0]!;
@@ -205,6 +343,9 @@ describe('portfolio reserve planning workspace', () => {
 
     createScenarioMutateAsyncMock.mockResolvedValue(mockScenarioDetail);
     updateScenarioMutateAsyncMock.mockResolvedValue(mockScenarioDetail);
+    previewScenarioMutateAsyncMock.mockResolvedValue(mockApplyPreview);
+    syncScenarioMutateAsyncMock.mockResolvedValue(mockSyncResult);
+    applyScenarioMutateAsyncMock.mockResolvedValue(mockApplyResult);
   });
 
   it('renders the live reserve-planning workspace summary and saved scenario controls', () => {
@@ -217,6 +358,8 @@ describe('portfolio reserve planning workspace', () => {
     expect(screen.getByText('Upside reserve plan')).toBeInTheDocument();
     expect(screen.getByText('Strong growth trajectory')).toBeInTheDocument();
     expect(screen.getByText('Last synced Feb 15, 2024')).toBeInTheDocument();
+    expect(screen.getByText('Synced Mar 29, 2026 by system')).toBeInTheDocument();
+    expect(screen.getByText('Applied Mar 27, 2026 by analyst@example.com (v7)')).toBeInTheDocument();
   });
 
   it('creates a scenario from the current workspace snapshot', async () => {
@@ -257,6 +400,10 @@ describe('portfolio reserve planning workspace', () => {
       'Resume this for aggressive follow-ons.'
     );
     expect(screen.getAllByText(/Last modified Feb 15, 2026/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Synced Mar 29, 2026 by system/).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/Applied Mar 27, 2026 by analyst@example.com \(v7\)/).length
+    ).toBeGreaterThanOrEqual(1);
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
@@ -313,6 +460,77 @@ describe('portfolio reserve planning workspace', () => {
       })
     );
     expect(screen.getByText('Unsaved local edits')).toBeInTheDocument();
+  });
+
+  it('previews apply and sends the preview token when applying a scenario', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText(/action note/i), 'Committee approved apply');
+    await user.click(screen.getByRole('button', { name: /preview apply/i }));
+
+    await waitFor(() => {
+      expect(previewScenarioMutateAsyncMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByText('Apply Preview')).toBeInTheDocument();
+    expect(screen.getByText('Apply allowed')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /confirm apply/i }));
+
+    await waitFor(() => {
+      expect(applyScenarioMutateAsyncMock).toHaveBeenCalledWith({
+        preview_token: mockApplyPreview.live_token,
+        note: 'Committee approved apply',
+      });
+    });
+    expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('syncs the active scenario from live with an action note', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText(/action note/i), 'Refresh from IC feedback');
+    await user.click(screen.getByRole('button', { name: /sync from live/i }));
+
+    await waitFor(() => {
+      expect(syncScenarioMutateAsyncMock).toHaveBeenCalledWith({
+        note: 'Refresh from IC feedback',
+      });
+    });
+  });
+
+  it('disables preview and sync actions while the scenario workspace is dirty', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(editButtons[0]!);
+
+    const plannedReservesInput = await screen.findByLabelText(/planned reserves/i);
+    await user.clear(plannedReservesInput);
+    await user.type(plannedReservesInput, '2600000');
+    await user.click(screen.getByRole('button', { name: /save to scenario/i }));
+
+    expect(screen.getByRole('button', { name: /preview apply/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /sync from live/i })).toBeDisabled();
+    expect(previewScenarioMutateAsyncMock).not.toHaveBeenCalled();
+    expect(syncScenarioMutateAsyncMock).not.toHaveBeenCalled();
   });
 
   it('shows allocation version and last-updated context in the edit dialog', () => {

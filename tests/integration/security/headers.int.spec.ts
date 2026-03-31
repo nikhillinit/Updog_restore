@@ -2,14 +2,7 @@ import { expect, test } from 'vitest';
 import http from 'node:http';
 import https from 'node:https';
 import { URL } from 'node:url';
-
-const getBaseUrl = () => process.env.BASE_URL || 'http://localhost:3000';
-
-function normalizeBaseUrl(baseUrl: string) {
-  return baseUrl.startsWith('http://') || baseUrl.startsWith('https://')
-    ? baseUrl
-    : `http://${baseUrl}`;
-}
+import { resolveIntegrationBaseUrl, resolveIntegrationUrl } from '../base-url';
 
 function getRawHeaders(urlStr: string): Promise<string[]> {
   return new Promise((resolve, reject) => {
@@ -40,7 +33,7 @@ function extractNonce(cspHeader: string): string | null {
 }
 
 test('security headers present', async () => {
-  const r = await fetch(`${normalizeBaseUrl(getBaseUrl())}/`);
+  const r = await fetch(resolveIntegrationUrl('/'));
   const csp = r.headers.get('content-security-policy') || '';
   expect(csp).toMatch(/default-src/);
   expect(csp).toMatch(/script-src/);
@@ -51,8 +44,7 @@ test('security headers present', async () => {
 });
 
 test('emits exactly one CSP header', async () => {
-  const baseUrl = normalizeBaseUrl(getBaseUrl());
-  const raw = await getRawHeaders(`${baseUrl}/`);
+  const raw = await getRawHeaders(resolveIntegrationUrl('/'));
   const cspCount = raw.reduce((acc, value, index) => {
     if (index % 2 === 0 && value.toLowerCase() === 'content-security-policy') {
       return acc + 1;
@@ -64,8 +56,7 @@ test('emits exactly one CSP header', async () => {
 });
 
 test('emits exactly one CSP header on API route', async () => {
-  const baseUrl = normalizeBaseUrl(getBaseUrl());
-  const raw = await getRawHeaders(`${baseUrl}/api/health`);
+  const raw = await getRawHeaders(resolveIntegrationUrl('/api/health'));
   const cspCount = raw.reduce((acc, value, index) => {
     if (index % 2 === 0 && value.toLowerCase() === 'content-security-policy') {
       return acc + 1;
@@ -77,11 +68,11 @@ test('emits exactly one CSP header on API route', async () => {
 });
 
 test('CSP nonce changes across requests', async () => {
-  const baseUrl = normalizeBaseUrl(getBaseUrl());
+  const baseUrl = resolveIntegrationBaseUrl();
   const nonces = new Set<string>();
 
   for (let i = 0; i < 3; i += 1) {
-    const r = await fetch(`${baseUrl}/`);
+    const r = await fetch(new URL('/', baseUrl).toString());
     const csp = r.headers.get('content-security-policy') || '';
     const nonce = extractNonce(csp);
     if (nonce) {
