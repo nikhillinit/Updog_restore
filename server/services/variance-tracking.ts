@@ -787,6 +787,8 @@ export class AlertManagementService {
     severity?: string;
     category?: string;
     checkFrequency?: string;
+    suppressionPeriod?: number;
+    notificationChannels?: string[];
     createdBy: number;
   }): Promise<AlertRule> {
     const ruleData: InsertAlertRule = {
@@ -801,6 +803,8 @@ export class AlertManagementService {
       severity: params.severity || 'warning',
       category: params.category || 'performance',
       checkFrequency: params.checkFrequency || 'daily',
+      suppressionPeriod: params.suppressionPeriod,
+      notificationChannels: params.notificationChannels,
       createdBy: params.createdBy,
     };
 

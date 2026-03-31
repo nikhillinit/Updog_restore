@@ -48,6 +48,8 @@ export interface AlertRule {
   severity: 'info' | 'warning' | 'critical' | 'urgent';
   category: 'performance' | 'risk' | 'operational' | 'compliance';
   checkFrequency: 'realtime' | 'hourly' | 'daily' | 'weekly';
+  suppressionPeriod: number;
+  notificationChannels: Array<'email' | 'slack' | 'webhook'>;
   isActive: boolean;
   createdBy: number;
   createdAt: string;
@@ -335,6 +337,8 @@ export function useCreateAlertRule() {
       severity?: 'info' | 'warning' | 'critical' | 'urgent';
       category?: 'performance' | 'risk' | 'operational' | 'compliance';
       checkFrequency?: 'realtime' | 'hourly' | 'daily' | 'weekly';
+      suppressionPeriod?: number;
+      notificationChannels?: Array<'email' | 'slack' | 'webhook'>;
     }) => {
       return apiRequest<{ success: boolean; data: AlertRule }>(
         'POST',
@@ -416,11 +420,10 @@ export function usePerformVarianceAnalysis() {
 
   return useMutation({
     mutationFn: async (params: { fundId: number; baselineId?: string; reportName?: string }) => {
-      return apiRequest<{ success: boolean; data: { report: VarianceReport; alerts: Alert[] } }>(
-        'POST',
-        `/api/funds/${params.fundId}/variance-analysis`,
-        params
-      );
+      return apiRequest<{
+        success: boolean;
+        data: { report: VarianceReport; alertsGenerated: Alert[]; alertCount: number };
+      }>('POST', `/api/funds/${params.fundId}/variance-analysis`, params);
     },
     onSuccess: (_data, variables) => {
       // Invalidate all variance-related queries

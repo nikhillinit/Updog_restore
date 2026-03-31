@@ -414,6 +414,8 @@ describe('Variance Tracking API', () => {
           severity: 'critical',
           category: 'performance',
           checkFrequency: 'daily',
+          suppressionPeriod: 1440,
+          notificationChannels: ['email', 'slack'],
         };
 
         const response = await request(app)
@@ -437,6 +439,8 @@ describe('Variance Tracking API', () => {
           severity: 'critical',
           category: 'performance',
           checkFrequency: 'daily',
+          suppressionPeriod: 1440,
+          notificationChannels: ['email', 'slack'],
           createdBy: 1,
         });
       });
@@ -464,6 +468,8 @@ describe('Variance Tracking API', () => {
         expect(createCallArgs.severity).toBe('warning');
         expect(createCallArgs.category).toBe('performance');
         expect(createCallArgs.checkFrequency).toBe('daily');
+        expect(createCallArgs.suppressionPeriod).toBe(60);
+        expect(createCallArgs.notificationChannels).toEqual(['email']);
       });
 
       it('should validate operator enum', async () => {
