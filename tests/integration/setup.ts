@@ -6,6 +6,7 @@
  */
 
 import { beforeAll } from 'vitest';
+import { resolveIntegrationBaseUrl } from './base-url';
 
 // Guard against whatwg-fetch pollution: some transitive dependencies
 // import whatwg-fetch which overwrites globalThis.fetch with a browser-only
@@ -22,6 +23,10 @@ beforeAll(() => {
   if (g[NATIVE_FETCH_KEY]) {
     globalThis.fetch = g[NATIVE_FETCH_KEY];
   }
+
+  // Vitest/Vite can surface BASE_URL as "/" in Node tests; normalize it to the
+  // actual integration server origin before specs build request URLs.
+  process.env.BASE_URL = resolveIntegrationBaseUrl();
 });
 
 // Force UTC timezone for consistent date handling

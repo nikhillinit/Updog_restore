@@ -115,7 +115,6 @@ interface AllocationScenarioLoadedDetail extends AllocationScenarioSummary {
 export interface AllocationScenarioDetail extends AllocationScenarioLoadedDetail {
   context: AllocationScenarioCollaborationContext;
 }
-
 export interface AllocationScenarioApplyPreview {
   scenario: AllocationScenarioSummary;
   live: {
@@ -162,7 +161,6 @@ export interface AllocationScenarioCollaborationContext {
   last_sync: AllocationScenarioCollaborationContextEvent | null;
   last_apply: AllocationScenarioCollaborationContextEvent | null;
 }
-
 export interface AllocationScenarioEventSummary {
   id: string;
   event_type: 'applied' | 'synced';
@@ -418,7 +416,6 @@ function mapContextEventRow(
     change_summary: parseChangeSummary(row.change_summary_json),
   };
 }
-
 async function getLiveAllocationSnapshot(
   client: PoolClient,
   fundId: number,
@@ -691,7 +688,6 @@ async function getScenarioCollaborationContext(
     last_apply: lastApply,
   };
 }
-
 async function buildAllocationScenarioPreviewContext(
   client: PoolClient,
   fundId: number,

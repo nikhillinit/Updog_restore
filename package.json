@@ -9,7 +9,7 @@
   },
   "packageManager": "npm@10.9.0",
   "scripts": {
-    "preinstall": "npx only-allow npm",
+    "preinstall": "node scripts/check-package-manager.mjs",
     "doctor": "npm-run-all --sequential doctor:shell doctor:quick",
     "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:quick": "node -e \"try{require.resolve('vite');require.resolve('@vitejs/plugin-react');require.resolve('autoprefixer');console.log('doctor:quick PASS: core modules OK')}catch(e){console.error('doctor:quick FAIL:',e.message);process.exit(1)}\"",
@@ -21,6 +21,7 @@
     "build:server": "node scripts/build-server.mjs",
     "build:prod": "npm run build:web && npm run build:server",
     "build": "npm run build:prod",
+    "preview": "vite preview",
     "postbuild": "node scripts/verify-build.mjs",
     "vercel-build": "npm run clean:spa-dist && vite build",
     "start": "cross-env NODE_ENV=production node dist/index.js",

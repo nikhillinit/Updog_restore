@@ -1462,7 +1462,7 @@
     },
     {
       "name": "preinstall",
-      "command": "npx only-allow npm",
+      "command": "node scripts/check-package-manager.mjs",
       "category": "preinstall",
       "isDead": false,
       "isDuplicate": false,

@@ -130,7 +130,6 @@ export interface AllocationScenarioDetail extends AllocationScenarioSummary {
   snapshot_items: AllocationScenarioSnapshotItem[];
   context: AllocationScenarioCollaborationContext;
 }
-
 export interface AllocationScenarioEventSummary {
   id: string;
   event_type: 'applied' | 'synced';

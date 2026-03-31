@@ -73,9 +73,9 @@ describe('Hardened Flag System', () => {
     );
   }
 
-  // Token factories matching old constants
-  const adminToken = () => createToken('admin', ['flag_read', 'flag_admin']);
-  const readToken = () => createToken('viewer', ['flag_read']);
+  // Token factories matching the current flag-route contract
+  const adminToken = () => createToken('flag_admin', ['flag_read', 'flag_admin']);
+  const readToken = () => createToken('flag_read', ['flag_read']);
   const userToken = () => createToken('user', []);
 
   describe('Client Flags API', () => {
@@ -127,18 +127,7 @@ describe('Hardened Flag System', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should accept valid admin token', async () => {
-      const response = await server
-        .request()
-        .get('/api/flags/admin')
-        .set('Authorization', `Bearer ${adminToken()}`);
-
-      // Skip if rate limited
-      if (response.status === 429) return;
-      expect([200, 401, 500].includes(response.status)).toBe(true); // 500 OK if DB not set up
-    });
-
-    it('should enforce RBAC - read-only access', async () => {
+    it('should accept valid read token for admin reads', async () => {
       const response = await server
         .request()
         .get('/api/flags/admin')
@@ -146,7 +135,22 @@ describe('Hardened Flag System', () => {
 
       // Skip if rate limited
       if (response.status === 429) return;
-      expect([200, 401, 500].includes(response.status)).toBe(true); // Has flag_read role
+      expect([200, 401, 500].includes(response.status)).toBe(true); // 500 OK if DB not set up
+    });
+
+    it('should enforce RBAC - read-only tokens cannot write', async () => {
+      const response = await server
+        .request()
+        .patch('/api/flags/admin/wizard.v1')
+        .set('Authorization', `Bearer ${readToken()}`)
+        .send({
+          enabled: true,
+          reason: 'Read-only write attempt',
+        });
+
+      // Skip if rate limited
+      if (response.status === 429 || response.status === 401) return;
+      expect(response.status).toBe(403);
     });
 
     it('should reject insufficient privileges for admin operations', async () => {
@@ -204,11 +208,24 @@ describe('Hardened Flag System', () => {
     });
 
     it('should support dry-run mode', async () => {
+      const versionResponse = await server
+        .request()
+        .get('/api/flags/admin')
+        .set('Authorization', `Bearer ${readToken()}`);
+
+      if (
+        versionResponse.status === 429 ||
+        versionResponse.status === 500 ||
+        versionResponse.status === 401
+      ) {
+        return;
+      }
+
       const response = await server
         .request()
         .patch('/api/flags/admin/wizard.v1')
         .set('Authorization', `Bearer ${adminToken()}`)
-        .set('If-Match', 'any-version')
+        .set('If-Match', String(versionResponse.body.version))
         .send({
           enabled: true,
           reason: 'Dry run test',

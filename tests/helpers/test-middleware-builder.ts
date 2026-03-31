@@ -44,6 +44,7 @@ export interface TestMiddlewareConfig {
  */
 export function buildTestMiddleware(config: TestMiddlewareConfig = {}): Express {
   const app = express();
+  app.use(express.json({ limit: '1mb' }));
   applySecurityHeaders(app, config);
   applyRateLimiting(app, config);
   applyAuthMiddleware(app, config);
