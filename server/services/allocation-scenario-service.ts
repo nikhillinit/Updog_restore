@@ -72,7 +72,7 @@ interface LiveAllocationSnapshotItem {
 }
 
 interface AllocationScenarioPreviewContext {
-  scenario: AllocationScenarioDetail;
+  scenario: AllocationScenarioLoadedDetail;
   liveItems: LiveAllocationSnapshotItem[];
   preview: AllocationScenarioApplyPreview;
 }
@@ -108,8 +108,12 @@ export interface AllocationScenarioSummary {
   updated_at: string;
 }
 
-export interface AllocationScenarioDetail extends AllocationScenarioSummary {
+interface AllocationScenarioLoadedDetail extends AllocationScenarioSummary {
   snapshot_items: AllocationScenarioSnapshotItem[];
+}
+
+export interface AllocationScenarioDetail extends AllocationScenarioLoadedDetail {
+  context: AllocationScenarioCollaborationContext;
 }
 
 export interface AllocationScenarioApplyPreview {
@@ -141,6 +145,22 @@ export interface AllocationScenarioChangeSummary {
   live_only_count: number;
   total_planned_delta_cents: number;
   headline: string | null;
+}
+
+export interface AllocationScenarioCollaborationContextEvent {
+  event_id: string;
+  at: string;
+  by: string | null;
+  note: string | null;
+  source_allocation_version: number | null;
+  resulting_allocation_version: number | null;
+  change_summary: AllocationScenarioChangeSummary;
+}
+
+export interface AllocationScenarioCollaborationContext {
+  scenario_notes: string | null;
+  last_sync: AllocationScenarioCollaborationContextEvent | null;
+  last_apply: AllocationScenarioCollaborationContextEvent | null;
 }
 
 export interface AllocationScenarioEventSummary {
@@ -385,6 +405,20 @@ function mapEventRow(row: AllocationScenarioEventRow): AllocationScenarioEventSu
   };
 }
 
+function mapContextEventRow(
+  row: AllocationScenarioEventRow
+): AllocationScenarioCollaborationContextEvent {
+  return {
+    event_id: row.id,
+    at: row.created_at.toISOString(),
+    by: row.actor_label,
+    note: row.note,
+    source_allocation_version: row.source_allocation_version,
+    resulting_allocation_version: row.resulting_allocation_version,
+    change_summary: parseChangeSummary(row.change_summary_json),
+  };
+}
+
 async function getLiveAllocationSnapshot(
   client: PoolClient,
   fundId: number,
@@ -605,10 +639,56 @@ async function fetchScenarioDetail(
 ): Promise<AllocationScenarioDetail> {
   const header = await getScenarioHeaderOrThrow(client, fundId, scenarioId);
   const snapshot_items = await getScenarioItems(client, scenarioId);
+  const context = await getScenarioCollaborationContext(client, scenarioId, header.notes);
 
   return {
     ...mapScenarioHeader(header),
     snapshot_items,
+    context,
+  };
+}
+
+async function getScenarioCollaborationContext(
+  client: PoolClient,
+  scenarioId: string,
+  scenarioNotes: string | null
+): Promise<AllocationScenarioCollaborationContext> {
+  const result = await client.query<AllocationScenarioEventRow>(
+    `SELECT DISTINCT ON (event_type)
+       id,
+       event_type,
+       actor_user_id,
+       actor_label,
+       note,
+       source_allocation_version,
+       resulting_allocation_version,
+       change_summary_json,
+       created_at
+     FROM allocation_scenario_events
+     WHERE scenario_id = $1
+       AND event_type IN ('synced', 'applied')
+     ORDER BY event_type ASC, created_at DESC, id DESC`,
+    [scenarioId]
+  );
+
+  let lastSync: AllocationScenarioCollaborationContextEvent | null = null;
+  let lastApply: AllocationScenarioCollaborationContextEvent | null = null;
+
+  for (const row of result.rows) {
+    if (row.event_type === 'synced') {
+      lastSync = mapContextEventRow(row);
+      continue;
+    }
+
+    if (row.event_type === 'applied') {
+      lastApply = mapContextEventRow(row);
+    }
+  }
+
+  return {
+    scenario_notes: scenarioNotes,
+    last_sync: lastSync,
+    last_apply: lastApply,
   };
 }
 
@@ -627,7 +707,7 @@ async function buildAllocationScenarioPreviewContext(
     options.lockScenario ? { forUpdate: true } : {}
   );
   const snapshot_items = await getScenarioItems(client, scenarioId);
-  const scenario: AllocationScenarioDetail = {
+  const scenario: AllocationScenarioLoadedDetail = {
     ...mapScenarioHeader(header),
     snapshot_items,
   };
