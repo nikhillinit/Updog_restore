@@ -480,7 +480,19 @@ describe('PDF Generation Service', () => {
       ],
     };
 
-    const quarterlyData = buildQuarterlyReportData(mockLPData, 1, 'Q2', 2024);
+    const quarterlyData = buildQuarterlyReportData(mockLPData, 1, 'Q2', 2024, {
+      irr: 0.18,
+      tvpi: 1.4,
+      dpi: 0.2,
+      portfolioCompanies: [
+        {
+          name: 'Example Portfolio Co',
+          invested: 2500000,
+          value: 3500000,
+          moic: 1.4,
+        },
+      ],
+    });
 
     expect(quarterlyData.fundName).toBe('Test Fund I');
     expect(quarterlyData.quarter).toBe('Q2');

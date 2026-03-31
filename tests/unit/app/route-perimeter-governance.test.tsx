@@ -70,6 +70,7 @@ async function loadApp(flagOverrides: FlagOverrides = {}) {
   vi.doMock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
   vi.doMock('@/pages/settings', () => ({ default: () => <div>Settings Page</div> }));
   vi.doMock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
+  vi.doMock('@/pages/reserves-demo', () => ({ default: () => <div>Reserves Demo Page</div> }));
   vi.doMock('@/pages/fund-model-results', () => ({
     default: () => <div>Fund Model Results Page</div>,
   }));
@@ -116,8 +117,9 @@ describe('route perimeter governance', () => {
     ['/reports', 'Reports Page'],
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
+    ['/reserves-demo', 'Reserves Demo Page'],
     ['/fund-model-results/42', 'Fund Model Results Page'],
-  ])('keeps core route %s live', async (path, expectedText) => {
+  ])('keeps mounted route %s live', async (path, expectedText) => {
     await renderAt(path);
     expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });

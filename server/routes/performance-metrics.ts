@@ -9,14 +9,24 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
-import { config } from '../config/index.js';
 
 const router = Router();
+const DEFAULT_FUND_ID_FALLBACK = 1;
+
+function resolveDefaultFundId(): number {
+  const fundId = Number(process.env['DEFAULT_FUND_ID']);
+
+  if (Number.isInteger(fundId) && fundId > 0) {
+    return fundId;
+  }
+
+  return DEFAULT_FUND_ID_FALLBACK;
+}
 
 // Request validation schema
 const performanceRunSchema = z.object({
   runs: z.number().default(100),
-  fundId: z.coerce.number().int().positive().optional().default(config.DEFAULT_FUND_ID),
+  fundId: z.coerce.number().int().positive().optional().default(resolveDefaultFundId()),
 });
 
 /**

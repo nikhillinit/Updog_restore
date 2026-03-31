@@ -21,6 +21,7 @@
     "build:server": "node scripts/build-server.mjs",
     "build:prod": "npm run build:web && npm run build:server",
     "build": "npm run build:prod",
+    "preview": "vite preview",
     "postbuild": "node scripts/verify-build.mjs",
     "vercel-build": "npm run clean:spa-dist && vite build",
     "start": "cross-env NODE_ENV=production node dist/index.js",

@@ -28,6 +28,7 @@ const Reports = React.lazy(() => import('@/pages/reports'));
 const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
+const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
 // LP Sharing
 const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
 // New IA pages (Codex-validated restructure)
@@ -285,6 +286,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
   { path: '/help', component: HelpPage },
+  { path: '/reserves-demo', component: ReservesDemo },
 ];
 
 export interface ArchivedPlaceholderRouteEntry {
