@@ -9,7 +9,7 @@ import {
   BaselineService,
   VarianceCalculationService,
   AlertManagementService,
-  VarianceTrackingService
+  VarianceTrackingService,
 } from '../../../server/services/variance-tracking';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
@@ -25,7 +25,7 @@ vi.mock('../../../server/metrics/variance-metrics', () => ({
   recordThresholdBreach: vi.fn(),
   updateDataQualityScore: vi.fn(),
   recordSystemError: vi.fn(),
-  startVarianceCalculation: vi.fn(() => vi.fn())
+  startVarianceCalculation: vi.fn(() => vi.fn()),
 }));
 
 // Mock the database module (inline factory to avoid hoisting issues)
@@ -37,14 +37,14 @@ vi.mock('../../../server/db', () => {
   const valuesMock = vi.fn((data) => {
     lastInsertData = data;
     return {
-      returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }]))
+      returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
     };
   });
 
   const setMock = vi.fn((data) => {
     lastUpdateData = data;
     return {
-      where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }]))
+      where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }])),
     };
   });
 
@@ -53,39 +53,43 @@ vi.mock('../../../server/db', () => {
       query: {
         fundMetrics: {
           findFirst: vi.fn(),
-          findMany: vi.fn()
+          findMany: vi.fn(),
         },
         portfolioCompanies: {
-          findMany: vi.fn()
+          findMany: vi.fn(),
         },
         fundSnapshots: {
-          findFirst: vi.fn()
+          findFirst: vi.fn(),
         },
         fundBaselines: {
           findFirst: vi.fn(),
-          findMany: vi.fn()
+          findMany: vi.fn(),
+        },
+        varianceReports: {
+          findFirst: vi.fn(),
+          findMany: vi.fn(),
         },
         alertRules: {
-          findMany: vi.fn()
+          findMany: vi.fn(),
         },
         performanceAlerts: {
           findFirst: vi.fn(),
-          findMany: vi.fn()
-        }
+          findMany: vi.fn(),
+        },
       },
       insert: vi.fn(() => ({
-        values: valuesMock
+        values: valuesMock,
       })),
       update: vi.fn(() => ({
-        set: setMock
+        set: setMock,
       })),
       transaction: vi.fn((fn) => {
         // Replicate db structure for transaction callback
         const txValuesMock = vi.fn((data) => ({
-          returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }]))
+          returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
         }));
         const txSetMock = vi.fn((data) => ({
-          where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }]))
+          where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }])),
         }));
 
         const txDb = {
@@ -93,20 +97,20 @@ vi.mock('../../../server/db', () => {
             fundMetrics: { findFirst: vi.fn(), findMany: vi.fn() },
             fundBaselines: { findFirst: vi.fn(), findMany: vi.fn() },
             portfolioCompanies: { findMany: vi.fn() },
-            fundSnapshots: { findFirst: vi.fn() }
+            fundSnapshots: { findFirst: vi.fn() },
           },
           insert: vi.fn(() => ({
-            values: txValuesMock
+            values: txValuesMock,
           })),
           update: vi.fn(() => ({
-            set: txSetMock
-          }))
+            set: txSetMock,
+          })),
         };
         return fn(txDb);
       }),
       __getLastInsertData: () => lastInsertData,
-      __getLastUpdateData: () => lastUpdateData
-    }
+      __getLastUpdateData: () => lastUpdateData,
+    },
   };
 });
 
@@ -137,7 +141,7 @@ describe('BaselineService', () => {
         multiple: '1.4500',
         dpi: '0.9200',
         tvpi: '1.3800',
-        metricDate: new Date()
+        metricDate: new Date(),
       });
 
       // Mock portfolio companies
@@ -148,7 +152,7 @@ describe('BaselineService', () => {
           sector: 'Technology',
           stage: 'Series A',
           currentValuation: '500000.00',
-          investments: [{ amount: '200000.00' }]
+          investments: [{ amount: '200000.00' }],
         },
         {
           id: 2,
@@ -156,8 +160,8 @@ describe('BaselineService', () => {
           sector: 'Healthcare',
           stage: 'Series B',
           currentValuation: '400000.00',
-          investments: [{ amount: '300000.00' }]
-        }
+          investments: [{ amount: '300000.00' }],
+        },
       ]);
 
       // Mock snapshots
@@ -176,7 +180,7 @@ describe('BaselineService', () => {
         periodStart: new Date('2024-10-01'),
         periodEnd: new Date('2024-12-31'),
         createdBy: 1,
-        tags: ['quarterly', 'audited']
+        tags: ['quarterly', 'audited'],
       };
 
       const result = await service.createBaseline(params);
@@ -196,7 +200,7 @@ describe('BaselineService', () => {
         baselineType: 'quarterly' as const,
         periodStart: new Date('2024-10-01'),
         periodEnd: new Date('2024-12-31'),
-        createdBy: 1
+        createdBy: 1,
       };
 
       await expect(service.createBaseline(params)).rejects.toThrow('No fund metrics available');
@@ -207,7 +211,7 @@ describe('BaselineService', () => {
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         fundId: 1,
         totalValue: '2500000.00',
-        irr: '0.1850'
+        irr: '0.1850',
       });
 
       // Mock portfolio data
@@ -223,7 +227,7 @@ describe('BaselineService', () => {
         baselineType: 'initial',
         periodStart: new Date(),
         periodEnd: new Date(),
-        createdBy: 1
+        createdBy: 1,
       });
 
       // Verify the baseline was set as default
@@ -234,7 +238,7 @@ describe('BaselineService', () => {
       // Mock fund metrics
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         fundId: 1,
-        totalValue: '2500000.00'
+        totalValue: '2500000.00',
       });
 
       // Mock portfolio data
@@ -243,7 +247,7 @@ describe('BaselineService', () => {
 
       // Mock existing default baseline
       mockDb.query.fundBaselines.findMany.mockResolvedValue([
-        { id: 'existing-default', isDefault: true }
+        { id: 'existing-default', isDefault: true },
       ]);
 
       const result = await service.createBaseline({
@@ -252,7 +256,7 @@ describe('BaselineService', () => {
         baselineType: 'quarterly',
         periodStart: new Date(),
         periodEnd: new Date(),
-        createdBy: 1
+        createdBy: 1,
       });
 
       // Verify the baseline was not set as default
@@ -264,7 +268,7 @@ describe('BaselineService', () => {
     it('should retrieve baselines with filters', async () => {
       const mockBaselines = [
         varianceTrackingFixtures.baselines.quarterly,
-        varianceTrackingFixtures.baselines.annual
+        varianceTrackingFixtures.baselines.annual,
       ];
 
       mockDb.query.fundBaselines.findMany.mockResolvedValue(mockBaselines);
@@ -272,13 +276,13 @@ describe('BaselineService', () => {
       const result = await service.getBaselines(1, {
         baselineType: 'quarterly',
         isDefault: true,
-        limit: 10
+        limit: 10,
       });
 
       expect(result).toEqual(mockBaselines);
       expect(mockDb.query.fundBaselines.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          limit: 10
+          limit: 10,
         })
       );
     });
@@ -312,6 +316,42 @@ describe('BaselineService', () => {
       expect(mockDb.update).toHaveBeenCalledWith(expect.anything());
     });
   });
+
+  describe('getBaselineById', () => {
+    it('should return baseline when fundId and baselineId match', async () => {
+      const mockBaseline = {
+        id: 'baseline-123',
+        fundId: 1,
+        name: 'Q4 Baseline',
+        isActive: true,
+        ...varianceTrackingFixtures.baselines.quarterly,
+      };
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
+
+      const result = await service.getBaselineById(1, 'baseline-123');
+
+      expect(result).toEqual(mockBaseline);
+      expect(mockDb.query.fundBaselines.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.anything() })
+      );
+    });
+
+    it('should return undefined when baselineId belongs to different fund', async () => {
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      const result = await service.getBaselineById(1, 'baseline-from-fund-2');
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when baselineId does not exist', async () => {
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      const result = await service.getBaselineById(1, 'non-existent-id');
+
+      expect(result).toBeUndefined();
+    });
+  });
 });
 
 describe('VarianceCalculationService', () => {
@@ -334,7 +374,7 @@ describe('VarianceCalculationService', () => {
       const mockBaseline = {
         id: 'baseline-id',
         fundId: 1,
-        ...varianceTrackingFixtures.baselines.quarterly
+        ...varianceTrackingFixtures.baselines.quarterly,
       };
       mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
 
@@ -346,7 +386,7 @@ describe('VarianceCalculationService', () => {
         multiple: '1.4800',
         dpi: '0.9400',
         tvpi: '1.3900',
-        metricDate: new Date()
+        metricDate: new Date(),
       });
 
       // Mock alert rules
@@ -357,8 +397,8 @@ describe('VarianceCalculationService', () => {
           operator: 'lt',
           thresholdValue: '-0.01',
           severity: 'warning',
-          isEnabled: true
-        }
+          isEnabled: true,
+        },
       ]);
 
       const params = {
@@ -366,7 +406,7 @@ describe('VarianceCalculationService', () => {
         baselineId: 'baseline-id',
         reportName: 'Test Variance Report',
         reportType: 'periodic' as const,
-        generatedBy: 1
+        generatedBy: 1,
       };
 
       const result = await service.generateVarianceReport(params);
@@ -384,7 +424,7 @@ describe('VarianceCalculationService', () => {
         fundId: 1,
         baselineId: 'non-existent',
         reportName: 'Test Report',
-        reportType: 'periodic' as const
+        reportType: 'periodic' as const,
       };
 
       await expect(service.generateVarianceReport(params)).rejects.toThrow('Baseline not found');
@@ -395,14 +435,14 @@ describe('VarianceCalculationService', () => {
         id: 'baseline-id',
         totalValue: '2500000.00',
         irr: '0.1850',
-        multiple: '1.4500'
+        multiple: '1.4500',
       };
       mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
 
       const mockCurrentMetrics = {
         totalValue: '2750000.00', // 10% increase
         irr: '0.1950', // 1% increase
-        multiple: '1.5500' // 6.9% increase
+        multiple: '1.5500', // 6.9% increase
       };
       mockDb.query.fundMetrics.findFirst.mockResolvedValue(mockCurrentMetrics);
       mockDb.query.alertRules.findMany.mockResolvedValue([]);
@@ -411,7 +451,7 @@ describe('VarianceCalculationService', () => {
         fundId: 1,
         baselineId: 'baseline-id',
         reportName: 'Variance Test',
-        reportType: 'ad_hoc'
+        reportType: 'ad_hoc',
       });
 
       // Verify variance calculations are present in result
@@ -424,7 +464,7 @@ describe('VarianceCalculationService', () => {
       const mockBaseline = {
         id: 'baseline-id',
         totalValue: '2500000.00',
-        irr: '0.1850'
+        irr: '0.1850',
       };
       mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
 
@@ -433,7 +473,7 @@ describe('VarianceCalculationService', () => {
       // IRR: needs >0.1 absolute variance for high, so we use 0.08 (decline of 0.105 > 0.1)
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         totalValue: '2000000.00', // -20% (exactly 20%, triggers high)
-        irr: '0.08' // decline of 0.105 from 0.1850 (>0.1 triggers high)
+        irr: '0.08', // decline of 0.105 from 0.1850 (>0.1 triggers high)
       });
       mockDb.query.alertRules.findMany.mockResolvedValue([]);
 
@@ -441,7 +481,7 @@ describe('VarianceCalculationService', () => {
         fundId: 1,
         baselineId: 'baseline-id',
         reportName: 'Significant Variance Test',
-        reportType: 'alert_triggered'
+        reportType: 'alert_triggered',
       });
 
       // With both totalValue at 20% and IRR >10% decline, we should get high risk level
@@ -453,14 +493,14 @@ describe('VarianceCalculationService', () => {
       const mockBaseline = {
         id: 'baseline-id',
         totalValue: '2500000.00',
-        irr: '0.1850'
+        irr: '0.1850',
       };
       mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
 
       // Mock decline that should trigger alert
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         totalValue: '2500000.00',
-        irr: '0.1750' // 1% decline
+        irr: '0.1750', // 1% decline
       });
 
       // Mock alert rule
@@ -471,18 +511,72 @@ describe('VarianceCalculationService', () => {
           operator: 'lt',
           thresholdValue: '-0.05', // 5% decline threshold
           severity: 'warning',
-          isEnabled: true
-        }
+          isEnabled: true,
+        },
       ]);
 
       const result = await service.generateVarianceReport({
         fundId: 1,
         baselineId: 'baseline-id',
         reportName: 'Alert Trigger Test',
-        reportType: 'alert_triggered'
+        reportType: 'alert_triggered',
       });
 
       expect(result.alertsTriggered).toBeDefined();
+    });
+  });
+
+  describe('getVarianceReports', () => {
+    it('should return reports for a fund ordered by createdAt desc', async () => {
+      const mockReports = [
+        { id: 'report-2', fundId: 1, reportName: 'Report 2', createdAt: new Date('2026-03-31') },
+        { id: 'report-1', fundId: 1, reportName: 'Report 1', createdAt: new Date('2026-03-01') },
+      ];
+      mockDb.query.varianceReports.findMany.mockResolvedValue(mockReports);
+
+      const result = await service.getVarianceReports(1);
+
+      expect(result).toEqual(mockReports);
+      expect(result).toHaveLength(2);
+      expect(mockDb.query.varianceReports.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 50 })
+      );
+    });
+
+    it('should return empty array when no reports exist', async () => {
+      mockDb.query.varianceReports.findMany.mockResolvedValue([]);
+
+      const result = await service.getVarianceReports(999);
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('getVarianceReportById', () => {
+    it('should return report when fundId and reportId match', async () => {
+      const mockReport = {
+        id: 'report-abc',
+        fundId: 1,
+        reportName: 'Q4 Variance',
+        reportType: 'periodic',
+      };
+      mockDb.query.varianceReports.findFirst.mockResolvedValue(mockReport);
+
+      const result = await service.getVarianceReportById(1, 'report-abc');
+
+      expect(result).toEqual(mockReport);
+      expect(mockDb.query.varianceReports.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.anything() })
+      );
+    });
+
+    it('should return undefined when report not found', async () => {
+      mockDb.query.varianceReports.findFirst.mockResolvedValue(undefined);
+
+      const result = await service.getVarianceReportById(1, 'non-existent');
+
+      expect(result).toBeUndefined();
     });
   });
 });
@@ -514,7 +608,7 @@ describe('AlertManagementService', () => {
         severity: 'critical',
         category: 'performance',
         checkFrequency: 'daily',
-        createdBy: 1
+        createdBy: 1,
       };
 
       const result = await service.createAlertRule(params);
@@ -532,7 +626,7 @@ describe('AlertManagementService', () => {
         metricName: 'totalValue',
         operator: 'lt' as const,
         thresholdValue: -0.1,
-        createdBy: 1
+        createdBy: 1,
       };
 
       const result = await service.createAlertRule(params);
@@ -556,7 +650,7 @@ describe('AlertManagementService', () => {
         description: 'IRR has declined by more than 5%',
         metricName: 'irr',
         thresholdValue: -0.05,
-        actualValue: -0.07
+        actualValue: -0.07,
       };
 
       const result = await service.createAlert(params);
@@ -575,7 +669,7 @@ describe('AlertManagementService', () => {
       mockDb.query.performanceAlerts.findFirst.mockResolvedValue({
         id: 'alert-id',
         severity: 'warning',
-        triggeredAt: new Date()
+        triggeredAt: new Date(),
       });
 
       await service.acknowledgeAlert('alert-id', 1, 'Investigating issue');
@@ -594,7 +688,7 @@ describe('AlertManagementService', () => {
       mockDb.query.performanceAlerts.findFirst.mockResolvedValue({
         id: 'alert-id',
         severity: 'warning',
-        triggeredAt: new Date(Date.now() - 3600000) // 1 hour ago
+        triggeredAt: new Date(Date.now() - 3600000), // 1 hour ago
       });
 
       await service.resolveAlert('alert-id', 1, 'Issue resolved after portfolio rebalancing');
@@ -611,7 +705,7 @@ describe('AlertManagementService', () => {
     it('should retrieve active alerts with filters', async () => {
       const mockAlerts = [
         varianceTrackingFixtures.alerts.irrDeclineAlert,
-        varianceTrackingFixtures.alerts.criticalValueAlert
+        varianceTrackingFixtures.alerts.criticalValueAlert,
       ];
 
       mockDb.query.performanceAlerts.findMany.mockResolvedValue(mockAlerts);
@@ -619,13 +713,13 @@ describe('AlertManagementService', () => {
       const result = await service.getActiveAlerts(1, {
         severity: ['critical', 'warning'],
         category: ['performance'],
-        limit: 20
+        limit: 20,
       });
 
       expect(result).toEqual(mockAlerts);
       expect(mockDb.query.performanceAlerts.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          limit: 20
+          limit: 20,
         })
       );
     });
@@ -659,13 +753,17 @@ describe('VarianceTrackingService (Integration)', () => {
     it('should perform complete analysis workflow', async () => {
       // Mock default baseline
       mockDb.query.fundBaselines.findMany.mockResolvedValue([
-        { id: 'default-baseline', isDefault: true, ...varianceTrackingFixtures.baselines.quarterly }
+        {
+          id: 'default-baseline',
+          isDefault: true,
+          ...varianceTrackingFixtures.baselines.quarterly,
+        },
       ]);
 
       // Mock baseline for report generation
       mockDb.query.fundBaselines.findFirst.mockResolvedValue({
         id: 'default-baseline',
-        ...varianceTrackingFixtures.baselines.quarterly
+        ...varianceTrackingFixtures.baselines.quarterly,
       });
 
       // Mock current metrics
@@ -673,7 +771,7 @@ describe('VarianceTrackingService (Integration)', () => {
         fundId: 1,
         totalValue: '2600000.00',
         irr: '0.1750', // Slight decline
-        multiple: '1.4600'
+        multiple: '1.4600',
       });
 
       // Mock alert rules that should trigger
@@ -684,8 +782,8 @@ describe('VarianceTrackingService (Integration)', () => {
           operator: 'lt',
           thresholdValue: '-0.01',
           severity: 'warning',
-          isEnabled: true
-        }
+          isEnabled: true,
+        },
       ]);
 
       // Mock successful insert calls
@@ -696,30 +794,32 @@ describe('VarianceTrackingService (Integration)', () => {
             insertCallCount++;
             if (insertCallCount === 1) {
               // First call: variance report
-              return Promise.resolve([{
-                id: 'report-id',
-                alertsTriggered: [
-                  {
-                    ruleId: 'rule-1',
-                    metricName: 'irr',
-                    thresholdValue: -0.01,
-                    actualValue: -0.01,
-                    severity: 'warning'
-                  }
-                ]
-              }]);
+              return Promise.resolve([
+                {
+                  id: 'report-id',
+                  alertsTriggered: [
+                    {
+                      ruleId: 'rule-1',
+                      metricName: 'irr',
+                      thresholdValue: -0.01,
+                      actualValue: -0.01,
+                      severity: 'warning',
+                    },
+                  ],
+                },
+              ]);
             } else {
               // Subsequent calls: alerts
               return Promise.resolve([{ id: `alert-${insertCallCount}` }]);
             }
-          })
-        }))
+          }),
+        })),
       }));
 
       const result = await service.performCompleteVarianceAnalysis({
         fundId: 1,
         reportName: 'Complete Analysis Test',
-        userId: 1
+        userId: 1,
       });
 
       expect(result.report).toBeDefined();
@@ -732,32 +832,32 @@ describe('VarianceTrackingService (Integration)', () => {
       // Mock specific baseline
       mockDb.query.fundBaselines.findFirst.mockResolvedValue({
         id: 'specific-baseline',
-        ...varianceTrackingFixtures.baselines.annual
+        ...varianceTrackingFixtures.baselines.annual,
       });
 
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         fundId: 1,
-        totalValue: '2600000.00'
+        totalValue: '2600000.00',
       });
 
       mockDb.query.alertRules.findMany.mockResolvedValue([]);
 
       mockDb.insert.mockImplementation(() => ({
         values: vi.fn(() => ({
-          returning: vi.fn(() => Promise.resolve([{ id: 'report-id', alertsTriggered: [] }]))
-        }))
+          returning: vi.fn(() => Promise.resolve([{ id: 'report-id', alertsTriggered: [] }])),
+        })),
       }));
 
       const result = await service.performCompleteVarianceAnalysis({
         fundId: 1,
         baselineId: 'specific-baseline',
-        userId: 1
+        userId: 1,
       });
 
       expect(result.report.id).toBe('report-id');
       expect(mockDb.query.fundBaselines.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.anything()
+          where: expect.anything(),
         })
       );
     });
@@ -769,7 +869,7 @@ describe('VarianceTrackingService (Integration)', () => {
       await expect(
         service.performCompleteVarianceAnalysis({
           fundId: 1,
-          userId: 1
+          userId: 1,
         })
       ).rejects.toThrow('No default baseline found for fund');
     });
@@ -777,18 +877,18 @@ describe('VarianceTrackingService (Integration)', () => {
     it('should generate alerts when variance thresholds are exceeded', async () => {
       // Mock baseline and metrics for significant variance
       mockDb.query.fundBaselines.findMany.mockResolvedValue([
-        { id: 'default-baseline', isDefault: true }
+        { id: 'default-baseline', isDefault: true },
       ]);
 
       mockDb.query.fundBaselines.findFirst.mockResolvedValue({
         id: 'default-baseline',
         totalValue: '2500000.00',
-        irr: '0.1850'
+        irr: '0.1850',
       });
 
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         totalValue: '2000000.00', // 20% decline
-        irr: '0.1350' // 5% decline
+        irr: '0.1350', // 5% decline
       });
 
       mockDb.query.alertRules.findMany.mockResolvedValue([
@@ -798,8 +898,8 @@ describe('VarianceTrackingService (Integration)', () => {
           operator: 'lt',
           thresholdValue: '-0.15',
           severity: 'critical',
-          isEnabled: true
-        }
+          isEnabled: true,
+        },
       ]);
 
       let insertCallCount = 0;
@@ -808,28 +908,30 @@ describe('VarianceTrackingService (Integration)', () => {
           returning: vi.fn(() => {
             insertCallCount++;
             if (insertCallCount === 1) {
-              return Promise.resolve([{
-                id: 'variance-report',
-                alertsTriggered: [
-                  {
-                    ruleId: 'critical-rule',
-                    metricName: 'totalValue',
-                    thresholdValue: -0.15,
-                    actualValue: -0.20,
-                    severity: 'critical'
-                  }
-                ]
-              }]);
+              return Promise.resolve([
+                {
+                  id: 'variance-report',
+                  alertsTriggered: [
+                    {
+                      ruleId: 'critical-rule',
+                      metricName: 'totalValue',
+                      thresholdValue: -0.15,
+                      actualValue: -0.2,
+                      severity: 'critical',
+                    },
+                  ],
+                },
+              ]);
             } else {
               return Promise.resolve([{ id: 'generated-alert' }]);
             }
-          })
-        }))
+          }),
+        })),
       }));
 
       const result = await service.performCompleteVarianceAnalysis({
         fundId: 1,
-        userId: 1
+        userId: 1,
       });
 
       expect(result.alertsGenerated).toHaveLength(1);
@@ -850,30 +952,30 @@ describe('VarianceTrackingService (Integration)', () => {
 
       // Mock the complete chain of operations
       mockDb.query.fundBaselines.findMany.mockResolvedValue([
-        { id: 'baseline-id', isDefault: true }
+        { id: 'baseline-id', isDefault: true },
       ]);
 
       mockDb.query.fundBaselines.findFirst.mockResolvedValue({
         id: 'baseline-id',
-        totalValue: '2500000.00'
+        totalValue: '2500000.00',
       });
 
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
-        totalValue: '2400000.00' // Small decline
+        totalValue: '2400000.00', // Small decline
       });
 
       mockDb.query.alertRules.findMany.mockResolvedValue([]);
 
       mockDb.insert.mockImplementation(() => ({
         values: vi.fn(() => ({
-          returning: vi.fn(() => Promise.resolve([{ id: 'operation-id', alertsTriggered: [] }]))
-        }))
+          returning: vi.fn(() => Promise.resolve([{ id: 'operation-id', alertsTriggered: [] }])),
+        })),
       }));
 
       // Call the complete analysis
       const result = await service.performCompleteVarianceAnalysis({
         fundId: 1,
-        userId: 1
+        userId: 1,
       });
 
       // Verify the coordination happened correctly
@@ -895,8 +997,8 @@ describe('Edge Cases and Error Handling', () => {
     // Reset insert mock to original implementation (may have been overridden by previous tests)
     mockDb.insert.mockImplementation(() => ({
       values: vi.fn((data) => ({
-        returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }]))
-      }))
+        returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
+      })),
     }));
   });
 
@@ -910,7 +1012,7 @@ describe('Edge Cases and Error Handling', () => {
     mockDb.query.fundMetrics.findFirst.mockResolvedValue({
       fundId: 1,
       totalValue: '1000000.00',
-      irr: '0.15'
+      irr: '0.15',
     });
 
     // Mock empty portfolio
@@ -924,7 +1026,7 @@ describe('Edge Cases and Error Handling', () => {
       baselineType: 'initial',
       periodStart: new Date(),
       periodEnd: new Date(),
-      createdBy: 1
+      createdBy: 1,
     });
 
     expect(result.id).toBe('test-id');
@@ -936,9 +1038,9 @@ describe('Edge Cases and Error Handling', () => {
     // Mock transaction failure
     mockDb.transaction.mockRejectedValue(new Error('Transaction failed'));
 
-    await expect(
-      baselineService.setDefaultBaseline('baseline-id', 1)
-    ).rejects.toThrow('Transaction failed');
+    await expect(baselineService.setDefaultBaseline('baseline-id', 1)).rejects.toThrow(
+      'Transaction failed'
+    );
   });
 
   it('should handle invalid variance calculations', async () => {
@@ -947,12 +1049,12 @@ describe('Edge Cases and Error Handling', () => {
     mockDb.query.fundBaselines.findFirst.mockResolvedValue({
       id: 'baseline-id',
       totalValue: null, // Invalid data
-      irr: null
+      irr: null,
     });
 
     mockDb.query.fundMetrics.findFirst.mockResolvedValue({
       totalValue: null,
-      irr: null
+      irr: null,
     });
 
     mockDb.query.alertRules.findMany.mockResolvedValue([]);
@@ -962,7 +1064,7 @@ describe('Edge Cases and Error Handling', () => {
       fundId: 1,
       baselineId: 'baseline-id',
       reportName: 'Invalid Data Test',
-      reportType: 'ad_hoc'
+      reportType: 'ad_hoc',
     });
 
     expect(result.id).toBe('test-id');
@@ -972,7 +1074,9 @@ describe('Edge Cases and Error Handling', () => {
     const calculationService = new VarianceCalculationService();
 
     // Test the private evaluateAlertRule method through reflection
-    const evaluateAlertRule = (calculationService as any).evaluateAlertRule.bind(calculationService);
+    const evaluateAlertRule = (calculationService as any).evaluateAlertRule.bind(
+      calculationService
+    );
 
     // Test with null threshold
     const rule1 = { metricName: 'irr', operator: 'gt', thresholdValue: null };
@@ -1003,8 +1107,8 @@ describe('Performance and Scalability', () => {
     // Reset insert mock to original implementation (may have been overridden by previous tests)
     mockDb.insert.mockImplementation(() => ({
       values: vi.fn(() => ({
-        returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
-      }))
+        returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }])),
+      })),
     }));
   });
 
@@ -1022,13 +1126,13 @@ describe('Performance and Scalability', () => {
       sector: ['Technology', 'Healthcare', 'Financial Services'][i % 3],
       stage: ['Seed', 'Series A', 'Series B', 'Series C+'][i % 4],
       currentValuation: `${Math.random() * 1000000}`,
-      investments: [{ amount: `${Math.random() * 500000}` }]
+      investments: [{ amount: `${Math.random() * 500000}` }],
     }));
 
     mockDb.query.fundMetrics.findFirst.mockResolvedValue({
       fundId: 1,
       totalValue: '500000000.00',
-      irr: '0.18'
+      irr: '0.18',
     });
 
     mockDb.query.portfolioCompanies.findMany.mockResolvedValue(largePortfolio);
@@ -1043,7 +1147,7 @@ describe('Performance and Scalability', () => {
       baselineType: 'annual',
       periodStart: new Date(),
       periodEnd: new Date(),
-      createdBy: 1
+      createdBy: 1,
     });
 
     const executionTime = Date.now() - startTime;
@@ -1059,12 +1163,12 @@ describe('Performance and Scalability', () => {
     mockDb.query.fundBaselines.findFirst.mockResolvedValue({
       id: 'baseline-id',
       totalValue: '2500000.00',
-      irr: '0.185'
+      irr: '0.185',
     });
 
     mockDb.query.fundMetrics.findFirst.mockResolvedValue({
       totalValue: '2600000.00',
-      irr: '0.195'
+      irr: '0.195',
     });
 
     mockDb.query.alertRules.findMany.mockResolvedValue([]);
@@ -1075,7 +1179,7 @@ describe('Performance and Scalability', () => {
         fundId: 1,
         baselineId: 'baseline-id',
         reportName: `Concurrent Report ${i + 1}`,
-        reportType: 'ad_hoc'
+        reportType: 'ad_hoc',
       })
     );
 
