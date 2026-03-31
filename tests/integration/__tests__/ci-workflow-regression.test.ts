@@ -44,7 +44,8 @@ describe('CI Workflow Regression - Fix #4', () => {
 
       // Should checkout base branch
       const checkoutStep = buildBase.steps.find(
-        (step: any) => step.uses?.includes('actions/checkout')
+        (step: any) =>
+          step.uses?.includes('actions/checkout') && step.with?.path === 'base-branch'
       );
       expect(checkoutStep).toBeDefined();
       expect(checkoutStep.with?.ref).toBe('${{ github.base_ref }}');
