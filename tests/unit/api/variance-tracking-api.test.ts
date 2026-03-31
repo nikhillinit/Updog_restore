@@ -476,6 +476,76 @@ describe('Variance Tracking API', () => {
 
         expect(response.body.error).toBe('Validation failed');
       });
+
+      it('should return 404 when explicit baselineId does not belong to fund', async () => {
+        // The baseline exists but belongs to a different fund
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([]);
+
+        const reportData = {
+          baselineId: '00000000-0000-0000-0000-000000000999',
+          reportName: 'Cross-fund attempt',
+          reportType: 'ad_hoc',
+        };
+
+        const response = await request(app)
+          .post('/api/funds/1/variance-reports')
+          .send(reportData)
+          .expect(404);
+
+        expect(response.body.error).toBe('Baseline not found');
+        expect(response.body.message).toBe('The specified baseline does not belong to this fund.');
+        expect(
+          mockVarianceTrackingService.calculations.generateVarianceReport
+        ).not.toHaveBeenCalled();
+      });
+
+      it('should accept explicit baselineId that belongs to fund', async () => {
+        const ownedBaseline = {
+          id: '00000000-0000-0000-0000-000000000123',
+          fundId: 1,
+          isDefault: false,
+        };
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([ownedBaseline]);
+
+        const mockReport = {
+          id: 'report-id',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'Explicit Baseline Report',
+          reportType: 'periodic',
+          asOfDate: new Date('2024-12-31'),
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+          totalValueVariance: '100.00',
+          irrVariance: null,
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [],
+        };
+        mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(
+          mockReport
+        );
+
+        const reportData = {
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'Explicit Baseline Report',
+          reportType: 'periodic',
+        };
+
+        const response = await request(app)
+          .post('/api/funds/1/variance-reports')
+          .send(reportData)
+          .expect(201);
+
+        expect(response.body.success).toBe(true);
+        expect(
+          mockVarianceTrackingService.calculations.generateVarianceReport
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baselineId: '00000000-0000-0000-0000-000000000123',
+          })
+        );
+      });
     });
 
     describe('GET /api/funds/:id/variance-reports', () => {

@@ -389,19 +389,33 @@ router['post'](
       const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
       // Resolve baseline: use explicit baselineId or fall back to fund's default
-      let resolvedBaselineId = data.baselineId;
-      if (!resolvedBaselineId) {
+      const resolvedBaselineId = await (async () => {
+        if (data.baselineId) {
+          const owned = await varianceTrackingService.baselines.getBaselines(fundId, {});
+          if (!owned.some((b) => b.id === data.baselineId)) {
+            return null; // ownership failure sentinel
+          }
+          return data.baselineId;
+        }
         const defaults = await varianceTrackingService.baselines.getBaselines(fundId, {
           isDefault: true,
         });
-        resolvedBaselineId = defaults[0]?.id;
-        if (!resolvedBaselineId) {
-          const error: ApiError = {
-            error: 'No baseline available',
-            message: 'No default baseline found. Create a baseline first.',
-          };
-          return res['status'](400)['json'](error);
-        }
+        return defaults[0]?.id;
+      })();
+
+      if (data.baselineId && !resolvedBaselineId) {
+        const error: ApiError = {
+          error: 'Baseline not found',
+          message: 'The specified baseline does not belong to this fund.',
+        };
+        return res['status'](404)['json'](error);
+      }
+      if (!resolvedBaselineId) {
+        const error: ApiError = {
+          error: 'No baseline available',
+          message: 'No default baseline found. Create a baseline first.',
+        };
+        return res['status'](400)['json'](error);
       }
 
       const report = await varianceTrackingService.calculations.generateVarianceReport({
