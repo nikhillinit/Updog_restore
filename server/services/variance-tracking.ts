@@ -193,6 +193,17 @@ export class BaselineService {
   }
 
   /**
+   * Get a specific baseline owned by a fund.
+   * This intentionally does not filter on isActive so historical/inactive
+   * baselines can still be referenced explicitly.
+   */
+  async getBaselineById(fundId: number, baselineId: string): Promise<FundBaseline | undefined> {
+    return await db.query.fundBaselines.findFirst({
+      where: and(eq(fundBaselines.fundId, fundId), eq(fundBaselines.id, baselineId)),
+    });
+  }
+
+  /**
    * Set a baseline as default
    */
   async setDefaultBaseline(baselineId: string, fundId: number): Promise<void> {
@@ -436,6 +447,34 @@ export class VarianceCalculationService {
       recordSystemError('variance-calculation', 'report_generation_failed');
       throw error;
     }
+  }
+
+  /**
+   * Get variance reports for a fund, newest first.
+   */
+  async getVarianceReports(
+    fundId: number,
+    options?: {
+      limit?: number;
+    }
+  ): Promise<VarianceReport[]> {
+    return await db.query.varianceReports.findMany({
+      where: eq(varianceReports.fundId, fundId),
+      orderBy: desc(varianceReports.createdAt),
+      limit: options?.limit || 50,
+    });
+  }
+
+  /**
+   * Get a specific variance report owned by a fund.
+   */
+  async getVarianceReportById(
+    fundId: number,
+    reportId: string
+  ): Promise<VarianceReport | undefined> {
+    return await db.query.varianceReports.findFirst({
+      where: and(eq(varianceReports.fundId, fundId), eq(varianceReports.id, reportId)),
+    });
   }
 
   /**
