@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import {
   useVarianceDashboard,
@@ -15,6 +15,7 @@ import {
   usePerformVarianceAnalysis,
   type Alert,
   type Baseline,
+  type VarianceReport,
 } from '@/hooks/useVarianceData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,10 +48,10 @@ import {
   ApiErrorState,
   StatCard,
   StatCardGrid,
-  VarianceChart,
 } from '@/components/analytics';
 import {
   AlertTriangle,
+  BarChart3,
   Plus,
   TrendingUp,
   Bell,
@@ -97,6 +98,8 @@ export default function VarianceTrackingPage() {
     severity: 'warning' as 'info' | 'warning' | 'critical' | 'urgent',
     category: 'performance' as 'performance' | 'risk' | 'operational' | 'compliance',
     checkFrequency: 'daily' as 'realtime' | 'hourly' | 'daily' | 'weekly',
+    suppressionPeriod: 60,
+    notificationChannels: ['email'] as Array<'email' | 'slack' | 'webhook'>,
   });
 
   const [reportForm, setReportForm] = useState({
@@ -130,8 +133,8 @@ export default function VarianceTrackingPage() {
   } = useActiveAlerts(currentFund?.id || 0);
 
   const {
-    data: _reportsData,
-    isLoading: _reportsLoading,
+    data: reportsData,
+    isLoading: reportsLoading,
     error: _reportsError,
   } = useVarianceReports(currentFund?.id || 0);
 
@@ -144,45 +147,6 @@ export default function VarianceTrackingPage() {
   const acknowledgeAlertMutation = useAcknowledgeAlert();
   const resolveAlertMutation = useResolveAlert();
   const performAnalysisMutation = usePerformVarianceAnalysis();
-
-  // Mock variance data for demonstration
-  const mockVarianceData = useMemo(
-    () => [
-      {
-        metric: 'IRR Target',
-        baseline: 25.0,
-        actual: 22.5,
-        variance: -2.5,
-        variancePercent: -10.0,
-        severity: 'medium' as const,
-      },
-      {
-        metric: 'Management Fee',
-        baseline: 2.0,
-        actual: 2.1,
-        variance: 0.1,
-        variancePercent: 5.0,
-        severity: 'low' as const,
-      },
-      {
-        metric: 'Portfolio Size',
-        baseline: 100,
-        actual: 95,
-        variance: -5,
-        variancePercent: -5.0,
-        severity: 'low' as const,
-      },
-      {
-        metric: 'Deployment Rate',
-        baseline: 80.0,
-        actual: 65.0,
-        variance: -15.0,
-        variancePercent: -18.75,
-        severity: 'high' as const,
-      },
-    ],
-    []
-  );
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -235,6 +199,8 @@ export default function VarianceTrackingPage() {
         severity: alertRuleForm.severity,
         category: alertRuleForm.category,
         checkFrequency: alertRuleForm.checkFrequency,
+        suppressionPeriod: alertRuleForm.suppressionPeriod,
+        notificationChannels: alertRuleForm.notificationChannels,
         ...spreadIfDefined('secondaryThreshold', alertRuleForm.secondaryThreshold),
       });
 
@@ -255,6 +221,8 @@ export default function VarianceTrackingPage() {
         severity: 'warning',
         category: 'performance',
         checkFrequency: 'daily',
+        suppressionPeriod: 60,
+        notificationChannels: ['email'],
       });
       refetchAlerts();
     } catch {
@@ -316,7 +284,7 @@ export default function VarianceTrackingPage() {
 
       toast({
         title: 'Analysis Complete',
-        description: `Variance analysis completed. ${result.data.alerts.length} alerts generated.`,
+        description: `Variance analysis completed. ${result.data.alertsGenerated.length} alerts generated.`,
       });
 
       refetchDashboard();
@@ -570,15 +538,17 @@ export default function VarianceTrackingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Variance Chart */}
-          <VarianceChart
-            data={mockVarianceData}
-            title="Current Variance Analysis"
-            description="Comparison of actual vs baseline metrics"
-            height={400}
-            showVarianceBands={true}
-            acceptableVariance={10}
-          />
+          {/* Variance Analysis Empty State */}
+          <Card>
+            <CardContent className="p-12 text-center">
+              <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Variance Data Yet</h3>
+              <p className="text-gray-600 mb-4">
+                Create a baseline and run a variance analysis to see metrics here.
+              </p>
+              <Button onClick={handlePerformAnalysis}>Run Variance Analysis</Button>
+            </CardContent>
+          </Card>
 
           {/* Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1193,13 +1163,58 @@ export default function VarianceTrackingPage() {
           </div>
 
           <Card>
-            <CardContent className="p-12 text-center">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Reports Generated</h3>
-              <p className="text-gray-600 mb-4">
-                Run a variance analysis to generate your first report.
-              </p>
-              <Button onClick={handlePerformAnalysis}>Generate Report</Button>
+            <CardContent className="p-0">
+              {reportsLoading ? (
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i: number) => (
+                      <div
+                        key={i}
+                        className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="space-y-2">
+                          <div className="h-4 w-48 bg-gray-200 rounded" />
+                          <div className="h-3 w-32 bg-gray-200 rounded" />
+                        </div>
+                        <div className="w-24 h-8 bg-gray-200 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : reportsData?.data?.length ? (
+                <div className="divide-y">
+                  {reportsData.data.map((report: VarianceReport) => (
+                    <div key={report.id} className="p-6 flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="font-medium text-gray-900">{report.reportName}</h3>
+                          <Badge variant="outline">{report.reportType}</Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 mb-1">
+                          {report.summary.totalVariances} variances
+                          {report.summary.criticalVariances > 0 && (
+                            <span className="text-red-600 ml-2">
+                              ({report.summary.criticalVariances} critical)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Generated {format(parseISO(report.generatedAt), 'MMM dd, yyyy')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Reports Generated</h3>
+                  <p className="text-gray-600 mb-4">
+                    Run a variance analysis to generate your first report.
+                  </p>
+                  <Button onClick={handlePerformAnalysis}>Generate Report</Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -5,28 +5,46 @@ import {
   usePointInTimeState,
   useStateComparison,
   useCreateSnapshot,
-  useRestoreSnapshot
+  useRestoreSnapshot,
 } from '@/hooks/useTimelineData';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ErrorState,
   StatCard,
   StatCardGrid,
   TimelineChart,
-  EventTimelineChart
+  EventTimelineChart,
 } from '@/components/analytics';
 import {
   Clock,
@@ -40,7 +58,7 @@ import {
   History,
   Zap,
   Database,
-  Activity
+  Activity,
 } from 'lucide-react';
 import { format, parseISO, subDays, addDays } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -50,7 +68,7 @@ export default function TimeTravelPage() {
   const { currentFund } = useFundContext();
   const [selectedTimeRange, setSelectedTimeRange] = useState({
     start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
-    end: format(new Date(), 'yyyy-MM-dd')
+    end: format(new Date(), 'yyyy-MM-dd'),
   });
   const [selectedTimestamp1, setSelectedTimestamp1] = useState<string>('');
   const [selectedTimestamp2, setSelectedTimestamp2] = useState<string>('');
@@ -67,26 +85,20 @@ export default function TimeTravelPage() {
     data: timelineData,
     isLoading: timelineLoading,
     error: timelineError,
-    refetch: refetchTimeline
+    refetch: refetchTimeline,
   } = useTimelineData(currentFund?.id || 0, {
     startTime: `${selectedTimeRange.start}T00:00:00Z`,
     endTime: `${selectedTimeRange.end}T23:59:59Z`,
-    limit: 100
+    limit: 100,
   });
 
-  const {
-    data: pointInTimeData,
-    isLoading: pointInTimeLoading,
-  } = usePointInTimeState(
+  const { data: pointInTimeData, isLoading: pointInTimeLoading } = usePointInTimeState(
     currentFund?.id || 0,
     currentViewTime || new Date().toISOString(),
     true
   );
 
-  const {
-    data: comparisonData,
-    isLoading: comparisonLoading,
-  } = useStateComparison(
+  const { data: comparisonData, isLoading: comparisonLoading } = useStateComparison(
     currentFund?.id || 0,
     selectedTimestamp1,
     selectedTimestamp2,
@@ -108,44 +120,47 @@ export default function TimeTravelPage() {
       value: index + 1, // Simple sequential value for visualization
       label: event.eventType,
       type: event.operation as 'event' | 'snapshot' | 'milestone',
-      metadata: event.metadata
+      metadata: event.metadata,
     }));
   }, [timelineEvents]);
 
   const snapshotEvents = useMemo(() => {
     if (!timelineSnapshots) return [];
 
-    return timelineSnapshots.map(snapshot => ({
+    return timelineSnapshots.map((snapshot) => ({
       timestamp: snapshot.snapshotTime,
       type: 'snapshot',
       label: `Snapshot ${snapshot.id}`,
-      value: snapshot.eventCount
+      value: snapshot.eventCount,
     }));
   }, [timelineSnapshots]);
 
   // Handle snapshot creation
-  const handleCreateSnapshot = async (type: 'manual' | 'scheduled' | 'auto' = 'manual', description?: string) => {
+  const handleCreateSnapshot = async (
+    type: 'manual' | 'scheduled' | 'auto' = 'manual',
+    description?: string
+  ) => {
     if (!currentFund) return;
 
     try {
       await createSnapshotMutation.mutateAsync({
         fundId: currentFund.id,
         type,
-        ...spreadIfDefined('description', description)
+        ...spreadIfDefined('description', description),
       });
 
       toast({
-        title: "Snapshot Created",
-        description: "A new snapshot has been queued for creation.",
+        title: 'Snapshot Created',
+        description: 'A new snapshot has been queued for creation.',
       });
 
       setCreateSnapshotDialogOpen(false);
       refetchTimeline();
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to create snapshot. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to create snapshot. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -158,12 +173,12 @@ export default function TimeTravelPage() {
       await restoreSnapshotMutation.mutateAsync({
         fundId: currentFund.id,
         snapshotId: selectedSnapshotId,
-        confirmationCode
+        confirmationCode,
       });
 
       toast({
-        title: "Restoration Initiated",
-        description: "Fund state restoration has been initiated.",
+        title: 'Restoration Initiated',
+        description: 'Fund state restoration has been initiated.',
       });
 
       setRestoreDialogOpen(false);
@@ -172,9 +187,9 @@ export default function TimeTravelPage() {
       refetchTimeline();
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to restore snapshot. Please check your confirmation code.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to restore snapshot. Please check your confirmation code.',
+        variant: 'destructive',
       });
     }
   };
@@ -185,7 +200,7 @@ export default function TimeTravelPage() {
         <ErrorState
           title="No Fund Selected"
           message="Please select a fund to view time-travel analytics."
-          onGoHome={() => window.location.href = '/fund-setup'}
+          onGoHome={() => (window.location.href = '/fund-setup')}
         />
       </div>
     );
@@ -322,9 +337,7 @@ export default function TimeTravelPage() {
           <Card>
             <CardHeader>
               <CardTitle>Time Range Selection</CardTitle>
-              <CardDescription>
-                Select the time range for timeline analysis
-              </CardDescription>
+              <CardDescription>Select the time range for timeline analysis</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
@@ -333,7 +346,9 @@ export default function TimeTravelPage() {
                   <Input
                     type="date"
                     value={selectedTimeRange.start}
-                    onChange={(e) => setSelectedTimeRange(prev => ({ ...prev, start: e.target.value }))}
+                    onChange={(e) =>
+                      setSelectedTimeRange((prev) => ({ ...prev, start: e.target.value }))
+                    }
                     className="w-40"
                   />
                 </div>
@@ -342,7 +357,9 @@ export default function TimeTravelPage() {
                   <Input
                     type="date"
                     value={selectedTimeRange.end}
-                    onChange={(e) => setSelectedTimeRange(prev => ({ ...prev, end: e.target.value }))}
+                    onChange={(e) =>
+                      setSelectedTimeRange((prev) => ({ ...prev, end: e.target.value }))
+                    }
                     className="w-40"
                   />
                 </div>
@@ -388,7 +405,10 @@ export default function TimeTravelPage() {
               {timelineLoading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="animate-pulse flex items-center space-x-4 p-4 border rounded-lg">
+                    <div
+                      key={i}
+                      className="animate-pulse flex items-center space-x-4 p-4 border rounded-lg"
+                    >
                       <div className="w-10 h-10 bg-gray-200 rounded-full" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 w-3/4 bg-gray-200 rounded" />
@@ -439,15 +459,16 @@ export default function TimeTravelPage() {
           <Card>
             <CardHeader>
               <CardTitle>Snapshot Management</CardTitle>
-              <CardDescription>
-                Create, manage, and restore fund snapshots
-              </CardDescription>
+              <CardDescription>Create, manage, and restore fund snapshots</CardDescription>
             </CardHeader>
             <CardContent>
               {timelineLoading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={i}
+                      className="animate-pulse flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="flex items-center space-x-4">
                         <div className="w-12 h-12 bg-gray-200 rounded-lg" />
                         <div className="space-y-2">
@@ -471,9 +492,7 @@ export default function TimeTravelPage() {
                           <Camera className="w-6 h-6 text-green-600" />
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">
-                            Snapshot {snapshot.id}
-                          </div>
+                          <div className="font-medium text-gray-900">Snapshot {snapshot.id}</div>
                           <div className="text-sm text-gray-600">
                             {format(parseISO(snapshot.snapshotTime), 'MMM dd, yyyy HH:mm')}
                           </div>
@@ -495,19 +514,22 @@ export default function TimeTravelPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                              className="text-orange-600 border-orange-200 hover:bg-orange-50 opacity-50 cursor-not-allowed"
+                              disabled={true}
+                              title="Restore coming soon"
                               onClick={() => setSelectedSnapshotId(snapshot.id)}
                             >
                               <RotateCcw className="w-4 h-4 mr-1" />
-                              Restore
+                              Restore (Coming soon)
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Restore Fund State</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will restore your fund to the state captured in Snapshot {snapshot.id}.
-                                This action cannot be undone. Please enter the confirmation code to proceed.
+                                This will restore your fund to the state captured in Snapshot{' '}
+                                {snapshot.id}. This action cannot be undone. Please enter the
+                                confirmation code to proceed.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <div className="my-4">
@@ -518,18 +540,24 @@ export default function TimeTravelPage() {
                               />
                             </div>
                             <AlertDialogFooter>
-                              <AlertDialogCancel onClick={() => {
-                                setSelectedSnapshotId(null);
-                                setConfirmationCode('');
-                              }}>
+                              <AlertDialogCancel
+                                onClick={() => {
+                                  setSelectedSnapshotId(null);
+                                  setConfirmationCode('');
+                                }}
+                              >
                                 Cancel
                               </AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={handleRestoreSnapshot}
-                                disabled={!confirmationCode.trim() || restoreSnapshotMutation.isPending}
+                                disabled={
+                                  !confirmationCode.trim() || restoreSnapshotMutation.isPending
+                                }
                                 className="bg-orange-600 hover:bg-orange-700"
                               >
-                                {restoreSnapshotMutation.isPending ? 'Restoring...' : 'Restore State'}
+                                {restoreSnapshotMutation.isPending
+                                  ? 'Restoring...'
+                                  : 'Restore State'}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -602,11 +630,7 @@ export default function TimeTravelPage() {
                       value={`${Math.round(comparisonData.summary.timeSpan / (1000 * 60 * 60))}h`}
                       icon={Clock}
                     />
-                    <StatCard
-                      title="State Snapshots"
-                      value="2"
-                      icon={Camera}
-                    />
+                    <StatCard title="State Snapshots" value="2" icon={Camera} />
                   </div>
 
                   {comparisonData.differences && comparisonData.differences.length > 0 ? (
@@ -617,10 +641,11 @@ export default function TimeTravelPage() {
                       <CardContent>
                         <div className="space-y-2">
                           {comparisonData.differences.map((diff, index) => (
-                            <div key={index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                              <div className="font-medium text-yellow-800">
-                                Change {index + 1}
-                              </div>
+                            <div
+                              key={index}
+                              className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
+                            >
+                              <div className="font-medium text-yellow-800">Change {index + 1}</div>
                               <div className="text-sm text-yellow-700 mt-1">
                                 {typeof diff === 'object' ? JSON.stringify(diff) : diff}
                               </div>
@@ -656,9 +681,7 @@ export default function TimeTravelPage() {
           <Card>
             <CardHeader>
               <CardTitle>Time Playback</CardTitle>
-              <CardDescription>
-                Step through time to see how your fund evolved
-              </CardDescription>
+              <CardDescription>Step through time to see how your fund evolved</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Playback Controls */}
@@ -677,7 +700,7 @@ export default function TimeTravelPage() {
                 </Button>
 
                 <Button
-                  variant={isPlaying ? "secondary" : "default"}
+                  variant={isPlaying ? 'secondary' : 'default'}
                   onClick={() => setIsPlaying(!isPlaying)}
                   className="flex items-center space-x-2"
                 >
@@ -702,7 +725,10 @@ export default function TimeTravelPage() {
               {/* Speed Control */}
               <div className="flex items-center justify-center space-x-4">
                 <span className="text-sm text-gray-600">Speed:</span>
-                <Select value={playbackSpeed.toString()} onValueChange={(value) => setPlaybackSpeed(parseFloat(value))}>
+                <Select
+                  value={playbackSpeed.toString()}
+                  onValueChange={(value) => setPlaybackSpeed(parseFloat(value))}
+                >
                   <SelectTrigger className="w-24">
                     <SelectValue />
                   </SelectTrigger>
@@ -718,7 +744,9 @@ export default function TimeTravelPage() {
               {/* Current Time Display */}
               <div className="text-center">
                 <div className="text-lg font-medium text-gray-900">
-                  {currentViewTime ? format(parseISO(currentViewTime), 'MMMM dd, yyyy HH:mm') : 'Select a time to view'}
+                  {currentViewTime
+                    ? format(parseISO(currentViewTime), 'MMMM dd, yyyy HH:mm')
+                    : 'Select a time to view'}
                 </div>
               </div>
 
@@ -733,7 +761,8 @@ export default function TimeTravelPage() {
                   <CardHeader>
                     <CardTitle>Fund State</CardTitle>
                     <CardDescription>
-                      State as of {format(parseISO(pointInTimeData.timestamp), 'MMMM dd, yyyy HH:mm')}
+                      State as of{' '}
+                      {format(parseISO(pointInTimeData.timestamp), 'MMMM dd, yyyy HH:mm')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>

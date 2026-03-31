@@ -462,6 +462,8 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
       severity: data.severity,
       category: data.category,
       checkFrequency: data.checkFrequency,
+      suppressionPeriod: data.suppressionPeriod,
+      notificationChannels: data.notificationChannels,
       createdBy: userId,
     });
 
