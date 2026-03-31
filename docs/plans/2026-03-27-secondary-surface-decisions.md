@@ -12,6 +12,7 @@ last_updated: 2026-03-28
 | `planning`       | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
 | `kpi-manager`    | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
 | `kpi-submission` | Archived redirect          | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | explicit route redirect                        | restore only via a new owned implementation and route decision             |
+| `/reserves-demo` | Internal live demo         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`, `tests/unit/app/route-perimeter-governance.test.tsx` | intentional direct route mount                 | retire only with an explicit demo deprecation decision                     |
 | `/shared/:shareId` | Public contract         | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount                       | remove only with an explicit external-link migration                       |
 | `/portal/:rest*` | Public contract            | `client/src/App.tsx`, `client/src/app/route-governance-registry.ts`                                                    | intentional public mount to access denied      | change only with an explicit portal activation or deprecation plan         |
 | Compass          | Experimental and unmounted | `server/compass/routes.ts` plus future server mount gate                                                                | no server mount                                | mount only behind an explicit activation decision                          |
@@ -56,6 +57,25 @@ Benefits: removes misleading direct-route exposure while preserving a fast
 future reactivation path in source control. Trade-off: KPI pages are no longer
 recoverable through client-side flags. Rollback requires a new owned
 implementation and route decision.
+
+## Reserves Demo
+
+- White: `/reserves-demo` is a direct smoke-tested surface backed by a real page
+  component, but it was missing from the mounted app route list.
+- Red: leaving the page file unmounted makes CI pass depend on implementation
+  luck instead of route truth.
+- Yellow: it is not a core workflow destination or sidebar item, but it is still
+  a deliberate demo surface that should remain directly reachable.
+- Black: treating the demo as an accidental page guarantees future regressions in
+  build-only and smoke lanes.
+- Green: keep it mounted as an intentional internal-live route and cover it in
+  route-perimeter tests.
+- Blue: final decision is to preserve `/reserves-demo` as an intentionally
+  mounted demo surface, separate from the core workflow perimeter.
+
+Benefits: keeps the smoke target honest and makes the mounted route explicit in
+governance. Trade-off: one non-core demo route remains directly reachable by
+design. Rollback: remove only with an explicit demo retirement decision.
 
 ## Public Contracts
 

@@ -1,9 +1,13 @@
 // Minimal placeholder so the endpoint compiles.
 // Wire to your real model once ready.
-import { getConfig } from '../config';
 
 export type FundModelInput = Record<string, unknown>;
 export type FundModelResult = { result: Record<string, unknown> };
+
+function isDemoModeEnabled(): boolean {
+  const demoMode = process.env['DEMO_MODE'];
+  return demoMode === 'true' || demoMode === '1';
+}
 
 export class EnhancedFundModel {
   constructor(private input: FundModelInput) {}
@@ -15,8 +19,7 @@ export class EnhancedFundModel {
     const started = Date.now();
 
     // Only add artificial delay in non-demo mode
-    const { DEMO_MODE } = getConfig();
-    if (!DEMO_MODE) {
+    if (!isDemoModeEnabled()) {
       // Simulate some work
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
     }

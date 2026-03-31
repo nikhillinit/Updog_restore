@@ -19,7 +19,6 @@ import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
-import { config } from '../config/index.js';
 
 // Import existing types from the original engine
 import type {
@@ -87,11 +86,23 @@ export interface MemoryEfficientDistribution {
 // CONNECTION POOL MANAGER
 // ============================================================================
 
+const DEFAULT_CONNECTION_TIMEOUT_MS = 5000;
+
+function resolveConnectionTimeoutMs(): number {
+  const timeout = Number(process.env['CONNECTION_TIMEOUT_MS']);
+
+  if (Number.isFinite(timeout) && timeout > 0) {
+    return timeout;
+  }
+
+  return DEFAULT_CONNECTION_TIMEOUT_MS;
+}
+
 class ConnectionPoolManager {
   private pools: Map<string, Pool> = new Map();
   private readonly maxPoolSize = 10;
   private readonly idleTimeoutMs = 30000;
-  private readonly connectionTimeoutMs = config.CONNECTION_TIMEOUT_MS;
+  private readonly connectionTimeoutMs = resolveConnectionTimeoutMs();
 
   async getPool(connectionString?: string): Promise<Pool> {
     const connStr = connectionString || process.env['DATABASE_URL'];
