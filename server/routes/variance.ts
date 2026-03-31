@@ -12,8 +12,96 @@ import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { toNumber, NumberParseError } from '@shared/number';
 import { positiveInt } from '@shared/schema-helpers';
+import type { VarianceReport as DbVarianceReport } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import { firstString } from '../lib/request-values';
+
+// === RESPONSE SHAPE MAPPER ===
+
+/** Shape the client expects from useVarianceData.ts */
+interface ClientVarianceReport {
+  id: string;
+  fundId: number;
+  baselineId: string;
+  reportName: string;
+  reportType: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered';
+  reportPeriod?: 'monthly' | 'quarterly' | 'annual';
+  asOfDate: string;
+  generatedBy?: number;
+  generatedAt: string;
+  summary: {
+    totalVariances: number;
+    significantVariances: number;
+    criticalVariances: number;
+  };
+  variances: Array<{ metric: string; value: string | null; pct: string | null }>;
+}
+
+/** Variance columns we inspect for the summary + variances array */
+const VARIANCE_COLS = [
+  { metric: 'totalValue', value: 'totalValueVariance', pct: 'totalValueVariancePct' },
+  { metric: 'irr', value: 'irrVariance', pct: null },
+  { metric: 'multiple', value: 'multipleVariance', pct: null },
+  { metric: 'dpi', value: 'dpiVariance', pct: null },
+  { metric: 'tvpi', value: 'tvpiVariance', pct: null },
+] as const;
+
+/**
+ * Transform a raw DB variance report row into the shape the client expects.
+ * Handles null/undefined fields gracefully.
+ */
+function toClientReport(row: DbVarianceReport): ClientVarianceReport {
+  // Build the per-metric variances array, only including non-null entries
+  const variances: ClientVarianceReport['variances'] = [];
+  let totalVariances = 0;
+
+  for (const col of VARIANCE_COLS) {
+    const val = row[col['value']] as string | null | undefined;
+    if (val != null) {
+      totalVariances++;
+      variances.push({
+        metric: col['metric'],
+        value: val,
+        pct: col['pct'] ? ((row[col['pct']] as string | null | undefined) ?? null) : null,
+      });
+    }
+  }
+
+  // significantVariances is a jsonb array in the DB
+  const sigArr = Array.isArray(row['significantVariances']) ? row['significantVariances'] : [];
+  const criticalCount = sigArr.filter(
+    (item: unknown) =>
+      item != null &&
+      typeof item === 'object' &&
+      'severity' in (item as Record<string, unknown>) &&
+      ((item as Record<string, unknown>)['severity'] === 'critical' ||
+        (item as Record<string, unknown>)['severity'] === 'high')
+  ).length;
+
+  return {
+    id: row['id'],
+    fundId: row['fundId'],
+    baselineId: row['baselineId'],
+    reportName: row['reportName'],
+    reportType: row['reportType'] as ClientVarianceReport['reportType'],
+    ...(row['reportPeriod'] != null && {
+      reportPeriod: row['reportPeriod'] as NonNullable<ClientVarianceReport['reportPeriod']>,
+    }),
+    asOfDate:
+      row['asOfDate'] instanceof Date ? row['asOfDate'].toISOString() : String(row['asOfDate']),
+    ...(row['generatedBy'] != null && { generatedBy: row['generatedBy'] }),
+    generatedAt:
+      row['createdAt'] instanceof Date
+        ? row['createdAt'].toISOString()
+        : String(row['createdAt'] ?? ''),
+    summary: {
+      totalVariances,
+      significantVariances: sigArr.length,
+      criticalVariances: criticalCount,
+    },
+    variances,
+  };
+}
 
 const router = Router();
 
@@ -300,9 +388,25 @@ router['post'](
       const data = validation.data;
       const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
 
+      // Resolve baseline: use explicit baselineId or fall back to fund's default
+      let resolvedBaselineId = data.baselineId;
+      if (!resolvedBaselineId) {
+        const defaults = await varianceTrackingService.baselines.getBaselines(fundId, {
+          isDefault: true,
+        });
+        resolvedBaselineId = defaults[0]?.id;
+        if (!resolvedBaselineId) {
+          const error: ApiError = {
+            error: 'No baseline available',
+            message: 'No default baseline found. Create a baseline first.',
+          };
+          return res['status'](400)['json'](error);
+        }
+      }
+
       const report = await varianceTrackingService.calculations.generateVarianceReport({
         fundId,
-        baselineId: data.baselineId || '', // Will be resolved to default in service
+        baselineId: resolvedBaselineId,
         reportName: data.reportName,
         reportType: data.reportType,
         ...(data.reportPeriod && { reportPeriod: data.reportPeriod }),
@@ -312,7 +416,7 @@ router['post'](
 
       res['status'](201)['json']({
         success: true,
-        data: report,
+        data: toClientReport(report),
         message: 'Variance report generated successfully',
       });
     } catch (error) {

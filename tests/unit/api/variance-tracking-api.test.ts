@@ -301,9 +301,30 @@ describe('Variance Tracking API', () => {
   describe('Variance Report Management', () => {
     describe('POST /api/funds/:id/variance-reports', () => {
       it('should generate variance report successfully', async () => {
-        const mockReport = { id: 'report-id', ...varianceTrackingFixtures.reports.periodicReport };
+        // Route resolves default baseline when baselineId omitted
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
+          { id: 'resolved-baseline-uuid', isDefault: true },
+        ]);
+
+        const rawDbReport = {
+          id: 'report-id',
+          fundId: 1,
+          baselineId: 'resolved-baseline-uuid',
+          reportName: 'December 2024 Variance Analysis',
+          reportType: 'periodic',
+          reportPeriod: 'monthly',
+          asOfDate: new Date('2024-12-31T23:59:59Z'),
+          totalValueVariance: '150000.00',
+          totalValueVariancePct: '0.06',
+          irrVariance: '-0.013',
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [{ metric: 'irr', severity: 'medium' }],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
         mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(
-          mockReport
+          rawDbReport
         );
 
         const reportData = {
@@ -319,20 +340,112 @@ describe('Variance Tracking API', () => {
           .expect(201);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data).toEqual(mockReport);
+        expect(response.body.data.summary).toBeDefined();
+        expect(response.body.data.variances).toBeDefined();
+        expect(response.body.data.generatedAt).toBeDefined();
         expect(response.body.message).toBe('Variance report generated successfully');
 
         expect(
           mockVarianceTrackingService.calculations.generateVarianceReport
         ).toHaveBeenCalledWith({
           fundId: 1,
-          baselineId: '',
+          baselineId: 'resolved-baseline-uuid',
           reportName: 'December 2024 Variance Analysis',
           reportType: 'periodic',
           reportPeriod: 'monthly',
           asOfDate: new Date('2024-12-31T23:59:59Z'),
           generatedBy: 1,
         });
+      });
+
+      it('should resolve default baseline when baselineId omitted', async () => {
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
+          { id: 'default-baseline-uuid', isDefault: true },
+        ]);
+
+        const rawDbReport = {
+          id: 'report-resolved',
+          fundId: 1,
+          baselineId: 'default-baseline-uuid',
+          reportName: 'Test Report',
+          reportType: 'ad_hoc',
+          asOfDate: new Date('2024-12-31'),
+          totalValueVariance: '100.00',
+          totalValueVariancePct: '0.01',
+          irrVariance: null,
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
+        mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(
+          rawDbReport
+        );
+
+        await request(app)
+          .post('/api/funds/1/variance-reports')
+          .send({ reportName: 'Test Report', reportType: 'ad_hoc' })
+          .expect(201);
+
+        expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
+          isDefault: true,
+        });
+        expect(
+          mockVarianceTrackingService.calculations.generateVarianceReport
+        ).toHaveBeenCalledWith(expect.objectContaining({ baselineId: 'default-baseline-uuid' }));
+      });
+
+      it('should return 400 when no default baseline exists and baselineId omitted', async () => {
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([]);
+
+        const response = await request(app)
+          .post('/api/funds/1/variance-reports')
+          .send({ reportName: 'Test Report', reportType: 'ad_hoc' })
+          .expect(400);
+
+        expect(response.body.error).toBe('No baseline available');
+        expect(
+          mockVarianceTrackingService.calculations.generateVarianceReport
+        ).not.toHaveBeenCalled();
+      });
+
+      it('should return client-shaped response with summary and variances', async () => {
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
+          { id: 'bl-1', isDefault: true },
+        ]);
+
+        const rawDbReport = {
+          id: 'report-1',
+          fundId: 1,
+          baselineId: 'bl-1',
+          reportName: 'Test',
+          reportType: 'ad_hoc',
+          asOfDate: new Date('2024-12-31'),
+          totalValueVariance: '150000.00',
+          totalValueVariancePct: '0.06',
+          irrVariance: '-0.013',
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [{ metric: 'irr', severity: 'medium' }],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
+        mockVarianceTrackingService.calculations.generateVarianceReport.mockResolvedValue(
+          rawDbReport
+        );
+
+        const response = await request(app)
+          .post('/api/funds/1/variance-reports')
+          .send({ reportName: 'Test', reportType: 'ad_hoc' })
+          .expect(201);
+
+        const data = response.body.data;
+        expect(data.summary.totalVariances).toBe(2);
+        expect(data.summary.significantVariances).toBe(1);
+        expect(data.summary.criticalVariances).toBe(0);
+        expect(typeof data.generatedAt).toBe('string');
+        expect(Array.isArray(data.variances)).toBe(true);
       });
 
       it('should validate report type enum', async () => {
