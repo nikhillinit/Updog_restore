@@ -37,6 +37,9 @@ import { createAllocationsColumns } from './allocations-table-columns';
 import { formatCents } from '@/lib/units';
 import type {
   AllocationCompany,
+  AllocationScenarioCollaborationContext,
+  AllocationScenarioCollaborationContextEvent,
+  AllocationScenarioChangeSummary,
   AllocationScenarioApplyPreview,
   AllocationScenarioDetail,
   AllocationScenarioSnapshotItem,
@@ -163,6 +166,99 @@ function formatAppliedStatusLabel(
   return `${baseLabel} (v${allocationVersion})`;
 }
 
+function formatContextTimestamp(value: string | null | undefined) {
+  return value ? format(new Date(value), 'MMM d, yyyy h:mm a') : 'Not available';
+}
+
+function formatContextSummaryBadgeLabel(
+  count: number,
+  singularLabel: string,
+  pluralLabel = `${singularLabel}s`
+) {
+  return `${count} ${count === 1 ? singularLabel : pluralLabel}`;
+}
+
+function formatContextChangeSummary(summary: AllocationScenarioChangeSummary) {
+  return [
+    formatContextSummaryBadgeLabel(
+      summary.companies_changed,
+      'changed company',
+      'changed companies'
+    ),
+    formatContextSummaryBadgeLabel(
+      summary.companies_unchanged,
+      'unchanged company',
+      'unchanged companies'
+    ),
+    formatContextSummaryBadgeLabel(
+      summary.scenario_only_count,
+      'scenario-only company',
+      'scenario-only companies'
+    ),
+    formatContextSummaryBadgeLabel(
+      summary.live_only_count,
+      'live-only company',
+      'live-only companies'
+    ),
+    `${formatDeltaLabel(summary.total_planned_delta_cents)} planned delta`,
+  ];
+}
+
+function CollaborationContextEventCard({
+  title,
+  event,
+  emptyLabel,
+}: {
+  title: string;
+  event: AllocationScenarioCollaborationContextEvent | null;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white/90 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-slate-950">{title}</div>
+          <div className="text-xs text-slate-600">
+            {event ? formatContextTimestamp(event.at) : emptyLabel}
+          </div>
+        </div>
+        <Badge variant="outline" className="border-slate-300 text-slate-700">
+          {event?.change_summary.headline ?? 'No summary yet'}
+        </Badge>
+      </div>
+
+      {event ? (
+        <>
+          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800">
+            {event.note?.trim() || 'No note recorded.'}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="secondary" className="bg-slate-100 text-slate-800 hover:bg-slate-100">
+              {event.by ?? 'Unknown actor'}
+            </Badge>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-800 hover:bg-slate-100">
+              {formatContextTimestamp(event.at)}
+            </Badge>
+            {formatContextChangeSummary(event.change_summary).map((label) => (
+              <Badge
+                key={`${title}-${label}`}
+                variant="secondary"
+                className="bg-slate-100 text-slate-800 hover:bg-slate-100"
+              >
+                {label}
+              </Badge>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 text-sm text-slate-600">
+          {title} has not been recorded yet for this scenario.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AllocationsTab() {
   const { toast } = useToast();
   const { data, isLoading, error, refetch } = useLatestAllocations();
@@ -205,6 +301,8 @@ export function AllocationsTab() {
     activeScenarioDetail.data ??
     scenarios.find((scenario) => scenario.id === activeScenarioId) ??
     null;
+  const activeScenarioContext: AllocationScenarioCollaborationContext | null =
+    activeScenarioDetail.data?.context ?? null;
   const isScenarioPending =
     createScenarioMutation.isPending ||
     updateScenarioMutation.isPending ||
@@ -964,6 +1062,48 @@ export function AllocationsTab() {
                   )}
                 </div>
               ) : null}
+
+              <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-slate-950">Collaboration Context</div>
+                    <div className="text-xs text-slate-700/70">
+                      Durable sync and apply history from the server. Scenario notes stay in the
+                      editor above, while company-level reasons remain on each allocation row.
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-slate-300 text-slate-700">
+                    {activeScenarioContext ? 'Context loaded' : 'Select a saved scenario'}
+                  </Badge>
+                </div>
+
+                {activeScenarioId && activeScenarioContext ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <CollaborationContextEventCard
+                      title="Last Sync"
+                      event={activeScenarioContext.last_sync ?? null}
+                      emptyLabel={
+                        activeScenarioDetail.isLoading
+                          ? 'Loading scenario context...'
+                          : 'No sync recorded yet'
+                      }
+                    />
+                    <CollaborationContextEventCard
+                      title="Last Apply"
+                      event={activeScenarioContext.last_apply ?? null}
+                      emptyLabel={
+                        activeScenarioDetail.isLoading
+                          ? 'Loading scenario context...'
+                          : 'No apply recorded yet'
+                      }
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    Resume a saved scenario to view its durable sync and apply context here.
+                  </p>
+                )}
+              </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
