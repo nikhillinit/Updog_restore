@@ -61,10 +61,6 @@ export interface AllocationScenarioSummary {
   updated_at: string;
 }
 
-export interface AllocationScenarioDetail extends AllocationScenarioSummary {
-  snapshot_items: AllocationScenarioSnapshotItem[];
-}
-
 export interface AllocationScenarioListResponse {
   scenarios: AllocationScenarioSummary[];
 }
@@ -114,6 +110,26 @@ export interface AllocationScenarioChangeSummary {
   headline: string | null;
 }
 
+export interface AllocationScenarioCollaborationContextEvent {
+  event_id: string;
+  at: string;
+  by: string | null;
+  note: string | null;
+  source_allocation_version: number | null;
+  resulting_allocation_version: number | null;
+  change_summary: AllocationScenarioChangeSummary;
+}
+
+export interface AllocationScenarioCollaborationContext {
+  scenario_notes: string | null;
+  last_sync: AllocationScenarioCollaborationContextEvent | null;
+  last_apply: AllocationScenarioCollaborationContextEvent | null;
+}
+
+export interface AllocationScenarioDetail extends AllocationScenarioSummary {
+  snapshot_items: AllocationScenarioSnapshotItem[];
+  context: AllocationScenarioCollaborationContext;
+}
 export interface AllocationScenarioEventSummary {
   id: string;
   event_type: 'applied' | 'synced';

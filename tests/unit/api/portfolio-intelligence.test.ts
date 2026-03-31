@@ -51,6 +51,55 @@ const seedStrategyModelId = '550e8400-e29b-41d4-a716-446655440111';
 const seedForecastId = '550e8400-e29b-41d4-a716-446655440000';
 
 const ensurePortfolioSeeds = async () => {
+  const strategies = databaseMock.getMockData('fund_strategy_models');
+  if (!strategies.some((row) => row.id === seedStrategyModelId)) {
+    await portfolioIntelligenceService.strategies.create({
+      id: seedStrategyModelId,
+      fundId: 1,
+      name: 'Seed Strategy',
+      description: 'Baseline strategy for portfolio intelligence route tests',
+      modelType: 'strategic',
+      targetPortfolioSize: 25,
+      maxPortfolioSize: 30,
+      targetDeploymentPeriodMonths: 36,
+      checkSizeRange: {
+        min: 500000,
+        max: 2000000,
+        target: 1000000,
+      },
+      sectorAllocation: {
+        fintech: 0.3,
+        healthtech: 0.25,
+        enterprise: 0.2,
+        consumer: 0.15,
+        deeptech: 0.1,
+      },
+      stageAllocation: {
+        seed: 0.4,
+        seriesA: 0.6,
+      },
+      geographicAllocation: {
+        north_america: 0.7,
+        europe: 0.2,
+        asia_pacific: 0.1,
+      },
+      initialReservePercentage: '0.5000',
+      followOnStrategy: {
+        strategy: 'performance_based',
+      },
+      concentrationLimits: {
+        max_per_company: 0.15,
+      },
+      riskTolerance: 'moderate',
+      targetIrr: '0.2000',
+      targetMultiple: '2.50',
+      targetDpi: '1.80',
+      tags: ['seeded'],
+      createdBy: 1,
+      isActive: true,
+    });
+  }
+
   const scenarios = databaseMock.getMockData('portfolio_scenarios');
   if (!scenarios.some((row) => row.id === seedScenarioId)) {
     await portfolioIntelligenceService.scenarios.create({
@@ -325,7 +374,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
       it('should update a strategy', async () => {
         const response = await request(app)
-          .put('/api/portfolio/strategies/strategy_123')
+          .put(`/api/portfolio/strategies/${seedStrategyModelId}`)
           .send(updateData)
           .expect(200);
 
@@ -344,7 +393,7 @@ describe('Portfolio Intelligence API Routes', () => {
         };
 
         const response = await request(app)
-          .put('/api/portfolio/strategies/strategy_123')
+          .put(`/api/portfolio/strategies/${seedStrategyModelId}`)
           .send(invalidUpdate)
           .expect(400);
 
@@ -355,7 +404,7 @@ describe('Portfolio Intelligence API Routes', () => {
     describe('DELETE /api/portfolio/strategies/:id', () => {
       it('should delete (deactivate) a strategy', async () => {
         const response = await request(app)
-          .delete('/api/portfolio/strategies/strategy_123')
+          .delete(`/api/portfolio/strategies/${seedStrategyModelId}`)
           .expect(200);
 
         expect(response.body.success).toBe(true);

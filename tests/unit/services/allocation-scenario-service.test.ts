@@ -348,6 +348,46 @@ describe('allocation scenario read model metadata', () => {
             allocation_reason: null,
           },
         ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: '00000000-0000-0000-0000-000000000203',
+            event_type: 'applied',
+            actor_user_id: 17,
+            actor_label: 'nikhil@example.com',
+            note: 'Apply approved reserve plan',
+            source_allocation_version: 6,
+            resulting_allocation_version: 7,
+            change_summary_json: {
+              companies_changed: 1,
+              companies_unchanged: 1,
+              scenario_only_count: 0,
+              live_only_count: 0,
+              total_planned_delta_cents: 25000000,
+              headline: 'Applied 1 company',
+            },
+            created_at: new Date('2026-03-30T18:00:00.000Z'),
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000202',
+            event_type: 'synced',
+            actor_user_id: null,
+            actor_label: 'system',
+            note: 'Refresh from live',
+            source_allocation_version: 2,
+            resulting_allocation_version: 3,
+            change_summary_json: {
+              companies_changed: 1,
+              companies_unchanged: 1,
+              scenario_only_count: 0,
+              live_only_count: 0,
+              total_planned_delta_cents: -25000000,
+              headline: 'Synced 1 company',
+            },
+            created_at: new Date('2026-03-30T17:30:00.000Z'),
+          },
+        ],
       });
 
     const result = await getAllocationScenario(1, scenarioId);
@@ -359,6 +399,31 @@ describe('allocation scenario read model metadata', () => {
       last_applied_allocation_version: 7,
       last_synced_at: '2026-03-30T17:30:00.000Z',
       last_synced_by: 'system',
+      context: {
+        scenario_notes: 'Follow-on heavy scenario',
+        last_sync: {
+          by: 'system',
+          note: 'Refresh from live',
+          source_allocation_version: 2,
+          resulting_allocation_version: 3,
+          change_summary: {
+            companies_changed: 1,
+            total_planned_delta_cents: -25000000,
+            headline: 'Synced 1 company',
+          },
+        },
+        last_apply: {
+          by: 'nikhil@example.com',
+          note: 'Apply approved reserve plan',
+          source_allocation_version: 6,
+          resulting_allocation_version: 7,
+          change_summary: {
+            companies_changed: 1,
+            total_planned_delta_cents: 25000000,
+            headline: 'Applied 1 company',
+          },
+        },
+      },
       snapshot_items: [
         expect.objectContaining({ company_id: 1, planned_reserves_cents: 200000000 }),
         expect.objectContaining({ company_id: 2, planned_reserves_cents: 150000000 }),
@@ -472,6 +537,28 @@ describe('allocation scenario sync and apply semantics', () => {
             allocation_reason: null,
           },
         ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: '00000000-0000-0000-0000-000000000201',
+            event_type: 'synced',
+            actor_user_id: 17,
+            actor_label: 'analyst@example.com',
+            note: 'Refresh from live',
+            source_allocation_version: 3,
+            resulting_allocation_version: 7,
+            change_summary_json: {
+              companies_changed: 1,
+              companies_unchanged: 1,
+              scenario_only_count: 0,
+              live_only_count: 0,
+              total_planned_delta_cents: -25000000,
+              headline: 'Synced 1 company',
+            },
+            created_at: new Date('2026-03-30T18:15:00.000Z'),
+          },
+        ],
       });
 
     const result = await syncAllocationScenario(1, scenarioId, {
@@ -494,6 +581,18 @@ describe('allocation scenario sync and apply semantics', () => {
       last_synced_at: '2026-03-30T18:15:00.000Z',
       last_synced_by: 'analyst@example.com',
       total_planned_cents: 325000000,
+      context: {
+        scenario_notes: 'Follow-on heavy scenario',
+        last_sync: {
+          by: 'analyst@example.com',
+          note: 'Refresh from live',
+          change_summary: {
+            companies_changed: 1,
+            total_planned_delta_cents: -25000000,
+            headline: 'Synced 1 company',
+          },
+        },
+      },
     });
     expect(queryMock).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM allocation_scenario_items'),
@@ -620,6 +719,28 @@ describe('allocation scenario sync and apply semantics', () => {
       .mockResolvedValueOnce({
         rows: [
           {
+            id: '00000000-0000-0000-0000-000000000202',
+            event_type: 'applied',
+            actor_user_id: 17,
+            actor_label: 'analyst@example.com',
+            note: 'Apply approved reserve plan',
+            source_allocation_version: 7,
+            resulting_allocation_version: 8,
+            change_summary_json: {
+              companies_changed: 1,
+              companies_unchanged: 1,
+              scenario_only_count: 0,
+              live_only_count: 0,
+              total_planned_delta_cents: 25000000,
+              headline: 'Applied 1 company',
+            },
+            created_at: new Date('2026-03-30T18:30:00.000Z'),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
             company_id: 1,
             company_name: 'Alpha',
             planned_reserves_cents: '200000000',
@@ -687,6 +808,18 @@ describe('allocation scenario sync and apply semantics', () => {
       last_applied_at: '2026-03-30T18:30:00.000Z',
       last_applied_by: 'analyst@example.com',
       last_applied_allocation_version: 8,
+      context: {
+        scenario_notes: 'Follow-on heavy scenario',
+        last_apply: {
+          by: 'analyst@example.com',
+          note: 'Apply approved reserve plan',
+          change_summary: {
+            companies_changed: 1,
+            total_planned_delta_cents: 25000000,
+            headline: 'Applied 1 company',
+          },
+        },
+      },
     });
   });
 
