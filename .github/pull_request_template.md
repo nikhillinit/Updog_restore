@@ -28,6 +28,46 @@ artifacts/phase0/latest/phase0-summary.txt
 
 <!-- Brief description of the changes in this PR -->
 
+## Slice Summary
+
+### Owned Files
+
+<!-- List the files or modules this PR owns -->
+
+### Explicit Non-Goals
+
+<!-- List what this PR intentionally does not change -->
+
+### Schema Or Contract Impact
+
+<!-- State "none" or describe API/schema/contract impact -->
+
+### Rollback Path
+
+<!-- Describe how to revert or disable this slice safely -->
+
+### Commands Actually Run
+
+<!-- List the exact local validation commands you ran -->
+
+### Docs Or Guardrail Impact
+
+<!-- State "none" or describe which docs/guardrail artifacts changed and why -->
+
+### Archived Active Docs
+
+<!-- State "none" or list any active doc moved to docs/archive and its new path -->
+
+## Required Slice Checklist
+
+- [ ] Owned files are listed explicitly
+- [ ] Explicit non-goals are listed
+- [ ] Schema or contract impact is called out
+- [ ] Rollback path is documented
+- [ ] Commands actually run are listed
+- [ ] Docs or guardrail artifacts changed, with reason
+- [ ] Any active doc archived is named, with destination path
+
 ## Type of Change
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
@@ -100,6 +140,7 @@ artifacts/phase0/latest/phase0-summary.txt
 - [ ] I have made corresponding changes to the documentation
 - [ ] My changes generate no new warnings
 - [ ] Any dependent changes have been merged and published in downstream modules
+- [ ] Required slice checklist above is complete
 
 ## Related Issues
 
