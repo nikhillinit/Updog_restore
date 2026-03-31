@@ -155,6 +155,41 @@ const mockScenarioDetail: AllocationScenarioDetail = {
   last_synced_by: 'system',
   created_at: '2026-03-28T12:00:00.000Z',
   updated_at: '2026-02-15T16:00:00.000Z',
+  context: {
+    scenario_notes: 'Resume this for aggressive follow-ons.',
+    last_sync: {
+      event_id: '00000000-0000-0000-0000-000000000202',
+      at: '2026-03-29T09:30:00.000Z',
+      by: 'system',
+      note: 'Refresh from live before committee review',
+      source_allocation_version: 1,
+      resulting_allocation_version: 2,
+      change_summary: {
+        companies_changed: 1,
+        companies_unchanged: 2,
+        scenario_only_count: 0,
+        live_only_count: 0,
+        total_planned_delta_cents: -50000000,
+        headline: 'Synced 1 company',
+      },
+    },
+    last_apply: {
+      event_id: '00000000-0000-0000-0000-000000000203',
+      at: '2026-03-27T11:00:00.000Z',
+      by: 'analyst@example.com',
+      note: 'Apply approved reserve plan',
+      source_allocation_version: 6,
+      resulting_allocation_version: 7,
+      change_summary: {
+        companies_changed: 1,
+        companies_unchanged: 2,
+        scenario_only_count: 0,
+        live_only_count: 0,
+        total_planned_delta_cents: 50000000,
+        headline: 'Applied 1 company',
+      },
+    },
+  },
   snapshot_items: [
     {
       company_id: 1,

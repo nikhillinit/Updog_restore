@@ -48,6 +48,11 @@ const scenarioDetail = {
   last_synced_by: null,
   created_at: '2026-03-30T15:00:00.000Z',
   updated_at: '2026-03-30T16:00:00.000Z',
+  context: {
+    scenario_notes: 'Follow-on heavy scenario',
+    last_sync: null,
+    last_apply: null,
+  },
   snapshot_items: [
     {
       company_id: 1,
@@ -110,6 +115,26 @@ const scenarioSyncResult = {
     last_synced_at: '2026-03-30T18:15:00.000Z',
     last_synced_by: 'analyst@example.com',
     updated_at: '2026-03-30T18:15:00.000Z',
+    context: {
+      scenario_notes: 'Follow-on heavy scenario',
+      last_sync: {
+        event_id: '00000000-0000-0000-0000-000000000202',
+        at: '2026-03-30T18:15:00.000Z',
+        by: 'analyst@example.com',
+        note: 'Refresh from live before committee review',
+        source_allocation_version: 3,
+        resulting_allocation_version: 7,
+        change_summary: {
+          companies_changed: 1,
+          companies_unchanged: 1,
+          scenario_only_count: 0,
+          live_only_count: 0,
+          total_planned_delta_cents: -25000000,
+          headline: 'Synced 1 company',
+        },
+      },
+      last_apply: null,
+    },
   },
   event: {
     id: '00000000-0000-0000-0000-000000000202',
@@ -139,6 +164,26 @@ const scenarioApplyResult = {
     last_applied_by: 'analyst@example.com',
     last_applied_allocation_version: 8,
     updated_at: '2026-03-30T18:30:00.000Z',
+    context: {
+      scenario_notes: 'Follow-on heavy scenario',
+      last_sync: null,
+      last_apply: {
+        event_id: '00000000-0000-0000-0000-000000000203',
+        at: '2026-03-30T18:30:00.000Z',
+        by: 'analyst@example.com',
+        note: 'Apply approved reserve plan',
+        source_allocation_version: 7,
+        resulting_allocation_version: 8,
+        change_summary: {
+          companies_changed: 1,
+          companies_unchanged: 1,
+          scenario_only_count: 0,
+          live_only_count: 0,
+          total_planned_delta_cents: 25000000,
+          headline: 'Applied 1 company',
+        },
+      },
+    },
   },
   event: {
     id: '00000000-0000-0000-0000-000000000203',
