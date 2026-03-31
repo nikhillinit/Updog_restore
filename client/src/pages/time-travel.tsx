@@ -5,7 +5,6 @@ import {
   usePointInTimeState,
   useStateComparison,
   useCreateSnapshot,
-  useRestoreSnapshot,
 } from '@/hooks/useTimelineData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,17 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -50,7 +38,6 @@ import {
   Clock,
   Camera,
   GitBranch,
-  RotateCcw,
   Play,
   Pause,
   ChevronLeft,
@@ -76,9 +63,6 @@ export default function TimeTravelPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentViewTime, setCurrentViewTime] = useState<string>('');
   const [createSnapshotDialogOpen, setCreateSnapshotDialogOpen] = useState(false);
-  const [, setRestoreDialogOpen] = useState(false);
-  const [selectedSnapshotId, setSelectedSnapshotId] = useState<number | null>(null);
-  const [confirmationCode, setConfirmationCode] = useState('');
 
   // Hooks
   const {
@@ -106,8 +90,6 @@ export default function TimeTravelPage() {
   );
 
   const createSnapshotMutation = useCreateSnapshot();
-  const restoreSnapshotMutation = useRestoreSnapshot();
-
   // Process timeline data for visualization
   const timelineEvents = timelineData?.events;
   const timelineSnapshots = timelineData?.snapshots;
@@ -165,35 +147,6 @@ export default function TimeTravelPage() {
     }
   };
 
-  // Handle snapshot restoration
-  const handleRestoreSnapshot = async () => {
-    if (!currentFund || !selectedSnapshotId) return;
-
-    try {
-      await restoreSnapshotMutation.mutateAsync({
-        fundId: currentFund.id,
-        snapshotId: selectedSnapshotId,
-        confirmationCode,
-      });
-
-      toast({
-        title: 'Restoration Initiated',
-        description: 'Fund state restoration has been initiated.',
-      });
-
-      setRestoreDialogOpen(false);
-      setSelectedSnapshotId(null);
-      setConfirmationCode('');
-      refetchTimeline();
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to restore snapshot. Please check your confirmation code.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   if (!currentFund) {
     return (
       <div className="container mx-auto p-6">
@@ -226,7 +179,8 @@ export default function TimeTravelPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Time-Travel Analytics</h1>
           <p className="text-gray-600 mt-2">
-            Explore historical fund states, create snapshots, and restore previous configurations.
+            Explore historical fund states and create snapshots. Restore remains unavailable on
+            this surface until the server workflow is wired.
           </p>
         </div>
 
@@ -459,7 +413,10 @@ export default function TimeTravelPage() {
           <Card>
             <CardHeader>
               <CardTitle>Snapshot Management</CardTitle>
-              <CardDescription>Create, manage, and restore fund snapshots</CardDescription>
+              <CardDescription>
+                Create and inspect fund snapshots. Restore is intentionally disabled here until
+                the server route is available.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {timelineLoading ? (
@@ -509,59 +466,15 @@ export default function TimeTravelPage() {
                         >
                           View State
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-orange-600 border-orange-200 hover:bg-orange-50 opacity-50 cursor-not-allowed"
-                              disabled={true}
-                              title="Restore coming soon"
-                              onClick={() => setSelectedSnapshotId(snapshot.id)}
-                            >
-                              <RotateCcw className="w-4 h-4 mr-1" />
-                              Restore (Coming soon)
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Restore Fund State</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will restore your fund to the state captured in Snapshot{' '}
-                                {snapshot.id}. This action cannot be undone. Please enter the
-                                confirmation code to proceed.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <div className="my-4">
-                              <Input
-                                placeholder="Enter confirmation code"
-                                value={confirmationCode}
-                                onChange={(e) => setConfirmationCode(e.target.value)}
-                              />
-                            </div>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel
-                                onClick={() => {
-                                  setSelectedSnapshotId(null);
-                                  setConfirmationCode('');
-                                }}
-                              >
-                                Cancel
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={handleRestoreSnapshot}
-                                disabled={
-                                  !confirmationCode.trim() || restoreSnapshotMutation.isPending
-                                }
-                                className="bg-orange-600 hover:bg-orange-700"
-                              >
-                                {restoreSnapshotMutation.isPending
-                                  ? 'Restoring...'
-                                  : 'Restore State'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="cursor-not-allowed border-orange-200 text-orange-600 opacity-50 hover:bg-transparent"
+                          disabled={true}
+                          title="Restore remains unavailable until the server route is wired"
+                        >
+                          Restore Unavailable
+                        </Button>
                       </div>
                     </div>
                   ))}

@@ -8,7 +8,6 @@ import {
   useCreateBaseline,
   useSetDefaultBaseline,
   useDeactivateBaseline,
-  useGenerateVarianceReport,
   useCreateAlertRule,
   useAcknowledgeAlert,
   useResolveAlert,
@@ -71,7 +70,6 @@ export default function VarianceTrackingPage() {
   const { currentFund } = useFundContext();
   const [createBaselineDialogOpen, setCreateBaselineDialogOpen] = useState(false);
   const [createAlertDialogOpen, setCreateAlertDialogOpen] = useState(false);
-  const [generateReportDialogOpen, setGenerateReportDialogOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [alertActionDialogOpen, setAlertActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'acknowledge' | 'resolve'>('acknowledge');
@@ -100,14 +98,6 @@ export default function VarianceTrackingPage() {
     checkFrequency: 'daily' as 'realtime' | 'hourly' | 'daily' | 'weekly',
     suppressionPeriod: 60,
     notificationChannels: ['email'] as Array<'email' | 'slack' | 'webhook'>,
-  });
-
-  const [reportForm, setReportForm] = useState({
-    baselineId: '',
-    reportName: '',
-    reportType: 'ad_hoc' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
-    reportPeriod: undefined as 'monthly' | 'quarterly' | 'annual' | undefined,
-    asOfDate: '',
   });
 
   // Hooks
@@ -142,11 +132,44 @@ export default function VarianceTrackingPage() {
   const createBaselineMutation = useCreateBaseline();
   const setDefaultBaselineMutation = useSetDefaultBaseline();
   const deactivateBaselineMutation = useDeactivateBaseline();
-  const _generateReportMutation = useGenerateVarianceReport();
   const createAlertRuleMutation = useCreateAlertRule();
   const acknowledgeAlertMutation = useAcknowledgeAlert();
   const resolveAlertMutation = useResolveAlert();
   const performAnalysisMutation = usePerformVarianceAnalysis();
+
+  const reports = reportsData?.data ?? [];
+  const latestReport =
+    reports.length > 0
+      ? [...reports].sort(
+          (left, right) =>
+            new Date(right.generatedAt).getTime() - new Date(left.generatedAt).getTime()
+        )[0]
+      : null;
+  const hasReports = reports.length > 0;
+  const totalActiveAlerts = dashboardData?.data?.summary?.totalActiveAlerts || 0;
+  const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
+  const analysisStatus = !lastAnalysisDate
+    ? {
+        value: 'Not Run',
+        description: 'Run analysis to generate the first report',
+        badgeText: 'No report',
+        badgeVariant: 'secondary' as const,
+      }
+    : totalActiveAlerts > 0
+      ? {
+          value: 'Attention',
+          description: 'Active alerts need review',
+          badgeText: `${totalActiveAlerts} active`,
+          badgeVariant: 'destructive' as const,
+        }
+      : {
+          value: 'Stable',
+          description: hasReports
+            ? 'Driven by latest variance report'
+            : 'Most recent analysis completed',
+          badgeText: 'No active alerts',
+          badgeVariant: 'default' as const,
+        };
 
   // Handle baseline creation
   const handleCreateBaseline = async () => {
@@ -361,87 +384,6 @@ export default function VarianceTrackingPage() {
             <Zap className="w-4 h-4" />
             <span>{performAnalysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
           </Button>
-
-          <Dialog open={generateReportDialogOpen} onOpenChange={setGenerateReportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center space-x-2">
-                <FileText className="w-4 h-4" />
-                <span>Generate Report</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Generate Variance Report</DialogTitle>
-                <DialogDescription>
-                  Create a comprehensive variance analysis report.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Report Name</Label>
-                  <Input
-                    value={reportForm.reportName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setReportForm((prev) => ({ ...prev, reportName: e.target.value }))
-                    }
-                    placeholder="Enter report name..."
-                  />
-                </div>
-                <div>
-                  <Label>Report Type</Label>
-                  <Select
-                    value={reportForm.reportType}
-                    onValueChange={(
-                      value: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered'
-                    ) => setReportForm((prev) => ({ ...prev, reportType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ad_hoc">Ad Hoc</SelectItem>
-                      <SelectItem value="periodic">Periodic</SelectItem>
-                      <SelectItem value="milestone">Milestone</SelectItem>
-                      <SelectItem value="alert_triggered">Alert Triggered</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Baseline</Label>
-                  <Select
-                    value={reportForm.baselineId}
-                    onValueChange={(value: string) =>
-                      setReportForm((prev) => ({ ...prev, baselineId: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select baseline..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {baselinesData?.data?.map((baseline: Baseline) => (
-                        <SelectItem key={baseline.id} value={baseline.id}>
-                          {baseline.name} {baseline.isDefault ? '(Default)' : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setGenerateReportDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    // Handle report generation
-                    setGenerateReportDialogOpen(false);
-                  }}
-                >
-                  Generate Report
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -476,13 +418,14 @@ export default function VarianceTrackingPage() {
           description="Most recent variance analysis"
         />
         <StatCard
-          title="Performance"
-          value="Within Range"
+          title="Analysis Status"
+          value={analysisStatus.value}
           icon={TrendingUp}
           badge={{
-            text: 'Good',
-            variant: 'default',
+            text: analysisStatus.badgeText,
+            variant: analysisStatus.badgeVariant,
           }}
+          description={analysisStatus.description}
         />
       </StatCardGrid>
 
@@ -538,17 +481,58 @@ export default function VarianceTrackingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Variance Analysis Empty State */}
-          <Card>
-            <CardContent className="p-12 text-center">
-              <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Variance Data Yet</h3>
-              <p className="text-gray-600 mb-4">
-                Create a baseline and run a variance analysis to see metrics here.
-              </p>
-              <Button onClick={handlePerformAnalysis}>Run Variance Analysis</Button>
-            </CardContent>
-          </Card>
+          {reportsLoading ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Latest Report</h3>
+                <p className="text-gray-600">Fetching variance report data for this fund.</p>
+              </CardContent>
+            </Card>
+          ) : latestReport ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Latest Variance Report</CardTitle>
+                <CardDescription>
+                  {latestReport.reportName} • generated{' '}
+                  {format(parseISO(latestReport.generatedAt), 'MMM dd, yyyy')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Total Variances</div>
+                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                      {latestReport.summary.totalVariances}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Significant</div>
+                    <div className="mt-1 text-2xl font-semibold text-yellow-700">
+                      {latestReport.summary.significantVariances}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Critical</div>
+                    <div className="mt-1 text-2xl font-semibold text-red-700">
+                      {latestReport.summary.criticalVariances}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Variance Data Yet</h3>
+                <p className="text-gray-600 mb-4">
+                  Create a baseline and run a variance analysis to generate the first report.
+                </p>
+                <Button onClick={handlePerformAnalysis}>Run Variance Analysis</Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1212,7 +1196,7 @@ export default function VarianceTrackingPage() {
                   <p className="text-gray-600 mb-4">
                     Run a variance analysis to generate your first report.
                   </p>
-                  <Button onClick={handlePerformAnalysis}>Generate Report</Button>
+                  <Button onClick={handlePerformAnalysis}>Run Analysis</Button>
                 </div>
               )}
             </CardContent>

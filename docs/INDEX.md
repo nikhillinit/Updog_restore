@@ -89,6 +89,7 @@ Humans AND Agents **Last Updated**: 2026-03-27
 | [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                             | Complex refactoring registry (10+ files, architectural) | Documenting deferred architectural work                      |
 | [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)               | Analysis of 22 recent PRs, divergence patterns          | Understanding implementation parity issues                   |
 | [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)   | Fee-specific divergence analysis                        | When working on fee-related code                             |
+| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)             | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit |
 | [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                            | PR verification baseline (74.7% pass rate)              | Before merging PRs                                           |
 
 **Key Commands**:
