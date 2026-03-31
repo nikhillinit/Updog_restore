@@ -181,7 +181,7 @@ async function logAllocationEvent(
       fundId,
       'ALLOCATION_UPDATED',
       JSON.stringify({
-        updates: updates.map(({ expected_version, ...rest }) => rest),
+        updates: updates.map(({ expected_version: _expectedVersion, ...rest }) => rest),
         new_version: newVersion,
         update_count: updates.length,
       }),

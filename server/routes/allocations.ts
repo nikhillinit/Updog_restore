@@ -114,7 +114,6 @@ const CompanyListQuerySchema = z.object({
 // Type Definitions
 // ============================================================================
 
-type CompanyAllocationUpdate = z.infer<typeof CompanyAllocationUpdateSchema>;
 type _UpdateAllocationRequest = z.infer<typeof UpdateAllocationRequestSchema>;
 
 interface CompanyAllocationRow {

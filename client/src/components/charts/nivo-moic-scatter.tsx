@@ -19,6 +19,17 @@ type MOICDatum = {
   investment?: number;
 };
 
+type MOICPoint = MOICDatum & { z?: number };
+
+type TooltipPayloadEntry = {
+  payload?: unknown;
+};
+
+type MOICTooltipProps = {
+  active?: boolean;
+  payload?: ReadonlyArray<TooltipPayloadEntry>;
+};
+
 interface MOICData {
   id: string;
   data: MOICDatum[];
@@ -28,6 +39,15 @@ interface NivoMOICScatterProps {
   title: string;
   data: MOICData[];
   height?: number;
+}
+
+function isMOICPoint(value: unknown): value is MOICPoint {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<Record<'x' | 'y', unknown>>;
+  return typeof candidate.x === 'number' && typeof candidate.y === 'number';
 }
 
 const NivoMOICScatter = memo(function NivoMOICScatter({
@@ -73,9 +93,9 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
               <ZAxis type="number" dataKey="z" range={[60, 280]} />
               <Tooltip
                 cursor={{ strokeDasharray: '3 3' }}
-                content={({ active, payload }) => {
-                  const point = payload?.[0]?.payload as (MOICDatum & { z?: number }) | undefined;
-                  if (!active || !point) {
+                content={({ active, payload }: MOICTooltipProps) => {
+                  const point = payload?.[0]?.payload;
+                  if (!active || !isMOICPoint(point)) {
                     return null;
                   }
 

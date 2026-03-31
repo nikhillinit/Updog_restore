@@ -54,43 +54,6 @@ function buildScenarioHeader(options: {
   };
 }
 
-function queueScenarioDetailQueries(options: {
-  sourceAllocationVersion: number | null;
-  scenarioItems: Array<{
-    company_id: number;
-    planned_reserves_cents: string;
-    allocation_cap_cents: string | null;
-    allocation_reason: string | null;
-  }>;
-  lastAppliedAt?: Date | null;
-  lastAppliedBy?: string | null;
-  lastAppliedAllocationVersion?: number | null;
-  lastSyncedAt?: Date | null;
-  lastSyncedBy?: string | null;
-  updatedAt?: Date;
-}) {
-  queryMock
-    .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-    .mockResolvedValueOnce({
-      rows: [
-        buildScenarioHeader({
-          sourceAllocationVersion: options.sourceAllocationVersion,
-          companyCount: options.scenarioItems.length,
-          totalPlannedCents: options.scenarioItems
-            .reduce((sum, item) => sum + parseInt(item.planned_reserves_cents, 10), 0)
-            .toString(),
-          lastAppliedAt: options.lastAppliedAt,
-          lastAppliedBy: options.lastAppliedBy,
-          lastAppliedAllocationVersion: options.lastAppliedAllocationVersion,
-          lastSyncedAt: options.lastSyncedAt,
-          lastSyncedBy: options.lastSyncedBy,
-          updatedAt: options.updatedAt,
-        }),
-      ],
-    })
-    .mockResolvedValueOnce({ rows: options.scenarioItems });
-}
-
 function queuePreviewQueries(options: {
   sourceAllocationVersion: number | null;
   scenarioItems: Array<{
@@ -130,8 +93,9 @@ function queuePreviewQueries(options: {
 describe('allocation scenario apply preview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(async (callback: (client: { query: typeof queryMock }) => unknown) =>
-      callback({ query: queryMock })
+    transactionMock.mockImplementation(
+      async (callback: (client: { query: typeof queryMock }) => unknown) =>
+        callback({ query: queryMock })
     );
   });
 
@@ -305,33 +269,32 @@ describe('allocation scenario read model metadata', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     transactionMock.mockImplementation(
-      async (callback: (client: { query: typeof queryMock }) => unknown) => callback({ query: queryMock })
+      async (callback: (client: { query: typeof queryMock }) => unknown) =>
+        callback({ query: queryMock })
     );
   });
 
   it('maps last apply and sync metadata in list reads', async () => {
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: scenarioId,
-            fund_id: 1,
-            name: 'Upside reserve plan',
-            notes: 'Follow-on heavy scenario',
-            source_allocation_version: 3,
-            company_count: 2,
-            total_planned_cents: '350000000',
-            last_applied_at: new Date('2026-03-30T18:00:00.000Z'),
-            last_applied_by: 'nikhil@example.com',
-            last_applied_allocation_version: 7,
-            last_synced_at: new Date('2026-03-30T17:30:00.000Z'),
-            last_synced_by: 'system',
-            created_at: new Date('2026-03-30T15:00:00.000Z'),
-            updated_at: new Date('2026-03-30T18:00:00.000Z'),
-          },
-        ],
-      });
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
+      rows: [
+        {
+          id: scenarioId,
+          fund_id: 1,
+          name: 'Upside reserve plan',
+          notes: 'Follow-on heavy scenario',
+          source_allocation_version: 3,
+          company_count: 2,
+          total_planned_cents: '350000000',
+          last_applied_at: new Date('2026-03-30T18:00:00.000Z'),
+          last_applied_by: 'nikhil@example.com',
+          last_applied_allocation_version: 7,
+          last_synced_at: new Date('2026-03-30T17:30:00.000Z'),
+          last_synced_by: 'system',
+          created_at: new Date('2026-03-30T15:00:00.000Z'),
+          updated_at: new Date('2026-03-30T18:00:00.000Z'),
+        },
+      ],
+    });
 
     const result = await listAllocationScenarios(1);
 
@@ -408,7 +371,8 @@ describe('allocation scenario sync and apply semantics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     transactionMock.mockImplementation(
-      async (callback: (client: { query: typeof queryMock }) => unknown) => callback({ query: queryMock })
+      async (callback: (client: { query: typeof queryMock }) => unknown) =>
+        callback({ query: queryMock })
     );
   });
 
