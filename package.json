@@ -9,7 +9,7 @@
   },
   "packageManager": "npm@10.9.0",
   "scripts": {
-    "preinstall": "npx only-allow npm",
+    "preinstall": "node scripts/check-package-manager.mjs",
     "doctor": "npm-run-all --sequential doctor:shell doctor:quick",
     "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:quick": "node -e \"try{require.resolve('vite');require.resolve('@vitejs/plugin-react');require.resolve('autoprefixer');console.log('doctor:quick PASS: core modules OK')}catch(e){console.error('doctor:quick FAIL:',e.message);process.exit(1)}\"",
