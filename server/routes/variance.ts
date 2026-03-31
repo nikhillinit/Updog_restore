@@ -391,8 +391,11 @@ router['post'](
       // Resolve baseline: use explicit baselineId or fall back to fund's default
       const resolvedBaselineId = await (async () => {
         if (data.baselineId) {
-          const owned = await varianceTrackingService.baselines.getBaselines(fundId, {});
-          if (!owned.some((b) => b.id === data.baselineId)) {
+          const owned = await varianceTrackingService.baselines.getBaselineById(
+            fundId,
+            data.baselineId
+          );
+          if (!owned) {
             return null; // ownership failure sentinel
           }
           return data.baselineId;
@@ -450,8 +453,9 @@ router['post'](
  */
 router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Response) => {
   try {
+    let fundId: number;
     try {
-      const _fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -463,13 +467,12 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
       throw err;
     }
 
-    // This would be implemented to fetch variance reports
-    // For now, return placeholder response
+    const reports = await varianceTrackingService.calculations.getVarianceReports(fundId);
+
     res['json']({
       success: true,
-      data: [],
-      count: 0,
-      message: 'Variance reports endpoint implemented',
+      data: reports.map(toClientReport),
+      count: reports.length,
     });
   } catch (error) {
     console.error('Variance reports fetch error:', error);
@@ -487,8 +490,9 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
  */
 router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, res: Response) => {
   try {
+    let fundId: number;
     try {
-      const _fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -500,7 +504,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
       throw err;
     }
 
-    const reportId = req.params['reportId'];
+    const reportId = firstString(req.params['reportId']);
     if (!reportId) {
       const error: ApiError = {
         error: 'Invalid report ID',
@@ -509,11 +513,21 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
       return res['status'](400)['json'](error);
     }
 
-    // This would be implemented to fetch specific variance report
+    const report = await varianceTrackingService.calculations.getVarianceReportById(
+      fundId,
+      reportId
+    );
+    if (!report) {
+      const error: ApiError = {
+        error: 'Variance report not found',
+        message: 'The specified variance report does not belong to this fund.',
+      };
+      return res['status'](404)['json'](error);
+    }
+
     res['json']({
       success: true,
-      data: null,
-      message: 'Specific variance report endpoint implemented',
+      data: toClientReport(report),
     });
   } catch (error) {
     console.error('Variance report fetch error:', error);

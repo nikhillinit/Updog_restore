@@ -16,11 +16,14 @@ vi.mock('../../../server/services/variance-tracking', () => ({
     baselines: {
       createBaseline: vi.fn(),
       getBaselines: vi.fn(),
+      getBaselineById: vi.fn(),
       setDefaultBaseline: vi.fn(),
       deactivateBaseline: vi.fn(),
     },
     calculations: {
       generateVarianceReport: vi.fn(),
+      getVarianceReports: vi.fn(),
+      getVarianceReportById: vi.fn(),
     },
     alerts: {
       createAlertRule: vi.fn(),
@@ -479,7 +482,7 @@ describe('Variance Tracking API', () => {
 
       it('should return 404 when explicit baselineId does not belong to fund', async () => {
         // The baseline exists but belongs to a different fund
-        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([]);
+        mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue(undefined);
 
         const reportData = {
           baselineId: '00000000-0000-0000-0000-000000000999',
@@ -505,7 +508,7 @@ describe('Variance Tracking API', () => {
           fundId: 1,
           isDefault: false,
         };
-        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([ownedBaseline]);
+        mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue(ownedBaseline);
 
         const mockReport = {
           id: 'report-id',
@@ -550,33 +553,93 @@ describe('Variance Tracking API', () => {
 
     describe('GET /api/funds/:id/variance-reports', () => {
       it('should retrieve variance reports list', async () => {
+        const rawReports = [
+          {
+            id: 'report-123',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000123',
+            reportName: 'December 2024 Variance Analysis',
+            reportType: 'periodic',
+            reportPeriod: 'monthly',
+            asOfDate: new Date('2024-12-31T23:59:59Z'),
+            totalValueVariance: '150000.00',
+            totalValueVariancePct: '0.06',
+            irrVariance: '-0.013',
+            multipleVariance: null,
+            dpiVariance: null,
+            tvpiVariance: null,
+            significantVariances: [{ metric: 'irr', severity: 'high' }],
+            createdAt: new Date('2024-12-31T12:00:00Z'),
+          },
+        ];
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue(rawReports);
+
         const response = await request(app).get('/api/funds/1/variance-reports').expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data).toEqual([]);
-        expect(response.body.count).toBe(0);
-        expect(response.body.message).toBe('Variance reports endpoint implemented');
+        expect(response.body.count).toBe(1);
+        expect(response.body.data[0].id).toBe('report-123');
+        expect(response.body.data[0].summary.totalVariances).toBe(2);
+        expect(response.body.data[0].summary.criticalVariances).toBe(1);
+        expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(1);
       });
     });
 
     describe('GET /api/funds/:id/variance-reports/:reportId', () => {
       it('should retrieve specific variance report', async () => {
+        const rawReport = {
+          id: 'report-123',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'December 2024 Variance Analysis',
+          reportType: 'periodic',
+          reportPeriod: 'monthly',
+          asOfDate: new Date('2024-12-31T23:59:59Z'),
+          totalValueVariance: '150000.00',
+          totalValueVariancePct: '0.06',
+          irrVariance: '-0.013',
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [{ metric: 'irr', severity: 'medium' }],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
+        mockVarianceTrackingService.calculations.getVarianceReportById.mockResolvedValue(rawReport);
+
         const response = await request(app)
           .get('/api/funds/1/variance-reports/report-123')
           .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data).toBeNull();
-        expect(response.body.message).toBe('Specific variance report endpoint implemented');
+        expect(response.body.data.id).toBe('report-123');
+        expect(response.body.data.summary.totalVariances).toBe(2);
+        expect(mockVarianceTrackingService.calculations.getVarianceReportById).toHaveBeenCalledWith(
+          1,
+          'report-123'
+        );
+      });
+
+      it('should return 404 when report does not belong to fund', async () => {
+        mockVarianceTrackingService.calculations.getVarianceReportById.mockResolvedValue(undefined);
+
+        const response = await request(app)
+          .get('/api/funds/1/variance-reports/report-123')
+          .expect(404);
+
+        expect(response.body.error).toBe('Variance report not found');
+        expect(response.body.message).toBe(
+          'The specified variance report does not belong to this fund.'
+        );
       });
 
       it('should handle missing report ID', async () => {
         // Test that trailing slash matches the list endpoint (GET /api/funds/:id/variance-reports)
         // instead of the specific report endpoint
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue([]);
         const response = await request(app).get('/api/funds/1/variance-reports/').expect(200);
-        // This should return the list endpoint response
         expect(response.body.success).toBe(true);
-        expect(response.body.message).toBe('Variance reports endpoint implemented');
+        expect(response.body.data).toEqual([]);
+        expect(response.body.count).toBe(0);
       });
     });
   });
