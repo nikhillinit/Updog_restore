@@ -35,6 +35,11 @@ interface ClientVarianceReport {
     criticalVariances: number;
   };
   variances: Array<{ metric: string; value: string | null; pct: string | null }>;
+  portfolioVariances?: Record<string, unknown>;
+  sectorVariances?: Record<string, unknown>;
+  stageVariances?: Record<string, unknown>;
+  reserveVariances?: Record<string, unknown>;
+  pacingVariances?: Record<string, unknown>;
 }
 
 /** Variance columns we inspect for the summary + variances array */
@@ -100,6 +105,21 @@ function toClientReport(row: DbVarianceReport): ClientVarianceReport {
       criticalVariances: criticalCount,
     },
     variances,
+    ...(row['portfolioVariances'] != null && {
+      portfolioVariances: row['portfolioVariances'] as Record<string, unknown>,
+    }),
+    ...(row['sectorVariances'] != null && {
+      sectorVariances: row['sectorVariances'] as Record<string, unknown>,
+    }),
+    ...(row['stageVariances'] != null && {
+      stageVariances: row['stageVariances'] as Record<string, unknown>,
+    }),
+    ...(row['reserveVariances'] != null && {
+      reserveVariances: row['reserveVariances'] as Record<string, unknown>,
+    }),
+    ...(row['pacingVariances'] != null && {
+      pacingVariances: row['pacingVariances'] as Record<string, unknown>,
+    }),
   };
 }
 
