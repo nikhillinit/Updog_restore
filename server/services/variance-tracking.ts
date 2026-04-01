@@ -115,9 +115,9 @@ export class BaselineService {
       // Get portfolio composition
       const portfolioData = await this.getPortfolioComposition(fundId);
 
-      // Get reserve and pacing data (kept for future use)
-      const _reserveData = await this.getReserveSnapshot(fundId);
-      const _pacingData = await this.getPacingSnapshot(fundId);
+      // Get reserve and pacing snapshots for baseline persistence
+      const reserveData = await this.getReserveSnapshot(fundId);
+      const pacingData = await this.getPacingSnapshot(fundId);
 
       // Check if this should be the default baseline
       const existingDefaults = await db.query.fundBaselines.findMany({
@@ -139,6 +139,13 @@ export class BaselineService {
         snapshotDate: new Date(),
         totalValue: latestMetrics.totalValue,
         deployedCapital: portfolioData.deployedCapital,
+        portfolioCount: portfolioData.portfolioCount,
+        averageInvestment: portfolioData.averageInvestment,
+        topPerformers: portfolioData.topPerformers,
+        sectorDistribution: portfolioData.sectorDistribution,
+        stageDistribution: portfolioData.stageDistribution,
+        reserveAllocation: reserveData,
+        pacingMetrics: pacingData,
         createdBy,
         isDefault,
         description,
@@ -402,7 +409,15 @@ export class VarianceCalculationService {
         multipleVariance: variances.multipleVariance?.toString() ?? null,
         dpiVariance: variances.dpiVariance?.toString() ?? null,
         tvpiVariance: variances.tvpiVariance?.toString() ?? null,
-        portfolioVariances,
+        // Persist portfolio sub-analyses to dedicated schema columns
+        portfolioVariances: {
+          companyVariances: portfolioVariances.companyVariances,
+          portfolioCountVariance: portfolioVariances.portfolioCountVariance,
+        },
+        sectorVariances: portfolioVariances.sectorVariances,
+        stageVariances: portfolioVariances.stageVariances,
+        reserveVariances: portfolioVariances.reserveVariances,
+        pacingVariances: portfolioVariances.pacingVariances,
         significantVariances: insights.significantVariances,
         varianceFactors: insights.factors,
         thresholdBreaches: insights.thresholdBreaches,
@@ -596,10 +611,16 @@ export class VarianceCalculationService {
       (baseline.stageDistribution as Record<string, number>) || {}
     );
 
+    // Reserve and pacing variance analysis
+    const reserveVariances = await this.calculateReserveVariances(fundId, baseline);
+    const pacingVariances = await this.calculatePacingVariances(fundId, baseline);
+
     return {
       companyVariances,
       sectorVariances,
       stageVariances,
+      reserveVariances,
+      pacingVariances,
       portfolioCountVariance: currentPortfolio.portfolioCount - baseline.portfolioCount,
     };
   }
@@ -765,45 +786,250 @@ export class VarianceCalculationService {
     }
   }
 
-  // Additional helper methods would be implemented here...
-  private async getCurrentPortfolioMetrics(_fundId: number, _asOfDate: Date) {
-    // Implementation for getting current portfolio metrics
+  // NOTE: asOfDate is accepted but not used for filtering because portfolioCompanies
+  // has no temporal snapshots. Point-in-time portfolio queries require a snapshot
+  // mechanism (Phase 0.5 / Time Machine prerequisite). Until then, these methods
+  // return current-state data regardless of asOfDate.
+  private async getCurrentPortfolioMetrics(fundId: number, _asOfDate: Date) {
+    const companies =
+      (await db.query.portfolioCompanies.findMany({
+        where: eq(portfolioCompanies.fundId, fundId),
+        with: {
+          investments: true,
+        },
+      })) ?? [];
+
+    const portfolioCount = companies.length;
+
+    if (portfolioCount === 0) {
+      return {
+        portfolioCount: 0,
+        deployedCapital: '0',
+        averageInvestment: '0',
+        sectorDistribution: {} as Record<string, number>,
+        stageDistribution: {} as Record<string, number>,
+      };
+    }
+
+    const totalInvestments = companies.reduce((sum: Decimal, company) => {
+      const invArr = Array.isArray(company.investments)
+        ? (company.investments as Array<{ amount: string | number }>)
+        : [];
+      const companyTotal = invArr.reduce(
+        (s: Decimal, inv) => s.plus(toDecimal(String(inv.amount))),
+        new Decimal(0)
+      );
+      return sum.plus(companyTotal);
+    }, new Decimal(0));
+
+    const averageInvestment = totalInvestments.div(portfolioCount);
+
+    const sectorDistribution = companies.reduce(
+      (acc, c) => {
+        const key = c.sector || 'Unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const stageDistribution = companies.reduce(
+      (acc, c) => {
+        const key = c.stage || 'Unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
     return {
-      portfolioCount: 0,
-      sectorDistribution: {},
-      stageDistribution: {},
+      portfolioCount,
+      deployedCapital: totalInvestments.toString(),
+      averageInvestment: averageInvestment.toString(),
+      sectorDistribution,
+      stageDistribution,
     };
   }
 
-  private async analyzeCompanyVariances(_fundId: number, _baseline: FundBaseline, _asOfDate: Date) {
-    // Implementation for company-level variance analysis
-    return [];
+  private async analyzeCompanyVariances(fundId: number, baseline: FundBaseline, _asOfDate: Date) {
+    // Extract top performers from baseline JSONB (handles both array and { companies: [...] } shapes)
+    const rawPerformers = baseline.topPerformers as unknown;
+    let baselineCompanies: Array<{
+      id: number;
+      name?: string;
+      sector?: string;
+      currentValuation?: string | number | null;
+      valuation?: number | null;
+    }> = [];
+
+    if (Array.isArray(rawPerformers)) {
+      baselineCompanies = rawPerformers as typeof baselineCompanies;
+    } else if (
+      rawPerformers &&
+      typeof rawPerformers === 'object' &&
+      Array.isArray((rawPerformers as Record<string, unknown>)['companies'])
+    ) {
+      baselineCompanies = (rawPerformers as Record<string, unknown>)[
+        'companies'
+      ] as typeof baselineCompanies;
+    }
+
+    if (baselineCompanies.length === 0) {
+      return [];
+    }
+
+    // Build lookup keyed by company id
+    const baselineMap = new Map<number, { name: string; sector: string; valuation: Decimal }>();
+    for (const bc of baselineCompanies) {
+      const rawVal = bc.currentValuation ?? bc.valuation;
+      if (rawVal == null) continue;
+      baselineMap.set(bc.id, {
+        name: bc.name ?? '',
+        sector: bc.sector ?? '',
+        valuation: toDecimal(String(rawVal)),
+      });
+    }
+
+    if (baselineMap.size === 0) {
+      return [];
+    }
+
+    // Query current portfolio
+    const companies =
+      (await db.query.portfolioCompanies.findMany({
+        where: eq(portfolioCompanies.fundId, fundId),
+      })) ?? [];
+
+    const variances: Array<{
+      companyId: number;
+      companyName: string;
+      sector: string;
+      valuationChange: string;
+      valuationChangePct: string;
+    }> = [];
+
+    for (const company of companies) {
+      const baselineEntry = baselineMap.get(company.id);
+      if (!baselineEntry) continue;
+      if (company.currentValuation == null) continue;
+
+      const currentVal = toDecimal(String(company.currentValuation));
+      const baseVal = baselineEntry.valuation;
+
+      if (baseVal.isZero()) continue;
+
+      const change = currentVal.minus(baseVal);
+      const changePct = change.div(baseVal);
+
+      variances.push({
+        companyId: company.id,
+        companyName: company.name,
+        sector: company.sector,
+        valuationChange: change.toString(),
+        valuationChangePct: changePct.toString(),
+      });
+    }
+
+    return variances;
+  }
+
+  /** Get latest reserve snapshot for a fund */
+  private async getReserveSnapshot(fundId: number) {
+    const snapshot = await db.query.fundSnapshots.findFirst({
+      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
+      orderBy: desc(fundSnapshots.createdAt),
+    });
+    return snapshot?.payload || {};
+  }
+
+  /** Get latest pacing snapshot for a fund */
+  private async getPacingSnapshot(fundId: number) {
+    const snapshot = await db.query.fundSnapshots.findFirst({
+      where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
+      orderBy: desc(fundSnapshots.createdAt),
+    });
+    return snapshot?.payload || {};
   }
 
   private analyzeSectorVariances(
-    _current: Record<string, number>,
-    _baseline: Record<string, number>
-  ) {
-    // Implementation for sector variance analysis
-    return {};
+    current: Record<string, number>,
+    baseline: Record<string, number>
+  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+    return this.analyzeDistributionVariances(current, baseline);
   }
 
   private analyzeStageVariances(
-    _current: Record<string, number>,
-    _baseline: Record<string, number>
-  ) {
-    // Implementation for stage variance analysis
-    return {};
+    current: Record<string, number>,
+    baseline: Record<string, number>
+  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+    return this.analyzeDistributionVariances(current, baseline);
   }
 
-  private async calculateReserveVariances(_fundId: number, _baseline: FundBaseline) {
-    // Implementation for reserve variance calculation
-    return {};
+  /** Shared logic for sector/stage distribution variance */
+  private analyzeDistributionVariances(
+    current: Record<string, number>,
+    baseline: Record<string, number>
+  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+    const allKeys = new Set([...Object.keys(current), ...Object.keys(baseline)]);
+    const result: Record<
+      string,
+      { current: number; baseline: number; delta: number; deltaPct: number | null }
+    > = {};
+
+    for (const key of allKeys) {
+      const cur = current[key] ?? 0;
+      const base = baseline[key] ?? 0;
+      const delta = cur - base;
+      const deltaPct = base !== 0 ? delta / base : null;
+      result[key] = { current: cur, baseline: base, delta, deltaPct };
+    }
+
+    return result;
   }
 
-  private async calculatePacingVariances(_fundId: number, _baseline: FundBaseline) {
-    // Implementation for pacing variance calculation
-    return {};
+  private async calculateReserveVariances(fundId: number, baseline: FundBaseline) {
+    const currentReserves = (await this.getReserveSnapshot(fundId)) as Record<string, unknown>;
+    const baselineReserves = (baseline.reserveAllocation ?? {}) as Record<string, unknown>;
+
+    const hasData =
+      Object.keys(currentReserves).length > 0 && Object.keys(baselineReserves).length > 0;
+    if (!hasData) {
+      return { hasData: false, currentReserves: {}, baselineReserves: {}, changes: {} };
+    }
+
+    const changes: Record<string, unknown> = {};
+    const allKeys = new Set([...Object.keys(currentReserves), ...Object.keys(baselineReserves)]);
+    for (const key of allKeys) {
+      const cur = currentReserves[key];
+      const base = baselineReserves[key];
+      if (cur !== base) {
+        changes[key] = { current: cur ?? null, baseline: base ?? null };
+      }
+    }
+
+    return { hasData: true, currentReserves, baselineReserves, changes };
+  }
+
+  private async calculatePacingVariances(fundId: number, baseline: FundBaseline) {
+    const currentPacing = (await this.getPacingSnapshot(fundId)) as Record<string, unknown>;
+    const baselinePacing = (baseline.pacingMetrics ?? {}) as Record<string, unknown>;
+
+    const hasData = Object.keys(currentPacing).length > 0 && Object.keys(baselinePacing).length > 0;
+    if (!hasData) {
+      return { hasData: false, currentPacing: {}, baselinePacing: {}, changes: {} };
+    }
+
+    const changes: Record<string, unknown> = {};
+    const allKeys = new Set([...Object.keys(currentPacing), ...Object.keys(baselinePacing)]);
+    for (const key of allKeys) {
+      const cur = currentPacing[key];
+      const base = baselinePacing[key];
+      if (cur !== base) {
+        changes[key] = { current: cur ?? null, baseline: base ?? null };
+      }
+    }
+
+    return { hasData: true, currentPacing, baselinePacing, changes };
   }
 }
 
