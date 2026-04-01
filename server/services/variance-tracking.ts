@@ -1002,7 +1002,8 @@ export class VarianceCalculationService {
     for (const key of allKeys) {
       const cur = currentReserves[key];
       const base = baselineReserves[key];
-      if (cur !== base) {
+      // Deep compare via JSON to avoid false positives on nested objects
+      if (JSON.stringify(cur) !== JSON.stringify(base)) {
         changes[key] = { current: cur ?? null, baseline: base ?? null };
       }
     }
@@ -1024,7 +1025,8 @@ export class VarianceCalculationService {
     for (const key of allKeys) {
       const cur = currentPacing[key];
       const base = baselinePacing[key];
-      if (cur !== base) {
+      // Deep compare via JSON to avoid false positives on nested objects
+      if (JSON.stringify(cur) !== JSON.stringify(base)) {
         changes[key] = { current: cur ?? null, baseline: base ?? null };
       }
     }

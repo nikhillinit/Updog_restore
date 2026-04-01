@@ -319,6 +319,9 @@ export function useGenerateVarianceReport() {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-reports'],
       });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/funds', variables.fundId, 'variance-dashboard'],
+      });
     },
   });
 }
