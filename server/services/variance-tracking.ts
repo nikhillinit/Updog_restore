@@ -7,6 +7,7 @@
 
 import { db } from '../db';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
+import { isDeepStrictEqual } from 'node:util';
 import {
   fundBaselines,
   varianceReports,
@@ -340,6 +341,8 @@ export class BaselineService {
  * Variance calculation and reporting
  */
 export class VarianceCalculationService {
+  private readonly currentStatePortfolioAnalysisToleranceMs = 60_000;
+
   /**
    * Generate variance report comparing current state to baseline
    */
@@ -366,6 +369,9 @@ export class VarianceCalculationService {
     const startTime = Date.now();
 
     try {
+      const canUseCurrentStatePortfolioAnalysis =
+        this.canUseCurrentStatePortfolioAnalysis(asOfDate);
+
       // Get baseline data
       const baseline = await db.query.fundBaselines.findFirst({
         where: eq(fundBaselines.id, baselineId),
@@ -383,10 +389,12 @@ export class VarianceCalculationService {
       const variances = this.calculateVariances(currentMetrics, baselineMetrics);
 
       // Analyze portfolio variances
-      const portfolioVariances = await this.analyzePortfolioVariances(fundId, baseline, asOfDate);
+      const portfolioVariances = canUseCurrentStatePortfolioAnalysis
+        ? await this.analyzePortfolioVariances(fundId, baseline, asOfDate)
+        : null;
 
       // Generate insights and risk assessment
-      const insights = this.generateVarianceInsights(variances, portfolioVariances);
+      const insights = this.generateVarianceInsights(variances, portfolioVariances ?? {});
 
       // Check for alert triggers
       const alertsTriggered = await this.checkAlertTriggers(fundId, variances);
@@ -410,14 +418,16 @@ export class VarianceCalculationService {
         dpiVariance: variances.dpiVariance?.toString() ?? null,
         tvpiVariance: variances.tvpiVariance?.toString() ?? null,
         // Persist portfolio sub-analyses to dedicated schema columns
-        portfolioVariances: {
-          companyVariances: portfolioVariances.companyVariances,
-          portfolioCountVariance: portfolioVariances.portfolioCountVariance,
-        },
-        sectorVariances: portfolioVariances.sectorVariances,
-        stageVariances: portfolioVariances.stageVariances,
-        reserveVariances: portfolioVariances.reserveVariances,
-        pacingVariances: portfolioVariances.pacingVariances,
+        portfolioVariances: portfolioVariances
+          ? {
+              companyVariances: portfolioVariances.companyVariances,
+              portfolioCountVariance: portfolioVariances.portfolioCountVariance,
+            }
+          : null,
+        sectorVariances: portfolioVariances?.sectorVariances ?? null,
+        stageVariances: portfolioVariances?.stageVariances ?? null,
+        reserveVariances: portfolioVariances?.reserveVariances ?? null,
+        pacingVariances: portfolioVariances?.pacingVariances ?? null,
         significantVariances: insights.significantVariances,
         varianceFactors: insights.factors,
         thresholdBreaches: insights.thresholdBreaches,
@@ -505,6 +515,13 @@ export class VarianceCalculationService {
       throw new Error('No current metrics available');
     }
 
+    if (!this.canUseCurrentStatePortfolioAnalysis(asOfDate)) {
+      return {
+        ...latestMetrics,
+        asOfDate,
+      };
+    }
+
     // Get additional portfolio data
     const portfolioData = await this.getCurrentPortfolioMetrics(fundId, asOfDate);
 
@@ -513,6 +530,17 @@ export class VarianceCalculationService {
       ...portfolioData,
       asOfDate,
     };
+  }
+
+  /**
+   * Historical fund-level metrics are queryable, but portfolio companies and
+   * reserve/pacing snapshots do not currently support point-in-time reads.
+   * Only include those current-state analyses when the requested as-of time is
+   * effectively "now"; otherwise omit them from the report to avoid mixing
+   * historical top-line metrics with present-day portfolio state.
+   */
+  private canUseCurrentStatePortfolioAnalysis(asOfDate: Date, now = new Date()) {
+    return Math.abs(now.getTime() - asOfDate.getTime()) <= this.currentStatePortfolioAnalysisToleranceMs;
   }
 
   /**
@@ -786,10 +814,9 @@ export class VarianceCalculationService {
     }
   }
 
-  // NOTE: asOfDate is accepted but not used for filtering because portfolioCompanies
-  // has no temporal snapshots. Point-in-time portfolio queries require a snapshot
-  // mechanism (Phase 0.5 / Time Machine prerequisite). Until then, these methods
-  // return current-state data regardless of asOfDate.
+  // NOTE: This method returns current-state portfolio data only. Historical
+  // callers should be gated by canUseCurrentStatePortfolioAnalysis() before
+  // reaching this path.
   private async getCurrentPortfolioMetrics(fundId: number, _asOfDate: Date) {
     const companies =
       (await db.query.portfolioCompanies.findMany({
@@ -1002,8 +1029,7 @@ export class VarianceCalculationService {
     for (const key of allKeys) {
       const cur = currentReserves[key];
       const base = baselineReserves[key];
-      // Deep compare via JSON to avoid false positives on nested objects
-      if (JSON.stringify(cur) !== JSON.stringify(base)) {
+      if (!isDeepStrictEqual(cur, base)) {
         changes[key] = { current: cur ?? null, baseline: base ?? null };
       }
     }
@@ -1025,8 +1051,7 @@ export class VarianceCalculationService {
     for (const key of allKeys) {
       const cur = currentPacing[key];
       const base = baselinePacing[key];
-      // Deep compare via JSON to avoid false positives on nested objects
-      if (JSON.stringify(cur) !== JSON.stringify(base)) {
+      if (!isDeepStrictEqual(cur, base)) {
         changes[key] = { current: cur ?? null, baseline: base ?? null };
       }
     }

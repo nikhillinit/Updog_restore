@@ -638,6 +638,41 @@ describe('VarianceCalculationService', () => {
 
       expect(result.alertsTriggered).toBeDefined();
     });
+
+    it('should omit current-state portfolio analysis for historical as-of reports', async () => {
+      const historicalAsOfDate = new Date('2024-12-31T23:59:59Z');
+      const mockBaseline = {
+        id: 'baseline-id',
+        totalValue: '2500000.00',
+        irr: '0.1850',
+        reserveAllocation: { totalReserves: 500000 },
+        pacingMetrics: { deploymentRate: 0.8 },
+        portfolioCount: 4,
+      };
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        totalValue: '2600000.00',
+        irr: '0.1900',
+        metricDate: historicalAsOfDate,
+      });
+      mockDb.query.alertRules.findMany.mockResolvedValue([]);
+
+      const result = await service.generateVarianceReport({
+        fundId: 1,
+        baselineId: 'baseline-id',
+        reportName: 'Historical Variance Report',
+        reportType: 'ad_hoc',
+        asOfDate: historicalAsOfDate,
+      });
+
+      expect(result.portfolioVariances).toBeNull();
+      expect(result.sectorVariances).toBeNull();
+      expect(result.stageVariances).toBeNull();
+      expect(result.reserveVariances).toBeNull();
+      expect(result.pacingVariances).toBeNull();
+      expect(mockDb.query.portfolioCompanies.findMany).not.toHaveBeenCalled();
+      expect(mockDb.query.fundSnapshots.findFirst).not.toHaveBeenCalled();
+    });
   });
 
   describe('getVarianceReports', () => {

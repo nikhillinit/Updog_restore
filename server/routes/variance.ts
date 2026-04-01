@@ -878,12 +878,14 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     }
 
     // Get summary data for dashboard
-    const [baselines, activeAlerts] = await Promise.all([
+    const [baselines, activeAlerts, latestReports] = await Promise.all([
       varianceTrackingService.baselines.getBaselines(fundId, { limit: 5 }),
       varianceTrackingService.alerts.getActiveAlerts(fundId, { limit: 10 }),
+      varianceTrackingService.calculations.getVarianceReports(fundId, { limit: 1 }),
     ]);
 
     const defaultBaseline = baselines.find((b) => b.isDefault);
+    const latestReport = latestReports[0];
 
     res['json']({
       success: true,
@@ -899,7 +901,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
         summary: {
           totalBaselines: baselines.length,
           totalActiveAlerts: activeAlerts.length,
-          lastAnalysisDate: defaultBaseline?.updatedAt || null,
+          lastAnalysisDate: latestReport?.createdAt ?? null,
         },
       },
     });
