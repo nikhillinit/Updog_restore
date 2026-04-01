@@ -939,9 +939,17 @@ describe('Variance Tracking API', () => {
           { ...varianceTrackingFixtures.alerts.irrDeclineAlert, severity: 'warning' },
           { ...varianceTrackingFixtures.alerts.criticalValueAlert, severity: 'critical' },
         ];
+        const latestReport = [
+          {
+            id: 'report-123',
+            fundId: 1,
+            createdAt: new Date('2026-03-31T18:00:00Z'),
+          },
+        ];
 
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue(latestReport);
 
         const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
@@ -956,6 +964,7 @@ describe('Variance Tracking API', () => {
         });
         expect(response.body.data.summary.totalBaselines).toBe(2);
         expect(response.body.data.summary.totalActiveAlerts).toBe(2);
+        expect(response.body.data.summary.lastAnalysisDate).toBe('2026-03-31T18:00:00.000Z');
 
         expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
           limit: 5,
@@ -963,14 +972,18 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           limit: 10,
         });
+        expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(1, {
+          limit: 1,
+        });
       });
 
-      it('should handle no default baseline', async () => {
+      it('should return null lastAnalysisDate when no reports exist', async () => {
         const mockBaselines = [varianceTrackingFixtures.baselines.annual]; // No default
         const mockAlerts: any[] = [];
 
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue([]);
 
         const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 

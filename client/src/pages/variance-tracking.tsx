@@ -374,6 +374,22 @@ export default function VarianceTrackingPage() {
   };
 
   const reportDetail = reportDetailData?.data ?? null;
+  const reportHasSupplementalAnalysis =
+    !!reportDetail &&
+    !!(
+      reportDetail.portfolioVariances ||
+      reportDetail.sectorVariances ||
+      reportDetail.stageVariances ||
+      reportDetail.reserveVariances ||
+      reportDetail.pacingVariances
+    );
+  const isHistoricalReportDetail =
+    !!reportDetail &&
+    parseISO(reportDetail.asOfDate).getTime() < parseISO(reportDetail.generatedAt).getTime();
+  const showHistoricalPortfolioAnalysisNotice =
+    reportHasSupplementalAnalysis && isHistoricalReportDetail;
+  const showHistoricalPortfolioAnalysisUnavailableNotice =
+    !!reportDetail && isHistoricalReportDetail && !reportHasSupplementalAnalysis;
 
   if (!currentFund) {
     return (
@@ -1320,6 +1336,18 @@ export default function VarianceTrackingPage() {
                     </div>
                   </div>
 
+                  {showHistoricalPortfolioAnalysisUnavailableNotice && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div>
+                          Historical portfolio, reserve, and pacing analysis is unavailable for
+                          this report because point-in-time portfolio snapshots are not yet stored.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Summary cards */}
                   <div>
                     <div className="text-sm font-medium text-gray-500 mb-2">Summary</div>
@@ -1353,6 +1381,18 @@ export default function VarianceTrackingPage() {
                       <div className="text-sm font-medium text-gray-500 mb-2">
                         Portfolio Analysis
                       </div>
+                      {showHistoricalPortfolioAnalysisNotice && (
+                        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              Portfolio, reserve, and pacing analysis currently reflect the latest
+                              available state. Historical point-in-time portfolio snapshots are not
+                              yet available for this report.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {reportDetail.portfolioVariances && (
                           <>
