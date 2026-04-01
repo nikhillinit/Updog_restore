@@ -33,6 +33,11 @@ export interface VarianceReport {
     criticalVariances: number;
   };
   variances: unknown[];
+  portfolioVariances?: Record<string, unknown>;
+  sectorVariances?: Record<string, unknown>;
+  stageVariances?: Record<string, unknown>;
+  reserveVariances?: Record<string, unknown>;
+  pacingVariances?: Record<string, unknown>;
 }
 
 export interface AlertRule {
