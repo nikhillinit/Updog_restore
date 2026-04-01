@@ -991,6 +991,7 @@ export const fundBaselines = pgTable(
     portfolioCount: integer('portfolio_count').notNull().default(0),
     averageInvestment: decimal('average_investment', { precision: 15, scale: 2 }),
     topPerformers: jsonb('top_performers'), // Array of top performing companies
+    companySnapshots: jsonb('company_snapshots'), // Full company snapshot for variance comparison
     sectorDistribution: jsonb('sector_distribution'), // Sector allocation breakdown
     stageDistribution: jsonb('stage_distribution'), // Stage allocation breakdown
 

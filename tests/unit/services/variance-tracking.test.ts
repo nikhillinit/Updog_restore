@@ -305,6 +305,22 @@ describe('BaselineService', () => {
       expect(insertedData.topPerformers).toEqual([
         expect.objectContaining({ id: 1, name: 'AlphaCo' }),
       ]);
+      expect(insertedData.companySnapshots).toEqual([
+        expect.objectContaining({
+          portfolioCompanyId: 1,
+          companyId: 1,
+          companyName: 'AlphaCo',
+          investedCapital: '250000',
+          currentValuation: '800000.00',
+        }),
+        expect.objectContaining({
+          portfolioCompanyId: 2,
+          companyId: 2,
+          companyName: 'BetaCo',
+          investedCapital: '350000',
+          currentValuation: '600000.00',
+        }),
+      ]);
       expect(insertedData.sectorDistribution).toEqual({ Fintech: 1, SaaS: 1 });
       expect(insertedData.stageDistribution).toEqual({ 'Series A': 1, 'Series B': 1 });
     });
@@ -365,6 +381,7 @@ describe('BaselineService', () => {
       expect(insertedData.portfolioCount).toBe(0);
       expect(insertedData.averageInvestment).toBe('0');
       expect(insertedData.topPerformers).toEqual([]);
+      expect(insertedData.companySnapshots).toEqual([]);
       expect(insertedData.sectorDistribution).toEqual({});
       expect(insertedData.stageDistribution).toEqual({});
       expect(insertedData.reserveAllocation).toEqual({});
@@ -919,9 +936,27 @@ describe('VarianceCalculationService', () => {
 
       // Current portfolio: AlphaCo grew, BetaCo declined
       mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
-        { id: 1, name: 'AlphaCo', sector: 'Technology', currentValuation: '600000.00' },
-        { id: 2, name: 'BetaCo', sector: 'Healthcare', currentValuation: '350000.00' },
-        { id: 3, name: 'GammaCo', sector: 'FinTech', currentValuation: '200000.00' },
+        {
+          id: 1,
+          name: 'AlphaCo',
+          sector: 'Technology',
+          currentValuation: '600000.00',
+          investments: [{ amount: '210000.00' }],
+        },
+        {
+          id: 2,
+          name: 'BetaCo',
+          sector: 'Healthcare',
+          currentValuation: '350000.00',
+          investments: [{ amount: '180000.00' }],
+        },
+        {
+          id: 3,
+          name: 'GammaCo',
+          sector: 'FinTech',
+          currentValuation: '200000.00',
+          investments: [],
+        },
       ]);
 
       const result = await analyze(1, baseline, new Date());
@@ -933,11 +968,19 @@ describe('VarianceCalculationService', () => {
       expect(alpha.companyName).toBe('AlphaCo');
       expect(Number(alpha.valuationChange)).toBe(100000); // 600k - 500k
       expect(Number(alpha.valuationChangePct)).toBe(0.2); // 100k / 500k
+      expect(alpha.valuationVariance).toBe(alpha.valuationChange);
+      expect(alpha.valuationVariancePct).toBe(alpha.valuationChangePct);
+      expect(alpha.changeType).toBe('matched');
+      expect(alpha.currentInvestedCapital).toBe('210000');
+      expect(alpha.riskLevel).toBe('medium');
 
       const beta = result.find((r: any) => r.companyId === 2);
       expect(beta).toBeDefined();
       expect(Number(beta.valuationChange)).toBe(-50000); // 350k - 400k
       expect(Number(beta.valuationChangePct)).toBe(-0.125); // -50k / 400k
+      expect(beta.changeType).toBe('matched');
+      expect(beta.currentInvestedCapital).toBe('180000');
+      expect(beta.riskLevel).toBe('medium');
     });
 
     it('should handle { companies: [...] } format in topPerformers', async () => {
@@ -959,6 +1002,93 @@ describe('VarianceCalculationService', () => {
       expect(result[0].companyId).toBe(10);
       expect(Number(result[0].valuationChange)).toBe(200000);
       expect(Number(result[0].valuationChangePct)).toBe(0.25);
+      expect(result[0].changeType).toBe('matched');
+      expect(result[0].riskLevel).toBe('high');
+    });
+
+    it('should classify added and removed companies when full companySnapshots are present', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = {
+        companySnapshots: [
+          {
+            companyId: 1,
+            companyName: 'AlphaCo',
+            sector: 'Technology',
+            stage: 'Series A',
+            status: 'active',
+            currentValuation: '500000.00',
+            investedCapital: '200000.00',
+          },
+          {
+            companyId: 2,
+            companyName: 'BetaCo',
+            sector: 'Healthcare',
+            stage: 'Series B',
+            status: 'active',
+            currentValuation: '400000.00',
+            investedCapital: '150000.00',
+          },
+        ],
+      };
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'AlphaCo',
+          sector: 'Technology',
+          stage: 'Series A',
+          status: 'active',
+          currentValuation: '650000.00',
+          investments: [{ amount: '220000.00' }],
+        },
+        {
+          id: 3,
+          name: 'GammaCo',
+          sector: 'FinTech',
+          stage: 'Seed',
+          status: 'active',
+          currentValuation: '250000.00',
+          investments: [{ amount: '90000.00' }],
+        },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+
+      expect(result).toHaveLength(3);
+
+      const matched = result.find((row: any) => row.companyId === 1);
+      expect(matched).toMatchObject({
+        companyName: 'AlphaCo',
+        changeType: 'matched',
+        valuationVariance: '150000',
+        baselineInvestedCapital: '200000',
+        currentInvestedCapital: '220000',
+        riskLevel: 'high',
+      });
+      expect(Number(matched.valuationVariancePct)).toBe(0.3);
+
+      const added = result.find((row: any) => row.companyId === 3);
+      expect(added).toMatchObject({
+        companyName: 'GammaCo',
+        changeType: 'added',
+        baselineValuation: null,
+        currentValuation: '250000',
+        currentInvestedCapital: '90000',
+        valuationVariance: '250000',
+        valuationVariancePct: null,
+        riskLevel: 'medium',
+      });
+
+      const removed = result.find((row: any) => row.companyId === 2);
+      expect(removed).toMatchObject({
+        companyName: 'BetaCo',
+        changeType: 'removed',
+        currentValuation: null,
+        valuationVariance: '-400000',
+        valuationVariancePct: '-1',
+        riskLevel: 'critical',
+      });
     });
 
     it('should return empty array when topPerformers is null or missing', async () => {
@@ -1031,44 +1161,68 @@ describe('VarianceCalculationService', () => {
     it('should compute delta and deltaPct for matching sectors', () => {
       const analyze = (service as any).analyzeSectorVariances.bind(service);
       const result = analyze({ Technology: 5, Healthcare: 3 }, { Technology: 4, Healthcare: 2 });
-      expect(result).toEqual({
-        Technology: { current: 5, baseline: 4, delta: 1, deltaPct: 0.25 },
-        Healthcare: { current: 3, baseline: 2, delta: 1, deltaPct: 0.5 },
+      expect(result.Technology).toMatchObject({
+        current: 5,
+        baseline: 4,
+        delta: 1,
+        deltaPct: 0.25,
       });
+      expect(result.Technology.currentCountShare).toBeCloseTo(5 / 8, 10);
+      expect(result.Technology.baselineCountShare).toBeCloseTo(4 / 6, 10);
+      expect(result.Technology.countShareDelta).toBeCloseTo(5 / 8 - 4 / 6, 10);
+      expect(result.Technology.countShareDeltaPct).toBeCloseTo((5 / 8 - 4 / 6) / (4 / 6), 10);
+
+      expect(result.Healthcare).toMatchObject({ current: 3, baseline: 2, delta: 1, deltaPct: 0.5 });
+      expect(result.Healthcare.currentCountShare).toBeCloseTo(3 / 8, 10);
+      expect(result.Healthcare.baselineCountShare).toBeCloseTo(2 / 6, 10);
+      expect(result.Healthcare.countShareDelta).toBeCloseTo(3 / 8 - 2 / 6, 10);
+      expect(result.Healthcare.countShareDeltaPct).toBeCloseTo((3 / 8 - 2 / 6) / (2 / 6), 10);
     });
 
     it('should handle new sectors not in baseline', () => {
       const analyze = (service as any).analyzeSectorVariances.bind(service);
       const result = analyze({ Technology: 3, 'Clean Energy': 2 }, { Technology: 3 });
-      expect(result['Clean Energy']).toEqual({
+      expect(result['Clean Energy']).toMatchObject({
         current: 2,
         baseline: 0,
         delta: 2,
         deltaPct: null,
       });
+      expect(result['Clean Energy'].currentCountShare).toBeCloseTo(2 / 5, 10);
+      expect(result['Clean Energy'].baselineCountShare).toBe(0);
+      expect(result['Clean Energy'].countShareDelta).toBeCloseTo(2 / 5, 10);
+      expect(result['Clean Energy'].countShareDeltaPct).toBeNull();
       expect(result.Technology.delta).toBe(0);
     });
 
     it('should handle removed sectors (in baseline but not current)', () => {
       const analyze = (service as any).analyzeSectorVariances.bind(service);
       const result = analyze({ Technology: 3 }, { Technology: 3, Consumer: 2 });
-      expect(result.Consumer).toEqual({
+      expect(result.Consumer).toMatchObject({
         current: 0,
         baseline: 2,
         delta: -2,
         deltaPct: -1,
       });
+      expect(result.Consumer.currentCountShare).toBe(0);
+      expect(result.Consumer.baselineCountShare).toBeCloseTo(2 / 5, 10);
+      expect(result.Consumer.countShareDelta).toBeCloseTo(-2 / 5, 10);
+      expect(result.Consumer.countShareDeltaPct).toBe(-1);
     });
 
     it('should return deltaPct null when baseline is zero', () => {
       const analyze = (service as any).analyzeSectorVariances.bind(service);
       const result = analyze({ FinTech: 4 }, { FinTech: 0 });
-      expect(result.FinTech).toEqual({
+      expect(result.FinTech).toMatchObject({
         current: 4,
         baseline: 0,
         delta: 4,
         deltaPct: null,
       });
+      expect(result.FinTech.currentCountShare).toBe(1);
+      expect(result.FinTech.baselineCountShare).toBe(0);
+      expect(result.FinTech.countShareDelta).toBe(1);
+      expect(result.FinTech.countShareDeltaPct).toBeNull();
     });
 
     it('should return empty object for empty inputs', () => {
@@ -1085,33 +1239,59 @@ describe('VarianceCalculationService', () => {
         { Seed: 2, 'Series A': 5, 'Series B': 3 },
         { Seed: 3, 'Series A': 4, 'Series B': 3 }
       );
-      expect(result).toEqual({
-        Seed: { current: 2, baseline: 3, delta: -1, deltaPct: expect.closeTo(-1 / 3, 10) },
-        'Series A': { current: 5, baseline: 4, delta: 1, deltaPct: 0.25 },
-        'Series B': { current: 3, baseline: 3, delta: 0, deltaPct: 0 },
+      expect(result.Seed).toMatchObject({
+        current: 2,
+        baseline: 3,
+        delta: -1,
+        deltaPct: expect.closeTo(-1 / 3, 10),
       });
+      expect(result.Seed.currentCountShare).toBeCloseTo(0.2, 10);
+      expect(result.Seed.baselineCountShare).toBeCloseTo(0.3, 10);
+      expect(result.Seed.countShareDelta).toBeCloseTo(-0.1, 10);
+      expect(result.Seed.countShareDeltaPct).toBeCloseTo(-1 / 3, 10);
+
+      expect(result['Series A']).toMatchObject({
+        current: 5,
+        baseline: 4,
+        delta: 1,
+        deltaPct: 0.25,
+      });
+      expect(result['Series A'].currentCountShare).toBeCloseTo(0.5, 10);
+      expect(result['Series A'].baselineCountShare).toBeCloseTo(0.4, 10);
+
+      expect(result['Series B']).toMatchObject({ current: 3, baseline: 3, delta: 0, deltaPct: 0 });
+      expect(result['Series B'].currentCountShare).toBeCloseTo(0.3, 10);
+      expect(result['Series B'].baselineCountShare).toBeCloseTo(0.3, 10);
     });
 
     it('should handle new stages not in baseline', () => {
       const analyze = (service as any).analyzeStageVariances.bind(service);
       const result = analyze({ 'Series C+': 1 }, {});
-      expect(result['Series C+']).toEqual({
+      expect(result['Series C+']).toMatchObject({
         current: 1,
         baseline: 0,
         delta: 1,
         deltaPct: null,
       });
+      expect(result['Series C+'].currentCountShare).toBe(1);
+      expect(result['Series C+'].baselineCountShare).toBe(0);
+      expect(result['Series C+'].countShareDelta).toBe(1);
+      expect(result['Series C+'].countShareDeltaPct).toBeNull();
     });
 
     it('should handle removed stages', () => {
       const analyze = (service as any).analyzeStageVariances.bind(service);
       const result = analyze({}, { Seed: 5 });
-      expect(result.Seed).toEqual({
+      expect(result.Seed).toMatchObject({
         current: 0,
         baseline: 5,
         delta: -5,
         deltaPct: -1,
       });
+      expect(result.Seed.currentCountShare).toBe(0);
+      expect(result.Seed.baselineCountShare).toBe(1);
+      expect(result.Seed.countShareDelta).toBe(-1);
+      expect(result.Seed.countShareDeltaPct).toBe(-1);
     });
   });
 
@@ -1127,6 +1307,7 @@ describe('VarianceCalculationService', () => {
         hasData: false,
         currentReserves: {},
         baselineReserves: {},
+        metricDeltas: {},
         changes: {},
       });
     });
@@ -1144,6 +1325,7 @@ describe('VarianceCalculationService', () => {
         hasData: false,
         currentReserves: {},
         baselineReserves: {},
+        metricDeltas: {},
         changes: {},
       });
     });
@@ -1162,8 +1344,19 @@ describe('VarianceCalculationService', () => {
       expect(result.hasData).toBe(true);
       expect(result.currentReserves).toEqual({ totalReserves: 600000, reserveRatio: 0.25 });
       expect(result.baselineReserves).toEqual({ totalReserves: 500000, reserveRatio: 0.2 });
-      expect(result.changes.totalReserves).toEqual({ current: 600000, baseline: 500000 });
-      expect(result.changes.reserveRatio).toEqual({ current: 0.25, baseline: 0.2 });
+      expect(result.metricDeltas.totalReserves).toEqual({
+        current: 600000,
+        baseline: 500000,
+        delta: 100000,
+        deltaPct: 0.2,
+      });
+      expect(result.metricDeltas.reserveRatio).toEqual({
+        current: 0.25,
+        baseline: 0.2,
+        delta: 0.04999999999999999,
+        deltaPct: 0.24999999999999994,
+      });
+      expect(result.changes).toEqual({});
     });
 
     it('should omit unchanged keys from changes', async () => {
@@ -1178,6 +1371,7 @@ describe('VarianceCalculationService', () => {
       const result = await calc(1, baseline);
 
       expect(result.hasData).toBe(true);
+      expect(result.metricDeltas).toEqual({});
       expect(result.changes).toEqual({});
     });
   });
@@ -1194,6 +1388,7 @@ describe('VarianceCalculationService', () => {
         hasData: false,
         currentPacing: {},
         baselinePacing: {},
+        metricDeltas: {},
         changes: {},
       });
     });
@@ -1211,6 +1406,7 @@ describe('VarianceCalculationService', () => {
         hasData: false,
         currentPacing: {},
         baselinePacing: {},
+        metricDeltas: {},
         changes: {},
       });
     });
@@ -1229,8 +1425,19 @@ describe('VarianceCalculationService', () => {
       expect(result.hasData).toBe(true);
       expect(result.currentPacing).toEqual({ deploymentRate: 0.9, quarterlyTarget: 0.8 });
       expect(result.baselinePacing).toEqual({ deploymentRate: 0.8, quarterlyTarget: 0.75 });
-      expect(result.changes.deploymentRate).toEqual({ current: 0.9, baseline: 0.8 });
-      expect(result.changes.quarterlyTarget).toEqual({ current: 0.8, baseline: 0.75 });
+      expect(result.metricDeltas.deploymentRate).toEqual({
+        current: 0.9,
+        baseline: 0.8,
+        delta: 0.09999999999999998,
+        deltaPct: 0.12499999999999997,
+      });
+      expect(result.metricDeltas.quarterlyTarget).toEqual({
+        current: 0.8,
+        baseline: 0.75,
+        delta: 0.050000000000000044,
+        deltaPct: 0.06666666666666672,
+      });
+      expect(result.changes).toEqual({});
     });
 
     it('should omit unchanged keys from changes', async () => {
@@ -1245,6 +1452,7 @@ describe('VarianceCalculationService', () => {
       const result = await calc(1, baseline);
 
       expect(result.hasData).toBe(true);
+      expect(result.metricDeltas).toEqual({});
       expect(result.changes).toEqual({});
     });
 
@@ -1260,6 +1468,14 @@ describe('VarianceCalculationService', () => {
       const result = await calc(1, baseline);
 
       expect(result.hasData).toBe(true);
+      expect(result.metricDeltas).toEqual({
+        deploymentRate: {
+          current: 0.9,
+          baseline: 0.8,
+          delta: 0.09999999999999998,
+          deltaPct: 0.12499999999999997,
+        },
+      });
       expect(result.changes.newMetric).toEqual({ current: 42, baseline: null });
       expect(result.changes.removedMetric).toEqual({ current: null, baseline: 99 });
     });

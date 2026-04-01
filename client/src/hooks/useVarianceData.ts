@@ -1,44 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import type {
+  BaselineResponse as Baseline,
+  ClientAlertResponse as Alert,
+  VarianceDashboardResponse as VarianceDashboard,
+  VarianceReportClientResponse as VarianceReport,
+} from '@shared/variance-validation';
 
-export interface Baseline {
-  id: string;
-  fundId: number;
-  name: string;
-  description?: string;
-  baselineType: 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom';
-  periodStart: string;
-  periodEnd: string;
-  isDefault: boolean;
-  isActive: boolean;
-  createdBy: number;
-  createdAt: string;
-  updatedAt: string;
-  tags: string[];
-}
-
-export interface VarianceReport {
-  id: string;
-  fundId: number;
-  baselineId: string;
-  reportName: string;
-  reportType: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered';
-  reportPeriod?: 'monthly' | 'quarterly' | 'annual';
-  asOfDate: string;
-  generatedBy?: number;
-  generatedAt: string;
-  summary: {
-    totalVariances: number;
-    significantVariances: number;
-    criticalVariances: number;
-  };
-  variances: unknown[];
-  portfolioVariances?: Record<string, unknown>;
-  sectorVariances?: Record<string, unknown>;
-  stageVariances?: Record<string, unknown>;
-  reserveVariances?: Record<string, unknown>;
-  pacingVariances?: Record<string, unknown>;
-}
+export type { Alert, Baseline, VarianceDashboard, VarianceReport };
 
 export interface AlertRule {
   id: string;
@@ -59,40 +28,6 @@ export interface AlertRule {
   createdBy: number;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface Alert {
-  id: string;
-  fundId: number;
-  ruleId: string;
-  ruleName: string;
-  severity: 'info' | 'warning' | 'critical' | 'urgent';
-  category: 'performance' | 'risk' | 'operational' | 'compliance';
-  message: string;
-  details: Record<string, unknown>;
-  status: 'active' | 'acknowledged' | 'resolved';
-  triggeredAt: string;
-  acknowledgedAt?: string;
-  acknowledgedBy?: number;
-  resolvedAt?: string;
-  resolvedBy?: number;
-  notes?: string;
-}
-
-export interface VarianceDashboard {
-  defaultBaseline: Baseline | null;
-  recentBaselines: Baseline[];
-  activeAlerts: Alert[];
-  alertsByseverity: {
-    critical: number;
-    warning: number;
-    info: number;
-  };
-  summary: {
-    totalBaselines: number;
-    totalActiveAlerts: number;
-    lastAnalysisDate: string | null;
-  };
 }
 
 /**

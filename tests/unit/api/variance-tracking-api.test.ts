@@ -9,6 +9,52 @@ import request from 'supertest';
 import express from 'express';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
+import {
+  VarianceDashboardResponseSchema,
+  VarianceReportClientResponseSchema,
+} from '../../../shared/variance-validation';
+
+function buildBaselineResponse(
+  overrides: Partial<Record<string, unknown>> = {}
+): Record<string, unknown> {
+  return {
+    id: '00000000-0000-0000-0000-000000000101',
+    fundId: 1,
+    name: 'Q4 2024 Quarterly Baseline',
+    description: 'End of year quarterly baseline with strong performance metrics',
+    baselineType: 'quarterly',
+    periodStart: '2024-10-01T00:00:00.000Z',
+    periodEnd: '2024-12-31T23:59:59.000Z',
+    snapshotDate: '2024-12-31T23:59:59.000Z',
+    totalValue: '2500000.00',
+    deployedCapital: '2000000.00',
+    irr: '0.1850',
+    multiple: '1.4500',
+    dpi: '0.9200',
+    tvpi: '1.3800',
+    portfolioCount: 18,
+    averageInvestment: '138888.89',
+    topPerformers: { companies: [] },
+    companySnapshots: null,
+    sectorDistribution: { Technology: 0.35 },
+    stageDistribution: { Seed: 0.15 },
+    reserveAllocation: { totalReserves: 500000 },
+    pacingMetrics: { deploymentRate: 0.8 },
+    isActive: true,
+    isDefault: false,
+    confidence: '0.92',
+    version: '1.0',
+    parentBaselineId: null,
+    sourceSnapshotId: null,
+    sourceRunId: null,
+    createdBy: 1,
+    approvedBy: null,
+    tags: ['quarterly'],
+    createdAt: '2024-12-31T12:00:00.000Z',
+    updatedAt: '2024-12-31T12:00:00.000Z',
+    ...overrides,
+  };
+}
 
 // Mock the service module (mock object inside factory to avoid hoisting violations)
 vi.mock('../../../server/services/variance-tracking', () => ({
@@ -175,6 +221,23 @@ describe('Variance Tracking API', () => {
         expect(response.body.error).toBe('Validation failed');
       });
 
+      it('should reject baselines whose end date is before the start date', async () => {
+        const invalidData = {
+          name: 'Test Baseline',
+          baselineType: 'quarterly',
+          periodStart: '2024-12-31T23:59:59Z',
+          periodEnd: '2024-10-01T00:00:00Z',
+        };
+
+        const response = await request(app)
+          .post('/api/funds/1/baselines')
+          .send(invalidData)
+          .expect(400);
+
+        expect(response.body.error).toBe('Validation failed');
+        expect(response.body.message).toBe('Invalid baseline data');
+      });
+
       it('should handle invalid fund ID', async () => {
         const baselineData = {
           name: 'Test Baseline',
@@ -306,13 +369,13 @@ describe('Variance Tracking API', () => {
       it('should generate variance report successfully', async () => {
         // Route resolves default baseline when baselineId omitted
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
-          { id: 'resolved-baseline-uuid', isDefault: true },
+          { id: '00000000-0000-0000-0000-000000000111', isDefault: true },
         ]);
 
         const rawDbReport = {
-          id: 'report-id',
+          id: '00000000-0000-0000-0000-000000000211',
           fundId: 1,
-          baselineId: 'resolved-baseline-uuid',
+          baselineId: '00000000-0000-0000-0000-000000000111',
           reportName: 'December 2024 Variance Analysis',
           reportType: 'periodic',
           reportPeriod: 'monthly',
@@ -352,7 +415,7 @@ describe('Variance Tracking API', () => {
           mockVarianceTrackingService.calculations.generateVarianceReport
         ).toHaveBeenCalledWith({
           fundId: 1,
-          baselineId: 'resolved-baseline-uuid',
+          baselineId: '00000000-0000-0000-0000-000000000111',
           reportName: 'December 2024 Variance Analysis',
           reportType: 'periodic',
           reportPeriod: 'monthly',
@@ -363,13 +426,13 @@ describe('Variance Tracking API', () => {
 
       it('should resolve default baseline when baselineId omitted', async () => {
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
-          { id: 'default-baseline-uuid', isDefault: true },
+          { id: '00000000-0000-0000-0000-000000000112', isDefault: true },
         ]);
 
         const rawDbReport = {
-          id: 'report-resolved',
+          id: '00000000-0000-0000-0000-000000000212',
           fundId: 1,
-          baselineId: 'default-baseline-uuid',
+          baselineId: '00000000-0000-0000-0000-000000000112',
           reportName: 'Test Report',
           reportType: 'ad_hoc',
           asOfDate: new Date('2024-12-31'),
@@ -396,7 +459,9 @@ describe('Variance Tracking API', () => {
         });
         expect(
           mockVarianceTrackingService.calculations.generateVarianceReport
-        ).toHaveBeenCalledWith(expect.objectContaining({ baselineId: 'default-baseline-uuid' }));
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({ baselineId: '00000000-0000-0000-0000-000000000112' })
+        );
       });
 
       it('should return 400 when no default baseline exists and baselineId omitted', async () => {
@@ -415,13 +480,13 @@ describe('Variance Tracking API', () => {
 
       it('should return client-shaped response with summary and variances', async () => {
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([
-          { id: 'bl-1', isDefault: true },
+          { id: '00000000-0000-0000-0000-000000000113', isDefault: true },
         ]);
 
         const rawDbReport = {
-          id: 'report-1',
+          id: '00000000-0000-0000-0000-000000000213',
           fundId: 1,
-          baselineId: 'bl-1',
+          baselineId: '00000000-0000-0000-0000-000000000113',
           reportName: 'Test',
           reportType: 'ad_hoc',
           asOfDate: new Date('2024-12-31'),
@@ -444,6 +509,7 @@ describe('Variance Tracking API', () => {
           .expect(201);
 
         const data = response.body.data;
+        expect(VarianceReportClientResponseSchema.parse(data).summary.totalVariances).toBe(2);
         expect(data.summary.totalVariances).toBe(2);
         expect(data.summary.significantVariances).toBe(1);
         expect(data.summary.criticalVariances).toBe(0);
@@ -511,7 +577,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue(ownedBaseline);
 
         const mockReport = {
-          id: 'report-id',
+          id: '00000000-0000-0000-0000-000000000215',
           fundId: 1,
           baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'Explicit Baseline Report',
@@ -555,7 +621,7 @@ describe('Variance Tracking API', () => {
       it('should retrieve variance reports list', async () => {
         const rawReports = [
           {
-            id: 'report-123',
+            id: '00000000-0000-0000-0000-000000000214',
             fundId: 1,
             baselineId: '00000000-0000-0000-0000-000000000123',
             reportName: 'December 2024 Variance Analysis',
@@ -578,7 +644,10 @@ describe('Variance Tracking API', () => {
 
         expect(response.body.success).toBe(true);
         expect(response.body.count).toBe(1);
-        expect(response.body.data[0].id).toBe('report-123');
+        expect(
+          VarianceReportClientResponseSchema.parse(response.body.data[0]).summary.totalVariances
+        ).toBe(2);
+        expect(response.body.data[0].id).toBe('00000000-0000-0000-0000-000000000214');
         expect(response.body.data[0].summary.totalVariances).toBe(2);
         expect(response.body.data[0].summary.criticalVariances).toBe(1);
         expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(1);
@@ -588,7 +657,7 @@ describe('Variance Tracking API', () => {
     describe('GET /api/funds/:id/variance-reports/:reportId', () => {
       it('should retrieve specific variance report', async () => {
         const rawReport = {
-          id: 'report-123',
+          id: '00000000-0000-0000-0000-000000000214',
           fundId: 1,
           baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'December 2024 Variance Analysis',
@@ -607,15 +676,18 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.calculations.getVarianceReportById.mockResolvedValue(rawReport);
 
         const response = await request(app)
-          .get('/api/funds/1/variance-reports/report-123')
+          .get('/api/funds/1/variance-reports/00000000-0000-0000-0000-000000000214')
           .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.id).toBe('report-123');
+        expect(VarianceReportClientResponseSchema.parse(response.body.data).id).toBe(
+          '00000000-0000-0000-0000-000000000214'
+        );
+        expect(response.body.data.id).toBe('00000000-0000-0000-0000-000000000214');
         expect(response.body.data.summary.totalVariances).toBe(2);
         expect(mockVarianceTrackingService.calculations.getVarianceReportById).toHaveBeenCalledWith(
           1,
-          'report-123'
+          '00000000-0000-0000-0000-000000000214'
         );
       });
 
@@ -623,7 +695,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.calculations.getVarianceReportById.mockResolvedValue(undefined);
 
         const response = await request(app)
-          .get('/api/funds/1/variance-reports/report-123')
+          .get('/api/funds/1/variance-reports/00000000-0000-0000-0000-000000000214')
           .expect(404);
 
         expect(response.body.error).toBe('Variance report not found');
@@ -734,20 +806,99 @@ describe('Variance Tracking API', () => {
 
         expect(response.body.error).toBe('Validation failed');
       });
+
+      it('should require secondaryThreshold when operator is between', async () => {
+        const invalidData = {
+          name: 'Range Rule',
+          ruleType: 'threshold',
+          metricName: 'irr',
+          operator: 'between',
+          thresholdValue: -0.05,
+        };
+
+        const response = await request(app)
+          .post('/api/funds/1/alert-rules')
+          .send(invalidData)
+          .expect(400);
+
+        expect(response.body.error).toBe('Validation failed');
+        expect(response.body.message).toBe('Invalid alert rule data');
+      });
     });
 
     describe('GET /api/funds/:id/alerts', () => {
       it('should retrieve active alerts', async () => {
         const mockAlerts = [
-          varianceTrackingFixtures.alerts.irrDeclineAlert,
-          varianceTrackingFixtures.alerts.criticalValueAlert,
+          {
+            id: '00000000-0000-0000-0000-000000000301',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000401',
+            title: 'IRR Decline Detected',
+            description:
+              'Fund IRR has declined by 1.3% from the quarterly baseline, falling below the warning threshold of 1%.',
+            severity: 'warning',
+            category: 'performance',
+            status: 'active',
+            triggeredAt: '2024-12-31T15:30:00.000Z',
+            contextData: { baselineDate: '2024-12-31T23:59:59Z' },
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000302',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000402',
+            title: 'Critical Portfolio Value Decline',
+            description:
+              'Total portfolio value has declined by 12% in the last 24 hours, exceeding the critical threshold of 10%.',
+            severity: 'critical',
+            category: 'risk',
+            status: 'acknowledged',
+            triggeredAt: '2024-12-31T09:15:00.000Z',
+            contextData: { marketConditions: 'High volatility' },
+          },
         ];
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
 
         const response = await request(app).get('/api/funds/1/alerts').expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data).toEqual(mockAlerts);
+        expect(response.body.data).toEqual([
+          {
+            id: '00000000-0000-0000-0000-000000000301',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000401',
+            ruleName: 'IRR Decline Detected',
+            severity: 'warning',
+            category: 'performance',
+            message:
+              'Fund IRR has declined by 1.3% from the quarterly baseline, falling below the warning threshold of 1%.',
+            details: { baselineDate: '2024-12-31T23:59:59Z' },
+            status: 'active',
+            triggeredAt: '2024-12-31T15:30:00.000Z',
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            notes: null,
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000302',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000402',
+            ruleName: 'Critical Portfolio Value Decline',
+            severity: 'critical',
+            category: 'risk',
+            message:
+              'Total portfolio value has declined by 12% in the last 24 hours, exceeding the critical threshold of 10%.',
+            details: { marketConditions: 'High volatility' },
+            status: 'acknowledged',
+            triggeredAt: '2024-12-31T09:15:00.000Z',
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            notes: null,
+          },
+        ]);
         expect(response.body.count).toBe(2);
 
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
@@ -758,7 +909,21 @@ describe('Variance Tracking API', () => {
       });
 
       it('should filter alerts by severity and category', async () => {
-        const mockAlerts = [varianceTrackingFixtures.alerts.criticalValueAlert];
+        const mockAlerts = [
+          {
+            id: '00000000-0000-0000-0000-000000000302',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000402',
+            title: 'Critical Portfolio Value Decline',
+            description:
+              'Total portfolio value has declined by 12% in the last 24 hours, exceeding the critical threshold of 10%.',
+            severity: 'critical',
+            category: 'performance',
+            status: 'acknowledged',
+            triggeredAt: '2024-12-31T09:15:00.000Z',
+            contextData: { marketConditions: 'High volatility' },
+          },
+        ];
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
 
         const response = await request(app)
@@ -766,7 +931,12 @@ describe('Variance Tracking API', () => {
           .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data).toEqual(mockAlerts);
+        expect(response.body.data[0]).toMatchObject({
+          id: '00000000-0000-0000-0000-000000000302',
+          ruleName: 'Critical Portfolio Value Decline',
+          severity: 'critical',
+          category: 'performance',
+        });
 
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           severity: ['critical', 'warning'],
@@ -932,18 +1102,62 @@ describe('Variance Tracking API', () => {
     describe('GET /api/funds/:id/variance-dashboard', () => {
       it('should retrieve variance dashboard data', async () => {
         const mockBaselines = [
-          { ...varianceTrackingFixtures.baselines.quarterly, isDefault: true },
-          varianceTrackingFixtures.baselines.annual,
+          buildBaselineResponse({
+            id: '00000000-0000-0000-0000-000000000121',
+            isDefault: true,
+          }),
+          buildBaselineResponse({
+            id: '00000000-0000-0000-0000-000000000122',
+            name: '2024 Annual Baseline',
+            description: 'Full year baseline including all quarterly data',
+            baselineType: 'annual',
+            periodStart: '2024-01-01T00:00:00.000Z',
+            confidence: '0.95',
+            tags: ['annual', 'audited', 'final'],
+          }),
         ];
         const mockAlerts = [
-          { ...varianceTrackingFixtures.alerts.irrDeclineAlert, severity: 'warning' },
-          { ...varianceTrackingFixtures.alerts.criticalValueAlert, severity: 'critical' },
+          {
+            id: '00000000-0000-0000-0000-000000000301',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000401',
+            title: 'IRR Decline Detected',
+            description: 'Fund IRR has declined by 1.3% from baseline.',
+            severity: 'warning',
+            category: 'performance',
+            status: 'active',
+            triggeredAt: '2026-03-31T17:00:00.000Z',
+            contextData: {},
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000302',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000402',
+            title: 'Critical Portfolio Value Decline',
+            description: 'Total portfolio value has declined by 12% in the last 24 hours.',
+            severity: 'critical',
+            category: 'risk',
+            status: 'acknowledged',
+            triggeredAt: '2026-03-31T16:00:00.000Z',
+            contextData: {},
+          },
         ];
         const latestReport = [
           {
-            id: 'report-123',
+            id: '00000000-0000-0000-0000-000000000501',
             fundId: 1,
+            reportName: 'Latest Variance Report',
             createdAt: new Date('2026-03-31T18:00:00Z'),
+            riskLevel: 'high',
+            overallVarianceScore: '0.42',
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000502',
+            fundId: 1,
+            reportName: 'Previous Variance Report',
+            createdAt: new Date('2026-03-30T18:00:00Z'),
+            riskLevel: 'medium',
+            overallVarianceScore: '0.55',
           },
         ];
 
@@ -954,17 +1168,49 @@ describe('Variance Tracking API', () => {
         const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
         expect(response.body.success).toBe(true);
+        expect(
+          VarianceDashboardResponseSchema.parse(response.body.data).summary.overallRiskLevel
+        ).toBe('high');
         expect(response.body.data.defaultBaseline).toEqual(mockBaselines[0]);
         expect(response.body.data.recentBaselines).toHaveLength(2);
-        expect(response.body.data.activeAlerts).toEqual(mockAlerts);
+        expect(response.body.data.activeAlerts[0]).toMatchObject({
+          ruleName: 'IRR Decline Detected',
+          message: 'Fund IRR has declined by 1.3% from baseline.',
+          severity: 'warning',
+        });
+        expect(response.body.data.alertsBySeverity).toEqual({
+          critical: 1,
+          warning: 1,
+          info: 0,
+          urgent: 0,
+        });
         expect(response.body.data.alertsByseverity).toEqual({
           critical: 1,
           warning: 1,
           info: 0,
+          urgent: 0,
         });
         expect(response.body.data.summary.totalBaselines).toBe(2);
         expect(response.body.data.summary.totalActiveAlerts).toBe(2);
         expect(response.body.data.summary.lastAnalysisDate).toBe('2026-03-31T18:00:00.000Z');
+        expect(response.body.data.summary.overallRiskLevel).toBe('high');
+        expect(response.body.data.summary.trendDirection).toBe('improving');
+        expect(response.body.data.recentReports).toEqual([
+          {
+            id: '00000000-0000-0000-0000-000000000501',
+            name: 'Latest Variance Report',
+            riskLevel: 'high',
+            createdAt: '2026-03-31T18:00:00.000Z',
+            overallVarianceScore: '0.42',
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000502',
+            name: 'Previous Variance Report',
+            riskLevel: 'medium',
+            createdAt: '2026-03-30T18:00:00.000Z',
+            overallVarianceScore: '0.55',
+          },
+        ]);
 
         expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
           limit: 5,
@@ -972,13 +1218,27 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           limit: 10,
         });
-        expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(1, {
-          limit: 1,
-        });
+        expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(
+          1,
+          {
+            limit: 5,
+          }
+        );
       });
 
       it('should return null lastAnalysisDate when no reports exist', async () => {
-        const mockBaselines = [varianceTrackingFixtures.baselines.annual]; // No default
+        const mockBaselines = [
+          buildBaselineResponse({
+            id: '00000000-0000-0000-0000-000000000123',
+            name: '2024 Annual Baseline',
+            description: 'Full year baseline including all quarterly data',
+            baselineType: 'annual',
+            periodStart: '2024-01-01T00:00:00.000Z',
+            isDefault: false,
+            confidence: '0.95',
+            tags: ['annual', 'audited', 'final'],
+          }),
+        ]; // No default
         const mockAlerts: any[] = [];
 
         mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
@@ -988,8 +1248,11 @@ describe('Variance Tracking API', () => {
         const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.defaultBaseline).toBeUndefined();
+        expect(response.body.data.defaultBaseline).toBeNull();
         expect(response.body.data.summary.lastAnalysisDate).toBeNull();
+        expect(response.body.data.summary.overallRiskLevel).toBe('low');
+        expect(response.body.data.summary.trendDirection).toBe('stable');
+        expect(response.body.data.recentReports).toEqual([]);
       });
     });
   });
@@ -1131,9 +1394,10 @@ describe('Variance Tracking API', () => {
 
   describe('Query Parameter Validation', () => {
     it('should handle invalid limit parameters', async () => {
-      const _response = await request(app).get('/api/funds/1/baselines?limit=abc').expect(200); // Service would handle this, not the route validation
+      const response = await request(app).get('/api/funds/1/baselines?limit=abc').expect(400);
 
-      // The service would receive NaN and handle it appropriately
+      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.message).toBe('Invalid baseline query parameters');
     });
 
     it('should handle boolean query parameters correctly', async () => {
@@ -1154,6 +1418,13 @@ describe('Variance Tracking API', () => {
         isDefault: false,
         limit: undefined,
       });
+    });
+
+    it('should reject invalid alert query parameters', async () => {
+      const response = await request(app).get('/api/funds/1/alerts?severity=bogus').expect(400);
+
+      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.message).toBe('Invalid alert query parameters');
     });
   });
 });
