@@ -5,6 +5,7 @@ import {
   useBaselines,
   useActiveAlerts,
   useVarianceReports,
+  useVarianceReport,
   useCreateBaseline,
   useSetDefaultBaseline,
   useDeactivateBaseline,
@@ -12,6 +13,7 @@ import {
   useAcknowledgeAlert,
   useResolveAlert,
   usePerformVarianceAnalysis,
+  useGenerateVarianceReport,
   type Alert,
   type Baseline,
   type VarianceReport,
@@ -38,6 +40,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -60,6 +69,7 @@ import {
   Clock,
   AlertCircle,
   FileText,
+  Loader2,
   Zap,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -74,6 +84,13 @@ export default function VarianceTrackingPage() {
   const [alertActionDialogOpen, setAlertActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'acknowledge' | 'resolve'>('acknowledge');
   const [actionNotes, setActionNotes] = useState('');
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [generateReportDialogOpen, setGenerateReportDialogOpen] = useState(false);
+  const [reportForm, setReportForm] = useState({
+    reportName: '',
+    reportType: 'periodic' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
+    reportPeriod: '' as '' | 'monthly' | 'quarterly' | 'annual',
+  });
 
   // Form states
   const [baselineForm, setBaselineForm] = useState({
@@ -136,6 +153,13 @@ export default function VarianceTrackingPage() {
   const acknowledgeAlertMutation = useAcknowledgeAlert();
   const resolveAlertMutation = useResolveAlert();
   const performAnalysisMutation = usePerformVarianceAnalysis();
+  const generateReportMutation = useGenerateVarianceReport();
+
+  // Report detail query (only fires when a report is selected)
+  const { data: reportDetailData, isLoading: reportDetailLoading } = useVarianceReport(
+    currentFund?.id || 0,
+    selectedReportId || ''
+  );
 
   const reports = reportsData?.data ?? [];
   const latestReport =
@@ -320,6 +344,36 @@ export default function VarianceTrackingPage() {
       });
     }
   };
+
+  // Handle generate variance report
+  const handleGenerateReport = async () => {
+    if (!currentFund) return;
+
+    try {
+      await generateReportMutation.mutateAsync({
+        fundId: currentFund.id,
+        reportName: reportForm.reportName,
+        reportType: reportForm.reportType,
+        ...(reportForm.reportPeriod ? { reportPeriod: reportForm.reportPeriod } : {}),
+      });
+
+      toast({
+        title: 'Report Generated',
+        description: 'Variance report has been generated successfully.',
+      });
+
+      setGenerateReportDialogOpen(false);
+      setReportForm({ reportName: '', reportType: 'periodic', reportPeriod: '' });
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to generate variance report. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const reportDetail = reportDetailData?.data ?? null;
 
   if (!currentFund) {
     return (
@@ -1144,6 +1198,13 @@ export default function VarianceTrackingPage() {
               <h2 className="text-2xl font-bold text-gray-900">Variance Reports</h2>
               <p className="text-gray-600">Generated variance analysis reports</p>
             </div>
+            <Button
+              className="flex items-center space-x-2"
+              onClick={() => setGenerateReportDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Generate Report</span>
+            </Button>
           </div>
 
           <Card>
@@ -1168,7 +1229,11 @@ export default function VarianceTrackingPage() {
               ) : reportsData?.data?.length ? (
                 <div className="divide-y">
                   {reportsData.data.map((report: VarianceReport) => (
-                    <div key={report.id} className="p-6 flex items-center justify-between">
+                    <div
+                      key={report.id}
+                      className="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => setSelectedReportId(report.id)}
+                    >
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="font-medium text-gray-900">{report.reportName}</h3>
@@ -1201,6 +1266,267 @@ export default function VarianceTrackingPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Report Detail Sheet */}
+          <Sheet
+            open={selectedReportId !== null}
+            onOpenChange={(open) => {
+              if (!open) setSelectedReportId(null);
+            }}
+          >
+            <SheetContent className="sm:max-w-lg overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Report Details</SheetTitle>
+                <SheetDescription>Variance report summary and breakdown</SheetDescription>
+              </SheetHeader>
+              {reportDetailLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+              ) : reportDetail ? (
+                <div className="space-y-6 mt-6">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-gray-500">Report Name</div>
+                    <div className="text-gray-900">{reportDetail.reportName}</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Type</div>
+                      <Badge variant="outline" className="mt-1">
+                        {reportDetail.reportType}
+                      </Badge>
+                    </div>
+                    {reportDetail.reportPeriod && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-500">Period</div>
+                        <Badge variant="outline" className="mt-1">
+                          {reportDetail.reportPeriod}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">As Of Date</div>
+                      <div className="text-gray-900">
+                        {format(parseISO(reportDetail.asOfDate), 'MMM dd, yyyy')}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Generated At</div>
+                      <div className="text-gray-900">
+                        {format(parseISO(reportDetail.generatedAt), 'MMM dd, yyyy HH:mm')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary cards */}
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">Summary</div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-lg font-semibold text-gray-900">
+                          {reportDetail.summary.totalVariances}
+                        </div>
+                        <div className="text-xs text-gray-500">Total</div>
+                      </div>
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-lg font-semibold text-yellow-700">
+                          {reportDetail.summary.significantVariances}
+                        </div>
+                        <div className="text-xs text-gray-500">Significant</div>
+                      </div>
+                      <div className="rounded-lg border p-3 text-center">
+                        <div className="text-lg font-semibold text-red-700">
+                          {reportDetail.summary.criticalVariances}
+                        </div>
+                        <div className="text-xs text-gray-500">Critical</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Portfolio variances (from dedicated schema columns) */}
+                  {(reportDetail.portfolioVariances ||
+                    reportDetail.sectorVariances ||
+                    reportDetail.stageVariances) && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500 mb-2">
+                        Portfolio Analysis
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {reportDetail.portfolioVariances && (
+                          <>
+                            <div className="p-2 bg-gray-50 rounded">
+                              <span className="text-gray-500">Portfolio Count Change</span>
+                              <span className="block font-medium">
+                                {(() => {
+                                  const pv = reportDetail.portfolioVariances as Record<
+                                    string,
+                                    unknown
+                                  >;
+                                  const delta = pv['portfolioCountVariance'] as number | undefined;
+                                  return delta != null ? `${delta > 0 ? '+' : ''}${delta}` : '-';
+                                })()}
+                              </span>
+                            </div>
+                            <div className="p-2 bg-gray-50 rounded">
+                              <span className="text-gray-500">Companies Analyzed</span>
+                              <span className="block font-medium">
+                                {Array.isArray(
+                                  (reportDetail.portfolioVariances as Record<string, unknown>)[
+                                    'companyVariances'
+                                  ]
+                                )
+                                  ? (
+                                      (reportDetail.portfolioVariances as Record<string, unknown>)[
+                                        'companyVariances'
+                                      ] as unknown[]
+                                    ).length
+                                  : 0}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {reportDetail.sectorVariances && (
+                          <div className="p-2 bg-gray-50 rounded">
+                            <span className="text-gray-500">Sectors Tracked</span>
+                            <span className="block font-medium">
+                              {Object.keys(reportDetail.sectorVariances).length}
+                            </span>
+                          </div>
+                        )}
+                        {reportDetail.stageVariances && (
+                          <div className="p-2 bg-gray-50 rounded">
+                            <span className="text-gray-500">Stages Tracked</span>
+                            <span className="block font-medium">
+                              {Object.keys(reportDetail.stageVariances).length}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Variances table */}
+                  {reportDetail.variances.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500 mb-2">Variances</div>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="text-left p-2 font-medium text-gray-600">Metric</th>
+                              <th className="text-right p-2 font-medium text-gray-600">Value</th>
+                              <th className="text-right p-2 font-medium text-gray-600">Pct</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {reportDetail.variances.map((v: unknown, idx: number) => {
+                              const row = v as Record<string, unknown>;
+                              return (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                  <td className="p-2 text-gray-900">
+                                    {String(row['metric'] ?? row['metricName'] ?? '-')}
+                                  </td>
+                                  <td className="p-2 text-right text-gray-700">
+                                    {String(row['value'] ?? row['variance'] ?? '-')}
+                                  </td>
+                                  <td className="p-2 text-right text-gray-700">
+                                    {(() => {
+                                      const raw = row['pct'] ?? row['percentChange'];
+                                      if (raw == null) return '-';
+                                      const num = Number(raw);
+                                      return isNaN(num)
+                                        ? `${String(raw)}%`
+                                        : `${(num * 100).toFixed(1)}%`;
+                                    })()}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">Report not found.</div>
+              )}
+            </SheetContent>
+          </Sheet>
+
+          {/* Generate Report Dialog */}
+          <Dialog open={generateReportDialogOpen} onOpenChange={setGenerateReportDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Generate Variance Report</DialogTitle>
+                <DialogDescription>
+                  Configure and generate a new variance analysis report.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Report Name</Label>
+                  <Input
+                    value={reportForm.reportName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setReportForm((prev) => ({ ...prev, reportName: e.target.value }))
+                    }
+                    placeholder="Enter report name..."
+                  />
+                </div>
+                <div>
+                  <Label>Report Type</Label>
+                  <Select
+                    value={reportForm.reportType}
+                    onValueChange={(
+                      value: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered'
+                    ) => setReportForm((prev) => ({ ...prev, reportType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="periodic">Periodic</SelectItem>
+                      <SelectItem value="milestone">Milestone</SelectItem>
+                      <SelectItem value="ad_hoc">Ad Hoc</SelectItem>
+                      <SelectItem value="alert_triggered">Alert Triggered</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Report Period (optional)</Label>
+                  <Select
+                    value={reportForm.reportPeriod}
+                    onValueChange={(value: '' | 'monthly' | 'quarterly' | 'annual') =>
+                      setReportForm((prev) => ({ ...prev, reportPeriod: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select period..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="annual">Annual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGenerateReportDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleGenerateReport}
+                  disabled={generateReportMutation.isPending || !reportForm.reportName.trim()}
+                >
+                  {generateReportMutation.isPending ? 'Generating...' : 'Generate Report'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
