@@ -262,6 +262,120 @@ describe('BaselineService', () => {
       // Verify the baseline was not set as default
       expect(result.isDefault).toBe(false);
     });
+
+    it('should persist portfolio composition fields in baseline insert', async () => {
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        totalValue: '3000000.00',
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'AlphaCo',
+          sector: 'Fintech',
+          stage: 'Series A',
+          currentValuation: '800000.00',
+          investments: [{ amount: '250000.00' }],
+        },
+        {
+          id: 2,
+          name: 'BetaCo',
+          sector: 'SaaS',
+          stage: 'Series B',
+          currentValuation: '600000.00',
+          investments: [{ amount: '350000.00' }],
+        },
+      ]);
+
+      // Reserve snapshot
+      mockDb.query.fundSnapshots.findFirst
+        .mockResolvedValueOnce({ payload: { totalReserves: 750000, strategy: 'pro-rata' } })
+        .mockResolvedValueOnce({ payload: { deploymentRate: 0.65, targetPace: 12 } });
+
+      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+
+      await service.createBaseline({
+        fundId: 1,
+        name: 'Portfolio Fields Test',
+        baselineType: 'quarterly',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-03-31'),
+        createdBy: 1,
+      });
+
+      const insertedData = mockDb.__getLastInsertData();
+
+      expect(insertedData.portfolioCount).toBe(2);
+      expect(insertedData.averageInvestment).toBe('300000');
+      expect(insertedData.topPerformers).toEqual([
+        expect.objectContaining({ id: 1, name: 'AlphaCo' }),
+      ]);
+      expect(insertedData.sectorDistribution).toEqual({ Fintech: 1, SaaS: 1 });
+      expect(insertedData.stageDistribution).toEqual({ 'Series A': 1, 'Series B': 1 });
+    });
+
+    it('should persist reserveAllocation and pacingMetrics from snapshots', async () => {
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        totalValue: '1000000.00',
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+
+      const reservePayload = { totalReserves: 500000, strategy: 'pro-rata' };
+      const pacingPayload = { deploymentRate: 0.8, monthsRemaining: 18 };
+
+      mockDb.query.fundSnapshots.findFirst
+        .mockResolvedValueOnce({ payload: reservePayload })
+        .mockResolvedValueOnce({ payload: pacingPayload });
+
+      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+
+      await service.createBaseline({
+        fundId: 1,
+        name: 'Snapshot Fields Test',
+        baselineType: 'milestone',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-06-30'),
+        createdBy: 1,
+      });
+
+      const insertedData = mockDb.__getLastInsertData();
+
+      expect(insertedData.reserveAllocation).toEqual(reservePayload);
+      expect(insertedData.pacingMetrics).toEqual(pacingPayload);
+    });
+
+    it('should handle empty portfolio gracefully for composition fields', async () => {
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        totalValue: '500000.00',
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
+      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+
+      await service.createBaseline({
+        fundId: 1,
+        name: 'Empty Portfolio Test',
+        baselineType: 'initial',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-12-31'),
+        createdBy: 1,
+      });
+
+      const insertedData = mockDb.__getLastInsertData();
+
+      expect(insertedData.portfolioCount).toBe(0);
+      expect(insertedData.averageInvestment).toBe('0');
+      expect(insertedData.topPerformers).toEqual([]);
+      expect(insertedData.sectorDistribution).toEqual({});
+      expect(insertedData.stageDistribution).toEqual({});
+      expect(insertedData.reserveAllocation).toEqual({});
+      expect(insertedData.pacingMetrics).toEqual({});
+    });
   });
 
   describe('getBaselines', () => {
@@ -577,6 +691,457 @@ describe('VarianceCalculationService', () => {
       const result = await service.getVarianceReportById(1, 'non-existent');
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getCurrentPortfolioMetrics (via reflection)', () => {
+    it('should compute counts, distributions, and deployed capital', async () => {
+      const getMetrics = (service as any).getCurrentPortfolioMetrics.bind(service);
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'AlphaCo',
+          sector: 'Technology',
+          stage: 'Series A',
+          currentValuation: '500000.00',
+          investments: [{ amount: '200000.00' }, { amount: '50000.00' }],
+        },
+        {
+          id: 2,
+          name: 'BetaCo',
+          sector: 'Healthcare',
+          stage: 'Series B',
+          currentValuation: '400000.00',
+          investments: [{ amount: '300000.00' }],
+        },
+        {
+          id: 3,
+          name: 'GammaCo',
+          sector: 'Technology',
+          stage: 'Series A',
+          currentValuation: '350000.00',
+          investments: [{ amount: '150000.00' }],
+        },
+      ]);
+
+      const result = await getMetrics(1, new Date());
+
+      expect(result.portfolioCount).toBe(3);
+      // deployedCapital = 200000 + 50000 + 300000 + 150000 = 700000
+      expect(result.deployedCapital).toBe('700000');
+      // averageInvestment = 700000 / 3
+      expect(Number(result.averageInvestment)).toBeCloseTo(233333.3333, 2);
+      expect(result.sectorDistribution).toEqual({ Technology: 2, Healthcare: 1 });
+      expect(result.stageDistribution).toEqual({ 'Series A': 2, 'Series B': 1 });
+    });
+
+    it('should return zeros for empty portfolio', async () => {
+      const getMetrics = (service as any).getCurrentPortfolioMetrics.bind(service);
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+
+      const result = await getMetrics(1, new Date());
+
+      expect(result.portfolioCount).toBe(0);
+      expect(result.deployedCapital).toBe('0');
+      expect(result.averageInvestment).toBe('0');
+      expect(result.sectorDistribution).toEqual({});
+      expect(result.stageDistribution).toEqual({});
+    });
+
+    it('should handle companies with no investments', async () => {
+      const getMetrics = (service as any).getCurrentPortfolioMetrics.bind(service);
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'EmptyCo',
+          sector: 'FinTech',
+          stage: 'Seed',
+          currentValuation: '100000.00',
+          investments: [],
+        },
+      ]);
+
+      const result = await getMetrics(1, new Date());
+
+      expect(result.portfolioCount).toBe(1);
+      expect(result.deployedCapital).toBe('0');
+      expect(result.averageInvestment).toBe('0');
+      expect(result.sectorDistribution).toEqual({ FinTech: 1 });
+      expect(result.stageDistribution).toEqual({ Seed: 1 });
+    });
+
+    it('should handle null/undefined findMany response gracefully', async () => {
+      const getMetrics = (service as any).getCurrentPortfolioMetrics.bind(service);
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue(undefined);
+
+      const result = await getMetrics(1, new Date());
+
+      expect(result.portfolioCount).toBe(0);
+      expect(result.deployedCapital).toBe('0');
+    });
+  });
+
+  describe('analyzeCompanyVariances (via reflection)', () => {
+    it('should compute valuation changes for matching companies', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      // Baseline with topPerformers in array format (from getPortfolioComposition)
+      const baseline = {
+        topPerformers: [
+          { id: 1, name: 'AlphaCo', sector: 'Technology', currentValuation: '500000.00' },
+          { id: 2, name: 'BetaCo', sector: 'Healthcare', currentValuation: '400000.00' },
+        ],
+      };
+
+      // Current portfolio: AlphaCo grew, BetaCo declined
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        { id: 1, name: 'AlphaCo', sector: 'Technology', currentValuation: '600000.00' },
+        { id: 2, name: 'BetaCo', sector: 'Healthcare', currentValuation: '350000.00' },
+        { id: 3, name: 'GammaCo', sector: 'FinTech', currentValuation: '200000.00' },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+
+      expect(result).toHaveLength(2);
+
+      const alpha = result.find((r: any) => r.companyId === 1);
+      expect(alpha).toBeDefined();
+      expect(alpha.companyName).toBe('AlphaCo');
+      expect(Number(alpha.valuationChange)).toBe(100000); // 600k - 500k
+      expect(Number(alpha.valuationChangePct)).toBe(0.2); // 100k / 500k
+
+      const beta = result.find((r: any) => r.companyId === 2);
+      expect(beta).toBeDefined();
+      expect(Number(beta.valuationChange)).toBe(-50000); // 350k - 400k
+      expect(Number(beta.valuationChangePct)).toBe(-0.125); // -50k / 400k
+    });
+
+    it('should handle { companies: [...] } format in topPerformers', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = {
+        topPerformers: {
+          companies: [{ id: 10, name: 'DeltaCo', sector: 'SaaS', valuation: 800000 }],
+        },
+      };
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        { id: 10, name: 'DeltaCo', sector: 'SaaS', currentValuation: '1000000.00' },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+
+      expect(result).toHaveLength(1);
+      expect(result[0].companyId).toBe(10);
+      expect(Number(result[0].valuationChange)).toBe(200000);
+      expect(Number(result[0].valuationChangePct)).toBe(0.25);
+    });
+
+    it('should return empty array when topPerformers is null or missing', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baselineNull = { topPerformers: null };
+      const result1 = await analyze(1, baselineNull, new Date());
+      expect(result1).toEqual([]);
+
+      const baselineUndef = { topPerformers: undefined };
+      const result2 = await analyze(1, baselineUndef, new Date());
+      expect(result2).toEqual([]);
+    });
+
+    it('should return empty array when topPerformers is empty', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = { topPerformers: [] };
+      const result = await analyze(1, baseline, new Date());
+      expect(result).toEqual([]);
+    });
+
+    it('should skip companies with null currentValuation', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = {
+        topPerformers: [{ id: 1, name: 'Co1', sector: 'Tech', currentValuation: '500000' }],
+      };
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        { id: 1, name: 'Co1', sector: 'Tech', currentValuation: null },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+      expect(result).toEqual([]);
+    });
+
+    it('should skip companies with zero baseline valuation', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = {
+        topPerformers: [{ id: 1, name: 'ZeroCo', sector: 'Tech', currentValuation: '0' }],
+      };
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        { id: 1, name: 'ZeroCo', sector: 'Tech', currentValuation: '500000' },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+      expect(result).toEqual([]);
+    });
+
+    it('should skip companies not present in baseline', async () => {
+      const analyze = (service as any).analyzeCompanyVariances.bind(service);
+
+      const baseline = {
+        topPerformers: [{ id: 99, name: 'OldCo', sector: 'Legacy', currentValuation: '100000' }],
+      };
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([
+        { id: 1, name: 'NewCo', sector: 'Tech', currentValuation: '500000' },
+      ]);
+
+      const result = await analyze(1, baseline, new Date());
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('analyzeSectorVariances (via reflection)', () => {
+    it('should compute delta and deltaPct for matching sectors', () => {
+      const analyze = (service as any).analyzeSectorVariances.bind(service);
+      const result = analyze({ Technology: 5, Healthcare: 3 }, { Technology: 4, Healthcare: 2 });
+      expect(result).toEqual({
+        Technology: { current: 5, baseline: 4, delta: 1, deltaPct: 0.25 },
+        Healthcare: { current: 3, baseline: 2, delta: 1, deltaPct: 0.5 },
+      });
+    });
+
+    it('should handle new sectors not in baseline', () => {
+      const analyze = (service as any).analyzeSectorVariances.bind(service);
+      const result = analyze({ Technology: 3, 'Clean Energy': 2 }, { Technology: 3 });
+      expect(result['Clean Energy']).toEqual({
+        current: 2,
+        baseline: 0,
+        delta: 2,
+        deltaPct: null,
+      });
+      expect(result.Technology.delta).toBe(0);
+    });
+
+    it('should handle removed sectors (in baseline but not current)', () => {
+      const analyze = (service as any).analyzeSectorVariances.bind(service);
+      const result = analyze({ Technology: 3 }, { Technology: 3, Consumer: 2 });
+      expect(result.Consumer).toEqual({
+        current: 0,
+        baseline: 2,
+        delta: -2,
+        deltaPct: -1,
+      });
+    });
+
+    it('should return deltaPct null when baseline is zero', () => {
+      const analyze = (service as any).analyzeSectorVariances.bind(service);
+      const result = analyze({ FinTech: 4 }, { FinTech: 0 });
+      expect(result.FinTech).toEqual({
+        current: 4,
+        baseline: 0,
+        delta: 4,
+        deltaPct: null,
+      });
+    });
+
+    it('should return empty object for empty inputs', () => {
+      const analyze = (service as any).analyzeSectorVariances.bind(service);
+      const result = analyze({}, {});
+      expect(result).toEqual({});
+    });
+  });
+
+  describe('analyzeStageVariances (via reflection)', () => {
+    it('should compute delta and deltaPct for matching stages', () => {
+      const analyze = (service as any).analyzeStageVariances.bind(service);
+      const result = analyze(
+        { Seed: 2, 'Series A': 5, 'Series B': 3 },
+        { Seed: 3, 'Series A': 4, 'Series B': 3 }
+      );
+      expect(result).toEqual({
+        Seed: { current: 2, baseline: 3, delta: -1, deltaPct: expect.closeTo(-1 / 3, 10) },
+        'Series A': { current: 5, baseline: 4, delta: 1, deltaPct: 0.25 },
+        'Series B': { current: 3, baseline: 3, delta: 0, deltaPct: 0 },
+      });
+    });
+
+    it('should handle new stages not in baseline', () => {
+      const analyze = (service as any).analyzeStageVariances.bind(service);
+      const result = analyze({ 'Series C+': 1 }, {});
+      expect(result['Series C+']).toEqual({
+        current: 1,
+        baseline: 0,
+        delta: 1,
+        deltaPct: null,
+      });
+    });
+
+    it('should handle removed stages', () => {
+      const analyze = (service as any).analyzeStageVariances.bind(service);
+      const result = analyze({}, { Seed: 5 });
+      expect(result.Seed).toEqual({
+        current: 0,
+        baseline: 5,
+        delta: -5,
+        deltaPct: -1,
+      });
+    });
+  });
+
+  describe('calculateReserveVariances (via reflection)', () => {
+    it('should return hasData false when current snapshot is empty', async () => {
+      const calc = (service as any).calculateReserveVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
+
+      const baseline = { reserveAllocation: { totalReserves: 500000 } } as any;
+      const result = await calc(1, baseline);
+
+      expect(result).toEqual({
+        hasData: false,
+        currentReserves: {},
+        baselineReserves: {},
+        changes: {},
+      });
+    });
+
+    it('should return hasData false when baseline reserveAllocation is null', async () => {
+      const calc = (service as any).calculateReserveVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { totalReserves: 600000 },
+      });
+
+      const baseline = { reserveAllocation: null } as any;
+      const result = await calc(1, baseline);
+
+      expect(result).toEqual({
+        hasData: false,
+        currentReserves: {},
+        baselineReserves: {},
+        changes: {},
+      });
+    });
+
+    it('should detect changes between current and baseline reserves', async () => {
+      const calc = (service as any).calculateReserveVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { totalReserves: 600000, reserveRatio: 0.25 },
+      });
+
+      const baseline = {
+        reserveAllocation: { totalReserves: 500000, reserveRatio: 0.2 },
+      } as any;
+      const result = await calc(1, baseline);
+
+      expect(result.hasData).toBe(true);
+      expect(result.currentReserves).toEqual({ totalReserves: 600000, reserveRatio: 0.25 });
+      expect(result.baselineReserves).toEqual({ totalReserves: 500000, reserveRatio: 0.2 });
+      expect(result.changes.totalReserves).toEqual({ current: 600000, baseline: 500000 });
+      expect(result.changes.reserveRatio).toEqual({ current: 0.25, baseline: 0.2 });
+    });
+
+    it('should omit unchanged keys from changes', async () => {
+      const calc = (service as any).calculateReserveVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { totalReserves: 500000, reserveRatio: 0.2 },
+      });
+
+      const baseline = {
+        reserveAllocation: { totalReserves: 500000, reserveRatio: 0.2 },
+      } as any;
+      const result = await calc(1, baseline);
+
+      expect(result.hasData).toBe(true);
+      expect(result.changes).toEqual({});
+    });
+  });
+
+  describe('calculatePacingVariances (via reflection)', () => {
+    it('should return hasData false when current snapshot is empty', async () => {
+      const calc = (service as any).calculatePacingVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
+
+      const baseline = { pacingMetrics: { deploymentRate: 0.8 } } as any;
+      const result = await calc(1, baseline);
+
+      expect(result).toEqual({
+        hasData: false,
+        currentPacing: {},
+        baselinePacing: {},
+        changes: {},
+      });
+    });
+
+    it('should return hasData false when baseline pacingMetrics is null', async () => {
+      const calc = (service as any).calculatePacingVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { deploymentRate: 0.85 },
+      });
+
+      const baseline = { pacingMetrics: null } as any;
+      const result = await calc(1, baseline);
+
+      expect(result).toEqual({
+        hasData: false,
+        currentPacing: {},
+        baselinePacing: {},
+        changes: {},
+      });
+    });
+
+    it('should detect changes between current and baseline pacing', async () => {
+      const calc = (service as any).calculatePacingVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { deploymentRate: 0.9, quarterlyTarget: 0.8 },
+      });
+
+      const baseline = {
+        pacingMetrics: { deploymentRate: 0.8, quarterlyTarget: 0.75 },
+      } as any;
+      const result = await calc(1, baseline);
+
+      expect(result.hasData).toBe(true);
+      expect(result.currentPacing).toEqual({ deploymentRate: 0.9, quarterlyTarget: 0.8 });
+      expect(result.baselinePacing).toEqual({ deploymentRate: 0.8, quarterlyTarget: 0.75 });
+      expect(result.changes.deploymentRate).toEqual({ current: 0.9, baseline: 0.8 });
+      expect(result.changes.quarterlyTarget).toEqual({ current: 0.8, baseline: 0.75 });
+    });
+
+    it('should omit unchanged keys from changes', async () => {
+      const calc = (service as any).calculatePacingVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { deploymentRate: 0.8 },
+      });
+
+      const baseline = {
+        pacingMetrics: { deploymentRate: 0.8 },
+      } as any;
+      const result = await calc(1, baseline);
+
+      expect(result.hasData).toBe(true);
+      expect(result.changes).toEqual({});
+    });
+
+    it('should handle keys present only in current or only in baseline', async () => {
+      const calc = (service as any).calculatePacingVariances.bind(service);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({
+        payload: { deploymentRate: 0.9, newMetric: 42 },
+      });
+
+      const baseline = {
+        pacingMetrics: { deploymentRate: 0.8, removedMetric: 99 },
+      } as any;
+      const result = await calc(1, baseline);
+
+      expect(result.hasData).toBe(true);
+      expect(result.changes.newMetric).toEqual({ current: 42, baseline: null });
+      expect(result.changes.removedMetric).toEqual({ current: null, baseline: 99 });
     });
   });
 });
