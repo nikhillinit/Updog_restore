@@ -56,11 +56,15 @@ export const fundMetrics = pgTable('fund_metrics', {
   id: serial('id').primaryKey(),
   fundId: integer('fund_id').references(() => funds.id),
   metricDate: timestamp('metric_date').notNull(),
+  asOfDate: timestamp('as_of_date').notNull(),
   totalValue: decimal('totalvalue', { precision: 15, scale: 2 }).notNull(),
   irr: decimal('irr', { precision: 5, scale: 4 }),
   multiple: decimal('multiple', { precision: 5, scale: 2 }),
   dpi: decimal('dpi', { precision: 5, scale: 2 }),
   tvpi: decimal('tvpi', { precision: 5, scale: 2 }),
+  runId: integer('run_id'),
+  configId: integer('config_id'),
+  configVersion: integer('config_version'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

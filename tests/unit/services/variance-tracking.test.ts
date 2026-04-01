@@ -34,6 +34,38 @@ vi.mock('../../../server/db', () => {
   let lastInsertData: any = null;
   let lastUpdateData: any = null;
 
+  const queryMocks = {
+    fundMetrics: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+    portfolioCompanies: {
+      findMany: vi.fn(),
+    },
+    fundSnapshots: {
+      findFirst: vi.fn(),
+    },
+    fundBaselines: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+    calcRuns: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+    varianceReports: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+    alertRules: {
+      findMany: vi.fn(),
+    },
+    performanceAlerts: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+  };
+
   const valuesMock = vi.fn((data) => {
     lastInsertData = data;
     return {
@@ -48,63 +80,24 @@ vi.mock('../../../server/db', () => {
     };
   });
 
+  const insertMock = vi.fn(() => ({
+    values: valuesMock,
+  }));
+
+  const updateMock = vi.fn(() => ({
+    set: setMock,
+  }));
+
   return {
     db: {
-      query: {
-        fundMetrics: {
-          findFirst: vi.fn(),
-          findMany: vi.fn(),
-        },
-        portfolioCompanies: {
-          findMany: vi.fn(),
-        },
-        fundSnapshots: {
-          findFirst: vi.fn(),
-        },
-        fundBaselines: {
-          findFirst: vi.fn(),
-          findMany: vi.fn(),
-        },
-        varianceReports: {
-          findFirst: vi.fn(),
-          findMany: vi.fn(),
-        },
-        alertRules: {
-          findMany: vi.fn(),
-        },
-        performanceAlerts: {
-          findFirst: vi.fn(),
-          findMany: vi.fn(),
-        },
-      },
-      insert: vi.fn(() => ({
-        values: valuesMock,
-      })),
-      update: vi.fn(() => ({
-        set: setMock,
-      })),
+      query: queryMocks,
+      insert: insertMock,
+      update: updateMock,
       transaction: vi.fn((fn) => {
-        // Replicate db structure for transaction callback
-        const txValuesMock = vi.fn((data) => ({
-          returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
-        }));
-        const txSetMock = vi.fn((data) => ({
-          where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }])),
-        }));
-
         const txDb = {
-          query: {
-            fundMetrics: { findFirst: vi.fn(), findMany: vi.fn() },
-            fundBaselines: { findFirst: vi.fn(), findMany: vi.fn() },
-            portfolioCompanies: { findMany: vi.fn() },
-            fundSnapshots: { findFirst: vi.fn() },
-          },
-          insert: vi.fn(() => ({
-            values: txValuesMock,
-          })),
-          update: vi.fn(() => ({
-            set: txSetMock,
-          })),
+          query: queryMocks,
+          insert: insertMock,
+          update: updateMock,
         };
         return fn(txDb);
       }),
@@ -170,7 +163,7 @@ describe('BaselineService', () => {
         .mockResolvedValueOnce({ payload: { deploymentRate: 0.8 } }); // Pacing snapshot
 
       // Mock existing defaults check
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       const params = {
         fundId: 1,
@@ -219,7 +212,7 @@ describe('BaselineService', () => {
       mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
 
       // Mock no existing defaults
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       const result = await service.createBaseline({
         fundId: 1,
@@ -246,9 +239,10 @@ describe('BaselineService', () => {
       mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
 
       // Mock existing default baseline
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([
-        { id: 'existing-default', isDefault: true },
-      ]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue({
+        id: 'existing-default',
+        isDefault: true,
+      });
 
       const result = await service.createBaseline({
         fundId: 1,
@@ -293,7 +287,7 @@ describe('BaselineService', () => {
         .mockResolvedValueOnce({ payload: { totalReserves: 750000, strategy: 'pro-rata' } })
         .mockResolvedValueOnce({ payload: { deploymentRate: 0.65, targetPace: 12 } });
 
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       await service.createBaseline({
         fundId: 1,
@@ -330,7 +324,7 @@ describe('BaselineService', () => {
         .mockResolvedValueOnce({ payload: reservePayload })
         .mockResolvedValueOnce({ payload: pacingPayload });
 
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       await service.createBaseline({
         fundId: 1,
@@ -355,7 +349,7 @@ describe('BaselineService', () => {
 
       mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
       mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
-      mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       await service.createBaseline({
         fundId: 1,
@@ -375,6 +369,97 @@ describe('BaselineService', () => {
       expect(insertedData.stageDistribution).toEqual({});
       expect(insertedData.reserveAllocation).toEqual({});
       expect(insertedData.pacingMetrics).toEqual({});
+    });
+
+    it('should persist calc-run-attributed KPI fields when sourceRunId is provided', async () => {
+      mockDb.query.fundMetrics.findFirst
+        .mockResolvedValueOnce({
+          fundId: 1,
+          runId: 42,
+          totalValue: '2750000.00',
+          irr: '0.1950',
+          multiple: '1.5100',
+          dpi: '0.9300',
+          tvpi: '1.4200',
+          metricDate: new Date(),
+        })
+        .mockResolvedValueOnce(undefined);
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      await service.createBaseline({
+        fundId: 1,
+        name: 'Attributed Baseline',
+        baselineType: 'milestone',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-01-31'),
+        createdBy: 1,
+        sourceRunId: 42,
+      });
+
+      const insertedData = mockDb.__getLastInsertData();
+
+      expect(insertedData.sourceRunId).toBe(42);
+      expect(insertedData.irr).toBe('0.1950');
+      expect(insertedData.multiple).toBe('1.5100');
+      expect(insertedData.dpi).toBe('0.9300');
+      expect(insertedData.tvpi).toBe('1.4200');
+    });
+
+    it('should return an existing automated baseline for the same sourceRunId', async () => {
+      const existingBaseline = {
+        id: 'existing-baseline',
+        fundId: 1,
+        sourceRunId: 42,
+        name: 'Existing Automated Baseline',
+      };
+
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(existingBaseline);
+
+      const result = await service.createBaseline({
+        fundId: 1,
+        name: 'Duplicate Automated Baseline',
+        baselineType: 'milestone',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-01-31'),
+        createdBy: 1,
+        sourceRunId: 42,
+      });
+
+      expect(result).toEqual(existingBaseline);
+    });
+
+    it('should create an automated baseline directly from a calc run', async () => {
+      mockDb.query.calcRuns.findFirst.mockResolvedValue({
+        id: 42,
+        fundId: 1,
+        configVersion: 7,
+        requestedAt: new Date('2025-01-01T00:00:00Z'),
+        completedAt: new Date('2025-01-15T00:00:00Z'),
+      });
+
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        runId: 42,
+        totalValue: '2750000.00',
+        irr: '0.1950',
+        multiple: '1.5100',
+        dpi: '0.9300',
+        tvpi: '1.4200',
+        metricDate: new Date(),
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      const result = await service.createBaselineFromCalcRun(42);
+
+      expect(result.name).toBe('Automated Baseline v7');
+      expect(mockDb.__getLastInsertData().sourceRunId).toBe(42);
+      expect(mockDb.__getLastInsertData().createdBy).toBe(999999);
     });
   });
 
@@ -1600,6 +1685,14 @@ describe('Edge Cases and Error Handling', () => {
         returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
       })),
     }));
+
+    mockDb.transaction.mockImplementation((fn: any) =>
+      fn({
+        query: mockDb.query,
+        insert: mockDb.insert,
+        update: mockDb.update,
+      })
+    );
   });
 
   afterEach(async () => {
@@ -1618,7 +1711,7 @@ describe('Edge Cases and Error Handling', () => {
     // Mock empty portfolio
     mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
     mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
-    mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+    mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
     const result = await baselineService.createBaseline({
       fundId: 1,
@@ -1710,6 +1803,14 @@ describe('Performance and Scalability', () => {
         returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }])),
       })),
     }));
+
+    mockDb.transaction.mockImplementation((fn: any) =>
+      fn({
+        query: mockDb.query,
+        insert: mockDb.insert,
+        update: mockDb.update,
+      })
+    );
   });
 
   afterEach(async () => {
@@ -1737,7 +1838,7 @@ describe('Performance and Scalability', () => {
 
     mockDb.query.portfolioCompanies.findMany.mockResolvedValue(largePortfolio);
     mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
-    mockDb.query.fundBaselines.findMany.mockResolvedValue([]);
+    mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
     const startTime = Date.now();
 

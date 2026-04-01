@@ -15,6 +15,20 @@
       "when": 1762642134870,
       "tag": "0001_certain_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775011200000,
+      "tag": "0002_phase0_variance_automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775097600000,
+      "tag": "0003_phase0_runtime_alignment",
+      "breakpoints": true
     }
   ]
 }

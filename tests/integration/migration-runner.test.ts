@@ -23,6 +23,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool } from 'pg';
+import { readFileSync } from 'fs';
+import path from 'path';
 import {
   runMigrationsToVersion,
   getMigrationState,
@@ -30,8 +32,15 @@ import {
   resetDatabase,
 } from '../helpers/testcontainers-migration';
 
+function loadMigrationTags(): string[] {
+  const journalPath = path.join(process.cwd(), 'migrations', 'meta', '_journal.json');
+  const raw = readFileSync(journalPath, 'utf8');
+  const journal = JSON.parse(raw) as { entries: Array<{ tag: string }> };
+  return journal.entries.map((entry) => entry.tag);
+}
+
 // Migration tags from migrations/meta/_journal.json
-const MIGRATIONS = ['0000_quick_vivisector', '0001_certain_miracleman'] as const;
+const MIGRATIONS = loadMigrationTags();
 const LATEST = MIGRATIONS[MIGRATIONS.length - 1];
 
 // Container configuration
@@ -126,7 +135,7 @@ describe.skipIf(skipIfNoDocker)('Migration Runner Integration', () => {
 
     expect(state.current).toBe(MIGRATIONS[0]);
     expect(state.applied.map((entry) => entry.name)).toEqual([MIGRATIONS[0]]);
-    expect(state.pending).toEqual([MIGRATIONS[1]]);
+    expect(state.pending).toEqual(MIGRATIONS.slice(1));
   });
 
   it('reflects seeded migration history without running migrations', async () => {
@@ -137,7 +146,7 @@ describe.skipIf(skipIfNoDocker)('Migration Runner Integration', () => {
 
     expect(state.applied.map((entry) => entry.name)).toEqual([MIGRATIONS[0]]);
     expect(state.current).toBe(MIGRATIONS[0]);
-    expect(state.pending).toEqual([MIGRATIONS[1]]);
+    expect(state.pending).toEqual(MIGRATIONS.slice(1));
   });
 
   it('resets the database back to latest migration state', async () => {

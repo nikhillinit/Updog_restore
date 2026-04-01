@@ -265,16 +265,48 @@ class DatabaseMock {
           // Only one default baseline per fund
           const isDefault =
             row.is_default === true || row.is_default === 'true' || row.is_default === 1;
-          if (isDefault) {
+          const isActive =
+            row.is_active === undefined ||
+            row.is_active === null ||
+            row.is_active === true ||
+            row.is_active === 'true' ||
+            row.is_active === 1;
+          if (isDefault && isActive) {
             const existingDefault = existingData.find((r: Record<string, unknown>) => {
               const rIsDefault =
                 r.is_default === true || r.is_default === 'true' || r.is_default === 1;
-              return r.fund_id === row.fund_id && rIsDefault;
+              const rIsActive =
+                r.is_active === undefined ||
+                r.is_active === null ||
+                r.is_active === true ||
+                r.is_active === 'true' ||
+                r.is_active === 1;
+              return r.fund_id === row.fund_id && rIsDefault && rIsActive;
             });
             if (existingDefault) {
               throw new Error('Violates unique constraint: only one default baseline per fund');
             }
           }
+          return true;
+        },
+        fund_baselines_source_run_unique: (
+          row: Record<string, unknown>,
+          existingData: Record<string, unknown>[]
+        ) => {
+          if (row.source_run_id === undefined || row.source_run_id === null) {
+            return true;
+          }
+
+          const existingRunBaseline = existingData.find((r: Record<string, unknown>) => {
+            return r.fund_id === row.fund_id && r.source_run_id === row.source_run_id;
+          });
+
+          if (existingRunBaseline) {
+            throw new Error(
+              'Violates unique constraint: only one automated baseline per fund calc run'
+            );
+          }
+
           return true;
         },
       },
@@ -2208,7 +2240,21 @@ class DatabaseMock {
         indexname: 'fund_baselines_default_unique',
         tablename: 'fund_baselines',
         indexdef:
-          'CREATE UNIQUE INDEX fund_baselines_default_unique ON fund_baselines (fund_id) WHERE (is_default = true)',
+          'CREATE UNIQUE INDEX fund_baselines_default_unique ON fund_baselines (fund_id) WHERE ((is_default = true) AND (is_active = true))',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'fund_baselines_source_run_unique',
+        tablename: 'fund_baselines',
+        indexdef:
+          'CREATE UNIQUE INDEX fund_baselines_source_run_unique ON fund_baselines (fund_id, source_run_id) WHERE (source_run_id IS NOT NULL)',
+        schemaname: 'public',
+      },
+      {
+        indexname: 'fund_metrics_run_unique',
+        tablename: 'fund_metrics',
+        indexdef:
+          'CREATE UNIQUE INDEX fund_metrics_run_unique ON fund_metrics (fund_id, run_id) WHERE (run_id IS NOT NULL)',
         schemaname: 'public',
       },
 

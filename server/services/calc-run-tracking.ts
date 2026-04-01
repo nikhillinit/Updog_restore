@@ -2,6 +2,70 @@ import { db } from '../db';
 import { calcRuns, fundSnapshots } from '@shared/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
 import { AUTHORITATIVE_SNAPSHOT_TYPES } from '@shared/contracts/fund-authoritative-calculations.contract';
+import { logger } from '../lib/logger';
+
+const log = logger.child({ module: 'calc-run-tracking' });
+
+// --- Completion handler registration ---
+
+export type CalcRunCompletedHandler = (
+  runId: number,
+  fundId: number,
+  configId: number,
+  configVersion: number
+) => Promise<void>;
+
+type CompletionTarget = {
+  id: number;
+  fundId: number;
+  configId: number;
+  configVersion: number;
+  completedAt?: Date | null;
+};
+
+const completionHandlers: CalcRunCompletedHandler[] = [];
+
+export function registerCalcRunCompletedHandler(handler: CalcRunCompletedHandler): void {
+  completionHandlers.push(handler);
+}
+
+/** Clear all registered handlers. Exported for test isolation only. */
+export function resetCompletionHandlers(): void {
+  completionHandlers.length = 0;
+}
+
+async function runCompletionHandlers(target: CompletionTarget): Promise<void> {
+  const handlers = [...completionHandlers];
+  const results = await Promise.allSettled(
+    handlers.map((handler) =>
+      handler(target.id, target.fundId, target.configId, target.configVersion)
+    )
+  );
+
+  const failedHandlers: string[] = [];
+
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'fulfilled') {
+      continue;
+    }
+
+    const handler = handlers[index];
+    const handlerName = handler?.name || 'anonymous';
+    failedHandlers.push(handlerName);
+    log.error(
+      { runId: target.id, handler: handlerName, err: result.reason },
+      'Calc-run completion handler failed'
+    );
+  }
+
+  if (failedHandlers.length > 0) {
+    throw new Error(
+      `Calc-run completion handlers failed for run ${target.id}: ${failedHandlers.join(', ')}`
+    );
+  }
+}
+
+// --- Helpers ---
 
 export function isFinalAttempt(job: {
   attemptsMade: number;
@@ -22,7 +86,7 @@ export async function markCalcRunFailed(runId: number, errorMessage: string): Pr
     .where(eq(calcRuns.id, runId));
 }
 
-export async function markCalcRunCompletedIfReady(runId: number): Promise<void> {
+export async function markCalcRunCompletedIfReady(runId: number): Promise<boolean> {
   const snapshots = await db.query.fundSnapshots.findMany({
     where: and(
       eq(fundSnapshots.runId, runId),
@@ -39,11 +103,43 @@ export async function markCalcRunCompletedIfReady(runId: number): Promise<void> 
   );
 
   if (!hasAuthoritativeCoverage) {
-    return;
+    return false;
   }
 
-  await db
+  const updatedRuns = await db
     .update(calcRuns)
     .set({ completedAt: new Date() })
-    .where(and(eq(calcRuns.id, runId), isNull(calcRuns.completedAt)));
+    .where(and(eq(calcRuns.id, runId), isNull(calcRuns.completedAt)))
+    .returning({
+      id: calcRuns.id,
+      fundId: calcRuns.fundId,
+      configId: calcRuns.configId,
+      configVersion: calcRuns.configVersion,
+    });
+
+  const transitionedRun = updatedRuns[0];
+  if (transitionedRun) {
+    await runCompletionHandlers(transitionedRun);
+    return true;
+  }
+
+  const completedRun = await db.query.calcRuns.findFirst({
+    where: eq(calcRuns.id, runId),
+    columns: {
+      id: true,
+      fundId: true,
+      configId: true,
+      configVersion: true,
+      completedAt: true,
+    },
+  });
+
+  if (!completedRun?.completedAt) {
+    return false;
+  }
+
+  // Re-drive idempotent downstream automation so handler failures after the initial
+  // completedAt transition can be recovered by later calls.
+  await runCompletionHandlers(completedRun);
+  return true;
 }

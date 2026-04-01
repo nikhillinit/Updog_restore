@@ -15,7 +15,9 @@ import {
   alertRules,
   fundMetrics,
   portfolioCompanies,
+  investments,
   fundSnapshots,
+  calcRuns,
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -38,6 +40,7 @@ import {
   recordSystemError,
   startVarianceCalculation,
 } from '../metrics/variance-metrics';
+import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
 
 interface TriggeredAlertData {
   ruleId: string;
@@ -72,6 +75,27 @@ function isTriggeredAlertData(value: unknown): value is TriggeredAlertData {
   );
 }
 
+function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as { code?: string; constraint?: string; message?: string };
+  return (
+    candidate.code === '23505' &&
+    (candidate.constraint === constraintName ||
+      candidate.message?.includes(constraintName) === true)
+  );
+}
+
+function ensureOrderedPeriod(start: Date, end: Date): Date {
+  if (end.getTime() > start.getTime()) {
+    return end;
+  }
+
+  return new Date(start.getTime() + 1000);
+}
+
 /**
  * Baseline creation and management
  */
@@ -86,7 +110,8 @@ export class BaselineService {
     baselineType: 'initial' | 'quarterly' | 'annual' | 'milestone' | 'custom';
     periodStart: Date;
     periodEnd: Date;
-    createdBy: number;
+    createdBy?: number;
+    sourceRunId?: number;
     tags?: string[];
   }): Promise<FundBaseline> {
     const startTime = Date.now();
@@ -98,66 +123,79 @@ export class BaselineService {
       periodStart,
       periodEnd,
       createdBy,
+      sourceRunId,
       tags = [],
     } = params;
+    const actorId = createdBy ?? SYSTEM_ACTOR_ID;
 
     try {
-      // Get current fund metrics
-      const latestMetrics = await db.query.fundMetrics.findFirst({
-        where: eq(fundMetrics.fundId, fundId),
-        orderBy: desc(fundMetrics.metricDate),
+      const baseline = await db.transaction(async (tx) => {
+        if (sourceRunId != null) {
+          const existingBaseline = await tx.query.fundBaselines.findFirst({
+            where: and(
+              eq(fundBaselines.fundId, fundId),
+              eq(fundBaselines.sourceRunId, sourceRunId)
+            ),
+          });
+
+          if (existingBaseline) {
+            return existingBaseline;
+          }
+        }
+
+        const latestMetrics = await this.getBaselineMetrics(tx, fundId, sourceRunId);
+        if (!latestMetrics) {
+          recordSystemError('baseline-service', 'missing_fund_metrics');
+          throw new Error('No fund metrics available to create baseline');
+        }
+
+        const portfolioData = await this.getPortfolioComposition(tx, fundId);
+        const reserveData = await this.getReserveSnapshot(tx, fundId);
+        const pacingData = await this.getPacingSnapshot(tx, fundId);
+
+        const existingDefault = await tx.query.fundBaselines.findFirst({
+          where: and(
+            eq(fundBaselines.fundId, fundId),
+            eq(fundBaselines.isDefault, true),
+            eq(fundBaselines.isActive, true)
+          ),
+        });
+
+        const baselineData: InsertFundBaseline = {
+          fundId,
+          name,
+          baselineType,
+          periodStart,
+          periodEnd,
+          snapshotDate: new Date(),
+          totalValue: latestMetrics.totalValue,
+          deployedCapital: portfolioData.deployedCapital,
+          irr: latestMetrics.irr,
+          multiple: latestMetrics.multiple,
+          dpi: latestMetrics.dpi,
+          tvpi: latestMetrics.tvpi,
+          portfolioCount: portfolioData.portfolioCount,
+          averageInvestment: portfolioData.averageInvestment,
+          topPerformers: portfolioData.topPerformers,
+          sectorDistribution: portfolioData.sectorDistribution,
+          stageDistribution: portfolioData.stageDistribution,
+          reserveAllocation: reserveData,
+          pacingMetrics: pacingData,
+          createdBy: actorId,
+          isDefault: !existingDefault,
+          description,
+          sourceRunId,
+          tags,
+        };
+
+        const [createdBaseline] = await tx.insert(fundBaselines).values(baselineData).returning();
+
+        if (!createdBaseline) {
+          throw new Error('Failed to create baseline');
+        }
+
+        return createdBaseline;
       });
-
-      if (!latestMetrics) {
-        recordSystemError('baseline-service', 'missing_fund_metrics');
-        throw new Error('No fund metrics available to create baseline');
-      }
-
-      // Get portfolio composition
-      const portfolioData = await this.getPortfolioComposition(fundId);
-
-      // Get reserve and pacing snapshots for baseline persistence
-      const reserveData = await this.getReserveSnapshot(fundId);
-      const pacingData = await this.getPacingSnapshot(fundId);
-
-      // Check if this should be the default baseline
-      const existingDefaults = await db.query.fundBaselines.findMany({
-        where: and(
-          eq(fundBaselines.fundId, fundId),
-          eq(fundBaselines.isDefault, true),
-          eq(fundBaselines.isActive, true)
-        ),
-      });
-
-      const isDefault = existingDefaults.length === 0;
-
-      const baselineData: InsertFundBaseline = {
-        fundId,
-        name,
-        baselineType,
-        periodStart,
-        periodEnd,
-        snapshotDate: new Date(),
-        totalValue: latestMetrics.totalValue,
-        deployedCapital: portfolioData.deployedCapital,
-        portfolioCount: portfolioData.portfolioCount,
-        averageInvestment: portfolioData.averageInvestment,
-        topPerformers: portfolioData.topPerformers,
-        sectorDistribution: portfolioData.sectorDistribution,
-        stageDistribution: portfolioData.stageDistribution,
-        reserveAllocation: reserveData,
-        pacingMetrics: pacingData,
-        createdBy,
-        isDefault,
-        description,
-        tags,
-      };
-
-      const [baseline] = await db.insert(fundBaselines).values(baselineData).returning();
-
-      if (!baseline) {
-        throw new Error('Failed to create baseline');
-      }
 
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
@@ -165,9 +203,48 @@ export class BaselineService {
 
       return baseline;
     } catch (error: unknown) {
+      if (
+        sourceRunId != null &&
+        (isUniqueConstraintViolation(error, 'fund_baselines_source_run_unique') ||
+          isUniqueConstraintViolation(error, 'fund_baselines_default_unique'))
+      ) {
+        const existingBaseline = await db.query.fundBaselines.findFirst({
+          where: and(eq(fundBaselines.fundId, fundId), eq(fundBaselines.sourceRunId, sourceRunId)),
+        });
+
+        if (existingBaseline) {
+          return existingBaseline;
+        }
+      }
+
       recordSystemError('baseline-service', 'creation_failed');
       throw error;
     }
+  }
+
+  async createBaselineFromCalcRun(runId: number): Promise<FundBaseline> {
+    const run = await db.query.calcRuns.findFirst({
+      where: eq(calcRuns.id, runId),
+    });
+
+    if (!run) {
+      throw new Error(`Calc run ${runId} not found`);
+    }
+
+    const periodStart = run.requestedAt;
+    const periodEnd = ensureOrderedPeriod(periodStart, run.completedAt ?? new Date());
+
+    return await this.createBaseline({
+      fundId: run.fundId,
+      name: `Automated Baseline v${run.configVersion}`,
+      description: `Auto-created from calc run ${run.id} for config version ${run.configVersion}`,
+      baselineType: 'milestone',
+      periodStart,
+      periodEnd,
+      createdBy: SYSTEM_ACTOR_ID,
+      sourceRunId: run.id,
+      tags: ['automatic', 'calc-run'],
+    });
   }
 
   /**
@@ -240,35 +317,110 @@ export class BaselineService {
       .where(eq(fundBaselines.id, baselineId));
   }
 
+  private async getBaselineMetrics(
+    reader: {
+      query: {
+        fundMetrics: {
+          findFirst: typeof db.query.fundMetrics.findFirst;
+        };
+      };
+    },
+    fundId: number,
+    sourceRunId?: number
+  ) {
+    if (sourceRunId != null) {
+      const attributedMetrics = await reader.query.fundMetrics.findFirst({
+        where: and(eq(fundMetrics.fundId, fundId), eq(fundMetrics.runId, sourceRunId)),
+        orderBy: desc(fundMetrics.metricDate),
+      });
+
+      if (attributedMetrics) {
+        return attributedMetrics;
+      }
+    }
+
+    return await reader.query.fundMetrics.findFirst({
+      where: eq(fundMetrics.fundId, fundId),
+      orderBy: desc(fundMetrics.metricDate),
+    });
+  }
+
   /**
    * Get portfolio composition for baseline creation
    */
-  private async getPortfolioComposition(fundId: number) {
-    const companies = await db.query.portfolioCompanies.findMany({
+  private async getPortfolioComposition(
+    reader: {
+      query: {
+        portfolioCompanies: {
+          findMany: typeof db.query.portfolioCompanies.findMany;
+        };
+        investments?: {
+          findMany: typeof db.query.investments.findMany;
+        };
+      };
+    },
+    fundId: number
+  ) {
+    const companies = await reader.query.portfolioCompanies.findMany({
       where: eq(portfolioCompanies.fundId, fundId),
-      with: {
-        investments: true,
-      },
     });
 
-    const totalInvestments = companies.reduce((sum: Decimal, company) => {
-      const investments = Array.isArray(company.investments)
-        ? (company.investments as Array<{ amount: string | number }>)
-        : [];
+    const companiesWithInvestments = companies as Array<
+      (typeof companies)[number] & {
+        investments?: Array<{ amount: string | number }>;
+      }
+    >;
 
-      const companyInvestment = investments.reduce(
+    const companyIds = companiesWithInvestments.map((company) => company.id);
+    const shouldLookupInvestments =
+      companyIds.length > 0 &&
+      companiesWithInvestments.some((company) => !Array.isArray(company.investments));
+
+    const investmentLookup = new Map<number, Array<{ amount: string | number }>>();
+
+    if (shouldLookupInvestments && reader.query.investments) {
+      const companyInvestments = await reader.query.investments.findMany({
+        where: and(
+          eq(investments.fundId, fundId),
+          inArray(
+            investments.companyId,
+            companyIds.filter((companyId): companyId is number => typeof companyId === 'number')
+          )
+        ),
+      });
+
+      for (const investment of companyInvestments) {
+        const companyId = investment.companyId;
+        if (companyId == null) {
+          continue;
+        }
+
+        const existing = investmentLookup.get(companyId) ?? [];
+        existing.push({ amount: investment.amount });
+        investmentLookup.set(companyId, existing);
+      }
+    }
+
+    const totalInvestments = companiesWithInvestments.reduce((sum: Decimal, company) => {
+      const companyInvestments = Array.isArray(company.investments)
+        ? company.investments
+        : (investmentLookup.get(company.id) ?? []);
+
+      const normalizedInvestments = Array.isArray(companyInvestments) ? companyInvestments : [];
+
+      const companyInvestment = normalizedInvestments.reduce(
         (compSum: Decimal, inv) => compSum.plus(toDecimal(String(inv.amount))),
         new Decimal(0)
       );
       return sum.plus(companyInvestment);
     }, new Decimal(0));
 
-    const portfolioCount = companies.length;
+    const portfolioCount = companiesWithInvestments.length;
     const averageInvestment =
       portfolioCount > 0 ? totalInvestments.div(portfolioCount) : new Decimal(0);
 
     // Get sector distribution
-    const sectorCounts = companies.reduce(
+    const sectorCounts = companiesWithInvestments.reduce(
       (acc, company) => {
         acc[company.sector] = (acc[company.sector] || 0) + 1;
         return acc;
@@ -277,7 +429,7 @@ export class BaselineService {
     );
 
     // Get stage distribution
-    const stageCounts = companies.reduce(
+    const stageCounts = companiesWithInvestments.reduce(
       (acc, company) => {
         acc[company.stage] = (acc[company.stage] || 0) + 1;
         return acc;
@@ -286,7 +438,7 @@ export class BaselineService {
     );
 
     // Identify top performers (top 20% by current valuation)
-    const sortedCompanies = companies
+    const sortedCompanies = companiesWithInvestments
       .filter((c) => c.currentValuation)
       .sort((a, b) =>
         toDecimal(b.currentValuation!.toString()).comparedTo(
@@ -315,8 +467,17 @@ export class BaselineService {
   /**
    * Get reserve allocation snapshot
    */
-  private async getReserveSnapshot(fundId: number) {
-    const snapshot = await db.query.fundSnapshots.findFirst({
+  private async getReserveSnapshot(
+    reader: {
+      query: {
+        fundSnapshots: {
+          findFirst: typeof db.query.fundSnapshots.findFirst;
+        };
+      };
+    },
+    fundId: number
+  ) {
+    const snapshot = await reader.query.fundSnapshots.findFirst({
       where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
       orderBy: desc(fundSnapshots.createdAt),
     });
@@ -327,8 +488,17 @@ export class BaselineService {
   /**
    * Get pacing metrics snapshot
    */
-  private async getPacingSnapshot(fundId: number) {
-    const snapshot = await db.query.fundSnapshots.findFirst({
+  private async getPacingSnapshot(
+    reader: {
+      query: {
+        fundSnapshots: {
+          findFirst: typeof db.query.fundSnapshots.findFirst;
+        };
+      };
+    },
+    fundId: number
+  ) {
+    const snapshot = await reader.query.fundSnapshots.findFirst({
       where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
       orderBy: desc(fundSnapshots.createdAt),
     });
@@ -540,7 +710,9 @@ export class VarianceCalculationService {
    * historical top-line metrics with present-day portfolio state.
    */
   private canUseCurrentStatePortfolioAnalysis(asOfDate: Date, now = new Date()) {
-    return Math.abs(now.getTime() - asOfDate.getTime()) <= this.currentStatePortfolioAnalysisToleranceMs;
+    return (
+      Math.abs(now.getTime() - asOfDate.getTime()) <= this.currentStatePortfolioAnalysisToleranceMs
+    );
   }
 
   /**
@@ -1319,3 +1491,58 @@ export class VarianceTrackingService {
 
 // Export singleton instance
 export const varianceTrackingService = new VarianceTrackingService();
+
+/**
+ * Standalone helper to fetch fund-level KPIs attributed to a specific calc-run.
+ *
+ * Resolution order:
+ *  1. If runId is provided AND attributed metrics exist -> return them.
+ *  2. If runId is provided but no attributed metrics -> fall back to latest.
+ *  3. If runId is omitted -> return latest fundMetrics row.
+ *
+ * Returns null only when the fund has no metrics at all.
+ */
+export async function getAttributedKPIs(
+  fundId: number,
+  runId?: number
+): Promise<{
+  totalValue: string;
+  irr: string | null;
+  multiple: string | null;
+  dpi: string | null;
+  tvpi: string | null;
+} | null> {
+  if (runId != null) {
+    const attributed = await db.query.fundMetrics.findFirst({
+      where: and(eq(fundMetrics.fundId, fundId), eq(fundMetrics.runId, runId)),
+      orderBy: desc(fundMetrics.metricDate),
+    });
+
+    if (attributed) {
+      return {
+        totalValue: attributed.totalValue,
+        irr: attributed.irr,
+        multiple: attributed.multiple,
+        dpi: attributed.dpi,
+        tvpi: attributed.tvpi,
+      };
+    }
+  }
+
+  const latest = await db.query.fundMetrics.findFirst({
+    where: eq(fundMetrics.fundId, fundId),
+    orderBy: desc(fundMetrics.metricDate),
+  });
+
+  if (!latest) {
+    return null;
+  }
+
+  return {
+    totalValue: latest.totalValue,
+    irr: latest.irr,
+    multiple: latest.multiple,
+    dpi: latest.dpi,
+    tvpi: latest.tvpi,
+  };
+}
