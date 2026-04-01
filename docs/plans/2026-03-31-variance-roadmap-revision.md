@@ -6,7 +6,8 @@ depends_on:
   - docs/plans/2026-03-27-secondary-surface-decisions.md
 validated_by:
   - npm run baseline:check
-  - npx vitest run tests/unit/api/variance-tracking-api.test.ts tests/unit/services/variance-tracking.test.ts
+  - npx vitest run tests/unit/api/variance-tracking-api.test.ts
+    tests/unit/services/variance-tracking.test.ts
 ---
 
 # Revised Production Order: Variance, Baselines, Alerts, Scenario Consolidation, Time Machine, And Analytics
@@ -42,26 +43,35 @@ Still open in this bucket:
 
 ### Still-Valid Hard Findings
 
-1. `Phase 0` blocks automation, not all cleanup.
-   Baseline automation and automatic alert evaluation still depend on an
-   authoritative metrics-source decision.
-2. `Phase 1A.1a` must include `POST /variance-reports` repair.
-   The write path still does not safely resolve a default baseline and still
-   returns a raw row shape.
-3. `Phase 1C.1` must happen before any scheduler work.
-   Scheduling `performCompleteVarianceAnalysis()` as-is would create ad hoc
-   reports and duplicateable alerts, not just evaluate alert rules.
-4. `Phase 0.5` is a Time Machine prerequisite only.
-   The snapshot ADR should not block variance and baseline work.
+1. `Phase 0` blocks automation, not all cleanup. Baseline automation and
+   automatic alert evaluation still depend on an authoritative metrics-source
+   decision.
+2. `Phase 1A.1a` must include `POST /variance-reports` repair. The write path
+   still does not safely resolve a default baseline and still returns a raw row
+   shape.
+3. `Phase 1C.1` must happen before any scheduler work. Scheduling
+   `performCompleteVarianceAnalysis()` as-is would create ad hoc reports and
+   duplicateable alerts, not just evaluate alert rules.
+4. `Phase 0.5` is a Time Machine prerequisite only. The snapshot ADR should not
+   block variance and baseline work.
 
 ## Phase 0: Foundation Decisions
 
-Hard blockers for automation only, `3-5 days`.
+Hard blockers for automation only. The service/schema slice is still roughly
+`3-5 days`, but production hardening may extend beyond that once migration and
+retry semantics are included.
 
-### `0.1a` Authoritative Metrics Source
+### `0.1a` Fund-Level KPI Attribution
 
-Decide whether the calc path will persist `fund_metrics`, or whether
-baseline/report generation will move to the unified metrics layer.
+Keep fund-level KPIs in `fund_metrics`, but add calc-run attribution there via
+`runId`, `configId`, and `configVersion`. Thread those fields through the actual
+`fundMetrics` writer path instead of deferring attribution to a later step.
+
+Sandbox validation correction:
+
+- there is no existing calc-run-owned `fund_metrics` write path in the current
+  repo, so Phase `0.1a` must include a new persistence step rather than only
+  type or schema changes
 
 This blocks:
 
@@ -70,16 +80,50 @@ This blocks:
 
 ### `0.1b` Post-Calc Trigger Point
 
-Use calc-run completion, not dispatch state.
+Use calc-run completion, not dispatch state, and fire downstream work only on
+the actual `completedAt NULL -> value` transition.
 
 ### `0.2` Baseline Idempotency
 
-Ensure only one initial baseline can be created per publish/completion
-lifecycle.
+Key automation idempotency to calc-run identity with
+`fund_baselines.sourceRunId` and enforce one active default baseline per fund
+with a partial unique index.
 
 ### `0.3` System Actor Strategy
 
-Define how automation paths populate `createdBy` when no user context exists.
+Seed and reserve a positive system user ID so automation paths can populate
+`createdBy` without violating `positiveInt()` validation.
+
+Sandbox validation correction:
+
+- the current feasibility implementation uses the bootstrap positive user slot
+  for automation wiring; production rollout still needs a dedicated seeded
+  system user before treating the actor ID as truly reserved
+
+### Phase 0 Approval Gate
+
+Must fix before approval:
+
+- unify the migration path so the authoritative schema, `db:push`, and
+  testcontainer/integration migrations all use the same migration stream
+- persist fund-level KPI attribution from calc-run-owned or otherwise immutable
+  calc context; do not label a later recomputation from mutable current fund
+  state as belonging to the completed run
+- make post-completion automation retryable after `completedAt` is set; a single
+  downstream failure must not leave the run permanently "complete but missing
+  baseline/metrics"
+- ensure baseline uniqueness is atomic and either make baseline source reads
+  transaction-scoped as well or narrow the design claim to uniqueness-only
+  atomicity
+- add at least one migrated-Postgres integration test that proves repeated
+  completion calls produce one attributed metrics lineage and one automated
+  baseline for the same calc run
+
+Can defer until after Phase 0 approval:
+
+- broader system-actor hardening beyond reserved ID/username invariants
+- wording and estimation cleanup in follow-on roadmap sections
+- additional unit-test expansion beyond the required integration proof
 
 ## Phase 1A.1: Variance Reporting
 
@@ -190,8 +234,8 @@ Work:
 
 Estimate: `1-2 days`
 
-Snapshot schema alignment remains a Time Machine prerequisite only.
-It does not block variance work.
+Snapshot schema alignment remains a Time Machine prerequisite only. It does not
+block variance work.
 
 ## Phase 3: Time Machine MVP
 
@@ -240,12 +284,12 @@ Scope after Phases `0-4`.
 
 1. Do not let the metrics-source decision block independent UI and contract
    cleanup.
-2. Do not treat variance reporting as one bucket.
-   It is write contract first, then reads/UI, then portfolio-model completion.
+2. Do not treat variance reporting as one bucket. It is write contract first,
+   then reads/UI, then portfolio-model completion.
 3. Do not schedule alert evaluation until the architecture prevents unwanted
    report creation and duplicate alerts.
-4. Do not let the snapshot ADR sit on the variance critical path.
-   It blocks Time Machine only.
+4. Do not let the snapshot ADR sit on the variance critical path. It blocks Time
+   Machine only.
 
 ## Exit Criteria By Near-Term Slice
 

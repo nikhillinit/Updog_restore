@@ -181,6 +181,30 @@ describe('Variance Tracking Database Schema', () => {
       ).rejects.toThrow();
     });
 
+    it('should enforce unique automated baseline per fund calc run', async () => {
+      await db.execute(`
+        INSERT INTO fund_baselines (
+          fund_id, name, baseline_type, period_start, period_end,
+          snapshot_date, total_value, deployed_capital, portfolio_count,
+          created_by, source_run_id
+        ) VALUES (1, 'Run Baseline 1', 'milestone', '2024-10-01T00:00:00Z',
+                  '2024-12-31T23:59:59Z', '2024-12-31T23:59:59Z', '1000000.00',
+                  '800000.00', 10, 1, 42)
+      `);
+
+      await expect(
+        db.execute(`
+          INSERT INTO fund_baselines (
+            fund_id, name, baseline_type, period_start, period_end,
+            snapshot_date, total_value, deployed_capital, portfolio_count,
+            created_by, source_run_id
+          ) VALUES (1, 'Run Baseline 2', 'milestone', '2024-10-01T00:00:00Z',
+                    '2024-12-31T23:59:59Z', '2024-12-31T23:59:59Z', '1200000.00',
+                    '900000.00', 12, 1, 42)
+        `)
+      ).rejects.toThrow();
+    });
+
     it('should validate confidence bounds (0.00 to 1.00)', async () => {
       // Database mock now enforces CHECK constraints including confidence bounds
       // Test invalid confidence > 1.00
@@ -833,7 +857,7 @@ describe('Variance Tracking Database Schema', () => {
         SELECT indexname, tablename, indexdef
         FROM pg_indexes
         WHERE schemaname = 'public'
-        AND tablename IN ('fund_baselines', 'variance_reports', 'performance_alerts', 'alert_rules')
+        AND tablename IN ('fund_baselines', 'fund_metrics', 'variance_reports', 'performance_alerts', 'alert_rules')
         ORDER BY tablename, indexname
       `);
 
@@ -842,6 +866,8 @@ describe('Variance Tracking Database Schema', () => {
 
       expect(indexNames).toContain('fund_baselines_fund_idx');
       expect(indexNames).toContain('fund_baselines_default_unique');
+      expect(indexNames).toContain('fund_baselines_source_run_unique');
+      expect(indexNames).toContain('fund_metrics_run_unique');
       expect(indexNames).toContain('variance_reports_fund_idx');
       expect(indexNames).toContain('variance_reports_baseline_idx');
       expect(indexNames).toContain('performance_alerts_fund_idx');

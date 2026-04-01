@@ -4,8 +4,12 @@ import { createServer, type Server } from 'http';
 import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
+import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Wire calc-run completion automation (baseline creation, metrics attribution)
+  registerCompletionHandlers();
+
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());
 

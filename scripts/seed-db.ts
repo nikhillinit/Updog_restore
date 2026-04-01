@@ -117,6 +117,7 @@ export async function seedDatabase() {
       {
         fundId: fund.id,
         metricDate: new Date('2023-12-31'),
+        asOfDate: new Date('2023-12-31'),
         totalValue: '48000000',
         irr: '0.284',
         multiple: '1.42',
@@ -126,6 +127,7 @@ export async function seedDatabase() {
       {
         fundId: fund.id,
         metricDate: new Date('2024-06-30'),
+        asOfDate: new Date('2024-06-30'),
         totalValue: '52000000',
         irr: '0.295',
         multiple: '1.54',

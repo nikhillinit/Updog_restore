@@ -139,6 +139,7 @@ export const BaselineResponseSchema = z.object({
   version: z.string(),
   parentBaselineId: uuidSchema.nullable(),
   sourceSnapshotId: uuidSchema.nullable(),
+  sourceRunId: positiveInt().nullable(),
   createdBy: positiveInt(),
   approvedBy: positiveInt().nullable(),
   tags: z.array(z.string()),

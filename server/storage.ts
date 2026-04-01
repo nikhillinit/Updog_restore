@@ -20,10 +20,7 @@ import {
 } from '../schema/src/index.js';
 import { db } from './db';
 import { eq, sql } from 'drizzle-orm';
-import {
-  getStorageConfigurationError,
-  resolveStorageBootMode,
-} from './storage-runtime-policy';
+import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -276,11 +273,15 @@ export class MemStorage implements IStorage {
       id: 1,
       fundId: 1,
       metricDate: new Date(),
+      asOfDate: new Date(),
       totalValue: '150000000',
       irr: '0.284',
       multiple: '2.22',
       dpi: '0.45',
       tvpi: '2.22',
+      runId: null,
+      configId: null,
+      configVersion: null,
       createdAt: new Date(),
     };
     this.fundMetrics.set(1, sampleMetrics);
@@ -415,6 +416,9 @@ export class MemStorage implements IStorage {
       multiple: null, // Optional field
       dpi: null, // Optional field
       tvpi: null, // Optional field
+      runId: null, // Optional field
+      configId: null, // Optional field
+      configVersion: null, // Optional field
     };
     this.fundMetrics.set(id, metrics);
     return metrics;
@@ -603,9 +607,7 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export function createStorageFromEnvironment(
-  env: NodeJS.ProcessEnv = process.env
-): IStorage {
+export function createStorageFromEnvironment(env: NodeJS.ProcessEnv = process.env): IStorage {
   const mode = resolveStorageBootMode(env);
   if (mode === 'database') {
     return new DatabaseStorage();

@@ -31,7 +31,7 @@ export * from './schema/portfolio';
 export * from './schema/scenario';
 
 // Import tables for FK references and schema definitions
-import { funds, fundConfigs, fundSnapshots } from './schema/fund';
+import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
 import { portfolioCompanies, investments } from './schema/portfolio';
 import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
 
@@ -227,18 +227,38 @@ export const reserveAllocations = pgTable(
 export type ReserveAllocation = typeof reserveAllocations.$inferSelect;
 export type InsertReserveAllocation = typeof reserveAllocations.$inferInsert;
 
-export const fundMetrics = pgTable('fund_metrics', {
-  id: serial('id').primaryKey(),
-  fundId: integer('fund_id').references(() => funds.id),
-  metricDate: timestamp('metric_date').notNull(),
-  asOfDate: timestamp('as_of_date').notNull(),
-  totalValue: decimal('totalvalue', { precision: 15, scale: 2 }).notNull(),
-  irr: decimal('irr', { precision: 5, scale: 4 }),
-  multiple: decimal('multiple', { precision: 5, scale: 2 }),
-  dpi: decimal('dpi', { precision: 5, scale: 2 }),
-  tvpi: decimal('tvpi', { precision: 5, scale: 2 }),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const fundMetrics = pgTable(
+  'fund_metrics',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').references(() => funds.id),
+    metricDate: timestamp('metric_date').notNull(),
+    asOfDate: timestamp('as_of_date').notNull(),
+    totalValue: decimal('totalvalue', { precision: 15, scale: 2 }).notNull(),
+    irr: decimal('irr', { precision: 5, scale: 4 }),
+    multiple: decimal('multiple', { precision: 5, scale: 2 }),
+    dpi: decimal('dpi', { precision: 5, scale: 2 }),
+    tvpi: decimal('tvpi', { precision: 5, scale: 2 }),
+    runId: integer('run_id').references(() => calcRuns.id),
+    configId: integer('config_id').references(() => fundConfigs.id),
+    configVersion: integer('config_version'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    fundMetricDateIdx: index('fund_metrics_fund_metric_date_idx').on(
+      table.fundId,
+      table.metricDate.desc()
+    ),
+    runLookupIdx: index('fund_metrics_run_lookup_idx').on(
+      table.fundId,
+      table.runId,
+      table.metricDate.desc()
+    ),
+    runUniqueIdx: uniqueIndex('fund_metrics_run_unique')
+      .on(table.fundId, table.runId)
+      .where(sql`${table.runId} IS NOT NULL`),
+  })
+);
 
 // Fund Distributions - Cash distributions to LPs for IRR/DPI calculations
 export const fundDistributions = pgTable('fund_distributions', {
@@ -987,6 +1007,7 @@ export const fundBaselines = pgTable(
     version: text('version').notNull().default('1.0.0'),
     parentBaselineId: uuid('parent_baseline_id'),
     sourceSnapshotId: uuid('source_snapshot_id').references(() => fundStateSnapshots.id),
+    sourceRunId: integer('source_run_id').references(() => calcRuns.id),
 
     // User context
     createdBy: integer('created_by')
@@ -1007,6 +1028,12 @@ export const fundBaselines = pgTable(
       table.isDefault,
       table.isActive
     ),
+    defaultUniqueIdx: uniqueIndex('fund_baselines_default_unique')
+      .on(table.fundId)
+      .where(sql`${table.isDefault} = true AND ${table.isActive} = true`),
+    sourceRunUniqueIdx: uniqueIndex('fund_baselines_source_run_unique')
+      .on(table.fundId, table.sourceRunId)
+      .where(sql`${table.sourceRunId} IS NOT NULL`),
     snapshotIdx: index('fund_baselines_snapshot_idx').on(table.sourceSnapshotId),
     tagsGinIdx: index('fund_baselines_tags_gin_idx').using('gin', table.tags),
   })
