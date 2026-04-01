@@ -96,6 +96,25 @@ function ensureOrderedPeriod(start: Date, end: Date): Date {
   return new Date(start.getTime() + 1000);
 }
 
+function sumInvestmentAmounts(investmentRows: unknown): Decimal {
+  if (!Array.isArray(investmentRows)) {
+    return new Decimal(0);
+  }
+
+  return investmentRows.reduce<Decimal>((sum, investmentRow) => {
+    if (!investmentRow || typeof investmentRow !== 'object') {
+      return sum;
+    }
+
+    const amount = (investmentRow as Record<string, unknown>)['amount'];
+    if (amount == null) {
+      return sum;
+    }
+
+    return sum.plus(toDecimal(String(amount)));
+  }, new Decimal(0));
+}
+
 /**
  * Baseline creation and management
  */
@@ -177,6 +196,7 @@ export class BaselineService {
           portfolioCount: portfolioData.portfolioCount,
           averageInvestment: portfolioData.averageInvestment,
           topPerformers: portfolioData.topPerformers,
+          companySnapshots: portfolioData.companySnapshots,
           sectorDistribution: portfolioData.sectorDistribution,
           stageDistribution: portfolioData.stageDistribution,
           reserveAllocation: reserveData,
@@ -401,6 +421,8 @@ export class BaselineService {
       }
     }
 
+    const companyInvestedCapital = new Map<number, Decimal>();
+
     const totalInvestments = companiesWithInvestments.reduce((sum: Decimal, company) => {
       const companyInvestments = Array.isArray(company.investments)
         ? company.investments
@@ -412,6 +434,7 @@ export class BaselineService {
         (compSum: Decimal, inv) => compSum.plus(toDecimal(String(inv.amount))),
         new Decimal(0)
       );
+      companyInvestedCapital.set(company.id, companyInvestment);
       return sum.plus(companyInvestment);
     }, new Decimal(0));
 
@@ -454,11 +477,23 @@ export class BaselineService {
       currentValuation: c.currentValuation,
     }));
 
+    const companySnapshots = companiesWithInvestments.map((company) => ({
+      portfolioCompanyId: company.id,
+      companyId: company.id,
+      companyName: company.name,
+      sector: company.sector || '',
+      stage: company.stage ?? null,
+      status: company.status ?? null,
+      investedCapital: (companyInvestedCapital.get(company.id) ?? new Decimal(0)).toString(),
+      currentValuation: company.currentValuation == null ? null : String(company.currentValuation),
+    }));
+
     return {
       deployedCapital: totalInvestments.toString(),
       portfolioCount,
       averageInvestment: averageInvestment.toString(),
       topPerformers,
+      companySnapshots,
       sectorDistribution: sectorCounts,
       stageDistribution: stageCounts,
     };
@@ -1050,15 +1085,122 @@ export class VarianceCalculationService {
     };
   }
 
-  private async analyzeCompanyVariances(fundId: number, baseline: FundBaseline, _asOfDate: Date) {
-    // Extract top performers from baseline JSONB (handles both array and { companies: [...] } shapes)
+  private getCompanyVarianceRiskLevel(
+    changePct: Decimal | null
+  ): 'low' | 'medium' | 'high' | 'critical' {
+    if (changePct === null) {
+      return 'medium';
+    }
+
+    const magnitude = changePct.abs();
+    if (magnitude.gte(0.5)) {
+      return 'critical';
+    }
+    if (magnitude.gte(0.25)) {
+      return 'high';
+    }
+    if (magnitude.gte(0.1)) {
+      return 'medium';
+    }
+
+    return 'low';
+  }
+
+  private extractBaselineCompanySnapshots(baseline: FundBaseline): {
+    source: 'full_snapshot' | 'legacy_top_performers' | 'none';
+    companies: Array<{
+      portfolioCompanyId: number;
+      companyId: number;
+      name: string;
+      sector: string;
+      stage: string | null;
+      status: string | null;
+      currentValuation: Decimal | null;
+      investedCapital: Decimal | null;
+    }>;
+  } {
+    const rawCompanySnapshots = (
+      baseline as FundBaseline & {
+        companySnapshots?: unknown;
+      }
+    ).companySnapshots;
+
+    if (Array.isArray(rawCompanySnapshots)) {
+      const companies = rawCompanySnapshots
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') {
+            return null;
+          }
+
+          const record = entry as Record<string, unknown>;
+          const rawPortfolioCompanyId =
+            record['portfolioCompanyId'] ?? record['companyId'] ?? record['id'];
+          const portfolioCompanyId =
+            typeof rawPortfolioCompanyId === 'number'
+              ? rawPortfolioCompanyId
+              : Number(rawPortfolioCompanyId);
+          if (!Number.isInteger(portfolioCompanyId) || portfolioCompanyId <= 0) {
+            return null;
+          }
+
+          const rawValuation = record['currentValuation'] ?? record['valuation'];
+          const rawInvestedCapital = record['investedCapital'];
+
+          return {
+            portfolioCompanyId,
+            companyId: portfolioCompanyId,
+            name:
+              typeof record['companyName'] === 'string'
+                ? record['companyName']
+                : typeof record['name'] === 'string'
+                  ? record['name']
+                  : '',
+            sector: typeof record['sector'] === 'string' ? record['sector'] : '',
+            stage: typeof record['stage'] === 'string' ? record['stage'] : null,
+            status: typeof record['status'] === 'string' ? record['status'] : null,
+            currentValuation:
+              rawValuation === null || rawValuation === undefined
+                ? null
+                : toDecimal(String(rawValuation)),
+            investedCapital:
+              rawInvestedCapital === null || rawInvestedCapital === undefined
+                ? null
+                : toDecimal(String(rawInvestedCapital)),
+          };
+        })
+        .filter(
+          (
+            company
+          ): company is {
+            portfolioCompanyId: number;
+            companyId: number;
+            name: string;
+            sector: string;
+            stage: string | null;
+            status: string | null;
+            currentValuation: Decimal | null;
+            investedCapital: Decimal | null;
+          } => company !== null
+        );
+
+      if (companies.length > 0) {
+        return {
+          source: 'full_snapshot',
+          companies,
+        };
+      }
+    }
+
     const rawPerformers = baseline.topPerformers as unknown;
     let baselineCompanies: Array<{
       id: number;
       name?: string;
       sector?: string;
+      stage?: string | null;
+      status?: string | null;
       currentValuation?: string | number | null;
       valuation?: number | null;
+      investedCapital?: string | number | null;
     }> = [];
 
     if (Array.isArray(rawPerformers)) {
@@ -1074,18 +1216,66 @@ export class VarianceCalculationService {
     }
 
     if (baselineCompanies.length === 0) {
+      return {
+        source: 'none',
+        companies: [],
+      };
+    }
+
+    return {
+      source: 'legacy_top_performers',
+      companies: baselineCompanies
+        .map((company) => {
+          const rawValuation = company.currentValuation ?? company.valuation;
+          return {
+            portfolioCompanyId: company.id,
+            companyId: company.id,
+            name: company.name ?? '',
+            sector: company.sector ?? '',
+            stage: company.stage ?? null,
+            status: company.status ?? null,
+            currentValuation:
+              rawValuation === null || rawValuation === undefined
+                ? null
+                : toDecimal(String(rawValuation)),
+            investedCapital:
+              company.investedCapital === null || company.investedCapital === undefined
+                ? null
+                : toDecimal(String(company.investedCapital)),
+          };
+        })
+        .filter((company) => company.portfolioCompanyId > 0),
+    };
+  }
+
+  private async analyzeCompanyVariances(fundId: number, baseline: FundBaseline, _asOfDate: Date) {
+    const { source, companies: baselineCompanies } = this.extractBaselineCompanySnapshots(baseline);
+    if (baselineCompanies.length === 0) {
       return [];
     }
 
-    // Build lookup keyed by company id
-    const baselineMap = new Map<number, { name: string; sector: string; valuation: Decimal }>();
-    for (const bc of baselineCompanies) {
-      const rawVal = bc.currentValuation ?? bc.valuation;
-      if (rawVal == null) continue;
-      baselineMap.set(bc.id, {
-        name: bc.name ?? '',
-        sector: bc.sector ?? '',
-        valuation: toDecimal(String(rawVal)),
+    const baselineMap = new Map<
+      number,
+      {
+        companyId: number;
+        name: string;
+        sector: string;
+        stage: string | null;
+        status: string | null;
+        valuation: Decimal | null;
+        investedCapital: Decimal | null;
+      }
+    >();
+
+    for (const baselineCompany of baselineCompanies) {
+      baselineMap.set(baselineCompany.portfolioCompanyId, {
+        companyId: baselineCompany.companyId,
+        name: baselineCompany.name,
+        sector: baselineCompany.sector,
+        stage: baselineCompany.stage,
+        status: baselineCompany.status,
+        valuation: baselineCompany.currentValuation,
+        investedCapital: baselineCompany.investedCapital,
       });
     }
 
@@ -1097,21 +1287,45 @@ export class VarianceCalculationService {
     const companies =
       (await db.query.portfolioCompanies.findMany({
         where: eq(portfolioCompanies.fundId, fundId),
+        with: {
+          investments: true,
+        },
       })) ?? [];
 
-    const variances: Array<{
-      companyId: number;
-      companyName: string;
-      sector: string;
-      valuationChange: string;
-      valuationChangePct: string;
-    }> = [];
+    const variances: Array<Record<string, string | number | null>> = [];
+    const matchedCompanyIds = new Set<number>();
 
     for (const company of companies) {
       const baselineEntry = baselineMap.get(company.id);
-      if (!baselineEntry) continue;
-      if (company.currentValuation == null) continue;
+      const currentInvestedCapital = sumInvestmentAmounts(company.investments);
+      if (!baselineEntry) {
+        if (source !== 'full_snapshot' || company.currentValuation == null) {
+          continue;
+        }
 
+        const currentVal = toDecimal(String(company.currentValuation));
+        variances.push({
+          companyId: company.id,
+          companyName: company.name,
+          sector: company.sector,
+          stage: company.stage,
+          status: company.status ?? null,
+          changeType: 'added',
+          baselineValuation: null,
+          currentValuation: currentVal.toString(),
+          baselineInvestedCapital: null,
+          currentInvestedCapital: currentInvestedCapital.toString(),
+          valuationChange: currentVal.toString(),
+          valuationChangePct: null,
+          valuationVariance: currentVal.toString(),
+          valuationVariancePct: null,
+          riskLevel: this.getCompanyVarianceRiskLevel(null),
+        });
+        continue;
+      }
+      if (company.currentValuation == null || baselineEntry.valuation == null) continue;
+
+      matchedCompanyIds.add(company.id);
       const currentVal = toDecimal(String(company.currentValuation));
       const baseVal = baselineEntry.valuation;
 
@@ -1124,9 +1338,49 @@ export class VarianceCalculationService {
         companyId: company.id,
         companyName: company.name,
         sector: company.sector,
+        stage: company.stage,
+        status: company.status ?? null,
+        changeType: 'matched',
+        baselineValuation: baseVal.toString(),
+        currentValuation: currentVal.toString(),
+        baselineInvestedCapital: baselineEntry.investedCapital?.toString() ?? null,
+        currentInvestedCapital: currentInvestedCapital.toString(),
         valuationChange: change.toString(),
         valuationChangePct: changePct.toString(),
+        valuationVariance: change.toString(),
+        valuationVariancePct: changePct.toString(),
+        riskLevel: this.getCompanyVarianceRiskLevel(changePct),
       });
+    }
+
+    if (source === 'full_snapshot') {
+      for (const [companyId, baselineEntry] of baselineMap.entries()) {
+        if (matchedCompanyIds.has(companyId) || baselineEntry.valuation == null) {
+          continue;
+        }
+
+        const baseVal = baselineEntry.valuation;
+        const change = baseVal.negated();
+        const changePct = baseVal.isZero() ? null : new Decimal(-1);
+
+        variances.push({
+          companyId,
+          companyName: baselineEntry.name,
+          sector: baselineEntry.sector,
+          stage: baselineEntry.stage,
+          status: baselineEntry.status,
+          changeType: 'removed',
+          baselineValuation: baseVal.toString(),
+          currentValuation: null,
+          baselineInvestedCapital: baselineEntry.investedCapital?.toString() ?? null,
+          currentInvestedCapital: null,
+          valuationChange: change.toString(),
+          valuationChangePct: changePct?.toString() ?? null,
+          valuationVariance: change.toString(),
+          valuationVariancePct: changePct?.toString() ?? null,
+          riskLevel: this.getCompanyVarianceRiskLevel(changePct),
+        });
+      }
     }
 
     return variances;
@@ -1153,14 +1407,38 @@ export class VarianceCalculationService {
   private analyzeSectorVariances(
     current: Record<string, number>,
     baseline: Record<string, number>
-  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+  ): Record<
+    string,
+    {
+      current: number;
+      baseline: number;
+      delta: number;
+      deltaPct: number | null;
+      currentCountShare: number;
+      baselineCountShare: number;
+      countShareDelta: number;
+      countShareDeltaPct: number | null;
+    }
+  > {
     return this.analyzeDistributionVariances(current, baseline);
   }
 
   private analyzeStageVariances(
     current: Record<string, number>,
     baseline: Record<string, number>
-  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+  ): Record<
+    string,
+    {
+      current: number;
+      baseline: number;
+      delta: number;
+      deltaPct: number | null;
+      currentCountShare: number;
+      baselineCountShare: number;
+      countShareDelta: number;
+      countShareDeltaPct: number | null;
+    }
+  > {
     return this.analyzeDistributionVariances(current, baseline);
   }
 
@@ -1168,11 +1446,34 @@ export class VarianceCalculationService {
   private analyzeDistributionVariances(
     current: Record<string, number>,
     baseline: Record<string, number>
-  ): Record<string, { current: number; baseline: number; delta: number; deltaPct: number | null }> {
+  ): Record<
+    string,
+    {
+      current: number;
+      baseline: number;
+      delta: number;
+      deltaPct: number | null;
+      currentCountShare: number;
+      baselineCountShare: number;
+      countShareDelta: number;
+      countShareDeltaPct: number | null;
+    }
+  > {
     const allKeys = new Set([...Object.keys(current), ...Object.keys(baseline)]);
+    const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
+    const baselineTotal = Object.values(baseline).reduce((sum, value) => sum + value, 0);
     const result: Record<
       string,
-      { current: number; baseline: number; delta: number; deltaPct: number | null }
+      {
+        current: number;
+        baseline: number;
+        delta: number;
+        deltaPct: number | null;
+        currentCountShare: number;
+        baselineCountShare: number;
+        countShareDelta: number;
+        countShareDeltaPct: number | null;
+      }
     > = {};
 
     for (const key of allKeys) {
@@ -1180,10 +1481,80 @@ export class VarianceCalculationService {
       const base = baseline[key] ?? 0;
       const delta = cur - base;
       const deltaPct = base !== 0 ? delta / base : null;
-      result[key] = { current: cur, baseline: base, delta, deltaPct };
+      const currentCountShare = currentTotal > 0 ? cur / currentTotal : 0;
+      const baselineCountShare = baselineTotal > 0 ? base / baselineTotal : 0;
+      const countShareDelta = currentCountShare - baselineCountShare;
+      const countShareDeltaPct =
+        baselineCountShare !== 0 ? countShareDelta / baselineCountShare : null;
+
+      result[key] = {
+        current: cur,
+        baseline: base,
+        delta,
+        deltaPct,
+        currentCountShare,
+        baselineCountShare,
+        countShareDelta,
+        countShareDeltaPct,
+      };
     }
 
     return result;
+  }
+
+  private coerceFiniteNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  }
+
+  private buildStructuredMetricChanges(
+    currentValues: Record<string, unknown>,
+    baselineValues: Record<string, unknown>
+  ) {
+    const metricDeltas: Record<
+      string,
+      {
+        current: number;
+        baseline: number;
+        delta: number;
+        deltaPct: number | null;
+      }
+    > = {};
+    const changes: Record<string, { current: unknown; baseline: unknown }> = {};
+    const allKeys = new Set([...Object.keys(currentValues), ...Object.keys(baselineValues)]);
+
+    for (const key of allKeys) {
+      const cur = currentValues[key];
+      const base = baselineValues[key];
+      if (isDeepStrictEqual(cur, base)) {
+        continue;
+      }
+
+      const curNumber = this.coerceFiniteNumber(cur);
+      const baseNumber = this.coerceFiniteNumber(base);
+      if (curNumber !== null && baseNumber !== null) {
+        const delta = curNumber - baseNumber;
+        metricDeltas[key] = {
+          current: curNumber,
+          baseline: baseNumber,
+          delta,
+          deltaPct: baseNumber !== 0 ? delta / baseNumber : null,
+        };
+        continue;
+      }
+
+      changes[key] = { current: cur ?? null, baseline: base ?? null };
+    }
+
+    return { metricDeltas, changes };
   }
 
   private async calculateReserveVariances(fundId: number, baseline: FundBaseline) {
@@ -1193,20 +1564,21 @@ export class VarianceCalculationService {
     const hasData =
       Object.keys(currentReserves).length > 0 && Object.keys(baselineReserves).length > 0;
     if (!hasData) {
-      return { hasData: false, currentReserves: {}, baselineReserves: {}, changes: {} };
+      return {
+        hasData: false,
+        currentReserves: {},
+        baselineReserves: {},
+        metricDeltas: {},
+        changes: {},
+      };
     }
 
-    const changes: Record<string, unknown> = {};
-    const allKeys = new Set([...Object.keys(currentReserves), ...Object.keys(baselineReserves)]);
-    for (const key of allKeys) {
-      const cur = currentReserves[key];
-      const base = baselineReserves[key];
-      if (!isDeepStrictEqual(cur, base)) {
-        changes[key] = { current: cur ?? null, baseline: base ?? null };
-      }
-    }
+    const { metricDeltas, changes } = this.buildStructuredMetricChanges(
+      currentReserves,
+      baselineReserves
+    );
 
-    return { hasData: true, currentReserves, baselineReserves, changes };
+    return { hasData: true, currentReserves, baselineReserves, metricDeltas, changes };
   }
 
   private async calculatePacingVariances(fundId: number, baseline: FundBaseline) {
@@ -1215,20 +1587,21 @@ export class VarianceCalculationService {
 
     const hasData = Object.keys(currentPacing).length > 0 && Object.keys(baselinePacing).length > 0;
     if (!hasData) {
-      return { hasData: false, currentPacing: {}, baselinePacing: {}, changes: {} };
+      return {
+        hasData: false,
+        currentPacing: {},
+        baselinePacing: {},
+        metricDeltas: {},
+        changes: {},
+      };
     }
 
-    const changes: Record<string, unknown> = {};
-    const allKeys = new Set([...Object.keys(currentPacing), ...Object.keys(baselinePacing)]);
-    for (const key of allKeys) {
-      const cur = currentPacing[key];
-      const base = baselinePacing[key];
-      if (!isDeepStrictEqual(cur, base)) {
-        changes[key] = { current: cur ?? null, baseline: base ?? null };
-      }
-    }
+    const { metricDeltas, changes } = this.buildStructuredMetricChanges(
+      currentPacing,
+      baselinePacing
+    );
 
-    return { hasData: true, currentPacing, baselinePacing, changes };
+    return { hasData: true, currentPacing, baselinePacing, metricDeltas, changes };
   }
 }
 

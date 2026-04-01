@@ -7,40 +7,26 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { toNumber, NumberParseError } from '@shared/number';
-import { positiveInt } from '@shared/schema-helpers';
 import type { VarianceReport as DbVarianceReport } from '@shared/schema';
 import type { ApiError } from '@shared/types';
+import {
+  AlertActionRequestSchema,
+  CreateAlertRuleRequestSchema,
+  CreateBaselineRequestSchema,
+  CreateVarianceReportRequestSchema,
+  GetAlertsQuerySchema,
+  GetBaselinesQuerySchema,
+  VarianceAnalysisRequestSchema,
+  type ClientAlertResponse,
+  type VarianceDashboardResponse as VarianceDashboardRouteResponse,
+  type VarianceReportClientResponse,
+} from '@shared/variance-validation';
 import { firstString } from '../lib/request-values';
 
 // === RESPONSE SHAPE MAPPER ===
-
-/** Shape the client expects from useVarianceData.ts */
-interface ClientVarianceReport {
-  id: string;
-  fundId: number;
-  baselineId: string;
-  reportName: string;
-  reportType: 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered';
-  reportPeriod?: 'monthly' | 'quarterly' | 'annual';
-  asOfDate: string;
-  generatedBy?: number;
-  generatedAt: string;
-  summary: {
-    totalVariances: number;
-    significantVariances: number;
-    criticalVariances: number;
-  };
-  variances: Array<{ metric: string; value: string | null; pct: string | null }>;
-  portfolioVariances?: Record<string, unknown>;
-  sectorVariances?: Record<string, unknown>;
-  stageVariances?: Record<string, unknown>;
-  reserveVariances?: Record<string, unknown>;
-  pacingVariances?: Record<string, unknown>;
-}
 
 /** Variance columns we inspect for the summary + variances array */
 const VARIANCE_COLS = [
@@ -55,9 +41,9 @@ const VARIANCE_COLS = [
  * Transform a raw DB variance report row into the shape the client expects.
  * Handles null/undefined fields gracefully.
  */
-function toClientReport(row: DbVarianceReport): ClientVarianceReport {
+function toClientReport(row: DbVarianceReport): VarianceReportClientResponse {
   // Build the per-metric variances array, only including non-null entries
-  const variances: ClientVarianceReport['variances'] = [];
+  const variances: VarianceReportClientResponse['variances'] = [];
   let totalVariances = 0;
 
   for (const col of VARIANCE_COLS) {
@@ -88,9 +74,11 @@ function toClientReport(row: DbVarianceReport): ClientVarianceReport {
     fundId: row['fundId'],
     baselineId: row['baselineId'],
     reportName: row['reportName'],
-    reportType: row['reportType'] as ClientVarianceReport['reportType'],
+    reportType: row['reportType'] as VarianceReportClientResponse['reportType'],
     ...(row['reportPeriod'] != null && {
-      reportPeriod: row['reportPeriod'] as NonNullable<ClientVarianceReport['reportPeriod']>,
+      reportPeriod: row['reportPeriod'] as NonNullable<
+        VarianceReportClientResponse['reportPeriod']
+      >,
     }),
     asOfDate:
       row['asOfDate'] instanceof Date ? row['asOfDate'].toISOString() : String(row['asOfDate']),
@@ -123,50 +111,121 @@ function toClientReport(row: DbVarianceReport): ClientVarianceReport {
   };
 }
 
+function toIsoTimestamp(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function buildAlertCounts(
+  activeAlerts: Array<{
+    severity?: 'info' | 'warning' | 'critical' | 'urgent' | string | null;
+  }>
+): VarianceDashboardRouteResponse['alertsBySeverity'] {
+  return {
+    critical: activeAlerts.filter((alert) => alert.severity === 'critical').length,
+    warning: activeAlerts.filter((alert) => alert.severity === 'warning').length,
+    info: activeAlerts.filter((alert) => alert.severity === 'info').length,
+    urgent: activeAlerts.filter((alert) => alert.severity === 'urgent').length,
+  };
+}
+
+function toClientAlert(
+  alert: Record<string, unknown> & {
+    id?: string;
+    fundId?: number;
+    severity?: ClientAlertResponse['severity'];
+    category?: ClientAlertResponse['category'];
+    status?: ClientAlertResponse['status'];
+  }
+): ClientAlertResponse {
+  return {
+    id: typeof alert.id === 'string' ? alert.id : String(alert.ruleId ?? alert.rule_id ?? ''),
+    fundId:
+      typeof alert.fundId === 'number'
+        ? alert.fundId
+        : typeof alert.fund_id === 'number'
+          ? alert.fund_id
+          : 0,
+    ruleId:
+      typeof alert.ruleId === 'string'
+        ? alert.ruleId
+        : typeof alert.rule_id === 'string'
+          ? alert.rule_id
+          : null,
+    ruleName:
+      typeof alert.title === 'string'
+        ? alert.title
+        : typeof alert.ruleName === 'string'
+          ? alert.ruleName
+          : typeof alert.alertType === 'string'
+            ? alert.alertType
+            : typeof alert.alert_type === 'string'
+              ? alert.alert_type
+              : 'Variance Alert',
+    severity: alert.severity ?? 'warning',
+    category: alert.category ?? 'performance',
+    message:
+      typeof alert.description === 'string'
+        ? alert.description
+        : typeof alert.message === 'string'
+          ? alert.message
+          : '',
+    details:
+      alert.contextData && typeof alert.contextData === 'object'
+        ? (alert.contextData as Record<string, unknown>)
+        : alert.context_data && typeof alert.context_data === 'object'
+          ? (alert.context_data as Record<string, unknown>)
+          : alert.details && typeof alert.details === 'object'
+            ? (alert.details as Record<string, unknown>)
+            : {},
+    status: alert.status ?? 'active',
+    triggeredAt:
+      toIsoTimestamp(
+        (alert.triggeredAt ?? alert.triggered_at) as Date | string | null | undefined
+      ) ?? '',
+    acknowledgedAt:
+      toIsoTimestamp(
+        (alert.acknowledgedAt ?? alert.acknowledged_at) as Date | string | null | undefined
+      ) ?? null,
+    acknowledgedBy: typeof alert.acknowledgedBy === 'number' ? alert.acknowledgedBy : null,
+    resolvedAt:
+      toIsoTimestamp((alert.resolvedAt ?? alert.resolved_at) as Date | string | null | undefined) ??
+      null,
+    resolvedBy: typeof alert.resolvedBy === 'number' ? alert.resolvedBy : null,
+    notes:
+      typeof alert.resolutionNotes === 'string'
+        ? alert.resolutionNotes
+        : typeof alert.notes === 'string'
+          ? alert.notes
+          : null,
+  };
+}
+
+function deriveTrendDirection(
+  reports: Array<{ overallVarianceScore?: string | null }>
+): VarianceDashboardRouteResponse['summary']['trendDirection'] {
+  if (reports.length < 2) {
+    return 'stable';
+  }
+
+  const latest = Number(reports[0]?.overallVarianceScore ?? NaN);
+  const previous = Number(reports[1]?.overallVarianceScore ?? NaN);
+  if (Number.isNaN(latest) || Number.isNaN(previous)) {
+    return 'stable';
+  }
+
+  const diff = latest - previous;
+  if (Math.abs(diff) < 0.05) {
+    return 'stable';
+  }
+
+  return diff < 0 ? 'improving' : 'declining';
+}
+
 const router = Router();
-
-// === VALIDATION SCHEMAS ===
-
-const CreateBaselineSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  baselineType: z.enum(['initial', 'quarterly', 'annual', 'milestone', 'custom']),
-  periodStart: z.string().datetime(),
-  periodEnd: z.string().datetime(),
-  tags: z.array(z.string().max(50)).max(10).default([]),
-});
-
-const CreateVarianceReportSchema = z.object({
-  baselineId: z.string().uuid().optional(),
-  reportName: z.string().min(1).max(100),
-  reportType: z.enum(['periodic', 'milestone', 'ad_hoc', 'alert_triggered']),
-  reportPeriod: z.enum(['monthly', 'quarterly', 'annual']).optional(),
-  asOfDate: z.string().datetime().optional(),
-});
-
-const CreateAlertRuleSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  ruleType: z.enum(['threshold', 'trend', 'deviation', 'pattern']),
-  metricName: z.string().min(1),
-  operator: z.enum(['gt', 'lt', 'eq', 'gte', 'lte', 'between']),
-  thresholdValue: z.number(),
-  secondaryThreshold: z.number().optional(),
-  severity: z.enum(['info', 'warning', 'critical', 'urgent']).default('warning'),
-  category: z.enum(['performance', 'risk', 'operational', 'compliance']).default('performance'),
-  checkFrequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']).default('daily'),
-  suppressionPeriod: positiveInt().default(60),
-  notificationChannels: z.array(z.enum(['email', 'slack', 'webhook'])).default(['email']),
-});
-
-const AlertActionSchema = z.object({
-  notes: z.string().max(1000).optional(),
-});
-
-const VarianceAnalysisSchema = z.object({
-  baselineId: z.string().uuid().optional(),
-  reportName: z.string().min(1).max(100).optional(),
-});
 
 // === BASELINE MANAGEMENT ROUTES ===
 
@@ -192,7 +251,7 @@ router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res
     }
 
     // Validate request body
-    const validation = CreateBaselineSchema.safeParse(req.body);
+    const validation = CreateBaselineRequestSchema.safeParse(req.body);
     if (!validation.success) {
       const error: ApiError = {
         error: 'Validation failed',
@@ -261,19 +320,26 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     }
 
     // Parse query parameters
-    const baselineType = req.query['baselineType'] as string;
-    const isDefault =
-      req.query['isDefault'] === 'true'
-        ? true
-        : req.query['isDefault'] === 'false'
-          ? false
-          : undefined;
-    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const queryValidation = GetBaselinesQuerySchema.safeParse({
+      baselineType: firstString(req.query['baselineType']),
+      isDefault: firstString(req.query['isDefault']),
+      limit: firstString(req.query['limit']),
+    });
+    if (!queryValidation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid baseline query parameters',
+        details: queryValidation.error.flatten(),
+      };
+      return res['status'](400)['json'](error);
+    }
+
+    const { baselineType, isDefault, limit } = queryValidation.data;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
-      ...(baselineType && { baselineType }),
-      ...(isDefault !== undefined && { isDefault }),
-      ...(limit && { limit }),
+      baselineType,
+      isDefault,
+      limit,
     });
 
     res['json']({
@@ -395,7 +461,7 @@ router['post'](
         throw err;
       }
 
-      const validation = CreateVarianceReportSchema.safeParse(req.body);
+      const validation = CreateVarianceReportRequestSchema.safeParse(req.body);
       if (!validation.success) {
         const error: ApiError = {
           error: 'Validation failed',
@@ -581,7 +647,7 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
       throw err;
     }
 
-    const validation = CreateAlertRuleSchema.safeParse(req.body);
+    const validation = CreateAlertRuleRequestSchema.safeParse(req.body);
     if (!validation.success) {
       const error: ApiError = {
         error: 'Validation failed',
@@ -655,24 +721,43 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     }
 
     // Parse query parameters
-    const severity = req.query['severity']
-      ? (req.query['severity'] as string).split(',')
-      : undefined;
-    const category = req.query['category']
-      ? (req.query['category'] as string).split(',')
-      : undefined;
-    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const queryValidation = GetAlertsQuerySchema.safeParse({
+      severity: firstString(req.query['severity']),
+      category: firstString(req.query['category']),
+      limit: firstString(req.query['limit']),
+    });
+    if (!queryValidation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid alert query parameters',
+        details: queryValidation.error.flatten(),
+      };
+      return res['status'](400)['json'](error);
+    }
+
+    const { severity, category, limit } = queryValidation.data;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
-      ...(severity && { severity }),
-      ...(category && { category }),
-      ...(limit && { limit }),
+      severity,
+      category,
+      limit,
     });
+    const clientAlerts = alerts.map((alert) =>
+      toClientAlert(
+        alert as Record<string, unknown> & {
+          id: string;
+          fundId: number;
+          severity: ClientAlertResponse['severity'];
+          category: ClientAlertResponse['category'];
+          status: ClientAlertResponse['status'];
+        }
+      )
+    );
 
     res['json']({
       success: true,
-      data: alerts,
-      count: alerts.length,
+      data: clientAlerts,
+      count: clientAlerts.length,
     });
   } catch (error) {
     console.error('Alerts fetch error:', error);
@@ -699,7 +784,7 @@ router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Res
       return res['status'](400)['json'](error);
     }
 
-    const validation = AlertActionSchema.safeParse(req.body);
+    const validation = AlertActionRequestSchema.safeParse(req.body);
     if (!validation.success) {
       const error: ApiError = {
         error: 'Validation failed',
@@ -749,7 +834,7 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
       return res['status'](400)['json'](error);
     }
 
-    const validation = AlertActionSchema.safeParse(req.body);
+    const validation = AlertActionRequestSchema.safeParse(req.body);
     if (!validation.success) {
       const error: ApiError = {
         error: 'Validation failed',
@@ -809,7 +894,7 @@ router['post'](
         throw err;
       }
 
-      const validation = VarianceAnalysisSchema.safeParse(req.body);
+      const validation = VarianceAnalysisRequestSchema.safeParse(req.body);
       if (!validation.success) {
         const error: ApiError = {
           error: 'Validation failed',
@@ -881,28 +966,52 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     const [baselines, activeAlerts, latestReports] = await Promise.all([
       varianceTrackingService.baselines.getBaselines(fundId, { limit: 5 }),
       varianceTrackingService.alerts.getActiveAlerts(fundId, { limit: 10 }),
-      varianceTrackingService.calculations.getVarianceReports(fundId, { limit: 1 }),
+      varianceTrackingService.calculations.getVarianceReports(fundId, { limit: 5 }),
     ]);
 
-    const defaultBaseline = baselines.find((b) => b.isDefault);
+    const defaultBaseline = baselines.find((b) => b.isDefault) ?? null;
     const latestReport = latestReports[0];
+    const clientAlerts = activeAlerts.map((alert) =>
+      toClientAlert(
+        alert as Record<string, unknown> & {
+          id: string;
+          fundId: number;
+          severity: ClientAlertResponse['severity'];
+          category: ClientAlertResponse['category'];
+          status: ClientAlertResponse['status'];
+        }
+      )
+    );
+    const alertsBySeverity = buildAlertCounts(clientAlerts);
+    const recentReports = latestReports.slice(0, 5).map((report) => ({
+      id: report.id,
+      name: report.reportName,
+      riskLevel: report.riskLevel ?? 'low',
+      createdAt: toIsoTimestamp(report.createdAt) ?? new Date(0).toISOString(),
+      overallVarianceScore: report.overallVarianceScore ?? null,
+    }));
 
     res['json']({
       success: true,
       data: {
         defaultBaseline,
-        recentBaselines: baselines.slice(0, 3),
-        activeAlerts,
-        alertsByseverity: {
-          critical: activeAlerts.filter((a) => a.severity === 'critical').length,
-          warning: activeAlerts.filter((a) => a.severity === 'warning').length,
-          info: activeAlerts.filter((a) => a.severity === 'info').length,
-        },
+        recentBaselines: baselines.slice(0, 5),
+        activeAlerts: clientAlerts,
+        alertsBySeverity,
+        alertsByseverity: alertsBySeverity,
         summary: {
           totalBaselines: baselines.length,
           totalActiveAlerts: activeAlerts.length,
-          lastAnalysisDate: latestReport?.createdAt ?? null,
+          lastAnalysisDate: toIsoTimestamp(latestReport?.createdAt) ?? null,
+          overallRiskLevel:
+            latestReport?.riskLevel === 'medium' ||
+            latestReport?.riskLevel === 'high' ||
+            latestReport?.riskLevel === 'critical'
+              ? latestReport.riskLevel
+              : 'low',
+          trendDirection: deriveTrendDirection(latestReports),
         },
+        recentReports,
       },
     });
   } catch (error) {

@@ -32,9 +32,16 @@ export const uuidSchema = z.string().uuid();
 export const timestampSchema = z.string().datetime();
 
 /**
- * Decimal string validation (for database decimal fields)
+ * Non-negative decimal string validation (for stored metric fields)
  */
 export const decimalSchema = z.string().regex(/^\d+(\.\d{1,4})?$/);
+
+/**
+ * Signed decimal string validation (for variances, thresholds, and deltas)
+ */
+export const signedDecimalSchema = z.string().regex(/^-?\d+(\.\d{1,4})?$/);
+
+export const arbitraryRecordSchema = z.record(z.string(), z.any());
 
 /**
  * Severity levels for alerts
@@ -129,6 +136,21 @@ export const BaselineResponseSchema = z.object({
   portfolioCount: z.number().int().min(0),
   averageInvestment: decimalSchema.nullable(),
   topPerformers: z.any(), // JSON data
+  companySnapshots: z
+    .array(
+      z.object({
+        portfolioCompanyId: positiveInt(),
+        companyId: positiveInt(),
+        companyName: z.string(),
+        sector: z.string(),
+        stage: z.string().nullable(),
+        status: z.string().nullable(),
+        investedCapital: decimalSchema.nullable(),
+        currentValuation: decimalSchema.nullable(),
+      })
+    )
+    .nullable()
+    .optional(),
   sectorDistribution: z.any(), // JSON data
   stageDistribution: z.any(), // JSON data
   reserveAllocation: z.any(), // JSON data
@@ -184,30 +206,79 @@ export const CreateVarianceReportRequestSchema = z.object({
  * Variance calculation schema
  */
 export const VarianceCalculationSchema = z.object({
-  totalValueVariance: decimalSchema.nullable(),
-  totalValueVariancePct: decimalSchema.nullable(),
-  irrVariance: decimalSchema.nullable(),
-  multipleVariance: decimalSchema.nullable(),
-  dpiVariance: decimalSchema.nullable(),
-  tvpiVariance: decimalSchema.nullable(),
+  totalValueVariance: signedDecimalSchema.nullable(),
+  totalValueVariancePct: signedDecimalSchema.nullable(),
+  irrVariance: signedDecimalSchema.nullable(),
+  multipleVariance: signedDecimalSchema.nullable(),
+  dpiVariance: signedDecimalSchema.nullable(),
+  tvpiVariance: signedDecimalSchema.nullable(),
+});
+
+export const DistributionVarianceRowSchema = z.object({
+  current: z.number(),
+  baseline: z.number(),
+  delta: z.number(),
+  deltaPct: z.number().nullable(),
+  currentCountShare: z.number(),
+  baselineCountShare: z.number(),
+  countShareDelta: z.number(),
+  countShareDeltaPct: z.number().nullable(),
+});
+
+export const NumericMetricDeltaSchema = z.object({
+  current: z.number(),
+  baseline: z.number(),
+  delta: z.number(),
+  deltaPct: z.number().nullable(),
+});
+
+export const UntypedMetricChangeSchema = z.object({
+  current: z.any().nullable(),
+  baseline: z.any().nullable(),
+});
+
+export const CompanyVarianceRowSchema = z.object({
+  companyId: positiveInt(),
+  companyName: z.string(),
+  sector: z.string().optional(),
+  stage: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+  changeType: z.enum(['matched', 'added', 'removed']).optional(),
+  baselineValuation: signedDecimalSchema.nullable().optional(),
+  currentValuation: signedDecimalSchema.nullable().optional(),
+  baselineInvestedCapital: signedDecimalSchema.nullable().optional(),
+  currentInvestedCapital: signedDecimalSchema.nullable().optional(),
+  valuationChange: signedDecimalSchema.nullable().optional(),
+  valuationChangePct: signedDecimalSchema.nullable().optional(),
+  valuationVariance: signedDecimalSchema.nullable(),
+  valuationVariancePct: signedDecimalSchema.nullable(),
+  riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
 });
 
 /**
  * Portfolio variance schema
  */
 export const PortfolioVarianceSchema = z.object({
-  companyVariances: z.array(
-    z.object({
-      companyId: positiveInt(),
-      companyName: z.string(),
-      valuationVariance: decimalSchema.nullable(),
-      valuationVariancePct: decimalSchema.nullable(),
-      riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
-    })
-  ),
-  sectorVariances: z.record(z.string(), z.any()),
-  stageVariances: z.record(z.string(), z.any()),
+  companyVariances: z.array(CompanyVarianceRowSchema),
+  sectorVariances: z.record(z.string(), DistributionVarianceRowSchema),
+  stageVariances: z.record(z.string(), DistributionVarianceRowSchema),
   portfolioCountVariance: z.number().int(),
+});
+
+export const ReserveVarianceSchema = z.object({
+  hasData: z.boolean(),
+  currentReserves: arbitraryRecordSchema,
+  baselineReserves: arbitraryRecordSchema,
+  metricDeltas: z.record(z.string(), NumericMetricDeltaSchema),
+  changes: z.record(z.string(), UntypedMetricChangeSchema),
+});
+
+export const PacingVarianceSchema = z.object({
+  hasData: z.boolean(),
+  currentPacing: arbitraryRecordSchema,
+  baselinePacing: arbitraryRecordSchema,
+  metricDeltas: z.record(z.string(), NumericMetricDeltaSchema),
+  changes: z.record(z.string(), UntypedMetricChangeSchema),
 });
 
 /**
@@ -218,8 +289,8 @@ export const VarianceInsightsSchema = z.object({
   significantVariances: z.array(
     z.object({
       metric: z.string(),
-      variance: decimalSchema,
-      variancePct: decimalSchema.nullable(),
+      variance: signedDecimalSchema,
+      variancePct: signedDecimalSchema.nullable(),
       severity: z.enum(['low', 'medium', 'high', 'critical']),
     })
   ),
@@ -271,6 +342,42 @@ export const VarianceReportResponseSchema = z.object({
   sharedWith: z.array(z.string()),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+});
+
+export const ClientVarianceMetricSchema = z.object({
+  metric: z.string(),
+  value: signedDecimalSchema.nullable(),
+  pct: signedDecimalSchema.nullable(),
+});
+
+export const ClientVarianceSummarySchema = z.object({
+  totalVariances: z.number().int().min(0),
+  significantVariances: z.number().int().min(0),
+  criticalVariances: z.number().int().min(0),
+});
+
+export const ClientPortfolioVarianceSchema = z.object({
+  companyVariances: z.array(CompanyVarianceRowSchema),
+  portfolioCountVariance: z.number().int(),
+});
+
+export const VarianceReportClientResponseSchema = z.object({
+  id: uuidSchema,
+  fundId: positiveInt(),
+  baselineId: uuidSchema,
+  reportName: z.string(),
+  reportType: reportTypeSchema,
+  reportPeriod: z.enum(['monthly', 'quarterly', 'annual']).optional(),
+  asOfDate: timestampSchema,
+  generatedBy: positiveInt().optional(),
+  generatedAt: timestampSchema,
+  summary: ClientVarianceSummarySchema,
+  variances: z.array(ClientVarianceMetricSchema),
+  portfolioVariances: ClientPortfolioVarianceSchema.optional(),
+  sectorVariances: z.record(z.string(), DistributionVarianceRowSchema).optional(),
+  stageVariances: z.record(z.string(), DistributionVarianceRowSchema).optional(),
+  reserveVariances: ReserveVarianceSchema.optional(),
+  pacingVariances: PacingVarianceSchema.optional(),
 });
 
 // === ALERT SCHEMAS ===
@@ -332,8 +439,8 @@ export const AlertRuleResponseSchema = z.object({
   ruleType: ruleTypeSchema,
   metricName: z.string(),
   operator: operatorSchema,
-  thresholdValue: decimalSchema.nullable(),
-  secondaryThreshold: decimalSchema.nullable(),
+  thresholdValue: signedDecimalSchema.nullable(),
+  secondaryThreshold: signedDecimalSchema.nullable(),
   severity: severitySchema,
   category: categorySchema,
   isEnabled: z.boolean(),
@@ -367,10 +474,10 @@ export const PerformanceAlertResponseSchema = z.object({
   description: z.string(),
   recommendations: z.any(),
   metricName: z.string(),
-  thresholdValue: decimalSchema.nullable(),
-  actualValue: decimalSchema.nullable(),
-  varianceAmount: decimalSchema.nullable(),
-  variancePercentage: decimalSchema.nullable(),
+  thresholdValue: signedDecimalSchema.nullable(),
+  actualValue: signedDecimalSchema.nullable(),
+  varianceAmount: signedDecimalSchema.nullable(),
+  variancePercentage: signedDecimalSchema.nullable(),
   triggeredAt: timestampSchema,
   firstOccurrence: timestampSchema.nullable(),
   lastOccurrence: timestampSchema.nullable(),
@@ -393,6 +500,24 @@ export const PerformanceAlertResponseSchema = z.object({
   processingTime: z.number().int().nullable(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
+});
+
+export const ClientAlertResponseSchema = z.object({
+  id: uuidSchema,
+  fundId: positiveInt(),
+  ruleId: uuidSchema.nullable().optional(),
+  ruleName: z.string(),
+  severity: severitySchema,
+  category: categorySchema,
+  message: z.string(),
+  details: arbitraryRecordSchema,
+  status: z.enum(['active', 'acknowledged', 'investigating', 'resolved', 'dismissed']),
+  triggeredAt: timestampSchema,
+  acknowledgedAt: timestampSchema.nullable().optional(),
+  acknowledgedBy: positiveInt().nullable().optional(),
+  resolvedAt: timestampSchema.nullable().optional(),
+  resolvedBy: positiveInt().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 /**
@@ -468,13 +593,21 @@ export const VarianceAnalysisResponseSchema = z.object({
 export const VarianceDashboardResponseSchema = z.object({
   defaultBaseline: BaselineResponseSchema.nullable(),
   recentBaselines: z.array(BaselineResponseSchema).max(5),
-  activeAlerts: z.array(PerformanceAlertResponseSchema).max(10),
+  activeAlerts: z.array(ClientAlertResponseSchema).max(10),
   alertsBySeverity: z.object({
     critical: z.number().int().min(0),
     warning: z.number().int().min(0),
     info: z.number().int().min(0),
     urgent: z.number().int().min(0),
   }),
+  alertsByseverity: z
+    .object({
+      critical: z.number().int().min(0),
+      warning: z.number().int().min(0),
+      info: z.number().int().min(0),
+      urgent: z.number().int().min(0),
+    })
+    .optional(),
   summary: z.object({
     totalBaselines: z.number().int().min(0),
     totalActiveAlerts: z.number().int().min(0),
@@ -546,13 +679,17 @@ export type GetBaselinesQuery = z.infer<typeof GetBaselinesQuerySchema>;
 
 export type CreateVarianceReportRequest = z.infer<typeof CreateVarianceReportRequestSchema>;
 export type VarianceReportResponse = z.infer<typeof VarianceReportResponseSchema>;
+export type VarianceReportClientResponse = z.infer<typeof VarianceReportClientResponseSchema>;
 export type VarianceCalculation = z.infer<typeof VarianceCalculationSchema>;
 export type PortfolioVariance = z.infer<typeof PortfolioVarianceSchema>;
+export type ReserveVariance = z.infer<typeof ReserveVarianceSchema>;
+export type PacingVariance = z.infer<typeof PacingVarianceSchema>;
 export type VarianceInsights = z.infer<typeof VarianceInsightsSchema>;
 
 export type CreateAlertRuleRequest = z.infer<typeof CreateAlertRuleRequestSchema>;
 export type AlertRuleResponse = z.infer<typeof AlertRuleResponseSchema>;
 export type PerformanceAlertResponse = z.infer<typeof PerformanceAlertResponseSchema>;
+export type ClientAlertResponse = z.infer<typeof ClientAlertResponseSchema>;
 export type AlertActionRequest = z.infer<typeof AlertActionRequestSchema>;
 export type GetAlertsQuery = z.infer<typeof GetAlertsQuerySchema>;
 

@@ -172,6 +172,8 @@ export default function VarianceTrackingPage() {
   const hasReports = reports.length > 0;
   const totalActiveAlerts = dashboardData?.data?.summary?.totalActiveAlerts || 0;
   const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
+  const alertCounts =
+    dashboardData?.data?.alertsBySeverity ?? dashboardData?.data?.alertsByseverity;
   const analysisStatus = !lastAnalysisDate
     ? {
         value: 'Not Run',
@@ -390,6 +392,13 @@ export default function VarianceTrackingPage() {
     reportHasSupplementalAnalysis && isHistoricalReportDetail;
   const showHistoricalPortfolioAnalysisUnavailableNotice =
     !!reportDetail && isHistoricalReportDetail && !reportHasSupplementalAnalysis;
+  const companyVariances = reportDetail?.portfolioVariances?.companyVariances ?? [];
+  const sectorVarianceEntries = Object.entries(reportDetail?.sectorVariances ?? {});
+  const stageVarianceEntries = Object.entries(reportDetail?.stageVariances ?? {});
+  const reserveMetricEntries = Object.entries(reportDetail?.reserveVariances?.metricDeltas ?? {});
+  const reserveChangeEntries = Object.entries(reportDetail?.reserveVariances?.changes ?? {});
+  const pacingMetricEntries = Object.entries(reportDetail?.pacingVariances?.metricDeltas ?? {});
+  const pacingChangeEntries = Object.entries(reportDetail?.pacingVariances?.changes ?? {});
 
   if (!currentFund) {
     return (
@@ -434,6 +443,43 @@ export default function VarianceTrackingPage() {
     }
   };
 
+  const formatCurrency = (value: string | number | null | undefined) => {
+    if (value == null) return '-';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value);
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(numeric);
+  };
+
+  const formatSignedNumber = (value: number | null | undefined, digits = 0) => {
+    if (value == null) return '-';
+    const prefix = value > 0 ? '+' : '';
+    return `${prefix}${value.toFixed(digits)}`;
+  };
+
+  const formatSignedPercent = (value: number | string | null | undefined) => {
+    if (value == null) return '-';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value);
+    const prefix = numeric > 0 ? '+' : '';
+    return `${prefix}${(numeric * 100).toFixed(1)}%`;
+  };
+
+  const renderChangeValue = (value: unknown) => {
+    if (value == null) return '-';
+    if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+      return String(value);
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -464,11 +510,8 @@ export default function VarianceTrackingPage() {
           value={dashboardData?.data?.summary?.totalActiveAlerts || 0}
           icon={AlertTriangle}
           badge={{
-            text: `${dashboardData?.data?.alertsByseverity?.critical || 0} Critical`,
-            variant:
-              (dashboardData?.data?.alertsByseverity?.critical || 0) > 0
-                ? 'destructive'
-                : 'secondary',
+            text: `${alertCounts?.critical || 0} Critical`,
+            variant: (alertCounts?.critical || 0) > 0 ? 'destructive' : 'secondary',
           }}
         />
         <StatCard
@@ -500,40 +543,41 @@ export default function VarianceTrackingPage() {
       </StatCardGrid>
 
       {/* Alert Summary by Severity */}
-      {dashboardData?.data?.alertsByseverity && (
+      {alertCounts && (
         <Card>
           <CardHeader>
             <CardTitle>Alert Summary</CardTitle>
             <CardDescription>Breakdown of active alerts by severity</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div>
                   <div className="text-sm font-medium text-red-800">Critical</div>
-                  <div className="text-2xl font-bold text-red-900">
-                    {dashboardData.data.alertsByseverity.critical}
-                  </div>
+                  <div className="text-2xl font-bold text-red-900">{alertCounts.critical}</div>
                 </div>
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div>
                   <div className="text-sm font-medium text-yellow-800">Warning</div>
-                  <div className="text-2xl font-bold text-yellow-900">
-                    {dashboardData.data.alertsByseverity.warning}
-                  </div>
+                  <div className="text-2xl font-bold text-yellow-900">{alertCounts.warning}</div>
                 </div>
                 <AlertTriangle className="w-8 h-8 text-yellow-600" />
               </div>
               <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div>
                   <div className="text-sm font-medium text-blue-800">Info</div>
-                  <div className="text-2xl font-bold text-blue-900">
-                    {dashboardData.data.alertsByseverity.info}
-                  </div>
+                  <div className="text-2xl font-bold text-blue-900">{alertCounts.info}</div>
                 </div>
                 <Bell className="w-8 h-8 text-blue-600" />
+              </div>
+              <div className="flex items-center justify-between p-4 bg-rose-50 border border-rose-200 rounded-lg">
+                <div>
+                  <div className="text-sm font-medium text-rose-800">Urgent</div>
+                  <div className="text-2xl font-bold text-rose-900">{alertCounts.urgent}</div>
+                </div>
+                <AlertTriangle className="w-8 h-8 text-rose-600" />
               </div>
             </div>
           </CardContent>
@@ -1341,8 +1385,8 @@ export default function VarianceTrackingPage() {
                       <div className="flex items-start gap-2">
                         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                         <div>
-                          Historical portfolio, reserve, and pacing analysis is unavailable for
-                          this report because point-in-time portfolio snapshots are not yet stored.
+                          Historical portfolio, reserve, and pacing analysis is unavailable for this
+                          report because point-in-time portfolio snapshots are not yet stored.
                         </div>
                       </div>
                     </div>
@@ -1373,10 +1417,8 @@ export default function VarianceTrackingPage() {
                     </div>
                   </div>
 
-                  {/* Portfolio variances (from dedicated schema columns) */}
-                  {(reportDetail.portfolioVariances ||
-                    reportDetail.sectorVariances ||
-                    reportDetail.stageVariances) && (
+                  {/* Supplemental variance analysis */}
+                  {reportHasSupplementalAnalysis && (
                     <div>
                       <div className="text-sm font-medium text-gray-500 mb-2">
                         Portfolio Analysis
@@ -1393,37 +1435,20 @@ export default function VarianceTrackingPage() {
                           </div>
                         </div>
                       )}
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                         {reportDetail.portfolioVariances && (
                           <>
                             <div className="p-2 bg-gray-50 rounded">
                               <span className="text-gray-500">Portfolio Count Change</span>
                               <span className="block font-medium">
-                                {(() => {
-                                  const pv = reportDetail.portfolioVariances as Record<
-                                    string,
-                                    unknown
-                                  >;
-                                  const delta = pv['portfolioCountVariance'] as number | undefined;
-                                  return delta != null ? `${delta > 0 ? '+' : ''}${delta}` : '-';
-                                })()}
+                                {formatSignedNumber(
+                                  reportDetail.portfolioVariances.portfolioCountVariance
+                                )}
                               </span>
                             </div>
                             <div className="p-2 bg-gray-50 rounded">
                               <span className="text-gray-500">Companies Analyzed</span>
-                              <span className="block font-medium">
-                                {Array.isArray(
-                                  (reportDetail.portfolioVariances as Record<string, unknown>)[
-                                    'companyVariances'
-                                  ]
-                                )
-                                  ? (
-                                      (reportDetail.portfolioVariances as Record<string, unknown>)[
-                                        'companyVariances'
-                                      ] as unknown[]
-                                    ).length
-                                  : 0}
-                              </span>
+                              <span className="block font-medium">{companyVariances.length}</span>
                             </div>
                           </>
                         )}
@@ -1443,7 +1468,307 @@ export default function VarianceTrackingPage() {
                             </span>
                           </div>
                         )}
+                        {reportDetail.reserveVariances && (
+                          <div className="p-2 bg-gray-50 rounded">
+                            <span className="text-gray-500">Reserve Metrics Changed</span>
+                            <span className="block font-medium">
+                              {reserveMetricEntries.length + reserveChangeEntries.length}
+                            </span>
+                          </div>
+                        )}
+                        {reportDetail.pacingVariances && (
+                          <div className="p-2 bg-gray-50 rounded">
+                            <span className="text-gray-500">Pacing Metrics Changed</span>
+                            <span className="block font-medium">
+                              {pacingMetricEntries.length + pacingChangeEntries.length}
+                            </span>
+                          </div>
+                        )}
                       </div>
+
+                      {companyVariances.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-sm font-medium text-gray-500 mb-2">
+                            Company Variances
+                          </div>
+                          <div className="border rounded-lg overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-gray-50 border-b">
+                                  <th className="text-left p-2 font-medium text-gray-600">
+                                    Company
+                                  </th>
+                                  <th className="text-left p-2 font-medium text-gray-600">
+                                    Change
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Baseline
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Current
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Invested
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Delta
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Delta %
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {companyVariances.map((company) => (
+                                  <tr
+                                    key={`${company.companyId}-${company.changeType ?? 'matched'}`}
+                                  >
+                                    <td className="p-2 align-top">
+                                      <div className="font-medium text-gray-900">
+                                        {company.companyName}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {[company.sector, company.stage]
+                                          .filter(Boolean)
+                                          .join(' • ') || 'Unclassified'}
+                                      </div>
+                                    </td>
+                                    <td className="p-2 align-top">
+                                      <div className="flex flex-col gap-1">
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            'w-fit',
+                                            company.changeType === 'added' &&
+                                              'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                            company.changeType === 'removed' &&
+                                              'border-rose-200 bg-rose-50 text-rose-700',
+                                            (!company.changeType ||
+                                              company.changeType === 'matched') &&
+                                              'border-slate-200 bg-slate-50 text-slate-700'
+                                          )}
+                                        >
+                                          {company.changeType ?? 'matched'}
+                                        </Badge>
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            'w-fit',
+                                            company.riskLevel === 'critical' &&
+                                              'border-red-200 bg-red-50 text-red-700',
+                                            company.riskLevel === 'high' &&
+                                              'border-orange-200 bg-orange-50 text-orange-700',
+                                            company.riskLevel === 'medium' &&
+                                              'border-yellow-200 bg-yellow-50 text-yellow-700',
+                                            company.riskLevel === 'low' &&
+                                              'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                          )}
+                                        >
+                                          {company.riskLevel}
+                                        </Badge>
+                                      </div>
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatCurrency(company.baselineValuation)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatCurrency(company.currentValuation)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      <div>{formatCurrency(company.currentInvestedCapital)}</div>
+                                      <div className="text-xs text-gray-500">
+                                        base {formatCurrency(company.baselineInvestedCapital)}
+                                      </div>
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatCurrency(company.valuationVariance)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedPercent(company.valuationVariancePct)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {sectorVarianceEntries.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-sm font-medium text-gray-500 mb-2">
+                            Sector Distribution
+                          </div>
+                          <div className="border rounded-lg overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-gray-50 border-b">
+                                  <th className="text-left p-2 font-medium text-gray-600">
+                                    Sector
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Current
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Baseline
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Count Delta
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Share Delta
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Share Delta %
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {sectorVarianceEntries.map(([sector, row]) => (
+                                  <tr key={sector}>
+                                    <td className="p-2 text-gray-900">{sector}</td>
+                                    <td className="p-2 text-right text-gray-700">{row.current}</td>
+                                    <td className="p-2 text-right text-gray-700">{row.baseline}</td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedNumber(row.delta)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedPercent(row.countShareDelta)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedPercent(row.countShareDeltaPct)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {stageVarianceEntries.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-sm font-medium text-gray-500 mb-2">
+                            Stage Distribution
+                          </div>
+                          <div className="border rounded-lg overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-gray-50 border-b">
+                                  <th className="text-left p-2 font-medium text-gray-600">Stage</th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Current
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Baseline
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Count Delta
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Share Delta
+                                  </th>
+                                  <th className="text-right p-2 font-medium text-gray-600">
+                                    Share Delta %
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {stageVarianceEntries.map(([stage, row]) => (
+                                  <tr key={stage}>
+                                    <td className="p-2 text-gray-900">{stage}</td>
+                                    <td className="p-2 text-right text-gray-700">{row.current}</td>
+                                    <td className="p-2 text-right text-gray-700">{row.baseline}</td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedNumber(row.delta)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedPercent(row.countShareDelta)}
+                                    </td>
+                                    <td className="p-2 text-right text-gray-700">
+                                      {formatSignedPercent(row.countShareDeltaPct)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {(reportDetail.reserveVariances || reportDetail.pacingVariances) && (
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          {reportDetail.reserveVariances && (
+                            <div>
+                              <div className="text-sm font-medium text-gray-500 mb-2">
+                                Reserve Variances
+                              </div>
+                              <div className="space-y-2">
+                                {reserveMetricEntries.map(([metric, delta]) => (
+                                  <div
+                                    key={metric}
+                                    className="rounded-lg border bg-gray-50 p-3 text-sm"
+                                  >
+                                    <div className="font-medium text-gray-900">{metric}</div>
+                                    <div className="mt-1 text-gray-600">
+                                      {renderChangeValue(delta.baseline)} to{' '}
+                                      {renderChangeValue(delta.current)}
+                                    </div>
+                                    <div className="text-gray-700">
+                                      delta {formatSignedNumber(delta.delta, 2)} | pct{' '}
+                                      {formatSignedPercent(delta.deltaPct)}
+                                    </div>
+                                  </div>
+                                ))}
+                                {reserveChangeEntries.map(([metric, change]) => (
+                                  <div key={metric} className="rounded-lg border p-3 text-sm">
+                                    <div className="font-medium text-gray-900">{metric}</div>
+                                    <div className="text-gray-600">
+                                      {renderChangeValue(change.baseline)} to{' '}
+                                      {renderChangeValue(change.current)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {reportDetail.pacingVariances && (
+                            <div>
+                              <div className="text-sm font-medium text-gray-500 mb-2">
+                                Pacing Variances
+                              </div>
+                              <div className="space-y-2">
+                                {pacingMetricEntries.map(([metric, delta]) => (
+                                  <div
+                                    key={metric}
+                                    className="rounded-lg border bg-gray-50 p-3 text-sm"
+                                  >
+                                    <div className="font-medium text-gray-900">{metric}</div>
+                                    <div className="mt-1 text-gray-600">
+                                      {renderChangeValue(delta.baseline)} to{' '}
+                                      {renderChangeValue(delta.current)}
+                                    </div>
+                                    <div className="text-gray-700">
+                                      delta {formatSignedNumber(delta.delta, 2)} | pct{' '}
+                                      {formatSignedPercent(delta.deltaPct)}
+                                    </div>
+                                  </div>
+                                ))}
+                                {pacingChangeEntries.map(([metric, change]) => (
+                                  <div key={metric} className="rounded-lg border p-3 text-sm">
+                                    <div className="font-medium text-gray-900">{metric}</div>
+                                    <div className="text-gray-600">
+                                      {renderChangeValue(change.baseline)} to{' '}
+                                      {renderChangeValue(change.current)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
