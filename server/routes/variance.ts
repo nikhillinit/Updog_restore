@@ -94,19 +94,29 @@ function toClientReport(row: DbVarianceReport): VarianceReportClientResponse {
     },
     variances,
     ...(row['portfolioVariances'] != null && {
-      portfolioVariances: row['portfolioVariances'] as Record<string, unknown>,
+      portfolioVariances: row['portfolioVariances'] as NonNullable<
+        VarianceReportClientResponse['portfolioVariances']
+      >,
     }),
     ...(row['sectorVariances'] != null && {
-      sectorVariances: row['sectorVariances'] as Record<string, unknown>,
+      sectorVariances: row['sectorVariances'] as NonNullable<
+        VarianceReportClientResponse['sectorVariances']
+      >,
     }),
     ...(row['stageVariances'] != null && {
-      stageVariances: row['stageVariances'] as Record<string, unknown>,
+      stageVariances: row['stageVariances'] as NonNullable<
+        VarianceReportClientResponse['stageVariances']
+      >,
     }),
     ...(row['reserveVariances'] != null && {
-      reserveVariances: row['reserveVariances'] as Record<string, unknown>,
+      reserveVariances: row['reserveVariances'] as NonNullable<
+        VarianceReportClientResponse['reserveVariances']
+      >,
     }),
     ...(row['pacingVariances'] != null && {
-      pacingVariances: row['pacingVariances'] as Record<string, unknown>,
+      pacingVariances: row['pacingVariances'] as NonNullable<
+        VarianceReportClientResponse['pacingVariances']
+      >,
     }),
   };
 }
@@ -313,9 +323,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     const { baselineType, isDefault, limit } = queryValidation.data;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
-      baselineType,
-      isDefault,
-      limit,
+      ...(baselineType !== undefined && { baselineType }),
+      ...(isDefault !== undefined && { isDefault }),
+      ...(limit !== undefined && { limit }),
     });
 
     res['json']({
@@ -714,9 +724,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     const { severity, category, limit } = queryValidation.data;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
-      severity,
-      category,
-      limit,
+      ...(severity !== undefined && { severity }),
+      ...(category !== undefined && { category }),
+      ...(limit !== undefined && { limit }),
     });
     const clientAlerts = alerts.map((alert) => toClientAlert(alert, fundId));
 
