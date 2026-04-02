@@ -9,6 +9,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
+import { varianceAlertAutomationService } from '../services/variance-alert-automation';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { PerformanceAlert, VarianceReport as DbVarianceReport } from '@shared/schema';
 import type { ApiError } from '@shared/types';
@@ -216,6 +217,13 @@ function deriveTrendDirection(
 }
 
 const router = Router();
+
+router['get']('/api/internal/alert-automation/health', (_req: Request, res: Response) => {
+  res['json']({
+    success: true,
+    data: varianceAlertAutomationService.getHealth(),
+  });
+});
 
 // === BASELINE MANAGEMENT ROUTES ===
 

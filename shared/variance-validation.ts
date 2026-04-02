@@ -73,7 +73,7 @@ export const ruleTypeSchema = z.enum(['threshold', 'trend', 'deviation', 'patter
  */
 export const operatorSchema = z.enum(['gt', 'lt', 'eq', 'gte', 'lte', 'between']);
 
-export const alertMetricNameSchema = z.enum([
+export const ALERT_METRIC_OPTIONS = [
   'irr',
   'irrVariance',
   'multiple',
@@ -86,7 +86,47 @@ export const alertMetricNameSchema = z.enum([
   'totalValueVariance',
   'totalValuePct',
   'totalValueVariancePct',
-]);
+] as const;
+
+export type AlertMetricName = (typeof ALERT_METRIC_OPTIONS)[number];
+
+export const ALERT_METRIC_GROUPS = [
+  {
+    label: 'Base Metrics',
+    options: ['irr', 'multiple', 'dpi', 'tvpi', 'totalValue', 'totalValuePct'],
+  },
+  {
+    label: 'Variance Metrics',
+    options: [
+      'irrVariance',
+      'multipleVariance',
+      'dpiVariance',
+      'tvpiVariance',
+      'totalValueVariance',
+      'totalValueVariancePct',
+    ],
+  },
+] as const satisfies ReadonlyArray<{
+  label: string;
+  options: readonly AlertMetricName[];
+}>;
+
+export const ALERT_METRIC_LABELS: Record<AlertMetricName, string> = {
+  irr: 'IRR',
+  irrVariance: 'IRR variance',
+  multiple: 'MOIC / multiple',
+  multipleVariance: 'MOIC / multiple variance',
+  dpi: 'DPI',
+  dpiVariance: 'DPI variance',
+  tvpi: 'TVPI',
+  tvpiVariance: 'TVPI variance',
+  totalValue: 'Total value',
+  totalValueVariance: 'Total value variance',
+  totalValuePct: 'Total value percent',
+  totalValueVariancePct: 'Total value variance percent',
+};
+
+export const alertMetricNameSchema = z.enum(ALERT_METRIC_OPTIONS);
 
 /**
  * Check frequencies

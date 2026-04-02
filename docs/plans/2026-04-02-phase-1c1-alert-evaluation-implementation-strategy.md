@@ -7,16 +7,18 @@ Parent planning documents:
 - `docs/plans/2026-03-31-variance-roadmap-revision.md`
 - `docs/plans/2026-04-01-variance-phase1a1c-implementation-plan.md`
 
-This strategy locks the currently-open `1C.1` architecture question to the
-actual repo state as of `2026-04-02`.
+This strategy locks the remaining `1C.1` work to the actual repo state as of
+`2026-04-02`.
 
-The goal is to deliver a standalone alert-evaluation path that can be scheduled
-later without creating ad hoc variance reports or duplicating alert incidents.
+The repo already contains a schedulable evaluator path, but it is not yet fully
+extracted, contract-aligned, or retry-safe for `1C.2`. The goal here is to
+finish that seam without reintroducing ad hoc report creation or duplicate alert
+incidents.
 
 ## Goal
 
-Implement a dedicated, idempotent alert-evaluation architecture for variance
-rules that:
+Refine and extract the existing alert-evaluation architecture for variance rules
+so it:
 
 - evaluates enabled rules without writing a `variance_reports` row
 - resolves baselines through fund-owned lookup instead of bare baseline IDs
@@ -24,7 +26,8 @@ rules that:
   `runId`
 - persists alert incidents with real rule, threshold, baseline, and occurrence
   metadata
-- enforces suppression and duplicate control in the service layer
+- enforces suppression semantics in the evaluator and duplicate control with
+  both service logic and database guardrails
 - leaves manual report generation available for human-triggered analysis
 - creates a clean seam for `1C.2` calc-run completion and scheduler wiring
 
@@ -71,38 +74,37 @@ in the implementation.
      as embedded report payload. Relevant code:
    - `server/services/variance-tracking.ts`
 
-3. Rule evaluation is materially narrower than the public contract. The request
-   schema allows:
-   - `ruleType`: `threshold | trend | deviation | pattern`
-   - operators including `between`
-   - arbitrary `conditions`, `filters`, `escalationRules` The live evaluator
-     only supports:
-   - `${metricName}Variance` lookup
-   - `gt | lt | gte | lte | eq`
-   - no `between`
-   - no trend/deviation/pattern logic
-   - no conditions/filters logic Relevant code:
+3. A dedicated evaluator already exists, but it is not yet the full reusable
+   seam that `1C.2` needs.
+   - `VarianceAlertEvaluationService.evaluateVarianceAlerts()` already accepts
+     `fundId`, `baselineId`, `runId`, `source`, and `persistAlerts`
+   - it still loads all enabled rules for the fund
+   - it does not yet accept a caller-supplied rule subset
+   - it does not yet accept an execution identity / execution key for replay
+     safety
+   - it still lives inside `server/services/variance-tracking.ts` Relevant code:
+   - `server/services/variance-tracking.ts`
+
+4. Rule evaluation is still materially narrower than the public contract.
+   - the shared request schema still exposes
+     `threshold | trend | deviation | pattern`
+   - `between` is already implemented in both validation and evaluation
+   - trend/deviation/pattern logic is still absent
+   - `conditions`, `filters`, and `escalationRules` are not executable in the
+     evaluator Relevant code:
    - `shared/variance-validation.ts`
    - `server/services/variance-tracking.ts`
 
-4. Alert persistence currently throws away most of the schema.
-   `performance_alerts` has fields for `baselineId`, `varianceReportId`,
-   `thresholdValue`, `actualValue`, `varianceAmount`, `variancePercentage`,
-   `firstOccurrence`, `lastOccurrence`, `occurrenceCount`, `ruleId`,
-   `ruleVersion`, `contextData`, and escalation metadata. `createAlert()`
-   currently writes only:
-   - `fundId`
-   - `alertType`
-   - `severity`
-   - `category`
-   - `title`
-   - `description`
-   - `metricName`
-   - `triggeredAt` Relevant code:
+5. The repo currently has two alert-persistence paths.
+   - the legacy `createAlert()` path still writes a thin row shape
+   - the newer incident upsert path writes rule, baseline, threshold, and
+     occurrence metadata
+   - `1C.1` should consolidate report and automation flows on the incident path
+     rather than leaving two persistence models alive Relevant code:
    - `shared/schema.ts`
    - `server/services/variance-tracking.ts`
 
-5. The client alert read model is intentionally thin. `toClientAlert()` exposes:
+6. The client alert read model is intentionally thin. `toClientAlert()` exposes:
    - `ruleId`
    - `ruleName`
    - `message`
@@ -112,7 +114,7 @@ in the implementation.
      the rule/incident. Relevant code:
    - `server/routes/variance.ts`
 
-6. The manual analysis route contract is ahead of the implementation.
+7. The manual analysis route contract is ahead of the implementation.
    `VarianceAnalysisRequestSchema` already declares:
    - `includeAlertGeneration`
    - `analysisDepth` `VarianceAnalysisResponseSchema` declares
@@ -124,14 +126,14 @@ in the implementation.
    - `shared/variance-validation.ts`
    - `server/routes/variance.ts`
 
-7. The automation seam already exists and is retried. Calc-run completion
+8. The automation seam already exists and is retried. Calc-run completion
    handlers are registered at startup, and `markCalcRunCompletedIfReady()`
    re-drives downstream handlers after the completion transition so idempotent
    work can recover from failures. Relevant code:
    - `server/services/calc-run-completion-handlers.ts`
    - `server/services/calc-run-tracking.ts`
 
-8. The repo already has an exactly-once async pattern. `job_outbox` exists and
+9. The repo already has an exactly-once async pattern. `job_outbox` exists and
    `portfolio-optimization-service` already uses it as the durable queue
    boundary. `1C.1` does not need to schedule through it, but the alert
    evaluator should be designed so `1C.2` can reuse the same pattern rather than
@@ -139,15 +141,17 @@ in the implementation.
    - `shared/schema.ts`
    - `server/services/portfolio-optimization-service.ts`
 
-9. Baseline resolution is not consistently fund-scoped. `POST /variance-reports`
-   checks fund ownership before calling `generateVarianceReport()`, but
-   `generateVarianceReport()` itself looks up a baseline by bare `id`, and
-   `performCompleteVarianceAnalysis()` forwards a caller-supplied `baselineId`
-   without performing the same ownership check. Relevant code:
-   - `server/routes/variance.ts`
-   - `server/services/variance-tracking.ts`
+10. Baseline resolution is not consistently fund-scoped.
+    `POST /variance-reports` checks fund ownership before calling
+    `generateVarianceReport()`, but `generateVarianceReport()` itself looks up a
+    baseline by bare `id`, and `performCompleteVarianceAnalysis()` forwards a
+    caller-supplied `baselineId` without performing the same ownership check.
+    Relevant code:
 
-10. Current metric resolution is not run-aware.
+- `server/routes/variance.ts`
+- `server/services/variance-tracking.ts`
+
+11. Current metric resolution is not run-aware enough for automation hardening.
     `getCurrentMetrics(fundId, asOfDate)` reads the latest `fund_metrics` row at
     or before `asOfDate`, while the calc-run completion path already persists
     run-attributed `fund_metrics` rows and exposes `getAttributedKPIs()`. `1C.1`
@@ -156,14 +160,14 @@ in the implementation.
     - `server/services/variance-tracking.ts`
     - `server/services/fund-metrics-attribution-service.ts`
 
-11. The alerts read contract already drifts at the query boundary.
+12. The alerts read contract already drifts at the query boundary.
     `GetAlertsQuerySchema` accepts `status`, but the route drops it and
     `getActiveAlerts()` hardcodes `status = 'active'`. Relevant code:
     - `shared/variance-validation.ts`
     - `server/routes/variance.ts`
     - `server/services/variance-tracking.ts`
 
-12. The green focused test suite still leaves key `1C.1` risks untested. Current
+13. The green focused test suite still leaves key `1C.1` risks untested. Current
     passing tests do not assert:
     - `includeAlertGeneration`
     - `analysisDepth` removal or implementation
@@ -263,9 +267,9 @@ Behavior:
 
 #### Work
 
-1. Introduce an explicit supported metric catalog for variance alerting. The
-   current free-form `metricName` contract is too loose because the evaluator
-   only knows how to read specific variance keys.
+1. Stabilize and export the explicit supported metric catalog for variance
+   alerting. The repo already has `alertMetricNameSchema`, but the contract
+   still needs to stop behaving like free-form `metricName` is acceptable.
 
    Preferred canonical values:
    - `totalValueVariance`
@@ -274,6 +278,11 @@ Behavior:
    - `multipleVariance`
    - `dpiVariance`
    - `tvpiVariance`
+
+   Implement the catalog as one central normalization/mapping helper so `1C.1`
+   stays fund-level without painting the repo into a corner. Future
+   company-scoped alerting should be able to add namespaced keys without
+   widening the `1C.1` rule surface now.
 
 2. Add a normalization layer for existing short-form rule records and requests.
    The repo already behaves as if:
@@ -290,10 +299,9 @@ Behavior:
    and `pattern` are not implemented anywhere in the service layer. For this
    phase, the strategy should not pretend otherwise.
 
-4. Implement the missing `between` operator or remove it from the supported
-   request surface for this phase. Prefer implementing it now because:
-   - the request schema already exposes it
-   - the database schema already stores `secondaryThreshold`
+4. Keep the already-implemented `between` operator in the supported request
+   surface for this phase and cover it with focused tests. Do not keep treating
+   it as speculative or missing work.
 
 5. Make an explicit decision about `conditions`, `filters`, and
    `escalationRules` for this phase. Recommended:
@@ -319,16 +327,16 @@ Behavior:
 
 - alert-rule creation only accepts the rule surface the evaluator can actually
   execute
-- `between` no longer silently falls through to `false`
+- `between` remains supported end-to-end and is covered by focused tests
 - the manual variance-analysis request/response schema matches real behavior
 - the `/alerts` query schema matches real behavior
 
-### Slice 2: Extract Reusable Variance Snapshot Computation
+### Slice 2: Extract Reusable Variance Snapshot And Existing Evaluator
 
 #### Files
 
 - `server/services/variance-tracking.ts`
-- optional new file: `server/services/variance-alert-evaluation.ts`
+- new: `server/services/variance-alert-evaluation.ts`
 - `tests/unit/services/variance-tracking.test.ts`
 
 #### Work
@@ -338,7 +346,8 @@ Behavior:
    fund-scoped lookup. Do not let report or alert entrypoints keep performing
    their own bare `baselineId` reads.
 
-2. Extract the report-free computation core out of `generateVarianceReport()`.
+2. Extract the report-free computation core out of `generateVarianceReport()`
+   and move the existing evaluator out of `variance-tracking.ts`.
 
    The reusable computation should include:
    - fund-owned baseline lookup and validation
@@ -352,27 +361,27 @@ Behavior:
    plus report persistence.
 
 4. Replace the current `checkAlertTriggers()` shape with two layers:
-   - pure rule evaluation against a computed snapshot
-   - persistence of triggered incidents
+   - one shared rule-evaluation core against a computed snapshot
+   - optional persistence of triggered incidents
 
 5. Keep the report payload field `alertsTriggered` if it is still useful for the
-   manual report surface, but stop treating it as the persistence source of
-   truth for automation.
+   manual report surface, but make `checkAlertTriggers()` a thin adapter over
+   the dedicated evaluator with `persistAlerts=false`, or delete it entirely if
+   the report path can call the evaluator directly. Do not keep two independent
+   rule-evaluation implementations.
 
-#### Recommended Service Shape
+#### Required Service Shape
 
-Either:
+Lock the extraction cut now:
 
-- keep the extracted logic inside `VarianceCalculationService` as a new public
+- keep shared snapshot computation in `VarianceCalculationService` as a public
   method such as `computeVarianceSnapshot()`
-
-Or:
-
-- move the shared computation into a small helper module used by both report and
-  alert paths
+- move alert evaluation and incident persistence into a dedicated
+  `server/services/variance-alert-evaluation.ts`
 
 Do not duplicate the baseline/current-metric calculation path in a second
-service.
+service, and do not leave the alert slice inside the already-large
+`variance-tracking.ts` file.
 
 #### Acceptance
 
@@ -381,11 +390,11 @@ service.
 - alert evaluation can reuse the same underlying snapshot computation without
   writing a report
 
-### Slice 3: Dedicated Alert Evaluation And Incident Persistence
+### Slice 3: Harden Existing Alert Evaluation And Incident Semantics
 
 #### Files
 
-- new file: `server/services/variance-alert-evaluation.ts` recommended
+- `server/services/variance-alert-evaluation.ts`
 - `server/services/variance-tracking.ts`
 - `shared/schema.ts`
 - migrations in both schema streams if new indexes/constraints are added
@@ -393,7 +402,8 @@ service.
 
 #### Work
 
-Implement a dedicated evaluator with an internal API shaped roughly like:
+Refine the existing `evaluateVarianceAlerts()` implementation into the extracted
+service with an internal API shaped roughly like:
 
 ```ts
 interface EvaluateVarianceAlertsParams {
@@ -403,8 +413,15 @@ interface EvaluateVarianceAlertsParams {
   asOfDate?: Date;
   source: 'manual' | 'calc_run_completion' | 'scheduler';
   persistAlerts: boolean;
+  rules?: AlertRule[];
+  executionKey?: string;
 }
 ```
+
+The repo already persists alerts from the evaluator today. The remaining work in
+this slice is to normalize that behavior behind one extracted service contract,
+support dry-run and filtered-rule execution cleanly, and make the persistence
+path ready for Slice 4's duplicate guardrails.
 
 The service should:
 
@@ -413,14 +430,18 @@ The service should:
    - `runId`-attributed metrics when `runId` is present
    - latest `fund_metrics` at or before `asOfDate` only when `runId` is absent
 3. Compute a report-free variance snapshot.
-4. Load enabled rules for the fund.
+4. Use caller-supplied `rules` when provided; otherwise load enabled rules for
+   the fund.
 5. Normalize and validate each rule against the supported metric catalog.
 6. Produce a structured evaluation result for every rule:
    - `triggered`
    - `not_triggered`
    - `suppressed`
    - `unsupported`
-7. Persist triggered incidents transactionally when `persistAlerts=true`.
+7. Thread through an optional `executionKey` contract now so `1C.2` can layer
+   replay safety without reopening the evaluator signature.
+8. Persist triggered incidents only after Slice 4's data cleanup and unique
+   index are live.
 
 #### Recommended Persistence Semantics
 
@@ -438,6 +459,19 @@ Open statuses:
 - `acknowledged`
 - `investigating`
 
+Baseline rotation semantics for `1C.1` are explicit:
+
+- incidents remain tied to the baseline that triggered them
+- rotating the fund's default baseline does not auto-resolve, merge, or rewrite
+  older open incidents
+- evaluation against a new baseline can create a new open incident for the same
+  rule under the new `(fundId, baselineId, ruleId)` tuple
+- old incidents remain visible until manually resolved through the existing
+  acknowledge/resolve lifecycle or a later auto-resolution phase
+
+This keeps manual baseline-specific analysis truthful and avoids collapsing
+alerts from materially different comparison frames into one row.
+
 Persistence rules:
 
 1. If the rule does not trigger:
@@ -454,6 +488,8 @@ Persistence rules:
    - leave status unchanged
    - use `suppressionPeriod` to decide whether the evaluation is considered
      `suppressed` for downstream notification hooks
+   - compare suppression against the evaluation timestamp (`asOfDate` / computed
+     snapshot timestamp), not wall-clock `Date.now()`
 
 3. If the rule triggers and no open incident exists:
    - insert a new `performance_alerts` row
@@ -470,10 +506,31 @@ Persistence rules:
      - `occurrenceCount = 1`
      - `contextData`
      - `ruleVersion`
+   - accept that automated alert rows may leave `varianceReportId = NULL`; the
+     provenance source of truth is the stored baseline/rule/metric context, not
+     a synthetic report join
 
 4. Update the originating `alert_rules` row:
    - `lastTriggered`
    - `triggerCount`
+
+#### Recommended Persistence Implementation
+
+Do not rely on a read-then-write `SELECT existing -> INSERT/UPDATE` pattern as
+the final concurrency control. Under Postgres `READ COMMITTED`, that is still a
+TOCTOU race.
+
+The intended end state is:
+
+- Slice 4 creates a partial unique open-incident index on
+  `(fund_id, baseline_id, rule_id)` for open statuses
+- persistent writes use one DB-native upsert statement keyed to that identity
+- if the ORM cannot express the partial-index `ON CONFLICT` target cleanly, use
+  a raw SQL statement inside the transaction rather than falling back to
+  application-level race handling
+
+The evaluator can still produce dry-run results before that persistence path is
+enabled.
 
 #### Recommended Alert Content Rules
 
@@ -505,7 +562,7 @@ without joining back to the report path:
 - `varianceAmount`
 - `variancePercentage`
 
-### Slice 4: Database Guardrails For Duplicate Safety
+### Slice 4: Database Guardrails And Data Hygiene
 
 #### Files
 
@@ -516,28 +573,42 @@ without joining back to the report path:
 
 #### Work
 
-The service-level upsert logic is necessary but not sufficient because `1C.2`
-will intentionally make repeated and potentially concurrent evaluation calls
+The service-level evaluator is necessary but not sufficient because `1C.2` will
+intentionally make repeated and potentially concurrent evaluation calls
 possible.
 
 Add database-level guardrails for the open-incident identity:
 
-1. Add an index on `performance_alerts.rule_id`. The current table has indexes
+1. Audit current data for duplicate open incidents before adding a unique index.
+   Specifically:
+   - query for duplicate open rows on `(fund_id, baseline_id, rule_id)` with
+     `status IN ('active', 'acknowledged', 'investigating')`
+   - define the cleanup rule in advance
+   - recommended cleanup: keep the newest open incident, merge/retain the most
+     useful occurrence metadata if needed, and resolve or otherwise retire the
+     extra rows before the unique index migration lands
+
+2. Add an index on `performance_alerts.rule_id`. The current table has indexes
    on fund/severity/status/metric/baseline/report but not the key the evaluator
    will use most often.
 
-2. Add a partial unique index for open incidents if the current data allows it.
+3. Add a partial unique index for open incidents once cleanup is complete.
    Recommended shape:
 
 - unique on `(fund_id, baseline_id, rule_id)`
 - predicate: `status IN ('active', 'acknowledged', 'investigating')`
 
-3. If data hygiene allows it, convert `performance_alerts.rule_id` to a real
+4. If data hygiene allows it, convert `performance_alerts.rule_id` to a real
    foreign key to `alert_rules.id`. If that is too risky for `1C.1`, at least
    document it as immediate follow-up debt.
 
+Land this slice before or alongside the production rollout of persistent alert
+incident writes. Do not treat it as optional polish after persistence is live.
+
 #### Acceptance
 
+- pre-existing duplicate open incidents have been cleaned or explicitly gated
+  before the unique index migration
 - concurrent evaluations cannot create two open incidents for the same
   rule/baseline/fund tuple
 
@@ -607,13 +678,17 @@ contract now instead of leaving another dead field behind.
 Add or update focused tests for:
 
 - metric-name normalization from legacy aliases
+- metric catalog behavior remaining explicitly fund-level in `1C.1`
 - foreign baseline rejection for manual and service entrypoints
 - `between` operator evaluation
 - unsupported `ruleType` handling
 - unsupported metric handling
 - run-attributed metric selection when `runId` is provided
 - open-incident update instead of duplicate insert
+- baseline rotation behavior: a new baseline creates a new incident identity
+  rather than mutating the older baseline-scoped row
 - `suppressionPeriod` handling during repeated triggering
+- suppression using the evaluation timestamp rather than ambient wall-clock time
 - insertion of a new incident after no open incident exists
 - `ruleId`, `baselineId`, threshold, and occurrence fields being persisted
 - `lastTriggered` and `triggerCount` updates on the rule row
@@ -639,6 +714,9 @@ If a database-backed integration test is practical in this slice, prefer it over
 only mocking the insert sequence because this is precisely the class of bug that
 mocked unit tests tend to miss.
 
+That integration proof should cover the DB-native upsert path, not only a
+service transaction around a read-then-write sequence.
+
 ### Regression Tests
 
 Keep these existing surfaces green:
@@ -650,18 +728,19 @@ Keep these existing surfaces green:
 
 ## Sequencing Recommendation
 
-Implement `1C.1` in this order:
+Implement the remaining `1C.1` work in this order:
 
 1. Contract cleanup and supported alert metric catalog
 2. Reusable variance snapshot extraction
 3. Dedicated alert evaluator without persistence side effects
-4. Alert incident persistence and rule-row updates
-5. Database duplicate-safety guardrails
-6. Manual route alignment
+4. Database duplicate-safety guardrails and duplicate-data cleanup
+5. Alert incident persistence and rule-row updates
+6. Manual route and read-path alignment
 7. Tests and rollout notes
 
-This order keeps the core logic honest first, then adds persistence and contract
-polish once the evaluator is real.
+This order keeps the core logic honest first, lands the database arbiter before
+persistent incident writes, and only then turns on alert persistence and
+contract polish.
 
 ## Risks And Explicit Tradeoffs
 
@@ -676,15 +755,25 @@ polish once the evaluator is real.
    whether a non-trigger means resolve, dismiss, or do nothing. Keep that as an
    explicit later decision.
 
-4. Notification dispatch is not part of this slice. `notificationChannels` and
+4. Baseline-scoped incidents are an intentional product decision in `1C.1`.
+   Keeping `baselineId` in the open-incident identity means baseline rotation
+   can surface a fresh incident under a new comparison frame while older
+   baseline incidents remain open until manually resolved or later
+   auto-resolved.
+
+5. Notification dispatch is not part of this slice. `notificationChannels` and
    `suppressionPeriod` should be made truthful for future delivery hooks, but no
    email/slack/webhook work should be smuggled into `1C.1`.
 
-5. The current service file is already large. Prefer a new alert-evaluation
-   service module rather than adding more responsibility to
-   `server/services/variance-tracking.ts`.
+6. `suppressionPeriod` remains rule-level in `1C.1`. Per-incident snooze is
+   future UX work and should not be conflated with the initial persistence
+   design.
 
-6. The current focused tests being green does not mean `1C.1` is already safe.
+7. Extraction is not optional. `1C.1` should finish with a dedicated
+   `server/services/variance-alert-evaluation.ts` module rather than carrying
+   more alert logic in `server/services/variance-tracking.ts`.
+
+8. The current focused tests being green does not mean `1C.1` is already safe.
    They largely validate the existing report-first flow; they do not yet prove
    foreign-baseline safety, run-aware evaluation, or truthful alert query
    semantics.
@@ -700,12 +789,20 @@ polish once the evaluator is real.
 - automated evaluation can bind to calc-run-attributed metrics when `runId` is
   supplied
 - the supported alert-rule contract matches what the evaluator can actually run
-- `between` is either implemented or removed from supported behavior
+- `between` remains supported and covered by tests
+- open-incident persistence is backed by duplicate-data cleanup, a partial
+  unique open-incident index, and a DB-native upsert path
 - repeated evaluations update an existing open incident instead of inserting
   duplicates
-- suppression is enforced in the service layer
+- suppression compares against the evaluation timestamp, not ambient wall clock
 - persisted alert rows include rule, baseline, threshold, actual-value, and
   occurrence metadata
+- baseline rotation semantics are explicit: incidents stay baseline-scoped in
+  `1C.1` until manual resolution or a later auto-resolution phase
+- the existing evaluator is extracted to
+  `server/services/variance-alert-evaluation.ts`
+- the evaluator contract already supports caller-supplied rule subsets and an
+  execution-key seam for `1C.2`
 - the manual `/variance-analysis` route contract is truthful
 - the `/alerts` query contract is truthful
 - the code is ready for `1C.2` to call the evaluator from calc-run completion or

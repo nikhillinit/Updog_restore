@@ -2,20 +2,17 @@
  * Calc-Run Completion Handlers
  *
  * Registers downstream automation that fires when a calc-run transitions
- * to completed. Each handler is fire-and-forget -- failures are logged
- * but never block the completion path.
+ * to completed. The handler is retried by markCalcRunCompletedIfReady(),
+ * so the internal steps must be sequential and idempotent.
  *
  * Import this module at server startup to wire the handlers.
  */
 
 import { registerCalcRunCompletedHandler } from './calc-run-tracking';
-import { ensureAttributedFundMetricsForCalcRun } from './fund-metrics-attribution-service';
-import { BaselineService } from './variance-tracking';
 import { logger } from '../lib/logger';
+import { varianceAlertAutomationService } from './variance-alert-automation';
 
 const log = logger.child({ module: 'calc-run-completion-handlers' });
-
-const baselineService = new BaselineService();
 let handlersRegistered = false;
 
 export function registerCompletionHandlers(): void {
@@ -26,12 +23,8 @@ export function registerCompletionHandlers(): void {
 
   handlersRegistered = true;
 
-  registerCalcRunCompletedHandler(async function attributeMetrics(runId) {
-    await ensureAttributedFundMetricsForCalcRun(runId);
-  });
-
-  registerCalcRunCompletedHandler(async function createBaseline(runId) {
-    await baselineService.createBaselineFromCalcRun(runId);
+  registerCalcRunCompletedHandler(async function automateVarianceAlerts(runId, fundId) {
+    await varianceAlertAutomationService.runCalcRunCompletion(runId, fundId);
   });
 
   log.info('Calc-run completion handlers registered');
