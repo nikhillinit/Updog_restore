@@ -824,6 +824,27 @@ describe('Variance Tracking API', () => {
         expect(response.body.error).toBe('Validation failed');
         expect(response.body.message).toBe('Invalid alert rule data');
       });
+
+      it('should reject unsupported rule extensions for Phase 1C.1', async () => {
+        const invalidData = {
+          name: 'Conditional Rule',
+          ruleType: 'threshold',
+          metricName: 'irr',
+          operator: 'lt',
+          thresholdValue: -0.05,
+          conditions: {
+            minimumVariance: 0.01,
+          },
+        };
+
+        const response = await request(app)
+          .post('/api/funds/1/alert-rules')
+          .send(invalidData)
+          .expect(400);
+
+        expect(response.body.error).toBe('Validation failed');
+        expect(mockVarianceTrackingService.alerts.createAlertRule).not.toHaveBeenCalled();
+      });
     });
 
     describe('GET /api/funds/:id/alerts', () => {
@@ -944,6 +965,37 @@ describe('Variance Tracking API', () => {
           limit: 20,
         });
       });
+
+      it('should forward status filters and prefer contextData.ruleName', async () => {
+        mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue([
+          {
+            id: '00000000-0000-0000-0000-000000000303',
+            fundId: 1,
+            ruleId: '00000000-0000-0000-0000-000000000403',
+            title: 'Stored Incident Title',
+            description: 'IRR variance remains outside the configured threshold.',
+            severity: 'warning',
+            category: 'performance',
+            status: 'investigating',
+            triggeredAt: '2024-12-31T10:00:00.000Z',
+            contextData: {
+              ruleName: 'Canonical IRR Rule Name',
+            },
+          },
+        ]);
+
+        const response = await request(app)
+          .get('/api/funds/1/alerts?status=active,investigating')
+          .expect(200);
+
+        expect(response.body.data[0]).toMatchObject({
+          ruleName: 'Canonical IRR Rule Name',
+          status: 'investigating',
+        });
+        expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
+          status: ['active', 'investigating'],
+        });
+      });
     });
 
     describe('POST /api/alerts/:alertId/acknowledge', () => {
@@ -1034,6 +1086,9 @@ describe('Variance Tracking API', () => {
             { id: 'alert-2', severity: 'critical' },
           ],
         };
+        mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue({
+          id: '00000000-0000-0000-0000-000000000123',
+        });
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue(mockResult);
 
         const analysisData = {
@@ -1057,6 +1112,7 @@ describe('Variance Tracking API', () => {
           baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'Complete Analysis Report',
           userId: 1,
+          includeAlertGeneration: true,
         });
       });
 
@@ -1082,6 +1138,7 @@ describe('Variance Tracking API', () => {
           mockVarianceTrackingService.performCompleteVarianceAnalysis.mock.calls[0][0];
         expect(callArgs.baselineId).toBeUndefined();
         expect(callArgs.reportName).toBe('Default Baseline Analysis');
+        expect(callArgs.includeAlertGeneration).toBe(true);
       });
 
       it('should validate baseline ID format when provided', async () => {
@@ -1096,6 +1153,44 @@ describe('Variance Tracking API', () => {
           .expect(400);
 
         expect(response.body.error).toBe('Validation failed');
+      });
+
+      it('should respect includeAlertGeneration=false', async () => {
+        mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue({
+          report: { id: 'report-id' },
+          alertsGenerated: [],
+        });
+
+        await request(app)
+          .post('/api/funds/1/variance-analysis')
+          .send({
+            reportName: 'No Alerts Analysis',
+            includeAlertGeneration: false,
+          })
+          .expect(201);
+
+        expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).toHaveBeenCalledWith({
+          fundId: 1,
+          reportName: 'No Alerts Analysis',
+          userId: 1,
+          includeAlertGeneration: false,
+        });
+      });
+
+      it('should reject foreign baseline IDs before analysis', async () => {
+        mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue(null);
+
+        const response = await request(app)
+          .post('/api/funds/1/variance-analysis')
+          .send({
+            baselineId: '00000000-0000-0000-0000-000000000123',
+            reportName: 'Foreign Baseline Analysis',
+          })
+          .expect(404);
+
+        expect(response.body.error).toBe('Baseline not found');
+        expect(response.body.message).toBe('The specified baseline does not belong to this fund.');
+        expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).not.toHaveBeenCalled();
       });
     });
 

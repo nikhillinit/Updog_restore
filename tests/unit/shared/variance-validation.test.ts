@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CreateAlertRuleRequestSchema,
+  GetAlertsQuerySchema,
   PortfolioVarianceSchema,
+  VarianceAnalysisRequestSchema,
+  VarianceAnalysisResponseSchema,
   VarianceCalculationSchema,
   VarianceDashboardResponseSchema,
   VarianceReportClientResponseSchema,
@@ -170,5 +174,97 @@ describe('variance-validation', () => {
     expect(VarianceDashboardResponseSchema.parse(dashboardShape).summary.overallRiskLevel).toBe(
       'medium'
     );
+  });
+
+  it('accepts supported Phase 1C.1 alert rule metrics and rejects unsupported extensions', () => {
+    const validRule = CreateAlertRuleRequestSchema.parse({
+      name: 'IRR Decline',
+      ruleType: 'threshold',
+      metricName: 'irr',
+      operator: 'lt',
+      thresholdValue: -0.05,
+    });
+
+    expect(validRule.metricName).toBe('irr');
+
+    expect(
+      CreateAlertRuleRequestSchema.safeParse({
+        name: 'Conditional IRR Decline',
+        ruleType: 'threshold',
+        metricName: 'irr',
+        operator: 'lt',
+        thresholdValue: -0.05,
+        conditions: {
+          minimumVariance: 0.01,
+        },
+      }).success
+    ).toBe(false);
+  });
+
+  it('keeps the alerts query contract truthful for explicit status filters', () => {
+    const parsed = GetAlertsQuerySchema.parse({
+      status: 'active,investigating',
+      limit: '10',
+    });
+
+    expect(parsed.status).toEqual(['active', 'investigating']);
+    expect(parsed.limit).toBe(10);
+  });
+
+  it('matches the current variance-analysis request and response contract', () => {
+    const request = VarianceAnalysisRequestSchema.parse({
+      baselineId: '00000000-0000-0000-0000-000000000222',
+      reportName: 'Manual Analysis',
+      includeAlertGeneration: false,
+    });
+
+    expect(request.includeAlertGeneration).toBe(false);
+    expect(
+      VarianceAnalysisResponseSchema.safeParse({
+        report: {
+          id: '00000000-0000-0000-0000-000000000111',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000222',
+          reportName: 'Manual Analysis',
+          reportType: 'ad_hoc',
+          reportPeriod: null,
+          analysisStart: '2024-10-01T00:00:00.000Z',
+          analysisEnd: '2024-12-31T23:59:59.000Z',
+          asOfDate: '2024-12-31T23:59:59.000Z',
+          currentMetrics: {},
+          baselineMetrics: {},
+          totalValueVariance: null,
+          totalValueVariancePct: null,
+          irrVariance: null,
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          portfolioVariances: null,
+          sectorVariances: null,
+          stageVariances: null,
+          reserveVariances: null,
+          pacingVariances: null,
+          overallVarianceScore: null,
+          significantVariances: [],
+          varianceFactors: [],
+          alertsTriggered: [],
+          thresholdBreaches: [],
+          riskLevel: 'low',
+          calculationEngine: 'variance-v1',
+          calculationDurationMs: null,
+          dataQualityScore: null,
+          generatedBy: 1,
+          reviewedBy: null,
+          approvedBy: null,
+          status: 'draft',
+          isPublic: false,
+          sharedWith: [],
+          createdAt: '2024-12-31T12:00:00.000Z',
+          updatedAt: '2024-12-31T12:00:00.000Z',
+        },
+        alertsGenerated: [],
+        alertCount: 0,
+      }).success
+    ).toBe(true);
   });
 });
