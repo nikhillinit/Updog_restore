@@ -227,10 +227,16 @@ Estimate: `4-7 days`
 
 Depends on: `1C.1`
 
+Detailed plan:
+
+- `docs/plans/2026-04-02-phase-1c2-alert-scheduling-and-remaining-capital-plan.md`
+
 Work:
 
-- add provider/bootstrap wiring
-- add remaining-capital-vs-plan display
+- add calc-run completion wiring for `realtime` alert rules
+- add outbox-backed scheduling for `hourly` / `daily` / `weekly` alert rules
+- add provider/bootstrap wiring for alert planner + processor startup
+- add remaining-capital-vs-plan display on the variance page
 
 ## Phase 2: Scenario Comparison Consolidation
 

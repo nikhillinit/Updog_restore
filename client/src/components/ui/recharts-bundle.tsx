@@ -179,6 +179,10 @@ export const ChartTooltip = React.forwardRef<HTMLDivElement, ChartTooltipProps>(
       }
 
       const [item] = tooltipPayload;
+      if (!item) {
+        return null;
+      }
+
       const key = labelKey ?? getTooltipItemKey(item, 'value');
       const itemConfig = getPayloadConfigFromPayload(config, item, key);
       const value = !labelKey ? getTooltipLabelValue(config, label) : itemConfig?.label;

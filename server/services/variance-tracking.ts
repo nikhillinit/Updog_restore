@@ -858,23 +858,23 @@ export class VarianceCalculationService {
         asOfDate,
         currentMetrics,
         baselineMetrics,
-        totalValueVariance: variances.totalValueVariance?.toString() ?? null,
-        totalValueVariancePct: variances.totalValueVariancePct?.toString() ?? null,
-        irrVariance: variances.irrVariance?.toString() ?? null,
-        multipleVariance: variances.multipleVariance?.toString() ?? null,
-        dpiVariance: variances.dpiVariance?.toString() ?? null,
-        tvpiVariance: variances.tvpiVariance?.toString() ?? null,
+        totalValueVariance: variances['totalValueVariance']?.toString() ?? null,
+        totalValueVariancePct: variances['totalValueVariancePct']?.toString() ?? null,
+        irrVariance: variances['irrVariance']?.toString() ?? null,
+        multipleVariance: variances['multipleVariance']?.toString() ?? null,
+        dpiVariance: variances['dpiVariance']?.toString() ?? null,
+        tvpiVariance: variances['tvpiVariance']?.toString() ?? null,
         // Persist portfolio sub-analyses to dedicated schema columns
         portfolioVariances: portfolioVariances
           ? {
-              companyVariances: portfolioVariances.companyVariances,
-              portfolioCountVariance: portfolioVariances.portfolioCountVariance,
+              companyVariances: portfolioVariances['companyVariances'],
+              portfolioCountVariance: portfolioVariances['portfolioCountVariance'],
             }
           : null,
-        sectorVariances: portfolioVariances?.sectorVariances ?? null,
-        stageVariances: portfolioVariances?.stageVariances ?? null,
-        reserveVariances: portfolioVariances?.reserveVariances ?? null,
-        pacingVariances: portfolioVariances?.pacingVariances ?? null,
+        sectorVariances: portfolioVariances?.['sectorVariances'] ?? null,
+        stageVariances: portfolioVariances?.['stageVariances'] ?? null,
+        reserveVariances: portfolioVariances?.['reserveVariances'] ?? null,
+        pacingVariances: portfolioVariances?.['pacingVariances'] ?? null,
         significantVariances: insights.significantVariances,
         varianceFactors: insights.factors,
         thresholdBreaches: insights.thresholdBreaches,
@@ -2267,8 +2267,8 @@ export class VarianceAlertEvaluationService {
     const snapshot = await this.calculations.computeVarianceSnapshot({
       fundId: params.fundId,
       baselineId: baseline.id,
-      runId: params.runId,
-      asOfDate: params.asOfDate,
+      ...(params.runId !== undefined ? { runId: params.runId } : {}),
+      ...(params.asOfDate !== undefined ? { asOfDate: params.asOfDate } : {}),
     });
 
     const rules = await db.query.alertRules.findMany({

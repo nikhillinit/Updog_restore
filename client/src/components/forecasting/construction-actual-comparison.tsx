@@ -301,7 +301,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="initial-checks">
           <ComparisonTable
-            data={comparisonData['initialChecks']}
+            data={comparisonData['initialChecks'] ?? []}
             title="Construction vs. Actual Comparison, By Entry Stage"
             description="Average initial check size per deal in actual investments compared between construction plan and actual investments."
           />
@@ -309,7 +309,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="follow-on-reserves">
           <ComparisonTable
-            data={comparisonData['followOnReserves']}
+            data={comparisonData['followOnReserves'] ?? []}
             title="Follow-On Reserves Comparison"
             description="Average follow-on reserve allocation per deal comparing construction plan with actual reserve deployment."
           />
@@ -317,7 +317,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="round-sizes">
           <ComparisonTable
-            data={comparisonData['roundSizes']}
+            data={comparisonData['roundSizes'] ?? []}
             title="Round Sizes Comparison"
             description="Average total round size for deals comparing construction assumptions with actual market conditions."
           />
@@ -325,7 +325,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="pre-money">
           <ComparisonTable
-            data={comparisonData['preMoneyValuations']}
+            data={comparisonData['preMoneyValuations'] ?? []}
             title="Pre-Money Valuations Comparison"
             description="Average pre-money valuation per deal of actual investments compared between construction plan and actual investments."
           />
@@ -333,7 +333,7 @@ export function ConstructionActualComparison() {
 
         <TabsContent value="post-money">
           <ComparisonTable
-            data={comparisonData['postMoneyValuations']}
+            data={comparisonData['postMoneyValuations'] ?? []}
             title="Post-Money Valuations Comparison"
             description="Average post-money valuation per deal comparing construction assumptions with actual investment terms."
           />
