@@ -83,6 +83,7 @@ export default function GraduationReservesDemo() {
   ];
 
   const currentScenario = scenarios[selectedScenario] ?? scenarios[0];
+  if (!currentScenario) return null;
   const result = computeReservesFromGraduation(currentScenario.fundData);
   const graduationRateEntries = Object.entries(currentScenario.fundData.graduationRates) as Array<
     [GraduationStage, GraduationRates[GraduationStage]]
