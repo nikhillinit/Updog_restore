@@ -21,6 +21,7 @@ import {
 } from '@shared/schema';
 import type {
   FundBaseline,
+  Investment,
   InsertFundBaseline,
   VarianceReport,
   InsertVarianceReport,
@@ -29,6 +30,7 @@ import type {
   AlertRule,
   InsertAlertRule,
 } from '@shared/schema';
+import type { CompanyVarianceRow } from '@shared/variance-validation';
 import { eq, and, desc, lte, inArray } from 'drizzle-orm';
 import {
   recordVarianceReportGenerated,
@@ -96,23 +98,34 @@ function ensureOrderedPeriod(start: Date, end: Date): Date {
   return new Date(start.getTime() + 1000);
 }
 
-function sumInvestmentAmounts(investmentRows: unknown): Decimal {
-  if (!Array.isArray(investmentRows)) {
+function sumInvestmentAmounts(investmentRows: Investment[] | null | undefined): Decimal {
+  if (!investmentRows?.length) {
     return new Decimal(0);
   }
 
   return investmentRows.reduce<Decimal>((sum, investmentRow) => {
-    if (!investmentRow || typeof investmentRow !== 'object') {
+    if (investmentRow.amount == null) {
       return sum;
     }
 
-    const amount = (investmentRow as Record<string, unknown>)['amount'];
-    if (amount == null) {
-      return sum;
-    }
-
-    return sum.plus(toDecimal(String(amount)));
+    return sum.plus(toDecimal(String(investmentRow.amount)));
   }, new Decimal(0));
+}
+
+function withLegacyValuationAliases(
+  valuationVariance: string | null,
+  valuationVariancePct: string | null
+): Pick<
+  CompanyVarianceRow,
+  'valuationChange' | 'valuationChangePct' | 'valuationVariance' | 'valuationVariancePct'
+> {
+  // TODO(variance): remove valuationChange* after all consumers switch to valuationVariance*.
+  return {
+    valuationChange: valuationVariance,
+    valuationChangePct: valuationVariancePct,
+    valuationVariance,
+    valuationVariancePct,
+  };
 }
 
 /**
@@ -1292,7 +1305,7 @@ export class VarianceCalculationService {
         },
       })) ?? [];
 
-    const variances: Array<Record<string, string | number | null>> = [];
+    const variances: CompanyVarianceRow[] = [];
     const matchedCompanyIds = new Set<number>();
 
     for (const company of companies) {
@@ -1315,10 +1328,7 @@ export class VarianceCalculationService {
           currentValuation: currentVal.toString(),
           baselineInvestedCapital: null,
           currentInvestedCapital: currentInvestedCapital.toString(),
-          valuationChange: currentVal.toString(),
-          valuationChangePct: null,
-          valuationVariance: currentVal.toString(),
-          valuationVariancePct: null,
+          ...withLegacyValuationAliases(currentVal.toString(), null),
           riskLevel: this.getCompanyVarianceRiskLevel(null),
         });
         continue;
@@ -1345,10 +1355,7 @@ export class VarianceCalculationService {
         currentValuation: currentVal.toString(),
         baselineInvestedCapital: baselineEntry.investedCapital?.toString() ?? null,
         currentInvestedCapital: currentInvestedCapital.toString(),
-        valuationChange: change.toString(),
-        valuationChangePct: changePct.toString(),
-        valuationVariance: change.toString(),
-        valuationVariancePct: changePct.toString(),
+        ...withLegacyValuationAliases(change.toString(), changePct.toString()),
         riskLevel: this.getCompanyVarianceRiskLevel(changePct),
       });
     }
@@ -1374,10 +1381,7 @@ export class VarianceCalculationService {
           currentValuation: null,
           baselineInvestedCapital: baselineEntry.investedCapital?.toString() ?? null,
           currentInvestedCapital: null,
-          valuationChange: change.toString(),
-          valuationChangePct: changePct?.toString() ?? null,
-          valuationVariance: change.toString(),
-          valuationVariancePct: changePct?.toString() ?? null,
+          ...withLegacyValuationAliases(change.toString(), changePct?.toString() ?? null),
           riskLevel: this.getCompanyVarianceRiskLevel(changePct),
         });
       }

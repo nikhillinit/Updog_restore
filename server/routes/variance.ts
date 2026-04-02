@@ -10,7 +10,7 @@ import type { Request, Response } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { toNumber, NumberParseError } from '@shared/number';
-import type { VarianceReport as DbVarianceReport } from '@shared/schema';
+import type { PerformanceAlert, VarianceReport as DbVarianceReport } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import {
   AlertActionRequestSchema,
@@ -132,75 +132,51 @@ function buildAlertCounts(
   };
 }
 
-function toClientAlert(
-  alert: Record<string, unknown> & {
-    id?: string;
-    fundId?: number;
-    severity?: ClientAlertResponse['severity'];
-    category?: ClientAlertResponse['category'];
-    status?: ClientAlertResponse['status'];
-  }
-): ClientAlertResponse {
+function normalizeAlertSeverity(value: string | null): ClientAlertResponse['severity'] {
+  return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent'
+    ? value
+    : 'warning';
+}
+
+function normalizeAlertCategory(value: string | null): ClientAlertResponse['category'] {
+  return value === 'performance' ||
+    value === 'risk' ||
+    value === 'compliance' ||
+    value === 'operational'
+    ? value
+    : 'performance';
+}
+
+function normalizeAlertStatus(value: string | null): ClientAlertResponse['status'] {
+  return value === 'active' ||
+    value === 'acknowledged' ||
+    value === 'investigating' ||
+    value === 'resolved' ||
+    value === 'dismissed'
+    ? value
+    : 'active';
+}
+
+function toClientAlert(alert: PerformanceAlert, fundId: number): ClientAlertResponse {
   return {
-    id: typeof alert.id === 'string' ? alert.id : String(alert.ruleId ?? alert.rule_id ?? ''),
-    fundId:
-      typeof alert.fundId === 'number'
-        ? alert.fundId
-        : typeof alert.fund_id === 'number'
-          ? alert.fund_id
-          : 0,
-    ruleId:
-      typeof alert.ruleId === 'string'
-        ? alert.ruleId
-        : typeof alert.rule_id === 'string'
-          ? alert.rule_id
-          : null,
-    ruleName:
-      typeof alert.title === 'string'
-        ? alert.title
-        : typeof alert.ruleName === 'string'
-          ? alert.ruleName
-          : typeof alert.alertType === 'string'
-            ? alert.alertType
-            : typeof alert.alert_type === 'string'
-              ? alert.alert_type
-              : 'Variance Alert',
-    severity: alert.severity ?? 'warning',
-    category: alert.category ?? 'performance',
-    message:
-      typeof alert.description === 'string'
-        ? alert.description
-        : typeof alert.message === 'string'
-          ? alert.message
-          : '',
+    id: alert.id,
+    fundId: alert.fundId ?? fundId,
+    ruleId: alert.ruleId ?? null,
+    ruleName: alert.title,
+    severity: normalizeAlertSeverity(alert.severity),
+    category: normalizeAlertCategory(alert.category),
+    message: alert.description,
     details:
       alert.contextData && typeof alert.contextData === 'object'
         ? (alert.contextData as Record<string, unknown>)
-        : alert.context_data && typeof alert.context_data === 'object'
-          ? (alert.context_data as Record<string, unknown>)
-          : alert.details && typeof alert.details === 'object'
-            ? (alert.details as Record<string, unknown>)
-            : {},
-    status: alert.status ?? 'active',
-    triggeredAt:
-      toIsoTimestamp(
-        (alert.triggeredAt ?? alert.triggered_at) as Date | string | null | undefined
-      ) ?? '',
-    acknowledgedAt:
-      toIsoTimestamp(
-        (alert.acknowledgedAt ?? alert.acknowledged_at) as Date | string | null | undefined
-      ) ?? null,
-    acknowledgedBy: typeof alert.acknowledgedBy === 'number' ? alert.acknowledgedBy : null,
-    resolvedAt:
-      toIsoTimestamp((alert.resolvedAt ?? alert.resolved_at) as Date | string | null | undefined) ??
-      null,
-    resolvedBy: typeof alert.resolvedBy === 'number' ? alert.resolvedBy : null,
-    notes:
-      typeof alert.resolutionNotes === 'string'
-        ? alert.resolutionNotes
-        : typeof alert.notes === 'string'
-          ? alert.notes
-          : null,
+        : {},
+    status: normalizeAlertStatus(alert.status),
+    triggeredAt: toIsoTimestamp(alert.triggeredAt) ?? '',
+    acknowledgedAt: toIsoTimestamp(alert.acknowledgedAt) ?? null,
+    acknowledgedBy: alert.acknowledgedBy ?? null,
+    resolvedAt: toIsoTimestamp(alert.resolvedAt) ?? null,
+    resolvedBy: alert.resolvedBy ?? null,
+    notes: alert.resolutionNotes ?? null,
   };
 }
 
@@ -742,17 +718,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       category,
       limit,
     });
-    const clientAlerts = alerts.map((alert) =>
-      toClientAlert(
-        alert as Record<string, unknown> & {
-          id: string;
-          fundId: number;
-          severity: ClientAlertResponse['severity'];
-          category: ClientAlertResponse['category'];
-          status: ClientAlertResponse['status'];
-        }
-      )
-    );
+    const clientAlerts = alerts.map((alert) => toClientAlert(alert, fundId));
 
     res['json']({
       success: true,
@@ -971,17 +937,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
 
     const defaultBaseline = baselines.find((b) => b.isDefault) ?? null;
     const latestReport = latestReports[0];
-    const clientAlerts = activeAlerts.map((alert) =>
-      toClientAlert(
-        alert as Record<string, unknown> & {
-          id: string;
-          fundId: number;
-          severity: ClientAlertResponse['severity'];
-          category: ClientAlertResponse['category'];
-          status: ClientAlertResponse['status'];
-        }
-      )
-    );
+    const clientAlerts = activeAlerts.map((alert) => toClientAlert(alert, fundId));
     const alertsBySeverity = buildAlertCounts(clientAlerts);
     const recentReports = latestReports.slice(0, 5).map((report) => ({
       id: report.id,
