@@ -137,10 +137,10 @@ codebase:
 
 ### What's NOT in Scope (Week 1)
 
-- ❌ No code changes (read-only validation)
-- ❌ No European removal (Week 2)
-- ❌ No test remediation (separate effort)
-- ❌ No database migration (zero production data)
+- [no] No code changes (read-only validation)
+- [no] No European removal (Week 2)
+- [no] No test remediation (separate effort)
+- [no] No database migration (zero production data)
 
 ### Key Files Referenced
 
@@ -313,9 +313,9 @@ npm test
 
 **Decision Gates:**
 
-- ✅ **GO**: All waterfall tests pass
-- ⚠️ **CAUTION**: 1-2 failures (document, proceed)
-- 🛑 **STOP**: 3+ failures (fix first)
+- [done] **GO**: All waterfall tests pass
+- [warning] **CAUTION**: 1-2 failures (document, proceed)
+- [stop] **STOP**: 3+ failures (fix first)
 
 #### 1B: Control Group Selection (15 min)
 
@@ -430,7 +430,7 @@ git commit -m "docs(validation): Complete Week 1 NotebookLM validation
 - Control group CV: [X]% (target: <5%)
 - Time: 3.5 hours (50% reduction via parallelization)
 
-🤖 Generated with Claude Code"
+[generated] Generated with Claude Code"
 
 # Push
 git push origin main
@@ -473,18 +473,18 @@ git push origin main
 
 ### Week 2 Readiness Decision
 
-**✅ PROCEED if:**
+**[done] PROCEED if:**
 
 - All primary criteria passed
 - Control group mean 65-70%
 - Zero agent failures
 
-**⚠️ CONDITIONAL if:**
+**[warning] CONDITIONAL if:**
 
 - Primary passed BUT waterfall outside 65-70%
 - 1-2 agent failures (resolved on retry)
 
-**🛑 HALT if:**
+**[stop] HALT if:**
 
 - Control group CV ≥5% (model drift)
 - Any module <95% entity accuracy
@@ -533,11 +533,11 @@ statistical
 
 This plan provides:
 
-- ✅ 50% time reduction via Task tool parallelization
-- ✅ Scientific rigor with control groups
-- ✅ Clear success criteria
-- ✅ Comprehensive deliverables
-- ✅ Fallback for concurrency limits
+- [done] 50% time reduction via Task tool parallelization
+- [done] Scientific rigor with control groups
+- [done] Clear success criteria
+- [done] Comprehensive deliverables
+- [done] Fallback for concurrency limits
 
 **Start Phase 1 when ready!**
 

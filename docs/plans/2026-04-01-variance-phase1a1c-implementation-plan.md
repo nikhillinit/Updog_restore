@@ -1,6 +1,6 @@
 ---
 status: IMPLEMENTED
-last_updated: 2026-04-01
+last_updated: 2026-04-02
 depends_on:
   - docs/plans/2026-03-31-variance-roadmap-revision.md
 validated_by:
@@ -14,13 +14,13 @@ validated_by:
 
 ## Purpose
 
-Define the next implementation slice after the current Phase 0 plus `1A.2`
-automation work. This plan turns the roadmap entry for `1A.1c` into an execution
-order grounded in the current repository state.
+Record the `1A.1c` implementation slice that followed the current Phase 0 plus
+`1A.2` automation work. This document now serves as both an execution record and
+a limit/rollout note for the shipped variance model.
 
 ## Current Validated State
 
-Validated from the current codebase on `2026-04-01`:
+Validated from the repository by `2026-04-02`:
 
 - `1A.1a` is complete in the route layer:
   - `POST /api/funds/:id/variance-reports` resolves default baselines when
@@ -29,7 +29,8 @@ Validated from the current codebase on `2026-04-01`:
 - `1A.1b` is effectively complete for variance tracking:
   - GET list/detail routes exist
   - the variance page reports tab fetches and renders live report data
-- the staged branch already covers most of `Phase 0` and `1A.2`:
+- the repository already covered most of `Phase 0` and `1A.2` by the time this
+  implementation landed:
   - calc-run completion handlers are registered at startup
   - attributed fund metrics are persisted per run
   - automated baseline creation is idempotent by `sourceRunId`
@@ -38,7 +39,7 @@ Validated from the current codebase on `2026-04-01`:
 
 ## Implementation Result
 
-Implemented in the current working tree on `2026-04-01`:
+Implemented by `2026-04-01` and now committed on `main`:
 
 - request and query validation in `server/routes/variance.ts` now use shared
   schemas
@@ -62,14 +63,42 @@ Follow-up still intentionally left explicit:
   no longer depend on it
 - automated calc-run baselines still capture portfolio composition from live
   state when no point-in-time portfolio source is available
+- a follow-on on `2026-04-02` closed the top-level `/reports` placeholder debt,
+  so the roadmap critical path has now moved to `1C.1` alert evaluation
+  architecture
 
-## Hard Findings From Sandbox Review
+## Historical Sandbox Findings
 
-1. Full company variance is not possible from the persisted baseline shape
-   today. `fund_baselines` stores `topPerformers`, not a full company snapshot.
-   Current company analysis therefore compares only the top-performer subset,
-   and the spike's `full_snapshot` added/removed classifier is not reachable in
-   production until a real `companySnapshots` column and capture path exist.
+These findings drove the implementation order. The first group is now resolved
+by the shipped `1A.1c` work; the second group remains relevant as rollout or
+follow-on limitations.
+
+### Resolved By Implementation
+
+1. Full company variance required a persisted baseline shape beyond
+   `topPerformers`. This is now addressed by `companySnapshots`, while legacy
+   baselines intentionally fall back to `topPerformers`.
+
+2. Reserve and pacing variance could not stay as only generic JSON diffs if the
+   detail UI was expected to surface real drift. This is now addressed for known
+   metrics via typed `metricDeltas`, while `changes` remains as an escape hatch
+   for opaque keys.
+
+3. Shared validation lagged the live service output and the route layer still
+   maintained request/query schemas inline. This is now addressed by shared
+   request/query schemas, explicit current-route response schemas, signed
+   variance validation, and temporary compatibility aliases where needed.
+
+4. The report detail UI did not surface the richer analysis payload. This is now
+   addressed in the variance detail sheet for company, sector, stage, reserve,
+   and pacing analysis.
+
+### Still-Relevant Limitations
+
+1. Full company variance is not possible from the persisted baseline shape for
+   legacy baselines that only stored `topPerformers`. Those baselines
+   intentionally remain degraded and do not support full matched/added/removed
+   classification.
 
 2. Automated baselines are KPI-attributed to a calc run, but portfolio
    composition is still read live during baseline creation. Without a linked
@@ -81,50 +110,21 @@ Follow-up still intentionally left explicit:
    still not the same thing as capital-weighted or valuation-weighted allocation
    drift.
 
-4. Reserve and pacing variance are stored as generic JSON diffs. They are
-   workable, but they are not modeled as typed metric deltas.
-
-5. Historical report generation intentionally omits portfolio, reserve, and
+4. Historical report generation intentionally omits portfolio, reserve, and
    pacing sub-analysis because point-in-time company and snapshot reads are not
    yet available. This is correct behavior and should remain explicit.
 
-6. Shared validation still lags the current service output for
-   `companyVariances`. The service currently returns `valuationChange` while the
-   shared schema still expects `valuationVariance`, and the pre-red-team shared
-   validation did not accept negative variance values at all.
-
-7. Contract drift is broader than `companyVariances`. The route layer still
-   defines request schemas inline instead of using `shared/variance-validation`,
-   and the variance dashboard contract already diverges (`alertsByseverity` in
-   route/client versus `alertsBySeverity` plus additional required fields in
-   shared validation).
-
-8. The current report detail UI does not surface most of the richer analysis. It
-   currently shows counts for companies, sectors, and stages, but it does not
-   render company-level rows or reserve/pacing deltas.
-
-9. The existing API tests mock the variance service. They are useful route
+5. The existing API tests mock the variance service. They are useful route
    tests, but they do not prove the real service output is compatible with the
    route mapper or client contract.
 
-10. Added/removed company classification implicitly assumes the identity used at
-    baseline capture remains stable across later reads. That assumption must be
-    made explicit in the snapshot shape and rollout notes.
+6. Added/removed company classification implicitly assumes the identity used at
+   baseline capture remains stable across later reads. That assumption must be
+   made explicit in the snapshot shape and rollout notes.
 
-11. Request and query contract unification is immediately actionable and lower
-    risk than full response unification. A sandbox route pass proved the shared
-    request/query schemas can replace route-local copies without breaking the
-    route surface, while also catching real gaps the route previously allowed:
-    reversed baseline periods, `between` alert rules without
-    `secondaryThreshold`, and malformed baseline or alert query parameters.
-
-12. Response-side shared-schema adoption still needs a dedicated extraction
-    step. The current `VarianceReportResponseSchema` models the raw persisted
-    report row, not the transformed client report shape returned by
-    `server/routes/variance.ts`, and the current
-    `VarianceDashboardResponseSchema` is stricter than the live dashboard
-    payload. Full response unification therefore needs current-route response
-    schemas or a normalization layer, not a direct schema swap.
+7. `alertsBySeverity` is now canonical, but `alertsByseverity` remains
+   dual-emitted as a temporary compatibility alias. Treat that alias as debt to
+   retire, not a second long-term contract.
 
 ## Scope
 
@@ -156,7 +156,9 @@ Ship a richer variance model that:
 - keeps any compatibility aliases explicitly transitional instead of letting
   duplicated field semantics harden into the contract
 
-## Implementation Order
+## Original Implementation Order
+
+Retained as a historical record of the shipped execution sequence.
 
 ### 1. Request And Query Contract Adoption
 
@@ -372,7 +374,7 @@ Acceptance:
   mocked service calls
 - integration proof covers the new baseline snapshot dependency
 
-## Recommended Delivery Slices
+## Original Delivery Slices
 
 1. Request and query shared-schema adoption in the route layer.
 2. Current route response contract extraction for reports and dashboard

@@ -7,13 +7,13 @@ last_updated: 2026-01-19
 
 **Date**: 2025-10-29  
 **Branch**: `docs/notebooklm-waterfall-phase3`  
-**Status**: ✅ Phase 1B/1C complete + Phase 1D scaffolded
+**Status**: [done] Phase 1B/1C complete + Phase 1D scaffolded
 
 ---
 
 ## Session Accomplishments
 
-### ✅ Phase 1B/1C Validation Complete
+### [done] Phase 1B/1C Validation Complete
 
 - **100% pass rate** achieved (was 0% with keyword assertions)
 - Custom domain scorer working across document types
@@ -21,12 +21,12 @@ last_updated: 2026-01-19
 - Fees: 2/2 PASS (38,759 tokens)
 - Branch pushed to GitHub
 
-### ✅ Phase 1D Capital Allocation Scaffolded
+### [done] Phase 1D Capital Allocation Scaffolded
 
 Created foundational deliverables:
 
-1. ✅ **Schema**: `docs/schemas/capital-allocation-truth-case.schema.json`
-2. ✅ **Truth Cases (6/20)**: First 6 Reserve Engine cases in
+1. [done] **Schema**: `docs/schemas/capital-allocation-truth-case.schema.json`
+2. [done] **Truth Cases (6/20)**: First 6 Reserve Engine cases in
    `docs/capital-allocation.truth-cases.json`
    - CA-001: Baseline static reserve
    - CA-002: Underfunded reserve buffer
@@ -34,11 +34,11 @@ Created foundational deliverables:
    - CA-004: Zero contributions adversarial
    - CA-005: Dynamic ratio tracking
    - CA-006: Large distribution rebalancing
-3. ⏳ **Remaining**: 14 more truth cases (Pacing Engine 6, Cohort Engine 7,
-   Integration 1)
-4. ⏳ **Documentation**: Primary docs outline ready
-5. ⏳ **ADR**: Decision topics identified
-6. ⏳ **Validation Config**: Template ready
+3. [pending] **Remaining**: 14 more truth cases (Pacing Engine 6, Cohort Engine
+   7, Integration 1)
+4. [pending] **Documentation**: Primary docs outline ready
+5. [pending] **ADR**: Decision topics identified
+6. [pending] **Validation Config**: Template ready
 
 ---
 
@@ -52,9 +52,9 @@ Created foundational deliverables:
 ```markdown
 ## Summary
 
-- ✅ Custom domain scorer achieving 100% pass rate
-- ✅ Validation framework working for Fees + Exit Recycling
-- ✅ Phase 1D Capital Allocation scaffolded (schema + 6 truth cases)
+- [done] Custom domain scorer achieving 100% pass rate
+- [done] Validation framework working for Fees + Exit Recycling
+- [done] Phase 1D Capital Allocation scaffolded (schema + 6 truth cases)
 
 ## Results
 
@@ -264,15 +264,15 @@ Load branch docs/notebooklm-waterfall-phase3. Complete Phase 1D by:
 
 ## Success Metrics
 
-- ✅ 100% pass rate for Phase 1B/1C
-- ✅ Custom scorer working across document types
-- ✅ Phase 1D scaffolded with schema + 6 truth cases
-- ✅ Branch pushed to GitHub
-- ⏳ Phase 1D completion next session
+- [done] 100% pass rate for Phase 1B/1C
+- [done] Custom scorer working across document types
+- [done] Phase 1D scaffolded with schema + 6 truth cases
+- [done] Branch pushed to GitHub
+- [pending] Phase 1D completion next session
 
 ---
 
 **End of Session 5**
 
 _Phase 1B/1C complete at 100% pass rate. Phase 1D Capital Allocation kickoff
-ready! 🚀_
+ready! [launch]_

@@ -5,24 +5,31 @@ last_updated: 2026-01-19
 
 # Multi-Tenant RLS Development Environment - Summary
 
-Complete developer experience optimization for Row-Level Security (RLS) development.
+Complete developer experience optimization for Row-Level Security (RLS)
+development.
 
 ## What Was Created
 
 ### 1. Database Schema (c:\dev\Updog_restore\migrations\0002_add_organizations.sql)
+
 - **Organizations table**: Central tenant management with slug-based routing
-- **RLS policies**: Automatic tenant isolation on all multi-tenant tables (funds, portfoliocompanies, investments, fundconfigs)
-- **Helper functions**: switch_tenant(), reset_tenant(), get_tenant(), current_org_id()
+- **RLS policies**: Automatic tenant isolation on all multi-tenant tables
+  (funds, portfoliocompanies, investments, fundconfigs)
+- **Helper functions**: switch_tenant(), reset_tenant(), get_tenant(),
+  current_org_id()
 - **Indexes**: Optimized queries with org_id indexes on all tenant-scoped tables
 
 ### 2. Seed Data Script (c:\dev\Updog_restore\scripts\seed-multi-tenant.ts)
+
 - **2 Organizations**: tech-ventures, bio-capital
 - **5 Funds**: 3 for tech-ventures, 2 for bio-capital
 - **11 Companies**: 6 for tech-ventures, 5 for bio-capital
-- **Edge Cases**: "Alpha Innovations" exists in both orgs with different sectors (Fintech vs Biotech)
+- **Edge Cases**: "Alpha Innovations" exists in both orgs with different sectors
+  (Fintech vs Biotech)
 - **Realistic Data**: Investments, funding rounds, ownership percentages
 
 **Usage:**
+
 ```bash
 npm run seed:multi-tenant              # Seed with defaults
 npm run seed:multi-tenant -- --reset   # Drop and recreate
@@ -33,39 +40,43 @@ npm run seed:multi-tenant -- --org=tech-ventures  # Seed specific org
 
 13 production-ready snippets for common RLS patterns:
 
-| Snippet | Description |
-|---------|-------------|
-| `rls-policy-select` | SELECT policy with tenant isolation |
-| `rls-policy-insert` | INSERT policy with tenant check |
-| `rls-policy-update` | UPDATE policy with tenant isolation |
-| `rls-policy-delete` | DELETE policy with tenant check |
-| `rls-policy-full` | Complete CRUD policy suite |
-| `rls-test-switch` | Switch tenant in tests |
-| `rls-test-isolation` | Complete isolation test suite |
-| `rls-helper-current` | Get current tenant ID |
-| `rls-helper-with-context` | Execute with tenant context |
-| `rls-migration-add-orgid` | Add org_id to table |
-| `rls-check-policies` | SQL to check policies |
-| `rls-debug-context` | Debug current context |
+| Snippet                   | Description                         |
+| ------------------------- | ----------------------------------- |
+| `rls-policy-select`       | SELECT policy with tenant isolation |
+| `rls-policy-insert`       | INSERT policy with tenant check     |
+| `rls-policy-update`       | UPDATE policy with tenant isolation |
+| `rls-policy-delete`       | DELETE policy with tenant check     |
+| `rls-policy-full`         | Complete CRUD policy suite          |
+| `rls-test-switch`         | Switch tenant in tests              |
+| `rls-test-isolation`      | Complete isolation test suite       |
+| `rls-helper-current`      | Get current tenant ID               |
+| `rls-helper-with-context` | Execute with tenant context         |
+| `rls-migration-add-orgid` | Add org_id to table                 |
+| `rls-check-policies`      | SQL to check policies               |
+| `rls-debug-context`       | Debug current context               |
 
 ### 4. VSCode Launch Configurations (c:\dev\Updog_restore\.vscode\launch.json)
 
 10 launch configurations for instant tenant switching:
 
 **Tenant Contexts:**
+
 - API Server (Tech Ventures Tenant)
 - API Server (Bio Capital Tenant)
 - API Server (No Tenant - Admin)
 
 **Testing:**
+
 - Test: RLS Isolation (Current File)
 - Test: RLS Suite (All RLS Tests)
 
 **Database:**
+
 - Seed: Multi-Tenant Data
 - Seed: Reset & Reseed
 
 **Debugging:**
+
 - Debug: Attach to Node
 
 **Usage:** Press F5 in VSCode, select configuration from dropdown
@@ -76,28 +87,29 @@ Complete TypeScript API for tenant management:
 
 ```typescript
 // Core Functions
-switchTenant(db, 'tech-ventures')      // Switch by slug
-switchTenantById(db, 42)               // Switch by ID
-resetTenant(db)                         // Clear context (admin mode)
-getCurrentTenant(db)                    // Get current context
+switchTenant(db, 'tech-ventures'); // Switch by slug
+switchTenantById(db, 42); // Switch by ID
+resetTenant(db); // Clear context (admin mode)
+getCurrentTenant(db); // Get current context
 
 // Smart Wrappers
 withTenantContext(db, 'tech-ventures', async () => {
   // Auto-cleanup even on error
-})
+});
 
 // Utilities
-listOrganizations(db)                   // Get all orgs
-verifyRLS(db, 'funds')                  // Check RLS status
-getTenantIndicator(db)                  // Terminal display
+listOrganizations(db); // Get all orgs
+verifyRLS(db, 'funds'); // Check RLS status
+getTenantIndicator(db); // Terminal display
 
 // Middleware
-setTenantFromRequest(db, orgSlug)       // Extract from Express req
+setTenantFromRequest(db, orgSlug); // Extract from Express req
 ```
 
 ### 6. Developer Documentation (c:\dev\Updog_restore\docs\RLS-DEVELOPMENT-GUIDE.md)
 
 Comprehensive guide with:
+
 - Quick start (5 minutes to running system)
 - Architecture overview
 - Development workflows
@@ -110,6 +122,7 @@ Comprehensive guide with:
 ### 7. Docker Compose Integration (c:\dev\Updog_restore\docker-compose.yml)
 
 Updated PostgreSQL service:
+
 - Auto-runs RLS migration scripts on first start
 - Includes initialization script for health checks
 - Verifies RLS policies and helper functions
@@ -118,6 +131,7 @@ Updated PostgreSQL service:
 ### 8. Initialization Script (c:\dev\Updog_restore\scripts\postgres-rls-init.sh)
 
 Automatically runs when PostgreSQL container starts:
+
 - Verifies organizations table exists
 - Checks RLS is enabled on all tenant tables
 - Counts policies per table
@@ -127,6 +141,7 @@ Automatically runs when PostgreSQL container starts:
 ### 9. Test Suite (c:\dev\Updog_restore\tests\rls\isolation.test.ts)
 
 Comprehensive RLS isolation tests:
+
 - Organization setup verification
 - Cross-tenant fund isolation
 - Cross-tenant company isolation
@@ -136,6 +151,7 @@ Comprehensive RLS isolation tests:
 - Edge case handling (duplicate company names)
 
 **Run tests:**
+
 ```bash
 npm run test:rls
 ```
@@ -143,6 +159,7 @@ npm run test:rls
 ### 10. Quick Start Scripts
 
 **Bash (Linux/Mac/Git Bash):**
+
 ```bash
 npm run rls:quickstart
 # or
@@ -150,6 +167,7 @@ bash scripts/rls-quickstart.sh
 ```
 
 **PowerShell (Windows):**
+
 ```powershell
 npm run rls:quickstart:ps
 # or
@@ -157,6 +175,7 @@ powershell -ExecutionPolicy Bypass -File scripts/rls-quickstart.ps1
 ```
 
 Automated setup:
+
 1. Start PostgreSQL container
 2. Wait for database ready
 3. Run migrations
@@ -167,6 +186,7 @@ Automated setup:
 ## Developer Experience Improvements
 
 ### Before RLS System
+
 - Manual tenant switching via raw SQL
 - No tenant context tracking
 - Copy-paste RLS policy code
@@ -175,6 +195,7 @@ Automated setup:
 - Manual test data creation
 
 ### After RLS System
+
 - One-line tenant switching: `withTenantContext(db, 'tech-ventures', fn)`
 - Type-safe context tracking
 - Snippets for instant policy generation (type `rls-` + Tab)
@@ -184,13 +205,13 @@ Automated setup:
 
 ### Time Savings
 
-| Task | Before | After | Savings |
-|------|--------|-------|---------|
-| Setup test data | 30 min | 2 min | 93% |
-| Write RLS policy | 10 min | 30 sec | 95% |
-| Switch tenant context | 5 lines SQL | 1 function call | 80% |
-| Debug isolation issue | 20 min | 5 min | 75% |
-| Onboard new developer | 2 hours | 15 min | 87% |
+| Task                  | Before      | After           | Savings |
+| --------------------- | ----------- | --------------- | ------- |
+| Setup test data       | 30 min      | 2 min           | 93%     |
+| Write RLS policy      | 10 min      | 30 sec          | 95%     |
+| Switch tenant context | 5 lines SQL | 1 function call | 80%     |
+| Debug isolation issue | 20 min      | 5 min           | 75%     |
+| Onboard new developer | 2 hours     | 15 min          | 87%     |
 
 ## File Locations
 
@@ -236,6 +257,7 @@ c:\dev\Updog_restore\
 ## Quick Reference
 
 ### Start Development
+
 ```bash
 # One-line setup
 npm run rls:quickstart:ps
@@ -247,6 +269,7 @@ npm run seed:multi-tenant
 ```
 
 ### Tenant Switching in Code
+
 ```typescript
 import { withTenantContext } from '@/lib/tenant-context';
 
@@ -262,6 +285,7 @@ await resetTenant(db);
 ```
 
 ### Testing
+
 ```typescript
 describe('My feature', () => {
   it('should isolate data by tenant', async () => {
@@ -279,6 +303,7 @@ describe('My feature', () => {
 ```
 
 ### Debugging
+
 ```typescript
 // Check current tenant
 const context = await getCurrentTenant(db);
@@ -301,6 +326,7 @@ console.log(`RLS enabled: ${status.enabled}, Policies: ${status.policyCount}`);
 ## Support
 
 For questions or issues:
+
 1. Check `docs\RLS-DEVELOPMENT-GUIDE.md`
 2. Review VSCode snippets (`rls-*`)
 3. Examine test examples in `tests\rls\isolation.test.ts`
@@ -335,6 +361,6 @@ For questions or issues:
 
 ---
 
-**Created**: 2025-11-10
-**Purpose**: Optimize developer experience for multi-tenant RLS development
-**Impact**: 80-95% time savings on common RLS development tasks
+**Created**: 2025-11-10 **Purpose**: Optimize developer experience for
+multi-tenant RLS development **Impact**: 80-95% time savings on common RLS
+development tasks
