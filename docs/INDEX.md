@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-03-27
+last_updated: 2026-04-02
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-03-27
+Humans AND Agents **Last Updated**: 2026-04-02
 
 ---
 
@@ -80,17 +80,18 @@ Humans AND Agents **Last Updated**: 2026-03-27
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                   | Description                                             | When to Use                                                  |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| [tests/README.md](../tests/README.md)                                                                      | Testing strategy (Unit, Integration, E2E)               | Writing tests, fixing test failures                          |
-| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                      | API/service test patterns, integration testing          | When writing integration tests                               |
-| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                              | Testcontainers setup and usage guide                    | Setting up Docker-based integration tests                    |
-| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md) | Triage decision framework for divergence fixes          | When encountering implementation mismatches during hardening |
-| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                             | Complex refactoring registry (10+ files, architectural) | Documenting deferred architectural work                      |
-| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)               | Analysis of 22 recent PRs, divergence patterns          | Understanding implementation parity issues                   |
-| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)   | Fee-specific divergence analysis                        | When working on fee-related code                             |
-| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)             | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                            | PR verification baseline (74.7% pass rate)              | Before merging PRs                                           |
+| Document                                                                                                                 | Description                                                                             | When to Use                                                  |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                          |
+| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                               |
+| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                    |
+| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md)               | Triage decision framework for divergence fixes                                          | When encountering implementation mismatches during hardening |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                      |
+| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)                             | Analysis of 22 recent PRs, divergence patterns                                          | Understanding implementation parity issues                   |
+| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)                 | Fee-specific divergence analysis                                                        | When working on fee-related code                             |
+| [plans/2026-03-31-variance-roadmap-revision.md](plans/2026-03-31-variance-roadmap-revision.md)                           | Validated production order for variance, baselines, alerts, Time Machine, and analytics | When planning follow-on implementation after variance audit  |
+| [plans/2026-04-01-variance-phase1a1c-implementation-plan.md](plans/2026-04-01-variance-phase1a1c-implementation-plan.md) | Implemented variance-model slice plus rollout limitations                               | Understanding shipped current-state variance behavior        |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                           |
 
 **Key Commands**:
 
@@ -108,10 +109,13 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                           | Description                                           | When to Use                      |
-| ------------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------- |
-| [scripts/README.md](../scripts/README.md)                          | Deployment scripts (progressive rollout, smoke tests) | Deploying to staging/production  |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md) | Production deployment system details                  | Understanding deployment process |
+| Document                                                           | Description                                               | When to Use                                  |
+| ------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------- |
+| [scripts/README.md](../scripts/README.md)                          | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production              |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md) | Production deployment system details                      | Understanding deployment process             |
+| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md)                     | Step-by-step production deployment and rollback runbook   | Executing or supervising production rollout  |
+| [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                         | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies   |
+| [observability.md](observability.md)                               | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces |
 
 **Key Scripts**:
 
@@ -131,12 +135,15 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                             | Description                           | When to Use                       |
-| -------------------------------------------------------------------- | ------------------------------------- | --------------------------------- |
-| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs) | Understanding technical rationale |
-| [adr/](adr/)                                                         | Additional ADRs (12 files)            | Monte Carlo, mem0, stages         |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy        | Strategic planning                |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns       | Leveraging multiple AIs           |
+| Document                                                             | Description                                             | When to Use                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
+| [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs)                   | Understanding technical rationale          |
+| [adr/](adr/)                                                         | Additional ADRs (12 files)                              | Monte Carlo, mem0, stages                  |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy                          | Strategic planning                         |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns                         | Leveraging multiple AIs                    |
+| [schema.md](schema.md)                                               | Database schema, relationships, and design patterns     | Understanding persisted data model         |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                         | Request deduplication and exactly-once processing guide | Designing safe write paths                 |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                 | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features |
 
 **Key ADRs**:
 
@@ -160,9 +167,9 @@ DECISIONS.md (2026-01-19)._
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                 | Description                                          | When to Use                                  |
-| -------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------- |
-| [STABILIZATION-ROADMAP.md](STABILIZATION-ROADMAP.md)     | Global rules and milestone roadmap (0A through 7)    | Before starting any milestone work, PR scoping |
+| Document                                             | Description                                       | When to Use                                    |
+| ---------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| [STABILIZATION-ROADMAP.md](STABILIZATION-ROADMAP.md) | Global rules and milestone roadmap (0A through 7) | Before starting any milestone work, PR scoping |
 
 ---
 
@@ -324,13 +331,14 @@ infrastructure)
 Validator-diagnoser architecture for quality assurance. CI scripts detect
 issues; specialized agents diagnose root causes.
 
-| Document                                                                   | Description                                 | When to Use                 |
-| -------------------------------------------------------------------------- | ------------------------------------------- | --------------------------- |
-| [CLAUDE-INFRA-V4-INTEGRATION-PLAN.md](CLAUDE-INFRA-V4-INTEGRATION-PLAN.md) | Integration plan for v4 infrastructure      | Understanding quality gates |
-| [../scripts/baseline-check.sh](../scripts/baseline-check.sh)               | Quality metric validation (tests, TS, lint) | CI baseline ratcheting      |
-| [../scripts/validate-schema-drift.sh](../scripts/validate-schema-drift.sh) | Schema alignment validation                 | Migration/Drizzle/Zod sync  |
-| [../scripts/bench-check.sh](../scripts/bench-check.sh)                     | Performance benchmark validation            | Perf regression detection   |
-| [../scripts/validate-claude-infra.ts](../scripts/validate-claude-infra.ts) | Claude infra consistency check              | Agent/skill integrity       |
+| Document                                                                   | Description                                           | When to Use                       |
+| -------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------- |
+| [CLAUDE-INFRA-V4-INTEGRATION-PLAN.md](CLAUDE-INFRA-V4-INTEGRATION-PLAN.md) | Integration plan for v4 infrastructure                | Understanding quality gates       |
+| [TYPESCRIPT_BASELINE.md](TYPESCRIPT_BASELINE.md)                           | TypeScript baseline governance and reduction workflow | Working baseline debt down safely |
+| [../scripts/baseline-check.sh](../scripts/baseline-check.sh)               | Quality metric validation (tests, TS, lint)           | CI baseline ratcheting            |
+| [../scripts/validate-schema-drift.sh](../scripts/validate-schema-drift.sh) | Schema alignment validation                           | Migration/Drizzle/Zod sync        |
+| [../scripts/bench-check.sh](../scripts/bench-check.sh)                     | Performance benchmark validation                      | Perf regression detection         |
+| [../scripts/validate-claude-infra.ts](../scripts/validate-claude-infra.ts) | Claude infra consistency check                        | Agent/skill integrity             |
 
 **Diagnoser Agents** (delegated from code-reviewer):
 
@@ -360,10 +368,13 @@ agents explain failures and recommend fixes.
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                              | Description                      | When to Use                          |
-| ------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------ |
-| [cheatsheets/daily-workflow.md](../cheatsheets/daily-workflow.md)                     | Current troubleshooting workflow | Build, dependency, and module issues |
-| [cheatsheets/document-review-workflow.md](../cheatsheets/document-review-workflow.md) | Document review protocol         | Verifying documentation claims       |
+| Document                                                                              | Description                                     | When to Use                                           |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| [cheatsheets/daily-workflow.md](../cheatsheets/daily-workflow.md)                     | Current troubleshooting workflow                | Build, dependency, and module issues                  |
+| [cheatsheets/document-review-workflow.md](../cheatsheets/document-review-workflow.md) | Document review protocol                        | Verifying documentation claims                        |
+| [dev-environment-reset.md](dev-environment-reset.md)                                  | Tiered local-environment reset guide            | Recovering from persistent cache or dependency issues |
+| [WINDOWS_NODE_CORRUPTION_PREVENTION.md](WINDOWS_NODE_CORRUPTION_PREVENTION.md)        | Windows-specific Node/npm corruption prevention | Stabilizing a broken Windows dev environment          |
+| [failure-triage.md](failure-triage.md)                                                | XIRR truth-case failure triage guide            | Diagnosing Phoenix/XIRR validation failures           |
 
 **Common Issues**:
 
@@ -401,7 +412,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2026-03-27 **Next Review**: 2026-04-26
+structural changes) **Last Updated**: 2026-04-02 **Next Review**: 2026-05-02
 
 **Update Triggers**:
 
