@@ -76,15 +76,53 @@ import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
+type VarianceTab = 'overview' | 'baselines' | 'alerts' | 'reports' | 'settings';
+
+function getInitialVarianceTab(): VarianceTab {
+  if (typeof window === 'undefined') {
+    return 'overview';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const reportId = params.get('reportId');
+  if (reportId) {
+    return 'reports';
+  }
+
+  const requestedTab = params.get('tab');
+  if (
+    requestedTab === 'overview' ||
+    requestedTab === 'baselines' ||
+    requestedTab === 'alerts' ||
+    requestedTab === 'reports' ||
+    requestedTab === 'settings'
+  ) {
+    return requestedTab;
+  }
+
+  return 'overview';
+}
+
+function getInitialSelectedReportId(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('reportId');
+}
+
 export default function VarianceTrackingPage() {
   const { currentFund } = useFundContext();
+  const [activeTab, setActiveTab] = useState<VarianceTab>(getInitialVarianceTab);
   const [createBaselineDialogOpen, setCreateBaselineDialogOpen] = useState(false);
   const [createAlertDialogOpen, setCreateAlertDialogOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [alertActionDialogOpen, setAlertActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'acknowledge' | 'resolve'>('acknowledge');
   const [actionNotes, setActionNotes] = useState('');
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(
+    getInitialSelectedReportId
+  );
   const [generateReportDialogOpen, setGenerateReportDialogOpen] = useState(false);
   const [reportForm, setReportForm] = useState({
     reportName: '',
@@ -585,7 +623,11 @@ export default function VarianceTrackingPage() {
       )}
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as VarianceTab)}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="baselines">Baselines</TabsTrigger>
