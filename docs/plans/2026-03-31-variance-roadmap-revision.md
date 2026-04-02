@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-31
+last_updated: 2026-04-02
 depends_on:
   - docs/plans/2026-03-26-development-spec-set.md
   - docs/plans/2026-03-27-secondary-surface-decisions.md
@@ -8,6 +8,7 @@ validated_by:
   - npm run baseline:check
   - npx vitest run tests/unit/api/variance-tracking-api.test.ts
     tests/unit/services/variance-tracking.test.ts
+  - npx vitest run tests/unit/services/post-calc-trigger.test.ts
 ---
 
 # Revised Production Order: Variance, Baselines, Alerts, Scenario Consolidation, Time Machine, And Analytics
@@ -196,16 +197,29 @@ Work:
 
 Split into architecture first, scheduling second.
 
+Detailed `1C.1` strategy:
+
+- `docs/plans/2026-04-02-phase-1c1-alert-evaluation-implementation-strategy.md`
+
 ### `1C.1` Alert Evaluation Architecture
 
 Estimate: `3-5 days`
 
 Do not schedule `performCompleteVarianceAnalysis()` as-is.
 
-Build either:
+Build:
 
-- a dedicated alert-evaluation path, or
-- explicit report/alert dedupe plus retention rules
+- a dedicated alert-evaluation path
+- fund-owned baseline resolution for report and alert entrypoints
+- run-aware metric sourcing when calc-run context is present
+- truthful rule/query contracts for `/variance-analysis`, `/alerts`, and
+  alert-rule creation
+
+Sandbox validation revision:
+
+- the focused variance and post-calc test suites are green, but they do not yet
+  cover foreign baseline rejection, run-attributed evaluation, or alert-query
+  `status` handling, so those checks remain part of the `1C.1` exit bar
 
 ### `1C.2` Scheduling And Remaining-Capital UI
 
@@ -315,11 +329,15 @@ Scope after Phases `0-4`.
 ### `1C.1`
 
 - automated alert evaluation path is defined without implicit report sprawl
+- evaluator inputs are fund-scoped and can bind to calc-run-attributed metrics
+  when run context exists
 - duplicate alert creation behavior is explicitly prevented or controlled
+- alert-rule, manual-analysis, and alerts-query contracts are truthful and
+  covered by focused tests
 
 ## Notes
 
-- This plan reflects current validated repo state as of `2026-03-31`.
+- This plan reflects current validated repo state as of `2026-04-02`.
 - It intentionally separates already-validated cleanup from unresolved
   architecture blockers.
 - It intentionally keeps Time Machine ADR work off the variance delivery

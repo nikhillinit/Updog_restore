@@ -73,6 +73,21 @@ export const ruleTypeSchema = z.enum(['threshold', 'trend', 'deviation', 'patter
  */
 export const operatorSchema = z.enum(['gt', 'lt', 'eq', 'gte', 'lte', 'between']);
 
+export const alertMetricNameSchema = z.enum([
+  'irr',
+  'irrVariance',
+  'multiple',
+  'multipleVariance',
+  'dpi',
+  'dpiVariance',
+  'tvpi',
+  'tvpiVariance',
+  'totalValue',
+  'totalValueVariance',
+  'totalValuePct',
+  'totalValueVariancePct',
+]);
+
 /**
  * Check frequencies
  */
@@ -82,6 +97,22 @@ export const checkFrequencySchema = z.enum(['realtime', 'hourly', 'daily', 'week
  * Notification channels
  */
 export const notificationChannelSchema = z.enum(['email', 'slack', 'webhook']);
+
+function isEmptyOptionalConfig(value: unknown): boolean {
+  if (value == null) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>).length === 0;
+  }
+
+  return false;
+}
 
 // === BASELINE SCHEMAS ===
 
@@ -393,11 +424,8 @@ export const CreateAlertRuleRequestSchema = z
       .min(1, 'Alert rule name is required')
       .max(100, 'Alert rule name must be 100 characters or less'),
     description: z.string().max(500, 'Description must be 500 characters or less').optional(),
-    ruleType: ruleTypeSchema,
-    metricName: z
-      .string()
-      .min(1, 'Metric name is required')
-      .max(50, 'Metric name must be 50 characters or less'),
+    ruleType: z.literal('threshold'),
+    metricName: alertMetricNameSchema,
     operator: operatorSchema,
     thresholdValue: z.number(),
     secondaryThreshold: z.number().optional(),
@@ -416,18 +444,39 @@ export const CreateAlertRuleRequestSchema = z
     conditions: z.any().optional(),
     filters: z.any().optional(),
   })
-  .refine(
-    (data) => {
-      if (data.operator === 'between' && !data.secondaryThreshold) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: 'Secondary threshold is required for "between" operator',
-      path: ['secondaryThreshold'],
+  .superRefine((data, ctx) => {
+    if (data.operator === 'between' && !data.secondaryThreshold) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Secondary threshold is required for "between" operator',
+        path: ['secondaryThreshold'],
+      });
     }
-  );
+
+    if (!isEmptyOptionalConfig(data.escalationRules)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'escalationRules are not supported in Phase 1C.1',
+        path: ['escalationRules'],
+      });
+    }
+
+    if (!isEmptyOptionalConfig(data.conditions)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'conditions are not supported in Phase 1C.1',
+        path: ['conditions'],
+      });
+    }
+
+    if (!isEmptyOptionalConfig(data.filters)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'filters are not supported in Phase 1C.1',
+        path: ['filters'],
+      });
+    }
+  });
 
 /**
  * Alert rule response schema
@@ -568,7 +617,6 @@ export const VarianceAnalysisRequestSchema = z.object({
     .max(100, 'Report name must be 100 characters or less')
     .optional(),
   includeAlertGeneration: z.boolean().default(true),
-  analysisDepth: z.enum(['summary', 'detailed', 'comprehensive']).default('detailed'),
 });
 
 /**
@@ -578,12 +626,6 @@ export const VarianceAnalysisResponseSchema = z.object({
   report: VarianceReportResponseSchema,
   alertsGenerated: z.array(PerformanceAlertResponseSchema),
   alertCount: z.number().int().min(0),
-  analysisMetadata: z.object({
-    analysisDepth: z.string(),
-    processingTime: z.number().int(),
-    dataQuality: decimalSchema,
-    recommendedActions: z.array(z.string()),
-  }),
 });
 
 // === DASHBOARD SCHEMAS ===

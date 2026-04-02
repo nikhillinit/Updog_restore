@@ -11,6 +11,7 @@ import {
   AlertManagementService,
   VarianceTrackingService,
 } from '../../../server/services/variance-tracking';
+import { Decimal } from '../../../shared/lib/decimal-utils';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 import { db } from '../../../server/db';
@@ -775,6 +776,49 @@ describe('VarianceCalculationService', () => {
       expect(mockDb.query.portfolioCompanies.findMany).not.toHaveBeenCalled();
       expect(mockDb.query.fundSnapshots.findFirst).not.toHaveBeenCalled();
     });
+
+    it('should use run-attributed metrics when a runId is provided', async () => {
+      const historicalAsOfDate = new Date('2026-04-02T12:00:00Z');
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue({
+        id: 'baseline-id',
+        fundId: 1,
+        totalValue: '2500000.00',
+        deployedCapital: '2000000.00',
+        irr: '0.1850',
+        multiple: '1.4500',
+        dpi: '0.9200',
+        tvpi: '1.3800',
+        portfolioCount: 0,
+        averageInvestment: '0',
+        topPerformers: [],
+        sectorDistribution: {},
+        stageDistribution: {},
+        snapshotDate: historicalAsOfDate,
+        periodStart: new Date('2024-10-01T00:00:00Z'),
+        periodEnd: new Date('2024-12-31T23:59:59Z'),
+      });
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        runId: 42,
+        totalValue: '2600000.00',
+        deployedCapital: '2000000.00',
+        irr: '0.1900',
+        multiple: '1.5000',
+        dpi: '0.9300',
+        tvpi: '1.4000',
+        metricDate: historicalAsOfDate,
+      });
+
+      const snapshot = await service.computeVarianceSnapshot({
+        fundId: 1,
+        baselineId: 'baseline-id',
+        runId: 42,
+        asOfDate: historicalAsOfDate,
+      });
+
+      expect(snapshot.currentMetrics['runId']).toBe(42);
+      expect(snapshot.variances.irrVariance?.toString()).toBe('0.005');
+    });
   });
 
   describe('getVarianceReports', () => {
@@ -1490,6 +1534,14 @@ describe('AlertManagementService', () => {
     sandbox = createSandbox();
     service = new AlertManagementService();
     vi.clearAllMocks();
+    mockDb.transaction.mockImplementation((fn: any) =>
+      fn({
+        query: mockDb.query,
+        insert: mockDb.insert,
+        update: mockDb.update,
+        delete: mockDb.delete,
+      })
+    );
   });
 
   afterEach(async () => {
@@ -1516,6 +1568,7 @@ describe('AlertManagementService', () => {
 
       expect(result.id).toBe('test-id');
       expect(result.name).toBe('IRR Decline Alert');
+      expect(result.metricName).toBe('irrVariance');
       expect(result.severity).toBe('critical');
       expect(mockDb.insert).toHaveBeenCalled();
     });
@@ -1536,6 +1589,23 @@ describe('AlertManagementService', () => {
       expect(result.severity).toBe('warning');
       expect(result.category).toBe('performance');
       expect(result.checkFrequency).toBe('daily');
+      expect(result.metricName).toBe('totalValueVariance');
+    });
+
+    it('should reject unsupported rule extensions', async () => {
+      await expect(
+        service.createAlertRule({
+          name: 'Unsupported Rule',
+          ruleType: 'threshold',
+          metricName: 'irr',
+          operator: 'lt',
+          thresholdValue: -0.1,
+          conditions: {
+            minimumVariance: 0.02,
+          },
+          createdBy: 1,
+        })
+      ).rejects.toThrow('conditions are not supported in Phase 1C.1');
     });
   });
 
@@ -1552,6 +1622,10 @@ describe('AlertManagementService', () => {
         metricName: 'irr',
         thresholdValue: -0.05,
         actualValue: -0.07,
+        ruleId: 'rule-id',
+        ruleVersion: '1.0.0',
+        contextData: { ruleName: 'IRR Decline Alert' },
+        occurrenceCount: 2,
       };
 
       const result = await service.createAlert(params);
@@ -1560,7 +1634,138 @@ describe('AlertManagementService', () => {
       expect(result.title).toBe('Critical IRR Decline');
       expect(result.severity).toBe('critical');
       expect(result.triggeredAt).toBeInstanceOf(Date);
+      expect(result.ruleId).toBe('rule-id');
+      expect(result.occurrenceCount).toBe(2);
       expect(mockDb.insert).toHaveBeenCalled();
+    });
+  });
+
+  describe('upsertTriggeredAlertIncident', () => {
+    it('should create a new incident with alert metadata', async () => {
+      const baseline = {
+        id: 'baseline-id',
+        name: 'Quarterly Baseline',
+        periodStart: new Date('2024-10-01T00:00:00Z'),
+        periodEnd: new Date('2024-12-31T23:59:59Z'),
+      } as any;
+      const rule = {
+        id: 'rule-id',
+        name: 'IRR Decline Alert',
+        metricName: 'irrVariance',
+        operator: 'lt',
+        thresholdValue: '-0.05',
+        secondaryThreshold: null,
+        severity: 'warning',
+        category: 'performance',
+        suppressionPeriod: 60,
+        version: '1.0.0',
+        triggerCount: 0,
+      } as any;
+
+      const result = await service.upsertTriggeredAlertIncident({
+        fundId: 1,
+        baseline,
+        rule,
+        metric: {
+          metricKey: 'irrVariance',
+          metricLabel: 'IRR variance',
+          actualValue: new Decimal(-0.07),
+          varianceAmount: new Decimal(-0.07),
+          variancePercentage: null,
+        },
+        source: 'manual',
+        triggeredAt: new Date('2026-04-02T12:00:00Z'),
+      });
+
+      expect(result.suppressed).toBe(false);
+      expect(result.alert.ruleId).toBe('rule-id');
+      expect(result.alert.baselineId).toBe('baseline-id');
+      expect(result.alert.occurrenceCount).toBe(1);
+      expect(result.alert.contextData).toMatchObject({
+        ruleName: 'IRR Decline Alert',
+        metricKey: 'irrVariance',
+      });
+    });
+
+    it('should update an existing open incident and apply suppression', async () => {
+      mockDb.transaction.mockImplementation(async (fn: any) =>
+        fn({
+          query: {
+            performanceAlerts: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: 'existing-alert',
+                fundId: 1,
+                baselineId: 'baseline-id',
+                ruleId: 'rule-id',
+                status: 'active',
+                title: 'IRR Decline Alert',
+                description: 'Previous description',
+                metricName: 'irrVariance',
+                severity: 'warning',
+                category: 'performance',
+                triggeredAt: new Date('2026-04-02T11:00:00Z'),
+                lastOccurrence: new Date('2026-04-02T11:30:00Z'),
+                occurrenceCount: 2,
+              }),
+            },
+          },
+          update: vi.fn(() => ({
+            set: vi.fn(() => ({
+              where: vi.fn(() => ({
+                returning: vi.fn(() =>
+                  Promise.resolve([
+                    {
+                      id: 'existing-alert',
+                      occurrenceCount: 3,
+                    },
+                  ])
+                ),
+                execute: vi.fn(() => Promise.resolve([])),
+              })),
+            })),
+          })),
+          insert: mockDb.insert,
+        })
+      );
+
+      const baseline = {
+        id: 'baseline-id',
+        name: 'Quarterly Baseline',
+        periodStart: new Date('2024-10-01T00:00:00Z'),
+        periodEnd: new Date('2024-12-31T23:59:59Z'),
+      } as any;
+      const rule = {
+        id: 'rule-id',
+        name: 'IRR Decline Alert',
+        metricName: 'irrVariance',
+        operator: 'lt',
+        thresholdValue: '-0.05',
+        secondaryThreshold: null,
+        severity: 'warning',
+        category: 'performance',
+        suppressionPeriod: 60,
+        version: '1.0.0',
+        triggerCount: 2,
+      } as any;
+
+      const result = await service.upsertTriggeredAlertIncident({
+        fundId: 1,
+        baseline,
+        rule,
+        metric: {
+          metricKey: 'irrVariance',
+          metricLabel: 'IRR variance',
+          actualValue: new Decimal(-0.08),
+          varianceAmount: new Decimal(-0.08),
+          variancePercentage: null,
+        },
+        source: 'manual',
+        triggeredAt: new Date('2026-04-02T11:45:00Z'),
+      });
+
+      expect(result.suppressed).toBe(true);
+      expect(result.alert.id).toBe('existing-alert');
+      expect(result.alert.occurrenceCount).toBe(3);
     });
   });
 
@@ -1633,6 +1838,17 @@ describe('AlertManagementService', () => {
 
       expect(result).toEqual(mockAlerts);
     });
+
+    it('should accept explicit status filters', async () => {
+      const mockAlerts = [varianceTrackingFixtures.alerts.irrDeclineAlert];
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue(mockAlerts);
+
+      const result = await service.getActiveAlerts(1, {
+        status: ['active', 'investigating'],
+      });
+
+      expect(result).toEqual(mockAlerts);
+    });
   });
 });
 
@@ -1644,6 +1860,26 @@ describe('VarianceTrackingService (Integration)', () => {
     sandbox = createSandbox();
     service = new VarianceTrackingService();
     vi.clearAllMocks();
+    mockDb.transaction.mockImplementation((fn: any) =>
+      fn({
+        query: mockDb.query,
+        insert: mockDb.insert,
+        update: mockDb.update,
+        delete: mockDb.delete,
+      })
+    );
+    mockDb.query.performanceAlerts.findFirst.mockReset();
+    mockDb.query.performanceAlerts.findFirst.mockResolvedValue(null);
+    mockDb.insert.mockImplementation(() => ({
+      values: vi.fn((data) => ({
+        returning: vi.fn(() => Promise.resolve([{ id: 'test-id', ...data }])),
+      })),
+    }));
+    mockDb.update.mockImplementation(() => ({
+      set: vi.fn((data) => ({
+        where: vi.fn(() => Promise.resolve([{ id: 'updated-id', ...data }])),
+      })),
+    }));
   });
 
   afterEach(async () => {
@@ -1775,14 +2011,73 @@ describe('VarianceTrackingService (Integration)', () => {
       ).rejects.toThrow('No default baseline found for fund');
     });
 
+    it('should skip alert persistence when includeAlertGeneration is false', async () => {
+      mockDb.query.fundBaselines.findMany.mockResolvedValue([
+        {
+          id: 'default-baseline',
+          isDefault: true,
+          ...varianceTrackingFixtures.baselines.quarterly,
+        },
+      ]);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue({
+        id: 'default-baseline',
+        ...varianceTrackingFixtures.baselines.quarterly,
+      });
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        totalValue: '2600000.00',
+        irr: '0.1750',
+      });
+      mockDb.query.alertRules.findMany.mockResolvedValue([
+        {
+          id: 'rule-1',
+          metricName: 'irr',
+          operator: 'lt',
+          thresholdValue: '-0.01',
+          severity: 'warning',
+          isEnabled: true,
+        },
+      ]);
+      mockDb.insert.mockImplementation(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve([{ id: 'report-id', alertsTriggered: [] }])),
+        })),
+      }));
+
+      const result = await service.performCompleteVarianceAnalysis({
+        fundId: 1,
+        userId: 1,
+        includeAlertGeneration: false,
+      });
+
+      expect(result.alertsGenerated).toEqual([]);
+      expect(mockDb.insert).toHaveBeenCalledTimes(1);
+    });
+
     it('should generate alerts when variance thresholds are exceeded', async () => {
       // Mock baseline and metrics for significant variance
+      mockDb.transaction.mockImplementation((fn: any) =>
+        fn({
+          query: {
+            ...mockDb.query,
+            performanceAlerts: {
+              findFirst: vi.fn().mockResolvedValue(null),
+            },
+          },
+          insert: mockDb.insert,
+          update: mockDb.update,
+          delete: mockDb.delete,
+        })
+      );
       mockDb.query.fundBaselines.findMany.mockResolvedValue([
         { id: 'default-baseline', isDefault: true },
       ]);
 
       mockDb.query.fundBaselines.findFirst.mockResolvedValue({
         id: 'default-baseline',
+        name: 'Quarterly Baseline',
+        periodStart: new Date('2024-10-01T00:00:00Z'),
+        periodEnd: new Date('2024-12-31T23:59:59Z'),
         totalValue: '2500000.00',
         irr: '0.1850',
       });
@@ -2003,6 +2298,15 @@ describe('Edge Cases and Error Handling', () => {
     const rule3 = { metricName: 'irr', operator: 'eq', thresholdValue: 0.1 };
     const variances3 = { irrVariance: 0.10000001 }; // Very close, within tolerance
     expect(evaluateAlertRule(rule3, variances3)).toBe(true);
+
+    const rule4 = {
+      metricName: 'multiple',
+      operator: 'between',
+      thresholdValue: 0.05,
+      secondaryThreshold: 0.15,
+    };
+    const variances4 = { multipleVariance: 0.1 };
+    expect(evaluateAlertRule(rule4, variances4)).toBe(true);
   });
 });
 

@@ -53,6 +53,83 @@ interface TriggeredAlertData {
   severity: 'info' | 'warning' | 'critical' | 'urgent';
 }
 
+type SupportedAlertMetricName =
+  | 'irrVariance'
+  | 'multipleVariance'
+  | 'dpiVariance'
+  | 'tvpiVariance'
+  | 'totalValueVariance'
+  | 'totalValueVariancePct';
+
+type AlertQueryStatus = 'active' | 'acknowledged' | 'investigating' | 'resolved' | 'dismissed';
+
+type AlertEvaluationStatus = 'triggered' | 'not_triggered' | 'suppressed' | 'unsupported';
+
+interface SupportedAlertMetricValue {
+  metricKey: SupportedAlertMetricName;
+  metricLabel: string;
+  actualValue: Decimal;
+  varianceAmount: Decimal | null;
+  variancePercentage: Decimal | null;
+}
+
+interface AlertRuleEvaluationResult {
+  ruleId: string;
+  ruleName: string;
+  status: AlertEvaluationStatus;
+  metricName: string;
+  metricKey?: SupportedAlertMetricName;
+  actualValue?: number | null;
+  thresholdValue?: number | null;
+  varianceAmount?: number | null;
+  variancePercentage?: number | null;
+  reason?: string;
+  alert?: PerformanceAlert;
+}
+
+interface VarianceSnapshot {
+  baseline: FundBaseline;
+  asOfDate: Date;
+  currentMetrics: Record<string, unknown>;
+  baselineMetrics: Record<string, unknown>;
+  variances: Record<string, Decimal | null>;
+  portfolioVariances: Record<string, unknown> | null;
+  insights: {
+    overallScore: string;
+    significantVariances: unknown[];
+    factors: unknown[];
+    riskLevel: string;
+    thresholdBreaches: unknown[];
+    dataQualityScore: string;
+  };
+}
+
+const ALERT_METRIC_ALIASES: Record<string, SupportedAlertMetricName> = {
+  irr: 'irrVariance',
+  irrVariance: 'irrVariance',
+  multiple: 'multipleVariance',
+  multipleVariance: 'multipleVariance',
+  dpi: 'dpiVariance',
+  dpiVariance: 'dpiVariance',
+  tvpi: 'tvpiVariance',
+  tvpiVariance: 'tvpiVariance',
+  totalValue: 'totalValueVariance',
+  totalValueVariance: 'totalValueVariance',
+  totalValuePct: 'totalValueVariancePct',
+  totalValueVariancePct: 'totalValueVariancePct',
+};
+
+const ALERT_METRIC_LABELS: Record<SupportedAlertMetricName, string> = {
+  irrVariance: 'IRR variance',
+  multipleVariance: 'Multiple variance',
+  dpiVariance: 'DPI variance',
+  tvpiVariance: 'TVPI variance',
+  totalValueVariance: 'Total value variance',
+  totalValueVariancePct: 'Total value variance percent',
+};
+
+const OPEN_INCIDENT_STATUSES: AlertQueryStatus[] = ['active', 'acknowledged', 'investigating'];
+
 function isTriggeredAlertSeverity(value: unknown): value is TriggeredAlertData['severity'] {
   return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent';
 }
@@ -61,19 +138,23 @@ function normalizeTriggeredAlertSeverity(value: unknown): TriggeredAlertData['se
   return isTriggeredAlertSeverity(value) ? value : 'warning';
 }
 
-function isTriggeredAlertData(value: unknown): value is TriggeredAlertData {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
+function hasReturningQuery(
+  value: unknown
+): value is { returning: () => Promise<PerformanceAlert[]> } {
   return (
-    typeof candidate['ruleId'] === 'string' &&
-    typeof candidate['metricName'] === 'string' &&
-    typeof candidate['thresholdValue'] === 'number' &&
-    (typeof candidate['actualValue'] === 'number' || candidate['actualValue'] === null) &&
-    isTriggeredAlertSeverity(candidate['severity']) &&
-    (candidate['ruleName'] === undefined || typeof candidate['ruleName'] === 'string')
+    value != null &&
+    typeof value === 'object' &&
+    'returning' in value &&
+    typeof (value as { returning?: unknown }).returning === 'function'
+  );
+}
+
+function hasExecuteQuery(value: unknown): value is { execute: () => Promise<PerformanceAlert[]> } {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    'execute' in value &&
+    typeof (value as { execute?: unknown }).execute === 'function'
   );
 }
 
@@ -88,6 +169,120 @@ function isUniqueConstraintViolation(error: unknown, constraintName: string): bo
     (candidate.constraint === constraintName ||
       candidate.message?.includes(constraintName) === true)
   );
+}
+
+function normalizeAlertMetricName(
+  metricName: string | null | undefined
+): SupportedAlertMetricName | null {
+  if (!metricName) {
+    return null;
+  }
+
+  return ALERT_METRIC_ALIASES[metricName] ?? null;
+}
+
+function toNullableDecimalString(
+  value: Decimal | string | number | null | undefined
+): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  return value instanceof Decimal ? value.toString() : String(value);
+}
+
+function toNullableNumber(value: Decimal | null | undefined): number | null {
+  return value == null ? null : value.toNumber();
+}
+
+function isEmptyConfigPayload(value: unknown): boolean {
+  if (value == null) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>).length === 0;
+  }
+
+  return false;
+}
+
+function getSupportedAlertMetricValue(
+  metricName: string | null | undefined,
+  variances: Record<string, unknown>
+): SupportedAlertMetricValue | null {
+  const metricKey = normalizeAlertMetricName(metricName);
+  if (!metricKey) {
+    return null;
+  }
+
+  const rawValue = variances[metricKey];
+  if (rawValue == null) {
+    return null;
+  }
+
+  const actualValue = toDecimal(rawValue as Decimal | string | number);
+  const varianceAmount =
+    metricKey === 'totalValueVariancePct'
+      ? variances['totalValueVariance'] == null
+        ? null
+        : toDecimal(variances['totalValueVariance'] as Decimal | string | number)
+      : actualValue;
+  const variancePercentage =
+    metricKey === 'totalValueVariance'
+      ? variances['totalValueVariancePct'] == null
+        ? null
+        : toDecimal(variances['totalValueVariancePct'] as Decimal | string | number)
+      : metricKey === 'totalValueVariancePct'
+        ? actualValue
+        : null;
+
+  return {
+    metricKey,
+    metricLabel: ALERT_METRIC_LABELS[metricKey],
+    actualValue,
+    varianceAmount,
+    variancePercentage,
+  };
+}
+
+function evaluateAlertOperator(
+  operator: AlertRule['operator'],
+  value: Decimal,
+  threshold: Decimal,
+  secondaryThreshold?: Decimal | null
+): boolean {
+  switch (operator) {
+    case 'gt':
+      return value.gt(threshold);
+    case 'lt':
+      return value.lt(threshold);
+    case 'gte':
+      return value.gte(threshold);
+    case 'lte':
+      return value.lte(threshold);
+    case 'eq':
+      return value.minus(threshold).abs().lt(toDecimal(0.001));
+    case 'between': {
+      if (secondaryThreshold == null) {
+        return false;
+      }
+
+      const lowerBound = threshold.lte(secondaryThreshold) ? threshold : secondaryThreshold;
+      const upperBound = threshold.gte(secondaryThreshold) ? threshold : secondaryThreshold;
+      return value.gte(lowerBound) && value.lte(upperBound);
+    }
+    default:
+      return false;
+  }
 }
 
 function ensureOrderedPeriod(start: Date, end: Date): Date {
@@ -319,6 +514,25 @@ export class BaselineService {
     return await db.query.fundBaselines.findFirst({
       where: and(eq(fundBaselines.fundId, fundId), eq(fundBaselines.id, baselineId)),
     });
+  }
+
+  async resolveBaselineForFund(fundId: number, baselineId?: string): Promise<FundBaseline> {
+    if (baselineId) {
+      const baseline = await this.getBaselineById(fundId, baselineId);
+      if (!baseline) {
+        throw new Error('Baseline not found for fund');
+      }
+
+      return baseline;
+    }
+
+    const defaultBaselines = await this.getBaselines(fundId, { isDefault: true, limit: 1 });
+    const defaultBaseline = defaultBaselines[0];
+    if (!defaultBaseline) {
+      throw new Error('No default baseline found for fund');
+    }
+
+    return defaultBaseline;
   }
 
   /**
@@ -561,6 +775,42 @@ export class BaselineService {
 export class VarianceCalculationService {
   private readonly currentStatePortfolioAnalysisToleranceMs = 60_000;
 
+  async computeVarianceSnapshot(params: {
+    fundId: number;
+    baselineId: string;
+    asOfDate?: Date;
+    runId?: number;
+  }): Promise<VarianceSnapshot> {
+    const { fundId, baselineId, asOfDate = new Date(), runId } = params;
+    const canUseCurrentStatePortfolioAnalysis = this.canUseCurrentStatePortfolioAnalysis(asOfDate);
+
+    const baseline = await db.query.fundBaselines.findFirst({
+      where: and(eq(fundBaselines.fundId, fundId), eq(fundBaselines.id, baselineId)),
+    });
+
+    if (!baseline) {
+      throw new Error('Baseline not found');
+    }
+
+    const currentMetrics = await this.getCurrentMetrics(fundId, asOfDate, runId);
+    const baselineMetrics = this.extractBaselineMetrics(baseline);
+    const variances = this.calculateVariances(currentMetrics, baselineMetrics);
+    const portfolioVariances = canUseCurrentStatePortfolioAnalysis
+      ? await this.analyzePortfolioVariances(fundId, baseline, asOfDate)
+      : null;
+    const insights = this.generateVarianceInsights(variances, portfolioVariances ?? {});
+
+    return {
+      baseline,
+      asOfDate,
+      currentMetrics,
+      baselineMetrics,
+      variances,
+      portfolioVariances,
+      insights,
+    };
+  }
+
   /**
    * Generate variance report comparing current state to baseline
    */
@@ -587,34 +837,13 @@ export class VarianceCalculationService {
     const startTime = Date.now();
 
     try {
-      const canUseCurrentStatePortfolioAnalysis =
-        this.canUseCurrentStatePortfolioAnalysis(asOfDate);
-
-      // Get baseline data
-      const baseline = await db.query.fundBaselines.findFirst({
-        where: eq(fundBaselines.id, baselineId),
+      const snapshot = await this.computeVarianceSnapshot({
+        fundId,
+        baselineId,
+        asOfDate,
       });
-
-      if (!baseline) {
-        throw new Error('Baseline not found');
-      }
-
-      // Get current metrics
-      const currentMetrics = await this.getCurrentMetrics(fundId, asOfDate);
-      const baselineMetrics = this.extractBaselineMetrics(baseline);
-
-      // Calculate variances
-      const variances = this.calculateVariances(currentMetrics, baselineMetrics);
-
-      // Analyze portfolio variances
-      const portfolioVariances = canUseCurrentStatePortfolioAnalysis
-        ? await this.analyzePortfolioVariances(fundId, baseline, asOfDate)
-        : null;
-
-      // Generate insights and risk assessment
-      const insights = this.generateVarianceInsights(variances, portfolioVariances ?? {});
-
-      // Check for alert triggers
+      const { baseline, currentMetrics, baselineMetrics, variances, portfolioVariances, insights } =
+        snapshot;
       const alertsTriggered = await this.checkAlertTriggers(fundId, variances);
 
       const _calculationDuration = Date.now() - startTime;
@@ -723,13 +952,23 @@ export class VarianceCalculationService {
   /**
    * Get current fund metrics
    */
-  private async getCurrentMetrics(fundId: number, asOfDate: Date) {
-    const latestMetrics = await db.query.fundMetrics.findFirst({
-      where: and(eq(fundMetrics.fundId, fundId), lte(fundMetrics.metricDate, asOfDate)),
-      orderBy: desc(fundMetrics.metricDate),
-    });
+  private async getCurrentMetrics(fundId: number, asOfDate: Date, runId?: number) {
+    const latestMetrics =
+      runId != null
+        ? await db.query.fundMetrics.findFirst({
+            where: and(eq(fundMetrics.fundId, fundId), eq(fundMetrics.runId, runId)),
+            orderBy: desc(fundMetrics.metricDate),
+          })
+        : await db.query.fundMetrics.findFirst({
+            where: and(eq(fundMetrics.fundId, fundId), lte(fundMetrics.metricDate, asOfDate)),
+            orderBy: desc(fundMetrics.metricDate),
+          });
 
     if (!latestMetrics) {
+      if (runId != null) {
+        throw new Error(`No attributed metrics available for calc run ${runId}`);
+      }
+
       throw new Error('No current metrics available');
     }
 
@@ -981,18 +1220,14 @@ export class VarianceCalculationService {
     const triggeredAlerts: TriggeredAlertData[] = [];
 
     for (const rule of activeRules) {
-      const metricValue = variances[`${rule.metricName}Variance`];
-      const triggered = this.evaluateAlertRule(rule, variances);
-      if (triggered) {
+      const evaluation = this.buildAlertRuleEvaluation(rule, variances);
+      if (evaluation?.triggered) {
         triggeredAlerts.push({
           ruleId: rule.id,
           ruleName: rule.name,
-          metricName: rule.metricName,
-          thresholdValue: toDecimal(rule.thresholdValue?.toString() || '0').toNumber(),
-          actualValue:
-            metricValue === null || metricValue === undefined
-              ? null
-              : toDecimal(metricValue as Decimal | number | string).toNumber(),
+          metricName: evaluation.metric.metricKey,
+          thresholdValue: evaluation.threshold.toNumber(),
+          actualValue: evaluation.metric.actualValue.toNumber(),
           severity: normalizeTriggeredAlertSeverity(rule.severity),
         });
       }
@@ -1005,33 +1240,34 @@ export class VarianceCalculationService {
    * Evaluate if an alert rule should trigger
    */
   private evaluateAlertRule(rule: AlertRule, variances: Record<string, unknown>): boolean {
-    const metricValue = variances[`${rule.metricName}Variance`];
-    if (metricValue === null || metricValue === undefined) {
-      return false;
+    return this.buildAlertRuleEvaluation(rule, variances)?.triggered ?? false;
+  }
+
+  private buildAlertRuleEvaluation(rule: AlertRule, variances: Record<string, unknown>) {
+    if (rule.ruleType != null && rule.ruleType !== 'threshold') {
+      return null;
     }
 
-    // Check if threshold is null or undefined
-    if (rule.thresholdValue === null || rule.thresholdValue === undefined) {
-      return false;
+    const metric = getSupportedAlertMetricValue(rule.metricName, variances);
+    if (!metric || rule.thresholdValue == null) {
+      return null;
     }
 
     const threshold = toDecimal(rule.thresholdValue.toString());
-    const value = toDecimal(metricValue as Decimal | number | string);
+    const secondaryThreshold =
+      rule.secondaryThreshold == null ? null : toDecimal(rule.secondaryThreshold.toString());
 
-    switch (rule.operator) {
-      case 'gt':
-        return value.gt(threshold);
-      case 'lt':
-        return value.lt(threshold);
-      case 'gte':
-        return value.gte(threshold);
-      case 'lte':
-        return value.lte(threshold);
-      case 'eq':
-        return value.minus(threshold).abs().lt(toDecimal(0.001));
-      default:
-        return false;
-    }
+    return {
+      metric,
+      threshold,
+      secondaryThreshold,
+      triggered: evaluateAlertOperator(
+        rule.operator,
+        metric.actualValue,
+        threshold,
+        secondaryThreshold
+      ),
+    };
   }
 
   // NOTE: This method returns current-state portfolio data only. Historical
@@ -1630,22 +1866,49 @@ export class AlertManagementService {
     checkFrequency?: string;
     suppressionPeriod?: number;
     notificationChannels?: string[];
+    escalationRules?: unknown;
+    conditions?: unknown;
+    filters?: unknown;
     createdBy: number;
   }): Promise<AlertRule> {
+    if (params.ruleType !== 'threshold') {
+      throw new Error('Unsupported alert rule type for Phase 1C.1');
+    }
+
+    const normalizedMetricName = normalizeAlertMetricName(params.metricName);
+    if (!normalizedMetricName) {
+      throw new Error(`Unsupported alert metric: ${params.metricName}`);
+    }
+
+    if (!isEmptyConfigPayload(params.escalationRules)) {
+      throw new Error('escalationRules are not supported in Phase 1C.1');
+    }
+
+    if (!isEmptyConfigPayload(params.conditions)) {
+      throw new Error('conditions are not supported in Phase 1C.1');
+    }
+
+    if (!isEmptyConfigPayload(params.filters)) {
+      throw new Error('filters are not supported in Phase 1C.1');
+    }
+
     const ruleData: InsertAlertRule = {
       fundId: params.fundId,
       name: params.name,
       description: params.description,
       ruleType: params.ruleType,
-      metricName: params.metricName,
+      metricName: normalizedMetricName,
       operator: params.operator,
       thresholdValue: params.thresholdValue.toString(),
       secondaryThreshold: params.secondaryThreshold?.toString(),
       severity: params.severity || 'warning',
       category: params.category || 'performance',
       checkFrequency: params.checkFrequency || 'daily',
-      suppressionPeriod: params.suppressionPeriod,
-      notificationChannels: params.notificationChannels,
+      suppressionPeriod: params.suppressionPeriod ?? 60,
+      notificationChannels: params.notificationChannels ?? ['email'],
+      escalationRules: params.escalationRules,
+      conditions: params.conditions,
+      filters: params.filters,
       createdBy: params.createdBy,
     };
 
@@ -1676,16 +1939,37 @@ export class AlertManagementService {
     varianceAmount?: number;
     variancePercentage?: number;
     ruleId?: string;
+    ruleVersion?: string;
+    contextData?: Record<string, unknown>;
+    triggeredAt?: Date;
+    firstOccurrence?: Date;
+    lastOccurrence?: Date;
+    occurrenceCount?: number;
+    status?: AlertQueryStatus;
   }): Promise<PerformanceAlert> {
+    const triggeredAt = params.triggeredAt ?? new Date();
     const alertData: InsertPerformanceAlert = {
       fundId: params.fundId,
+      baselineId: params.baselineId,
+      varianceReportId: params.varianceReportId,
       alertType: params.alertType,
       severity: params.severity,
       category: params.category,
       title: params.title,
       description: params.description,
       metricName: params.metricName,
-      triggeredAt: new Date(),
+      thresholdValue: toNullableDecimalString(params.thresholdValue),
+      actualValue: toNullableDecimalString(params.actualValue),
+      varianceAmount: toNullableDecimalString(params.varianceAmount),
+      variancePercentage: toNullableDecimalString(params.variancePercentage),
+      triggeredAt,
+      firstOccurrence: params.firstOccurrence ?? triggeredAt,
+      lastOccurrence: params.lastOccurrence ?? triggeredAt,
+      occurrenceCount: params.occurrenceCount ?? 1,
+      status: params.status,
+      contextData: params.contextData,
+      ruleId: params.ruleId,
+      ruleVersion: params.ruleVersion,
     };
 
     const [alert] = await db.insert(performanceAlerts).values(alertData).returning();
@@ -1703,6 +1987,172 @@ export class AlertManagementService {
     );
 
     return alert;
+  }
+
+  async upsertTriggeredAlertIncident(params: {
+    fundId: number;
+    baseline: FundBaseline;
+    rule: AlertRule;
+    metric: SupportedAlertMetricValue;
+    source: 'manual' | 'calc_run_completion' | 'scheduler';
+    triggeredAt?: Date;
+  }): Promise<{ alert: PerformanceAlert; suppressed: boolean }> {
+    const triggeredAt = params.triggeredAt ?? new Date();
+    const thresholdValue =
+      params.rule.thresholdValue == null ? null : toDecimal(params.rule.thresholdValue.toString());
+    const contextData = {
+      ruleName: params.rule.name,
+      metricKey: params.metric.metricKey,
+      metricLabel: params.metric.metricLabel,
+      baselineName: params.baseline.name,
+      baselinePeriodStart: params.baseline.periodStart.toISOString(),
+      baselinePeriodEnd: params.baseline.periodEnd.toISOString(),
+      evaluationSource: params.source,
+      suppressed: false,
+      suppressionPeriodMinutes: params.rule.suppressionPeriod ?? null,
+      actualValue: params.metric.actualValue.toNumber(),
+      thresholdValue: thresholdValue?.toNumber() ?? null,
+      varianceAmount: toNullableNumber(params.metric.varianceAmount),
+      variancePercentage: toNullableNumber(params.metric.variancePercentage),
+    } satisfies Record<string, unknown>;
+    const description = this.buildIncidentDescription(
+      params.rule,
+      params.metric,
+      thresholdValue?.toNumber() ?? null
+    );
+
+    let createdNewAlert = false;
+
+    const result = await db.transaction(async (tx) => {
+      const existingAlert = await tx.query.performanceAlerts.findFirst({
+        where: and(
+          eq(performanceAlerts.fundId, params.fundId),
+          eq(performanceAlerts.baselineId, params.baseline.id),
+          eq(performanceAlerts.ruleId, params.rule.id),
+          inArray(performanceAlerts.status, OPEN_INCIDENT_STATUSES)
+        ),
+      });
+
+      const previousOccurrence =
+        existingAlert?.lastOccurrence ?? existingAlert?.triggeredAt ?? null;
+      const suppressed =
+        previousOccurrence != null &&
+        (params.rule.suppressionPeriod ?? 0) > 0 &&
+        triggeredAt.getTime() - new Date(previousOccurrence).getTime() <
+          (params.rule.suppressionPeriod ?? 0) * 60_000;
+      const contextWithSuppression = { ...contextData, suppressed };
+
+      if (existingAlert) {
+        const updateQuery: unknown = tx
+          .update(performanceAlerts)
+          .set({
+            title: params.rule.name,
+            description,
+            metricName: params.metric.metricKey,
+            thresholdValue: toNullableDecimalString(thresholdValue),
+            actualValue: toNullableDecimalString(params.metric.actualValue),
+            varianceAmount: toNullableDecimalString(params.metric.varianceAmount),
+            variancePercentage: toNullableDecimalString(params.metric.variancePercentage),
+            lastOccurrence: triggeredAt,
+            occurrenceCount: (existingAlert.occurrenceCount ?? 1) + 1,
+            contextData: contextWithSuppression,
+            ruleVersion: params.rule.version,
+            updatedAt: new Date(),
+          })
+          .where(eq(performanceAlerts.id, existingAlert.id));
+        const updatedAlerts: PerformanceAlert[] = Array.isArray(updateQuery)
+          ? (updateQuery as PerformanceAlert[])
+          : hasReturningQuery(updateQuery)
+            ? await updateQuery.returning()
+            : hasExecuteQuery(updateQuery)
+              ? await updateQuery.execute()
+              : [];
+        const updatedAlert = updatedAlerts[0] as PerformanceAlert | undefined;
+
+        await tx
+          .update(alertRules)
+          .set({
+            lastTriggered: triggeredAt,
+            triggerCount: (params.rule.triggerCount ?? 0) + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(alertRules.id, params.rule.id));
+
+        if (!updatedAlert) {
+          throw new Error('Failed to update performance alert incident');
+        }
+
+        return { alert: updatedAlert, suppressed };
+      }
+
+      const createdAlerts = (await tx
+        .insert(performanceAlerts)
+        .values({
+          fundId: params.fundId,
+          baselineId: params.baseline.id,
+          alertType: 'variance_threshold',
+          severity: params.rule.severity,
+          category: params.rule.category,
+          title: params.rule.name,
+          description,
+          metricName: params.metric.metricKey,
+          thresholdValue: toNullableDecimalString(thresholdValue),
+          actualValue: toNullableDecimalString(params.metric.actualValue),
+          varianceAmount: toNullableDecimalString(params.metric.varianceAmount),
+          variancePercentage: toNullableDecimalString(params.metric.variancePercentage),
+          triggeredAt,
+          firstOccurrence: triggeredAt,
+          lastOccurrence: triggeredAt,
+          occurrenceCount: 1,
+          contextData: contextWithSuppression,
+          ruleId: params.rule.id,
+          ruleVersion: params.rule.version,
+        })
+        .returning()) as PerformanceAlert[];
+      const createdAlert = createdAlerts[0] as PerformanceAlert | undefined;
+
+      await tx
+        .update(alertRules)
+        .set({
+          lastTriggered: triggeredAt,
+          triggerCount: (params.rule.triggerCount ?? 0) + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(alertRules.id, params.rule.id));
+
+      if (!createdAlert) {
+        throw new Error('Failed to create performance alert incident');
+      }
+
+      createdNewAlert = true;
+      return { alert: createdAlert, suppressed };
+    });
+
+    if (createdNewAlert) {
+      recordAlertGenerated(
+        params.fundId.toString(),
+        result.alert.alertType,
+        result.alert.severity,
+        result.alert.category
+      );
+    }
+
+    return result;
+  }
+
+  private buildIncidentDescription(
+    rule: AlertRule,
+    metric: SupportedAlertMetricValue,
+    thresholdValue: number | null
+  ) {
+    const thresholdText =
+      thresholdValue == null
+        ? 'an undefined threshold'
+        : rule.operator === 'between' && rule.secondaryThreshold != null
+          ? `${thresholdValue} and ${rule.secondaryThreshold}`
+          : `${rule.operator} ${thresholdValue}`;
+
+    return `${metric.metricLabel} breached ${thresholdText}. Current value: ${metric.actualValue.toString()}.`;
   }
 
   /**
@@ -1767,12 +2217,14 @@ export class AlertManagementService {
     options?: {
       severity?: string[];
       category?: string[];
+      status?: AlertQueryStatus[];
       limit?: number;
     }
   ): Promise<PerformanceAlert[]> {
+    const statuses = options?.status?.length ? options.status : OPEN_INCIDENT_STATUSES;
     const conditions = [
       eq(performanceAlerts.fundId, fundId),
-      eq(performanceAlerts.status, 'active'),
+      inArray(performanceAlerts.status, statuses),
     ];
 
     if (options?.severity?.length) {
@@ -1791,6 +2243,186 @@ export class AlertManagementService {
   }
 }
 
+export class VarianceAlertEvaluationService {
+  constructor(
+    private readonly baselines: BaselineService,
+    private readonly calculations: VarianceCalculationService,
+    private readonly alerts: AlertManagementService
+  ) {}
+
+  async evaluateVarianceAlerts(params: {
+    fundId: number;
+    baselineId?: string;
+    runId?: number;
+    asOfDate?: Date;
+    source: 'manual' | 'calc_run_completion' | 'scheduler';
+    persistAlerts: boolean;
+  }): Promise<{
+    baseline: FundBaseline;
+    asOfDate: Date;
+    evaluations: AlertRuleEvaluationResult[];
+    alertsGenerated: PerformanceAlert[];
+  }> {
+    const baseline = await this.baselines.resolveBaselineForFund(params.fundId, params.baselineId);
+    const snapshot = await this.calculations.computeVarianceSnapshot({
+      fundId: params.fundId,
+      baselineId: baseline.id,
+      runId: params.runId,
+      asOfDate: params.asOfDate,
+    });
+
+    const rules = await db.query.alertRules.findMany({
+      where: and(eq(alertRules.fundId, params.fundId), eq(alertRules.isEnabled, true)),
+    });
+
+    const evaluations: AlertRuleEvaluationResult[] = [];
+    const alertsGenerated: PerformanceAlert[] = [];
+
+    for (const rule of rules) {
+      const evaluation = await this.evaluateRule(rule, snapshot, params);
+      evaluations.push(evaluation);
+
+      if (evaluation.alert) {
+        alertsGenerated.push(evaluation.alert);
+      }
+    }
+
+    return {
+      baseline,
+      asOfDate: snapshot.asOfDate,
+      evaluations,
+      alertsGenerated,
+    };
+  }
+
+  private async evaluateRule(
+    rule: AlertRule,
+    snapshot: VarianceSnapshot,
+    params: {
+      fundId: number;
+      source: 'manual' | 'calc_run_completion' | 'scheduler';
+      persistAlerts: boolean;
+    }
+  ): Promise<AlertRuleEvaluationResult> {
+    const ruleName = rule.name ?? rule.metricName ?? 'Unnamed alert rule';
+    const metricKey = normalizeAlertMetricName(rule.metricName);
+
+    if (rule.ruleType != null && rule.ruleType !== 'threshold') {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'unsupported',
+        metricName: rule.metricName,
+        reason: `Unsupported rule type: ${rule.ruleType}`,
+      };
+    }
+
+    if (!metricKey) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'unsupported',
+        metricName: rule.metricName,
+        reason: `Unsupported metric: ${rule.metricName}`,
+      };
+    }
+
+    if (rule.thresholdValue == null) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'unsupported',
+        metricName: rule.metricName,
+        metricKey,
+        reason: 'thresholdValue is required',
+      };
+    }
+
+    if (rule.operator === 'between' && rule.secondaryThreshold == null) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'unsupported',
+        metricName: rule.metricName,
+        metricKey,
+        reason: 'secondaryThreshold is required for between rules',
+      };
+    }
+
+    const metric = getSupportedAlertMetricValue(rule.metricName, snapshot.variances);
+    if (!metric) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'not_triggered',
+        metricName: rule.metricName,
+        metricKey,
+        reason: 'Metric not available in computed variance snapshot',
+      };
+    }
+
+    const threshold = toDecimal(rule.thresholdValue.toString());
+    const secondaryThreshold =
+      rule.secondaryThreshold == null ? null : toDecimal(rule.secondaryThreshold.toString());
+    const triggered = evaluateAlertOperator(
+      rule.operator,
+      metric.actualValue,
+      threshold,
+      secondaryThreshold
+    );
+
+    if (!triggered) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'not_triggered',
+        metricName: rule.metricName,
+        metricKey: metric.metricKey,
+        actualValue: metric.actualValue.toNumber(),
+        thresholdValue: threshold.toNumber(),
+        varianceAmount: toNullableNumber(metric.varianceAmount),
+        variancePercentage: toNullableNumber(metric.variancePercentage),
+      };
+    }
+
+    if (!params.persistAlerts) {
+      return {
+        ruleId: rule.id,
+        ruleName,
+        status: 'triggered',
+        metricName: rule.metricName,
+        metricKey: metric.metricKey,
+        actualValue: metric.actualValue.toNumber(),
+        thresholdValue: threshold.toNumber(),
+        varianceAmount: toNullableNumber(metric.varianceAmount),
+        variancePercentage: toNullableNumber(metric.variancePercentage),
+      };
+    }
+
+    const persisted = await this.alerts.upsertTriggeredAlertIncident({
+      fundId: params.fundId,
+      baseline: snapshot.baseline,
+      rule,
+      metric,
+      source: params.source,
+      triggeredAt: snapshot.asOfDate,
+    });
+
+    return {
+      ruleId: rule.id,
+      ruleName,
+      status: persisted.suppressed ? 'suppressed' : 'triggered',
+      metricName: rule.metricName,
+      metricKey: metric.metricKey,
+      actualValue: metric.actualValue.toNumber(),
+      thresholdValue: threshold.toNumber(),
+      varianceAmount: toNullableNumber(metric.varianceAmount),
+      variancePercentage: toNullableNumber(metric.variancePercentage),
+      alert: persisted.alert,
+    };
+  }
+}
+
 /**
  * Main variance tracking service that coordinates all operations
  */
@@ -1798,11 +2430,17 @@ export class VarianceTrackingService {
   public readonly baselines: BaselineService;
   public readonly calculations: VarianceCalculationService;
   public readonly alerts: AlertManagementService;
+  private readonly alertEvaluation: VarianceAlertEvaluationService;
 
   constructor() {
     this.baselines = new BaselineService();
     this.calculations = new VarianceCalculationService();
     this.alerts = new AlertManagementService();
+    this.alertEvaluation = new VarianceAlertEvaluationService(
+      this.baselines,
+      this.calculations,
+      this.alerts
+    );
   }
 
   /**
@@ -1813,56 +2451,43 @@ export class VarianceTrackingService {
     baselineId?: string;
     reportName?: string;
     userId: number;
+    includeAlertGeneration?: boolean;
   }): Promise<{
     report: VarianceReport;
     alertsGenerated: PerformanceAlert[];
   }> {
-    const { fundId, baselineId, reportName = 'Automated Variance Report', userId } = params;
-
-    // Get default baseline if none specified
-    let finalBaselineId = baselineId;
-    if (!finalBaselineId) {
-      const defaultBaseline = await this.baselines.getBaselines(fundId, { isDefault: true });
-      const baseline = defaultBaseline[0];
-      if (!baseline) {
-        throw new Error('No default baseline found for fund');
-      }
-      finalBaselineId = baseline.id;
-    }
+    const {
+      fundId,
+      baselineId,
+      reportName = 'Automated Variance Report',
+      userId,
+      includeAlertGeneration = true,
+    } = params;
+    const baseline = await this.baselines.resolveBaselineForFund(fundId, baselineId);
 
     // Generate variance report
     const report = await this.calculations.generateVarianceReport({
       fundId,
-      baselineId: finalBaselineId,
+      baselineId: baseline.id,
       reportName,
       reportType: 'ad_hoc',
       generatedBy: userId,
     });
 
-    // Generate alerts if any thresholds are breached
-    const alertsGenerated: PerformanceAlert[] = [];
-    const triggeredAlerts = Array.isArray(report.alertsTriggered)
-      ? report.alertsTriggered.filter(isTriggeredAlertData)
-      : [];
-    for (const alertData of triggeredAlerts) {
-      const alert = await this.alerts.createAlert({
-        fundId,
-        baselineId: finalBaselineId,
-        varianceReportId: report.id,
-        alertType: 'variance_threshold',
-        severity: alertData.severity,
-        category: 'performance',
-        title: `Variance Alert: ${alertData.metricName}`,
-        description: `${alertData.metricName} variance exceeded threshold`,
-        metricName: alertData.metricName,
-        thresholdValue: toDecimal(alertData.thresholdValue?.toString() || '0').toNumber(),
-        actualValue: toDecimal(alertData.actualValue?.toString() || '0').toNumber(),
-        ruleId: alertData.ruleId,
-      });
-      alertsGenerated.push(alert);
+    if (!includeAlertGeneration) {
+      return { report, alertsGenerated: [] };
     }
 
-    return { report, alertsGenerated };
+    const evaluationResult = await this.alertEvaluation.evaluateVarianceAlerts({
+      fundId,
+      baselineId: baseline.id,
+      asOfDate:
+        report.asOfDate instanceof Date ? report.asOfDate : new Date(String(report.asOfDate)),
+      source: 'manual',
+      persistAlerts: true,
+    });
+
+    return { report, alertsGenerated: evaluationResult.alertsGenerated };
   }
 }
 

@@ -168,18 +168,22 @@ function normalizeAlertStatus(value: string | null): ClientAlertResponse['status
 }
 
 function toClientAlert(alert: PerformanceAlert, fundId: number): ClientAlertResponse {
+  const contextData =
+    alert.contextData && typeof alert.contextData === 'object'
+      ? (alert.contextData as Record<string, unknown>)
+      : {};
+  const contextRuleName =
+    typeof contextData['ruleName'] === 'string' ? contextData['ruleName'] : null;
+
   return {
     id: alert.id,
     fundId: alert.fundId ?? fundId,
     ruleId: alert.ruleId ?? null,
-    ruleName: alert.title,
+    ruleName: contextRuleName ?? alert.title,
     severity: normalizeAlertSeverity(alert.severity),
     category: normalizeAlertCategory(alert.category),
     message: alert.description,
-    details:
-      alert.contextData && typeof alert.contextData === 'object'
-        ? (alert.contextData as Record<string, unknown>)
-        : {},
+    details: contextData,
     status: normalizeAlertStatus(alert.status),
     triggeredAt: toIsoTimestamp(alert.triggeredAt) ?? '',
     acknowledgedAt: toIsoTimestamp(alert.acknowledgedAt) ?? null,
@@ -668,6 +672,9 @@ router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response)
       checkFrequency: data.checkFrequency,
       suppressionPeriod: data.suppressionPeriod,
       notificationChannels: data.notificationChannels,
+      ...(data.escalationRules !== undefined && { escalationRules: data.escalationRules }),
+      ...(data.conditions !== undefined && { conditions: data.conditions }),
+      ...(data.filters !== undefined && { filters: data.filters }),
       createdBy: userId,
     });
 
@@ -710,6 +717,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     const queryValidation = GetAlertsQuerySchema.safeParse({
       severity: firstString(req.query['severity']),
       category: firstString(req.query['category']),
+      status: firstString(req.query['status']),
       limit: firstString(req.query['limit']),
     });
     if (!queryValidation.success) {
@@ -721,11 +729,12 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       return res['status'](400)['json'](error);
     }
 
-    const { severity, category, limit } = queryValidation.data;
+    const { severity, category, status, limit } = queryValidation.data;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
       ...(severity !== undefined && { severity }),
       ...(category !== undefined && { category }),
+      ...(status !== undefined && { status }),
       ...(limit !== undefined && { limit }),
     });
     const clientAlerts = alerts.map((alert) => toClientAlert(alert, fundId));
@@ -891,11 +900,26 @@ router['post'](
         return res['status'](401)['json'](error);
       }
 
+      if (data.baselineId) {
+        const baseline = await varianceTrackingService.baselines.getBaselineById(
+          fundId,
+          data.baselineId
+        );
+        if (!baseline) {
+          const error: ApiError = {
+            error: 'Baseline not found',
+            message: 'The specified baseline does not belong to this fund.',
+          };
+          return res['status'](404)['json'](error);
+        }
+      }
+
       const result = await varianceTrackingService.performCompleteVarianceAnalysis({
         fundId,
         ...(data.baselineId && { baselineId: data.baselineId }),
         ...(data.reportName && { reportName: data.reportName }),
         userId,
+        includeAlertGeneration: data.includeAlertGeneration,
       });
 
       res['status'](201)['json']({
