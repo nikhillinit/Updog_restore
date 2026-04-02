@@ -209,9 +209,14 @@ Do not schedule `performCompleteVarianceAnalysis()` as-is.
 
 Build:
 
-- a dedicated alert-evaluation path
+- refine and extract the existing alert-evaluation path
 - fund-owned baseline resolution for report and alert entrypoints
 - run-aware metric sourcing when calc-run context is present
+- database-backed duplicate protection for open incidents, not only service
+  logic
+- explicit baseline-scoped incident semantics so default-baseline rotation does
+  not silently rewrite old alerts
+- mandatory extraction to `server/services/variance-alert-evaluation.ts`
 - truthful rule/query contracts for `/variance-analysis`, `/alerts`, and
   alert-rule creation
 
@@ -233,10 +238,21 @@ Detailed plan:
 
 Work:
 
-- add calc-run completion wiring for `realtime` alert rules
-- add outbox-backed scheduling for `hourly` / `daily` / `weekly` alert rules
-- add provider/bootstrap wiring for alert planner + processor startup
-- add remaining-capital-vs-plan display on the variance page
+- ship alert-rule authoring parity before automation rollout
+- cut over calc-run completion from parallel variance handlers to one sequential
+  variance-automation pipeline for `realtime` rules
+- lock replay safety to a dedicated alert-evaluation execution ledger
+- add outbox-backed scheduling with atomic claim / retry-safe processing for
+  `hourly` / `daily` / `weekly` alert rules
+- add provider/bootstrap wiring for lifecycle-safe planner + processor startup,
+  stale-job recovery, and basic scheduler observability
+- add deployable-capital-vs-plan display on the variance page, keeping uncalled
+  capital distinct
+
+Potential immediate follow-on after `1C.2` if baseline-scoped incident noise is
+material:
+
+- lifecycle cleanup / current-baseline filtering for older open incidents
 
 ## Phase 2: Scenario Comparison Consolidation
 
@@ -337,9 +353,24 @@ Scope after Phases `0-4`.
 - automated alert evaluation path is defined without implicit report sprawl
 - evaluator inputs are fund-scoped and can bind to calc-run-attributed metrics
   when run context exists
-- duplicate alert creation behavior is explicitly prevented or controlled
+- duplicate alert creation behavior is prevented by explicit DB guardrails and
+  DB-native upsert semantics
+- the evaluator has been extracted to a dedicated alert-evaluation module and is
+  no longer a growing branch inside `variance-tracking.ts`
 - alert-rule, manual-analysis, and alerts-query contracts are truthful and
   covered by focused tests
+
+### `1C.2`
+
+- alert-rule authoring parity ships before automation rollout
+- calc-run completion uses one sequential variance-automation pipeline instead
+  of parallel variance handlers that can race
+- replay safety is enforced by a dedicated alert-evaluation execution ledger
+- scheduled alert jobs are dedupe-safe, claim-safe, and recover stale
+  `processing` rows on a documented lease policy
+- planner and processor loops emit basic health/observability signals
+- the variance overview shows deployable-capital-vs-plan with uncalled capital
+  kept distinct
 
 ## Notes
 

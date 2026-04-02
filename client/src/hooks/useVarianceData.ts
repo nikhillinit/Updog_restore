@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type {
+  AlertMetricName,
   BaselineResponse as Baseline,
   ClientAlertResponse as Alert,
   VarianceDashboardResponse as VarianceDashboard,
@@ -14,8 +15,8 @@ export interface AlertRule {
   fundId: number;
   name: string;
   description?: string;
-  ruleType: 'threshold' | 'trend' | 'deviation' | 'pattern';
-  metricName: string;
+  ruleType: 'threshold';
+  metricName: AlertMetricName;
   operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between';
   thresholdValue: number;
   secondaryThreshold?: number;
@@ -272,8 +273,8 @@ export function useCreateAlertRule() {
       fundId: number;
       name: string;
       description?: string;
-      ruleType: 'threshold' | 'trend' | 'deviation' | 'pattern';
-      metricName: string;
+      ruleType: 'threshold';
+      metricName: AlertMetricName;
       operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between';
       thresholdValue: number;
       secondaryThreshold?: number;

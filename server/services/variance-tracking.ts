@@ -18,6 +18,7 @@ import {
   investments,
   fundSnapshots,
   calcRuns,
+  alertEvaluationExecutions,
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -32,6 +33,18 @@ import type {
 } from '@shared/schema';
 import type { CompanyVarianceRow } from '@shared/variance-validation';
 import { eq, and, desc, lte, inArray } from 'drizzle-orm';
+import {
+  buildAlertRuleEvaluation,
+  normalizeAlertMetricName,
+  OPEN_INCIDENT_STATUSES,
+  toNullableNumber,
+  VarianceAlertEvaluationService,
+} from './variance-alert-evaluation';
+import type {
+  AlertQueryStatus,
+  SupportedAlertMetricValue,
+  VarianceSnapshot,
+} from './variance-alert-evaluation';
 import {
   recordVarianceReportGenerated,
   recordBaselineOperation,
@@ -52,83 +65,6 @@ interface TriggeredAlertData {
   actualValue: number | null;
   severity: 'info' | 'warning' | 'critical' | 'urgent';
 }
-
-type SupportedAlertMetricName =
-  | 'irrVariance'
-  | 'multipleVariance'
-  | 'dpiVariance'
-  | 'tvpiVariance'
-  | 'totalValueVariance'
-  | 'totalValueVariancePct';
-
-type AlertQueryStatus = 'active' | 'acknowledged' | 'investigating' | 'resolved' | 'dismissed';
-
-type AlertEvaluationStatus = 'triggered' | 'not_triggered' | 'suppressed' | 'unsupported';
-
-interface SupportedAlertMetricValue {
-  metricKey: SupportedAlertMetricName;
-  metricLabel: string;
-  actualValue: Decimal;
-  varianceAmount: Decimal | null;
-  variancePercentage: Decimal | null;
-}
-
-interface AlertRuleEvaluationResult {
-  ruleId: string;
-  ruleName: string;
-  status: AlertEvaluationStatus;
-  metricName: string;
-  metricKey?: SupportedAlertMetricName;
-  actualValue?: number | null;
-  thresholdValue?: number | null;
-  varianceAmount?: number | null;
-  variancePercentage?: number | null;
-  reason?: string;
-  alert?: PerformanceAlert;
-}
-
-interface VarianceSnapshot {
-  baseline: FundBaseline;
-  asOfDate: Date;
-  currentMetrics: Record<string, unknown>;
-  baselineMetrics: Record<string, unknown>;
-  variances: Record<string, Decimal | null>;
-  portfolioVariances: Record<string, unknown> | null;
-  insights: {
-    overallScore: string;
-    significantVariances: unknown[];
-    factors: unknown[];
-    riskLevel: string;
-    thresholdBreaches: unknown[];
-    dataQualityScore: string;
-  };
-}
-
-const ALERT_METRIC_ALIASES: Record<string, SupportedAlertMetricName> = {
-  irr: 'irrVariance',
-  irrVariance: 'irrVariance',
-  multiple: 'multipleVariance',
-  multipleVariance: 'multipleVariance',
-  dpi: 'dpiVariance',
-  dpiVariance: 'dpiVariance',
-  tvpi: 'tvpiVariance',
-  tvpiVariance: 'tvpiVariance',
-  totalValue: 'totalValueVariance',
-  totalValueVariance: 'totalValueVariance',
-  totalValuePct: 'totalValueVariancePct',
-  totalValueVariancePct: 'totalValueVariancePct',
-};
-
-const ALERT_METRIC_LABELS: Record<SupportedAlertMetricName, string> = {
-  irrVariance: 'IRR variance',
-  multipleVariance: 'Multiple variance',
-  dpiVariance: 'DPI variance',
-  tvpiVariance: 'TVPI variance',
-  totalValueVariance: 'Total value variance',
-  totalValueVariancePct: 'Total value variance percent',
-};
-
-const OPEN_INCIDENT_STATUSES: AlertQueryStatus[] = ['active', 'acknowledged', 'investigating'];
 
 function isTriggeredAlertSeverity(value: unknown): value is TriggeredAlertData['severity'] {
   return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent';
@@ -171,16 +107,6 @@ function isUniqueConstraintViolation(error: unknown, constraintName: string): bo
   );
 }
 
-function normalizeAlertMetricName(
-  metricName: string | null | undefined
-): SupportedAlertMetricName | null {
-  if (!metricName) {
-    return null;
-  }
-
-  return ALERT_METRIC_ALIASES[metricName] ?? null;
-}
-
 function toNullableDecimalString(
   value: Decimal | string | number | null | undefined
 ): string | null | undefined {
@@ -193,10 +119,6 @@ function toNullableDecimalString(
   }
 
   return value instanceof Decimal ? value.toString() : String(value);
-}
-
-function toNullableNumber(value: Decimal | null | undefined): number | null {
-  return value == null ? null : value.toNumber();
 }
 
 function isEmptyConfigPayload(value: unknown): boolean {
@@ -213,76 +135,6 @@ function isEmptyConfigPayload(value: unknown): boolean {
   }
 
   return false;
-}
-
-function getSupportedAlertMetricValue(
-  metricName: string | null | undefined,
-  variances: Record<string, unknown>
-): SupportedAlertMetricValue | null {
-  const metricKey = normalizeAlertMetricName(metricName);
-  if (!metricKey) {
-    return null;
-  }
-
-  const rawValue = variances[metricKey];
-  if (rawValue == null) {
-    return null;
-  }
-
-  const actualValue = toDecimal(rawValue as Decimal | string | number);
-  const varianceAmount =
-    metricKey === 'totalValueVariancePct'
-      ? variances['totalValueVariance'] == null
-        ? null
-        : toDecimal(variances['totalValueVariance'] as Decimal | string | number)
-      : actualValue;
-  const variancePercentage =
-    metricKey === 'totalValueVariance'
-      ? variances['totalValueVariancePct'] == null
-        ? null
-        : toDecimal(variances['totalValueVariancePct'] as Decimal | string | number)
-      : metricKey === 'totalValueVariancePct'
-        ? actualValue
-        : null;
-
-  return {
-    metricKey,
-    metricLabel: ALERT_METRIC_LABELS[metricKey],
-    actualValue,
-    varianceAmount,
-    variancePercentage,
-  };
-}
-
-function evaluateAlertOperator(
-  operator: AlertRule['operator'],
-  value: Decimal,
-  threshold: Decimal,
-  secondaryThreshold?: Decimal | null
-): boolean {
-  switch (operator) {
-    case 'gt':
-      return value.gt(threshold);
-    case 'lt':
-      return value.lt(threshold);
-    case 'gte':
-      return value.gte(threshold);
-    case 'lte':
-      return value.lte(threshold);
-    case 'eq':
-      return value.minus(threshold).abs().lt(toDecimal(0.001));
-    case 'between': {
-      if (secondaryThreshold == null) {
-        return false;
-      }
-
-      const lowerBound = threshold.lte(secondaryThreshold) ? threshold : secondaryThreshold;
-      const upperBound = threshold.gte(secondaryThreshold) ? threshold : secondaryThreshold;
-      return value.gte(lowerBound) && value.lte(upperBound);
-    }
-    default:
-      return false;
-  }
 }
 
 function ensureOrderedPeriod(start: Date, end: Date): Date {
@@ -1220,7 +1072,7 @@ export class VarianceCalculationService {
     const triggeredAlerts: TriggeredAlertData[] = [];
 
     for (const rule of activeRules) {
-      const evaluation = this.buildAlertRuleEvaluation(rule, variances);
+      const evaluation = buildAlertRuleEvaluation(rule, variances);
       if (evaluation?.triggered) {
         triggeredAlerts.push({
           ruleId: rule.id,
@@ -1234,40 +1086,6 @@ export class VarianceCalculationService {
     }
 
     return triggeredAlerts;
-  }
-
-  /**
-   * Evaluate if an alert rule should trigger
-   */
-  private evaluateAlertRule(rule: AlertRule, variances: Record<string, unknown>): boolean {
-    return this.buildAlertRuleEvaluation(rule, variances)?.triggered ?? false;
-  }
-
-  private buildAlertRuleEvaluation(rule: AlertRule, variances: Record<string, unknown>) {
-    if (rule.ruleType != null && rule.ruleType !== 'threshold') {
-      return null;
-    }
-
-    const metric = getSupportedAlertMetricValue(rule.metricName, variances);
-    if (!metric || rule.thresholdValue == null) {
-      return null;
-    }
-
-    const threshold = toDecimal(rule.thresholdValue.toString());
-    const secondaryThreshold =
-      rule.secondaryThreshold == null ? null : toDecimal(rule.secondaryThreshold.toString());
-
-    return {
-      metric,
-      threshold,
-      secondaryThreshold,
-      triggered: evaluateAlertOperator(
-        rule.operator,
-        metric.actualValue,
-        threshold,
-        secondaryThreshold
-      ),
-    };
   }
 
   // NOTE: This method returns current-state portfolio data only. Historical
@@ -1996,7 +1814,11 @@ export class AlertManagementService {
     metric: SupportedAlertMetricValue;
     source: 'manual' | 'calc_run_completion' | 'scheduler';
     triggeredAt?: Date;
-  }): Promise<{ alert: PerformanceAlert; suppressed: boolean }> {
+    executionKey?: string;
+    runId?: number;
+    frequency?: 'realtime' | 'hourly' | 'daily' | 'weekly';
+    windowStart?: Date;
+  }): Promise<{ alert: PerformanceAlert; suppressed: boolean; deduped?: boolean }> {
     const triggeredAt = params.triggeredAt ?? new Date();
     const thresholdValue =
       params.rule.thresholdValue == null ? null : toDecimal(params.rule.thresholdValue.toString());
@@ -2022,27 +1844,55 @@ export class AlertManagementService {
     );
 
     let createdNewAlert = false;
+    let deduped = false;
 
     const result = await db.transaction(async (tx) => {
-      const existingAlert = await tx.query.performanceAlerts.findFirst({
-        where: and(
-          eq(performanceAlerts.fundId, params.fundId),
-          eq(performanceAlerts.baselineId, params.baseline.id),
-          eq(performanceAlerts.ruleId, params.rule.id),
-          inArray(performanceAlerts.status, OPEN_INCIDENT_STATUSES)
-        ),
-      });
+      const findOpenIncident = async () =>
+        tx.query.performanceAlerts.findFirst({
+          where: and(
+            eq(performanceAlerts.fundId, params.fundId),
+            eq(performanceAlerts.baselineId, params.baseline.id),
+            eq(performanceAlerts.ruleId, params.rule.id),
+            inArray(performanceAlerts.status, OPEN_INCIDENT_STATUSES)
+          ),
+        });
 
-      const previousOccurrence =
-        existingAlert?.lastOccurrence ?? existingAlert?.triggeredAt ?? null;
-      const suppressed =
-        previousOccurrence != null &&
-        (params.rule.suppressionPeriod ?? 0) > 0 &&
-        triggeredAt.getTime() - new Date(previousOccurrence).getTime() <
-          (params.rule.suppressionPeriod ?? 0) * 60_000;
-      const contextWithSuppression = { ...contextData, suppressed };
+      const updateRuleTrigger = async () => {
+        await tx
+          .update(alertRules)
+          .set({
+            lastTriggered: triggeredAt,
+            triggerCount: (params.rule.triggerCount ?? 0) + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(alertRules.id, params.rule.id));
+      };
 
-      if (existingAlert) {
+      const attachExecutionToAlert = async (alertId: string) => {
+        if (!params.executionKey) {
+          return;
+        }
+
+        await tx
+          .update(alertEvaluationExecutions)
+          .set({
+            appliedAlertId: alertId,
+          })
+          .where(eq(alertEvaluationExecutions.executionKey, params.executionKey));
+      };
+
+      const updateExistingIncident = async (
+        existingAlert: PerformanceAlert
+      ): Promise<{ alert: PerformanceAlert; suppressed: boolean; deduped?: boolean }> => {
+        const previousOccurrence =
+          existingAlert.lastOccurrence ?? existingAlert.triggeredAt ?? null;
+        const suppressed =
+          previousOccurrence != null &&
+          (params.rule.suppressionPeriod ?? 0) > 0 &&
+          triggeredAt.getTime() - new Date(previousOccurrence).getTime() <
+            (params.rule.suppressionPeriod ?? 0) * 60_000;
+        const contextWithSuppression = { ...contextData, suppressed };
+
         const updateQuery: unknown = tx
           .update(performanceAlerts)
           .set({
@@ -2069,66 +1919,126 @@ export class AlertManagementService {
               : [];
         const updatedAlert = updatedAlerts[0] as PerformanceAlert | undefined;
 
-        await tx
-          .update(alertRules)
-          .set({
-            lastTriggered: triggeredAt,
-            triggerCount: (params.rule.triggerCount ?? 0) + 1,
-            updatedAt: new Date(),
-          })
-          .where(eq(alertRules.id, params.rule.id));
+        await updateRuleTrigger();
 
         if (!updatedAlert) {
           throw new Error('Failed to update performance alert incident');
         }
 
+        await attachExecutionToAlert(updatedAlert.id);
+
         return { alert: updatedAlert, suppressed };
+      };
+
+      if (params.executionKey) {
+        const executionInsert = await tx
+          .insert(alertEvaluationExecutions)
+          .values({
+            executionKey: params.executionKey,
+            source: params.source,
+            fundId: params.fundId,
+            baselineId: params.baseline.id,
+            ruleId: params.rule.id,
+            ...(params.runId !== undefined ? { runId: params.runId } : {}),
+            ...(params.frequency ? { frequency: params.frequency } : {}),
+            ...(params.windowStart ? { windowStart: params.windowStart } : {}),
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        if (!executionInsert[0]) {
+          deduped = true;
+          const existingAlert = await findOpenIncident();
+          if (existingAlert) {
+            const existingContext =
+              existingAlert.contextData && typeof existingAlert.contextData === 'object'
+                ? (existingAlert.contextData as Record<string, unknown>)
+                : {};
+            return {
+              alert: existingAlert,
+              suppressed: existingContext['suppressed'] === true,
+              deduped: true,
+            };
+          }
+
+          const latestAlert = await tx.query.performanceAlerts.findFirst({
+            where: and(
+              eq(performanceAlerts.fundId, params.fundId),
+              eq(performanceAlerts.baselineId, params.baseline.id),
+              eq(performanceAlerts.ruleId, params.rule.id)
+            ),
+            orderBy: desc(performanceAlerts.triggeredAt),
+          });
+
+          if (!latestAlert) {
+            throw new Error(
+              `Alert evaluation ${params.executionKey} already recorded without a matching alert`
+            );
+          }
+
+          return { alert: latestAlert, suppressed: false, deduped: true };
+        }
       }
 
-      const createdAlerts = (await tx
-        .insert(performanceAlerts)
-        .values({
-          fundId: params.fundId,
-          baselineId: params.baseline.id,
-          alertType: 'variance_threshold',
-          severity: params.rule.severity,
-          category: params.rule.category,
-          title: params.rule.name,
-          description,
-          metricName: params.metric.metricKey,
-          thresholdValue: toNullableDecimalString(thresholdValue),
-          actualValue: toNullableDecimalString(params.metric.actualValue),
-          varianceAmount: toNullableDecimalString(params.metric.varianceAmount),
-          variancePercentage: toNullableDecimalString(params.metric.variancePercentage),
-          triggeredAt,
-          firstOccurrence: triggeredAt,
-          lastOccurrence: triggeredAt,
-          occurrenceCount: 1,
-          contextData: contextWithSuppression,
-          ruleId: params.rule.id,
-          ruleVersion: params.rule.version,
-        })
-        .returning()) as PerformanceAlert[];
-      const createdAlert = createdAlerts[0] as PerformanceAlert | undefined;
-
-      await tx
-        .update(alertRules)
-        .set({
-          lastTriggered: triggeredAt,
-          triggerCount: (params.rule.triggerCount ?? 0) + 1,
-          updatedAt: new Date(),
-        })
-        .where(eq(alertRules.id, params.rule.id));
-
-      if (!createdAlert) {
-        throw new Error('Failed to create performance alert incident');
+      const existingAlert = await findOpenIncident();
+      if (existingAlert) {
+        return updateExistingIncident(existingAlert);
       }
 
-      createdNewAlert = true;
-      return { alert: createdAlert, suppressed };
+      const contextWithSuppression = { ...contextData, suppressed: false };
+
+      try {
+        const createdAlerts = (await tx
+          .insert(performanceAlerts)
+          .values({
+            fundId: params.fundId,
+            baselineId: params.baseline.id,
+            alertType: 'variance_threshold',
+            severity: params.rule.severity,
+            category: params.rule.category,
+            title: params.rule.name,
+            description,
+            metricName: params.metric.metricKey,
+            thresholdValue: toNullableDecimalString(thresholdValue),
+            actualValue: toNullableDecimalString(params.metric.actualValue),
+            varianceAmount: toNullableDecimalString(params.metric.varianceAmount),
+            variancePercentage: toNullableDecimalString(params.metric.variancePercentage),
+            triggeredAt,
+            firstOccurrence: triggeredAt,
+            lastOccurrence: triggeredAt,
+            occurrenceCount: 1,
+            contextData: contextWithSuppression,
+            ruleId: params.rule.id,
+            ruleVersion: params.rule.version,
+          })
+          .returning()) as PerformanceAlert[];
+        const createdAlert = createdAlerts[0] as PerformanceAlert | undefined;
+
+        await updateRuleTrigger();
+
+        if (!createdAlert) {
+          throw new Error('Failed to create performance alert incident');
+        }
+
+        createdNewAlert = true;
+        await attachExecutionToAlert(createdAlert.id);
+
+        return { alert: createdAlert, suppressed: false };
+      } catch (error) {
+        if (!isUniqueConstraintViolation(error, 'performance_alerts_open_incident_unique')) {
+          throw error;
+        }
+
+        const concurrentAlert = await findOpenIncident();
+        if (!concurrentAlert) {
+          throw error;
+        }
+
+        return updateExistingIncident(concurrentAlert);
+      }
     });
 
-    if (createdNewAlert) {
+    if (createdNewAlert && !deduped) {
       recordAlertGenerated(
         params.fundId.toString(),
         result.alert.alertType,
@@ -2240,186 +2150,6 @@ export class AlertManagementService {
       orderBy: desc(performanceAlerts.triggeredAt),
       limit: options?.limit || 50,
     });
-  }
-}
-
-export class VarianceAlertEvaluationService {
-  constructor(
-    private readonly baselines: BaselineService,
-    private readonly calculations: VarianceCalculationService,
-    private readonly alerts: AlertManagementService
-  ) {}
-
-  async evaluateVarianceAlerts(params: {
-    fundId: number;
-    baselineId?: string;
-    runId?: number;
-    asOfDate?: Date;
-    source: 'manual' | 'calc_run_completion' | 'scheduler';
-    persistAlerts: boolean;
-  }): Promise<{
-    baseline: FundBaseline;
-    asOfDate: Date;
-    evaluations: AlertRuleEvaluationResult[];
-    alertsGenerated: PerformanceAlert[];
-  }> {
-    const baseline = await this.baselines.resolveBaselineForFund(params.fundId, params.baselineId);
-    const snapshot = await this.calculations.computeVarianceSnapshot({
-      fundId: params.fundId,
-      baselineId: baseline.id,
-      ...(params.runId !== undefined ? { runId: params.runId } : {}),
-      ...(params.asOfDate !== undefined ? { asOfDate: params.asOfDate } : {}),
-    });
-
-    const rules = await db.query.alertRules.findMany({
-      where: and(eq(alertRules.fundId, params.fundId), eq(alertRules.isEnabled, true)),
-    });
-
-    const evaluations: AlertRuleEvaluationResult[] = [];
-    const alertsGenerated: PerformanceAlert[] = [];
-
-    for (const rule of rules) {
-      const evaluation = await this.evaluateRule(rule, snapshot, params);
-      evaluations.push(evaluation);
-
-      if (evaluation.alert) {
-        alertsGenerated.push(evaluation.alert);
-      }
-    }
-
-    return {
-      baseline,
-      asOfDate: snapshot.asOfDate,
-      evaluations,
-      alertsGenerated,
-    };
-  }
-
-  private async evaluateRule(
-    rule: AlertRule,
-    snapshot: VarianceSnapshot,
-    params: {
-      fundId: number;
-      source: 'manual' | 'calc_run_completion' | 'scheduler';
-      persistAlerts: boolean;
-    }
-  ): Promise<AlertRuleEvaluationResult> {
-    const ruleName = rule.name ?? rule.metricName ?? 'Unnamed alert rule';
-    const metricKey = normalizeAlertMetricName(rule.metricName);
-
-    if (rule.ruleType != null && rule.ruleType !== 'threshold') {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'unsupported',
-        metricName: rule.metricName,
-        reason: `Unsupported rule type: ${rule.ruleType}`,
-      };
-    }
-
-    if (!metricKey) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'unsupported',
-        metricName: rule.metricName,
-        reason: `Unsupported metric: ${rule.metricName}`,
-      };
-    }
-
-    if (rule.thresholdValue == null) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'unsupported',
-        metricName: rule.metricName,
-        metricKey,
-        reason: 'thresholdValue is required',
-      };
-    }
-
-    if (rule.operator === 'between' && rule.secondaryThreshold == null) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'unsupported',
-        metricName: rule.metricName,
-        metricKey,
-        reason: 'secondaryThreshold is required for between rules',
-      };
-    }
-
-    const metric = getSupportedAlertMetricValue(rule.metricName, snapshot.variances);
-    if (!metric) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'not_triggered',
-        metricName: rule.metricName,
-        metricKey,
-        reason: 'Metric not available in computed variance snapshot',
-      };
-    }
-
-    const threshold = toDecimal(rule.thresholdValue.toString());
-    const secondaryThreshold =
-      rule.secondaryThreshold == null ? null : toDecimal(rule.secondaryThreshold.toString());
-    const triggered = evaluateAlertOperator(
-      rule.operator,
-      metric.actualValue,
-      threshold,
-      secondaryThreshold
-    );
-
-    if (!triggered) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'not_triggered',
-        metricName: rule.metricName,
-        metricKey: metric.metricKey,
-        actualValue: metric.actualValue.toNumber(),
-        thresholdValue: threshold.toNumber(),
-        varianceAmount: toNullableNumber(metric.varianceAmount),
-        variancePercentage: toNullableNumber(metric.variancePercentage),
-      };
-    }
-
-    if (!params.persistAlerts) {
-      return {
-        ruleId: rule.id,
-        ruleName,
-        status: 'triggered',
-        metricName: rule.metricName,
-        metricKey: metric.metricKey,
-        actualValue: metric.actualValue.toNumber(),
-        thresholdValue: threshold.toNumber(),
-        varianceAmount: toNullableNumber(metric.varianceAmount),
-        variancePercentage: toNullableNumber(metric.variancePercentage),
-      };
-    }
-
-    const persisted = await this.alerts.upsertTriggeredAlertIncident({
-      fundId: params.fundId,
-      baseline: snapshot.baseline,
-      rule,
-      metric,
-      source: params.source,
-      triggeredAt: snapshot.asOfDate,
-    });
-
-    return {
-      ruleId: rule.id,
-      ruleName,
-      status: persisted.suppressed ? 'suppressed' : 'triggered',
-      metricName: rule.metricName,
-      metricKey: metric.metricKey,
-      actualValue: metric.actualValue.toNumber(),
-      thresholdValue: threshold.toNumber(),
-      varianceAmount: toNullableNumber(metric.varianceAmount),
-      variancePercentage: toNullableNumber(metric.variancePercentage),
-      alert: persisted.alert,
-    };
   }
 }
 

@@ -1204,6 +1204,11 @@ export const performanceAlerts = pgTable(
       table.baselineId,
       table.triggeredAt.desc()
     ),
+    openIncidentUniqueIdx: uniqueIndex('performance_alerts_open_incident_unique')
+      .on(table.fundId, table.baselineId, table.ruleId)
+      .where(
+        sql`${table.ruleId} IS NOT NULL AND ${table.baselineId} IS NOT NULL AND ${table.status} IN ('active', 'acknowledged', 'investigating')`
+      ),
     reportIdx: index('performance_alerts_report_idx')['on'](table.varianceReportId),
     escalationIdx: index('performance_alerts_escalation_idx')['on'](
       table.escalationLevel,
@@ -1269,6 +1274,39 @@ export const alertRules = pgTable(
   })
 );
 
+export const alertEvaluationExecutions = pgTable(
+  'alert_evaluation_executions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    executionKey: text('execution_key').notNull(),
+    source: text('source').notNull(), // 'calc_run_completion' | 'scheduler'
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    baselineId: uuid('baseline_id')
+      .references(() => fundBaselines.id)
+      .notNull(),
+    ruleId: uuid('rule_id')
+      .references(() => alertRules.id)
+      .notNull(),
+    runId: integer('run_id').references(() => calcRuns.id),
+    frequency: text('frequency'), // 'realtime' | 'hourly' | 'daily' | 'weekly'
+    windowStart: timestamp('window_start', { withTimezone: true }),
+    appliedAlertId: uuid('applied_alert_id').references(() => performanceAlerts.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    executionKeyUniqueIdx: uniqueIndex('alert_evaluation_executions_execution_key_unique').on(
+      table.executionKey
+    ),
+    fundRuleIdx: index('alert_evaluation_executions_fund_rule_idx').on(
+      table.fundId,
+      table.ruleId,
+      table.createdAt.desc()
+    ),
+  })
+);
+
 // Time-Travel Analytics Insert Schemas
 export const insertFundStateSnapshotSchema = createInsertSchema(fundStateSnapshots).omit({
   id: true,
@@ -1311,6 +1349,13 @@ export const insertPerformanceAlertSchema = createInsertSchema(performanceAlerts
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertAlertEvaluationExecutionSchema = createInsertSchema(
+  alertEvaluationExecutions
+).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertAlertRuleSchema = createInsertSchema(alertRules).omit({
@@ -2734,6 +2779,7 @@ export const jobOutbox = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     jobType: varchar('job_type', { length: 255 }).notNull(),
+    dedupeKey: text('dedupe_key'),
     payload: jsonb('payload').notNull(),
     status: varchar('status', { length: 50 })
       .notNull()
@@ -2763,6 +2809,7 @@ export const jobOutbox = pgTable(
       .on(table.processingAt.asc())
       .where(sql`${table.status} = 'processing'`),
     jobTypeIdx: index('idx_job_outbox_job_type').on(table.jobType),
+    dedupeKeyIdx: uniqueIndex('idx_job_outbox_job_type_dedupe').on(table.jobType, table.dedupeKey),
   })
 );
 
@@ -2904,6 +2951,8 @@ export const insertOptimizationSessionSchema = createInsertSchema(optimizationSe
 // Type exports
 export type JobOutbox = typeof jobOutbox.$inferSelect;
 export type InsertJobOutbox = typeof jobOutbox.$inferInsert;
+export type AlertEvaluationExecution = typeof alertEvaluationExecutions.$inferSelect;
+export type InsertAlertEvaluationExecution = typeof alertEvaluationExecutions.$inferInsert;
 export type ScenarioMatrix = typeof scenarioMatrices.$inferSelect;
 export type InsertScenarioMatrix = typeof scenarioMatrices.$inferInsert;
 export type OptimizationSession = typeof optimizationSessions.$inferSelect;

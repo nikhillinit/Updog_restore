@@ -29,6 +29,20 @@
       "when": 1775097600000,
       "tag": "0003_phase0_runtime_alignment",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775184000000,
+      "tag": "0004_phase1a1c_company_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775270400000,
+      "tag": "0005_phase1c2_alert_automation",
+      "breakpoints": true
     }
   ]
 }

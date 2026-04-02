@@ -5,10 +5,12 @@ import { registerFundConfigRoutes } from './routes/fund-config.js';
 import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
 import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
+import { varianceAlertAutomationService } from './services/variance-alert-automation.js';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Wire calc-run completion automation (baseline creation, metrics attribution)
+  // Wire calc-run completion automation and periodic alert scheduling.
   registerCompletionHandlers();
+  varianceAlertAutomationService.start();
 
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());

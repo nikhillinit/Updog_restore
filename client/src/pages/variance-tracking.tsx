@@ -35,7 +35,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -75,6 +77,12 @@ import {
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+import { useFundMetrics } from '@/hooks/useFundMetrics';
+import {
+  ALERT_METRIC_GROUPS,
+  ALERT_METRIC_LABELS,
+  type AlertMetricName,
+} from '@shared/variance-validation';
 
 type VarianceTab = 'overview' | 'baselines' | 'alerts' | 'reports' | 'settings';
 
@@ -143,8 +151,8 @@ export default function VarianceTrackingPage() {
   const [alertRuleForm, setAlertRuleForm] = useState({
     name: '',
     description: '',
-    ruleType: 'threshold' as 'threshold' | 'trend' | 'deviation' | 'pattern',
-    metricName: '',
+    ruleType: 'threshold' as const,
+    metricName: 'irr' as AlertMetricName,
     operator: 'gt' as 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'between',
     thresholdValue: 0,
     secondaryThreshold: undefined as number | undefined,
@@ -182,6 +190,10 @@ export default function VarianceTrackingPage() {
     isLoading: reportsLoading,
     error: _reportsError,
   } = useVarianceReports(currentFund?.id || 0);
+  const { data: unifiedMetrics, isLoading: metricsLoading } = useFundMetrics({
+    enabled: activeTab === 'overview' && !!currentFund?.id,
+    skipProjections: true,
+  });
 
   // Mutations
   const createBaselineMutation = useCreateBaseline();
@@ -279,7 +291,7 @@ export default function VarianceTrackingPage() {
         fundId: currentFund.id,
         name: alertRuleForm.name,
         description: alertRuleForm.description,
-        ruleType: alertRuleForm.ruleType,
+        ruleType: 'threshold',
         metricName: alertRuleForm.metricName,
         operator: alertRuleForm.operator,
         thresholdValue: alertRuleForm.thresholdValue,
@@ -301,7 +313,7 @@ export default function VarianceTrackingPage() {
         name: '',
         description: '',
         ruleType: 'threshold',
-        metricName: '',
+        metricName: 'irr',
         operator: 'gt',
         thresholdValue: 0,
         secondaryThreshold: undefined,
@@ -312,10 +324,11 @@ export default function VarianceTrackingPage() {
         notificationChannels: ['email'],
       });
       refetchAlerts();
-    } catch {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create alert rule. Please try again.',
+        description:
+          error instanceof Error ? error.message : 'Failed to create alert rule. Please try again.',
         variant: 'destructive',
       });
     }
@@ -518,6 +531,25 @@ export default function VarianceTrackingPage() {
     }
   };
 
+  const actualCommitted = unifiedMetrics?.actual?.totalCommitted ?? null;
+  const actualDeployed = unifiedMetrics?.actual?.totalDeployed ?? null;
+  const targetDeployed = unifiedMetrics?.variance?.deploymentVariance?.target ?? null;
+  const remainingDeployableCapital =
+    actualCommitted != null && actualDeployed != null
+      ? Math.max(actualCommitted - actualDeployed, 0)
+      : null;
+  const plannedRemainingDeployableCapital =
+    actualCommitted != null && targetDeployed != null
+      ? Math.max(actualCommitted - targetDeployed, 0)
+      : null;
+  const remainingDeployableGap =
+    remainingDeployableCapital != null && plannedRemainingDeployableCapital != null
+      ? remainingDeployableCapital - plannedRemainingDeployableCapital
+      : null;
+  const deploymentPlanStatus =
+    unifiedMetrics?._status?.engines?.target === 'success' &&
+    unifiedMetrics?._status?.engines?.variance === 'success';
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -689,6 +721,81 @@ export default function VarianceTrackingPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Deployable Capital vs Plan</CardTitle>
+              <CardDescription>
+                Remaining deployable capital compared with the current deployment plan. Uncalled
+                capital is shown separately because it measures callable, not deployable, capacity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metricsLoading ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="rounded-lg border p-4">
+                      <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+                      <div className="mt-3 h-7 w-40 animate-pulse rounded bg-gray-200" />
+                    </div>
+                  ))}
+                </div>
+              ) : !deploymentPlanStatus ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Deployment-plan context is not available from the unified metrics response right
+                  now, so this card is intentionally withheld instead of showing fallback values.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Remaining deployable</div>
+                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                      {formatCurrency(remainingDeployableCapital)}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Actual committed capital minus capital already deployed.
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Plan remaining</div>
+                    <div className="mt-1 text-2xl font-semibold text-gray-900">
+                      {formatCurrency(plannedRemainingDeployableCapital)}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Current deployment plan implied by target deployed capital for this fund age.
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-4">
+                    <div className="text-sm font-medium text-gray-600">Gap vs plan</div>
+                    <div
+                      className={cn(
+                        'mt-1 text-2xl font-semibold',
+                        (remainingDeployableGap ?? 0) > 0 ? 'text-blue-700' : 'text-amber-700'
+                      )}
+                    >
+                      {remainingDeployableGap == null
+                        ? '-'
+                        : `${remainingDeployableGap > 0 ? '+' : ''}${formatCurrency(remainingDeployableGap)}`}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Positive means more undeployed capital remains than the plan expects today.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-medium text-slate-700">Uncalled capital</div>
+                <div className="mt-1 text-xl font-semibold text-slate-900">
+                  {formatCurrency(unifiedMetrics?.actual?.totalUncalled)}
+                </div>
+                <div className="mt-2 text-xs text-slate-600">
+                  Capital that has been committed but not yet called from LPs. This is not the same
+                  as remaining deployable capital.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -987,13 +1094,32 @@ export default function VarianceTrackingPage() {
                     </div>
                     <div>
                       <Label>Metric Name</Label>
-                      <Input
+                      <Select
                         value={alertRuleForm.metricName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setAlertRuleForm((prev) => ({ ...prev, metricName: e.target.value }))
+                        onValueChange={(value: AlertMetricName) =>
+                          setAlertRuleForm((prev) => ({ ...prev, metricName: value }))
                         }
-                        placeholder="Enter metric name..."
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ALERT_METRIC_GROUPS.map((group) => (
+                            <SelectGroup key={group.label}>
+                              <SelectLabel>{group.label}</SelectLabel>
+                              {group.options.map((metricName) => (
+                                <SelectItem key={metricName} value={metricName}>
+                                  {ALERT_METRIC_LABELS[metricName]}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Alert rules currently support threshold checks over the canonical fund-level
+                        variance metrics only.
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -1007,25 +1133,6 @@ export default function VarianceTrackingPage() {
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Rule Type</Label>
-                      <Select
-                        value={alertRuleForm.ruleType}
-                        onValueChange={(value: 'threshold' | 'trend' | 'deviation' | 'pattern') =>
-                          setAlertRuleForm((prev) => ({ ...prev, ruleType: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="threshold">Threshold</SelectItem>
-                          <SelectItem value="trend">Trend</SelectItem>
-                          <SelectItem value="deviation">Deviation</SelectItem>
-                          <SelectItem value="pattern">Pattern</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <div>
                       <Label>Operator</Label>
                       <Select
@@ -1062,6 +1169,27 @@ export default function VarianceTrackingPage() {
                       />
                     </div>
                   </div>
+                  {alertRuleForm.operator === 'between' && (
+                    <div>
+                      <Label>Secondary Threshold</Label>
+                      <Input
+                        type="number"
+                        value={alertRuleForm.secondaryThreshold ?? ''}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAlertRuleForm((prev) => ({
+                            ...prev,
+                            secondaryThreshold:
+                              e.target.value === '' ? undefined : parseFloat(e.target.value),
+                          }))
+                        }
+                        placeholder="Upper or lower bound"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        The alert triggers only when the selected metric falls between the primary
+                        and secondary thresholds.
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label>Severity</Label>
@@ -1128,7 +1256,13 @@ export default function VarianceTrackingPage() {
                   </Button>
                   <Button
                     onClick={handleCreateAlertRule}
-                    disabled={createAlertRuleMutation.isPending || !alertRuleForm.name.trim()}
+                    disabled={
+                      createAlertRuleMutation.isPending ||
+                      !alertRuleForm.name.trim() ||
+                      Number.isNaN(alertRuleForm.thresholdValue) ||
+                      (alertRuleForm.operator === 'between' &&
+                        alertRuleForm.secondaryThreshold === undefined)
+                    }
                   >
                     {createAlertRuleMutation.isPending ? 'Creating...' : 'Create Rule'}
                   </Button>

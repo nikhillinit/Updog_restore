@@ -11,6 +11,7 @@ import {
   AlertManagementService,
   VarianceTrackingService,
 } from '../../../server/services/variance-tracking';
+import { buildAlertRuleEvaluation } from '../../../server/services/variance-alert-evaluation';
 import { Decimal } from '../../../shared/lib/decimal-utils';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
@@ -2275,29 +2276,22 @@ describe('Edge Cases and Error Handling', () => {
   });
 
   it('should handle alert rule evaluation edge cases', async () => {
-    const calculationService = new VarianceCalculationService();
-
-    // Test the private evaluateAlertRule method through reflection
-    const evaluateAlertRule = (calculationService as any).evaluateAlertRule.bind(
-      calculationService
-    );
-
     // Test with null threshold
     const rule1 = { metricName: 'irr', operator: 'gt', thresholdValue: null };
     const variances1 = { irrVariance: 0.05 };
-    expect(evaluateAlertRule(rule1, variances1)).toBe(false);
+    expect(buildAlertRuleEvaluation(rule1 as any, variances1)?.triggered ?? false).toBe(false);
 
     // Test with undefined metric value
     const rule2 = { metricName: 'irr', operator: 'gt', thresholdValue: 0.01 };
     const variances2 = { irrVariance: null };
-    expect(evaluateAlertRule(rule2, variances2)).toBe(false);
+    expect(buildAlertRuleEvaluation(rule2 as any, variances2)?.triggered ?? false).toBe(false);
 
     // Test equality with floating point precision
     // The implementation uses Math.abs(metricValue - threshold) < 0.001
     // 0.10000001 - 0.1 = 0.00000001 which is < 0.001, so it should match
     const rule3 = { metricName: 'irr', operator: 'eq', thresholdValue: 0.1 };
     const variances3 = { irrVariance: 0.10000001 }; // Very close, within tolerance
-    expect(evaluateAlertRule(rule3, variances3)).toBe(true);
+    expect(buildAlertRuleEvaluation(rule3 as any, variances3)?.triggered ?? false).toBe(true);
 
     const rule4 = {
       metricName: 'multiple',
@@ -2306,7 +2300,7 @@ describe('Edge Cases and Error Handling', () => {
       secondaryThreshold: 0.15,
     };
     const variances4 = { multipleVariance: 0.1 };
-    expect(evaluateAlertRule(rule4, variances4)).toBe(true);
+    expect(buildAlertRuleEvaluation(rule4 as any, variances4)?.triggered ?? false).toBe(true);
   });
 });
 
