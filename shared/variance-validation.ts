@@ -248,6 +248,7 @@ export const CompanyVarianceRowSchema = z.object({
   currentValuation: signedDecimalSchema.nullable().optional(),
   baselineInvestedCapital: signedDecimalSchema.nullable().optional(),
   currentInvestedCapital: signedDecimalSchema.nullable().optional(),
+  // Temporary compatibility alias. Prefer valuationVariance* for new consumers.
   valuationChange: signedDecimalSchema.nullable().optional(),
   valuationChangePct: signedDecimalSchema.nullable().optional(),
   valuationVariance: signedDecimalSchema.nullable(),
@@ -681,6 +682,7 @@ export type CreateVarianceReportRequest = z.infer<typeof CreateVarianceReportReq
 export type VarianceReportResponse = z.infer<typeof VarianceReportResponseSchema>;
 export type VarianceReportClientResponse = z.infer<typeof VarianceReportClientResponseSchema>;
 export type VarianceCalculation = z.infer<typeof VarianceCalculationSchema>;
+export type CompanyVarianceRow = z.infer<typeof CompanyVarianceRowSchema>;
 export type PortfolioVariance = z.infer<typeof PortfolioVarianceSchema>;
 export type ReserveVariance = z.infer<typeof ReserveVarianceSchema>;
 export type PacingVariance = z.infer<typeof PacingVarianceSchema>;
