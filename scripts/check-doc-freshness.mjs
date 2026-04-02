@@ -26,6 +26,9 @@ const DOCS_TO_CHECK = [
   'PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md',
   'cheatsheets/**/*.md',
 ];
+const EXCLUDE_PREFIXES = [
+  'docs/archive/',
+];
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -111,7 +114,8 @@ async function getMarkdownFiles(patterns) {
     }
   }
 
-  return [...new Set(files)]; // Deduplicate
+  const deduped = [...new Set(files)];
+  return deduped.filter(f => !EXCLUDE_PREFIXES.some(p => f.startsWith(p)));
 }
 
 /**
