@@ -78,6 +78,8 @@ vi.mock('../../../server/services/variance-tracking', () => ({
       resolveAlert: vi.fn(),
     },
     performCompleteVarianceAnalysis: vi.fn(),
+    setDefaultBaselineAndCleanup: vi.fn(),
+    cleanupSupersededAlertsForCurrentDefaultBaseline: vi.fn(),
   },
 }));
 
@@ -324,7 +326,10 @@ describe('Variance Tracking API', () => {
 
     describe('POST /api/funds/:id/baselines/:baselineId/set-default', () => {
       it('should set default baseline successfully', async () => {
-        mockVarianceTrackingService.baselines.setDefaultBaseline.mockResolvedValue(undefined);
+        mockVarianceTrackingService.setDefaultBaselineAndCleanup.mockResolvedValue({
+          baseline: { id: 'baseline-123' },
+          resolvedSupersededAlerts: 2,
+        });
 
         const response = await request(app)
           .post('/api/funds/1/baselines/baseline-123/set-default')
@@ -332,17 +337,76 @@ describe('Variance Tracking API', () => {
 
         expect(response.body.success).toBe(true);
         expect(response.body.message).toBe('Default baseline updated successfully');
+        expect(response.body.data).toEqual({
+          baselineId: 'baseline-123',
+          resolvedSupersededAlerts: 2,
+        });
 
-        expect(mockVarianceTrackingService.baselines.setDefaultBaseline).toHaveBeenCalledWith(
-          'baseline-123',
-          1
-        );
+        expect(mockVarianceTrackingService.setDefaultBaselineAndCleanup).toHaveBeenCalledWith({
+          fundId: 1,
+          baselineId: 'baseline-123',
+          userId: 1,
+        });
       });
 
       it('should handle missing baseline ID', async () => {
         const _response = await request(app)
           .post('/api/funds/1/baselines//set-default')
           .expect(404); // Express router would return 404 for empty path segment
+      });
+
+      it('should return 404 when the baseline does not belong to the fund', async () => {
+        mockVarianceTrackingService.setDefaultBaselineAndCleanup.mockRejectedValue(
+          new Error('Baseline not found for fund')
+        );
+
+        const response = await request(app)
+          .post('/api/funds/1/baselines/baseline-404/set-default')
+          .expect(404);
+
+        expect(response.body.error).toBe('Failed to set default baseline');
+        expect(response.body.message).toBe('Baseline not found for fund');
+      });
+    });
+
+    describe('POST /api/funds/:id/alerts/cleanup-superseded', () => {
+      it('should resolve superseded alerts for the current default baseline', async () => {
+        mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline.mockResolvedValue(
+          {
+            baseline: { id: 'current-baseline-id' },
+            resolvedSupersededAlerts: 3,
+          }
+        );
+
+        const response = await request(app)
+          .post('/api/funds/1/alerts/cleanup-superseded')
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe('Superseded alerts cleaned up successfully');
+        expect(response.body.data).toEqual({
+          baselineId: 'current-baseline-id',
+          resolvedSupersededAlerts: 3,
+        });
+        expect(
+          mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline
+        ).toHaveBeenCalledWith({
+          fundId: 1,
+          userId: 1,
+        });
+      });
+
+      it('should return 404 when the fund has no current default baseline', async () => {
+        mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline.mockRejectedValue(
+          new Error('No default baseline found for fund')
+        );
+
+        const response = await request(app)
+          .post('/api/funds/1/alerts/cleanup-superseded')
+          .expect(404);
+
+        expect(response.body.error).toBe('Failed to clean up superseded alerts');
+        expect(response.body.message).toBe('No default baseline found for fund');
       });
     });
 

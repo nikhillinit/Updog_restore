@@ -1808,6 +1808,63 @@ describe('AlertManagementService', () => {
     });
   });
 
+  describe('resolveSupersededBaselineAlerts', () => {
+    it('should resolve older open incidents when a new current baseline is supplied', async () => {
+      const triggeredAt = new Date('2026-04-01T12:00:00Z');
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue([
+        {
+          id: 'stale-alert-1',
+          severity: 'warning',
+          triggeredAt,
+        },
+        {
+          id: 'stale-alert-2',
+          severity: 'critical',
+          triggeredAt,
+        },
+      ]);
+
+      const resolvedAt = new Date('2026-04-02T12:00:00Z');
+      const result = await service.resolveSupersededBaselineAlerts({
+        fundId: 1,
+        currentBaselineId: 'baseline-current',
+        currentBaselineName: 'Q1 2026 Baseline',
+        resolvedBy: 42,
+        resolvedAt,
+      });
+
+      expect(result).toBe(2);
+      expect(mockDb.query.performanceAlerts.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.anything(),
+        })
+      );
+      expect(mockDb.update).toHaveBeenCalledWith(expect.anything());
+      expect(mockDb.__getLastUpdateData()).toEqual(
+        expect.objectContaining({
+          status: 'resolved',
+          resolvedBy: 42,
+          resolvedAt,
+          resolutionNotes:
+            'Superseded by default baseline rotation. Current default baseline: Q1 2026 Baseline.',
+          updatedAt: resolvedAt,
+        })
+      );
+    });
+
+    it('should no-op when there are no superseded open incidents', async () => {
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue([]);
+
+      const result = await service.resolveSupersededBaselineAlerts({
+        fundId: 1,
+        currentBaselineId: 'baseline-current',
+      });
+
+      expect(result).toBe(0);
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getActiveAlerts', () => {
     it('should retrieve active alerts with filters', async () => {
       const mockAlerts = [
@@ -2089,6 +2146,67 @@ describe('VarianceTrackingService (Integration)', () => {
 
       expect(result.alertsGenerated).toEqual([]);
       expect(mockDb.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it('should set a new default baseline and resolve superseded incidents', async () => {
+      mockDb.query.fundBaselines.findFirst
+        .mockResolvedValueOnce({
+          id: 'baseline-new',
+          fundId: 1,
+          name: 'New Default',
+          isActive: true,
+        })
+        .mockResolvedValue(undefined);
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue([
+        {
+          id: 'stale-alert',
+          severity: 'warning',
+          triggeredAt: new Date('2026-04-01T00:00:00Z'),
+        },
+      ]);
+
+      const result = await service.setDefaultBaselineAndCleanup({
+        fundId: 1,
+        baselineId: 'baseline-new',
+        userId: 7,
+      });
+
+      expect(result.baseline.id).toBe('baseline-new');
+      expect(result.resolvedSupersededAlerts).toBe(1);
+      expect(mockDb.transaction).toHaveBeenCalled();
+      expect(mockDb.update).toHaveBeenCalled();
+    });
+
+    it('should clean up superseded incidents for the current default baseline', async () => {
+      mockDb.query.fundBaselines.findMany.mockResolvedValue([
+        {
+          id: 'baseline-current',
+          fundId: 1,
+          name: 'Current Default',
+          isDefault: true,
+          isActive: true,
+        },
+      ]);
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue([
+        {
+          id: 'stale-alert',
+          severity: 'warning',
+          triggeredAt: new Date('2026-04-01T00:00:00Z'),
+        },
+      ]);
+
+      const result = await service.cleanupSupersededAlertsForCurrentDefaultBaseline({
+        fundId: 1,
+        userId: 9,
+      });
+
+      expect(result.baseline.id).toBe('baseline-current');
+      expect(result.resolvedSupersededAlerts).toBe(1);
+      expect(mockDb.query.performanceAlerts.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.anything(),
+        })
+      );
     });
 
     it('should generate alerts when variance thresholds are exceeded', async () => {

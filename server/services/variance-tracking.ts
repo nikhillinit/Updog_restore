@@ -32,7 +32,7 @@ import type {
   InsertAlertRule,
 } from '@shared/schema';
 import type { CompanyVarianceRow } from '@shared/variance-validation';
-import { eq, and, desc, lte, inArray } from 'drizzle-orm';
+import { eq, and, desc, lte, inArray, ne, isNotNull } from 'drizzle-orm';
 import {
   buildAlertRuleEvaluation,
   normalizeAlertMetricName,
@@ -2119,6 +2119,59 @@ export class AlertManagementService {
     }
   }
 
+  async resolveSupersededBaselineAlerts(params: {
+    fundId: number;
+    currentBaselineId: string;
+    currentBaselineName?: string | null;
+    resolvedBy?: number;
+    resolvedAt?: Date;
+  }): Promise<number> {
+    const {
+      fundId,
+      currentBaselineId,
+      currentBaselineName = null,
+      resolvedBy = SYSTEM_ACTOR_ID,
+      resolvedAt = new Date(),
+    } = params;
+
+    const staleAlerts = await db.query.performanceAlerts.findMany({
+      where: and(
+        eq(performanceAlerts.fundId, fundId),
+        inArray(performanceAlerts.status, OPEN_INCIDENT_STATUSES),
+        isNotNull(performanceAlerts.baselineId),
+        ne(performanceAlerts.baselineId, currentBaselineId)
+      ),
+    });
+
+    if (staleAlerts.length === 0) {
+      return 0;
+    }
+
+    const staleAlertIds = staleAlerts.map((alert) => alert.id);
+    const resolutionSuffix = currentBaselineName
+      ? ` Current default baseline: ${currentBaselineName}.`
+      : '';
+    const resolutionNotes = `Superseded by default baseline rotation.${resolutionSuffix}`;
+
+    await db
+      .update(performanceAlerts)
+      .set({
+        status: 'resolved',
+        resolvedBy,
+        resolvedAt,
+        resolutionNotes,
+        updatedAt: resolvedAt,
+      })
+      .where(inArray(performanceAlerts.id, staleAlertIds));
+
+    for (const alert of staleAlerts) {
+      const resolutionTime = (resolvedAt.getTime() - alert.triggeredAt.getTime()) / 1000;
+      recordAlertAction('resolve', alert.severity, resolutionTime);
+    }
+
+    return staleAlerts.length;
+  }
+
   /**
    * Get active alerts for a fund
    */
@@ -2238,6 +2291,62 @@ export class VarianceTrackingService {
     });
 
     return { report, alertsGenerated: evaluationResult.alertsGenerated };
+  }
+
+  async setDefaultBaselineAndCleanup(params: {
+    fundId: number;
+    baselineId: string;
+    userId?: number;
+  }): Promise<{
+    baseline: FundBaseline;
+    resolvedSupersededAlerts: number;
+  }> {
+    const { fundId, baselineId, userId = SYSTEM_ACTOR_ID } = params;
+    const baseline = await this.baselines.getBaselineById(fundId, baselineId);
+
+    if (!baseline) {
+      throw new Error('Baseline not found for fund');
+    }
+
+    if (!baseline.isActive) {
+      throw new Error('Cannot set an inactive baseline as default');
+    }
+
+    await this.baselines.setDefaultBaseline(baselineId, fundId);
+
+    const resolvedSupersededAlerts = await this.alerts.resolveSupersededBaselineAlerts({
+      fundId,
+      currentBaselineId: baseline.id,
+      currentBaselineName: baseline.name,
+      resolvedBy: userId,
+    });
+
+    return {
+      baseline,
+      resolvedSupersededAlerts,
+    };
+  }
+
+  async cleanupSupersededAlertsForCurrentDefaultBaseline(params: {
+    fundId: number;
+    userId?: number;
+  }): Promise<{
+    baseline: FundBaseline;
+    resolvedSupersededAlerts: number;
+  }> {
+    const { fundId, userId = SYSTEM_ACTOR_ID } = params;
+    const baseline = await this.baselines.resolveBaselineForFund(fundId);
+    const resolvedSupersededAlerts = await this.alerts.resolveSupersededBaselineAlerts({
+      fundId,
+      currentBaselineId: baseline.id,
+      currentBaselineName: baseline.name,
+      resolvedBy: userId,
+    });
+
+    return {
+      baseline,
+      resolvedSupersededAlerts,
+    };
   }
 }
 
