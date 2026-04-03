@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # M7: Tooling Entropy Reduction — Babysitter Process Plan
 
 ## Context

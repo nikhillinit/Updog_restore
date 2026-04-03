@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Queue Observability
 
 Queue availability is derived from `getQueueConfig()` in

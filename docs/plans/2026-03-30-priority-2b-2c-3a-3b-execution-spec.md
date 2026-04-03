@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Priority 2B/2C/3A/3B Execution Spec
 
 ## Context
@@ -6,8 +10,8 @@ Authoritative parent plan:
 
 - `docs/plans/2026-03-30-post-stabilization-priorities.md`
 
-This follow-through starts after Priority `2A` is in place. The repo already
-has a durable scenario-save/resume path for reserve planning:
+This follow-through starts after Priority `2A` is in place. The repo already has
+a durable scenario-save/resume path for reserve planning:
 
 - `server/migrations/20260330_allocation_scenarios_v1.up.sql`
 - `server/routes/allocation-scenarios.ts`
@@ -44,9 +48,9 @@ Concretely, these slices must:
 
 ## Current Repo Facts That Must Shape The Work
 
-1. `/portfolio` is the live reserve-planning surface. `client/src/pages/portfolio.tsx`
-   delegates to `portfolio-modern`, and `PortfolioTabs` owns the
-   `reserve-planning` tab.
+1. `/portfolio` is the live reserve-planning surface.
+   `client/src/pages/portfolio.tsx` delegates to `portfolio-modern`, and
+   `PortfolioTabs` owns the `reserve-planning` tab.
 2. `/planning` is intentionally archived and permanently redirects to
    `/portfolio?tab=reserve-planning`. The next slices must not revive the old
    standalone planning page.
@@ -54,18 +58,18 @@ Concretely, these slices must:
    `updated_at`. Save, rename, and resume are already implemented.
 4. `AllocationsTab` already distinguishes live workspace state from local
    scenario mode. Resuming a scenario does not mutate live allocations today.
-5. Live allocation writes still go through `/api/funds/:fundId/allocations`
-   with optimistic-lock semantics tied to `allocation_version`.
+5. Live allocation writes still go through `/api/funds/:fundId/allocations` with
+   optimistic-lock semantics tied to `allocation_version`.
 6. There is no explicit "apply scenario" path today, no last-applied metadata,
    and no scenario-scoped audit read model.
 7. There is no durable "last sync note" or "simple change summary" beyond the
    single scenario-level `notes` field.
 8. `docs/script-classification.json`, `README.md`, `docs/BUILD_READINESS.md`,
    and `CLAUDE.md` already encode the stabilized perimeter and supported command
-   path. Priority `3A` must keep those files aligned rather than inventing a
-   new documentation center of gravity.
-9. `npm run validate:core` is already the hard delivery gate and must stay
-   green through these slices.
+   path. Priority `3A` must keep those files aligned rather than inventing a new
+   documentation center of gravity.
+9. `npm run validate:core` is already the hard delivery gate and must stay green
+   through these slices.
 
 ## Recommended Delivery Order
 
@@ -229,8 +233,8 @@ mutation as a first-class audit event in `2B`.
 #### 8. Actor Context Is Best-Effort
 
 If authenticated user identity is available, persist it. If not, store `null`
-for structured identity and preserve a best-effort label or source string.
-Do not block apply when identity enrichment is unavailable.
+for structured identity and preserve a best-effort label or source string. Do
+not block apply when identity enrichment is unavailable.
 
 ### Recommended Data Model
 
@@ -352,8 +356,8 @@ Add an explicit `Apply Scenario` action only when a saved scenario is active.
 Rules:
 
 - do not allow applying unnamed local workspace state
-- if workspace is dirty, require save first or make the user discard local
-  edits before apply
+- if workspace is dirty, require save first or make the user discard local edits
+  before apply
 - require a fresh preview before apply
 - require apply to use the preview's concurrency token
 - expose `Sync From Live` as a separate action from `Apply Scenario`
@@ -376,8 +380,8 @@ New or expanded tests:
 
 Keep scenario route coverage in the existing `tests/unit/routes/` lane and keep
 client workspace coverage in `tests/unit/components/portfolio/`. Do not move
-these slices into `client/src/components/portfolio/tabs/__tests__/`, because
-the active client Vitest project does not execute that folder.
+these slices into `client/src/components/portfolio/tabs/__tests__/`, because the
+active client Vitest project does not execute that folder.
 
 Minimum assertions:
 
@@ -649,8 +653,7 @@ instead of allowing broad mixed-scope PRs.
 
 ### Continuous Rules
 
-1. One branch per slice.
-   Recommended branch sequence:
+1. One branch per slice. Recommended branch sequence:
    - `feat/allocation-scenario-preview-contract`
    - `feat/allocation-scenario-events-readmodel`
    - `feat/allocation-scenario-sync-apply-server`
@@ -942,8 +945,9 @@ Required deliverables:
 - drift warning UI
 - last applied/last synced metadata in workspace and saved-scenario list
 - refetch behavior after sync/apply
-- expanded assertions in `tests/unit/components/portfolio/allocations-workspace.test.tsx`
-  instead of `client/src/components/portfolio/tabs/__tests__/AllocationsTab.test.tsx`
+- expanded assertions in
+  `tests/unit/components/portfolio/allocations-workspace.test.tsx` instead of
+  `client/src/components/portfolio/tabs/__tests__/AllocationsTab.test.tsx`
 
 Do not touch yet:
 
@@ -1022,8 +1026,9 @@ Required deliverables:
 - render compact change summary
 - keep company-level `allocation_reason` display separate from scenario/event
   context
-- expanded assertions in `tests/unit/components/portfolio/allocations-workspace.test.tsx`
-  instead of `client/src/components/portfolio/tabs/__tests__/AllocationsTab.test.tsx`
+- expanded assertions in
+  `tests/unit/components/portfolio/allocations-workspace.test.tsx` instead of
+  `client/src/components/portfolio/tabs/__tests__/AllocationsTab.test.tsx`
 
 Commands:
 

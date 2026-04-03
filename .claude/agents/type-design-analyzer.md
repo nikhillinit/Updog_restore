@@ -3,6 +3,7 @@ name: type-design-analyzer
 description: Analyzes TypeScript type design for consistency and correctness.
 model: inherit
 color: pink
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

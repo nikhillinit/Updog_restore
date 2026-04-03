@@ -5,6 +5,7 @@ description:
   TypeScript. Use when reviewing code for quality, security, performance, or
   best practices. Includes automated analysis scripts, language-specific
   patterns, and AI collaboration workflows for complex decisions.
+last_updated: 2026-04-03
 ---
 
 # Code Reviewer Skill

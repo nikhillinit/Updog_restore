@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 3C Implementation Plan: Truthful Rich Results
 
 ## Purpose

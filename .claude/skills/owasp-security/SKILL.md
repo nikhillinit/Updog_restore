@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # OWASP Security Best Practices Skill
 
 Apply these security standards when writing or reviewing code.

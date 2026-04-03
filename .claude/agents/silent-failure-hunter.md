@@ -4,6 +4,7 @@ description:
   Detects silent failures, swallowed exceptions, and error handling issues.
 model: inherit
 color: yellow
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠 (PostgreSQL + pgvector)

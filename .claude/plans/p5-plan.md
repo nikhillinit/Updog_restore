@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # P5: Tech Debt Reduction -- Task Plan
 
 **Branch:** `feat/p5-tech-debt` **Baseline:** 2,884 tests passing, 213 skipped

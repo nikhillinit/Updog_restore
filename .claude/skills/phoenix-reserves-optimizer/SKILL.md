@@ -4,6 +4,7 @@ description:
   'Reserve allocation and follow-on optimization for the Phoenix fund model. Use
   when working on deterministic reserve engine logic and optimal reserves
   ranking.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Reserves Optimizer

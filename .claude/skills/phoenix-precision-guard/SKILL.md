@@ -4,6 +4,7 @@ description:
   'Precision and type-safety hardening for Phoenix calculation paths. Use when
   configuring ESLint/TypeScript, replacing parseFloat in P0 files, or validating
   Decimal.js precision.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Precision Guard

@@ -91,9 +91,17 @@ async function getDocumentDate(filePath) {
     const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (frontmatterMatch) {
       const frontmatter = frontmatterMatch[1];
-      const dateMatch = frontmatter.match(/(?:date|lastUpdated|last_updated):\s*([^\n]+)/i);
-      if (dateMatch) {
-        return new Date(dateMatch[1].trim());
+      const prioritizedFrontmatterPatterns = [
+        /last_updated:\s*([^\n]+)/i,
+        /lastUpdated:\s*([^\n]+)/i,
+        /date:\s*([^\n]+)/i,
+      ];
+
+      for (const pattern of prioritizedFrontmatterPatterns) {
+        const dateMatch = frontmatter.match(pattern);
+        if (dateMatch) {
+          return new Date(dateMatch[1].trim());
+        }
       }
     }
 

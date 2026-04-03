@@ -1,17 +1,33 @@
 ---
 name: dependency-guardian
-description: Automated dependency management with security scanning, update orchestration, and compatibility validation
+description:
+  Automated dependency management with security scanning, update orchestration,
+  and compatibility validation
 version: 1.0.0
 author: Claude Memory System
-tags: [dependencies, security, vulnerabilities, updates, automation, npm, pip, cargo]
+tags:
+  [
+    dependencies,
+    security,
+    vulnerabilities,
+    updates,
+    automation,
+    npm,
+    pip,
+    cargo,
+  ]
+last_updated: 2026-04-03
 ---
 
 # Dependency Guardian Skill
 
 ## Purpose
-Automatically manage project dependencies with security scanning, intelligent updates, breaking change detection, and license compliance validation.
+
+Automatically manage project dependencies with security scanning, intelligent
+updates, breaking change detection, and license compliance validation.
 
 ## When to Use
+
 - Weekly dependency health checks
 - Security vulnerability scanning
 - Before major releases
@@ -22,55 +38,66 @@ Automatically manage project dependencies with security scanning, intelligent up
 ## Supported Package Managers
 
 ### JavaScript/TypeScript
+
 - **npm**: Node.js packages
 - **yarn**: Alternative Node.js package manager
 - **pnpm**: Fast, disk-efficient package manager
 
 ### Python
+
 - **pip**: Python package installer
 - **poetry**: Modern dependency management
 - **pipenv**: Virtual environments + dependencies
 
 ### Rust
+
 - **cargo**: Rust package manager
 
 ### Go
+
 - **go mod**: Go modules
 
 ### Ruby
+
 - **bundler**: Ruby gem dependencies
 
 ### Java/JVM
+
 - **maven**: Apache Maven
 - **gradle**: Gradle build tool
 
 ## Operations
 
 ### 1. Scan Vulnerabilities
+
 - Check dependencies against CVE databases
 - Identify critical, high, medium, low severity
 - Report vulnerable transitive dependencies
 - Generate remediation recommendations
 
 ### 2. Check for Updates
+
 - Find outdated dependencies
 - Classify updates (major, minor, patch)
 - Detect breaking changes
 - Calculate update priority
 
 ### 3. Update Dependencies
+
 - Apply safe updates automatically
 - Create separate PRs for major vs minor
 - Run tests after updates
 - Rollback on failure
 
 ### 4. License Compliance
+
 - Detect dependency licenses
 - Flag incompatible licenses
 - Generate license report
 - Check OSS license compatibility
 
 ### 5. Dependency Audit
+
 - Generate dependency tree
 - Identify duplicate dependencies
 - Detect circular dependencies
@@ -79,6 +106,7 @@ Automatically manage project dependencies with security scanning, intelligent up
 ## Scripts
 
 ### main.py
+
 ```bash
 # Scan for vulnerabilities
 python scripts/main.py scan --project-dir=.
@@ -99,30 +127,35 @@ python scripts/main.py licenses --allow=MIT,Apache-2.0,BSD-3-Clause
 ### Subcommands
 
 **scan**: Vulnerability scanning
+
 ```bash
 python scripts/main.py scan --severity=high,critical
 # Output: List of vulnerabilities with remediation
 ```
 
 **check-updates**: Find outdated dependencies
+
 ```bash
 python scripts/main.py check-updates --include-dev
 # Output: Available updates grouped by type
 ```
 
 **update**: Apply updates
+
 ```bash
 python scripts/main.py update --type=patch --dry-run
 # Output: Preview of updates (no changes)
 ```
 
 **audit**: Generate dependency report
+
 ```bash
 python scripts/main.py audit --format=markdown
 # Output: Complete dependency analysis
 ```
 
 **licenses**: License compliance check
+
 ```bash
 python scripts/main.py licenses --check-compatibility
 # Output: License compatibility report
@@ -131,7 +164,9 @@ python scripts/main.py licenses --check-compatibility
 ## Configuration
 
 ### Project Configuration
+
 Create `.dependency-guardian.json`:
+
 ```json
 {
   "updateSchedule": "weekly",
@@ -140,21 +175,16 @@ Create `.dependency-guardian.json`:
     "minor": false,
     "major": false
   },
-  "allowedLicenses": [
-    "MIT",
-    "Apache-2.0",
-    "BSD-3-Clause",
-    "ISC"
-  ],
-  "ignoredPackages": [
-    "legacy-package-name"
-  ],
+  "allowedLicenses": ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC"],
+  "ignoredPackages": ["legacy-package-name"],
   "severityThreshold": "high"
 }
 ```
 
 ### Memory Integration
+
 Stores vulnerability history and preferences:
+
 ```json
 {
   "topic": "dependency-guardian-config",
@@ -179,21 +209,25 @@ Stores vulnerability history and preferences:
 ## Integration Points
 
 ### With Security Scanner Skill
+
 - Share vulnerability database
 - Coordinate security scanning
 - Cross-reference CVE findings
 
 ### With Test-First Change Skill
+
 - Run tests after updates
 - Validate no regressions
 - Block merge on test failure
 
 ### With PR Author/Reviewer Skill
+
 - Create update PRs automatically
 - Include vulnerability details
 - Add security review checklist
 
 ### With Release Orchestrator Skill
+
 - Block releases with critical CVEs
 - Include dependency updates in changelog
 - Verify dependencies before deployment
@@ -205,11 +239,13 @@ Stores vulnerability history and preferences:
 **Project**: Node.js app with outdated dependencies
 
 **Command**:
+
 ```bash
 python scripts/main.py scan --project-dir=/path/to/project
 ```
 
 **Output**:
+
 ```json
 {
   "success": true,
@@ -247,11 +283,13 @@ python scripts/main.py scan --project-dir=/path/to/project
 ### Example 2: Check for Updates
 
 **Command**:
+
 ```bash
 python scripts/main.py check-updates --project-dir=.
 ```
 
 **Output**:
+
 ```json
 {
   "success": true,
@@ -295,19 +333,21 @@ python scripts/main.py check-updates --project-dir=.
 ### Example 3: Update Dependencies (Patch Only)
 
 **Command**:
+
 ```bash
 python scripts/main.py update --type=patch --dry-run=false
 ```
 
 **Output**:
+
 ```json
 {
   "success": true,
   "updates_applied": 8,
   "packages": [
-    {"name": "express", "from": "4.17.1", "to": "4.17.3"},
-    {"name": "lodash", "from": "4.17.15", "to": "4.17.21"},
-    {"name": "moment", "from": "2.29.1", "to": "2.29.4"}
+    { "name": "express", "from": "4.17.1", "to": "4.17.3" },
+    { "name": "lodash", "from": "4.17.15", "to": "4.17.21" },
+    { "name": "moment", "from": "2.29.1", "to": "2.29.4" }
   ],
   "tests_run": true,
   "tests_passed": true,
@@ -319,11 +359,13 @@ python scripts/main.py update --type=patch --dry-run=false
 ### Example 4: License Audit
 
 **Command**:
+
 ```bash
 python scripts/main.py licenses --check-compatibility
 ```
 
 **Output**:
+
 ```json
 {
   "success": true,
@@ -350,11 +392,13 @@ python scripts/main.py licenses --check-compatibility
 ### Example 5: Dependency Audit
 
 **Command**:
+
 ```bash
 python scripts/main.py audit --format=json
 ```
 
 **Output**:
+
 ```json
 {
   "success": true,
@@ -379,8 +423,8 @@ python scripts/main.py audit --format=json
   "size": {
     "total_mb": 156.3,
     "largest": [
-      {"package": "typescript", "size_mb": 34.2},
-      {"package": "webpack", "size_mb": 12.8}
+      { "package": "typescript", "size_mb": 34.2 },
+      { "package": "webpack", "size_mb": 12.8 }
     ]
   }
 }
@@ -389,6 +433,7 @@ python scripts/main.py audit --format=json
 ## Token Economics
 
 **Without Skill** (Agent-driven dependency check):
+
 - Read package file: 1,500 tokens
 - Query vulnerability database: 4,000 tokens
 - Analyze updates: 3,000 tokens
@@ -397,6 +442,7 @@ python scripts/main.py audit --format=json
 - **Total**: 13,000 tokens
 
 **With Skill** (Code execution):
+
 - Metadata: 50 tokens
 - SKILL.md: 400 tokens
 - Script execution: 0 tokens (returns result)
@@ -408,18 +454,21 @@ python scripts/main.py audit --format=json
 ## Success Metrics
 
 ### Performance
+
 - Vulnerability scan: <30 seconds
 - Update check: <15 seconds
 - License audit: <10 seconds
 - Dependency update: <2 minutes (including tests)
 
 ### Quality
+
 - Vulnerability detection rate: >99%
 - False positive rate: <5%
 - Update success rate: >95%
 - Test pass rate after updates: >90%
 
 ### Security
+
 - Time to patch critical CVEs: <24 hours
 - Percentage of dependencies up-to-date: >80%
 - License compliance: 100%
@@ -427,6 +476,7 @@ python scripts/main.py audit --format=json
 ## Safety Checks
 
 ### Pre-Update
+
 1. ✅ Backup package lock file
 2. ✅ Check for breaking changes
 3. ✅ Verify tests exist
@@ -434,6 +484,7 @@ python scripts/main.py audit --format=json
 5. ✅ Check CI status
 
 ### Post-Update
+
 1. ✅ Run full test suite
 2. ✅ Verify build succeeds
 3. ✅ Check for new vulnerabilities
@@ -441,6 +492,7 @@ python scripts/main.py audit --format=json
 5. ✅ Create PR with details
 
 ### Rollback Conditions
+
 - Tests fail after update
 - Build fails
 - New vulnerabilities introduced
@@ -449,6 +501,7 @@ python scripts/main.py audit --format=json
 ## Error Handling
 
 ### Missing Package Manager
+
 ```
 ❌ Package manager not detected
 Supported: npm, yarn, pnpm, pip, poetry, cargo, go mod
@@ -456,6 +509,7 @@ Recommendation: Ensure package manifest exists (package.json, requirements.txt, 
 ```
 
 ### Vulnerability Database Unavailable
+
 ```
 ⚠️  Cannot connect to vulnerability database
 Falling back to local cache (may be outdated)
@@ -463,6 +517,7 @@ Recommendation: Check internet connection
 ```
 
 ### Breaking Change Detected
+
 ```
 ⚠️  Major update detected: webpack 4.46.0 → 5.75.0
 Breaking changes: Module federation, Asset modules
@@ -472,6 +527,7 @@ Recommendation: Review migration guide before updating
 ## Advanced Features
 
 ### Automatic PR Creation
+
 ```json
 {
   "auto_pr": {
@@ -485,6 +541,7 @@ Recommendation: Review migration guide before updating
 ```
 
 ### Grouped Updates
+
 ```json
 {
   "grouping": {
@@ -496,14 +553,10 @@ Recommendation: Review migration guide before updating
 ```
 
 ### Custom Vulnerability Sources
+
 ```json
 {
-  "vulnerability_sources": [
-    "npm-audit",
-    "snyk",
-    "github-advisory",
-    "ossindex"
-  ]
+  "vulnerability_sources": ["npm-audit", "snyk", "github-advisory", "ossindex"]
 }
 ```
 
@@ -517,6 +570,7 @@ Recommendation: Review migration guide before updating
 ## References
 
 See `references/` for:
+
 - `vulnerability-databases.md` - CVE and security advisory sources
 - `breaking-changes-guide.md` - How to handle major updates
 - `license-compatibility.md` - OSS license compatibility matrix
@@ -524,4 +578,5 @@ See `references/` for:
 
 ---
 
-*Dependency Guardian Skill v1.0.0 - Keep your dependencies secure and up-to-date*
+_Dependency Guardian Skill v1.0.0 - Keep your dependencies secure and
+up-to-date_

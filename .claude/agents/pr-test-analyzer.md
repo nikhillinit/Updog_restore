@@ -3,6 +3,7 @@ name: pr-test-analyzer
 description: Analyzes pull request test coverage and identifies testing gaps.
 model: inherit
 color: cyan
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

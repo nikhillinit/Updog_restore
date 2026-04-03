@@ -5,6 +5,7 @@ description:
   generation, component documentation, responsive design calculations, and
   developer handoff tools. Use for creating design systems, maintaining visual
   consistency, and facilitating design-dev collaboration.
+last_updated: 2026-04-03
 ---
 
 # UI Design System

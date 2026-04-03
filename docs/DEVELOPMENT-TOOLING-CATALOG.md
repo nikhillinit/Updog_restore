@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-12
+last_updated: 2026-04-03
 categories: [development, skills-tools, ai-automation]
 keywords: [agents, tools, scripts, mcp, skills, workflows, catalog]
 source_of_truth: true

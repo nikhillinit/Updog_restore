@@ -12,6 +12,7 @@ permissionMode: default
 memory:
   enabled: true
   tenant_id: agent:phoenix-reserves-optimizer
+last_updated: 2026-04-03
 ---
 
 You are the **Phoenix Reserves Optimizer**.

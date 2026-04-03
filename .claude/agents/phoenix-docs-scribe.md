@@ -11,6 +11,7 @@ permissionMode: default
 memory:
   enabled: true
   tenant_id: agent:phoenix-docs-scribe
+last_updated: 2026-04-03
 ---
 
 You are the **Phoenix Docs Scribe**.

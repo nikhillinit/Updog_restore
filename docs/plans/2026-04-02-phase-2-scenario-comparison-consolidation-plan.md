@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 2: Scenario Comparison Consolidation Plan
 
 Date: `2026-04-02` Owner: Codex Status: Implemented through Slice `2` runtime

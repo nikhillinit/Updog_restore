@@ -1,5 +1,8 @@
 ---
-description: Comprehensive pre-deployment validation (build, bundle, smoke tests, idempotency)
+description:
+  Comprehensive pre-deployment validation (build, bundle, smoke tests,
+  idempotency)
+last_updated: 2026-04-03
 ---
 
 # Deploy Check - Pre-Deployment Validation
@@ -24,6 +27,7 @@ npm test
 ```
 
 **Pass Criteria:**
+
 - [x] Zero TypeScript errors (or all baselined)
 - [x] Zero lint errors
 - [x] 100% test pass rate
@@ -37,6 +41,7 @@ npm run build
 ```
 
 **Checks:**
+
 - [x] Build completes without errors
 - [x] No warnings about missing dependencies
 - [x] All entry points generated
@@ -71,6 +76,7 @@ kill %1
 ```
 
 **Checks:**
+
 - [x] API starts without errors
 - [x] Health endpoint responds
 - [x] Frontend bundle serves correctly
@@ -96,6 +102,7 @@ diff <(sort .env.example) <(sort .env.local)
 ```
 
 **Checks:**
+
 - [x] All `process.env` usages documented in `.env.example`
 - [x] No hardcoded secrets in codebase
 - [x] Environment-specific configs properly abstracted
@@ -111,6 +118,7 @@ npm outdated --depth=0
 ```
 
 **Checks:**
+
 - [x] No high/critical vulnerabilities in production deps
 - [x] No severely outdated major versions
 - [x] License compliance (no GPL in production if needed)
@@ -130,6 +138,7 @@ git status
 ```
 
 **Checks:**
+
 - [x] No uncommitted changes (or document intentional)
 - [x] On correct branch for deployment
 - [x] Up to date with remote
@@ -191,6 +200,7 @@ npm run check && npm run lint && npm run test:quick && npm run build
 ## Integration
 
 This command coordinates with:
+
 - **perf-guard agent**: Bundle analysis (Phase 3)
 - **db-migration agent**: Schema validation (Phase 5)
 - **test-repair agent**: If test failures detected (Phase 1)
@@ -198,12 +208,14 @@ This command coordinates with:
 ## Failure Handling
 
 **Critical Failures** (BLOCK deployment):
+
 - Build errors
 - Test failures
 - Type errors (unless baselined)
 - High/Critical security vulnerabilities
 
 **Warnings** (REVIEW but don't block):
+
 - Moderate vulnerabilities
 - Outdated dependencies (minor versions)
 - Bundle size increases <15%

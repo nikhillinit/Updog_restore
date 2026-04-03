@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # Phase 1 Foundations Integration - PR Checklist
@@ -8,7 +8,7 @@ last_updated: 2026-01-19
 **PR Title**:
 `feat: Phase 1 Foundations - KPI Selectors + 5-Route IA + Flag System`
 
-**Target Branch**: `demo-tomorrow` → `main`
+**Target Branch**: `demo-tomorrow` to `main`
 
 **Executive Summary**: Integrates Phase 1 Foundations Starter Kit with
 comprehensive contract system. Enables demo-ready KPI header, 5-route IA
@@ -17,7 +17,7 @@ compatibility.
 
 ---
 
-## ✅ Changes Included
+## Changes Included
 
 ### 1. **Contract System** (Raw Facts API)
 
@@ -40,7 +40,7 @@ compatibility.
 - [x] Starter kit selectors in
       `docs/archive/2025-q4/default-parameters/src/core/selectors/fundKpis.ts`
 - [x] Integration with existing `client/src/hooks/useFundKpis.ts`
-- [x] TanStack Query data flow: API → Adapter → Selectors → UI
+- [x] TanStack Query data flow: API to Adapter to Selectors to UI
 - [x] As-of date support
 
 ### 4. **5-Route IA Consolidation**
@@ -60,12 +60,12 @@ compatibility.
 ### 6. **Reserve Engine Handshake**
 
 - [ ] TODO: Wire existing reserve call to `POST /api/reserve-optimization`
-- [ ] TODO: Surface rationale strings in Model → Reserves tab
+- [ ] TODO: Surface rationale strings in Model to Reserves tab
 - [ ] TODO: Add feature flag gate: `enable_reserve_engine`
 
 ---
 
-## 🔄 Integration Steps (Safe, Reversible)
+## Integration Steps (Safe, Reversible)
 
 ### **Step 1: Copy Starter Kit Files** (5 min)
 
@@ -142,25 +142,25 @@ import { Redirect, Route } from 'wouter';
 // In your router configuration:
 {
   Object.entries(OLD_TO_NEW_REDIRECTS).map(([oldPath, newPath]) => (
-     <Route key={oldPath} path={oldPath}>
-       {() =>
-         useFeatureFlag('enable_route_redirects') ? (
-           <Redirect to={newPath} />
-         ) : (
-           <>
-             <DeprecationBanner newRoute={newPath} />
-             {/* Render old component */}
-           </>
-         )
-       }
-     </Route>
-   ));
-  }
+    <Route key={oldPath} path={oldPath}>
+      {() =>
+        useFeatureFlag('enable_route_redirects') ? (
+          <Redirect to={newPath} />
+        ) : (
+          <>
+            <DeprecationBanner newRoute={newPath} />
+            {/* Render old component */}
+          </>
+        )
+      }
+    </Route>
+  ));
+}
 ```
 
 ---
 
-## 🧪 Testing Checklist
+## Testing Checklist
 
 ### **Manual Testing**
 
@@ -192,7 +192,7 @@ import { Redirect, Route } from 'wouter';
 
 ---
 
-## 🚨 Rollback Plan
+## Rollback Plan
 
 **Instant Rollback** (via flags):
 
@@ -222,31 +222,31 @@ git push origin main
 
 ---
 
-## 📊 Success Metrics
+## Success Metrics
 
 **Demo Readiness**:
 
-- ✅ KPI header renders with real data (no mocks)
-- ✅ 5 routes visible in navigation
-- ✅ Brand consistency (Inter/Poppins, neutral palette)
-- ✅ Legacy routes redirect gracefully
+- KPI header renders with real data (no mocks)
+- 5 routes are visible in navigation
+- Brand consistency is preserved (Inter/Poppins, neutral palette)
+- Legacy routes redirect gracefully
 
 **Technical Quality**:
 
-- ✅ All critical fixtures pass (Fee Basis Transition, Recycling, Waterfall)
-- ✅ Zero breaking changes to existing code
-- ✅ Feature flags control all new behavior
-- ✅ Type safety maintained (no `any` types)
+- All critical fixtures pass (Fee Basis Transition, Recycling, Waterfall)
+- Zero breaking changes to existing code
+- Feature flags control all new behavior
+- Type safety is maintained (no `any` types)
 
 **Performance**:
 
-- ✅ KPI calculations < 100ms (pure selectors, memoized)
-- ✅ TanStack Query caching (5min stale, 10min gc)
-- ✅ No bundle size regression (code-split heavy modules)
+- KPI calculations stay under 100ms (pure selectors, memoized)
+- TanStack Query caching works as expected (5min stale, 10min gc)
+- No bundle size regression appears (code-split heavy modules)
 
 ---
 
-## 📝 Post-Merge Tasks
+## Post-Merge Tasks
 
 ### **Week 1 (Post-Demo)**
 
@@ -271,7 +271,7 @@ git push origin main
 
 ---
 
-## 🔗 References
+## References
 
 - **Executive Feedback**: See user message on normalization decisions
 - **Multi-AI Consensus**: All agents recommend Option A (adopt now, layer
@@ -283,7 +283,7 @@ git push origin main
 
 ---
 
-## ✅ Approval Checklist
+## Approval Checklist
 
 **Before Merging**:
 
@@ -299,7 +299,7 @@ git push origin main
 
 **Sign-Off**:
 
-- [ ] Solo Developer: ****\_\_\_\_**** (Date: **\_\_**)
+- [ ] Solo Developer: \***\*\_\_\_\_\*\*** (Date: **\_\_**)
 - [ ] Stakeholder Demo Ready: Yes / No
 
 ---

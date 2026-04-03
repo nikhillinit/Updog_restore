@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-16
+last_updated: 2026-04-03
 categories: [phoenix, foundation-hardening, coordination]
 keywords:
   [

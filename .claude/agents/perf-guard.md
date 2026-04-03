@@ -5,6 +5,7 @@ description:
   significant code changes, dependency updates, or before deployment.
 tools: Read, Bash, Grep, Glob, Write
 model: sonnet
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠 (PostgreSQL + pgvector)

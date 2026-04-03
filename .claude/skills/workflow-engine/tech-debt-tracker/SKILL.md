@@ -1,12 +1,14 @@
 ---
 name: tech-debt-tracker
-description: Automated technical debt identification, tracking, and prioritization system
+description:
+  Automated technical debt identification, tracking, and prioritization system
 version: 1.0.0
 author: Claude Memory Tool
 created: 2025-10-20
 tags: [technical-debt, code-quality, refactoring, metrics, prioritization]
 category: code-quality
-trigger_keywords: [tech debt, technical debt, code quality, refactoring, complexity, code smell]
+trigger_keywords:
+  [tech debt, technical debt, code quality, refactoring, complexity, code smell]
 execution_time: ~35ms
 token_savings: 75%
 dependencies:
@@ -16,19 +18,28 @@ integrations:
   - codebase-navigator
   - code-formatter
   - semantic-search
+last_updated: 2026-04-03
 ---
 
 # Technical Debt Management System
 
 ## Purpose
 
-The **tech-debt-tracker** Skill provides automated technical debt identification, measurement, tracking, and prioritization. It scans codebases for debt indicators (complexity, duplication, outdated patterns), calculates objective metrics, prioritizes debt by business impact, and creates actionable backlog items.
+The **tech-debt-tracker** Skill provides automated technical debt
+identification, measurement, tracking, and prioritization. It scans codebases
+for debt indicators (complexity, duplication, outdated patterns), calculates
+objective metrics, prioritizes debt by business impact, and creates actionable
+backlog items.
 
-Only **7.2% of developers** track technical debt methodically, creating a massive opportunity for systematic debt management. Proper technical debt tracking can lead to **50% faster delivery** by focusing refactoring efforts on highest-impact areas.
+Only **7.2% of developers** track technical debt methodically, creating a
+massive opportunity for systematic debt management. Proper technical debt
+tracking can lead to **50% faster delivery** by focusing refactoring efforts on
+highest-impact areas.
 
 ### When to Use This Skill
 
 Use `tech-debt-tracker` when you need to:
+
 - **Identify technical debt** in a codebase systematically
 - **Quantify debt metrics** (SQALE, cognitive complexity, code churn)
 - **Prioritize refactoring efforts** by business impact and effort
@@ -54,18 +65,20 @@ Use `tech-debt-tracker` when you need to:
 Analyzes codebase and identifies technical debt indicators.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "scan",
   "project_dir": "/path/to/project",
-  "languages": ["javascript", "python", "java"],  // Optional, auto-detect if omitted
-  "include_patterns": ["src/**/*", "lib/**/*"],   // Optional
+  "languages": ["javascript", "python", "java"], // Optional, auto-detect if omitted
+  "include_patterns": ["src/**/*", "lib/**/*"], // Optional
   "exclude_patterns": ["node_modules/**", "*.test.js"], // Optional
   "metrics": ["complexity", "duplication", "churn", "coverage"] // Optional, all by default
 }
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -124,11 +137,14 @@ Analyzes codebase and identifies technical debt indicators.
 ```
 
 **Debt Types Detected:**
-- **High Complexity**: Functions/methods exceeding cyclomatic/cognitive complexity thresholds
+
+- **High Complexity**: Functions/methods exceeding cyclomatic/cognitive
+  complexity thresholds
 - **Code Duplication**: Duplicated code blocks across files
 - **Outdated Patterns**: Usage of deprecated APIs, old patterns, anti-patterns
 - **Missing Tests**: Code without adequate test coverage
-- **Code Smells**: Long methods, large classes, feature envy, inappropriate intimacy
+- **Code Smells**: Long methods, large classes, feature envy, inappropriate
+  intimacy
 - **High Churn**: Files with excessive changes indicating instability
 - **Dependency Issues**: Outdated dependencies, circular dependencies
 
@@ -139,15 +155,23 @@ Analyzes codebase and identifies technical debt indicators.
 Calculates quantitative technical debt metrics.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "calculate-metrics",
   "project_dir": "/path/to/project",
-  "metric_types": ["sqale", "complexity", "churn", "coverage", "maintainability"]
+  "metric_types": [
+    "sqale",
+    "complexity",
+    "churn",
+    "coverage",
+    "maintainability"
+  ]
 }
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -195,7 +219,9 @@ Calculates quantitative technical debt metrics.
 ```
 
 **Metrics Explained:**
-- **SQALE Index**: Software Quality Assessment based on Lifecycle Expectations (remediation time)
+
+- **SQALE Index**: Software Quality Assessment based on Lifecycle Expectations
+  (remediation time)
 - **Complexity**: Cyclomatic and cognitive complexity measurements
 - **Code Churn**: File change frequency indicating instability
 - **Test Coverage**: Line, branch, and function coverage percentages
@@ -208,11 +234,12 @@ Calculates quantitative technical debt metrics.
 Prioritizes technical debt items by business impact and effort.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "prioritize",
   "project_dir": "/path/to/project",
-  "scan_results": "path/to/scan.json",  // Optional, will scan if omitted
+  "scan_results": "path/to/scan.json", // Optional, will scan if omitted
   "prioritization_strategy": "impact_effort_ratio", // or "severity_first", "quick_wins"
   "business_context": {
     "critical_modules": ["src/payments", "src/auth"],
@@ -223,6 +250,7 @@ Prioritizes technical debt items by business impact and effort.
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -274,6 +302,7 @@ Prioritizes technical debt items by business impact and effort.
 ```
 
 **Prioritization Strategies:**
+
 - **impact_effort_ratio**: Maximize return on investment (default)
 - **severity_first**: Address highest severity issues first
 - **quick_wins**: Focus on low-effort, medium-impact items
@@ -287,6 +316,7 @@ Prioritizes technical debt items by business impact and effort.
 Tracks technical debt trends across commits/sprints.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "track",
@@ -297,6 +327,7 @@ Tracks technical debt trends across commits/sprints.
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -340,6 +371,7 @@ Tracks technical debt trends across commits/sprints.
 Creates GitHub Issues or Jira tickets for debt items.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "create-backlog",
@@ -360,6 +392,7 @@ Creates GitHub Issues or Jira tickets for debt items.
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -392,6 +425,7 @@ Creates GitHub Issues or Jira tickets for debt items.
 Generates comprehensive technical debt report.
 
 **Input Parameters:**
+
 ```json
 {
   "operation": "report",
@@ -403,6 +437,7 @@ Generates comprehensive technical debt report.
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -423,6 +458,7 @@ Generates comprehensive technical debt report.
 ```
 
 **Report Includes:**
+
 - Executive summary with key metrics
 - Debt distribution by severity, type, and module
 - Top 10 highest-priority debt items
@@ -453,7 +489,7 @@ test_coverage:
   critical_files_coverage: 90
 
 code_churn:
-  high_churn_threshold: 20  # changes per month
+  high_churn_threshold: 20 # changes per month
 
 maintainability:
   min_maintainability_index: 65
@@ -475,16 +511,8 @@ Create `.techdebtrc.json` in project root:
       "branch": 80
     }
   },
-  "exclude": [
-    "generated/**",
-    "*.test.js",
-    "mock/**"
-  ],
-  "critical_modules": [
-    "src/payments",
-    "src/auth",
-    "src/core"
-  ],
+  "exclude": ["generated/**", "*.test.js", "mock/**"],
+  "critical_modules": ["src/payments", "src/auth", "src/core"],
   "issue_tracker": {
     "type": "github",
     "repo": "owner/repo",
@@ -498,6 +526,7 @@ Create `.techdebtrc.json` in project root:
 ## Integration with Existing Skills
 
 ### Works with `codebase-navigator`
+
 ```bash
 # First, understand codebase structure
 codebase-navigator analyze
@@ -507,6 +536,7 @@ tech-debt-tracker scan --focus-on-hotspots
 ```
 
 ### Works with `code-formatter`
+
 ```bash
 # Format code before analyzing complexity
 code-formatter format
@@ -516,6 +546,7 @@ tech-debt-tracker calculate-metrics
 ```
 
 ### Works with `semantic-search`
+
 ```bash
 # Find similar debt patterns across codebase
 semantic-search find-similar --pattern="high complexity authentication"
@@ -525,6 +556,7 @@ tech-debt-tracker scan --filter="authentication complexity"
 ```
 
 ### Works with `test-first-change`
+
 ```bash
 # Identify untested code
 tech-debt-tracker scan --metrics=coverage
@@ -540,6 +572,7 @@ test-first-change generate --from-debt-report
 ### Without tech-debt-tracker Skill
 
 **Manual Approach** (using agents):
+
 ```
 1. User asks: "What's our technical debt situation?"
 2. Claude analyzes codebase with agents (15,000 tokens)
@@ -554,6 +587,7 @@ Time: 15-20 minutes
 ### With tech-debt-tracker Skill
 
 **Automated Approach**:
+
 ```
 1. Skill metadata loaded: 50 tokens
 2. User: "Scan project for technical debt"
@@ -566,14 +600,15 @@ Time: 30-45 seconds
 Execution: ~35ms
 ```
 
-**Token Savings**: 31,250 tokens (97.7% reduction)
-**Time Savings**: 14-19 minutes (95% reduction)
+**Token Savings**: 31,250 tokens (97.7% reduction) **Time Savings**: 14-19
+minutes (95% reduction)
 
 ### ROI Calculation
 
 **Scenario**: Medium team (20 developers), bi-weekly debt analysis
 
 **Without Skill**:
+
 - 26 analyses per year
 - 832,000 tokens per year
 - ~$2.50 per analysis at $3/1M tokens
@@ -581,6 +616,7 @@ Execution: ~35ms
 - **Time cost**: 390-520 minutes/year (6.5-8.7 hours)
 
 **With Skill**:
+
 - 26 analyses per year
 - 19,500 tokens per year
 - ~$0.06 per analysis
@@ -589,6 +625,7 @@ Execution: ~35ms
 - **Savings: $63.50 + 6-8 hours of developer time**
 
 **Additional Value**:
+
 - 50% faster delivery through focused refactoring
 - Reduced production bugs from addressing high-risk debt
 - Better sprint planning with quantified debt metrics
@@ -601,9 +638,11 @@ Execution: ~35ms
 ### Example 1: Initial Debt Assessment
 
 **User Prompt:**
+
 > "Analyze our codebase for technical debt and show me the top issues"
 
 **Skill Execution:**
+
 ```json
 {
   "operation": "scan",
@@ -613,6 +652,7 @@ Execution: ~35ms
 ```
 
 **Result:**
+
 ```
 Found 87 debt items:
   - Critical: 3 (payment processing complexity)
@@ -633,9 +673,11 @@ Recommended: Fix top 3 items this sprint (7h total, 12% debt reduction)
 ### Example 2: Sprint Planning
 
 **User Prompt:**
+
 > "What technical debt should we tackle this sprint? We have 20 hours capacity."
 
 **Skill Execution:**
+
 ```json
 {
   "operation": "prioritize",
@@ -648,6 +690,7 @@ Recommended: Fix top 3 items this sprint (7h total, 12% debt reduction)
 ```
 
 **Result:**
+
 ```
 Sprint Debt Backlog (20 hours capacity):
 
@@ -669,9 +712,11 @@ Quick Wins (bonus if time available):
 ### Example 3: Trend Monitoring
 
 **User Prompt:**
+
 > "Show me how our technical debt has changed over the last month"
 
 **Skill Execution:**
+
 ```json
 {
   "operation": "track",
@@ -681,6 +726,7 @@ Quick Wins (bonus if time available):
 ```
 
 **Result:**
+
 ```
 Technical Debt Trend (Sep 20 - Oct 20):
 
@@ -705,9 +751,11 @@ Recommendation: Increase debt paydown allocation to reverse trend
 ### Example 4: Generate Backlog
 
 **User Prompt:**
+
 > "Create GitHub issues for our high-priority technical debt"
 
 **Skill Execution:**
+
 ```json
 {
   "operation": "create-backlog",
@@ -724,6 +772,7 @@ Recommendation: Increase debt paydown allocation to reverse trend
 ```
 
 **Result:**
+
 ```
 Created 7 GitHub Issues:
 
@@ -748,6 +797,7 @@ All issues added to milestone: Q4-2025-debt-reduction
 The skill gracefully handles common scenarios:
 
 ### No Git Repository
+
 ```json
 {
   "success": true,
@@ -760,6 +810,7 @@ The skill gracefully handles common scenarios:
 ```
 
 ### Missing Tools
+
 ```json
 {
   "success": true,
@@ -770,6 +821,7 @@ The skill gracefully handles common scenarios:
 ```
 
 ### Large Codebase
+
 ```json
 {
   "success": true,
@@ -783,27 +835,32 @@ The skill gracefully handles common scenarios:
 ## Best Practices
 
 ### 1. Regular Scanning
+
 - Run debt scans weekly or bi-weekly
 - Track trends over time to prevent accumulation
 - Set debt ratio thresholds (e.g., <5% is healthy)
 
 ### 2. Prioritization Strategy
+
 - Focus on critical business paths first
 - Balance quick wins with high-impact items
 - Consider upcoming planned changes
 - Factor in team capacity realistically
 
 ### 3. Sprint Allocation
+
 - Allocate 10-20% of sprint capacity to debt paydown
 - Track debt velocity (added vs. removed)
 - Celebrate debt reduction milestones
 
 ### 4. Prevention
+
 - Run scans in CI/CD to catch new debt early
 - Set quality gates to prevent debt introduction
 - Review debt metrics in code review process
 
 ### 5. Team Engagement
+
 - Share debt reports in sprint planning
 - Make debt visible through dashboards
 - Gamify debt reduction (leaderboards, badges)
@@ -813,7 +870,9 @@ The skill gracefully handles common scenarios:
 ## Troubleshooting
 
 ### Issue: Scan taking too long
+
 **Solution**: Use `include_patterns` to focus on specific directories:
+
 ```json
 {
   "operation": "scan",
@@ -823,19 +882,23 @@ The skill gracefully handles common scenarios:
 ```
 
 ### Issue: Too many false positives
+
 **Solution**: Adjust thresholds in `.techdebtrc.json`:
+
 ```json
 {
   "thresholds": {
     "complexity": {
-      "cyclomatic": 20  // Increase threshold
+      "cyclomatic": 20 // Increase threshold
     }
   }
 }
 ```
 
 ### Issue: Can't connect to issue tracker
+
 **Solution**: Verify credentials and permissions:
+
 ```bash
 # GitHub: Ensure GITHUB_TOKEN environment variable is set
 export GITHUB_TOKEN=ghp_xxx
@@ -889,9 +952,13 @@ Planned features for future versions:
 
 ## Summary
 
-The **tech-debt-tracker** Skill provides systematic technical debt management, turning a qualitative problem into quantitative metrics. By scanning codebases, calculating objective metrics, and prioritizing by impact, teams can focus refactoring efforts on what matters most.
+The **tech-debt-tracker** Skill provides systematic technical debt management,
+turning a qualitative problem into quantitative metrics. By scanning codebases,
+calculating objective metrics, and prioritizing by impact, teams can focus
+refactoring efforts on what matters most.
 
 **Key Benefits:**
+
 - 97.7% token reduction vs. manual analysis
 - 95% time savings (minutes vs. hours)
 - 50% faster delivery through focused refactoring
@@ -899,4 +966,6 @@ The **tech-debt-tracker** Skill provides systematic technical debt management, t
 - Trend tracking prevents debt accumulation
 - Only 7.2% track debt methodically - massive competitive advantage
 
-**ROI**: For a medium team doing bi-weekly debt reviews, saves $63.50/year in API costs plus 6-8 hours of developer time annually. More importantly, enables 50% faster delivery through systematic debt management.
+**ROI**: For a medium team doing bi-weekly debt reviews, saves $63.50/year in
+API costs plus 6-8 hours of developer time annually. More importantly, enables
+50% faster delivery through systematic debt management.

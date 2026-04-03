@@ -1,23 +1,29 @@
 ---
-description: Intelligent test selection based on file changes - runs only affected tests
+description:
+  Intelligent test selection based on file changes - runs only affected tests
+last_updated: 2026-04-03
 ---
 
 # Smart Test Runner
 
-Analyze recent code changes and intelligently select which tests to run, focusing on affected areas for fast feedback.
+Analyze recent code changes and intelligently select which tests to run,
+focusing on affected areas for fast feedback.
 
 ## Workflow
 
-1. **Detect Changes**
-   Run `git diff --name-only main...HEAD` to see modified files
+1. **Detect Changes** Run `git diff --name-only main...HEAD` to see modified
+   files
 
-2. **Map to Test Files**
-   For each changed file, identify related tests:
+2. **Map to Test Files** For each changed file, identify related tests:
 
    **Source File Patterns:**
-   - `client/src/components/X.tsx` → Look for `client/src/components/__tests__/X.test.tsx` or `client/src/components/X.test.tsx`
-   - `client/src/core/ReserveEngine.ts` → `client/src/core/__tests__/ReserveEngine.test.ts`
-   - `client/src/lib/waterfall.ts` → `client/src/lib/__tests__/waterfall.test.ts`
+   - `client/src/components/X.tsx` → Look for
+     `client/src/components/__tests__/X.test.tsx` or
+     `client/src/components/X.test.tsx`
+   - `client/src/core/ReserveEngine.ts` →
+     `client/src/core/__tests__/ReserveEngine.test.ts`
+   - `client/src/lib/waterfall.ts` →
+     `client/src/lib/__tests__/waterfall.test.ts`
    - `server/routes/X.ts` → `tests/api/X.test.ts`
    - `shared/schemas/X.ts` → Tests in both client and server that import it
 
@@ -28,6 +34,7 @@ Analyze recent code changes and intelligently select which tests to run, focusin
    - **E2E tests**: Changes to critical user flows
 
 4. **Build Test Command**
+
    ```bash
    # Single test file
    npm run test -- path/to/test.test.ts
@@ -52,34 +59,38 @@ Analyze recent code changes and intelligently select which tests to run, focusin
 
 **Changed Files → Test Strategy:**
 
-| File Pattern | Test Command |
-|--------------|--------------|
-| `client/src/lib/waterfall.ts` | `npm run test -- waterfall` (critical domain logic) |
-| `shared/db/schema/*` | `npm run test` (full suite - schema affects everything) |
-| `package.json` | `npm run test` (dependency changes require full validation) |
-| `*.test.ts` only | Run just those test files |
-| `vite.config.ts` | `npm run build && npm run test` (build config affects all) |
-| `.claude/*` | No tests needed (configuration only) |
+| File Pattern                  | Test Command                                                |
+| ----------------------------- | ----------------------------------------------------------- |
+| `client/src/lib/waterfall.ts` | `npm run test -- waterfall` (critical domain logic)         |
+| `shared/db/schema/*`          | `npm run test` (full suite - schema affects everything)     |
+| `package.json`                | `npm run test` (dependency changes require full validation) |
+| `*.test.ts` only              | Run just those test files                                   |
+| `vite.config.ts`              | `npm run build && npm run test` (build config affects all)  |
+| `.claude/*`                   | No tests needed (configuration only)                        |
 
 **No Changes Detected:**
+
 - Run `npm run test:quick` for fast validation
 - Suggest full suite if preparing for deployment
 
 ## Examples
 
 **Example 1: Component change**
+
 ```
 Changed: client/src/components/dashboard/FundCard.tsx
 Tests: npm run test -- FundCard.test.tsx
 ```
 
 **Example 2: Engine logic change**
+
 ```
 Changed: client/src/core/PacingEngine.ts
 Tests: npm run test -- PacingEngine
 ```
 
 **Example 3: Schema change**
+
 ```
 Changed: shared/db/schema/funds.ts
 Tests: npm run test (full suite - schema impacts many areas)
@@ -87,6 +98,7 @@ Alert: Consider running integration tests
 ```
 
 **Example 4: Multiple related changes**
+
 ```
 Changed:
   - client/src/lib/waterfall.ts
@@ -106,6 +118,7 @@ Tests:
 ## Integration
 
 This command works with:
+
 - **test-repair agent**: Automatically delegates on failures
 - **perf-guard agent**: Checks if test execution time regresses
 - **Pre-commit hooks**: Can be configured to run smart tests

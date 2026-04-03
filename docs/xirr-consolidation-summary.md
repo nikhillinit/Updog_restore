@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-29
+last_updated: 2026-04-03
 owner: 'Platform Developer'
 review_cadence: P90D
 categories: [tech-debt, architecture, documentation]

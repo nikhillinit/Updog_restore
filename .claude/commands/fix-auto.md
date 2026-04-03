@@ -1,5 +1,6 @@
 ---
 description: Automated repair of lint, format, and simple test failures
+last_updated: 2026-04-03
 ---
 
 # Automated Fix Workflow

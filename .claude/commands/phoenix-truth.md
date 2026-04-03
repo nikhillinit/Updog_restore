@@ -1,13 +1,14 @@
 ---
-description: "Run deterministic Phoenix truth cases and update baseline reports"
-argument-hint: "[focus=xirr|waterfall|fees|capital|recycling|all]"
+description: 'Run deterministic Phoenix truth cases and update baseline reports'
+argument-hint: '[focus=xirr|waterfall|fees|capital|recycling|all]'
 allowed-tools: Read, Write, Grep, Glob, Bash
+last_updated: 2026-04-03
 ---
 
 # Phoenix: Deterministic Truth Suite
 
-Run the unified truth-case validation suite (119 scenarios, 6 modules) and update
-Phoenix reports.
+Run the unified truth-case validation suite (119 scenarios, 6 modules) and
+update Phoenix reports.
 
 ## Context Gathering
 
@@ -42,22 +43,22 @@ For each module, calculate:
 
 Every failure must be categorized:
 
-| Bucket             | Definition                                    |
-| ------------------ | --------------------------------------------- |
-| CODE BUG           | Implementation violates intended semantics    |
-| TRUTH CASE ERROR   | Expected output is wrong or inconsistent      |
-| MISSING FEATURE    | Truth case expects behavior not yet built     |
+| Bucket           | Definition                                 |
+| ---------------- | ------------------------------------------ |
+| CODE BUG         | Implementation violates intended semantics |
+| TRUTH CASE ERROR | Expected output is wrong or inconsistent   |
+| MISSING FEATURE  | Truth case expects behavior not yet built  |
 
 ## Step 4: Route to Specialists
 
 Based on failure patterns, route to appropriate agent:
 
-| Failure Pattern         | Route To                         |
-| ----------------------- | -------------------------------- |
-| Precision drift         | phoenix-precision-guardian       |
-| Waterfall semantics     | waterfall-specialist             |
-| XIRR/fees parity        | xirr-fees-validator              |
-| Allocation/recycling    | phoenix-capital-allocation-analyst |
+| Failure Pattern      | Route To                           |
+| -------------------- | ---------------------------------- |
+| Precision drift      | phoenix-precision-guardian         |
+| Waterfall semantics  | waterfall-specialist               |
+| XIRR/fees parity     | xirr-fees-validator                |
+| Allocation/recycling | phoenix-capital-allocation-analyst |
 
 ## Step 5: Update Reports
 

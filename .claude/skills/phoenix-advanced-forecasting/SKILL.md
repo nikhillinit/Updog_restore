@@ -4,6 +4,7 @@ description:
   "Architecture for the 'living model': graduation rates, multi-MOIC analysis,
   reserves ranking, scenarios, and Monte Carlo. Always sits on top of the
   deterministic core."
+last_updated: 2026-04-03
 ---
 
 # Phoenix Advanced Forecasting

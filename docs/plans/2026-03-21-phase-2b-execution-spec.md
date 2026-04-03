@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 2B Execution Spec: Lifecycle And Authoritative Read Fields
 
 ## Context

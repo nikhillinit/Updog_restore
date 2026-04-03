@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # P4 Pipeline UI Polish -- Final Implementation Plan
 
 **Date:** 2026-02-16 **Status:** Codex-validated (session 019c6612,

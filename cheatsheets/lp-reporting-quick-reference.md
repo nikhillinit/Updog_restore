@@ -1,6 +1,7 @@
 ---
 title: LP Reporting Dashboard - Quick Reference
 status: active
+last_updated: 2026-04-03
 ---
 
 # LP Reporting Dashboard - Quick Reference
@@ -9,15 +10,15 @@ status: active
 
 ## File Locations
 
-| Component | File | Lines |
-|-----------|------|-------|
-| Schema | `migrations/001_lp_reporting_schema.sql` | 600+ |
-| Indexes | `migrations/002_lp_reporting_indexes.sql` | 300+ |
-| Views | `migrations/003_lp_dashboard_materialized_view.sql` | 400+ |
-| Queries | `server/services/lp-queries.ts` | 450+ |
-| Cache | `server/services/lp-cache.ts` | 400+ |
-| Worker | `server/workers/lp-materialized-view-refresh.ts` | 400+ |
-| Docs | `docs/lp-reporting-database-optimization.md` | 4500+ |
+| Component | File                                                | Lines |
+| --------- | --------------------------------------------------- | ----- |
+| Schema    | `migrations/001_lp_reporting_schema.sql`            | 600+  |
+| Indexes   | `migrations/002_lp_reporting_indexes.sql`           | 300+  |
+| Views     | `migrations/003_lp_dashboard_materialized_view.sql` | 400+  |
+| Queries   | `server/services/lp-queries.ts`                     | 450+  |
+| Cache     | `server/services/lp-cache.ts`                       | 400+  |
+| Worker    | `server/workers/lp-materialized-view-refresh.ts`    | 400+  |
+| Docs      | `docs/lp-reporting-database-optimization.md`        | 4500+ |
 
 ## Tables at a Glance
 
@@ -34,6 +35,7 @@ limited_partners
 ## Query Functions
 
 ### 1. getLPSummary(lpId)
+
 ```typescript
 const summary = await getLPSummary('lp-uuid');
 // Returns: {
@@ -47,17 +49,15 @@ const summary = await getLPSummary('lp-uuid');
 ```
 
 ### 2. getCapitalAccountTransactions(lpId, options)
+
 ```typescript
-const page = await getCapitalAccountTransactions(
-  'lp-uuid',
-  {
-    fundIds: [1, 2],
-    startDate: new Date('2024-01-01'),
-    endDate: new Date('2024-12-31'),
-    limit: 20,
-    cursor: 'optional-cursor-from-previous-page'
-  }
-);
+const page = await getCapitalAccountTransactions('lp-uuid', {
+  fundIds: [1, 2],
+  startDate: new Date('2024-01-01'),
+  endDate: new Date('2024-12-31'),
+  limit: 20,
+  cursor: 'optional-cursor-from-previous-page',
+});
 // Returns: {
 //   transactions: [...],
 //   nextCursor: 'cursor-for-next-page' || null,
@@ -69,6 +69,7 @@ const page = await getCapitalAccountTransactions(
 ```
 
 ### 3. getFundPerformance(lpId, fundId)
+
 ```typescript
 const perf = await getFundPerformance('lp-uuid', 1);
 // Returns: {
@@ -81,6 +82,7 @@ const perf = await getFundPerformance('lp-uuid', 1);
 ```
 
 ### 4. getProRataHoldings(lpId, fundId)
+
 ```typescript
 const holdings = await getProRataHoldings('lp-uuid', 1);
 // Returns: [
@@ -97,12 +99,13 @@ const holdings = await getProRataHoldings('lp-uuid', 1);
 ```
 
 ### 5. getPerformanceTimeseries(commitmentId, dateRange, granularity)
+
 ```typescript
 const timeseries = await getPerformanceTimeseries(
   'commitment-uuid',
   new Date('2022-01-01'),
   new Date('2024-12-31'),
-  'quarterly'  // or 'monthly'
+  'quarterly' // or 'monthly'
 );
 // Returns: [
 //   {
@@ -118,6 +121,7 @@ const timeseries = await getPerformanceTimeseries(
 ## Cache Usage
 
 ### Basic Pattern
+
 ```typescript
 import { createLPCache } from '@server/services/lp-cache';
 
@@ -126,12 +130,13 @@ const cache = createLPCache(redis);
 // Wrapping a query
 const summary = await cache.getLPSummary(
   lpId,
-  () => queries.getLPSummary(lpId)  // Fetch function
+  () => queries.getLPSummary(lpId) // Fetch function
 );
 // Flow: Try cache → miss → call fetch → store in cache → return
 ```
 
 ### Cache Keys
+
 ```
 lp:{lpId}:summary
 lp:{lpId}:capital-activity:{fundIds}:{startDate}:{endDate}
@@ -140,6 +145,7 @@ commitment:{commitmentId}:timeseries:{granularity}:{dateRange}
 ```
 
 ### TTLs
+
 ```typescript
 summary: 5 * 60,        // 5 minutes
 performance: 10 * 60,   // 10 minutes
@@ -148,6 +154,7 @@ timeseries: 60 * 60,    // 1 hour
 ```
 
 ### Invalidation
+
 ```typescript
 // After capital call/distribution
 await cache.invalidateAfterCapitalActivity(lpId, fundId);
@@ -164,11 +171,12 @@ await cache.clearLPCache(lpId);
 ## Background Worker
 
 ### Setup
+
 ```typescript
 import { createMaterializedViewRefreshWorker } from '@server/workers/lp-materialized-view-refresh';
 
 const worker = createMaterializedViewRefreshWorker(redis);
-await worker.start();  // On app boot
+await worker.start(); // On app boot
 
 // Cleanup on shutdown
 process.on('SIGTERM', async () => {
@@ -177,9 +185,11 @@ process.on('SIGTERM', async () => {
 ```
 
 ### Scheduled Refresh
+
 Runs automatically at 12:00 AM UTC daily
 
 ### Event-Triggered Refresh
+
 ```typescript
 // After capital activity
 await worker.triggerAfterCapitalActivity(lpId, fundId);
@@ -190,6 +200,7 @@ await worker.refreshImmediately('lp_dashboard_summary');
 ```
 
 ### Metrics
+
 ```typescript
 const metrics = worker.getMetrics('lp_dashboard_summary');
 // Returns: [
@@ -213,9 +224,8 @@ const cache = createLPCache(redis);
 // In route handler
 app.get('/api/lp/:lpId/summary', async (req, res) => {
   try {
-    const summary = await cache.getLPSummary(
-      req.params.lpId,
-      () => queries.getLPSummary(req.params.lpId)
+    const summary = await cache.getLPSummary(req.params.lpId, () =>
+      queries.getLPSummary(req.params.lpId)
     );
 
     if (!summary) {
@@ -224,8 +234,8 @@ app.get('/api/lp/:lpId/summary', async (req, res) => {
 
     res.json({
       data: summary,
-      cached: true,  // Optional: indicate if from cache
-      timestamp: new Date().toISOString()
+      cached: true, // Optional: indicate if from cache
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -251,34 +261,34 @@ await cache.invalidateAfterPerformanceUpdate(
 
 ## Performance Targets
 
-| Operation | Cached | From DB | Target |
-|-----------|--------|---------|--------|
-| LP Summary | 5ms | 50ms | 100ms |
-| Capital Timeline | 10ms | 200ms | 200ms |
-| Fund Performance | 5ms | 50ms | 50ms |
-| Pro-Rata Holdings | 10ms | 500ms | 500ms |
-| Timeseries | 10ms | 150ms | 150ms |
+| Operation         | Cached | From DB | Target |
+| ----------------- | ------ | ------- | ------ |
+| LP Summary        | 5ms    | 50ms    | 100ms  |
+| Capital Timeline  | 10ms   | 200ms   | 200ms  |
+| Fund Performance  | 5ms    | 50ms    | 50ms   |
+| Pro-Rata Holdings | 10ms   | 500ms   | 500ms  |
+| Timeseries        | 10ms   | 150ms   | 150ms  |
 
 ## Cursor Pagination
 
 ```typescript
 // Page 1
 const page1 = await getCapitalAccountTransactions(lpId, {
-  limit: 20
+  limit: 20,
 });
 // Returns: { transactions: [...20], nextCursor: 'abc::2024-12-23...' }
 
 // Page 2
 const page2 = await getCapitalAccountTransactions(lpId, {
   limit: 20,
-  cursor: page1.nextCursor  // Continue from page1 end
+  cursor: page1.nextCursor, // Continue from page1 end
 });
 // Returns: { transactions: [...20], nextCursor: 'xyz::2024-12-20...' }
 
 // Page 3
 const page3 = await getCapitalAccountTransactions(lpId, {
   limit: 20,
-  cursor: page2.nextCursor  // Continue from page2 end
+  cursor: page2.nextCursor, // Continue from page2 end
 });
 // Returns: { transactions: [...10], nextCursor: null }  // Last page
 ```
@@ -286,6 +296,7 @@ const page3 = await getCapitalAccountTransactions(lpId, {
 ## Index Reference
 
 **Critical Indexes:**
+
 ```sql
 -- Capital activity timeline (MUST HAVE)
 capital_activities_commitment_date_idx ON (commitment_id, activity_date DESC)
@@ -299,6 +310,7 @@ lp_commitments_active_idx ON (lp_id, fund_id)
 ```
 
 **Verify indexes are created:**
+
 ```sql
 SELECT indexname FROM pg_stat_user_indexes
   WHERE tablename IN (
@@ -311,11 +323,13 @@ SELECT indexname FROM pg_stat_user_indexes
 ## Materialized Views
 
 **Views maintained automatically:**
+
 1. `lp_dashboard_summary` - LP-level aggregation
 2. `fund_lp_summary` - Fund-level LP aggregation
 3. `lp_performance_latest` - Latest metrics per commitment
 
 **Manual refresh (if needed):**
+
 ```typescript
 const result = await worker.refreshImmediately();
 // or
@@ -323,6 +337,7 @@ const result = await worker.refreshImmediately('lp_dashboard_summary');
 ```
 
 **Verify view is fresh:**
+
 ```sql
 SELECT
   'lp_dashboard_summary' as view_name,
@@ -336,6 +351,7 @@ GROUP BY view_name;
 ## Troubleshooting
 
 ### Slow Queries
+
 ```sql
 -- Check index usage
 EXPLAIN ANALYZE
@@ -348,6 +364,7 @@ SELECT * FROM capital_activities
 ```
 
 ### Low Cache Hit Rate
+
 ```typescript
 const stats = await cache.getStats();
 console.log(`Cache has ${stats.estimatedItemCount} items`);
@@ -360,6 +377,7 @@ console.log(`Memory: ${stats.memoryUsage}`);
 ```
 
 ### Slow Materialized View Refresh
+
 ```typescript
 const metrics = worker.getMetrics();
 const latest = metrics[metrics.length - 1];
@@ -374,19 +392,21 @@ console.log(`Last refresh: ${latest.duration}ms`);
 ## Common Patterns
 
 ### Dashboard Load
+
 ```typescript
 // Get all data for LP dashboard
 const [summary, performance] = await Promise.all([
   cache.getLPSummary(lpId, () => queries.getLPSummary(lpId)),
   cache.getAggregatePerformance(lpId, () => {
     // Aggregate from all fund performances
-  })
+  }),
 ]);
 
 res.json({ summary, performance });
 ```
 
 ### Activity Feed with Pagination
+
 ```typescript
 let cursor = undefined;
 const allActivities = [];
@@ -395,7 +415,7 @@ while (true) {
   const page = await getCapitalAccountTransactions(lpId, {
     limit: 100,
     cursor,
-    startDate: new Date('2024-01-01')
+    startDate: new Date('2024-01-01'),
   });
 
   allActivities.push(...page.transactions);
@@ -406,11 +426,12 @@ while (true) {
 ```
 
 ### Fund Comparison
+
 ```typescript
 const fundIds = [1, 2, 3];
 
 const performances = await Promise.all(
-  fundIds.map(fundId =>
+  fundIds.map((fundId) =>
     cache.getFundPerformance(lpId, fundId, () =>
       queries.getFundPerformance(lpId, fundId)
     )
@@ -418,7 +439,7 @@ const performances = await Promise.all(
 );
 
 // Compare IRRs, MOICs, etc.
-const irrs = performances.map(p => p.irrPercent);
+const irrs = performances.map((p) => p.irrPercent);
 const avgIrr = irrs.reduce((a, b) => a + b) / irrs.length;
 ```
 
@@ -427,6 +448,7 @@ const avgIrr = irrs.reduce((a, b) => a + b) / irrs.length;
 **Full documentation:** `docs/lp-reporting-database-optimization.md`
 
 **Sections:**
+
 - Schema Design (Part 1)
 - Indexing Strategy (Part 2)
 - Materialized Views (Part 3)
@@ -441,6 +463,7 @@ const avgIrr = irrs.reduce((a, b) => a + b) / irrs.length;
 ---
 
 **Quick Links:**
+
 - [Full Schema](../migrations/001_lp_reporting_schema.sql)
 - [Query Service](../server/services/lp-queries.ts)
 - [Cache Service](../server/services/lp-cache.ts)

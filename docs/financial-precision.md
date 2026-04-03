@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Financial Precision
 
 Runtime financial math now goes through `shared/lib/decimal-config.ts`.

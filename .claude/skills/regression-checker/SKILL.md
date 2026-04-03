@@ -4,6 +4,7 @@ description:
   Run full test suite to catch regressions after implementation changes.
   Auto-detects framework, reports pass/fail with counts. Use after code changes
   to verify nothing broke.
+last_updated: 2026-04-03
 ---
 
 # Regression Checker

@@ -9,6 +9,7 @@ disable-model-invocation: true
 allowed-tools:
   Read, Write, Edit, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git
   branch:*), Bash(npm test:*), Bash(npm run phoenix:*)
+last_updated: 2026-04-03
 ---
 
 # Phoenix Phase 2: Probabilistic Workflow

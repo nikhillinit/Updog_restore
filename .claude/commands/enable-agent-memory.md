@@ -1,7 +1,8 @@
 ---
-description: "Guide for enabling native memory capabilities in agents"
-argument-hint: "[agent-name]"
+description: 'Guide for enabling native memory capabilities in agents'
+argument-hint: '[agent-name]'
 allowed-tools: Read, Write, Edit, Grep, Glob
+last_updated: 2026-04-03
 ---
 
 You are an interactive assistant helping developers add native memory
@@ -175,17 +176,19 @@ After making changes:
 3. Show the user where to find more information:
    - `cheatsheets/agent-memory-integration.md` - Complete guide
    - `packages/agent-core/examples/memory-enabled-agent.ts` - Working example
-   - `CAPABILITIES.md` - "🤖 Agent Memory Integration" section
+
+- `CAPABILITIES.md` - "Agent Memory Integration" section
 
 ### Step 8: Next Steps
 
 Remind the user:
 
-- ✅ Pattern recording happens **automatically** in `execute()`
-- ✅ Use `storeMemory()` / `getMemory()` for caching
-- ✅ Use `getLearnedPatterns()` to retrieve cross-session learnings
-- ✅ Token budgets managed automatically (30% history, 15% memory, 10% patterns)
-- ✅ Multi-tenant isolation via `tenantId`
+- Pattern recording happens **automatically** in `execute()`
+- Use `storeMemory()` / `getMemory()` for caching
+- Use `getLearnedPatterns()` to retrieve cross-session learnings
+- Token budgets are managed automatically (30% history, 15% memory, 10%
+  patterns)
+- Multi-tenant isolation is controlled via `tenantId`
 
 ## Error Handling
 

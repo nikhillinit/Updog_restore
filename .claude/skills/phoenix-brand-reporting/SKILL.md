@@ -3,6 +3,7 @@ name: phoenix-brand-reporting
 description:
   'Press On Ventures brand-consistent reporting. Use when designing charts,
   dashboards, exports, or LP-facing documents.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Brand & Reporting
