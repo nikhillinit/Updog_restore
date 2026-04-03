@@ -595,6 +595,8 @@ export const PerformanceAlertResponseSchema = z.object({
 export const ClientAlertResponseSchema = z.object({
   id: uuidSchema,
   fundId: positiveInt(),
+  baselineId: uuidSchema.nullable().optional(),
+  baselineName: z.string().nullable().optional(),
   ruleId: uuidSchema.nullable().optional(),
   ruleName: z.string(),
   severity: severitySchema,
@@ -636,6 +638,7 @@ export const GetAlertsQuerySchema = z.object({
     .transform((val) => val.split(','))
     .pipe(z.array(z.enum(['active', 'acknowledged', 'investigating', 'resolved', 'dismissed'])))
     .optional(),
+  baselineScope: z.enum(['all', 'current']).optional(),
   limit: z
     .string()
     .regex(/^\d+$/, 'Limit must be a positive integer')

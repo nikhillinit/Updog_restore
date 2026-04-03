@@ -1850,6 +1850,42 @@ describe('AlertManagementService', () => {
 
       expect(result).toEqual(mockAlerts);
     });
+
+    it('should filter alerts to the current default baseline when requested', async () => {
+      const mockAlerts = [varianceTrackingFixtures.alerts.irrDeclineAlert];
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue({
+        id: 'current-baseline-id',
+      });
+      mockDb.query.performanceAlerts.findMany.mockResolvedValue(mockAlerts);
+
+      const result = await service.getActiveAlerts(1, {
+        currentBaselineOnly: true,
+      });
+
+      expect(result).toEqual(mockAlerts);
+      expect(mockDb.query.fundBaselines.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.anything(),
+          columns: { id: true },
+        })
+      );
+      expect(mockDb.query.performanceAlerts.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.anything(),
+        })
+      );
+    });
+
+    it('should return no current-baseline alerts when the fund has no default baseline', async () => {
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      const result = await service.getActiveAlerts(1, {
+        currentBaselineOnly: true,
+      });
+
+      expect(result).toEqual([]);
+      expect(mockDb.query.performanceAlerts.findMany).not.toHaveBeenCalled();
+    });
   });
 });
 

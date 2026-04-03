@@ -101,6 +101,7 @@ export function useActiveAlerts(
   options: {
     severity?: string[];
     category?: string[];
+    baselineScope?: 'all' | 'current';
     limit?: number;
   } = {}
 ) {
@@ -110,6 +111,7 @@ export function useActiveAlerts(
       const searchParams = new URLSearchParams();
       if (options.severity) searchParams.set('severity', options.severity.join(','));
       if (options.category) searchParams.set('category', options.category.join(','));
+      if (options.baselineScope) searchParams.set('baselineScope', options.baselineScope);
       if (options.limit) searchParams.set('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/alerts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;

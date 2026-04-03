@@ -2128,6 +2128,7 @@ export class AlertManagementService {
       severity?: string[];
       category?: string[];
       status?: AlertQueryStatus[];
+      currentBaselineOnly?: boolean;
       limit?: number;
     }
   ): Promise<PerformanceAlert[]> {
@@ -2136,6 +2137,25 @@ export class AlertManagementService {
       eq(performanceAlerts.fundId, fundId),
       inArray(performanceAlerts.status, statuses),
     ];
+
+    if (options?.currentBaselineOnly) {
+      const defaultBaseline = await db.query.fundBaselines.findFirst({
+        where: and(
+          eq(fundBaselines.fundId, fundId),
+          eq(fundBaselines.isDefault, true),
+          eq(fundBaselines.isActive, true)
+        ),
+        columns: {
+          id: true,
+        },
+      });
+
+      if (!defaultBaseline) {
+        return [];
+      }
+
+      conditions.push(eq(performanceAlerts.baselineId, defaultBaseline.id));
+    }
 
     if (options?.severity?.length) {
       conditions.push(inArray(performanceAlerts.severity, options.severity));
