@@ -1,3 +1,11 @@
+/**
+ * Calc-run completion tracking.
+ *
+ * markCalcRunCompletedIfReady() is the sole completion trigger for downstream
+ * automation. Re-drive is intentional: if a previous completion attempt failed
+ * after setting completedAt, later callers rerun the same idempotent handler
+ * chain instead of trying to serialize or suppress retries.
+ */
 import { db } from '../db';
 import { calcRuns, fundSnapshots } from '@shared/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
@@ -138,8 +146,9 @@ export async function markCalcRunCompletedIfReady(runId: number): Promise<boolea
     return false;
   }
 
-  // Re-drive idempotent downstream automation so handler failures after the initial
-  // completedAt transition can be recovered by later calls.
+  // Re-drive idempotent downstream automation so handler failures after the
+  // initial completedAt transition can be recovered by later calls. This is an
+  // intentional part of the contract, not a duplicate-delivery bug.
   await runCompletionHandlers(completedRun);
   return true;
 }

@@ -1,3 +1,4 @@
+-- DEPRECATED: superseded by migrations/0002_phase0_variance_automation.sql
 -- Migration 005: Add calc-run attribution columns to fund_metrics
 -- Decision 0.1a of variance automation Phase 0
 --

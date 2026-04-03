@@ -5,8 +5,8 @@
  * markCalcRunCompletedIfReady, ensuring:
  * - .returning() is used for transition detection
  * - Callbacks fire only on actual transition (result.length === 1)
- * - Callbacks do NOT fire when already completed (result.length === 0)
- * - Handler failures are caught and logged (fire-and-forget)
+ * - Already-completed runs are intentionally re-driven for recovery
+ * - Handler failures are surfaced so callers can retry
  * - resetCompletionHandlers clears handlers for test isolation
  * - Multiple handlers all fire on transition
  */
