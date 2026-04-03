@@ -38,6 +38,7 @@
     "preflight:phase0": "npm run check && npm run lint && npm test",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "phase2:slice3:audit": "node scripts/phase2-slice3-audit.mjs",
     "seed:multi-tenant": "npx tsx scripts/seed-multi-tenant.ts",
     "seed:reset": "npx tsx scripts/seed-multi-tenant.ts -- --reset",
     "db:seed:test": "npx tsx scripts/seed-test-data.ts",

@@ -301,6 +301,13 @@ Operational runbook:
 - connect with `psql "$DATABASE_URL"` against the target environment
 - run the count queries above first
 - if any count is non-zero, export each table before applying the migration
+- use `npm run db:push` from the repo root to apply the environment schema
+  change; the checked-in `0007` migration file and updated
+  `migrations/meta/_journal.json` remain the source of truth for fresh-db and
+  test-harness migration order
+- repo-native helper: `npm run phase2:slice3:audit -- --environment <env>` now
+  automates the existence audit, row counts, conditional CSV export, summary
+  artifact generation, and the post-apply verification path
 
 Example export commands:
 
@@ -312,6 +319,112 @@ Example export commands:
 
 - store the export artifact location in the PR or deployment record
 - only then apply the migration
+
+Operator checklist:
+
+1. Confirm the rollout revision.
+   - The branch or deploy artifact must include:
+     - `migrations/0007_phase2_retire_dormant_saved_comparison_persistence.sql`
+     - `migrations/meta/_journal.json`
+   - Record the target environment, operator, and commit SHA in the PR or
+     deployment record.
+
+2. Preferred path: run the repo-native helper in audit mode first.
+
+```bash
+npm run phase2:slice3:audit -- --environment staging
+```
+
+This writes a JSON summary artifact and any needed CSV exports under
+`./artifacts/phase2-slice3` by default.
+
+3. Manual path: open a session against the target environment.
+
+```bash
+psql "$DATABASE_URL"
+```
+
+4. Verify you are pointed at the expected schema before the audit.
+
+```sql
+select
+  to_regclass('public.scenario_comparisons') as scenario_comparisons_table,
+  to_regclass('public.comparison_configurations') as comparison_configurations_table,
+  to_regclass('public.comparison_access_history') as comparison_access_history_table,
+  to_regclass('public.backtest_results') as backtest_results_table;
+```
+
+Gate:
+
+- if `backtest_results_table` is `null`, stop; this is the wrong database
+- if all three dormant tables are already `null`, stop and verify whether Slice
+  `3` has already been applied in that environment
+
+5. Run the row-count audit.
+
+```sql
+select count(*) as scenario_comparisons_count from scenario_comparisons;
+select count(*) as comparison_configurations_count from comparison_configurations;
+select count(*) as comparison_access_history_count from comparison_access_history;
+```
+
+Gate:
+
+- if all three counts are `0`, continue to apply
+- if any count is non-zero, export the rows before applying the drop
+
+6. Export any non-zero tables before the drop.
+   - Create a local artifact directory outside the repo if needed.
+   - Use stable filenames that include the environment name and date.
+
+```sql
+\copy (select * from scenario_comparisons) to './artifacts/scenario_comparisons_pre_drop.csv' csv header
+\copy (select * from comparison_configurations) to './artifacts/comparison_configurations_pre_drop.csv' csv header
+\copy (select * from comparison_access_history) to './artifacts/comparison_access_history_pre_drop.csv' csv header
+```
+
+Gate:
+
+- store the final export paths in the PR or deployment record before continuing
+
+7. Apply the schema change from the repo root.
+
+```bash
+npm run db:push
+```
+
+Or use the repo-native helper to perform audit + export + apply in one guarded
+flow:
+
+```bash
+npm run phase2:slice3:audit -- --environment staging --apply --yes
+```
+
+8. Verify the post-apply schema state immediately.
+
+```sql
+select
+  to_regclass('public.scenario_comparisons') as scenario_comparisons_table,
+  to_regclass('public.comparison_configurations') as comparison_configurations_table,
+  to_regclass('public.comparison_access_history') as comparison_access_history_table;
+
+select column_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'backtest_results'
+  and column_name in ('scenario_comparisons', 'scenario_comparison_summary')
+order by column_name;
+```
+
+Gate:
+
+- all three retired tables must now be `null`
+- `backtest_results.scenario_comparisons` must still exist
+- `backtest_results.scenario_comparison_summary` must still exist
+
+9. Record closure evidence.
+   - Save the `db:push` output, post-apply verification results, operator name,
+     environment, and timestamp in the PR or deployment record.
 
 Rollback note:
 
