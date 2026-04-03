@@ -226,7 +226,9 @@ export interface ScenarioCompareResponse {
   fundId: number;
   comparisons: ScenarioComparison[];
   summary: {
+    requestedScenarios: number;
     scenariosCompared: number;
+    failedScenarios: HistoricalScenarioName[];
     timestamp: string;
   };
 }
@@ -318,6 +320,7 @@ export interface BacktestAsyncRunResponse {
 
 export interface BacktestJobStatusResponse {
   jobId: string;
+  fundId: number;
   status: BacktestingJobStatus;
   stage: BacktestingJobStage;
   progressPercent: number;

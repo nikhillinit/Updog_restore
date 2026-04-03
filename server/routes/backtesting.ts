@@ -330,6 +330,7 @@ router.get(
     const terminal = isBacktestingTerminalStatus(status.status);
     const payload: BacktestJobStatusResponse = {
       jobId: status.jobId,
+      fundId: status.fundId,
       status: status.status,
       stage: status.stage,
       progressPercent: status.progressPercent,
@@ -604,7 +605,7 @@ router.post(
     }
 
     try {
-      const comparisons = await backtestingService.compareScenarios(
+      const scenarioOutcome = await backtestingService.compareScenariosDetailed(
         fundId,
         scenarios,
         simulationRuns
@@ -613,9 +614,11 @@ router.post(
       res.status(200).json({
         correlationId,
         fundId,
-        comparisons,
+        comparisons: scenarioOutcome.comparisons,
         summary: {
-          scenariosCompared: comparisons.length,
+          requestedScenarios: scenarios.length,
+          scenariosCompared: scenarioOutcome.comparisons.length,
+          failedScenarios: scenarioOutcome.failedScenarios,
           timestamp: new Date().toISOString(),
         },
       });

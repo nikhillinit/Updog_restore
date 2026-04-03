@@ -243,6 +243,21 @@ describe('BacktestingService', () => {
       expect(result.scenarioComparisons?.find((s) => s.scenario === 'covid_2020')).toBeDefined();
     });
 
+    it('adds a recommendation when historical scenario comparisons only partially complete', async () => {
+      const result = await service.runBacktest({
+        ...baseConfig,
+        includeHistoricalScenarios: true,
+        historicalScenarios: ['financial_crisis_2008', 'custom'],
+      });
+
+      expect(result.scenarioComparisons?.length).toBe(1);
+      expect(
+        result.recommendations.some((recommendation) =>
+          recommendation.includes('Scenario comparison incomplete')
+        )
+      ).toBe(true);
+    });
+
     it('generates recommendations based on validation', async () => {
       const result = await service.runBacktest(baseConfig);
 
@@ -497,6 +512,13 @@ describe('BacktestingService', () => {
 
       expect(result.length).toBe(1);
       expect(result[0].scenario).toBe('financial_crisis_2008');
+    });
+
+    it('reports failed scenarios in the detailed comparison helper', async () => {
+      const result = await service.compareScenariosDetailed(1, ['financial_crisis_2008', 'custom']);
+
+      expect(result.comparisons).toHaveLength(1);
+      expect(result.failedScenarios).toEqual(['custom']);
     });
   });
 

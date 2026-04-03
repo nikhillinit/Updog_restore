@@ -29,7 +29,6 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
   ['/moic-analysis', '/model'],
   ['/return-the-fund', '/model'],
   ['/partial-sales', '/model'],
-  ['/sensitivity-analysis', '/model'],
 
   // Operations/Management → Operate
   ['/kpi-manager', '/operate'],

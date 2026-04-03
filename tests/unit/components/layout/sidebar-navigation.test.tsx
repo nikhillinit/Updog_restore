@@ -68,6 +68,7 @@ describe('sidebar results navigation', () => {
       'portfolio',
       'pipeline',
       'model-results',
+      'sensitivity-analysis',
       'reports',
     ]);
   });
@@ -100,6 +101,7 @@ describe('sidebar results navigation', () => {
 
     expect(getActiveNavigationId('/fund-model-results/42')).toBe('model-results');
     expect(getActiveNavigationId('/fund-model-results/42?tab=summary')).toBe('model-results');
+    expect(getActiveNavigationId('/sensitivity-analysis')).toBe('sensitivity-analysis');
   });
 
   it('renders a fund-scoped model results link when a current fund is available', async () => {

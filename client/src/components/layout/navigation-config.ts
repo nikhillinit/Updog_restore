@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LineChart,
   HelpCircle,
+  Target,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -67,6 +68,12 @@ const CORE_NAV: readonly NavigationItem[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, target: staticTarget('/portfolio') },
   { id: 'pipeline', label: 'Pipeline', icon: LineChart, target: staticTarget('/pipeline') },
   MODEL_RESULTS_ITEM,
+  {
+    id: 'sensitivity-analysis',
+    label: 'Backtesting',
+    icon: Target,
+    target: staticTarget('/sensitivity-analysis'),
+  },
   { id: 'reports', label: 'Reports', icon: FileText, target: staticTarget('/reports') },
 ];
 

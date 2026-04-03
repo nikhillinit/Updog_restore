@@ -133,13 +133,16 @@ export class BacktestingService {
 
     // Run scenario comparisons if requested
     let scenarioComparisons: ScenarioComparison[] | undefined;
+    let failedScenarioComparisons: HistoricalScenarioName[] = [];
     if (config.includeHistoricalScenarios && config.historicalScenarios?.length) {
       this.throwIfAborted(signal);
-      scenarioComparisons = await this.runScenarioComparisons(
+      const scenarioOutcome = await this.compareScenariosDetailed(
         config.fundId,
         config.historicalScenarios,
         config.simulationRuns
       );
+      scenarioComparisons = scenarioOutcome.comparisons;
+      failedScenarioComparisons = scenarioOutcome.failedScenarios;
     }
 
     // Generate recommendations
@@ -147,7 +150,12 @@ export class BacktestingService {
       validationMetrics,
       simulationSummary,
       actualPerformance,
-      dataQuality
+      dataQuality,
+      {
+        requestedScenarioCount: config.historicalScenarios?.length ?? 0,
+        completedScenarioCount: scenarioComparisons?.length ?? 0,
+        failedScenarios: failedScenarioComparisons,
+      }
     );
 
     const executionTimeMs = Date.now() - startTime;
@@ -216,6 +224,20 @@ export class BacktestingService {
   }
 
   /**
+   * Compare multiple historical scenarios with failure metadata.
+   */
+  async compareScenariosDetailed(
+    fundId: number,
+    scenarios: HistoricalScenarioName[],
+    simulationRuns: number = 5000
+  ): Promise<{
+    comparisons: ScenarioComparison[];
+    failedScenarios: HistoricalScenarioName[];
+  }> {
+    return this.runScenarioComparisons(fundId, scenarios, simulationRuns);
+  }
+
+  /**
    * Compare multiple historical scenarios
    */
   async compareScenarios(
@@ -223,7 +245,8 @@ export class BacktestingService {
     scenarios: HistoricalScenarioName[],
     simulationRuns: number = 5000
   ): Promise<ScenarioComparison[]> {
-    return this.runScenarioComparisons(fundId, scenarios, simulationRuns);
+    const outcome = await this.compareScenariosDetailed(fundId, scenarios, simulationRuns);
+    return outcome.comparisons;
   }
 
   /**
@@ -615,14 +638,24 @@ export class BacktestingService {
     fundId: number,
     scenarios: HistoricalScenarioName[],
     simulationRuns: number
-  ): Promise<ScenarioComparison[]> {
+  ): Promise<{
+    comparisons: ScenarioComparison[];
+    failedScenarios: HistoricalScenarioName[];
+  }> {
     const comparisons: ScenarioComparison[] = [];
+    const failedScenarios: HistoricalScenarioName[] = [];
 
     for (const scenarioName of scenarios) {
-      if (scenarioName === 'custom') continue;
+      if (scenarioName === 'custom') {
+        failedScenarios.push(scenarioName);
+        continue;
+      }
 
       const scenario = getScenarioByName(scenarioName);
-      if (!scenario) continue;
+      if (!scenario) {
+        failedScenarios.push(scenarioName);
+        continue;
+      }
 
       const marketParams = getScenarioMarketParameters(scenarioName);
 
@@ -653,11 +686,11 @@ export class BacktestingService {
         });
       } catch (error) {
         console.error(`Failed to run scenario comparison for ${scenarioName}:`, error);
-        // Continue with other scenarios
+        failedScenarios.push(scenarioName);
       }
     }
 
-    return comparisons;
+    return { comparisons, failedScenarios };
   }
 
   private applyMarketAdjustment(
@@ -741,7 +774,16 @@ export class BacktestingService {
     validation: ValidationMetrics,
     simulation: SimulationSummary,
     actual: ActualPerformance,
-    dataQuality: DataQualityResult
+    dataQuality: DataQualityResult,
+    scenarioOutcome: {
+      requestedScenarioCount: number;
+      completedScenarioCount: number;
+      failedScenarios: HistoricalScenarioName[];
+    } = {
+      requestedScenarioCount: 0,
+      completedScenarioCount: 0,
+      failedScenarios: [],
+    }
   ): string[] {
     const recommendations: string[] = [];
 
@@ -793,6 +835,12 @@ export class BacktestingService {
     if (validation.incalculableMetrics.length > 0) {
       recommendations.push(
         `Missing data for metrics: ${validation.incalculableMetrics.join(', ')} - add performance data`
+      );
+    }
+
+    if (scenarioOutcome.failedScenarios.length > 0) {
+      recommendations.push(
+        `Scenario comparison incomplete: ${scenarioOutcome.completedScenarioCount} of ${scenarioOutcome.requestedScenarioCount} requested scenarios succeeded. Failed: ${scenarioOutcome.failedScenarios.join(', ')}`
       );
     }
 
