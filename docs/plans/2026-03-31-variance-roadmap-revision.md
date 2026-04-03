@@ -185,6 +185,10 @@ Estimate: `2-3 weeks`
 
 Depends on: `1A`
 
+Detailed plan:
+
+- `docs/plans/2026-04-03-phase-1b-single-owner-pr-queue.md`
+
 Work:
 
 - fix the hardcoded fund `1` bug in `DualForecastDashboard`
