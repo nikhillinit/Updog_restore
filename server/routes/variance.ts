@@ -394,7 +394,7 @@ router['post'](
       const result = await varianceTrackingService.setDefaultBaselineAndCleanup({
         fundId,
         baselineId,
-        userId,
+        ...(userId !== undefined ? { userId } : {}),
       });
 
       res['json']({
