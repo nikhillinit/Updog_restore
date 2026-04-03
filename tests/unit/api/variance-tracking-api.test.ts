@@ -853,6 +853,7 @@ describe('Variance Tracking API', () => {
           {
             id: '00000000-0000-0000-0000-000000000301',
             fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000201',
             ruleId: '00000000-0000-0000-0000-000000000401',
             title: 'IRR Decline Detected',
             description:
@@ -861,11 +862,15 @@ describe('Variance Tracking API', () => {
             category: 'performance',
             status: 'active',
             triggeredAt: '2024-12-31T15:30:00.000Z',
-            contextData: { baselineDate: '2024-12-31T23:59:59Z' },
+            contextData: {
+              baselineDate: '2024-12-31T23:59:59Z',
+              baselineName: 'Q4 2024 Baseline',
+            },
           },
           {
             id: '00000000-0000-0000-0000-000000000302',
             fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000202',
             ruleId: '00000000-0000-0000-0000-000000000402',
             title: 'Critical Portfolio Value Decline',
             description:
@@ -886,13 +891,18 @@ describe('Variance Tracking API', () => {
           {
             id: '00000000-0000-0000-0000-000000000301',
             fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000201',
+            baselineName: 'Q4 2024 Baseline',
             ruleId: '00000000-0000-0000-0000-000000000401',
             ruleName: 'IRR Decline Detected',
             severity: 'warning',
             category: 'performance',
             message:
               'Fund IRR has declined by 1.3% from the quarterly baseline, falling below the warning threshold of 1%.',
-            details: { baselineDate: '2024-12-31T23:59:59Z' },
+            details: {
+              baselineDate: '2024-12-31T23:59:59Z',
+              baselineName: 'Q4 2024 Baseline',
+            },
             status: 'active',
             triggeredAt: '2024-12-31T15:30:00.000Z',
             acknowledgedAt: null,
@@ -904,6 +914,8 @@ describe('Variance Tracking API', () => {
           {
             id: '00000000-0000-0000-0000-000000000302',
             fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000202',
+            baselineName: null,
             ruleId: '00000000-0000-0000-0000-000000000402',
             ruleName: 'Critical Portfolio Value Decline',
             severity: 'critical',
@@ -971,6 +983,7 @@ describe('Variance Tracking API', () => {
           {
             id: '00000000-0000-0000-0000-000000000303',
             fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000203',
             ruleId: '00000000-0000-0000-0000-000000000403',
             title: 'Stored Incident Title',
             description: 'IRR variance remains outside the configured threshold.',
@@ -994,6 +1007,38 @@ describe('Variance Tracking API', () => {
         });
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           status: ['active', 'investigating'],
+        });
+      });
+
+      it('should forward current-baseline scope filtering', async () => {
+        mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue([
+          {
+            id: '00000000-0000-0000-0000-000000000304',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000204',
+            ruleId: '00000000-0000-0000-0000-000000000404',
+            title: 'Current Baseline Alert',
+            description: 'Variance remains outside threshold for the current baseline.',
+            severity: 'warning',
+            category: 'performance',
+            status: 'active',
+            triggeredAt: '2024-12-31T11:00:00.000Z',
+            contextData: {
+              baselineName: 'Current Baseline',
+            },
+          },
+        ]);
+
+        const response = await request(app)
+          .get('/api/funds/1/alerts?baselineScope=current')
+          .expect(200);
+
+        expect(response.body.data[0]).toMatchObject({
+          baselineId: '00000000-0000-0000-0000-000000000204',
+          baselineName: 'Current Baseline',
+        });
+        expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
+          currentBaselineOnly: true,
         });
       });
     });
@@ -1312,6 +1357,7 @@ describe('Variance Tracking API', () => {
         });
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           limit: 10,
+          currentBaselineOnly: true,
         });
         expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(
           1,

@@ -204,10 +204,12 @@ describe('variance-validation', () => {
   it('keeps the alerts query contract truthful for explicit status filters', () => {
     const parsed = GetAlertsQuerySchema.parse({
       status: 'active,investigating',
+      baselineScope: 'current',
       limit: '10',
     });
 
     expect(parsed.status).toEqual(['active', 'investigating']);
+    expect(parsed.baselineScope).toBe('current');
     expect(parsed.limit).toBe(10);
   });
 

@@ -175,10 +175,14 @@ function toClientAlert(alert: PerformanceAlert, fundId: number): ClientAlertResp
       : {};
   const contextRuleName =
     typeof contextData['ruleName'] === 'string' ? contextData['ruleName'] : null;
+  const contextBaselineName =
+    typeof contextData['baselineName'] === 'string' ? contextData['baselineName'] : null;
 
   return {
     id: alert.id,
     fundId: alert.fundId ?? fundId,
+    baselineId: alert.baselineId ?? null,
+    baselineName: contextBaselineName,
     ruleId: alert.ruleId ?? null,
     ruleName: contextRuleName ?? alert.title,
     severity: normalizeAlertSeverity(alert.severity),
@@ -726,6 +730,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       severity: firstString(req.query['severity']),
       category: firstString(req.query['category']),
       status: firstString(req.query['status']),
+      baselineScope: firstString(req.query['baselineScope']),
       limit: firstString(req.query['limit']),
     });
     if (!queryValidation.success) {
@@ -737,12 +742,13 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       return res['status'](400)['json'](error);
     }
 
-    const { severity, category, status, limit } = queryValidation.data;
+    const { severity, category, status, baselineScope, limit } = queryValidation.data;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
       ...(severity !== undefined && { severity }),
       ...(category !== undefined && { category }),
       ...(status !== undefined && { status }),
+      ...(baselineScope === 'current' && { currentBaselineOnly: true }),
       ...(limit !== undefined && { limit }),
     });
     const clientAlerts = alerts.map((alert) => toClientAlert(alert, fundId));
@@ -973,7 +979,10 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     // Get summary data for dashboard
     const [baselines, activeAlerts, latestReports] = await Promise.all([
       varianceTrackingService.baselines.getBaselines(fundId, { limit: 5 }),
-      varianceTrackingService.alerts.getActiveAlerts(fundId, { limit: 10 }),
+      varianceTrackingService.alerts.getActiveAlerts(fundId, {
+        limit: 10,
+        currentBaselineOnly: true,
+      }),
       varianceTrackingService.calculations.getVarianceReports(fundId, { limit: 5 }),
     ]);
 

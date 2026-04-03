@@ -128,6 +128,7 @@ export default function VarianceTrackingPage() {
   const [alertActionDialogOpen, setAlertActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'acknowledge' | 'resolve'>('acknowledge');
   const [actionNotes, setActionNotes] = useState('');
+  const [alertBaselineScope, setAlertBaselineScope] = useState<'current' | 'all'>('current');
   const [selectedReportId, setSelectedReportId] = useState<string | null>(
     getInitialSelectedReportId
   );
@@ -183,7 +184,9 @@ export default function VarianceTrackingPage() {
     isLoading: alertsLoading,
     error: _alertsError,
     refetch: refetchAlerts,
-  } = useActiveAlerts(currentFund?.id || 0);
+  } = useActiveAlerts(currentFund?.id || 0, {
+    baselineScope: alertBaselineScope,
+  });
 
   const {
     data: reportsData,
@@ -212,6 +215,8 @@ export default function VarianceTrackingPage() {
   );
 
   const reports = reportsData?.data ?? [];
+  const currentDefaultBaseline =
+    baselinesData?.data?.find((baseline: Baseline) => baseline.isDefault) ?? null;
   const latestReport =
     reports.length > 0
       ? [...reports].sort(
@@ -1274,8 +1279,33 @@ export default function VarianceTrackingPage() {
           {/* Active Alerts */}
           <Card>
             <CardHeader>
-              <CardTitle>Active Alerts</CardTitle>
-              <CardDescription>Current variance alerts requiring attention</CardDescription>
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <CardTitle>Active Alerts</CardTitle>
+                  <CardDescription>
+                    {alertBaselineScope === 'current'
+                      ? 'Current-baseline incidents requiring attention'
+                      : 'All open incidents, including older baseline snapshots'}
+                  </CardDescription>
+                </div>
+                <div className="w-full md:w-56">
+                  <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Alert Scope
+                  </Label>
+                  <Select
+                    value={alertBaselineScope}
+                    onValueChange={(value: 'current' | 'all') => setAlertBaselineScope(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="current">Current baseline</SelectItem>
+                      <SelectItem value="all">All open incidents</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {alertsLoading ? (
@@ -1313,8 +1343,19 @@ export default function VarianceTrackingPage() {
                         <div>
                           <div className="font-medium text-gray-900">{alert.ruleName}</div>
                           <div className="text-sm text-gray-600">{alert.message}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {format(parseISO(alert.triggeredAt), 'MMM dd, yyyy HH:mm')}
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                            <span>{format(parseISO(alert.triggeredAt), 'MMM dd, yyyy HH:mm')}</span>
+                            {alertBaselineScope === 'all' && alert.baselineName ? (
+                              <span>Baseline: {alert.baselineName}</span>
+                            ) : null}
+                            {alertBaselineScope === 'all' &&
+                            currentDefaultBaseline?.id &&
+                            alert.baselineId &&
+                            alert.baselineId !== currentDefaultBaseline.id ? (
+                              <Badge variant="outline" className="text-amber-700 border-amber-200">
+                                Older baseline
+                              </Badge>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -1361,9 +1402,15 @@ export default function VarianceTrackingPage() {
               ) : (
                 <div className="text-center py-8">
                   <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Alerts</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {alertBaselineScope === 'current'
+                      ? 'No Current-Baseline Alerts'
+                      : 'No Open Alerts'}
+                  </h3>
                   <p className="text-gray-600">
-                    Your fund performance is within acceptable variance ranges.
+                    {alertBaselineScope === 'current'
+                      ? 'The current default baseline is within acceptable variance ranges.'
+                      : 'There are no open incidents across current or historical baselines.'}
                   </p>
                 </div>
               )}
