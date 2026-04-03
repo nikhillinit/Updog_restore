@@ -1,167 +1,83 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # ADR-013: Scenario Comparison Tool Activation
 
-**Status:** Proposed
+**Status:** Superseded
 **Date:** 2025-12-28
+**Superseded On:** 2026-04-03
+**Superseded By:** Phase 2 scenario-comparison consolidation decision in
+`docs/plans/2026-04-02-phase-2-scenario-comparison-consolidation-plan.md`
 **Decision Makers:** Product Team, Technical Team
-**Tags:** #scenario-comparison #feature-activation #product-decision
+**Tags:** #scenario-comparison #feature-activation #superseded
 
 ---
 
 ## Context
 
-The Scenario Comparison API (`server/routes/scenario-comparison.ts`) is a complete implementation that allows users to compare multiple VC fund scenarios side-by-side. The code is production-ready but currently **not registered** in the route system, pending product team approval.
+This ADR proposed activating a standalone scenario-comparison runtime backed by:
 
-### Current State
+- `server/routes/scenario-comparison.ts`
+- an ephemeral `/api/portfolio/comparisons` API
+- a future saved-comparison persistence family
 
-- **Implementation**: Complete (462 lines)
-- **Endpoints**:
-  - `POST /api/portfolio/comparisons` - Create ephemeral comparison
-  - `GET /api/portfolio/comparisons/:id` - Retrieve cached comparison
-- **Features**:
-  - Compare up to 5 scenarios against a baseline
-  - Support for 14 comparison metrics (MOIC, IRR, TVPI, DPI, etc.)
-  - Redis caching with 5-minute TTL for ephemeral comparisons
-  - Zod validation for all inputs
-  - Authorization middleware (simplified for 5-person internal tool)
-- **Dependencies**: Redis (optional), ComparisonService, Drizzle ORM
+That product path did not ship. Phase 2 consolidation removed the retired route
+surface and standardized scenario analysis around the live Monte Carlo
+backtesting workflow under `/api/backtesting/*`.
 
-### Why This Needs Product Decision
+The consolidation also retired the dormant saved-comparison persistence family:
 
-1. **UX Impact**: Introduces new workflow for scenario comparison
-2. **Data Model**: Uses ephemeral Redis caching (Phase 1), with persistence planned (Phase 2)
-3. **Feature Scope**: Needs product alignment on which metrics to expose
-4. **User Education**: May require documentation or onboarding
+- `scenario_comparisons`
+- `comparison_configurations`
+- `comparison_access_history`
 
-### Technical Readiness
+Comparative historical-scenario output now lives on the backtesting result
+contract instead:
 
-| Criterion | Status |
-|-----------|--------|
-| Code complete | Yes |
-| Unit tests | Partial (service layer) |
-| Integration tests | No |
-| API documentation | In-code (JSDoc) |
-| Security review | Pending |
-| Performance profiling | Pending |
+- `backtest_results.scenario_comparisons`
+- `backtest_results.scenario_comparison_summary`
 
----
+## Superseding Decision
 
-## Decision Required
+Do not activate the old standalone scenario-comparison runtime.
 
-**Product team must decide:**
+Instead:
 
-1. **Activate for all users?** Or gradual rollout via feature flag?
-2. **Which metrics to expose?** Currently 14 metrics defined - are all needed?
-3. **Ephemeral only (Phase 1)?** Or wait for persistence (Phase 2)?
-4. **User documentation needed?** In-app guidance vs separate docs?
-
----
-
-## Proposed Implementation Plan
-
-### Option A: Immediate Activation (Recommended)
-
-1. Add feature flag: `ENABLE_SCENARIO_COMPARISON` (default: true)
-2. Register route in `server/routes.ts`
-3. Add basic smoke tests
-4. Deploy with monitoring
-
-**Effort**: 2-4 hours
-**Risk**: Low (ephemeral comparisons, no data persistence)
-
-### Option B: Full Phase 1 + 2 Before Activation
-
-1. Complete persistence layer (Phase 2)
-2. Add comprehensive test suite
-3. Create user documentation
-4. Security review
-5. Performance profiling
-
-**Effort**: 2-3 weeks
-**Risk**: Very low (but delays value delivery)
-
----
+1. Keep `/sensitivity-analysis` and `/api/backtesting/*` as the live scenario
+   analysis surface.
+2. Persist comparison disclosure on `backtest_results`, not a separate saved
+   comparison backend.
+3. Treat the old activation proposal as historical context only.
 
 ## Consequences
 
-### If Activated (Option A)
+### Positive
 
-**Positive:**
-- Users can immediately compare scenarios
-- Validates product-market fit before investing in persistence
-- Enables feedback collection for Phase 2 requirements
+- The repo has one live comparison story instead of parallel dormant and active
+  models.
+- Historical-scenario comparison remains available through the shipped
+  backtesting workflow.
+- Schema, docs, and tests can align around a single contract.
 
-**Negative:**
-- Comparisons are ephemeral (5-min TTL) - users cannot save
-- May need future migration path when persistence added
+### Negative
 
-### If Delayed (Option B)
+- The standalone scenario-comparison route and planned saved-comparison product
+  path are intentionally abandoned.
+- Future saved comparison work would need a new ADR and a new runtime design
+  rather than reviving this record.
 
-**Positive:**
-- Complete feature set from day one
-- No user confusion about ephemeral vs saved comparisons
+## Historical Note
 
-**Negative:**
-- 2-3 week delay in value delivery
-- Over-engineering risk (building persistence before validating need)
-
----
-
-## Alternatives Considered
-
-### Alternative 1: Remove the Feature
-
-**Rationale**: Unused code is tech debt
-**Decision**: Rejected - code is complete and valuable, just needs activation
-
-### Alternative 2: Client-Side Only Comparison
-
-**Rationale**: No server-side infrastructure needed
-**Decision**: Rejected - server-side enables persistence, caching, and audit trail
-
----
-
-## Action Required
-
-**Product owner to provide:**
-
-1. Approval to proceed with Option A or B
-2. List of approved metrics (or "all 14")
-3. User communication plan (if any)
-
-**Deadline**: [To be set by product team]
-
----
-
-## Implementation Checklist (Post-Approval)
-
-- [ ] Add feature flag to `server/config/features.ts`
-- [ ] Register route in `server/routes.ts`
-- [ ] Create smoke test for route availability
-- [ ] Update CHANGELOG.md
-- [ ] Notify users (if required)
-
----
+The original activation proposal was reasonable when the repo still carried the
+route and persistence scaffolding. It is superseded because the shipped product
+shape moved in a different direction.
 
 ## References
 
-- **Code**: [`server/routes/scenario-comparison.ts`](../../server/routes/scenario-comparison.ts)
-- **Service**: [`server/services/comparison-service.ts`](../../server/services/comparison-service.ts)
-- **Related ADR**: [ADR-004: Waterfall Naming](./ADR-004-waterfall-names.md)
+- Parent consolidation plan:
+  `docs/plans/2026-04-02-phase-2-scenario-comparison-consolidation-plan.md`
+- Slice 3 retirement plan:
+  `docs/plans/2026-04-03-phase-2-slice-3-saved-comparison-retirement-plan.md`
 
----
-
-## Changelog
-
-| Date | Change | Author |
-|------|--------|--------|
-| 2025-12-28 | Initial ADR creation | Claude Code |
-
----
-
-**Review Cycle**: Upon product decision
-**Next Review**: Pending product approval

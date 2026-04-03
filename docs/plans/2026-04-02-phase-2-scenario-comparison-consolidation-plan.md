@@ -4,8 +4,7 @@ last_updated: 2026-04-03
 
 # Phase 2: Scenario Comparison Consolidation Plan
 
-Date: `2026-04-02` Owner: Codex Status: Implemented through Slice `2` runtime
-cleanup; Slice `3` and Slice `4` remain
+Date: `2026-04-02` Owner: Codex Status: Implemented through Slice `4`
 
 ## Goal
 
@@ -55,12 +54,61 @@ Confirmed complete:
   `BacktestResult` / history responses instead of only appearing as live-run
   recommendation text.
 
-Confirmed still open:
+Confirmed complete since the original audit:
 
-- Slice `3` must cover the full dormant saved-comparison schema family, not only
-  `scenario_comparisons`.
-- Slice `4` needs a deterministic rewrite of the backtesting integration suite,
-  not just an un-quarantine toggle.
+- Slice `3`: the dormant saved-comparison schema family, runtime wrapper,
+  boundary metadata, seeder order, migration metadata, and active docs have
+  been retired or corrected without touching the live
+  `backtest_results.scenarioComparisons` contract.
+- Slice `4`: `tests/integration/backtesting-api.test.ts` now runs by default
+  without quarantine or env gating and covers the live sync and async
+  backtesting contract deterministically.
+
+Detailed execution plans for the final implementation slices:
+
+- `docs/plans/2026-04-03-phase-2-slice-3-saved-comparison-retirement-plan.md`
+- `docs/plans/2026-04-03-phase-2-slice-4-backtesting-integration-rewrite-plan.md`
+
+## Red-Team Revision Update (`2026-04-03`)
+
+Accepted revisions have been integrated into the slice plans and revalidated
+against the sandbox codebase.
+
+Validated additions now reflected in the plans:
+
+- Slice `3` now explicitly guards the live `backtest_results.scenario_comparisons`
+  column from the dormant `scenario_comparisons` table cleanup.
+- Slice `3` now treats `shared/lib/data-boundaries.ts` as both wrong and
+  incomplete for the dormant family, not merely drifted.
+- Slice `3` now records that the feature-gated
+  `server/routes/portfolio-intelligence.ts` compare path uses in-memory
+  `storage.comparisons`, not `portfolioIntelligenceService.comparisons`.
+- Slice `3` now requires ADR-013 to be superseded, not merely archived, and
+  includes an operational data-audit and restore runbook before the destructive
+  migration is applied.
+- Slice `4` now specifies module-level queue/service mocks, clarifies that `503`
+  is a valid negative-path assertion while happy-path `500` fallbacks are not,
+  and documents an explicit deterministic SSE test mechanism.
+- Sandbox implementation surfaced one additional repo-integrity issue:
+  `migrations/meta/_journal.json` had drifted behind the on-disk
+  `0006_phase2_backtest_scenario_comparison_summary.sql` migration, so Slice
+  `3` now explicitly repairs the journal while appending the new drop
+  migration.
+- Slice `4` now treats direct mounting of `server/routes/backtesting.ts` as the
+  preferred deterministic harness because it keeps auth and validation real
+  without dragging unrelated route-graph startup into the suite.
+- Slice ordering is now explicit: execute Slice `3` before Slice `4` so
+  boundary, seeding, and documentation truth are fixed before the final
+  integration contract is locked in.
+
+Focused sandbox validation run after implementation:
+
+- `npx vitest run tests/integration/backtesting-api.test.ts tests/integration/schema-isolation.test.ts --config vitest.config.int.ts`
+  passed (`55/55`), confirming the Slice `3` boundary cleanup and the Slice `4`
+  deterministic backtesting contract suite are both live and stable.
+- `npx vitest run tests/unit/services/backtesting-service.test.ts tests/unit/queues/backtesting-queue.test.ts tests/unit/schema/backtest-results-schema.test.ts`
+  passed (`47/47`), confirming the backing queue/service/schema seams still
+  match the implemented contract.
 
 ## Audit Findings
 
@@ -520,6 +568,8 @@ Acceptance:
 
 ### Slice 3: Resolve The Dormant `scenario_comparisons` Schema Layer
 
+Status: completed in sandbox implementation on `2026-04-03`
+
 Goal:
 
 - finish the keep-or-delete decision instead of leaving the DB contract in limbo
@@ -567,6 +617,8 @@ Acceptance:
   - has been cleaned up with a migration
 
 ### Slice 4: Rebuild The Integration Test Story Around Live Contracts
+
+Status: completed in sandbox implementation on `2026-04-03`
 
 Goal:
 

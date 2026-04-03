@@ -1,13 +1,13 @@
 # Quarantine Report
 
-Generated: 2026-03-26
+Generated: 2026-04-03
 
 ## Summary
 
 | Metric            | Count |
 | ----------------- | ----- |
-| Total Quarantined | 37    |
-| Documented        | 37    |
+| Total Quarantined | 34    |
+| Documented        | 34    |
 | Undocumented      | 0     |
 
 This report tracks quarantined files, not the total number of skipped assertions
@@ -28,14 +28,11 @@ inside those files.
 | `tests/integration/testcontainers-smoke.test.ts`                  | @devops-team         | Requires Docker which is not available in GitHub Actions free tier                                                                                         | Migrate to self-hosted runners with Docker OR GitHub adds Docker support                                                       | 65         |
 | `tests/integration/ScenarioMatrixCache.integration.test.ts`       | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
 | `tests/integration/scenarioGeneratorWorker.test.ts`               | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
-| `tests/integration/scenario-comparison.test.ts`                   | nikhil               | Feature flag disabled - requires ENABLE_SCENARIO_COMPARISON=true and database migration                                                                    | Not specified                                                                                                                  | N/A        |
-| `tests/integration/scenario-comparison-mvp.test.ts`               | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
 | `tests/integration/rls-middleware.test.ts`                        | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
 | `tests/integration/ops-webhook.quarantine.test.ts`                | P5.1 tech debt audit | ESM module reload via require.cache does not work for ES modules; cannot test module-load-time startup validation in Vitest                                | Extract startup validation to an init() function callable from tests, or migrate to a test runner supporting ESM module reload | N/A        |
 | `tests/integration/migration-runner.test.ts`                      | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
 | `tests/integration/circuit-breaker-db.test.ts`                    | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
 | `tests/integration/cache-monitoring.integration.test.ts`          | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |
-| `tests/integration/backtesting-api.test.ts`                       | nikhil               | Feature flag disabled - requires ENABLE_BACKTESTING_TESTS=true                                                                                             | Not specified                                                                                                                  | N/A        |
 | `tests/integration/approval-guard.test.ts`                        | P5.1 tech debt audit | /api/reserves/calculate endpoints not yet implemented; test body is empty                                                                                  | Implement reserve calculation API endpoints per ADR-017                                                                        | N/A        |
 | `tests/chaos/postgres-latency.test.ts`                            | @devops-team         | Requires Toxiproxy infrastructure (docker-compose.toxiproxy.yml)                                                                                           | Add Toxiproxy to CI pipeline or create mock-based alternative                                                                  | 69         |
 | `tests/api/portfolio-route.template.test.ts`                      | @qa-team             | Temporarily skipped pending stabilization triage.                                                                                                          | Remove skip and re-enable once deterministic behavior or required test infrastructure is available.                            | 37         |

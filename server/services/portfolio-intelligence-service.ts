@@ -12,7 +12,6 @@ import {
   portfolioScenarios,
   reserveAllocationStrategies,
   performanceForecasts,
-  scenarioComparisons,
   monteCarloSimulations,
 } from '@shared/schema';
 
@@ -21,7 +20,6 @@ type InsertFundStrategyModel = typeof fundStrategyModels.$inferInsert;
 type InsertPortfolioScenario = typeof portfolioScenarios.$inferInsert;
 type InsertReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferInsert;
 type InsertPerformanceForecast = typeof performanceForecasts.$inferInsert;
-type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
 type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
 
 // Type definitions for selects
@@ -29,7 +27,6 @@ type FundStrategyModel = typeof fundStrategyModels.$inferSelect;
 type PortfolioScenario = typeof portfolioScenarios.$inferSelect;
 type ReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferSelect;
 type PerformanceForecast = typeof performanceForecasts.$inferSelect;
-type ScenarioComparison = typeof scenarioComparisons.$inferSelect;
 type MonteCarloSimulation = typeof monteCarloSimulations.$inferSelect;
 
 export const portfolioIntelligenceService = {
@@ -150,26 +147,6 @@ export const portfolioIntelligenceService = {
         .where(eq(portfolioScenarios.id, id))
         .returning();
       return updated;
-    },
-  },
-
-  // ============================================================================
-  // SCENARIO COMPARISONS
-  // ============================================================================
-
-  comparisons: {
-    async create(data: InsertScenarioComparison): Promise<ScenarioComparison> {
-      const [comparison] = await db.insert(scenarioComparisons).values(data).returning();
-      if (!comparison) throw new Error('Failed to create comparison');
-      return comparison;
-    },
-
-    async getById(id: string): Promise<ScenarioComparison | undefined> {
-      const [comparison] = await db
-        .select()
-        .from(scenarioComparisons)
-        .where(eq(scenarioComparisons.id, id));
-      return comparison;
     },
   },
 
@@ -305,6 +282,5 @@ export type {
   PortfolioScenario,
   ReserveAllocationStrategy,
   PerformanceForecast,
-  ScenarioComparison,
   MonteCarloSimulation,
 };
