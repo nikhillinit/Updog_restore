@@ -2,8 +2,10 @@
  * Calc-Run Completion Handlers
  *
  * Registers downstream automation that fires when a calc-run transitions
- * to completed. The handler is retried by markCalcRunCompletedIfReady(),
- * so the internal steps must be sequential and idempotent.
+ * to completed. Registration happens at startup only. The registered handler
+ * owns a single sequential runtime pipeline, and markCalcRunCompletedIfReady()
+ * may re-drive that same pipeline later, so the internal steps must remain
+ * idempotent.
  *
  * Import this module at server startup to wire the handlers.
  */

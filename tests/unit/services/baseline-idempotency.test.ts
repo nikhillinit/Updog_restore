@@ -10,12 +10,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BaselineService } from '../../../server/services/variance-tracking';
 import { createSandbox } from '../../setup/test-infrastructure';
 import { db } from '../../../server/db';
-import { SYSTEM_ACTOR_ID } from '../../../shared/constants/system-actor';
+import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_USERNAME } from '../../../shared/constants/system-actor';
+
+const { mockLogInfo } = vi.hoisted(() => ({
+  mockLogInfo: vi.fn(),
+}));
 
 // Mock metrics (no-op for these tests)
 vi.mock('../../../server/metrics/variance-metrics', () => ({
   recordVarianceReportGenerated: vi.fn(),
   recordBaselineOperation: vi.fn(),
+  recordBaselineMetricFallback: vi.fn(),
   recordAlertGenerated: vi.fn(),
   recordAlertAction: vi.fn(),
   updateFundVarianceScore: vi.fn(),
@@ -23,6 +28,17 @@ vi.mock('../../../server/metrics/variance-metrics', () => ({
   updateDataQualityScore: vi.fn(),
   recordSystemError: vi.fn(),
   startVarianceCalculation: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('../../../server/lib/logger', () => ({
+  logger: {
+    child: () => ({
+      info: mockLogInfo,
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
 }));
 
 // Mock database with transaction support
@@ -43,6 +59,9 @@ vi.mock('../../../server/db', () => {
     fundBaselines: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+    },
+    users: {
+      findFirst: vi.fn(),
     },
     calcRuns: {
       findFirst: vi.fn(),
@@ -120,6 +139,10 @@ function setupStandardMocks(overrides?: {
 
   mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
   mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+  mockDb.query.users.findFirst.mockResolvedValue({
+    id: SYSTEM_ACTOR_ID,
+    username: SYSTEM_ACTOR_USERNAME,
+  });
 
   // First findFirst call inside the transaction checks for existing baseline by sourceRunId
   // Second findFirst call checks for existing default
@@ -179,6 +202,15 @@ describe('Baseline Idempotency (Decision 0.2)', () => {
       expect(result).toEqual(existingBaseline);
       // INSERT must NOT have been called -- the existing baseline was returned
       expect(mockDb.insert).not.toHaveBeenCalled();
+      expect(mockLogInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'baseline.reused',
+          fundId: 1,
+          sourceRunId: 42,
+          baselineId: 'existing-baseline-abc',
+        }),
+        expect.any(String)
+      );
     });
 
     it('creates new baseline when different sourceRunId is used', async () => {
@@ -192,6 +224,15 @@ describe('Baseline Idempotency (Decision 0.2)', () => {
       expect(result.id).toBe('new-baseline-id');
       expect(mockDb.__getLastInsertData().sourceRunId).toBe(99);
       expect(mockDb.insert).toHaveBeenCalled();
+      expect(mockLogInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'baseline.created',
+          fundId: 1,
+          sourceRunId: 99,
+          baselineId: 'new-baseline-id',
+        }),
+        expect.any(String)
+      );
     });
 
     it('persists sourceRunId in the INSERT payload', async () => {
@@ -316,6 +357,15 @@ describe('Baseline Idempotency (Decision 0.2)', () => {
       });
 
       expect(result).toEqual(existingBaseline);
+      expect(mockLogInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'baseline.reused_after_race',
+          fundId: 1,
+          sourceRunId: 42,
+          baselineId: 'race-winner',
+        }),
+        expect.any(String)
+      );
     });
 
     it('catches default_unique violation and returns existing baseline', async () => {
@@ -428,6 +478,37 @@ describe('Baseline Idempotency (Decision 0.2)', () => {
 
       expect(result).toEqual(existingBaseline);
       expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
+    it('marks backfilled baselines as non-default by default', async () => {
+      mockDb.query.calcRuns.findFirst.mockResolvedValue({
+        id: 42,
+        fundId: 1,
+        configVersion: 7,
+        requestedAt: new Date('2026-01-01T00:00:00Z'),
+        completedAt: new Date('2026-01-15T00:00:00Z'),
+      });
+
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        runId: 42,
+        totalValue: '2750000.00',
+        irr: '0.1950',
+        multiple: '1.5100',
+        dpi: '0.9300',
+        tvpi: '1.4200',
+        metricDate: new Date(),
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      await service.createBaselineFromCalcRun(42, { mode: 'backfill' });
+
+      const insertedData = mockDb.__getLastInsertData();
+      expect(insertedData.isDefault).toBe(false);
+      expect(insertedData.tags).toEqual(['backfill', 'approximate']);
     });
 
     it('throws when calc run does not exist', async () => {

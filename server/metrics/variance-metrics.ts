@@ -113,6 +113,16 @@ export const baselineCreationDuration = getOrCreateHistogram({
   registers: [register],
 });
 
+/**
+ * Counter for automated baseline metric fallbacks during rollout.
+ */
+export const baselineMetricFallbacks = getOrCreateCounter({
+  name: 'baseline_metric_fallback_total',
+  help: 'Total number of automated baseline metric fallback events',
+  labelNames: ['mode', 'reason'] as const,
+  registers: [register],
+});
+
 // === ALERT METRICS ===
 
 /**
@@ -284,6 +294,10 @@ export function recordBaselineOperation(
   if (duration && operation === 'create') {
     baselineCreationDuration.labels(fundId, baselineType).observe(duration);
   }
+}
+
+export function recordBaselineMetricFallback(mode: string, reason: string): void {
+  baselineMetricFallbacks.labels(mode, reason).inc();
 }
 
 /**

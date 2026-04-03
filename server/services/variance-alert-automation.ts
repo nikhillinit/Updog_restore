@@ -260,6 +260,9 @@ export class VarianceAlertAutomationService {
     );
 
     try {
+      // The calc-run completion contract is intentionally sequential:
+      // run-attributed metrics -> automated baseline -> realtime alert evaluation.
+      // Replays may rerun the same sequence, so each stage must be idempotent.
       await withTimeout('ensureAttributedFundMetricsForCalcRun', () =>
         ensureAttributedFundMetricsForCalcRun(runId)
       );

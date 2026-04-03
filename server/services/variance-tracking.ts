@@ -19,6 +19,7 @@ import {
   fundSnapshots,
   calcRuns,
   alertEvaluationExecutions,
+  users,
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -48,6 +49,7 @@ import type {
 import {
   recordVarianceReportGenerated,
   recordBaselineOperation,
+  recordBaselineMetricFallback,
   recordAlertGenerated,
   recordAlertAction,
   updateFundVarianceScore,
@@ -55,7 +57,8 @@ import {
   recordSystemError,
   startVarianceCalculation,
 } from '../metrics/variance-metrics';
-import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
+import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_USERNAME } from '@shared/constants/system-actor';
+import { logger } from '../lib/logger';
 
 interface TriggeredAlertData {
   ruleId: string;
@@ -65,6 +68,25 @@ interface TriggeredAlertData {
   actualValue: number | null;
   severity: 'info' | 'warning' | 'critical' | 'urgent';
 }
+
+export type BaselineCreationMode = 'manual' | 'calc_run' | 'backfill';
+type BaselineDefaultBehavior = 'auto' | 'force_default' | 'never_default';
+
+type CreateBaselineFromCalcRunOptions = {
+  mode?: Extract<BaselineCreationMode, 'calc_run' | 'backfill'>;
+  additionalTags?: string[];
+  defaultBehavior?: BaselineDefaultBehavior;
+};
+
+function getBaselineTagsForMode(mode: Extract<BaselineCreationMode, 'calc_run' | 'backfill'>) {
+  return mode === 'backfill' ? ['backfill', 'approximate'] : ['automatic', 'calc-run'];
+}
+
+function mergeUniqueTags(...tagGroups: Array<string[] | undefined>): string[] {
+  return [...new Set(tagGroups.flatMap((tags) => tags ?? []))];
+}
+
+const log = logger.child({ module: 'variance-tracking' });
 
 function isTriggeredAlertSeverity(value: unknown): value is TriggeredAlertData['severity'] {
   return value === 'info' || value === 'warning' || value === 'critical' || value === 'urgent';
@@ -192,6 +214,9 @@ export class BaselineService {
     createdBy?: number;
     sourceRunId?: number;
     tags?: string[];
+    mode?: BaselineCreationMode;
+    snapshotDate?: Date;
+    defaultBehavior?: BaselineDefaultBehavior;
   }): Promise<FundBaseline> {
     const startTime = Date.now();
     const {
@@ -204,11 +229,23 @@ export class BaselineService {
       createdBy,
       sourceRunId,
       tags = [],
+      mode = 'manual',
+      snapshotDate,
+      defaultBehavior = 'auto',
     } = params;
     const actorId = createdBy ?? SYSTEM_ACTOR_ID;
+    let operationType: 'create' | 'reuse' = 'create';
+
+    if (mode !== 'manual' && sourceRunId == null) {
+      throw new Error(`Automated baseline mode ${mode} requires sourceRunId`);
+    }
 
     try {
       const baseline = await db.transaction(async (tx) => {
+        if (actorId === SYSTEM_ACTOR_ID) {
+          await this.verifySystemActorExists(tx);
+        }
+
         if (sourceRunId != null) {
           const existingBaseline = await tx.query.fundBaselines.findFirst({
             where: and(
@@ -218,19 +255,30 @@ export class BaselineService {
           });
 
           if (existingBaseline) {
+            operationType = 'reuse';
+            log.info(
+              {
+                event: 'baseline.reused',
+                fundId,
+                sourceRunId,
+                baselineId: existingBaseline.id,
+                mode,
+              },
+              'Reused existing baseline'
+            );
             return existingBaseline;
           }
         }
 
-        const latestMetrics = await this.getBaselineMetrics(tx, fundId, sourceRunId);
+        const latestMetrics = await this.getBaselineMetrics(tx, fundId, mode, sourceRunId);
         if (!latestMetrics) {
           recordSystemError('baseline-service', 'missing_fund_metrics');
           throw new Error('No fund metrics available to create baseline');
         }
 
         const portfolioData = await this.getPortfolioComposition(tx, fundId);
-        const reserveData = await this.getReserveSnapshot(tx, fundId);
-        const pacingData = await this.getPacingSnapshot(tx, fundId);
+        const reserveData = await this.getReserveSnapshot(tx, fundId, mode, sourceRunId);
+        const pacingData = await this.getPacingSnapshot(tx, fundId, mode, sourceRunId);
 
         const existingDefault = await tx.query.fundBaselines.findFirst({
           where: and(
@@ -240,13 +288,20 @@ export class BaselineService {
           ),
         });
 
+        const shouldBeDefault =
+          defaultBehavior === 'force_default'
+            ? true
+            : defaultBehavior === 'never_default'
+              ? false
+              : !existingDefault;
+
         const baselineData: InsertFundBaseline = {
           fundId,
           name,
           baselineType,
           periodStart,
           periodEnd,
-          snapshotDate: new Date(),
+          snapshotDate: snapshotDate ?? new Date(),
           totalValue: latestMetrics.totalValue,
           deployedCapital: portfolioData.deployedCapital,
           irr: latestMetrics.irr,
@@ -262,7 +317,7 @@ export class BaselineService {
           reserveAllocation: reserveData,
           pacingMetrics: pacingData,
           createdBy: actorId,
-          isDefault: !existingDefault,
+          isDefault: shouldBeDefault,
           description,
           sourceRunId,
           tags,
@@ -274,12 +329,29 @@ export class BaselineService {
           throw new Error('Failed to create baseline');
         }
 
+        log.info(
+          {
+            event: 'baseline.created',
+            fundId,
+            sourceRunId,
+            baselineId: createdBaseline.id,
+            mode,
+            isDefault: createdBaseline.isDefault,
+          },
+          'Created baseline'
+        );
+
         return createdBaseline;
       });
 
       // Record metrics
       const duration = (Date.now() - startTime) / 1000;
-      recordBaselineOperation(fundId.toString(), 'create', baselineType, duration);
+      recordBaselineOperation(
+        fundId.toString(),
+        operationType,
+        baselineType,
+        operationType === 'create' ? duration : undefined
+      );
 
       return baseline;
     } catch (error: unknown) {
@@ -293,6 +365,17 @@ export class BaselineService {
         });
 
         if (existingBaseline) {
+          log.info(
+            {
+              event: 'baseline.reused_after_race',
+              fundId,
+              sourceRunId,
+              baselineId: existingBaseline.id,
+              mode,
+            },
+            'Reused existing baseline after unique-constraint race'
+          );
+          recordBaselineOperation(fundId.toString(), 'reuse', baselineType);
           return existingBaseline;
         }
       }
@@ -302,7 +385,10 @@ export class BaselineService {
     }
   }
 
-  async createBaselineFromCalcRun(runId: number): Promise<FundBaseline> {
+  async createBaselineFromCalcRun(
+    runId: number,
+    options: CreateBaselineFromCalcRunOptions = {}
+  ): Promise<FundBaseline> {
     const run = await db.query.calcRuns.findFirst({
       where: eq(calcRuns.id, runId),
     });
@@ -311,8 +397,16 @@ export class BaselineService {
       throw new Error(`Calc run ${runId} not found`);
     }
 
+    if (!run.completedAt) {
+      throw new Error(`Calc run ${runId} is not completed`);
+    }
+
     const periodStart = run.requestedAt;
-    const periodEnd = ensureOrderedPeriod(periodStart, run.completedAt ?? new Date());
+    const periodEnd = ensureOrderedPeriod(periodStart, run.completedAt);
+    const mode = options.mode ?? 'calc_run';
+    const tags = mergeUniqueTags(getBaselineTagsForMode(mode), options.additionalTags);
+    const defaultBehavior =
+      options.defaultBehavior ?? (mode === 'backfill' ? 'never_default' : 'auto');
 
     return await this.createBaseline({
       fundId: run.fundId,
@@ -323,7 +417,10 @@ export class BaselineService {
       periodEnd,
       createdBy: SYSTEM_ACTOR_ID,
       sourceRunId: run.id,
-      tags: ['automatic', 'calc-run'],
+      tags,
+      mode,
+      snapshotDate: run.completedAt,
+      defaultBehavior,
     });
   }
 
@@ -425,8 +522,13 @@ export class BaselineService {
       };
     },
     fundId: number,
+    mode: BaselineCreationMode,
     sourceRunId?: number
   ) {
+    if (mode !== 'manual' && sourceRunId == null) {
+      throw new Error(`Automated baseline mode ${mode} requires sourceRunId`);
+    }
+
     if (sourceRunId != null) {
       const attributedMetrics = await reader.query.fundMetrics.findFirst({
         where: and(eq(fundMetrics.fundId, fundId), eq(fundMetrics.runId, sourceRunId)),
@@ -436,6 +538,39 @@ export class BaselineService {
       if (attributedMetrics) {
         return attributedMetrics;
       }
+
+      if (mode !== 'manual') {
+        if (process.env['ALLOW_METRIC_FALLBACK'] === '1') {
+          log.warn(
+            {
+              event: 'baseline.metric_fallback',
+              fundId,
+              sourceRunId,
+              mode,
+              reason: 'escape_hatch',
+            },
+            'Falling back to latest fund metrics because ALLOW_METRIC_FALLBACK=1'
+          );
+          recordBaselineMetricFallback(mode, 'escape_hatch');
+          return await reader.query.fundMetrics.findFirst({
+            where: eq(fundMetrics.fundId, fundId),
+            orderBy: desc(fundMetrics.metricDate),
+          });
+        } else {
+          throw new Error(`No attributed fund metrics for run ${sourceRunId}`);
+        }
+      }
+
+      log.warn(
+        {
+          event: 'baseline.metric_fallback',
+          fundId,
+          sourceRunId,
+          mode,
+          reason: 'manual_latest_by_fund',
+        },
+        'Falling back to latest fund metrics for manual baseline creation'
+      );
     }
 
     return await reader.query.fundMetrics.findFirst({
@@ -460,6 +595,11 @@ export class BaselineService {
     },
     fundId: number
   ) {
+    // KNOWN LIMITATION: This reads live portfolio company and investment state, not an
+    // immutable calc-run snapshot. If the portfolio changes between calc dispatch and
+    // completion, the baseline captures completion-time composition rather than
+    // dispatch-time composition. True drift detection needs mutation timestamps or
+    // immutable portfolio snapshots and is intentionally deferred.
     const companies = await reader.query.portfolioCompanies.findMany({
       where: eq(portfolioCompanies.fundId, fundId),
     });
@@ -589,8 +729,31 @@ export class BaselineService {
         };
       };
     },
-    fundId: number
+    fundId: number,
+    mode: BaselineCreationMode,
+    sourceRunId?: number
   ) {
+    if (mode !== 'manual' && sourceRunId == null) {
+      throw new Error(`Automated baseline mode ${mode} requires sourceRunId`);
+    }
+
+    if (sourceRunId != null && mode !== 'manual') {
+      const attributedSnapshot = await reader.query.fundSnapshots.findFirst({
+        where: and(
+          eq(fundSnapshots.fundId, fundId),
+          eq(fundSnapshots.type, 'RESERVE'),
+          eq(fundSnapshots.runId, sourceRunId)
+        ),
+        orderBy: [desc(fundSnapshots.snapshotTime), desc(fundSnapshots.createdAt)],
+      });
+
+      if (!attributedSnapshot) {
+        throw new Error(`No RESERVE snapshot found for run ${sourceRunId}`);
+      }
+
+      return attributedSnapshot.payload || {};
+    }
+
     const snapshot = await reader.query.fundSnapshots.findFirst({
       where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'RESERVE')),
       orderBy: desc(fundSnapshots.createdAt),
@@ -610,14 +773,58 @@ export class BaselineService {
         };
       };
     },
-    fundId: number
+    fundId: number,
+    mode: BaselineCreationMode,
+    sourceRunId?: number
   ) {
+    if (mode !== 'manual' && sourceRunId == null) {
+      throw new Error(`Automated baseline mode ${mode} requires sourceRunId`);
+    }
+
+    if (sourceRunId != null && mode !== 'manual') {
+      const attributedSnapshot = await reader.query.fundSnapshots.findFirst({
+        where: and(
+          eq(fundSnapshots.fundId, fundId),
+          eq(fundSnapshots.type, 'PACING'),
+          eq(fundSnapshots.runId, sourceRunId)
+        ),
+        orderBy: [desc(fundSnapshots.snapshotTime), desc(fundSnapshots.createdAt)],
+      });
+
+      if (!attributedSnapshot) {
+        throw new Error(`No PACING snapshot found for run ${sourceRunId}`);
+      }
+
+      return attributedSnapshot.payload || {};
+    }
+
     const snapshot = await reader.query.fundSnapshots.findFirst({
       where: and(eq(fundSnapshots.fundId, fundId), eq(fundSnapshots.type, 'PACING')),
       orderBy: desc(fundSnapshots.createdAt),
     });
 
     return snapshot?.payload || {};
+  }
+
+  private async verifySystemActorExists(reader: {
+    query: {
+      users: {
+        findFirst: typeof db.query.users.findFirst;
+      };
+    };
+  }): Promise<void> {
+    const systemActor = await reader.query.users.findFirst({
+      where: and(eq(users.id, SYSTEM_ACTOR_ID), eq(users.username, SYSTEM_ACTOR_USERNAME)),
+      columns: {
+        id: true,
+      },
+    });
+
+    if (!systemActor) {
+      throw new Error(
+        `System actor (id=${SYSTEM_ACTOR_ID}, username=${SYSTEM_ACTOR_USERNAME}) not found`
+      );
+    }
   }
 }
 

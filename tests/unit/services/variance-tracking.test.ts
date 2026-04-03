@@ -16,11 +16,13 @@ import { Decimal } from '../../../shared/lib/decimal-utils';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 import { db } from '../../../server/db';
+import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_USERNAME } from '../../../shared/constants/system-actor';
 
 // Mock metrics functions
 vi.mock('../../../server/metrics/variance-metrics', () => ({
   recordVarianceReportGenerated: vi.fn(),
   recordBaselineOperation: vi.fn(),
+  recordBaselineMetricFallback: vi.fn(),
   recordAlertGenerated: vi.fn(),
   recordAlertAction: vi.fn(),
   updateFundVarianceScore: vi.fn(),
@@ -50,6 +52,9 @@ vi.mock('../../../server/db', () => {
     fundBaselines: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+    },
+    users: {
+      findFirst: vi.fn(),
     },
     calcRuns: {
       findFirst: vi.fn(),
@@ -120,6 +125,10 @@ describe('BaselineService', () => {
     sandbox = createSandbox();
     service = new BaselineService();
     vi.clearAllMocks();
+    mockDb.query.users.findFirst.mockResolvedValue({
+      id: SYSTEM_ACTOR_ID,
+      username: SYSTEM_ACTOR_USERNAME,
+    });
   });
 
   afterEach(async () => {
@@ -459,6 +468,7 @@ describe('BaselineService', () => {
         completedAt: new Date('2025-01-15T00:00:00Z'),
       });
 
+      mockDb.query.fundMetrics.findFirst.mockReset();
       mockDb.query.fundMetrics.findFirst.mockResolvedValue({
         fundId: 1,
         runId: 42,
@@ -471,7 +481,9 @@ describe('BaselineService', () => {
       });
 
       mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockReset();
       mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+      mockDb.query.fundBaselines.findFirst.mockReset();
       mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
 
       const result = await service.createBaselineFromCalcRun(42);
@@ -479,6 +491,88 @@ describe('BaselineService', () => {
       expect(result.name).toBe('Automated Baseline v7');
       expect(mockDb.__getLastInsertData().sourceRunId).toBe(42);
       expect(mockDb.__getLastInsertData().createdBy).toBe(999999);
+    });
+
+    it('should require run-scoped metrics for calc-run baselines', async () => {
+      mockDb.query.calcRuns.findFirst.mockResolvedValue({
+        id: 42,
+        fundId: 1,
+        configVersion: 7,
+        requestedAt: new Date('2025-01-01T00:00:00Z'),
+        completedAt: new Date('2025-01-15T00:00:00Z'),
+      });
+
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue(null);
+
+      await expect(service.createBaselineFromCalcRun(42)).rejects.toThrow(
+        'No attributed fund metrics for run 42'
+      );
+    });
+
+    it('should honor ALLOW_METRIC_FALLBACK for calc-run baselines during rollout', async () => {
+      vi.stubEnv('ALLOW_METRIC_FALLBACK', '1');
+
+      mockDb.query.calcRuns.findFirst.mockResolvedValue({
+        id: 42,
+        fundId: 1,
+        configVersion: 7,
+        requestedAt: new Date('2025-01-01T00:00:00Z'),
+        completedAt: new Date('2025-01-15T00:00:00Z'),
+      });
+
+      mockDb.query.fundMetrics.findFirst.mockReset();
+      mockDb.query.fundMetrics.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        fundId: 1,
+        totalValue: '2600000.00',
+        irr: '0.1800',
+        multiple: '1.4000',
+        dpi: '0.9000',
+        tvpi: '1.3000',
+        metricDate: new Date(),
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockReset();
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
+      mockDb.query.fundBaselines.findFirst.mockReset();
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      try {
+        const result = await service.createBaselineFromCalcRun(42);
+        expect(result.id).toBe('test-id');
+        expect(mockDb.__getLastInsertData().totalValue).toBe('2600000.00');
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('should require same-run reserve snapshots for calc-run baselines', async () => {
+      mockDb.query.calcRuns.findFirst.mockResolvedValue({
+        id: 42,
+        fundId: 1,
+        configVersion: 7,
+        requestedAt: new Date('2025-01-01T00:00:00Z'),
+        completedAt: new Date('2025-01-15T00:00:00Z'),
+      });
+
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue({
+        fundId: 1,
+        runId: 42,
+        totalValue: '2750000.00',
+        irr: '0.1950',
+        multiple: '1.5100',
+        dpi: '0.9300',
+        tvpi: '1.4200',
+        metricDate: new Date(),
+      });
+
+      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
+      mockDb.query.fundSnapshots.findFirst.mockResolvedValueOnce(null);
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+
+      await expect(service.createBaselineFromCalcRun(42)).rejects.toThrow(
+        'No RESERVE snapshot found for run 42'
+      );
     });
   });
 

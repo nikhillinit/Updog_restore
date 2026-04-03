@@ -15,6 +15,7 @@ import { db } from '../../../server/db';
 vi.mock('../../../server/metrics/variance-metrics', () => ({
   recordVarianceReportGenerated: vi.fn(),
   recordBaselineOperation: vi.fn(),
+  recordBaselineMetricFallback: vi.fn(),
   recordAlertGenerated: vi.fn(),
   recordAlertAction: vi.fn(),
   updateFundVarianceScore: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock('../../../server/db', () => {
     portfolioCompanies: { findMany: vi.fn() },
     fundSnapshots: { findFirst: vi.fn() },
     fundBaselines: { findFirst: vi.fn(), findMany: vi.fn() },
+    users: { findFirst: vi.fn() },
     calcRuns: { findFirst: vi.fn(), findMany: vi.fn() },
     varianceReports: { findFirst: vi.fn(), findMany: vi.fn() },
     alertRules: { findMany: vi.fn() },
@@ -116,6 +118,10 @@ describe('BaselineService system actor integration', () => {
     mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
     mockDb.query.fundSnapshots.findFirst.mockResolvedValue(null);
     mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+    mockDb.query.users.findFirst.mockResolvedValue({
+      id: SYSTEM_ACTOR_ID,
+      username: SYSTEM_ACTOR_USERNAME,
+    });
   }
 
   beforeEach(() => {
@@ -165,11 +171,27 @@ describe('BaselineService system actor integration', () => {
       completedAt: new Date('2025-01-02'),
     });
     seedMetricsMocks();
+    mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
 
     await service.createBaselineFromCalcRun(10);
 
     const inserted = mockDb.__getLastInsertData();
     expect(inserted).not.toBeNull();
     expect(inserted!['createdBy']).toBe(SYSTEM_ACTOR_ID);
+  });
+
+  it('fails automated baseline creation when the system actor is missing', async () => {
+    seedMetricsMocks();
+    mockDb.query.users.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.createBaseline({
+        fundId: 1,
+        name: 'Automated Baseline',
+        baselineType: 'milestone',
+        periodStart: new Date('2025-01-01'),
+        periodEnd: new Date('2025-03-31'),
+      })
+    ).rejects.toThrow('System actor (id=999999, username=system) not found');
   });
 });

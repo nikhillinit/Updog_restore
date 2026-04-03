@@ -466,4 +466,50 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
       restorePhase0Env(originalEnv);
     }
   }, 60_000);
+
+  it('fails with a clear error when the system actor row is missing', async () => {
+    await runMigrationsToVersion(container);
+
+    const { fundId, runId } = await seedPhase0CalcRunScenario();
+    await adminPool.query('DELETE FROM users WHERE id = 999999');
+
+    const originalEnv = {
+      DATABASE_URL: process.env.DATABASE_URL,
+      NEON_DATABASE_URL: process.env.NEON_DATABASE_URL,
+      USE_REAL_DB_IN_VITEST: process.env.USE_REAL_DB_IN_VITEST,
+    };
+
+    let modulePool: Pool | null = null;
+
+    try {
+      const modules = await loadPhase0Automation(container.getConnectionUri());
+      modulePool = modules.modulePool;
+
+      modules.tracking.resetCompletionHandlers();
+      modules.handlers.resetCompletionHandlerRegistration();
+      modules.handlers.registerCompletionHandlers();
+
+      await expect(modules.tracking.markCalcRunCompletedIfReady(runId)).rejects.toThrow(
+        'System actor (id=999999, username=system) not found'
+      );
+
+      const baselineResult = await adminPool.query<{ count: string }>(
+        `
+            SELECT COUNT(*)::text AS count
+            FROM fund_baselines
+            WHERE fund_id = $1 AND source_run_id = $2
+          `,
+        [fundId, runId]
+      );
+
+      expect(baselineResult.rows[0]?.count).toBe('0');
+    } finally {
+      if (modulePool) {
+        await modulePool.end();
+      }
+      vi.doUnmock('../../server/db');
+      vi.resetModules();
+      restorePhase0Env(originalEnv);
+    }
+  }, 60_000);
 });

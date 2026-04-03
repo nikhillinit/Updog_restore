@@ -45,6 +45,7 @@ vi.mock('../../../server/services/fund-metrics-calculator', () => ({
 vi.mock('../../../server/metrics/variance-metrics', () => ({
   recordVarianceReportGenerated: vi.fn(),
   recordBaselineOperation: vi.fn(),
+  recordBaselineMetricFallback: vi.fn(),
   recordAlertGenerated: vi.fn(),
   recordAlertAction: vi.fn(),
   updateFundVarianceScore: vi.fn(),
