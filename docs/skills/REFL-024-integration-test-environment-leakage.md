@@ -3,6 +3,7 @@ type: reflection
 id: REFL-024
 title: Integration Test Environment Leakage (5-Layer Defense)
 status: DRAFT
+last_updated: 2026-04-03
 date: 2026-02-18
 version: 1
 severity: high

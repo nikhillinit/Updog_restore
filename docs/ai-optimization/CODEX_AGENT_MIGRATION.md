@@ -1,12 +1,12 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # Codex Review Agent Migration to In-Repo AI Orchestrator
 
-**Date:** October 5, 2025 **Status:** ✅ Complete **Migration Type:** External
-MCP → In-Repo Orchestrator
+**Date:** October 5, 2025 **Status:** Complete **Migration Type:** External MCP
+-> In-Repo Orchestrator
 
 ---
 
@@ -30,36 +30,36 @@ reviews** with zero external dependencies.
 **Architecture:**
 
 ```
-Codex Agent → MCP Server (external) → AI Providers
-                ↓ (unaudited)
+Codex Agent -> MCP Server (external) -> AI Providers
+                v (unaudited)
           archive/2026-q1/unused-code/claude_code-multi-AI-MCP/
 ```
 
 **Issues:**
 
-- ❌ External code execution
-- ❌ No supply-chain verification
-- ❌ No budget controls
-- ❌ No audit trail
-- ❌ Trust-on-First-Use (TOFU) risk
+- No external code execution controls
+- No supply-chain verification
+- No budget controls
+- No audit trail
+- Trust-on-First-Use (TOFU) risk
 
 ### After (In-Repo Orchestrator)
 
 **Architecture:**
 
 ```
-Codex Agent → In-Repo API → AI Orchestrator → AI Providers
-                ↓ (version-controlled)
+Codex Agent -> In-Repo API -> AI Orchestrator -> AI Providers
+                v (version-controlled)
           server/services/ai-orchestrator.ts
 ```
 
 **Benefits:**
 
-- ✅ All code in repository
-- ✅ Full audit trail (JSONL logs)
-- ✅ Budget controls (daily limits)
-- ✅ Cost tracking per model
-- ✅ Zero external dependencies
+- All code in repository
+- Full audit trail (JSONL logs)
+- Budget controls (daily limits)
+- Cost tracking per model
+- Zero external dependencies
 
 ---
 
@@ -161,11 +161,10 @@ private parseAIResponse(text: string, provider: string): ReviewIssue[] {
 
 **Changes:**
 
-- ✅ Replaced "MCP Integration" section with "In-Repo AI Orchestrator
-  Integration"
-- ✅ Updated comparison table (4 AI providers instead of 3)
-- ✅ Added supply-chain and budget control rows
-- ✅ Documented API requirements
+- Replaced "MCP Integration" section with "In-Repo AI Orchestrator Integration"
+- Updated comparison table (4 AI providers instead of 3)
+- Added supply-chain and budget control rows
+- Documented API requirements
 
 ---
 
@@ -199,20 +198,20 @@ const agent = new CodexReviewAgent({
 
 ```
 1. Developer saves file (e.g., Dashboard.tsx)
-   ↓
+   v
 2. Codex Agent detects change (1s debounce)
-   ↓
+   v
 3. Agent reads file content
-   ↓
+   v
 4. For each AI provider (Claude, GPT, Gemini, DeepSeek):
-   → POST to /api/ai/ask
-   → AI Orchestrator calls provider
-   → Returns structured review
-   ↓
+   -> POST to /api/ai/ask
+   -> AI Orchestrator calls provider
+   -> Returns structured review
+   v
 5. Agent aggregates issues from all AIs
-   ↓
+   v
 6. Generates consensus
-   ↓
+   v
 7. Displays formatted results in terminal
 ```
 
@@ -220,19 +219,19 @@ const agent = new CodexReviewAgent({
 
 ```
 ================================================================================
-📊 Codex Review: client/src/components/Dashboard.tsx
+Codex Review: client/src/components/Dashboard.tsx
 ================================================================================
 
-✅ GOOD: Code looks good with minimal issues
+[GOOD] Code looks good with minimal issues
 
-🟡 MEDIUM (2):
+[MEDIUM] (2):
   1. [claude] Consider extracting this complex calculation into a separate function
   2. [gpt] Add error boundary to handle potential rendering errors
 
-🔵 LOW (1):
+[LOW] (1):
   1. [deepseek] Remove console.log statements before committing
 
-ℹ️ INFO (1):
+[INFO] (1):
   1. [gemini] TODO comment found - consider creating a ticket
 
 ================================================================================
@@ -323,7 +322,7 @@ function test() {
 }
 ```
 
-**Save the file** → Agent automatically reviews and displays issues!
+**Save the file** -> Agent automatically reviews and displays issues!
 
 ### 3. Verify Audit Logs
 
@@ -362,7 +361,7 @@ cat logs/ai-budget.json
 **Parallel (in-repo orchestrator):**
 
 - All 4 AIs: ~2-3 seconds
-- **Total: ~2-3 seconds** ✅
+- **Total: ~2-3 seconds**
 
 **Speedup: 3-4x faster**
 
@@ -541,7 +540,7 @@ npm run review:watch
 
 ---
 
-## Success Metrics ✅
+## Success Metrics
 
 - [x] **Zero external dependencies** - All code in repository
 - [x] **Same AI models** - Claude, GPT, Gemini, DeepSeek
@@ -553,7 +552,7 @@ npm run review:watch
 
 ---
 
-**Status:** ✅ Migration Complete - Codex Review Agent now uses in-repo
+**Status:** Migration Complete - Codex Review Agent now uses in-repo
 orchestrator
 
 **Next Steps:** Start using `npm run review:watch` for real-time AI code

@@ -3,6 +3,7 @@ type: reflection
 id: REFL-001
 title: Dynamic Imports Prevent Test Side Effects
 status: VERIFIED
+last_updated: 2026-04-03
 date: 2026-01-18
 version: 1
 severity: medium

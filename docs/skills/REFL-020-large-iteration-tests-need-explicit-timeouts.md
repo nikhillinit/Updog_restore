@@ -3,6 +3,7 @@ type: reflection
 id: REFL-020
 title: Large-Iteration Tests Need Explicit Timeouts
 status: DRAFT
+last_updated: 2026-04-03
 date: 2026-02-15
 version: 1
 severity: medium

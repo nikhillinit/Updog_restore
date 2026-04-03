@@ -3,6 +3,7 @@ type: reflection
 id: REFL-021
 title: exactOptionalPropertyTypes Requires Spread Pattern
 status: DRAFT
+last_updated: 2026-04-03
 date: 2026-02-16
 version: 2
 severity: medium

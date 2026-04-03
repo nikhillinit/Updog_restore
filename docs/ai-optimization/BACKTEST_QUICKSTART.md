@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # AI Agent Backtest Framework - Quick Start Guide
@@ -54,7 +54,7 @@ npm run backtest:report
 
    ```
    9bc74a1 - fix(ts): bracket notation for index signature
-   203c541 - fix: Phase 1 - zero TypeScript errors (36 → 0)
+   203c541 - fix: Phase 1 - zero TypeScript errors (36 -> 0)
    6fd1c99 - fix: Phase 0 - security hardening
    927a0c3 - fix: resolve all TypeScript errors using AI agents
    ```
@@ -99,10 +99,10 @@ return calculations[metric as keyof typeof calculations];
 
 | Pattern             | Success | Duration | Cost  | Similarity | Approach |
 | ------------------- | ------- | -------- | ----- | ---------- | -------- |
-| Evaluator-Optimizer | ✅      | 12.3s    | $0.15 | 92%        | Same     |
-| Router (deepseek)   | ✅      | 8.1s     | $0.11 | 95%        | Same     |
-| Orchestrator        | ✅      | 15.7s    | $0.22 | 88%        | Better   |
-| PromptCache         | ✅      | 6.4s     | $0.06 | 92%        | Same     |
+| Evaluator-Optimizer | Yes     | 12.3s    | $0.15 | 92%        | Same     |
+| Router (deepseek)   | Yes     | 8.1s     | $0.11 | 95%        | Same     |
+| Orchestrator        | Yes     | 15.7s    | $0.22 | 88%        | Better   |
+| PromptCache         | Yes     | 6.4s     | $0.06 | 92%        | Same     |
 
 **Winner**: PromptCache (fastest + cheapest)
 
@@ -122,13 +122,13 @@ return calculations[metric as keyof typeof calculations];
 
 | Pattern             | Success | Iterations | Duration | Human Time |
 | ------------------- | ------- | ---------- | -------- | ---------- |
-| Evaluator-Optimizer | ✅      | 2          | 18s      | 45 min     |
-| Router              | ✅      | 1          | 12s      | 45 min     |
-| Orchestrator        | ✅      | 1          | 22s      | 45 min     |
+| Evaluator-Optimizer | Yes     | 2          | 18s      | 45 min     |
+| Router              | Yes     | 1          | 12s      | 45 min     |
+| Orchestrator        | Yes     | 1          | 22s      | 45 min     |
 
 **Winner**: Router (single iteration, fastest)
 
-**Agent Approach**: Router detected "runtime error" → routed to `grok` →
+**Agent Approach**: Router detected "runtime error" -> routed to `grok` ->
 immediate fix with null guards
 
 ## Key Metrics
@@ -177,13 +177,13 @@ Token Savings:    90%  (cached vs uncached)
 
 **TypeScript Errors**:
 
-- Best Pattern: Router → deepseek
+- Best Pattern: Router -> deepseek
 - Success: 92%
 - Avg Duration: 8.5s
 
 **Test Failures**:
 
-- Best Pattern: Router → claude-sonnet
+- Best Pattern: Router -> claude-sonnet
 - Success: 87%
 - Avg Duration: 11.2s
 
@@ -195,7 +195,7 @@ Token Savings:    90%  (cached vs uncached)
 
 **Performance Issues**:
 
-- Best Pattern: Router → gemini
+- Best Pattern: Router -> gemini
 - Success: 85%
 - Avg Duration: 13.7s
 
@@ -208,9 +208,9 @@ The Router pattern automatically optimized based on 100 historical fixes:
 ```typescript
 // Auto-generated routing rules from backtest data
 const optimizedRouting: Record<TaskType, AIModel> = {
-  'typescript-error': 'deepseek', // 92% success (↑7% from default)
+  'typescript-error': 'deepseek', // 92% success (+7% from default)
   'test-failure': 'claude-sonnet', // 87% success
-  'runtime-error': 'grok', // 89% success (↑12% from default)
+  'runtime-error': 'grok', // 89% success (+12% from default)
   performance: 'gemini', // 85% success
   refactoring: 'claude-opus', // 81% success
 };
@@ -221,14 +221,14 @@ const optimizedRouting: Record<TaskType, AIModel> = {
 **Without PromptCache**:
 
 ```
-100 fixes × $0.15/fix = $15.00
+100 fixes x $0.15/fix = $15.00
 ```
 
 **With PromptCache** (73% hit rate):
 
 ```
-27 uncached × $0.15 = $4.05
-73 cached × $0.02   = $1.46
+27 uncached x $0.15 = $4.05
+73 cached x $0.02   = $1.46
 Total: $5.51 (63% savings)
 ```
 
@@ -242,7 +242,7 @@ Total: $5.51 (63% savings)
 
 ```
 Pattern: Orchestrator
-Success: ✅ Yes
+Success: Yes
 Strategy:
   1. Analyze test failure patterns (deepseek)
   2. Identify race condition (grok)
@@ -256,17 +256,17 @@ Quality: Same approach as human fix
 
 ### Example 2: TypeScript Compilation Errors
 
-**Commit**: `203c541` - "fix: Phase 1 - zero TypeScript errors (36 → 0)"
+**Commit**: `203c541` - "fix: Phase 1 - zero TypeScript errors (36 -> 0)"
 
 **Agent Performance**:
 
 ```
 Pattern: Router
-Success: ✅ Yes (35/36 errors)
+Success: Yes (35/36 errors)
 Routing Decisions:
-  - Index signature errors → deepseek (15/15 success)
-  - Import/export errors → claude-sonnet (12/13 success)
-  - Type inference errors → gpt-4 (8/8 success)
+  - Index signature errors -> deepseek (15/15 success)
+  - Import/export errors -> claude-sonnet (12/13 success)
+  - Type inference errors -> gpt-4 (8/8 success)
 
 Duration: 8.3s avg per error
 Total Cost: $3.96 for all 36 errors
@@ -304,8 +304,8 @@ npm run backtest:weekly
 # Output:
 # - New test cases: 12
 # - Agent success: 10/12 (83%)
-# - Performance trend: ↑5% vs last week
-# - Cost trend: ↓12% (better caching)
+# - Performance trend: +5% vs last week
+# - Cost trend: -12% (better caching)
 ```
 
 ### Performance Tracking
@@ -320,12 +320,12 @@ Week 4:  Success 88%, Cost $0.08/fix (improved cache hit rate)
 ### Alerts
 
 ```
-🚨 Alert: Agent performance degradation detected!
+Alert: Agent performance degradation detected!
    Success rate: 78% (below 85% threshold)
 
    Analysis:
    - New error type: React Hook dependency warnings
-   - Router routed to wrong model (gpt-4 → should be claude-sonnet)
+   - Router routed to wrong model (gpt-4 -> should be claude-sonnet)
 
    Action: Update routing rules for React errors
 ```
@@ -379,7 +379,7 @@ npm run backtest:run -- --max-cost=5.00 --stop-on-budget
 CHANGES=$(git diff --cached --name-only)
 
 if echo "$CHANGES" | grep -q "test.*\.ts\|\.spec\.ts"; then
-  echo "🤖 Running AI agent validation..."
+  echo "Running AI agent validation..."
   npm run backtest:validate-changes
 fi
 ```
@@ -417,7 +417,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🤖 AI Agent Validation\n\n${results.summary}`
+              body: `## AI Agent Validation\n\n${results.summary}`
             });
 ```
 
@@ -446,10 +446,10 @@ For 100 bugs/month:
 
 ```
 Human developer:
-- $100/hour × 200 hours = $20,000/month
+- $100/hour x 200 hours = $20,000/month
 
 AI agents:
-- $0.12/fix × 100 fixes = $12/month
+- $0.12/fix x 100 fixes = $12/month
 
 ROI: 1,666x
 ```
@@ -516,4 +516,4 @@ Human advantages:
 npm run backtest:extract && npm run backtest:run
 ```
 
-Expected output: Success rate 85%+, 10s avg duration, $0.12/fix 🚀
+Expected output: Success rate 85%+, 10s avg duration, $0.12/fix

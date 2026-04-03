@@ -3,6 +3,7 @@ type: reflection
 id: REFL-026
 title: Drizzle ORM Mock Chain Overwrite
 status: DRAFT
+last_updated: 2026-04-03
 date: 2026-02-24
 version: 1
 severity: high

@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # Capital Allocation - Follow-On Projection Table Design
@@ -10,7 +10,7 @@ last_updated: 2026-01-19
 
 ---
 
-## 🎯 Objective
+## Objective
 
 Replace the simple "Follow-On Capital: $X.XM" output with a detailed,
 interactive table showing stage-by-stage capital flow projections. This
@@ -19,7 +19,7 @@ Capital Pacing Model**.
 
 ---
 
-## 📊 Table Design
+## Table Design
 
 ### Visual Layout
 
@@ -31,15 +31,15 @@ Follow-On Strategy - Capital Flow Projection
 │ Follow-On   │ Graduation │ # Graduating │ Particip.  │ # Follow-  │ Check Size  │   Capital    │
 │   Stage     │   Rate     │  Companies   │     %      │    Ons     │   per Co.   │  Allocated   │
 ├─────────────┼────────────┼──────────────┼────────────┼────────────┼─────────────┼──────────────┤
-│ Seed        │   40%  ⬜  │    7.6  ⬛   │   50%  ⬜  │   4   ⬛   │  $250k  ⬜  │  $946k  ⬛   │
-│ Series A    │   45%  ⬜  │    3.4  ⬛   │  100%  ⬜  │  3.4  ⬛   │  $800k  ⬜  │  $2.8M  ⬛   │
-│ Series B    │   50%  ⬜  │    1.7  ⬛   │  100%  ⬜  │  1.7  ⬛   │  $2.5M  ⬜  │  $4.3M  ⬛   │
-│ Series C+   │   65%  ⬜  │    1.1  ⬛   │  100%  ⬜  │  1.1  ⬛   │  $8.0M  ⬜  │  $8.8M  ⬛   │
+│ Seed        │   40% [I] │    7.6 [C] │   50% [I] │   4   [C] │  $250k [I] │  $946k [C]  │
+│ Series A    │   45% [I] │    3.4 [C] │  100% [I] │  3.4 [C] │  $800k [I] │  $2.8M [C]  │
+│ Series B    │   50% [I] │    1.7 [C] │  100% [I] │  1.7 [C] │  $2.5M [I] │  $4.3M [C]  │
+│ Series C+   │   65% [I] │    1.1 [C] │  100% [I] │  1.1 [C] │  $8.0M [I] │  $8.8M [C]  │
 ├─────────────┴────────────┴──────────────┴────────────┴────────────┴─────────────┼──────────────┤
-│                                                                      TOTAL →      │ $16.8M  ⬛   │
+│                                                                      TOTAL ->     │ $16.8M [C]  │
 └─────────────────────────────────────────────────────────────────────────────────┴──────────────┘
 
-Legend: ⬜ = User Input (white/yellow background) | ⬛ = Calculated Output (gray background)
+Legend: [I] = User Input (white/yellow background) | [C] = Calculated Output (gray background)
 ```
 
 ### Column Definitions
@@ -56,7 +56,7 @@ Legend: ⬜ = User Input (white/yellow background) | ⬛ = Calculated Output (gr
 
 ---
 
-## 🔧 Implementation Components
+## Implementation Components
 
 ### 1. Data Structure
 
@@ -134,7 +134,7 @@ function calculateProRata(
   priorOwnershipPct: number,
   newRoundSize: number
 ): number {
-  // Pro-rata amount = your ownership % × new round size
+  // Pro-rata amount = your ownership % x new round size
   return (priorOwnershipPct / 100) * newRoundSize;
 }
 ```
@@ -154,7 +154,7 @@ function calculateProRata(
 
 ---
 
-## 🎨 Visual Design Principles
+## Visual Design Principles
 
 ### Color Coding
 
@@ -176,7 +176,7 @@ function calculateProRata(
 
 ---
 
-## 📈 Advanced Features (Future)
+## Advanced Features (Future)
 
 ### 1. Scenario Comparison
 
@@ -188,7 +188,7 @@ Sankey diagram showing capital flow through stages
 
 ### 3. What-If Simulator
 
-"What if Series A graduation drops to 30%?" → instant projection update
+"What if Series A graduation drops to 30%?" -> instant projection update
 
 ### 4. Export Capability
 
@@ -196,7 +196,7 @@ Export table as CSV for LP reporting
 
 ---
 
-## ✅ Implementation Checklist
+## Implementation Checklist
 
 ### Phase 1: Core Table (Week 1 Post-Demo)
 
@@ -210,7 +210,7 @@ Export table as CSV for LP reporting
 
 - [ ] Implement "Maintain Ownership" calculation
 - [ ] Add typical round size assumptions per stage
-- [ ] Toggle between Fixed Amount ↔ Pro-Rata
+- [ ] Toggle between Fixed Amount <-> Pro-Rata
 - [ ] Show ownership % tracking across stages
 
 ### Phase 3: Polish & Testing (Week 3)
@@ -223,7 +223,7 @@ Export table as CSV for LP reporting
 
 ---
 
-## 🎯 Success Metrics
+## Success Metrics
 
 **UX Goals:**
 
@@ -239,7 +239,7 @@ Export table as CSV for LP reporting
 
 ---
 
-## 📚 Reference Materials
+## Reference Materials
 
 - **PDF Example**:
   `docs/archive/2025-q4/default-parameters/Capital Allocation Example.pdf`

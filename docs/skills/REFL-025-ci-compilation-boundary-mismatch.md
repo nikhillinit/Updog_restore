@@ -3,6 +3,7 @@ type: reflection
 id: REFL-025
 title: CI Compilation Boundary Mismatch
 status: DRAFT
+last_updated: 2026-04-03
 date: 2026-02-18
 version: 1
 severity: medium
