@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-27
+last_updated: 2026-04-03
 ---
 
 # CLAUDE.md
@@ -50,94 +50,6 @@ log alone? If NO, write it down. If YES, do not create a file.
 - `CHANGELOG.md` - recent changes
 - `DECISIONS.md` - architectural rationale
 - `cheatsheets/daily-workflow.md` - development patterns
-
-## Essential Commands
-
-### Development
-
-- `npm run dev` - Start full development environment (frontend + backend on
-  port 5000)
-- `npm run dev:client` - Frontend only (Vite dev server)
-- `npm run dev:api` - Backend API only (Express with hot reload)
-- `npm run build` - Production build (frontend + backend)
-- `npm run check` - TypeScript type checking
-- `npm run doctor:quick` - Fast module resolution check
-- `npm run doctor:quick` - Fast sidecar health check
-
-### Testing & Quality
-
-- `npm test` - Run full test suite (both server + client projects)
-- `npm test -- --project=server` - Run server tests only (Node.js environment)
-- `npm test -- --project=client` - Run client tests only (jsdom environment)
-- `npm run test:ui` - Tests with interactive dashboard
-- `npm run test:quick` - Skip API tests for faster feedback
-- `npm run lint` - ESLint code quality check
-- `npm run lint:fix` - Auto-fix linting issues
-- **Quality Gates**: See
-  [.claude/WORKFLOW.md](.claude/WORKFLOW.md#quality-gate-protocol) - MANDATORY
-  pre-commit validation
-
-### Database
-
-- `npm run db:push` - Push schema changes to database
-- `npm run db:studio` - Open Drizzle Studio for database management
-
-### AI Tools
-
-- `npm run ai` - Gateway to AI agent operations
-- **PR Verification**: Compare to baseline, not perfection - See
-  [cheatsheets/pr-merge-verification.md](cheatsheets/pr-merge-verification.md)
-
-## MANDATORY WORKFLOW - START HERE
-
-1. **CLAUDE.md** - Current operating guidance and governance
-2. **Repo search** - Check for existing code, commands, skills, and docs
-3. **docs/INDEX.md** - Human-facing documentation routing
-4. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
-5. **CHANGELOG.md** - Check for similar past work
-6. **DECISIONS.md** - Review architectural decisions
-7. **CAPABILITIES.md** - Historical inventory only, if helpful
-
-## BEFORE ANY TASK
-
-```
-START HERE:
-- Read CLAUDE.md
-- Search the repo for existing implementations
-- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
-- Consult CAPABILITIES.md only if historical inventory context helps
-```
-
-## Discovery Routing (Quick Reference)
-
-For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
-
-| Task Type                       | Route To                                  |
-| ------------------------------- | ----------------------------------------- |
-| New feature/capability          | CLAUDE.md -> repo search -> docs/INDEX.md |
-| Phoenix validation              | `/phoenix-truth` command                  |
-| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command                 |
-| Waterfall/clawback issues       | `waterfall-specialist` agent              |
-| Precision/numeric drift         | `phoenix-precision-guardian` agent        |
-| XIRR/fees issues                | `xirr-fees-validator` agent               |
-| Architecture decisions          | DECISIONS.md                              |
-| Milestone governance / PR scope | docs/STABILIZATION-ROADMAP.md             |
-| Troubleshooting                 | cheatsheets/daily-workflow.md             |
-
-**Machine-readable index**: `docs/_generated/router-index.json` **Staleness
-report**: `docs/_generated/staleness-report.md` **Regenerate**:
-`npm run docs:routing:generate`
-
-### Memory, Commands & Skills
-
-- **Memory**: CHANGELOG.md (changes), DECISIONS.md (rationale), cheatsheets/
-  ([INDEX.md](cheatsheets/INDEX.md))
-- **Commands**: `/log-change`, `/log-decision`, `/test-smart`, `/fix-auto`,
-  `/deploy-check`
-- **Superpowers**: `/superpowers:brainstorm`, `/superpowers:write-plan`,
-  `/superpowers:execute-plan` - See
-  [obra/superpowers](https://github.com/obra/superpowers)
-- **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
 
 ## Architecture
 
@@ -195,49 +107,6 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 - `@shared/` → `shared/`
 - `@assets/` → `assets/`
 
-## AI-Augmented Development
-
-- **CLI Gateway**: `npm run ai` - AI agent operations (test, patch, repair,
-  metrics)
-- **Agent Framework**: `packages/agent-core/` - BaseAgent with retry logic,
-  monitoring
-- **Code Quality**: Codacy integration, Trivy security scanning
-- **Codex CLI**: Multi-LLM consultation via ChatGPT Pro (see below)
-
-### Codex CLI Integration
-
-Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks. Uses ChatGPT
-Pro subscription - no API costs.
-
-**Setup:** `tools/maestro/` contains:
-
-- `env.ps1` - Environment setup
-- `scripts/setup-maestro.ps1` - Diagnostic script
-- `snippets/common-workflows.md` - Example commands
-- `README.md` - Full documentation
-
-**Quick usage:**
-
-```bash
-codex exec "Your question" --sandbox read-only
-```
-
-**When to consult Codex:**
-
-- Complex architectural decisions
-- Performance optimization strategies
-- Debugging difficult issues
-- Second opinion on implementation
-
-**Orchestrator workflow:**
-
-1. Call `codex exec "question" --sandbox read-only`
-2. Evaluate Codex suggestions critically
-3. Implement best approach
-4. Codex validates with sandbox evidence
-
-**Auth:** `codex login status` (uses ChatGPT Pro OAuth)
-
 ## Development Setup
 
 ### Quick Start
@@ -260,13 +129,6 @@ npm run doctor
 - **Supported**: Node.js >= 20.19.0 (including Node 22.x)
 - **Package Manager**: npm >= 10.8.0
 
-### Legacy Note
-
-The sidecar architecture (`tools_local/`) was eliminated on 2025-12-20. All
-dependencies are now installed directly via `npm install`. See
-[docs/archive/2025-sidecar/](docs/archive/2025-sidecar/) for historical
-reference only.
-
 ## Quality & Documentation Standards
 
 **Zero Tolerance Quality Policy:**
@@ -282,7 +144,8 @@ reference only.
 **No Emoji Policy:**
 
 - Emojis break CI/CD, reduce accessibility, impair searchability
-- Use text alternatives: `[x]` instead of ✅, `PASS:` instead of checkmarks
+- Use text alternatives: `[x]` instead of checkmarks, `PASS:` instead of
+  checkmarks
 - **See:**
   [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
   for complete guide
@@ -291,6 +154,121 @@ reference only.
 
 - All 30 cheatsheets organized by category:
   [cheatsheets/INDEX.md](cheatsheets/INDEX.md)
+
+## Essential Commands
+
+### Development
+
+- `npm run dev` - Start full development environment (frontend + backend on
+  port 5000)
+- `npm run dev:client` - Frontend only (Vite dev server)
+- `npm run dev:api` - Backend API only (Express with hot reload)
+- `npm run build` - Production build (frontend + backend)
+- `npm run check` - TypeScript type checking
+
+### Testing & Quality
+
+- `npm test` - Run full test suite (both server + client projects)
+- `npm test -- --project=server` - Run server tests only (Node.js environment)
+- `npm test -- --project=client` - Run client tests only (jsdom environment)
+- `npm run test:ui` - Tests with interactive dashboard
+- `npm run test:quick` - Skip API tests for faster feedback
+- `npm run lint` - ESLint code quality check
+- `npm run lint:fix` - Auto-fix linting issues
+- **Quality Gates**: See
+  [.claude/WORKFLOW.md](.claude/WORKFLOW.md#quality-gate-protocol) - MANDATORY
+  pre-commit validation
+
+### Database
+
+- `npm run db:push` - Push schema changes to database
+- `npm run db:studio` - Open Drizzle Studio for database management
+
+### AI Tools
+
+- `npm run ai` - Gateway to AI agent operations
+- **PR Verification**: Compare to baseline, not perfection - See
+  [cheatsheets/pr-merge-verification.md](cheatsheets/pr-merge-verification.md)
+
+## Discovery Routing (Quick Reference)
+
+For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
+
+| Task Type                       | Route To                                  |
+| ------------------------------- | ----------------------------------------- |
+| New feature/capability          | CLAUDE.md -> repo search -> docs/INDEX.md |
+| Phoenix validation              | `/phoenix-truth` command                  |
+| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command                 |
+| Waterfall/clawback issues       | `waterfall-specialist` agent              |
+| Precision/numeric drift         | `phoenix-precision-guardian` agent        |
+| XIRR/fees issues                | `xirr-fees-validator` agent               |
+| Architecture decisions          | DECISIONS.md                              |
+| Milestone governance / PR scope | docs/STABILIZATION-ROADMAP.md             |
+| Troubleshooting                 | cheatsheets/daily-workflow.md             |
+
+**Machine-readable index**: `docs/_generated/router-index.json` **Staleness
+report**: `docs/_generated/staleness-report.md` **Regenerate**:
+`npm run docs:routing:generate`
+
+### Memory, Commands & Skills
+
+- **Memory**: CHANGELOG.md (changes), DECISIONS.md (rationale), cheatsheets/
+  ([INDEX.md](cheatsheets/INDEX.md))
+- **Commands**: `/log-change`, `/log-decision`, `/test-smart`, `/fix-auto`,
+  `/deploy-check`
+- **Superpowers**: `/superpowers:brainstorm`, `/superpowers:write-plan`,
+  `/superpowers:execute-plan` - See
+  [obra/superpowers](https://github.com/obra/superpowers)
+- **Skills**: See [.claude/skills/INDEX.md](.claude/skills/INDEX.md)
+
+## MANDATORY WORKFLOW - START HERE
+
+1. **CLAUDE.md** - Current operating guidance and governance
+2. **Repo search** - Check for existing code, commands, skills, and docs
+3. **docs/INDEX.md** - Human-facing documentation routing
+4. **.claude/DISCOVERY-MAP.md** - Agent-facing discovery routing
+5. **CHANGELOG.md** - Check for similar past work
+6. **DECISIONS.md** - Review architectural decisions
+7. **CAPABILITIES.md** - Historical inventory only, if helpful
+
+## BEFORE ANY TASK
+
+```
+START HERE:
+- Read CLAUDE.md
+- Search the repo for existing implementations
+- Use docs/INDEX.md and .claude/DISCOVERY-MAP.md for routing
+- Consult CAPABILITIES.md only if historical inventory context helps
+```
+
+## Mandatory Pre-Action Checks
+
+- BEFORE changing shared test mocks or fixtures, grep for ALL assertion patterns
+  that depend on current behavior across the full test suite.
+- BEFORE pushing when test infrastructure changed, run `npm test` (full suite),
+  not just targeted tests.
+- BEFORE writing data to JSONB, check schema for dedicated columns. Do NOT nest
+  structured data into a blob when proper columns exist.
+- BEFORE implementing client route changes, trace actual app routing to verify
+  which component renders. Spec may name the wrong component.
+- AFTER subagent batches, diff for files outside owned scope before committing.
+- WHEN errors occur, follow graduated response: lint fails ->
+  `npm run lint:fix`. Type errors -> `npm run check` with targeted fix. Test
+  fails -> run targeted test first, full suite only if targeted passes but
+  suspicion remains.
+
+## AI-Augmented Development
+
+- **CLI Gateway**: `npm run ai` - AI agent operations (test, patch, repair,
+  metrics)
+- **Agent Framework**: `packages/agent-core/` - BaseAgent with retry logic,
+  monitoring
+- **Code Quality**: Codacy integration, Trivy security scanning
+
+### Codex CLI Integration
+
+Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
+`codex exec "question" --sandbox read-only`. See memory for setup details.
 
 ## Babysitter Orchestration
 
