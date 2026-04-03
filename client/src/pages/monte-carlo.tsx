@@ -372,10 +372,16 @@ function useMonteCarloState(fundId: number | null) {
     result: liveResult,
     isRunning,
     isSubmitting,
+    resumeMismatch,
   } = useBacktestLifecycle(fundId);
 
   const [displayedResult, setDisplayedResult] = useState<BacktestResultViewModel | null>(null);
   const [lastConfig, setLastConfig] = useState<BacktestConfig | null>(null);
+
+  useEffect(() => {
+    setDisplayedResult(null);
+    setLastConfig(null);
+  }, [fundId]);
 
   useEffect(() => {
     if (liveResult) setDisplayedResult(liveResult);
@@ -407,6 +413,7 @@ function useMonteCarloState(fundId: number | null) {
     isSubmitting,
     displayedResult,
     lastConfig,
+    resumeMismatch,
     handleSubmit,
     handleRetry,
     handleHistorySelect,
@@ -451,6 +458,12 @@ function MonteCarloSidebar({
 function MonteCarloMainPanel({ state }: { state: ReturnType<typeof useMonteCarloState> }) {
   return (
     <div className="lg:col-span-2 space-y-4">
+      {state.resumeMismatch && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Ignored resumed backtest job from fund {state.resumeMismatch.actualFundId} while viewing
+          the currently selected fund.
+        </div>
+      )}
       <RunnerPanel
         phase={state.jobStatus.phase}
         stage={state.jobStatus.stage}

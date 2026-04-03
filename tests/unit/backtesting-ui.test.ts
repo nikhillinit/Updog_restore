@@ -21,6 +21,7 @@ function makeJobStatusResponse(
 ): BacktestJobStatusResponse {
   return {
     jobId: 'job-123',
+    fundId: 1,
     status: 'simulating',
     stage: 'simulating',
     progressPercent: 45,

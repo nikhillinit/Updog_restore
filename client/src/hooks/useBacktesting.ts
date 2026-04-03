@@ -6,7 +6,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearch } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import type {
@@ -50,6 +50,22 @@ export function useResumeJobId(): string | null {
   const searchString = useSearch();
   const params = new URLSearchParams(searchString);
   return params.get('jobId');
+}
+
+function clearResumeJobIdFromUrl(searchString: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const params = new URLSearchParams(searchString);
+  if (!params.has('jobId')) {
+    return;
+  }
+
+  params.delete('jobId');
+  const nextSearch = params.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+  window.history.replaceState(window.history.state, '', nextUrl);
 }
 
 // ============================================================================
@@ -176,36 +192,98 @@ export function useScenarioCompare() {
  * Composite hook for full backtest lifecycle.
  * Manages: config -> run -> poll -> result fetch.
  */
-export function useBacktestLifecycle(_fundId: number | null) {
+export function useBacktestLifecycle(fundId: number | null) {
+  const searchString = useSearch();
   const resumeJobId = useResumeJobId();
   const asyncRun = useBacktestAsyncRun();
+  const [localJob, setLocalJob] = useState<{ jobId: string; fundId: number } | null>(null);
+  const [dismissedResumeJobId, setDismissedResumeJobId] = useState<string | null>(null);
+  const [resumeMismatch, setResumeMismatch] = useState<{
+    jobId: string;
+    actualFundId: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (localJob && fundId !== null && localJob.fundId !== fundId) {
+      setLocalJob(null);
+    }
+  }, [fundId, localJob]);
+
+  const activeLocalJobId = fundId !== null && localJob?.fundId === fundId ? localJob.jobId : null;
+  const activeResumeJobId =
+    fundId !== null && resumeJobId && resumeJobId !== dismissedResumeJobId ? resumeJobId : null;
 
   // Active job: either from mutation result or URL resume
-  const activeJobId = asyncRun.data?.jobId ?? resumeJobId;
+  const activeJobId = activeLocalJobId ?? activeResumeJobId;
   const jobStatus = useBacktestJobStatus(activeJobId);
+  const hasResumeMismatch =
+    activeResumeJobId !== null &&
+    fundId !== null &&
+    jobStatus.data?.fundId !== undefined &&
+    jobStatus.data.fundId !== fundId;
+
+  useEffect(() => {
+    if (!hasResumeMismatch || !activeResumeJobId || !jobStatus.data?.fundId) {
+      return;
+    }
+
+    setDismissedResumeJobId(activeResumeJobId);
+    setResumeMismatch({
+      jobId: activeResumeJobId,
+      actualFundId: jobStatus.data.fundId,
+    });
+    clearResumeJobIdFromUrl(searchString);
+  }, [activeResumeJobId, hasResumeMismatch, jobStatus.data?.fundId, searchString]);
+
+  useEffect(() => {
+    if (!activeResumeJobId) {
+      return;
+    }
+    setResumeMismatch(null);
+  }, [activeResumeJobId]);
+
+  useEffect(() => {
+    if (!resumeMismatch || fundId !== resumeMismatch.actualFundId) {
+      return;
+    }
+
+    setDismissedResumeJobId(null);
+    setResumeMismatch(null);
+  }, [fundId, resumeMismatch]);
+
+  const effectiveJobViewModel = useMemo(
+    () => (hasResumeMismatch ? toJobViewModel(null, null) : jobStatus.viewModel),
+    [hasResumeMismatch, jobStatus.viewModel]
+  );
 
   // Auto-fetch result when job completes
-  const backtestId = jobStatus.viewModel.backtestId;
+  const backtestId = hasResumeMismatch ? null : effectiveJobViewModel.backtestId;
   const result = useBacktestResult(backtestId);
 
   const startBacktest = useCallback(
     (config: BacktestConfig) => {
-      asyncRun.mutate(config);
+      setResumeMismatch(null);
+      asyncRun.mutate(config, {
+        onSuccess: (response) => {
+          setLocalJob({ jobId: response.jobId, fundId: config.fundId });
+        },
+      });
     },
     [asyncRun]
   );
 
   const isRunning =
-    jobStatus.viewModel.phase === 'queued' || jobStatus.viewModel.phase === 'running';
+    effectiveJobViewModel.phase === 'queued' || effectiveJobViewModel.phase === 'running';
 
   return {
     startBacktest,
-    activeJobId,
-    jobStatus: jobStatus.viewModel,
+    activeJobId: hasResumeMismatch ? null : activeJobId,
+    jobStatus: effectiveJobViewModel,
     result: result.viewModel,
     rawResult: result.data?.result ?? null,
     isRunning,
     isSubmitting: asyncRun.isPending,
     submitError: asyncRun.error,
+    resumeMismatch,
   };
 }

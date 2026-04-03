@@ -258,12 +258,20 @@ material:
 
 Estimate: `3-4 weeks`
 
+Detailed plan:
+
+- `docs/plans/2026-04-02-phase-2-scenario-comparison-consolidation-plan.md`
+
 Work:
 
 - keep one active comparison surface
 - decide whether the dormant `scenario_comparisons` layer becomes real or is
   deleted
-- wire `sensitivity-analysis`
+- mount `/sensitivity-analysis` first as a truthful Monte Carlo workspace, then
+  harden async lifecycle fencing and extract shared backtesting UI in a
+  follow-on refactor
+- update route-governance/perimeter expectations alongside the new mounted
+  surface
 - un-quarantine backtesting tests
 
 ## Phase 0.5 / ADR Gate Before Phase 3

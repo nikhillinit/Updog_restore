@@ -363,6 +363,7 @@ export const BacktestAsyncRunResponseSchema = z
 export const BacktestJobStatusResponseSchema = z
   .object({
     jobId: z.string().min(1),
+    fundId: FundId,
     status: BacktestingJobStatusSchema,
     stage: BacktestingJobStageSchema,
     progressPercent: z.number().int().min(0).max(100),

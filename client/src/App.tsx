@@ -28,6 +28,7 @@ const Reports = React.lazy(() => import('@/pages/reports'));
 const NotFound = React.lazy(() => import('@/pages/not-found'));
 // Fund Model Results (post-wizard output)
 const FundModelResults = React.lazy(() => import('@/pages/fund-model-results'));
+const SensitivityAnalysisPage = React.lazy(() => import('@/pages/sensitivity-analysis'));
 const ReservesDemo = React.lazy(() => import('@/pages/reserves-demo'));
 // LP Sharing
 const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard'));
@@ -282,6 +283,7 @@ export const APP_ROUTES: AppRouteEntry[] = [
   { path: '/dashboard', component: Dashboard, isProtected: true },
   { path: '/portfolio', component: Portfolio, isProtected: true },
   { path: '/fund-model-results/:fundId', component: FundModelResults, isProtected: true },
+  { path: '/sensitivity-analysis', component: SensitivityAnalysisPage, isProtected: true },
   { path: '/reports', component: Reports, isProtected: true },
   { path: '/pipeline', component: PipelinePage, isProtected: true },
   { path: '/settings', component: SettingsPage, isProtected: true },
