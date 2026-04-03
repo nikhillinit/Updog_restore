@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # ADR-005: XIRR Excel Parity and Algorithm Selection

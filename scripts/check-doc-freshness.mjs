@@ -14,33 +14,58 @@
  *   --fail-on-stale  Exit with code 1 if any stale documents found (for CI)
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-
 // Configuration
 const STALE_THRESHOLD_DAYS = 7;
-const DOCS_TO_CHECK = [
-  'docs/**/*.md',
-  '.claude/**/*.md',
+const DOC_PATHS_TO_CHECK = [
+  'docs',
+  '.claude',
   'PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md',
-  'cheatsheets/**/*.md',
+  'cheatsheets',
 ];
 const EXCLUDE_PREFIXES = [
   'docs/archive/',
 ];
+let usingFilesystemFallback = false;
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
 const failOnStale = args.includes('--fail-on-stale');
 
 /**
- * Get last git modification date for a file
+ * Normalize paths for prefix checks and reporting.
  */
-function getGitModificationDate(filePath) {
+function normalizePath(filePath) {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
+ * Get the filesystem modification date for a file.
+ */
+async function getFilesystemModificationDate(filePath) {
   try {
-    const gitDate = execSync(
-      `git log -1 --format="%ai" -- "${filePath}"`,
+    const stats = await fs.stat(filePath);
+    return stats.mtime;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Get last git modification date for a file, or fall back to filesystem mtime
+ * when git process execution is unavailable in the current environment.
+ */
+async function getGitModificationDate(filePath) {
+  if (usingFilesystemFallback) {
+    return getFilesystemModificationDate(filePath);
+  }
+
+  try {
+    const gitDate = execFileSync(
+      'git',
+      ['log', '-1', '--format=%ai', '--', filePath],
       { encoding: 'utf-8' }
     ).trim();
 
@@ -50,12 +75,13 @@ function getGitModificationDate(filePath) {
 
     return new Date(gitDate);
   } catch (error) {
-    return null; // Git error or file not tracked
+    usingFilesystemFallback = true;
+    return getFilesystemModificationDate(filePath);
   }
 }
 
 /**
- * Extract date from document frontmatter or content
+ * Extract date from document frontmatter or content.
  */
 async function getDocumentDate(filePath) {
   try {
@@ -93,29 +119,73 @@ async function getDocumentDate(filePath) {
 }
 
 /**
- * Get all markdown files matching patterns
+ * Recursively gather markdown files from the configured doc paths.
  */
-async function getMarkdownFiles(patterns) {
+async function getFilesystemMarkdownFiles(pathsToCheck) {
   const files = [];
 
-  for (const pattern of patterns) {
-    try {
-      const globPattern = pattern.replace(/\*\*/g, '*');
-      const result = execSync(
-        `git ls-files "${globPattern}"`,
-        { encoding: 'utf-8' }
-      ).trim();
+  async function walk(entryPath) {
+    const normalizedEntryPath = normalizePath(entryPath);
+    if (EXCLUDE_PREFIXES.some(prefix => normalizedEntryPath.startsWith(prefix))) {
+      return;
+    }
 
-      if (result) {
-        files.push(...result.split('\n'));
+    let stats;
+    try {
+      stats = await fs.stat(entryPath);
+    } catch {
+      return;
+    }
+
+    if (stats.isDirectory()) {
+      const entries = await fs.readdir(entryPath, { withFileTypes: true });
+      for (const entry of entries) {
+        await walk(path.join(entryPath, entry.name));
       }
-    } catch (error) {
-      // Pattern didn't match any files, that's okay
+      return;
+    }
+
+    if (stats.isFile() && entryPath.toLowerCase().endsWith('.md')) {
+      files.push(normalizedEntryPath);
     }
   }
 
-  const deduped = [...new Set(files)];
-  return deduped.filter(f => !EXCLUDE_PREFIXES.some(p => f.startsWith(p)));
+  for (const entryPath of pathsToCheck) {
+    await walk(entryPath);
+  }
+
+  return [...new Set(files)];
+}
+
+/**
+ * Get all tracked markdown files under the configured doc paths.
+ *
+ * `git ls-files` does not expand the `**` patterns we previously passed here
+ * in a portable way, and the old `** -> *` rewrite collapsed recursive matches
+ * into root-level-only lookups. Ask git for the tracked paths directly instead,
+ * then filter to markdown files in-process.
+ */
+async function getMarkdownFiles(pathsToCheck) {
+  try {
+    const result = execFileSync(
+      'git',
+      ['ls-files', '--', ...pathsToCheck],
+      { encoding: 'utf-8' }
+    ).trim();
+
+    if (!result) {
+      return [];
+    }
+
+    const deduped = [...new Set(result.split('\n'))];
+    return deduped
+      .map(normalizePath)
+      .filter(file => file.toLowerCase().endsWith('.md'))
+      .filter(file => !EXCLUDE_PREFIXES.some(prefix => file.startsWith(prefix)));
+  } catch (error) {
+    usingFilesystemFallback = true;
+    return getFilesystemMarkdownFiles(pathsToCheck);
+  }
 }
 
 /**
@@ -139,8 +209,11 @@ async function checkDocFreshness() {
   console.log('[CHECK] Documentation Freshness Verification');
   console.log(`[INFO] Threshold: ${STALE_THRESHOLD_DAYS} days\n`);
 
-  const files = await getMarkdownFiles(DOCS_TO_CHECK);
+  const files = await getMarkdownFiles(DOC_PATHS_TO_CHECK);
   console.log(`[INFO] Found ${files.length} markdown files to check\n`);
+  if (usingFilesystemFallback) {
+    console.log('[INFO] Git metadata unavailable; using filesystem modification times as fallback\n');
+  }
 
   const results = {
     fresh: [],
@@ -151,7 +224,7 @@ async function checkDocFreshness() {
 
   for (const file of files) {
     const docDate = await getDocumentDate(file);
-    const gitDate = getGitModificationDate(file);
+    const gitDate = await getGitModificationDate(file);
 
     if (!gitDate) {
       results.noGitDate.push({ file });
@@ -200,7 +273,7 @@ async function checkDocFreshness() {
     });
   }
 
-  if (results.noDocDate.length > 0 && results.noDocDate.length < 10) {
+  if (results.noDocDate.length > 0) {
     console.log('\n[INFO] Documents without date metadata:');
     results.noDocDate.slice(0, 10).forEach((item) => {
       console.log(`  ${item.file}`);
