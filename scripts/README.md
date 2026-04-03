@@ -62,6 +62,15 @@ Celebrates successful deployment with metrics display.
 
 ## Supporting Scripts
 
+### `phase2-slice3-audit.mjs`
+Guarded operator helper for the Phase 2 Slice 3 retirement rollout.
+- Audits the three retired saved-comparison tables via `DATABASE_URL`
+- Exports non-zero rows to CSV artifacts before schema apply
+- Optionally runs `npm run db:push` with explicit `--apply --yes`
+- Verifies the retired tables are gone while the live
+  `backtest_results.scenario_comparisons` and
+  `backtest_results.scenario_comparison_summary` columns remain
+
 ### `validate-local.ps1`
 Local validation before deployment.
 - Runs tests, build, and linting
