@@ -24,7 +24,7 @@ Management Platform.
 | [010](ADR-010-monte-carlo-validation-strategy.md) | Monte Carlo Validation Strategy                    | Accepted |
 | [011](ADR-011-stage-normalization-v2.md)          | Stage Normalization v2                             | Accepted |
 | [012](ADR-012-mem0-integration.md)                | Mem0 Integration                                   | Accepted |
-| [013](ADR-013-scenario-comparison-activation.md)  | Scenario Comparison Activation                     | Accepted |
+| [013](ADR-013-scenario-comparison-activation.md)  | Scenario Comparison Activation                     | Superseded |
 | [014](ADR-014-RESERVED.md)                        | Reserved                                           | Reserved |
 | [015](ADR-015-XIRR-BOUNDED-RATES.md)              | XIRR Bounded Rate Strategy                         | Accepted |
 

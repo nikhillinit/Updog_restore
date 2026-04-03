@@ -45,8 +45,16 @@ describe('Schema Isolation - Data Boundaries', () => {
       // Simulation tables should be blocked
       expect(SIMULATION_ONLY_TABLES).toContain('portfolio_scenarios');
       expect(SIMULATION_ONLY_TABLES).toContain('monte_carlo_runs');
+      expect(SIMULATION_ONLY_TABLES).toContain('monte_carlo_simulations');
       expect(SIMULATION_ONLY_TABLES).toContain('backtest_results');
       expect(SIMULATION_ONLY_TABLES).toContain('scenarios');
+    });
+
+    it('should not retain retired saved-comparison table names', () => {
+      expect(SIMULATION_ONLY_TABLES).not.toContain('scenario_comparison_configs');
+      expect(SIMULATION_ONLY_TABLES).not.toContain('scenario_comparisons');
+      expect(SIMULATION_ONLY_TABLES).not.toContain('comparison_configurations');
+      expect(SIMULATION_ONLY_TABLES).not.toContain('comparison_access_history');
     });
 
     it('should have no overlap between LP_READABLE and SIMULATION_ONLY', () => {

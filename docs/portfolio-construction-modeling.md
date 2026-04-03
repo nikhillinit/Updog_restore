@@ -1,11 +1,12 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # Portfolio Construction Modeling
 
-This document describes the comprehensive portfolio construction modeling system that extends our existing variance tracking and time-travel analytics foundation.
+This document describes the portfolio construction modeling system that extends
+our variance tracking and time-travel analytics foundation.
 
 ## Overview
 
@@ -15,19 +16,26 @@ The portfolio construction modeling system enables sophisticated "what-if" scena
 - **Multiple scenario planning** with different market assumptions
 - **Dynamic reserve allocation strategies** with optimization
 - **Performance forecasting** with Monte Carlo simulations
-- **Scenario comparison and analysis** for decision support
+- **Scenario comparison and analysis** through live backtesting results rather
+  than a standalone saved-comparison table
 
 ## Architecture
 
-The system consists of 6 main tables that work together:
+The system consists of 5 main modeling tables plus the live backtesting result
+contract:
 
 ```
 Fund Strategy Models → Portfolio Scenarios → Performance Forecasts
                     ↓                     ↓
 Reserve Allocation Strategies ← Monte Carlo Simulations
-                    ↓
-             Scenario Comparisons
 ```
+
+Comparative historical-scenario output is persisted on
+`backtest_results.scenario_comparisons` and
+`backtest_results.scenario_comparison_summary` for the live
+`/api/backtesting/*` workflow. The older standalone saved-comparison
+persistence family was retired in Phase 2 because it never became a shipped
+runtime surface.
 
 ### Integration with Existing Systems
 
@@ -101,23 +109,7 @@ Predictive models for fund and portfolio performance.
 - Forecast NAV evolution and DPI realization
 - Track forecast accuracy against actual results
 
-### 5. Scenario Comparisons (`scenario_comparisons`)
-
-Comparative analysis of different scenarios and strategies.
-
-**Key Features:**
-- Compare multiple scenarios across key metrics
-- Statistical significance testing
-- Pareto frontier and trade-off analysis
-- Decision support and recommendations
-- Visualization configurations
-
-**Example Use Cases:**
-- Compare base case vs optimistic scenarios
-- Analyze risk-return trade-offs
-- Generate recommendation reports
-
-### 6. Monte Carlo Simulations (`monte_carlo_simulations`)
+### 5. Monte Carlo Simulations (`monte_carlo_simulations`)
 
 Detailed simulation results for risk analysis.
 
@@ -199,7 +191,8 @@ INSERT INTO reserve_allocation_strategies (
 2. **Build Multiple Scenarios** - Model different market conditions
 3. **Design Reserve Strategy** - Plan follow-on capital deployment
 4. **Run Simulations** - Generate Monte Carlo analysis
-5. **Compare Scenarios** - Analyze trade-offs and make decisions
+5. **Compare Scenarios** - Review historical-scenario outcomes from live
+   backtesting results and make decisions
 
 ### 2. Performance Monitoring
 
@@ -235,7 +228,7 @@ INSERT INTO reserve_allocation_strategies (
 ## Analytics and Reporting
 
 ### Key Metrics Dashboard
-- Scenario comparison matrix
+- Backtesting scenario comparison matrix
 - Performance forecast accuracy
 - Reserve allocation effectiveness
 - Monte Carlo risk metrics

@@ -1,401 +1,691 @@
 /**
  * Backtesting API Integration Tests
  *
- * Tests the backtesting REST endpoints for:
- * - Running backtests
- * - Fetching backtest history
- * - Retrieving specific results
- * - Comparing scenarios
- * - Listing available scenarios
- * - Authentication and validation
+ * Deterministic contract coverage for the live `/api/backtesting/*` route
+ * family. Auth, validation, and HTTP wiring stay real; the backtesting service
+ * and async queue boundary are mocked for deterministic outcomes.
  *
- * @quarantine
- * @reason Feature flag disabled - requires ENABLE_BACKTESTING_TESTS=true
- * @owner nikhil
- * @exit Enable feature flag after backtesting feature is production-ready
- * @date 2026-01-14
+ * @group integration
+ * @group backtesting
  */
 
-/**
- * IMPORTANT: Set test environment variables before ANY imports
- * to ensure db.ts uses mocked database instead of real Neon pool
- */
 process.env.NODE_ENV = 'test';
 process.env.VITEST = 'true';
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import request from 'supertest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
-import { registerRoutes } from '../../server/routes';
-import { errorHandler } from '../../server/errors';
-import type { Pool } from 'pg';
+import request from 'supertest';
+import {
+  BacktestAsyncRunResponseSchema,
+  BacktestJobStatusResponseSchema,
+  BacktestResultSchema,
+} from '@shared/validation/backtesting-schemas';
+import type {
+  BacktestConfig,
+  BacktestJobStatusResponse,
+  BacktestResult,
+  HistoricalScenarioName,
+  ScenarioCompareResponse,
+} from '@shared/types/backtesting';
+import { asUser, makeJwt } from '../utils/integrationAuth';
 
-// Conditional describe - re-enable when cleanup complete
-const describeMaybe = process.env.ENABLE_BACKTESTING_TESTS === 'true' ? describe : describe.skip;
+const {
+  mockRunBacktest,
+  mockGetBacktestHistory,
+  mockGetBacktestById,
+  mockCompareScenariosDetailed,
+  mockGetAvailableScenariosList,
+  mockEnqueueBacktestJob,
+  mockGetBacktestJobStatus,
+  mockSubscribeToBacktestJob,
+  mockIsBacktestingQueueInitialized,
+} = vi.hoisted(() => ({
+  mockRunBacktest: vi.fn(),
+  mockGetBacktestHistory: vi.fn(),
+  mockGetBacktestById: vi.fn(),
+  mockCompareScenariosDetailed: vi.fn(),
+  mockGetAvailableScenariosList: vi.fn(),
+  mockEnqueueBacktestJob: vi.fn(),
+  mockGetBacktestJobStatus: vi.fn(),
+  mockSubscribeToBacktestJob: vi.fn(),
+  mockIsBacktestingQueueInitialized: vi.fn(),
+}));
 
-describeMaybe('Backtesting API', () => {
-  // TODO: Fix database pool cleanup issue (Option 2)
-  // Issue: Neon serverless pool not properly cleaned up in afterAll
-  // Error: "Cannot read properties of null (reading 'close')" from timeout handler
-  // Root cause: Module initialization order - pool created before NODE_ENV set
-  // Tracked in: Option 2 comprehensive integration test cleanup plan
-  let _pool: Pool | null = null;
-  let server: ReturnType<typeof import('http').createServer>;
-  let app: express.Express;
-  let authToken: string;
+vi.mock('../../server/services/backtesting-service', () => ({
+  backtestingService: {
+    runBacktest: mockRunBacktest,
+    getBacktestHistory: mockGetBacktestHistory,
+    getBacktestById: mockGetBacktestById,
+    compareScenariosDetailed: mockCompareScenariosDetailed,
+    getAvailableScenariosList: mockGetAvailableScenariosList,
+  },
+}));
 
-  // Test data
-  const validBacktestConfig = {
-    fundId: 1,
-    startDate: '2020-01-01',
-    endDate: '2023-12-31',
-    simulationRuns: 1000,
-    comparisonMetrics: ['irr', 'tvpi'],
-    includeHistoricalScenarios: false,
+vi.mock('../../server/queues/backtesting-queue', () => ({
+  enqueueBacktestJob: mockEnqueueBacktestJob,
+  getBacktestJobStatus: mockGetBacktestJobStatus,
+  subscribeToBacktestJob: mockSubscribeToBacktestJob,
+  isBacktestingQueueInitialized: mockIsBacktestingQueueInitialized,
+  isBacktestingTerminalStatus: (status: string) =>
+    ['completed', 'failed', 'timed_out', 'cancelled'].includes(status),
+}));
+
+let app: express.Express;
+let authToken: string;
+
+type RouteJobSnapshot = BacktestJobStatusResponse & {
+  requesterUserId?: string;
+};
+
+type SubscriptionCallbacks = {
+  onStatus?: (snapshot: RouteJobSnapshot) => void;
+  onComplete?: (snapshot: RouteJobSnapshot) => void;
+};
+
+const validBacktestConfig: BacktestConfig = {
+  fundId: 1,
+  startDate: '2020-01-01',
+  endDate: '2023-12-31',
+  simulationRuns: 1000,
+  comparisonMetrics: ['irr', 'tvpi'],
+  includeHistoricalScenarios: true,
+  historicalScenarios: ['financial_crisis_2008', 'covid_2020'],
+};
+
+function makeBacktestResult(overrides: Partial<BacktestResult> = {}): BacktestResult {
+  return {
+    backtestId: '550e8400-e29b-41d4-a716-446655440000',
+    config: validBacktestConfig,
+    executionTimeMs: 1450,
+    timestamp: '2026-04-03T12:00:00.000Z',
+    simulationSummary: {
+      runs: 1000,
+      metrics: {
+        irr: {
+          mean: 0.18,
+          median: 0.17,
+          p5: 0.06,
+          p25: 0.12,
+          p75: 0.22,
+          p95: 0.31,
+          min: -0.04,
+          max: 0.39,
+          standardDeviation: 0.07,
+        },
+        tvpi: {
+          mean: 2.2,
+          median: 2.1,
+          p5: 1.2,
+          p25: 1.8,
+          p75: 2.6,
+          p95: 3.1,
+          min: 0.8,
+          max: 3.8,
+          standardDeviation: 0.45,
+        },
+      },
+      engineUsed: 'streaming',
+      executionTimeMs: 1450,
+    },
+    actualPerformance: {
+      asOfDate: '2023-12-31',
+      irr: 0.16,
+      tvpi: 2.0,
+      dpi: 0.9,
+      multiple: 2.1,
+      deployedCapital: 50000000,
+      distributedCapital: 18000000,
+      residualValue: 62000000,
+      dataSource: 'baseline',
+      dataFreshness: 'fresh',
+    },
+    validationMetrics: {
+      meanAbsoluteError: {
+        irr: 0.02,
+        tvpi: 0.2,
+      },
+      rootMeanSquareError: {
+        irr: 0.02,
+        tvpi: 0.2,
+      },
+      percentileHitRates: {
+        p50: { irr: true, tvpi: true },
+        p90: { irr: true, tvpi: true },
+        p100: { irr: true, tvpi: true },
+      },
+      modelQualityScore: 88,
+      calibrationStatus: 'well-calibrated',
+      incalculableMetrics: [],
+    },
+    dataQuality: {
+      hasBaseline: true,
+      baselineAgeInDays: 14,
+      varianceHistoryCount: 6,
+      snapshotAvailable: true,
+      isStale: false,
+      warnings: [],
+      overallQuality: 'good',
+    },
+    scenarioComparisons: [
+      {
+        scenario: 'financial_crisis_2008',
+        simulatedPerformance: {
+          mean: 0.11,
+          median: 0.1,
+          p5: -0.12,
+          p25: 0.02,
+          p75: 0.19,
+          p95: 0.28,
+          min: -0.2,
+          max: 0.34,
+          standardDeviation: 0.09,
+        },
+        description: 'Financial crisis drawdown replay',
+        keyInsights: ['Higher write-off risk', 'Longer hold periods'],
+        marketParameters: {
+          exitMultiplierMean: 1.2,
+          exitMultiplierVolatility: 0.8,
+          failureRate: 0.45,
+          followOnProbability: 0.3,
+          holdPeriodYears: 7,
+        },
+      },
+    ],
+    scenarioComparisonSummary: {
+      requestedScenarios: 2,
+      scenariosCompared: 1,
+      failedScenarios: ['covid_2020'],
+    },
+    recommendations: [
+      'Scenario comparison incomplete: 1 of 2 requested scenarios succeeded. Failed: covid_2020',
+    ],
+    ...overrides,
   };
+}
 
-  const validScenarioCompareRequest = {
+function makeCompletedJobStatus(
+  overrides: Partial<RouteJobSnapshot> = {}
+): RouteJobSnapshot {
+  return {
+    jobId: 'job-123',
     fundId: 1,
-    scenarios: ['financial_crisis_2008', 'covid_2020'],
-    simulationRuns: 500,
+    status: 'completed',
+    stage: 'persisting',
+    progressPercent: 100,
+    updatedAt: '2026-04-03T12:05:00.000Z',
+    correlationId: 'corr-async-123',
+    resultRef: { backtestId: '550e8400-e29b-41d4-a716-446655440000' },
+    message: 'Backtest complete',
+    links: {
+      self: '/api/backtesting/jobs/job-123',
+      poll: '/api/backtesting/jobs/job-123',
+    },
+    ...overrides,
   };
+}
 
-  // Helpers for authenticated requests
-  const authPost = (path: string) =>
-    request(server).post(path).set('Authorization', `Bearer ${authToken}`);
+function makeQueuedJobStatus(
+  overrides: Partial<RouteJobSnapshot> = {}
+): RouteJobSnapshot {
+  return {
+    jobId: 'job-123',
+    fundId: 1,
+    status: 'queued',
+    stage: 'queued',
+    progressPercent: 0,
+    updatedAt: '2026-04-03T12:01:00.000Z',
+    correlationId: 'corr-async-123',
+    message: 'Queued',
+    links: {
+      self: '/api/backtesting/jobs/job-123',
+      poll: '/api/backtesting/jobs/job-123',
+      stream: '/api/backtesting/jobs/job-123/stream',
+    },
+    ...overrides,
+  };
+}
 
-  const authGet = (path: string) =>
-    request(server).get(path).set('Authorization', `Bearer ${authToken}`);
+function makeCompareResponse(): ScenarioCompareResponse {
+  return {
+    correlationId: 'corr-compare-123',
+    fundId: 1,
+    comparisons: [
+      {
+        scenario: 'financial_crisis_2008',
+        simulatedPerformance: {
+          mean: 0.1,
+          median: 0.09,
+          p5: -0.1,
+          p25: 0.01,
+          p75: 0.18,
+          p95: 0.26,
+          min: -0.18,
+          max: 0.32,
+          standardDeviation: 0.08,
+        },
+        description: 'Stress-case replay',
+        keyInsights: ['Downside widened'],
+        marketParameters: {
+          exitMultiplierMean: 1.2,
+          exitMultiplierVolatility: 0.8,
+          failureRate: 0.45,
+          followOnProbability: 0.3,
+          holdPeriodYears: 7,
+        },
+      },
+    ],
+    summary: {
+      requestedScenarios: 2,
+      scenariosCompared: 1,
+      failedScenarios: ['covid_2020'],
+      timestamp: '2026-04-03T12:00:00.000Z',
+    },
+  };
+}
 
-  beforeAll(async () => {
-    // Dynamic import prevents pool creation when suite is skipped
-    const dbModule = await import('../../server/db');
-    _pool = dbModule.pgPool;
+const authPost = (path: string, token = authToken) =>
+  request(app).post(path).set('Authorization', `Bearer ${token}`);
 
-    app = express();
-    app.set('trust proxy', false);
-    app.use(express.json({ limit: '1mb' }));
+const authGet = (path: string, token = authToken) =>
+  request(app).get(path).set('Authorization', `Bearer ${token}`);
 
-    server = await registerRoutes(app);
-    app.use(errorHandler());
+function expectValidBacktestResult(result: unknown): void {
+  const parsed = BacktestResultSchema.safeParse(result);
+  expect(parsed.success).toBe(true);
+}
 
-    // Generate auth token for protected endpoints
-    const { asUser } = await import('../utils/integrationAuth');
-    authToken = asUser();
+beforeAll(async () => {
+  authToken = asUser();
+  const backtestingRouter = (await import('../../server/routes/backtesting')).default;
 
-    await new Promise<void>((resolve) => {
-      server.listen(0, () => resolve());
-    });
+  app = express();
+  app.set('trust proxy', false);
+  app.use(express.json({ limit: '1mb' }));
+  app.use('/api/backtesting', backtestingRouter);
+});
+
+beforeEach(() => {
+  const result = makeBacktestResult();
+  const compareResponse = makeCompareResponse();
+
+  vi.clearAllMocks();
+
+  mockRunBacktest.mockResolvedValue(result);
+  mockGetBacktestHistory.mockResolvedValue([result]);
+  mockGetBacktestById.mockResolvedValue(result);
+  mockCompareScenariosDetailed.mockResolvedValue({
+    comparisons: compareResponse.comparisons,
+    failedScenarios: compareResponse.summary.failedScenarios as HistoricalScenarioName[],
   });
+  mockGetAvailableScenariosList.mockReturnValue([
+    'financial_crisis_2008',
+    'covid_2020',
+    'bull_market_2021',
+  ]);
 
-  afterAll(async () => {
-    // NOTE: Pool cleanup handled by globalTeardown, not here
-    // This prevents "singleton suicide" in parallel test runs
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve());
-    });
+  mockIsBacktestingQueueInitialized.mockReturnValue(true);
+  mockEnqueueBacktestJob.mockResolvedValue({
+    jobId: 'job-123',
+    estimatedWaitMs: 60000,
+    deduplicated: false,
   });
+  mockGetBacktestJobStatus.mockResolvedValue(makeCompletedJobStatus());
+  mockSubscribeToBacktestJob.mockImplementation((_jobId: string, callbacks: SubscriptionCallbacks) => {
+    callbacks.onStatus?.(makeQueuedJobStatus({ progressPercent: 40, stage: 'simulating' }));
+    callbacks.onComplete?.(makeCompletedJobStatus());
+    return vi.fn();
+  });
+});
 
-  // ============================================================================
-  // Authentication Tests
-  // ============================================================================
-
-  describe('Authentication', () => {
-    it('should reject unauthenticated requests to POST /run', async () => {
-      const response = await request(server).post('/api/backtesting/run').send(validBacktestConfig);
+describe('Backtesting API', () => {
+  describe('authentication', () => {
+    it('rejects unauthenticated sync requests', async () => {
+      const response = await request(app).post('/api/backtesting/run').send(validBacktestConfig);
 
       expect(response.status).toBe(401);
     });
 
-    it('should reject unauthenticated requests to GET /scenarios', async () => {
-      const response = await request(server).get('/api/backtesting/scenarios');
-
-      expect(response.status).toBe(401);
-    });
-
-    it('should reject unauthenticated requests to GET /fund/:fundId/history', async () => {
-      const response = await request(server).get('/api/backtesting/fund/1/history');
+    it('rejects unauthenticated async requests', async () => {
+      const response = await request(app)
+        .post('/api/backtesting/run/async')
+        .send(validBacktestConfig);
 
       expect(response.status).toBe(401);
     });
   });
-
-  // ============================================================================
-  // POST /api/backtesting/run Tests
-  // ============================================================================
 
   describe('POST /api/backtesting/run', () => {
-    it('should require fundId in request body', async () => {
-      const invalidConfig = { ...validBacktestConfig };
-      delete (invalidConfig as Record<string, unknown>).fundId;
-
-      const response = await authPost('/api/backtesting/run').send(invalidConfig);
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should require startDate in request body', async () => {
-      const invalidConfig = { ...validBacktestConfig };
-      delete (invalidConfig as Record<string, unknown>).startDate;
-
-      const response = await authPost('/api/backtesting/run').send(invalidConfig);
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should require endDate in request body', async () => {
-      const invalidConfig = { ...validBacktestConfig };
-      delete (invalidConfig as Record<string, unknown>).endDate;
-
-      const response = await authPost('/api/backtesting/run').send(invalidConfig);
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should reject invalid date format', async () => {
+    it('returns 400 for invalid payloads', async () => {
       const response = await authPost('/api/backtesting/run').send({
         ...validBacktestConfig,
-        startDate: '01-01-2020',
+        fundId: undefined,
       });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
-    it('should reject simulationRuns below minimum', async () => {
-      const response = await authPost('/api/backtesting/run').send({
-        ...validBacktestConfig,
-        simulationRuns: 50, // Below 100 minimum
+    it('returns 403 when the caller lacks fund access', async () => {
+      const limitedToken = makeJwt({
+        userId: 'limited-user',
+        email: 'limited@example.com',
+        fundIds: [2],
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
+      const response = await authPost('/api/backtesting/run', limitedToken).send(validBacktestConfig);
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('FORBIDDEN');
     });
 
-    it('should reject simulationRuns above maximum', async () => {
-      const response = await authPost('/api/backtesting/run').send({
-        ...validBacktestConfig,
-        simulationRuns: 100000, // Above 50000 maximum
-      });
+    it('returns 200 with the backtest result and correlation ID', async () => {
+      const response = await authPost('/api/backtesting/run')
+        .set('x-correlation-id', 'corr-sync-123')
+        .send(validBacktestConfig);
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should reject invalid comparison metrics', async () => {
-      const response = await authPost('/api/backtesting/run').send({
-        ...validBacktestConfig,
-        comparisonMetrics: ['invalid_metric'],
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should accept valid backtest configuration', async () => {
-      const response = await authPost('/api/backtesting/run').send(validBacktestConfig);
-
-      // May fail due to missing fund data, but should pass validation
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 500) {
-        // Service error, not validation error
-        expect(response.body.error).toBe('BACKTEST_FAILED');
-      }
+      expect(response.status).toBe(200);
+      expect(response.body.correlationId).toBe('corr-sync-123');
+      expectValidBacktestResult(response.body.result);
+      expect(mockRunBacktest).toHaveBeenCalledWith(
+        validBacktestConfig,
+        expect.objectContaining({
+          correlationId: 'corr-sync-123',
+          requesterUserId: 'regular-user',
+        })
+      );
     });
   });
 
-  // ============================================================================
-  // GET /api/backtesting/fund/:fundId/history Tests
-  // ============================================================================
-
   describe('GET /api/backtesting/fund/:fundId/history', () => {
-    it('should reject non-numeric fund ID', async () => {
-      const response = await authGet('/api/backtesting/fund/abc/history');
+    it('returns 400 for invalid fund IDs', async () => {
+      const response = await authGet('/api/backtesting/fund/not-a-number/history');
 
-      // Returns 400 Bad Request from express before hitting route
       expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Bad Request');
     });
 
-    it('should reject zero fund ID (fund access check)', async () => {
-      const response = await authGet('/api/backtesting/fund/0/history');
+    it('returns 403 for inaccessible funds', async () => {
+      const limitedToken = makeJwt({
+        userId: 'limited-user',
+        email: 'limited@example.com',
+        fundIds: [2],
+      });
 
-      // Returns 403 from requireFundAccess middleware (not in user's fundIds)
+      const response = await authGet('/api/backtesting/fund/1/history', limitedToken);
+
       expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Forbidden');
     });
 
-    it('should reject negative fund ID (fund access check)', async () => {
-      const response = await authGet('/api/backtesting/fund/-1/history');
-
-      // Returns 403 from requireFundAccess middleware (not in user's fundIds)
-      expect(response.status).toBe(403);
-    });
-
-    it('should accept valid query with pagination', async () => {
+    it('returns 200 and preserves scenarioComparisonSummary in history rows', async () => {
       const response = await authGet('/api/backtesting/fund/1/history').query({
         limit: 10,
         offset: 0,
       });
 
-      // May return empty array if no data
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 200) {
-        expect(response.body).toHaveProperty('fundId');
-        expect(response.body).toHaveProperty('history');
-        expect(response.body).toHaveProperty('pagination');
-      }
-    });
-
-    it('should accept date range filters', async () => {
-      const response = await authGet('/api/backtesting/fund/1/history').query({
-        startDate: '2023-01-01',
-        endDate: '2023-12-31',
+      expect(response.status).toBe(200);
+      expect(response.body.fundId).toBe(1);
+      expect(response.body.pagination).toEqual({
+        limit: 10,
+        offset: 0,
+        count: 1,
+        hasMore: false,
       });
-
-      expect([200, 500]).toContain(response.status);
+      expect(response.body.history).toHaveLength(1);
+      expectValidBacktestResult(response.body.history[0]);
+      expect(response.body.history[0].scenarioComparisonSummary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 1,
+        failedScenarios: ['covid_2020'],
+      });
     });
   });
 
-  // ============================================================================
-  // GET /api/backtesting/result/:backtestId Tests
-  // ============================================================================
-
   describe('GET /api/backtesting/result/:backtestId', () => {
-    it('should reject invalid UUID format', async () => {
+    it('returns 400 for invalid UUIDs', async () => {
       const response = await authGet('/api/backtesting/result/not-a-uuid');
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('INVALID_BACKTEST_ID');
     });
 
-    it('should return 404 for non-existent backtest', async () => {
+    it('returns 404 when the backtest result does not exist', async () => {
+      mockGetBacktestById.mockResolvedValueOnce(null);
+
       const response = await authGet(
         '/api/backtesting/result/00000000-0000-0000-0000-000000000000'
       );
 
-      expect([404, 500]).toContain(response.status);
-      if (response.status === 404) {
-        expect(response.body.error).toBe('BACKTEST_NOT_FOUND');
-      }
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('BACKTEST_NOT_FOUND');
     });
 
-    it('should accept valid UUID format', async () => {
+    it('returns 403 when the backtest belongs to an inaccessible fund', async () => {
+      mockGetBacktestById.mockResolvedValueOnce(makeBacktestResult({
+        config: { ...validBacktestConfig, fundId: 9 },
+      }));
+
       const response = await authGet(
         '/api/backtesting/result/550e8400-e29b-41d4-a716-446655440000'
       );
 
-      // May return 404 if not found, but should pass validation
-      expect([200, 404, 500]).toContain(response.status);
-    });
-  });
-
-  // ============================================================================
-  // POST /api/backtesting/compare-scenarios Tests
-  // ============================================================================
-
-  describe('POST /api/backtesting/compare-scenarios', () => {
-    it('should require fundId', async () => {
-      const invalidRequest = { ...validScenarioCompareRequest };
-      delete (invalidRequest as Record<string, unknown>).fundId;
-
-      const response = await authPost('/api/backtesting/compare-scenarios').send(invalidRequest);
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('FORBIDDEN');
     });
 
-    it('should require scenarios array', async () => {
-      const invalidRequest = { ...validScenarioCompareRequest };
-      delete (invalidRequest as Record<string, unknown>).scenarios;
-
-      const response = await authPost('/api/backtesting/compare-scenarios').send(invalidRequest);
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should reject empty scenarios array', async () => {
-      const response = await authPost('/api/backtesting/compare-scenarios').send({
-        ...validScenarioCompareRequest,
-        scenarios: [],
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should reject invalid scenario names', async () => {
-      const response = await authPost('/api/backtesting/compare-scenarios').send({
-        ...validScenarioCompareRequest,
-        scenarios: ['invalid_scenario_name'],
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toBe('VALIDATION_ERROR');
-    });
-
-    it('should accept valid scenario comparison request', async () => {
-      const response = await authPost('/api/backtesting/compare-scenarios').send(
-        validScenarioCompareRequest
+    it('returns 200 and preserves scenarioComparisonSummary on the detail payload', async () => {
+      const response = await authGet(
+        '/api/backtesting/result/550e8400-e29b-41d4-a716-446655440000'
       );
 
-      // May fail due to missing fund data, but should pass validation
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 200) {
-        expect(response.body).toHaveProperty('fundId');
-        expect(response.body).toHaveProperty('comparisons');
-        expect(response.body).toHaveProperty('summary');
-      }
+      expect(response.status).toBe(200);
+      expectValidBacktestResult(response.body.result);
+      expect(response.body.result.scenarioComparisonSummary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 1,
+        failedScenarios: ['covid_2020'],
+      });
     });
   });
 
-  // ============================================================================
-  // GET /api/backtesting/scenarios Tests
-  // ============================================================================
+  describe('POST /api/backtesting/compare-scenarios', () => {
+    it('returns 400 for invalid scenario names', async () => {
+      const response = await authPost('/api/backtesting/compare-scenarios').send({
+        fundId: 1,
+        scenarios: ['invalid_name'],
+        simulationRuns: 500,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 200 with partial-failure summary details', async () => {
+      const response = await authPost('/api/backtesting/compare-scenarios')
+        .set('x-correlation-id', 'corr-compare-123')
+        .send({
+          fundId: 1,
+          scenarios: ['financial_crisis_2008', 'covid_2020'],
+          simulationRuns: 500,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.correlationId).toBe('corr-compare-123');
+      expect(response.body.fundId).toBe(1);
+      expect(response.body.comparisons).toHaveLength(1);
+      expect(response.body.summary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 1,
+        failedScenarios: ['covid_2020'],
+        timestamp: expect.any(String),
+      });
+    });
+  });
 
   describe('GET /api/backtesting/scenarios', () => {
-    it('should return list of available scenarios', async () => {
+    it('returns the live scenario list', async () => {
       const response = await authGet('/api/backtesting/scenarios');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('scenarios');
-      expect(Array.isArray(response.body.scenarios)).toBe(true);
-      expect(response.body.scenarios.length).toBeGreaterThan(0);
-    });
-
-    it('should include known historical scenarios', async () => {
-      const response = await authGet('/api/backtesting/scenarios');
-
-      expect(response.status).toBe(200);
-      expect(response.body.scenarios).toContain('financial_crisis_2008');
-      expect(response.body.scenarios).toContain('covid_2020');
+      expect(response.body.scenarios).toEqual([
+        'financial_crisis_2008',
+        'covid_2020',
+        'bull_market_2021',
+      ]);
     });
   });
 
-  // ============================================================================
-  // Correlation ID Tests
-  // ============================================================================
+  describe('POST /api/backtesting/run/async', () => {
+    it('returns 503 when the queue is unavailable', async () => {
+      mockIsBacktestingQueueInitialized.mockReturnValueOnce(false);
 
-  describe('Correlation ID handling', () => {
-    it('should echo correlation ID in POST /run response', async () => {
-      const correlationId = 'test-correlation-123';
-      const response = await authPost('/api/backtesting/run')
-        .set('x-correlation-id', correlationId)
-        .send(validBacktestConfig);
+      const response = await authPost('/api/backtesting/run/async').send(validBacktestConfig);
 
-      // Check correlation ID is included regardless of success/failure
-      expect(response.body.correlationId).toBe(correlationId);
+      expect(response.status).toBe(503);
+      expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
     });
 
-    it('should echo correlation ID in POST /compare-scenarios response', async () => {
-      const correlationId = 'test-correlation-456';
-      const response = await authPost('/api/backtesting/compare-scenarios')
-        .set('x-correlation-id', correlationId)
-        .send(validScenarioCompareRequest);
+    it('returns 202 with Location and Retry-After for queued jobs', async () => {
+      const response = await authPost('/api/backtesting/run/async')
+        .set('x-correlation-id', 'corr-async-123')
+        .set('idempotency-key', 'idem-123')
+        .send(validBacktestConfig);
 
-      expect(response.body.correlationId).toBe(correlationId);
+      expect(response.status).toBe(202);
+      expect(response.headers['location']).toBe('/api/backtesting/jobs/job-123');
+      expect(response.headers['retry-after']).toBe('2');
+      expect(BacktestAsyncRunResponseSchema.safeParse(response.body).success).toBe(true);
+      expect(response.body.deduplicated).toBe(false);
+      expect(mockEnqueueBacktestJob).toHaveBeenCalledWith({
+        config: validBacktestConfig,
+        correlationId: 'corr-async-123',
+        requesterUserId: 'regular-user',
+        idempotencyKey: 'idem-123',
+      });
+    });
+
+    it('returns deduplicated: true only for the explicit idempotency case', async () => {
+      mockEnqueueBacktestJob.mockResolvedValueOnce({
+        jobId: 'job-123',
+        estimatedWaitMs: 0,
+        deduplicated: true,
+      });
+
+      const response = await authPost('/api/backtesting/run/async').send(validBacktestConfig);
+
+      expect(response.status).toBe(202);
+      expect(response.body.deduplicated).toBe(true);
+      expect(response.body.message).toContain('deduplicated');
+    });
+  });
+
+  describe('GET /api/backtesting/jobs/:jobId', () => {
+    it('returns 404 for unknown jobs', async () => {
+      mockGetBacktestJobStatus.mockResolvedValueOnce({
+        jobId: 'missing-job',
+        fundId: 0,
+        status: 'unknown',
+        stage: 'queued',
+        progressPercent: 0,
+        updatedAt: '2026-04-03T12:05:00.000Z',
+      });
+
+      const response = await authGet('/api/backtesting/jobs/missing-job');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('JOB_NOT_FOUND');
+    });
+
+    it('returns 403 for inaccessible jobs', async () => {
+      mockGetBacktestJobStatus.mockResolvedValueOnce(
+        makeCompletedJobStatus({ fundId: 9, requesterUserId: 'other-user' })
+      );
+
+      const response = await authGet('/api/backtesting/jobs/job-123');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('FORBIDDEN');
+    });
+
+    it('returns 200 with the completed job contract', async () => {
+      const response = await authGet('/api/backtesting/jobs/job-123');
+
+      expect(response.status).toBe(200);
+      expect(BacktestJobStatusResponseSchema.safeParse(response.body).success).toBe(true);
+      expect(response.body.resultRef).toEqual({
+        backtestId: '550e8400-e29b-41d4-a716-446655440000',
+      });
+      expect(response.body.links.stream).toBeUndefined();
+    });
+  });
+
+  describe('GET /api/backtesting/jobs/:jobId/stream', () => {
+    it('returns 503 when the queue is unavailable', async () => {
+      mockIsBacktestingQueueInitialized.mockReturnValueOnce(false);
+
+      const response = await authGet('/api/backtesting/jobs/job-123/stream');
+
+      expect(response.status).toBe(503);
+      expect(response.body.error).toBe('QUEUE_UNAVAILABLE');
+    });
+
+    it('returns 404 for unknown jobs', async () => {
+      mockGetBacktestJobStatus.mockResolvedValueOnce({
+        jobId: 'missing-job',
+        fundId: 0,
+        status: 'unknown',
+        stage: 'queued',
+        progressPercent: 0,
+        updatedAt: '2026-04-03T12:05:00.000Z',
+      });
+
+      const response = await authGet('/api/backtesting/jobs/missing-job/stream');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('JOB_NOT_FOUND');
+    });
+
+    it('returns 403 for inaccessible jobs', async () => {
+      mockGetBacktestJobStatus.mockResolvedValueOnce(
+        makeQueuedJobStatus({ fundId: 9, requesterUserId: 'other-user' })
+      );
+
+      const response = await authGet('/api/backtesting/jobs/job-123/stream');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('FORBIDDEN');
+    });
+
+    it('streams deterministic SSE frames for the live route', async () => {
+      mockGetBacktestJobStatus.mockResolvedValueOnce(makeQueuedJobStatus());
+      mockSubscribeToBacktestJob.mockImplementationOnce(
+        (_jobId: string, callbacks: SubscriptionCallbacks) => {
+          callbacks.onStatus?.(makeQueuedJobStatus({ progressPercent: 50, stage: 'simulating' }));
+          callbacks.onComplete?.(makeCompletedJobStatus());
+          return vi.fn();
+        }
+      );
+
+      const response = await authGet('/api/backtesting/jobs/job-123/stream')
+        .buffer(true)
+        .parse((res, callback) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            body += chunk;
+          });
+          res.on('end', () => callback(null, body));
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/event-stream');
+
+      const body = response.body as string;
+      expect(body).toContain('event: connected');
+      expect(body).toContain('event: status');
+      expect(body).toContain('event: complete');
+      expect(body).toContain('"jobId":"job-123"');
+      expect(body).toContain('"status":"completed"');
     });
   });
 });

@@ -65,10 +65,7 @@ export const SIMULATION_ONLY_TABLES = [
   'fund_strategy_models',
   'reserve_allocation_strategies',
   'performance_forecasts',
-
-  // Comparison tools
-  'scenario_comparison_configs',
-  'scenario_comparisons',
+  'monte_carlo_simulations',
 ] as const;
 
 /**
