@@ -1,5 +1,6 @@
 ---
 description: Validate code quality before committing (lint, typecheck, tests)
+last_updated: 2026-04-03
 ---
 
 # Pre-Commit Quality Check

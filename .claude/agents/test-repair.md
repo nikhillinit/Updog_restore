@@ -5,6 +5,7 @@ description:
   changes that may affect tests, or when test failures are detected.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

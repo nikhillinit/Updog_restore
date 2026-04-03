@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 1C.2 Alert Scheduling And Remaining-Capital UI Plan
 
 ## Context

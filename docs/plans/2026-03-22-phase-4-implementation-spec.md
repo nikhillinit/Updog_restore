@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 4 Implementation Spec: Funds Route Normalization And Boundary Cleanup
 
 ## Context
@@ -208,9 +212,9 @@ The implementation made these structural changes:
 9. Extended route ownership smoke proof to cover GET /api/funds and a real
    boot-path POST -> GET /api/funds/:id round-trip on `registerRoutes()`.
 10. Added create -> detail-readback proof (POST → GET /api/funds/:id by numeric
-   ID) to the funds snapshot suite.
+    ID) to the funds snapshot suite.
 11. Fixed DB mock `generateId()` to return serial integers instead of UUIDs,
-   matching the `serial('id')` primary key contract in `shared/schema.ts`.
+    matching the `serial('id')` primary key contract in `shared/schema.ts`.
 12. Updated the endpoint ownership evidence doc to reflect the normalized owner.
 
 ## Validation

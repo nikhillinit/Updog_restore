@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phoenix Evidence Ledger
 
 > Source of truth for truth-case pass/fail state across all Phoenix calculation

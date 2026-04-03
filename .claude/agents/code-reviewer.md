@@ -3,6 +3,7 @@ name: code-reviewer
 description: Reviews code changes for quality, patterns, and potential issues.
 model: opus
 color: green
+last_updated: 2026-04-03
 ---
 
 You are an expert code reviewer specializing in modern software development

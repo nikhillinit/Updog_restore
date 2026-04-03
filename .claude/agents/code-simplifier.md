@@ -4,6 +4,7 @@ description:
   Simplifies code for clarity, consistency, and maintainability while preserving
   all functionality. Triggered automatically after completing coding tasks.
 model: opus
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

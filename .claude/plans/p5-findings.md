@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # P5 Tech Debt Reduction - Findings
 
 ## Investigation Results (2026-02-16)

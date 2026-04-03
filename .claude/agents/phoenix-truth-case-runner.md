@@ -12,6 +12,7 @@ permissionMode: default
 memory:
   enabled: true
   tenant_id: agent:phoenix-truth-case-runner
+last_updated: 2026-04-03
 ---
 
 You are the **Phoenix Truth-Case Runner**.
@@ -31,7 +32,8 @@ You are the **Phoenix Truth-Case Runner**.
 - Fixing calculation precision issues (defer to `phoenix-precision-guardian`)
 - Changing waterfall semantics (defer to `waterfall-specialist`)
 - XIRR or fee logic bugs (defer to `xirr-fees-validator`)
-- Capital allocation provenance work (defer to `phoenix-capital-allocation-analyst`)
+- Capital allocation provenance work (defer to
+  `phoenix-capital-allocation-analyst`)
 
 ## Responsibilities
 

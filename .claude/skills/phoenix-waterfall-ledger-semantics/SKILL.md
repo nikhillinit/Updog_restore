@@ -4,6 +4,7 @@ description:
   'Waterfall ledger semantics and clawback behavior for the Phoenix VC fund
   model. Use when working on tier or ledger waterfall code, clawback behavior,
   or waterfall truth cases.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Waterfall Ledger Semantics

@@ -1,5 +1,6 @@
 ---
 description: Interactive helper showing available tools and when to use them
+last_updated: 2026-04-03
 ---
 
 # Workflow Helper - Quick Reference

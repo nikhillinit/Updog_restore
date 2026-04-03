@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Endpoint Ownership: /api/funds
 
 Generated: 2026-03-22 ADR: docs/decisions/adr-runtime-authority.md

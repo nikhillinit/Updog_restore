@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Phase 3 Execution Spec: Results Read Model And Truthfulness
 
 ## Context

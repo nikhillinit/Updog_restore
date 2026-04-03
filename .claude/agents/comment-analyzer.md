@@ -6,6 +6,7 @@ description:
   when reviewing existing comments.
 model: inherit
 color: green
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

@@ -1,6 +1,7 @@
 ---
-description: "Single command for full pre-PR validation workflow"
+description: 'Single command for full pre-PR validation workflow'
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+last_updated: 2026-04-03
 ---
 
 # PR Ready - Pre-Pull Request Validation
@@ -58,6 +59,7 @@ git rev-list --count main..HEAD
 ```
 
 **Decision Points:**
+
 - No changes? Exit with "Nothing to validate"
 - Not on feature branch? Warn user
 - No commits ahead? Suggest committing first
@@ -75,6 +77,7 @@ npm run test:smart
 ```
 
 **If tests fail:**
+
 - Proceed to Step 3 (fix-auto may resolve)
 - Track failures for summary
 
@@ -94,6 +97,7 @@ npm run check
 ```
 
 **Track:**
+
 - Issues auto-fixed
 - Issues requiring manual attention
 
@@ -117,29 +121,29 @@ Produce structured output:
 ```markdown
 ## PR Ready Summary
 
-**Branch:** feature/my-feature
-**Commits:** 3 ahead of main
-**Files Changed:** 12
+**Branch:** feature/my-feature **Commits:** 3 ahead of main **Files Changed:**
+12
 
 ### Validation Results
 
-[PASS] Tests: 142 passed (8 affected by changes)
-[PASS] Lint: Clean (3 auto-fixed)
-[PASS] Types: Clean
-[PASS] Build: Verified
+[PASS] Tests: 142 passed (8 affected by changes) [PASS] Lint: Clean (3
+auto-fixed) [PASS] Types: Clean [PASS] Build: Verified
 
 ### Changed Files by Category
 
 **Components (4):**
+
 - client/src/components/Dashboard.tsx
 - client/src/components/FundTable.tsx
 - ...
 
 **API Routes (2):**
+
 - server/routes/funds.ts
 - ...
 
 **Tests (3):**
+
 - tests/unit/dashboard.test.ts
 - ...
 
@@ -150,16 +154,19 @@ feat(dashboard): add fund filtering and sorting
 ### Suggested PR Body
 
 ## Summary
+
 - Added filtering by fund status
 - Added sorting by vintage year and TVPI
 - Updated FundTable component
 
 ## Test Plan
+
 - [x] Unit tests for filter logic
 - [x] Unit tests for sort logic
 - [ ] Manual testing of UI interactions
 
 ## Checklist
+
 - [x] Tests pass
 - [x] Lint clean
 - [x] Types check
@@ -175,6 +182,7 @@ For faster validation (skip full test suite):
 ```
 
 Quick mode:
+
 - Runs lint only
 - Runs type check only
 - Skips full test suite
@@ -182,24 +190,27 @@ Quick mode:
 
 ## Integration with Other Commands
 
-| Step | Command Used | Purpose |
-|------|--------------|---------|
-| 2 | /test-smart | Affected tests only |
-| 3 | /fix-auto | Auto-remediation |
-| 4 | /pre-commit-check | Final validation |
+| Step | Command Used      | Purpose             |
+| ---- | ----------------- | ------------------- |
+| 2    | /test-smart       | Affected tests only |
+| 3    | /fix-auto         | Auto-remediation    |
+| 4    | /pre-commit-check | Final validation    |
 
 ## Failure Handling
 
 **If Step 2 fails (tests):**
+
 - Continue to Step 3 (may auto-fix)
 - If still failing after Step 3, report and stop
 
 **If Step 3 fails (unfixable issues):**
+
 - Report issues requiring manual attention
 - Provide file:line references
 - Stop workflow
 
 **If Step 4 fails:**
+
 - Should not happen if Step 3 passed
 - Indicates regression or race condition
 - Full diagnostic output

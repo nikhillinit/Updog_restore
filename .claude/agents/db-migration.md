@@ -5,6 +5,7 @@ description:
   or when schema files are modified.
 tools: Read, Edit, Bash, Grep, Glob
 model: sonnet
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠 (PostgreSQL + pgvector)
@@ -529,6 +530,7 @@ After applying any migration, validate schema alignment across layers:
 ### Post-Migration Verification
 
 1. Run schema drift validator:
+
    ```bash
    ./scripts/validate-schema-drift.sh
    ```

@@ -1,7 +1,7 @@
 ---
-title: "Async Iteration Utilities"
-description: "Safe, type‑centric alternatives to native array methods"
-lastUpdated: 2025‑07‑28
+title: 'Async Iteration Utilities'
+description: 'Safe, type‑centric alternatives to native array methods'
+last_updated: 2026-04-03
 ---
 
 # Async Iteration Utilities - Production Guide
@@ -9,15 +9,18 @@ lastUpdated: 2025‑07‑28
 > Replace problematic `forEach` patterns with proper async iteration utilities
 
 ## Problem Statement
+
 The original code has issues with async operations inside `forEach`:
+
 ```typescript
 // ❌ BROKEN: forEach ignores promises, causes "[object Promise]" errors
-forEach(cohorts, async cohort => {
+forEach(cohorts, async (cohort) => {
   await processCohort(cohort); // This doesn't work as expected
 });
 ```
 
-The `forEach` method doesn't wait for promises to resolve, leading to unpredictable execution order and "[object Promise]" errors.
+The `forEach` method doesn't wait for promises to resolve, leading to
+unpredictable execution order and "[object Promise]" errors.
 
 ---
 
@@ -25,15 +28,15 @@ The `forEach` method doesn't wait for promises to resolve, leading to unpredicta
 
 Import from: `@/utils/async-iteration`
 
-| Function | Description | Use Case |
-|----------|-------------|----------|
-| `forEachAsync()` | Sequential async iteration | Default replacement for forEach |
-| `processAsync()` | Configurable parallel/sequential/batch processing | High-performance scenarios |
-| `mapAsync()` | Async mapping with result aggregation | Transform arrays asynchronously |
-| `filterAsync()` | Async filtering | Filter with async predicates |
-| `findAsync()` | Async find | Find with async predicates |
-| `reduceAsync()` | Async reduce | Accumulate with async operations |
-| `safeArray()` | Safe array wrapper | Ensure valid arrays |
+| Function         | Description                                       | Use Case                         |
+| ---------------- | ------------------------------------------------- | -------------------------------- |
+| `forEachAsync()` | Sequential async iteration                        | Default replacement for forEach  |
+| `processAsync()` | Configurable parallel/sequential/batch processing | High-performance scenarios       |
+| `mapAsync()`     | Async mapping with result aggregation             | Transform arrays asynchronously  |
+| `filterAsync()`  | Async filtering                                   | Filter with async predicates     |
+| `findAsync()`    | Async find                                        | Find with async predicates       |
+| `reduceAsync()`  | Async reduce                                      | Accumulate with async operations |
+| `safeArray()`    | Safe array wrapper                                | Ensure valid arrays              |
 
 ### Core Functions
 
@@ -44,14 +47,18 @@ await forEachAsync(items, async (item) => {
 });
 
 // Configurable processing with options
-await processAsync(items, async (item) => {
-  await processItem(item);
-}, {
-  parallel: true,          // false = sequential, true = parallel
-  batchSize: 10,          // items per batch (when parallel)
-  continueOnError: false, // true = continue on failures
-  delayBetweenBatches: 100 // ms delay between batches
-});
+await processAsync(
+  items,
+  async (item) => {
+    await processItem(item);
+  },
+  {
+    parallel: true, // false = sequential, true = parallel
+    batchSize: 10, // items per batch (when parallel)
+    continueOnError: false, // true = continue on failures
+    delayBetweenBatches: 100, // ms delay between batches
+  }
+);
 
 // Async mapping
 const results = await mapAsync(items, async (item) => {
@@ -64,11 +71,12 @@ const results = await mapAsync(items, async (item) => {
 ## Usage Patterns
 
 ### Quick Fix (Recommended)
+
 Replace the original problematic pattern:
 
 ```typescript
 // ❌ OLD: Broken forEach
-forEach(cohorts, cohort => {
+forEach(cohorts, (cohort) => {
   // … process each cohort …
 });
 
@@ -82,13 +90,13 @@ await forEachAsync(safeArray(cohorts), async (cohort) => {
 
 ### Decision Matrix
 
-| Scenario | Pattern | Why |
-|----------|---------|-----|
-| **Default use case** | `forEachAsync()` | Sequential, predictable, safe |
-| **Independent operations** | `processAsync({parallel: true})` | Faster parallel execution |
-| **Large datasets** | `processAsync({parallel: true, batchSize: 10})` | Prevents resource exhaustion |
-| **Error tolerance** | `processAsync({continueOnError: true})` | Continues processing failures |
-| **Rate limiting** | `processAsync({delayBetweenBatches: 100})` | Respects API limits |
+| Scenario                   | Pattern                                         | Why                           |
+| -------------------------- | ----------------------------------------------- | ----------------------------- |
+| **Default use case**       | `forEachAsync()`                                | Sequential, predictable, safe |
+| **Independent operations** | `processAsync({parallel: true})`                | Faster parallel execution     |
+| **Large datasets**         | `processAsync({parallel: true, batchSize: 10})` | Prevents resource exhaustion  |
+| **Error tolerance**        | `processAsync({continueOnError: true})`         | Continues processing failures |
+| **Rate limiting**          | `processAsync({delayBetweenBatches: 100})`      | Respects API limits           |
 
 ### Real Examples
 
@@ -100,14 +108,18 @@ await forEachAsync(safeArray(this.cohorts), async (cohort) => {
 });
 
 // High-throughput with batching
-await processAsync(largeDataset, async (item) => {
-  await expensiveOperation(item);
-}, {
-  parallel: true,
-  batchSize: 5,
-  continueOnError: true,
-  delayBetweenBatches: 50
-});
+await processAsync(
+  largeDataset,
+  async (item) => {
+    await expensiveOperation(item);
+  },
+  {
+    parallel: true,
+    batchSize: 5,
+    continueOnError: true,
+    delayBetweenBatches: 50,
+  }
+);
 
 // Transform with error handling
 const results = await mapAsync(items, async (item) => {
@@ -125,7 +137,7 @@ cohorts.forEach(async (cohort) => {
   await processCohort(cohort); // Promises ignored, no error handling
 });
 
-// ❌ BAD: forEach with promises  
+// ❌ BAD: forEach with promises
 cohorts.forEach((cohort) => {
   return processCohort(cohort); // Returns ignored
 });
@@ -144,6 +156,7 @@ await Promise.all(cohorts.map(processCohort)); // One failure kills all
 ## Error Handling Patterns
 
 ### Fail-Fast (Default)
+
 ```typescript
 try {
   await forEachAsync(items, async (item) => {
@@ -156,15 +169,21 @@ try {
 ```
 
 ### Error-Resilient
+
 ```typescript
-const results = await processAsync(items, async (item) => {
-  await riskyOperation(item);
-}, { continueOnError: true });
+const results = await processAsync(
+  items,
+  async (item) => {
+    await riskyOperation(item);
+  },
+  { continueOnError: true }
+);
 
 // All items attempted, errors logged automatically
 ```
 
 ### Custom Error Handling
+
 ```typescript
 interface ProcessResult<T> {
   successes: T[];
@@ -172,7 +191,7 @@ interface ProcessResult<T> {
 }
 
 async function processWithResults<T>(
-  items: T[], 
+  items: T[],
   processor: (item: T) => Promise<void>
 ): Promise<ProcessResult<T>> {
   const successes: T[] = [];
@@ -195,13 +214,14 @@ async function processWithResults<T>(
 
 ## Performance Guidelines
 
-| Strategy | Speed | Resource Usage | Error Handling | Best For |
-|----------|-------|----------------|----------------|----------|
-| **Sequential** | Slowest | Minimal | Simple | Dependent operations, debugging |
-| **Parallel** | Fastest | High | Complex | Independent operations, small datasets |
-| **Batched** | Balanced | Controlled | Configurable | Large datasets, API rate limits |
+| Strategy       | Speed    | Resource Usage | Error Handling | Best For                               |
+| -------------- | -------- | -------------- | -------------- | -------------------------------------- |
+| **Sequential** | Slowest  | Minimal        | Simple         | Dependent operations, debugging        |
+| **Parallel**   | Fastest  | High           | Complex        | Independent operations, small datasets |
+| **Batched**    | Balanced | Controlled     | Configurable   | Large datasets, API rate limits        |
 
 ### Benchmarking
+
 ```typescript
 // Test with your actual data
 console.time('sequential');
@@ -222,7 +242,7 @@ console.timeEnd('parallel');
 test('forEachAsync processes items in order', async () => {
   const order: number[] = [];
   await forEachAsync([1, 2, 3], async (num) => {
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 10));
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 10));
     order.push(num);
   });
   expect(order).toEqual([1, 2, 3]);
@@ -231,11 +251,15 @@ test('forEachAsync processes items in order', async () => {
 // Test error handling
 test('processAsync continues on error when configured', async () => {
   const results: number[] = [];
-  await processAsync([1, 2, 3], async (num) => {
-    if (num === 2) throw new Error('Test error');
-    results.push(num);
-  }, { continueOnError: true });
-  
+  await processAsync(
+    [1, 2, 3],
+    async (num) => {
+      if (num === 2) throw new Error('Test error');
+      results.push(num);
+    },
+    { continueOnError: true }
+  );
+
   expect(results).toEqual([1, 3]); // 2 skipped due to error
 });
 ```

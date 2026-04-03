@@ -1,7 +1,10 @@
 ---
-description: "Format Monte Carlo artifact into PR-ready distribution summary table"
-argument-hint: "path=<artifact.json|artifact.csv> [metric=TVPI|DPI|MOIC|IRR|all]"
+description:
+  'Format Monte Carlo artifact into PR-ready distribution summary table'
+argument-hint:
+  'path=<artifact.json|artifact.csv> [metric=TVPI|DPI|MOIC|IRR|all]'
 allowed-tools: Read, Grep, Glob
+last_updated: 2026-04-03
 ---
 
 # Phoenix Probabilistic Report Formatter
@@ -53,19 +56,17 @@ If CSV format, compute summary statistics from raw data.
 ```markdown
 ## Monte Carlo Distribution Summary
 
-**Artifact**: {path}
-**Scenario**: {scenario or "unknown"}
-**Seed**: {seed or "not recorded"}
-**Iterations**: {count}
+**Artifact**: {path} **Scenario**: {scenario or "unknown"} **Seed**: {seed or
+"not recorded"} **Iterations**: {count}
 
 ### Distribution Table
 
-| Metric | Mean   | P10    | P50    | P90    | Min    | Max    |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| TVPI   | 1.85   | 1.42   | 1.82   | 2.31   | 0.92   | 3.45   |
-| DPI    | 1.65   | 1.22   | 1.62   | 2.11   | 0.75   | 3.12   |
-| MOIC   | 2.10   | 1.55   | 2.05   | 2.72   | 1.02   | 4.01   |
-| IRR    | 18.0%  | 9.0%   | 17.0%  | 28.0%  | -5.0%  | 52.0%  |
+| Metric | Mean  | P10  | P50   | P90   | Min   | Max   |
+| ------ | ----- | ---- | ----- | ----- | ----- | ----- |
+| TVPI   | 1.85  | 1.42 | 1.82  | 2.31  | 0.92  | 3.45  |
+| DPI    | 1.65  | 1.22 | 1.62  | 2.11  | 0.75  | 3.12  |
+| MOIC   | 2.10  | 1.55 | 2.05  | 2.72  | 1.02  | 4.01  |
+| IRR    | 18.0% | 9.0% | 17.0% | 28.0% | -5.0% | 52.0% |
 
 ### Sanity Checks
 
@@ -80,7 +81,8 @@ If CSV format, compute summary statistics from raw data.
 
 ## Error Handling
 
-- If artifact not found: "Artifact not found at {path}. Run `/phoenix-phase2` first."
+- If artifact not found: "Artifact not found at {path}. Run `/phoenix-phase2`
+  first."
 - If missing metadata: Report what's available, note missing fields
 - If malformed data: "Unable to parse artifact. Expected JSON or CSV format."
 

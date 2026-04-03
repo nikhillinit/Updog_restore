@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # ADR: Runtime Authority for Contract-Integrity Work
 
 ## Status

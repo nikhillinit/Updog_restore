@@ -12,6 +12,7 @@ description:
   skeuomorphism, flat design. Topics: color palette, accessibility, animation,
   layout, typography, font pairing, spacing, hover, shadow, gradient.
   Integrations: shadcn/ui MCP for component search and examples.'
+last_updated: 2026-04-03
 ---
 
 # UI/UX Pro Max - Design Intelligence

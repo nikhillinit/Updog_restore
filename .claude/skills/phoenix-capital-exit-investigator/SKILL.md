@@ -3,6 +3,7 @@ name: phoenix-capital-exit-investigator
 description:
   'Capital allocation and exit recycling investigator. Use when working on
   low-confidence modules like capital allocation and exit recycling.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Capital & Exit Investigator

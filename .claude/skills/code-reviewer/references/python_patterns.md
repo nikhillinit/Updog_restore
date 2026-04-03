@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Python Code Review Reference
 
 ## Table of Contents

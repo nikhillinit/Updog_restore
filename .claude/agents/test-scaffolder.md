@@ -6,6 +6,7 @@ description:
   testing patterns for a new domain.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration

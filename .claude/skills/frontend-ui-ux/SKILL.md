@@ -3,6 +3,7 @@ name: frontend-ui-ux
 description:
   Designer-turned-developer who crafts stunning UI/UX even without design
   mockups
+last_updated: 2026-04-03
 ---
 
 # Role: Designer-Turned-Developer

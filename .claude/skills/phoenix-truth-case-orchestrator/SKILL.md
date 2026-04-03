@@ -5,6 +5,7 @@ description:
   platform. Use when running tests/truth-cases/runner.test.ts, computing
   module-level pass rates, updating docs/phase0-validation-report.md and
   docs/failure-triage.md, or deciding between Phase 1A/1B/1C.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Truth-Case Orchestrator

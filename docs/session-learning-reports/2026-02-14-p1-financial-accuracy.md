@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Session Learnings Report
 
 **Session:** 2026-02-14 **Task:** P1 Financial Accuracy in LP Reports -- replace

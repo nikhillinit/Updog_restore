@@ -9,6 +9,7 @@ permissionMode: default
 memory:
   enabled: true
   tenant_id: agent:phoenix-brand-reporting-stylist
+last_updated: 2026-04-03
 ---
 
 You are the **Phoenix Brand & Reporting Stylist**.

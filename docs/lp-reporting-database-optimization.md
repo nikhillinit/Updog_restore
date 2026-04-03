@@ -1,27 +1,29 @@
 ---
 title: LP Reporting Dashboard - Database Optimization Guide
 status: active
-last_updated: 2025-12-23
+last_updated: 2026-04-03
 categories: [database, performance, architecture]
 ---
 
 # LP Reporting Dashboard - Database Optimization Guide
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-23
-**Owner:** Database Architecture Team
+**Document Version:** 1.0 **Last Updated:** 2025-12-23 **Owner:** Database
+Architecture Team
 
 ## Executive Summary
 
-This document describes the complete database optimization strategy for the LP Reporting Dashboard, including:
+This document describes the complete database optimization strategy for the LP
+Reporting Dashboard, including:
 
-- **Schema Design:** Seven normalized tables with optimized column types and constraints
+- **Schema Design:** Seven normalized tables with optimized column types and
+  constraints
 - **Indexing Strategy:** 15+ indexes targeting common query patterns
 - **Materialized Views:** Three pre-aggregated views for dashboard performance
 - **Caching Layer:** Redis cache-aside pattern with tag-based invalidation
 - **Background Jobs:** BullMQ worker for view refresh and cache management
 
 **Performance Targets:**
+
 - Dashboard load: **< 100ms** (from cache)
 - Capital account timeline: **< 200ms** for 1000+ transactions
 - Performance timeseries: **< 150ms** for 3-year history
@@ -52,18 +54,22 @@ limited_partners (LP master)
 **Purpose:** LP master data
 
 **Key Fields:**
+
 - `id` (UUID) - Primary key
 - `legal_name` - Official entity name
 - `entity_type` - individual|institutional|family_office|trust|foundation
 - `status` - active|inactive|prospect|onboarding
-- `preferences` (JSONB) - Flexible preferences (report frequency, format, notifications)
+- `preferences` (JSONB) - Flexible preferences (report frequency, format,
+  notifications)
 
 **Indexes:**
+
 - `idx_limited_partners_status` - For LP filtering
 - `idx_limited_partners_email` - For LP lookup by email
 - `idx_limited_partners_created` - For onboarding tracking
 
 **Constraints:**
+
 - `UNIQUE(primary_contact_email)` - Email uniqueness per LP
 - `CHECK(status IN ...)` - Valid status values
 
@@ -76,6 +82,7 @@ limited_partners (LP master)
 **Purpose:** LP commitment in specific fund
 
 **Key Fields:**
+
 - `id` (UUID) - Primary key
 - `lp_id` (UUID) - References limited_partners
 - `fund_id` (INTEGER) - References funds
@@ -84,6 +91,7 @@ limited_partners (LP master)
 - `callable_percentage` (DECIMAL) - Can be < 100% in some cases
 
 **Indexes:**
+
 ```sql
 -- Lookup by LP
 idx_lp_fund_commitments_lp ON (lp_id)
@@ -100,6 +108,7 @@ idx_lp_fund_commitments_active ON (lp_id, fund_id)
 ```
 
 **Constraints:**
+
 - `UNIQUE(lp_id, fund_id)` - One commitment per LP-Fund pair
 - `commitment_amount_cents > 0` - Positive commitment only
 - `callable_percentage BETWEEN 0 AND 1`
@@ -113,16 +122,20 @@ idx_lp_fund_commitments_active ON (lp_id, fund_id)
 **Purpose:** Immutable log of all capital movements
 
 **Key Fields:**
+
 - `id` (UUID) - Primary key
 - `commitment_id` (UUID) - Which LP-Fund this activity belongs to
-- `type` - capital_call|distribution|return_of_capital|management_fee|carried_interest
-- `amount_cents` (BIGINT) - Signed value (positive = capital call, negative = distribution)
+- `type` -
+  capital_call|distribution|return_of_capital|management_fee|carried_interest
+- `amount_cents` (BIGINT) - Signed value (positive = capital call, negative =
+  distribution)
 - `activity_date` (DATE) - When the activity occurred
 - `due_date` (DATE) - When payment was due (capital calls only)
 - `status` - pending|completed|failed|reversed
 - `payment_date` (DATE) - When payment was made
 
 **Design Principles:**
+
 - **Append-only:** Never update or delete (audit trail)
 - **Immutable:** History of every capital movement
 - **Partitionable:** Designed for date-based partitioning
@@ -150,6 +163,7 @@ capital_activities_type_date_idx ON (type, activity_date DESC)
 ```
 
 **Constraints:**
+
 - `UNIQUE(id)` - Primary key
 - `amount_cents != 0` - No zero-value activities
 - `Check activity_date <= payment_date` (optional validation)
@@ -163,6 +177,7 @@ capital_activities_type_date_idx ON (type, activity_date DESC)
 **Purpose:** Denormalized snapshot of capital position per commitment
 
 **Key Fields:**
+
 - `id` (UUID) - Primary key
 - `commitment_id` (UUID) - Which commitment
 - `as_of_date` (DATE) - When this snapshot was calculated
@@ -173,6 +188,7 @@ capital_activities_type_date_idx ON (type, activity_date DESC)
 - `irr_percent`, `moic` (DECIMAL) - Cached performance metrics
 
 **Design Rationale:**
+
 - **Denormalized:** Sum of all capital_activities pre-calculated
 - **Point-in-time:** One row per date per commitment
 - **Enables:** Fast "as of" date queries without aggregation
@@ -192,10 +208,11 @@ idx_lp_capital_accounts_lp_asof ON (lp_id, as_of_date DESC)
 ```
 
 **Constraints:**
+
 - `UNIQUE(commitment_id, as_of_date)` - One snapshot per day per commitment
 - All amounts >= 0 (checked constraints)
 
-**Estimated Rows:** 365 * 500,000 commitments = 182M rows (partitioned by year)
+**Estimated Rows:** 365 \* 500,000 commitments = 182M rows (partitioned by year)
 
 ---
 
@@ -204,6 +221,7 @@ idx_lp_capital_accounts_lp_asof ON (lp_id, as_of_date DESC)
 **Purpose:** Time-series performance data for charting
 
 **Key Fields:**
+
 - `commitment_id` (UUID)
 - `snapshot_date` (DATE) - When metrics were calculated
 - `irr_percent` (DECIMAL) - IRR for the LP's position
@@ -234,7 +252,8 @@ idx_lp_perf_snapshots_recent ON (snapshot_date DESC)
   WHERE snapshot_date >= CURRENT_DATE - INTERVAL '3 years'
 ```
 
-**Estimated Rows:** ~12-52 per commitment per year (monthly/quarterly) = 500K-2M total
+**Estimated Rows:** ~12-52 per commitment per year (monthly/quarterly) = 500K-2M
+total
 
 ---
 
@@ -243,6 +262,7 @@ idx_lp_perf_snapshots_recent ON (snapshot_date DESC)
 **Purpose:** Track generated PDF/Excel reports
 
 **Key Fields:**
+
 - `lp_id` (UUID) - Which LP
 - `report_type` - quarterly|annual|ad_hoc
 - `format` - pdf|excel|both
@@ -272,10 +292,12 @@ idx_lp_reports_data_gin ON lp_reports USING GIN (report_data)
 **Purpose:** Fund-level NAV history for reference
 
 **Key Fields:**
+
 - `fund_id` (INTEGER)
 - `snapshot_date` (DATE)
 - `gross_nav_cents`, `net_nav_cents` (BIGINT)
-- `committed_capital_cents`, `called_capital_cents`, `distributed_capital_cents` (BIGINT)
+- `committed_capital_cents`, `called_capital_cents`, `distributed_capital_cents`
+  (BIGINT)
 - `moic`, `dpi`, `rvpi` (DECIMAL)
 
 **Estimated Rows:** 12-52 per fund per year = 50K-100K total
@@ -397,6 +419,7 @@ ANALYZE capital_activities;
 **Purpose:** Pre-aggregated metrics for LP dashboard
 
 **Query Logic:**
+
 ```sql
 SELECT
   lp.id, lp.legal_name, lp.status,
@@ -413,16 +436,19 @@ GROUP BY lp.id, lp.legal_name, lp.status
 ```
 
 **Performance:**
+
 - **Without View:** 200-500ms (5 JOINs + aggregations on 1M+ rows)
 - **With View:** 5-10ms (single row lookup)
 - **Improvement:** 40-100x faster
 
 **Refresh Strategy:**
+
 - **Scheduled:** Daily 12:00 AM UTC (nightly refresh)
 - **Event-Triggered:** After capital call/distribution (debounced 100ms)
 - **Refresh Time:** < 2 minutes for 1000 LPs
 
 **Refresh SQL:**
+
 ```sql
 REFRESH MATERIALIZED VIEW CONCURRENTLY lp_dashboard_summary;
 -- CONCURRENTLY allows reads during refresh (requires unique index)
@@ -469,11 +495,11 @@ Check Redis Cache
 ```typescript
 export const DEFAULT_CACHE_CONFIG = {
   ttlSeconds: {
-    summary: 5 * 60,          // 5 minutes - frequently accessed
-    performance: 10 * 60,      // 10 minutes - less volatile
-    holdings: 60 * 60,         // 1 hour - valuation updates infrequently
-    timeseries: 60 * 60,       // 1 hour - historical data stable
-    capitalActivity: 10 * 60,  // 10 minutes - recent transactions
+    summary: 5 * 60, // 5 minutes - frequently accessed
+    performance: 10 * 60, // 10 minutes - less volatile
+    holdings: 60 * 60, // 1 hour - valuation updates infrequently
+    timeseries: 60 * 60, // 1 hour - historical data stable
+    capitalActivity: 10 * 60, // 10 minutes - recent transactions
   },
 };
 ```
@@ -492,6 +518,7 @@ commitment:{commitmentId}:timeseries:{granularity}:{dateRange}
 **Scenario:** Capital call on LP occurs
 
 **Before:** Manual cache deletion
+
 ```typescript
 // ❌ Inefficient - must know all cached keys
 redis.del(`lp:${lpId}:summary`);
@@ -500,6 +527,7 @@ redis.del(`lp:${lpId}:performance:*`);
 ```
 
 **After:** Tag-based invalidation
+
 ```typescript
 // ✓ Efficient - pattern matching
 await cache.invalidateByTag(`lp:${lpId}:*`);
@@ -512,12 +540,12 @@ await cache.invalidateByTag(`lp:${lpId}:*`);
 
 ### Cache Invalidation Triggers
 
-| Event | Invalidate Pattern | Rationale |
-|-------|-------------------|-----------|
-| Capital Call | `lp:{lpId}:*`, `fund:{fundId}:*` | Affects all LP data and fund totals |
-| Distribution | Same | Same |
-| Performance Update | `commitment:{commitmentId}:*`, `lp:{lpId}:performance:*` | Affects timeseries and aggregate |
-| Daily Refresh | All caches | Refresh all after materialized view update |
+| Event              | Invalidate Pattern                                       | Rationale                                  |
+| ------------------ | -------------------------------------------------------- | ------------------------------------------ |
+| Capital Call       | `lp:{lpId}:*`, `fund:{fundId}:*`                         | Affects all LP data and fund totals        |
+| Distribution       | Same                                                     | Same                                       |
+| Performance Update | `commitment:{commitmentId}:*`, `lp:{lpId}:performance:*` | Affects timeseries and aggregate           |
+| Daily Refresh      | All caches                                               | Refresh all after materialized view update |
 
 ---
 
@@ -528,6 +556,7 @@ await cache.invalidateByTag(`lp:${lpId}:*`);
 **Purpose:** Dashboard summary for single LP
 
 **Query Path:**
+
 1. Check Redis `lp:{lpId}:summary`
 2. If miss, query materialized view `lp_dashboard_summary`
 3. Cache result for 5 minutes
@@ -543,11 +572,13 @@ await cache.invalidateByTag(`lp:${lpId}:*`);
 **Purpose:** Timeline of capital calls/distributions with pagination
 
 **Query Path:**
+
 1. Check Redis `lp:{lpId}:capital-activity:{filters}`
 2. If miss, query `capital_activities` with cursor pagination
 3. Cache for 10 minutes
 
 **SQL (optimized):**
+
 ```sql
 SELECT ca.id, ca.activity_date, ca.amount_cents, ca.type, ca.status
 FROM capital_activities ca
@@ -566,6 +597,7 @@ LIMIT 21  -- +1 to detect more results
 **Index Used:** `capital_activities_commitment_date_idx`
 
 **Cursor Pagination Benefits:**
+
 - ✓ Can resume from any position
 - ✓ No offset recalculation (O(1) not O(n))
 - ✓ Handles concurrent updates
@@ -578,6 +610,7 @@ LIMIT 21  -- +1 to detect more results
 **Purpose:** Latest performance metrics for specific fund
 
 **Query Path:**
+
 1. Check Redis `lp:{lpId}:fund:{fundId}:performance`
 2. If miss, query `lp_performance_snapshots` for latest
 3. Cache for 10 minutes
@@ -593,6 +626,7 @@ LIMIT 21  -- +1 to detect more results
 **Purpose:** LP's pro-rata portfolio company holdings
 
 **Calculation:**
+
 ```
 For each company in fund:
   lp_cost_basis = company_total_investment * (lp_commitment / total_commitments)
@@ -611,11 +645,13 @@ For each company in fund:
 **Purpose:** Historical performance for trend charts
 
 **Features:**
+
 - Supports monthly/quarterly downsampling
 - Returns last snapshot per period
 - Handles 3+ years of data efficiently
 
 **Query Path:**
+
 ```sql
 SELECT snapshot_date, irr_percent, moic_percent, dpi_percent, tvpi_percent
 FROM lp_performance_snapshots
@@ -639,6 +675,7 @@ ORDER BY snapshot_date ASC
 **Timing:** Daily at 12:00 AM UTC
 
 **Actions:**
+
 1. Refresh `lp_dashboard_summary` view
 2. Refresh `fund_lp_summary` view
 3. Refresh `lp_performance_latest` view
@@ -656,10 +693,12 @@ ORDER BY snapshot_date ASC
 **Trigger:** After capital call/distribution
 
 **Conditions:**
+
 - Debounced for 100ms (avoid excessive refreshes)
 - Only specific LP-Fund pair refreshed (not full view)
 
 **Actions:**
+
 1. Queue partial view refresh
 2. Invalidate cache: `lp:{lpId}:*`, `fund:{fundId}:*`
 
@@ -671,32 +710,32 @@ ORDER BY snapshot_date ASC
 
 ### Query Latency Targets
 
-| Query | Target | Cached | From DB |
-|-------|--------|--------|---------|
-| getLPSummary | 10ms | 5ms | 50ms |
-| getCapitalActivity (1K txns) | 200ms | 10ms | 200ms |
-| getFundPerformance | 50ms | 5ms | 50ms |
-| getProRataHoldings | 500ms | 10ms | 500ms |
-| getPerformanceTimeseries | 150ms | 10ms | 150ms |
+| Query                        | Target | Cached | From DB |
+| ---------------------------- | ------ | ------ | ------- |
+| getLPSummary                 | 10ms   | 5ms    | 50ms    |
+| getCapitalActivity (1K txns) | 200ms  | 10ms   | 200ms   |
+| getFundPerformance           | 50ms   | 5ms    | 50ms    |
+| getProRataHoldings           | 500ms  | 10ms   | 500ms   |
+| getPerformanceTimeseries     | 150ms  | 10ms   | 150ms   |
 
 ### Index Storage
 
-| Index | Estimated Size | Rows | Purpose |
-|-------|---|---|---|
-| `capital_activities_commitment_date` | 50 MB | 1M | Timeline queries |
-| `lp_perf_snapshots_commitment_date` | 10 MB | 500K | Timeseries queries |
-| `lp_commitments_active` | 30 MB | 500K | Active filter |
-| Other indexes | 50 MB | - | Supporting queries |
-| **Total** | **~150 MB** | **~2M** | All tables |
+| Index                                | Estimated Size | Rows    | Purpose            |
+| ------------------------------------ | -------------- | ------- | ------------------ |
+| `capital_activities_commitment_date` | 50 MB          | 1M      | Timeline queries   |
+| `lp_perf_snapshots_commitment_date`  | 10 MB          | 500K    | Timeseries queries |
+| `lp_commitments_active`              | 30 MB          | 500K    | Active filter      |
+| Other indexes                        | 50 MB          | -       | Supporting queries |
+| **Total**                            | **~150 MB**    | **~2M** | All tables         |
 
 ### Cache Hit Rates (Expected)
 
-| Cache Key | Hit Rate | Rationale |
-|-----------|----------|-----------|
-| LP Summary | 80-90% | Accessed repeatedly per session |
-| Capital Activity | 60-70% | Date ranges vary |
-| Performance | 70-80% | Common dashboard view |
-| Holdings | 50-60% | Less frequently viewed |
+| Cache Key        | Hit Rate | Rationale                       |
+| ---------------- | -------- | ------------------------------- |
+| LP Summary       | 80-90%   | Accessed repeatedly per session |
+| Capital Activity | 60-70%   | Date ranges vary                |
+| Performance      | 70-80%   | Common dashboard view           |
+| Holdings         | 50-60%   | Less frequently viewed          |
 
 ---
 
@@ -749,13 +788,13 @@ ORDER BY count DESC;
 
 ### Maintenance Schedule
 
-| Task | Frequency | Time | Duration |
-|------|-----------|------|----------|
-| Update statistics | Weekly | Sunday 02:00 | 30 min |
-| Reindex hot indexes | Monthly | First Sunday | 1-2 hrs |
-| Analyze bloat | Monthly | First Sunday | 1 hr |
-| Review slow queries | Daily | 06:00 | 15 min |
-| Backup | Daily | 23:00 | 2-4 hrs |
+| Task                | Frequency | Time         | Duration |
+| ------------------- | --------- | ------------ | -------- |
+| Update statistics   | Weekly    | Sunday 02:00 | 30 min   |
+| Reindex hot indexes | Monthly   | First Sunday | 1-2 hrs  |
+| Analyze bloat       | Monthly   | First Sunday | 1 hr     |
+| Review slow queries | Daily     | 06:00        | 15 min   |
+| Backup              | Daily     | 23:00        | 2-4 hrs  |
 
 ---
 
@@ -777,6 +816,7 @@ find /backups -name 'lp-db-*.dir' -mtime +30 -delete
 ### Recovery Procedures
 
 **Scenario 1: Corrupted Index**
+
 ```sql
 -- Reindex
 REINDEX INDEX CONCURRENTLY capital_activities_commitment_date_idx;
@@ -788,6 +828,7 @@ CREATE INDEX CONCURRENTLY capital_activities_commitment_date_idx
 ```
 
 **Scenario 2: Stale Materialized View**
+
 ```sql
 -- Refresh
 REFRESH MATERIALIZED VIEW CONCURRENTLY lp_dashboard_summary;
@@ -798,6 +839,7 @@ REFRESH MATERIALIZED VIEW lp_dashboard_summary;
 ```
 
 **Scenario 3: Full Database Restore**
+
 ```bash
 # Restore from backup
 pg_restore --format=directory --jobs=4 \
@@ -815,7 +857,8 @@ psql -d updog_lp -c "SELECT COUNT(*) FROM limited_partners;"
 
 - [x] Create core schema (`migrations/001_lp_reporting_schema.sql`)
 - [x] Add indexes (`migrations/002_lp_reporting_indexes.sql`)
-- [x] Create materialized views (`migrations/003_lp_dashboard_materialized_view.sql`)
+- [x] Create materialized views
+      (`migrations/003_lp_dashboard_materialized_view.sql`)
 
 ### Phase 2: Application Layer (Week 2)
 

@@ -3,11 +3,13 @@ name: session-learnings
 description: Extract and codify learnings from planning-with-files sessions
 trigger: After completing work sessions, before closing PRs
 auto_activate: true
+last_updated: 2026-04-03
 ---
 
 # Session Learnings Extraction
 
-Extract valuable lessons from completed work sessions and codify them into the reflection system.
+Extract valuable lessons from completed work sessions and codify them into the
+reflection system.
 
 ## When This Skill Activates
 
@@ -23,6 +25,7 @@ Extract valuable lessons from completed work sessions and codify them into the r
 Search for learning sources in order of priority:
 
 1. **Planning-with-files outputs:**
+
    ```
    docs/plans/*/findings.md - "Key Learnings" sections
    docs/plans/*/progress.md - "Error Log" entries
@@ -43,13 +46,13 @@ Search for learning sources in order of priority:
 
 For each source, extract:
 
-| Field | Source |
-|-------|--------|
-| Title | "Key Learning" header or error description |
-| Anti-Pattern | "Problem" or "What went wrong" section |
-| Root Cause | "Why" or "Analysis" section |
-| Fix | "Solution" or "Resolution" section |
-| Impact | Financial/system consequences |
+| Field        | Source                                     |
+| ------------ | ------------------------------------------ |
+| Title        | "Key Learning" header or error description |
+| Anti-Pattern | "Problem" or "What went wrong" section     |
+| Root Cause   | "Why" or "Analysis" section                |
+| Fix          | "Solution" or "Resolution" section         |
+| Impact       | Financial/system consequences              |
 
 **Learning Candidate Scoring:**
 
@@ -67,12 +70,12 @@ For each source, extract:
 ```markdown
 # Session Learnings Report
 
-**Session:** [DATE]
-**Sources Analyzed:** [count]
+**Session:** [DATE] **Sources Analyzed:** [count]
 
 ## Learning Candidates
 
 ### Candidate 1: [Title]
+
 - **Score:** [X/10]
 - **Source:** [file:line]
 - **Category:** [Fund Logic | State | Math | API | Infrastructure]
@@ -106,45 +109,53 @@ For each candidate with recommendation "CREATE REFLECTION":
 ### Session Boundary Detection
 
 Use 5-hour activity windows to group related learnings:
+
 - Learnings within same session likely related
 - Cross-session patterns indicate deeper issues
 
 ### Tool Usage Correlation
 
 Track tool invocations that led to discoveries:
+
 - Failed Bash commands revealing environment issues
 - Read tool revealing unexpected code patterns
 - Grep tool finding similar issues elsewhere
 
 ### Status Classification
 
-| Recency | Classification | Action |
-|---------|----------------|--------|
-| < 1 hour | Active session | Wait for completion |
-| < 24 hours | Recent session | Extract learnings now |
-| > 24 hours | Historical | Review for missed patterns |
+| Recency    | Classification | Action                     |
+| ---------- | -------------- | -------------------------- |
+| < 1 hour   | Active session | Wait for completion        |
+| < 24 hours | Recent session | Extract learnings now      |
+| > 24 hours | Historical     | Review for missed patterns |
 
 ## Example Extraction
 
 **Input (from findings.md):**
+
 ```markdown
 ### Key Learning: Dynamic Imports Prevent Side Effects
 
-**Pattern Success**: Dynamic import pattern works for preventing import-time side effects.
+**Pattern Success**: Dynamic import pattern works for preventing import-time
+side effects.
 
 **Key Learnings**:
+
 1. Some files were already fixed
 2. Not all skipped tests need dynamic imports
 3. Client-side vs Server-side import differences
 ```
 
 **Output (learning candidate):**
+
 ```markdown
 ### Candidate: Dynamic Imports Prevent Side Effects
+
 - **Score:** 4 (repeated pattern +3, DX friction +1)
 - **Source:** docs/plans/integration-test-phase0/findings.md:53
 - **Category:** Infrastructure
-- **Anti-Pattern:** Static imports of server modules in test files cause initialization side effects
+- **Anti-Pattern:** Static imports of server modules in test files cause
+  initialization side effects
 - **Fix:** Use dynamic imports in beforeAll for server modules
 - **Recommendation:** CREATE REFLECTION
 ```

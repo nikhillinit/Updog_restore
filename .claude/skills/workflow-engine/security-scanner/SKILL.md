@@ -1,17 +1,25 @@
 ---
 name: security-scanner
-description: Comprehensive security scanning for SAST, secrets, OWASP vulnerabilities, container and IaC security
+description:
+  Comprehensive security scanning for SAST, secrets, OWASP vulnerabilities,
+  container and IaC security
 version: 1.0.0
 tags: [security, scanning, vulnerabilities, secrets, owasp, sast, iac]
+last_updated: 2026-04-03
 ---
 
 # Security Scanner Skill
 
 ## Purpose
 
-The Security Scanner Skill provides comprehensive security analysis for codebases, detecting vulnerabilities, exposed secrets, security misconfigurations, and compliance violations. It combines Static Application Security Testing (SAST), secret detection, OWASP Top 10 checks, container security, and Infrastructure as Code (IaC) validation.
+The Security Scanner Skill provides comprehensive security analysis for
+codebases, detecting vulnerabilities, exposed secrets, security
+misconfigurations, and compliance violations. It combines Static Application
+Security Testing (SAST), secret detection, OWASP Top 10 checks, container
+security, and Infrastructure as Code (IaC) validation.
 
 **Key Capabilities:**
+
 - Static Application Security Testing (SAST) for common vulnerabilities
 - Secret and credential detection (API keys, passwords, tokens)
 - OWASP Top 10 vulnerability scanning
@@ -38,6 +46,7 @@ Use the Security Scanner Skill when:
 - Analyzing third-party dependencies
 
 **Trigger Phrases:**
+
 - "Scan for security vulnerabilities"
 - "Check for exposed secrets"
 - "Run security audit"
@@ -48,9 +57,11 @@ Use the Security Scanner Skill when:
 ## Operations
 
 ### 1. scan-secrets
+
 Detects hardcoded secrets, credentials, API keys, and sensitive information.
 
 **What it detects:**
+
 - API keys and tokens (AWS, GitHub, Slack, etc.)
 - Passwords and credentials
 - Private keys (SSH, PGP, SSL)
@@ -62,9 +73,11 @@ Detects hardcoded secrets, credentials, API keys, and sensitive information.
 **Output:** List of detected secrets with location, type, and severity
 
 ### 2. scan-vulnerabilities
+
 Performs SAST analysis for common code vulnerabilities.
 
 **What it checks:**
+
 - SQL injection vulnerabilities
 - Cross-site scripting (XSS)
 - Command injection
@@ -77,9 +90,11 @@ Performs SAST analysis for common code vulnerabilities.
 **Output:** Vulnerability report with CWE references and remediation guidance
 
 ### 3. scan-owasp
+
 Checks for OWASP Top 10 vulnerabilities.
 
 **OWASP Categories:**
+
 - A01: Broken Access Control
 - A02: Cryptographic Failures
 - A03: Injection
@@ -94,9 +109,11 @@ Checks for OWASP Top 10 vulnerabilities.
 **Output:** OWASP vulnerability report with risk ratings
 
 ### 4. scan-dependencies
+
 Analyzes third-party dependencies for known vulnerabilities.
 
 **What it checks:**
+
 - Package vulnerabilities (npm, pip, maven)
 - Outdated dependencies
 - License compliance
@@ -106,9 +123,11 @@ Analyzes third-party dependencies for known vulnerabilities.
 **Output:** Dependency vulnerability report with CVE details
 
 ### 5. scan-container
+
 Validates Docker containers and Kubernetes configurations.
 
 **Container checks:**
+
 - Dockerfile best practices
 - Base image vulnerabilities
 - Privilege escalation risks
@@ -119,9 +138,11 @@ Validates Docker containers and Kubernetes configurations.
 **Output:** Container security report with recommendations
 
 ### 6. scan-iac
+
 Scans Infrastructure as Code for security misconfigurations.
 
 **IaC platforms:**
+
 - Terraform (AWS, Azure, GCP)
 - CloudFormation
 - Kubernetes manifests
@@ -131,9 +152,11 @@ Scans Infrastructure as Code for security misconfigurations.
 **Output:** IaC security findings with remediation steps
 
 ### 7. scan-all
+
 Comprehensive security scan across all categories.
 
 **Process:**
+
 1. Scan for exposed secrets
 2. Run vulnerability analysis
 3. Check OWASP Top 10
@@ -355,7 +378,18 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
     "owasp": {
       "enabled": true,
       "version": "2021",
-      "categories": ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10"],
+      "categories": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10"
+      ],
       "risk_threshold": "medium"
     },
     "dependencies": {
@@ -406,6 +440,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ## Integration Points
 
 ### With Memory System
+
 ```bash
 # Store security findings in memory
 export SKILL_CONTEXT='{
@@ -417,6 +452,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py
 ```
 
 ### With Release Orchestrator
+
 ```bash
 # Security gate before release
 export SKILL_CONTEXT='{
@@ -428,6 +464,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py
 ```
 
 ### With Dependency Guardian
+
 ```bash
 # Combine dependency and security checks
 python ~/.claude/skills/dependency-guardian/scripts/main.py --operation check
@@ -435,6 +472,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py --operation scan-depend
 ```
 
 ### With CI/CD Pipeline
+
 ```yaml
 # GitHub Actions integration
 - name: Security Scan
@@ -447,6 +485,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py --operation scan-depend
 ```
 
 ### With Container Validator
+
 ```bash
 # Deep container security scan
 python ~/.claude/skills/security-scanner/scripts/main.py --operation scan-container
@@ -466,6 +505,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -513,6 +553,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -553,7 +594,9 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
       "severity": "high",
       "description": "Shell command uses unsanitized user input",
       "remediation": "Use subprocess with argument list: subprocess.run(['tar', '-czf', 'backup.tar.gz', directory])",
-      "references": ["https://owasp.org/www-community/attacks/Command_Injection"]
+      "references": [
+        "https://owasp.org/www-community/attacks/Command_Injection"
+      ]
     }
   ],
   "execution_time_ms": 456
@@ -571,6 +614,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -646,6 +690,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -707,6 +752,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -765,6 +811,7 @@ python ~/.claude/skills/security-scanner/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -861,6 +908,7 @@ Time: <3 seconds
 ```
 
 **Savings:**
+
 - Tokens: 74% reduction (2900 → 750)
 - Time: 98% reduction (5-8 minutes → <3 seconds)
 - Coverage: 5x more comprehensive (automated patterns)
@@ -869,6 +917,7 @@ Time: <3 seconds
 ## Success Metrics
 
 ### Performance Targets
+
 - Execution time: <500ms for secret scanning
 - Execution time: <800ms for vulnerability scanning
 - Execution time: <1000ms for OWASP checks
@@ -877,6 +926,7 @@ Time: <3 seconds
 - Token usage: <750 tokens per comprehensive scan
 
 ### Quality Targets
+
 - Secret detection accuracy: >98%
 - Vulnerability detection rate: >95%
 - False positive rate: <5%
@@ -884,6 +934,7 @@ Time: <3 seconds
 - CVE database coverage: >99%
 
 ### Operational Targets
+
 - Zero critical vulnerabilities in production
 - All secrets removed before commit
 - Dependency vulnerabilities patched within 48 hours
@@ -891,6 +942,7 @@ Time: <3 seconds
 - IaC security score >90%
 
 ### Business Impact
+
 - 70% reduction in security incident response time
 - 85% reduction in manual security reviews
 - 100% secret exposure prevention

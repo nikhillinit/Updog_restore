@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # Reference Documentation for Code Reviewer
 
 This is a placeholder for detailed reference documentation. Replace with actual

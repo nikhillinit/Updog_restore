@@ -5,6 +5,7 @@ severity: high
 category: Infrastructure
 discovered: 2026-03-23
 tags: [testing, mock, database, type-safety]
+last_updated: 2026-04-03
 ---
 
 # REFL-030: Mock ID Generator Type Change Breaks Downstream Assertions

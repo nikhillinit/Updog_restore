@@ -6,6 +6,7 @@ description:
   exploration or don't fit specialized agents.
 tools: All tools
 model: inherit
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

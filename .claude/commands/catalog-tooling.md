@@ -1,6 +1,7 @@
 ---
-description: "Comprehensive catalog of all development tooling and assets"
+description: 'Comprehensive catalog of all development tooling and assets'
 allowed-tools: Read, Grep, Glob
+last_updated: 2026-04-03
 ---
 
 # Catalog All Development Tooling

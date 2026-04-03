@@ -1,6 +1,7 @@
 ---
-description: "Initialize session context with Memory Manager integration"
+description: 'Initialize session context with Memory Manager integration'
 allowed-tools: Read, Bash
+last_updated: 2026-04-03
 ---
 
 Initialize session context with Memory Manager integration.

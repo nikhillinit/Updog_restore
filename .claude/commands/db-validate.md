@@ -1,6 +1,7 @@
 ---
-description: "Pre-deployment database schema validation"
+description: 'Pre-deployment database schema validation'
 allowed-tools: Read, Bash, Grep, Glob
+last_updated: 2026-04-03
 ---
 
 # DB Validate - Schema Validation Before Push
@@ -11,6 +12,7 @@ Integrates schema-drift-checker agent with deploy-check Phase 5.
 ## When to Use
 
 Run this command BEFORE:
+
 - `npm run db:push`
 - Any deployment that includes schema changes
 - Merging PRs that modify `shared/db/schema/`
@@ -28,6 +30,7 @@ ls -la shared/db/schema/
 ```
 
 **Checks:**
+
 - [ ] Schema files are valid TypeScript
 - [ ] No syntax errors in table definitions
 - [ ] Export structure is correct
@@ -53,6 +56,7 @@ Mock Data (tests/fixtures/*.ts)
 ```
 
 **For each layer, check:**
+
 - Column names match
 - Types are compatible
 - Required/optional matches
@@ -61,18 +65,21 @@ Mock Data (tests/fixtures/*.ts)
 ### Phase 3: Migration Safety Analysis
 
 **Safe Changes (Auto-approve):**
+
 - Adding nullable columns
 - Adding new tables
 - Adding indexes
 - Widening column types
 
 **Unsafe Changes (Require confirmation):**
+
 - Dropping columns (data loss risk)
 - Renaming columns (code breakage)
 - Changing NOT NULL constraints
 - Narrowing column types
 
 **Blocking Changes (Must fix):**
+
 - Dropping tables with foreign key references
 - Type changes that would truncate data
 - Removing required columns without default
@@ -85,6 +92,7 @@ npm run db:push -- --dry-run
 ```
 
 **Output analysis:**
+
 - List of CREATE statements
 - List of ALTER statements
 - List of DROP statements (highlight these)
@@ -204,6 +212,7 @@ For faster validation during development:
 ```
 
 Quick mode:
+
 - Skips Phase 2 (layer alignment)
 - Skips Phase 5 (rollback verification)
 - Only checks schema syntax and dry run
@@ -220,13 +229,13 @@ Before running `npm run db:push`:
 
 ## Related Commands and Agents
 
-| Resource | Purpose |
-|----------|---------|
-| schema-drift-checker agent | Detailed drift analysis |
-| db-migration agent | Complex migration planning |
-| database-expert agent | Architecture decisions |
-| database-schema-evolution skill | Migration patterns |
-| /deploy-check | Full deployment validation |
+| Resource                        | Purpose                    |
+| ------------------------------- | -------------------------- |
+| schema-drift-checker agent      | Detailed drift analysis    |
+| db-migration agent              | Complex migration planning |
+| database-expert agent           | Architecture decisions     |
+| database-schema-evolution skill | Migration patterns         |
+| /deploy-check                   | Full deployment validation |
 
 ## Automated Triggers
 
@@ -246,7 +255,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci
-      - run: npm run db:validate  # Runs this command
+      - run: npm run db:validate # Runs this command
 ```
 
 ## Error Recovery

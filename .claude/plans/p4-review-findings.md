@@ -1,3 +1,7 @@
+---
+last_updated: 2026-04-03
+---
+
 # P4 Pipeline UI Polish -- Plan Review Findings
 
 **Date:** 2026-02-16 **Reviewer:** Claude Code (planning-with-files session)

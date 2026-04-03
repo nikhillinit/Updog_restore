@@ -1,17 +1,23 @@
 ---
 name: code-formatter
-description: Multi-language code formatting and style enforcement with automatic linting fixes
+description:
+  Multi-language code formatting and style enforcement with automatic linting
+  fixes
 version: 1.0.0
 author: Claude Memory System
 tags: [formatting, linting, code-quality, style, automation]
+last_updated: 2026-04-03
 ---
 
 # Code Formatter Skill
 
 ## Purpose
-Automatically format and lint code across multiple languages, enforcing consistent style and fixing common issues without manual intervention.
+
+Automatically format and lint code across multiple languages, enforcing
+consistent style and fixing common issues without manual intervention.
 
 ## When to Use
+
 - Before committing code
 - During PR preparation
 - After code generation
@@ -21,24 +27,29 @@ Automatically format and lint code across multiple languages, enforcing consiste
 ## Supported Languages
 
 ### JavaScript/TypeScript
+
 - **Formatter**: Prettier
 - **Linter**: ESLint
 - **Auto-fix**: Import sorting, semicolons, quotes
 
 ### Python
+
 - **Formatter**: Black
 - **Linter**: isort, autopep8
 - **Auto-fix**: Import sorting, line length, indentation
 
 ### Go
+
 - **Formatter**: gofmt, goimports
 - **Auto-fix**: Import organization, formatting
 
 ### Rust
+
 - **Formatter**: rustfmt
 - **Auto-fix**: Clippy suggestions
 
 ### Other Languages
+
 - **JSON**: Prettier
 - **YAML**: Prettier
 - **Markdown**: Prettier
@@ -48,21 +59,25 @@ Automatically format and lint code across multiple languages, enforcing consiste
 ## Operations
 
 ### 1. Detect Language and Style
+
 - Auto-detect language from file extension
 - Load project-specific configuration
 - Identify style guide (Standard, Airbnb, Google, etc.)
 
 ### 2. Format Code
+
 - Apply formatter rules
 - Preserve semantics (no behavior changes)
 - Handle edge cases (strings, comments, etc.)
 
 ### 3. Fix Linting Issues
+
 - Run linter with auto-fix enabled
 - Apply safe automated fixes
 - Report remaining manual fixes needed
 
 ### 4. Generate Report
+
 - List files modified
 - Show statistics (lines changed, issues fixed)
 - Output diff for review
@@ -70,6 +85,7 @@ Automatically format and lint code across multiple languages, enforcing consiste
 ## Scripts
 
 ### main.py
+
 ```bash
 # Execute formatting
 python scripts/main.py format <file_or_dir> [--language=auto] [--check-only]
@@ -85,6 +101,7 @@ python scripts/main.py init --language=javascript
 ```
 
 ### Language-Specific Formatters
+
 - `format_javascript.js` - ESLint + Prettier
 - `format_python.py` - Black + isort
 - `format_go.sh` - gofmt + goimports
@@ -93,7 +110,9 @@ python scripts/main.py init --language=javascript
 ## Configuration
 
 ### Project-Specific Settings
+
 The Skill checks for configuration in this order:
+
 1. `.prettierrc`, `.eslintrc` (JavaScript)
 2. `pyproject.toml`, `setup.cfg` (Python)
 3. `.rustfmt.toml` (Rust)
@@ -101,7 +120,9 @@ The Skill checks for configuration in this order:
 5. Sensible defaults
 
 ### Memory Integration
+
 Stores formatting preferences:
+
 ```json
 {
   "topic": "code-formatter-preferences",
@@ -125,16 +146,19 @@ Stores formatting preferences:
 ## Integration Points
 
 ### With PR Author/Reviewer Skill
+
 - Auto-format before creating PR
 - Include formatting changes in PR description
 - Validate formatting in PR checks
 
 ### With Memory Hygiene Skill
+
 - Track formatting statistics
 - Record team preferences
 - Monitor adoption rates
 
 ### With Test-First Change Skill
+
 - Format test files
 - Maintain consistent test style
 - Preserve test semantics
@@ -142,6 +166,7 @@ Stores formatting preferences:
 ## Examples
 
 ### Format Single File
+
 ```bash
 # Auto-detect language and format
 python scripts/main.py format src/index.js
@@ -153,6 +178,7 @@ python scripts/main.py format src/index.js
 ```
 
 ### Format Directory
+
 ```bash
 # Format all files in directory
 python scripts/main.py format src/ --language=auto
@@ -165,6 +191,7 @@ python scripts/main.py format src/ --language=auto
 ```
 
 ### Check Only Mode
+
 ```bash
 # Check without modifying (CI/CD)
 python scripts/main.py check src/
@@ -177,6 +204,7 @@ python scripts/main.py check src/
 ```
 
 ### Initialize Configuration
+
 ```bash
 # Create project configuration
 python scripts/main.py init --language=javascript
@@ -190,6 +218,7 @@ python scripts/main.py init --language=javascript
 ## Token Economics
 
 **Without Skill** (Agent formatting):
+
 - Parse file: 2,000 tokens
 - Analyze style: 3,000 tokens
 - Generate formatted code: 5,000 tokens
@@ -197,6 +226,7 @@ python scripts/main.py init --language=javascript
 - **Total**: 12,000 tokens
 
 **With Skill** (Code execution):
+
 - Metadata: 50 tokens
 - SKILL.md: 350 tokens
 - Script execution: 0 tokens (returns result)
@@ -208,16 +238,19 @@ python scripts/main.py init --language=javascript
 ## Success Metrics
 
 ### Performance
+
 - Formatting time: <1 second per file
 - Batch processing: >100 files/minute
 - Memory usage: <100MB
 
 ### Quality
+
 - Code consistency: 100%
 - Semantic preservation: 100%
 - False positives: <1%
 
 ### Adoption
+
 - Developer usage: >90%
 - CI/CD integration: 100% of projects
 - Satisfaction rating: >4.5/5
@@ -225,12 +258,14 @@ python scripts/main.py init --language=javascript
 ## Safety Checks
 
 Before formatting:
+
 1. ✅ Backup original file (in-memory)
 2. ✅ Validate syntax (no broken code)
 3. ✅ Preserve file permissions
 4. ✅ Maintain git history
 
 After formatting:
+
 1. ✅ Verify file integrity
 2. ✅ Check for unintended changes
 3. ✅ Run syntax validation
@@ -239,18 +274,21 @@ After formatting:
 ## Error Handling
 
 ### Syntax Errors
+
 ```
 ❌ Cannot format src/broken.js: Syntax error at line 42
 Recommendation: Fix syntax errors before formatting
 ```
 
 ### Missing Dependencies
+
 ```
 ⚠️  Prettier not found. Install with: npm install -g prettier
 Falling back to basic formatting
 ```
 
 ### Configuration Conflicts
+
 ```
 ⚠️  Multiple configurations found (.prettierrc and package.json)
 Using .prettierrc (higher priority)
@@ -266,10 +304,11 @@ Using .prettierrc (higher priority)
 ## References
 
 See `references/` for:
+
 - `style-guides.md` - Popular style guides by language
 - `configuration-examples/` - Sample configs for common setups
 - `troubleshooting.md` - Common issues and solutions
 
 ---
 
-*Code Formatter Skill v1.0.0 - Write code once, format it everywhere*
+_Code Formatter Skill v1.0.0 - Write code once, format it everywhere_

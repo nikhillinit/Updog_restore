@@ -5,6 +5,7 @@ description:
   new projects, encountering workflow friction, or onboarding takes >10 minutes.
 tools: All tools
 model: inherit
+last_updated: 2026-04-03
 ---
 
 ## Memory Integration 🧠

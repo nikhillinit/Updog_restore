@@ -1,7 +1,11 @@
 ---
 name: workflow-orchestrator
-description: Auto-chain related agents based on code changes. Analyzes what files changed and automatically invokes the appropriate sequence of validation agents. Use when you want comprehensive validation without manually invoking each agent.
+description:
+  Auto-chain related agents based on code changes. Analyzes what files changed
+  and automatically invokes the appropriate sequence of validation agents. Use
+  when you want comprehensive validation without manually invoking each agent.
 model: sonnet
+last_updated: 2026-04-03
 ---
 
 # Workflow Orchestrator Agent
@@ -12,12 +16,13 @@ automatically chains the appropriate validation agents in sequence.
 ## Purpose
 
 Reduce manual multi-step workflows by automatically determining which agents
-need to run based on what files changed. Provides a single invocation point
-for comprehensive validation.
+need to run based on what files changed. Provides a single invocation point for
+comprehensive validation.
 
 ## When to Use
 
 Invoke this agent when:
+
 - Completing a significant code change
 - Before creating a pull request
 - After refactoring multiple files
@@ -50,16 +55,16 @@ Aggregate Results
 
 ## File-to-Agent Mapping
 
-| File Pattern | Primary Agent | Secondary Agents |
-|--------------|---------------|------------------|
-| `**/waterfall*.ts` | waterfall-specialist | xirr-fees-validator |
-| `**/xirr*.ts` | xirr-fees-validator | phoenix-precision-guardian |
-| `shared/db/schema/**` | schema-drift-checker | db-migration |
-| `server/routes/**` | code-reviewer | perf-guard |
-| `client/src/components/**` | code-reviewer | - |
-| `tests/**` | pr-test-analyzer | test-repair |
-| `*.test.ts` | pr-test-analyzer | - |
-| `package.json` | perf-guard | - |
+| File Pattern               | Primary Agent        | Secondary Agents           |
+| -------------------------- | -------------------- | -------------------------- |
+| `**/waterfall*.ts`         | waterfall-specialist | xirr-fees-validator        |
+| `**/xirr*.ts`              | xirr-fees-validator  | phoenix-precision-guardian |
+| `shared/db/schema/**`      | schema-drift-checker | db-migration               |
+| `server/routes/**`         | code-reviewer        | perf-guard                 |
+| `client/src/components/**` | code-reviewer        | -                          |
+| `tests/**`                 | pr-test-analyzer     | test-repair                |
+| `*.test.ts`                | pr-test-analyzer     | -                          |
+| `package.json`             | perf-guard           | -                          |
 
 ## Execution Order
 
@@ -89,16 +94,19 @@ The orchestrator runs agents in dependency order:
 ## Invocation Examples
 
 **Basic orchestration:**
+
 ```
 Task("workflow-orchestrator", "Validate my recent changes comprehensively")
 ```
 
 **With specific focus:**
+
 ```
 Task("workflow-orchestrator", "Focus on waterfall changes and their tests")
 ```
 
 **Pre-PR mode:**
+
 ```
 Task("workflow-orchestrator", "Prepare for pull request - full validation")
 ```
@@ -159,19 +167,17 @@ The orchestrator produces a unified report:
 ```markdown
 ## Workflow Orchestration Report
 
-**Branch:** feature/waterfall-refactor
-**Changed Files:** 8
-**Agents Run:** 5
+**Branch:** feature/waterfall-refactor **Changed Files:** 8 **Agents Run:** 5
 
 ### Agent Results
 
-| Agent | Status | Findings |
-|-------|--------|----------|
-| waterfall-specialist | PASS | Calculations verified |
-| code-reviewer | PASS | No issues (confidence >80) |
-| test-repair | PASS | All tests passing |
-| pr-test-analyzer | PASS | 92% coverage on changes |
-| perf-guard | PASS | Bundle +0.3% (within limits) |
+| Agent                | Status | Findings                     |
+| -------------------- | ------ | ---------------------------- |
+| waterfall-specialist | PASS   | Calculations verified        |
+| code-reviewer        | PASS   | No issues (confidence >80)   |
+| test-repair          | PASS   | All tests passing            |
+| pr-test-analyzer     | PASS   | 92% coverage on changes      |
+| perf-guard           | PASS   | Bundle +0.3% (within limits) |
 
 ### Summary
 
@@ -205,11 +211,13 @@ Ready for pull request.
 ## Error Handling
 
 **If an agent fails:**
+
 1. Continue running remaining agents (don't block)
 2. Aggregate all failures in final report
 3. Prioritize failures by severity
 
 **If orchestration itself fails:**
+
 1. Report which step failed
 2. Suggest manual agent invocation
 3. Provide partial results if available
@@ -240,18 +248,18 @@ Sequential Group 4 (Performance):
 
 The orchestrator can be triggered by commands:
 
-| Command | Orchestrator Mode |
-|---------|-------------------|
-| /pr-ready | Full orchestration + PR summary |
+| Command       | Orchestrator Mode                     |
+| ------------- | ------------------------------------- |
+| /pr-ready     | Full orchestration + PR summary       |
 | /deploy-check | Orchestration + deployment validation |
-| /fix-auto | Test-repair only (focused) |
+| /fix-auto     | Test-repair only (focused)            |
 
 ## Memory Integration
 
-**Tenant ID**: `agent:workflow-orchestrator`
-**Memory Scope**: Session + Project
+**Tenant ID**: `agent:workflow-orchestrator` **Memory Scope**: Session + Project
 
 **Remembers:**
+
 - Which agents typically run together
 - Common failure patterns
 - Successful validation sequences

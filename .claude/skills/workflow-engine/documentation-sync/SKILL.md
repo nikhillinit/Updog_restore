@@ -1,17 +1,25 @@
 ---
 name: documentation-sync
-description: Detects code/documentation drift, validates examples, generates diagrams, auto-updates documentation
+description:
+  Detects code/documentation drift, validates examples, generates diagrams,
+  auto-updates documentation
 version: 1.0.0
 tags: [documentation, validation, sync, architecture, diagrams]
+last_updated: 2026-04-03
 ---
 
 # Documentation Sync Skill
 
 ## Purpose
 
-The Documentation Sync Skill maintains consistency between code and documentation by detecting drift, validating code examples, generating architecture diagrams, and automatically updating documentation files. It ensures documentation remains accurate, up-to-date, and trustworthy as code evolves.
+The Documentation Sync Skill maintains consistency between code and
+documentation by detecting drift, validating code examples, generating
+architecture diagrams, and automatically updating documentation files. It
+ensures documentation remains accurate, up-to-date, and trustworthy as code
+evolves.
 
 **Key Capabilities:**
+
 - Detect code/documentation drift (API signatures, examples, configurations)
 - Validate embedded code examples against actual implementations
 - Generate architecture diagrams from code structure
@@ -35,6 +43,7 @@ Use the Documentation Sync Skill when:
 - Auditing documentation quality (coverage metrics)
 
 **Trigger Phrases:**
+
 - "Check if documentation is up to date"
 - "Validate the code examples in README"
 - "Generate architecture diagram from code"
@@ -45,9 +54,12 @@ Use the Documentation Sync Skill when:
 ## Operations
 
 ### 1. detect-drift
-Analyzes code and documentation to identify inconsistencies and outdated information.
+
+Analyzes code and documentation to identify inconsistencies and outdated
+information.
 
 **What it checks:**
+
 - API signatures vs documented signatures
 - Configuration options vs documented configs
 - Code examples vs actual implementations
@@ -58,9 +70,12 @@ Analyzes code and documentation to identify inconsistencies and outdated informa
 **Output:** Detailed drift report with specific locations and suggested fixes
 
 ### 2. validate-examples
-Extracts and executes code examples from documentation to verify they work correctly.
+
+Extracts and executes code examples from documentation to verify they work
+correctly.
 
 **What it validates:**
+
 - Syntax correctness
 - Import statements
 - API calls match current signatures
@@ -71,9 +86,11 @@ Extracts and executes code examples from documentation to verify they work corre
 **Output:** Example validation report with pass/fail status and errors
 
 ### 3. generate-diagram
+
 Creates architecture diagrams from code structure using AST analysis.
 
 **Diagram types:**
+
 - Component architecture (modules, dependencies)
 - Class diagrams (relationships, hierarchies)
 - Sequence diagrams (API call flows)
@@ -84,9 +101,12 @@ Creates architecture diagrams from code structure using AST analysis.
 **Output:** Mermaid/PlantUML diagram code and rendered images
 
 ### 4. update-readme
-Automatically updates README files with current API information extracted from code.
+
+Automatically updates README files with current API information extracted from
+code.
 
 **What it updates:**
+
 - API reference sections
 - Configuration examples
 - Feature lists
@@ -97,9 +117,11 @@ Automatically updates README files with current API information extracted from c
 **Output:** Updated README with changelog of modifications
 
 ### 5. analyze-coverage
+
 Generates documentation coverage metrics to identify gaps.
 
 **Metrics tracked:**
+
 - Public API documentation coverage (%)
 - Code example coverage (%)
 - Function/class documentation ratio
@@ -110,9 +132,11 @@ Generates documentation coverage metrics to identify gaps.
 **Output:** Coverage report with improvement recommendations
 
 ### 6. sync-all
+
 Comprehensive documentation synchronization across all operations.
 
 **Process:**
+
 1. Detect drift across all documentation
 2. Validate all code examples
 3. Generate updated architecture diagrams
@@ -343,6 +367,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ## Integration Points
 
 ### With Memory System
+
 ```bash
 # Store documentation sync results in memory
 export SKILL_CONTEXT='{
@@ -354,6 +379,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py
 ```
 
 ### With Release Orchestrator
+
 ```bash
 # Pre-release documentation check
 export SKILL_CONTEXT='{
@@ -366,6 +392,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py
 ```
 
 ### With Code Formatter
+
 ```bash
 # Format examples before validation
 export SKILL_CONTEXT='{
@@ -378,6 +405,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py
 ```
 
 ### With CI/CD Pipeline
+
 ```yaml
 # GitHub Actions integration
 - name: Check Documentation Sync
@@ -390,6 +418,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py
 ```
 
 ### With API Documentor
+
 ```bash
 # Generate API docs then sync
 python ~/.claude/skills/api-documentor/scripts/main.py --operation generate
@@ -410,6 +439,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -459,6 +489,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -509,6 +540,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -538,6 +570,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -580,6 +613,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -656,6 +690,7 @@ python ~/.claude/skills/documentation-sync/scripts/main.py \
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -766,6 +801,7 @@ Time: <5 seconds
 ```
 
 **Savings:**
+
 - Tokens: 75% reduction (2000 → 500)
 - Time: 97% reduction (3-5 minutes → <5 seconds)
 - Accuracy: 100% (automated validation vs manual review)
@@ -774,6 +810,7 @@ Time: <5 seconds
 ## Success Metrics
 
 ### Performance Targets
+
 - Execution time: <100ms for drift detection
 - Execution time: <500ms for example validation
 - Execution time: <200ms for diagram generation
@@ -782,6 +819,7 @@ Time: <5 seconds
 - Token usage: <500 tokens per operation
 
 ### Quality Targets
+
 - Drift detection accuracy: >95%
 - Example validation accuracy: 100%
 - False positive rate: <5%
@@ -789,6 +827,7 @@ Time: <5 seconds
 - Coverage accuracy: >98%
 
 ### Operational Targets
+
 - Zero manual documentation checks required
 - All examples automatically validated
 - Architecture diagrams always current
@@ -796,6 +835,7 @@ Time: <5 seconds
 - Maximum 24-hour documentation lag
 
 ### Business Impact
+
 - 75% reduction in documentation maintenance time
 - 90% reduction in outdated documentation incidents
 - 100% code example reliability
@@ -837,4 +877,5 @@ The skill handles common error scenarios:
 
 ---
 
-**Documentation Sync Skill v1.0.0** - Maintaining perfect code-documentation harmony
+**Documentation Sync Skill v1.0.0** - Maintaining perfect code-documentation
+harmony

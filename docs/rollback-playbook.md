@@ -1,43 +1,48 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-04-03
 ---
 
 # Rollback Playbook
 
 ## Quick Reference
+
 **Emergency Rollback Command**: `npm run rollback:emergency`  
 **Rollback Hotline**: Slack #eng-alerts  
 **Decision Time**: <5 minutes from alert
 
 ## Quantified Rollback Triggers
 
-### 🔴 Automatic Rollback (Immediate)
-| Metric | Threshold | Action | Command |
-|--------|-----------|--------|---------|
-| Error Rate | >2% of sessions | Auto-revert | `git revert HEAD && git push` |
-| Build Failure | Any CI red | Block merge | Automatic via CI |
-| Performance | >20% slower | Feature flag off | `npm run flags:kill -- --flag=NEW_CHARTS` |
-| Memory Leak | >500MB/hour | Kill process | `npm run rollback:emergency` |
+### Automatic Rollback (Immediate)
 
-### 🟡 Manual Review (Within 1 hour)
-| Metric | Threshold | Action | Command |
-|--------|-----------|--------|---------|
-| User Complaints | ≥5 in 24h | Investigate | Check Sentry + logs |
-| Bundle Size | >10KB increase | Review PR | `npm run bundle-check` |
-| Test Flakes | >3 failures | Quarantine | `npm run test:quarantine` |
-| Deploy Time | >10 minutes | Investigate | Check CI logs |
+| Metric        | Threshold       | Action           | Command                                   |
+| ------------- | --------------- | ---------------- | ----------------------------------------- |
+| Error Rate    | >2% of sessions | Auto-revert      | `git revert HEAD && git push`             |
+| Build Failure | Any CI red      | Block merge      | Automatic via CI                          |
+| Performance   | >20% slower     | Feature flag off | `npm run flags:kill -- --flag=NEW_CHARTS` |
+| Memory Leak   | >500MB/hour     | Kill process     | `npm run rollback:emergency`              |
 
-### 🟢 Monitor Only
-| Metric | Threshold | Action | Command |
-|--------|-----------|--------|---------|
-| TypeScript Errors | <50 | Continue | `npm run check` |
-| ESLint Warnings | <1500 | Continue | `npm run lint` |
-| Test Coverage | >70% | Continue | `npm run test:coverage` |
+### Manual Review (Within 1 hour)
+
+| Metric          | Threshold      | Action      | Command                   |
+| --------------- | -------------- | ----------- | ------------------------- |
+| User Complaints | >=5 in 24h     | Investigate | Check Sentry + logs       |
+| Bundle Size     | >10KB increase | Review PR   | `npm run bundle-check`    |
+| Test Flakes     | >3 failures    | Quarantine  | `npm run test:quarantine` |
+| Deploy Time     | >10 minutes    | Investigate | Check CI logs             |
+
+### Monitor Only
+
+| Metric            | Threshold | Action   | Command                 |
+| ----------------- | --------- | -------- | ----------------------- |
+| TypeScript Errors | <50       | Continue | `npm run check`         |
+| ESLint Warnings   | <1500     | Continue | `npm run lint`          |
+| Test Coverage     | >70%      | Continue | `npm run test:coverage` |
 
 ## Rollback Procedures by Area
 
 ### 1. Chart Library Migration
+
 ```bash
 # Detection
 npm run test:chart-interactions  # Functional test
@@ -49,6 +54,7 @@ git push origin main --force-with-lease
 ```
 
 ### 2. TypeScript/ESLint Changes
+
 ```bash
 # Detection
 npm run check                   # TypeScript errors
@@ -65,6 +71,7 @@ npm test:affected
 ```
 
 ### 3. Bundle Size Regression
+
 ```bash
 # Detection
 npm run bundle-check             # Check sizes
@@ -80,6 +87,7 @@ npm run bundle-check            # Verify fixed
 ```
 
 ### 4. Performance Regression
+
 ```bash
 # Detection (Automated)
 - Prometheus alerts on p95 latency
@@ -96,23 +104,25 @@ npm run deploy:rollback -- --version=1.3.1
 ## Automated Monitoring Setup
 
 ### Slack Alerts Configuration
+
 ```javascript
 // .github/workflows/monitor.yml
 - name: Check Metrics
   run: |
     ERROR_RATE=$(npm run metrics:error-rate)
     if [ "$ERROR_RATE" -gt "2" ]; then
-      curl -X POST $SLACK_WEBHOOK -d '{"text":"🚨 Error rate >2% - Auto-reverting"}'
+      curl -X POST $SLACK_WEBHOOK -d '{"text":"ALERT: Error rate >2% - Auto-reverting"}'
       npm run rollback:emergency
     fi
 ```
 
 ### Rollback Script
+
 ```bash
 #!/bin/bash
 # scripts/rollback-emergency.sh
 
-echo "🚨 EMERGENCY ROLLBACK INITIATED"
+echo "ALERT: EMERGENCY ROLLBACK INITIATED"
 
 # 1. Capture current state
 git stash
@@ -135,14 +145,15 @@ npm run deploy:emergency
 
 # 6. Notify team
 curl -X POST $SLACK_WEBHOOK \
-  -d "{\"text\":\"✅ Rolled back from $CURRENT_SHA to $LAST_GOOD\"}"
+  -d "{\"text\":\"Rolled back from $CURRENT_SHA to $LAST_GOOD\"}"
 ```
 
 ## Communication Templates
 
 ### Rollback Initiated
+
 ```
-🚨 **ROLLBACK IN PROGRESS**
+**ROLLBACK IN PROGRESS**
 **Trigger**: [Error rate >2% | Performance regression | Build failure]
 **Impact**: [User-facing | Internal only]
 **Action**: Reverting commit abc123
@@ -151,8 +162,9 @@ curl -X POST $SLACK_WEBHOOK \
 ```
 
 ### Rollback Complete
+
 ```
-✅ **ROLLBACK COMPLETE**
+**ROLLBACK COMPLETE**
 **Duration**: X minutes
 **Root Cause**: [Brief description]
 **Next Steps**: [Investigation plan]
@@ -162,6 +174,7 @@ curl -X POST $SLACK_WEBHOOK \
 ## Testing Rollback Procedures
 
 ### Weekly Drill
+
 ```bash
 # Every Friday at 2pm
 npm run drill:rollback
@@ -175,6 +188,7 @@ npm run drill:rollback
 ```
 
 ### Staging Environment Test
+
 ```bash
 # Test on staging first
 npm run deploy:staging -- --branch=test-rollback
@@ -195,12 +209,12 @@ npm run test:staging:smoke
 
 ## Escalation Matrix
 
-| Time | Severity | Who to Contact | Action |
-|------|----------|---------------|--------|
-| 0-5min | Critical | On-call engineer | Auto-rollback |
-| 5-15min | High | Team lead | Manual rollback |
-| 15-30min | Medium | Engineering manager | Review and decide |
-| 30min+ | Low | Schedule for next day | Document and plan |
+| Time     | Severity | Who to Contact        | Action            |
+| -------- | -------- | --------------------- | ----------------- |
+| 0-5min   | Critical | On-call engineer      | Auto-rollback     |
+| 5-15min  | High     | Team lead             | Manual rollback   |
+| 15-30min | Medium   | Engineering manager   | Review and decide |
+| 30min+   | Low      | Schedule for next day | Document and plan |
 
 ## Tools and Commands
 
@@ -227,4 +241,5 @@ npm run sentry:recent         # Recent errors
 
 ---
 
-**Remember**: Speed over perfection in rollbacks. Restore service first, investigate later.
+**Remember**: Speed over perfection in rollbacks. Restore service first,
+investigate later.

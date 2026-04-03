@@ -1,6 +1,7 @@
 ---
 session: week2.5-phase3-continuation-v9
 date: 2025-12-21
+last_updated: 2026-04-03
 status: ready
 goal: Final push - reduce from 16 to <10 failures (target 94%+ total reduction)
 previous_sessions: v6 (152→47), v7 (47→36), v8 (35→16)
@@ -8,9 +9,9 @@ previous_sessions: v6 (152→47), v7 (47→36), v8 (35→16)
 
 # Week 2.5 Phase 3 - Final Test Hardening Push (Session v9)
 
-**Current Status**: 16 failing tests across 10 test files
-**Target Goal**: <10 failures (additional 38% reduction from current baseline)
-**Overall Journey**: 152 → 16 → <10 (94%+ total reduction)
+**Current Status**: 16 failing tests across 10 test files **Target Goal**: <10
+failures (additional 38% reduction from current baseline) **Overall Journey**:
+152 → 16 → <10 (94%+ total reduction)
 
 ---
 
@@ -18,12 +19,15 @@ previous_sessions: v6 (152→47), v7 (47→36), v8 (35→16)
 
 ### What Was Accomplished (Sessions v6, v7, v8)
 
-**PR #298**: "test: reduce test failures from 152 to 16 via systematic hardening"
+**PR #298**: "test: reduce test failures from 152 to 16 via systematic
+hardening"
+
 - **Branch**: `test/reduce-failures-152-to-77`
 - **Status**: Latest commit 90574d18, ready for continuation
 - **Achievement**: 152 → 16 failures (136 tests fixed/skipped, 89% reduction)
 
 **Phase Breakdown**:
+
 1. **Phase 1** (v6): Infrastructure test skips → 152→77 (-49%)
 2. **Phase 2A** (v6): Circuit-breaker & RLS skips → 77→55 (-29%)
 3. **Phase 2B** (v6): API validation fixes → 55→47 (-15%)
@@ -32,6 +36,7 @@ previous_sessions: v6 (152→47), v7 (47→36), v8 (35→16)
 6. **Phase 3C** (v8): Algorithm & engine tests → 26→16 (-38%)
 
 **Recent Commit** (90574d18):
+
 ```
 test: reduce failures from 35 to 16 (Phase 3B-3C)
 
@@ -54,6 +59,7 @@ Results: 35→16 failures (-54%), 401 skipped with FIXME comments
 From latest test run analysis:
 
 **API Routes** (5 failures - Priority: HIGH):
+
 1. `tests/unit/api/portfolio-intelligence.test.ts` (4 tests)
    - Security validation: HTML sanitization
    - Security validation: SQL injection patterns
@@ -63,9 +69,10 @@ From latest test run analysis:
 2. `tests/api/portfolio-route.template.test.ts` (1 test)
    - Template-based API route test
 
-**React Components** (3 failures - Priority: MEDIUM):
-3. `tests/unit/components/ui/NumericInput.test.tsx` (1 test)
-   - Number formatting on blur event
+**React Components** (3 failures - Priority: MEDIUM): 3.
+`tests/unit/components/ui/NumericInput.test.tsx` (1 test)
+
+- Number formatting on blur event
 
 4. `tests/unit/modeling-wizard-persistence.test.tsx` (2 tests)
    - localStorage QuotaExceededError handling
@@ -74,11 +81,12 @@ From latest test run analysis:
 5. `tests/unit/capital-allocation-step.test.tsx` (1 test)
    - Missing optional fields edge case
 
-**Utilities & Middleware** (5 failures - Priority: MEDIUM):
-6. `tests/unit/request-id.test.ts` (3 tests)
-   - X-Request-ID header forwarding
-   - Response header setting
-   - Child logger creation
+**Utilities & Middleware** (5 failures - Priority: MEDIUM): 6.
+`tests/unit/request-id.test.ts` (3 tests)
+
+- X-Request-ID header forwarding
+- Response header setting
+- Child logger creation
 
 7. `tests/unit/redis-factory.test.ts` (1 test)
    - Redis client creation with default options
@@ -86,10 +94,11 @@ From latest test run analysis:
 8. `tests/unit/reference-formulas.test.ts` (1 test)
    - Reference metrics computation
 
-**Bug Fix Validation** (2 failures - Priority: LOW):
-9. `tests/unit/bug-fixes/phase3-critical-bugs.test.ts` (2 tests)
-   - Risk-based cash buffer calculation
-   - Backward compatibility regression tests
+**Bug Fix Validation** (2 failures - Priority: LOW): 9.
+`tests/unit/bug-fixes/phase3-critical-bugs.test.ts` (2 tests)
+
+- Risk-based cash buffer calculation
+- Backward compatibility regression tests
 
 ---
 
@@ -100,6 +109,7 @@ From latest test run analysis:
 **Focus**: Fix or skip API security validation and performance tests
 
 **Files**:
+
 1. `portfolio-intelligence.test.ts` (4 tests)
    - **Strategy**: Check if security middleware is implemented
    - If HTML sanitization exists → fix test expectations
@@ -114,6 +124,7 @@ From latest test run analysis:
    - **Expected outcome**: -1 failure
 
 **Tools**:
+
 - Read actual security middleware implementation
 - Check for input validation patterns
 - Verify rate limiting setup
@@ -125,6 +136,7 @@ From latest test run analysis:
 **Focus**: Fix component event handlers and middleware logic
 
 **Files**:
+
 1. `NumericInput.test.tsx` (1 test)
    - **Strategy**: Check blur event handler and formatting logic
    - Likely needs proper event simulation or spy setup
@@ -152,6 +164,7 @@ From latest test run analysis:
 **Focus**: Address remaining utility and bug fix tests
 
 **Strategy**:
+
 - `redis-factory.test.ts`: Fix Redis client mock or skip
 - `reference-formulas.test.ts`: Fix calculation expectations or skip
 - `phase3-critical-bugs.test.ts`: Verify bug fixes or skip as known issues
@@ -163,18 +176,21 @@ From latest test run analysis:
 ## Success Criteria
 
 ### Minimum (Acceptable)
+
 - [PASS] Reduce from 16 to <10 failures (38%+ reduction)
 - [PASS] All commits pass quality gates
 - [PASS] Clear documentation for all skips
 - [PASS] PR updated with final metrics
 
 ### Target (Good)
+
 - [PASS] Reduce from 16 to <5 failures (69%+ reduction)
 - [PASS] All quick wins addressed
 - [PASS] Overall 97%+ reduction from original 152
 - [PASS] Clear roadmap for final fixes
 
 ### Stretch (Excellent)
+
 - [PASS] Reduce to 0 failures (100% reduction)
 - [PASS] All tests passing or properly skipped
 - [PASS] PR ready to merge
@@ -187,6 +203,7 @@ From latest test run analysis:
 ### Code Quality Gates
 
 **MUST pass before commit**:
+
 ```bash
 npm run lint          # No new errors
 npm run check         # TypeScript baseline ok
@@ -196,20 +213,24 @@ npm test <modified-files> # Verify changes work
 ### What NOT to do
 
 [NO] **Skip tests without clear justification**
+
 - Every skip needs FIXME with root cause
 - Use @group tags for categorization
 - Explain what's missing or needed
 
 [NO] **Introduce new TypeScript errors**
+
 - Check baseline: `npm run baseline:check`
 - If errors exist, must be from main branch
 - Update baseline only if necessary
 
 [NO] **Use emojis**
+
 - Text alternatives: [PASS], [FAIL], [SKIP]
 - See `cheatsheets/emoji-free-documentation.md`
 
 [NO] **Implement features without specification**
+
 - If unclear what's needed → skip and document
 - Mark with FIXME and implementation requirements
 
@@ -233,12 +254,15 @@ npm test -- --run 2>&1 | tail -10
 ### Step 2: Systematic Approach
 
 **Use parallel analysis for efficiency**:
+
 1. Read all failing test files in parallel
-2. Categorize by root cause (mock issue, implementation missing, wrong expectation)
+2. Categorize by root cause (mock issue, implementation missing, wrong
+   expectation)
 3. Batch similar fixes together
 4. Skip incomplete features with clear FIXME comments
 
 **Pattern from v8**:
+
 - Database tests: JSON parsing issues → fixed with type guards
 - ML tests: Incomplete features → skipped with implementation requirements
 - Validation tests: Wrong expectations → fixed error message matching
@@ -264,17 +288,20 @@ npm test -- --project=client --run
 ### Step 4: Commit Strategy
 
 **Batch commits by phase**:
+
 1. Phase 3D: "test: fix API security and performance tests (Phase 3D)"
 2. Phase 3E: "test: fix component and middleware tests (Phase 3E)"
 3. Phase 3F: "test: final cleanup - <5 failures achieved (Phase 3F)"
 
 **Each commit must**:
+
 - Pass pre-commit hooks (no emojis in staged files!)
 - Include before/after metrics
 - Document root causes
 - Reference session/phase
 
 **Commit message format**:
+
 ```
 test: <description> (Phase 3X)
 
@@ -299,33 +326,38 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### Test File Locations
 
 **API Tests**:
+
 - `tests/unit/api/portfolio-intelligence.test.ts` - Security validation
 - `tests/api/portfolio-route.template.test.ts` - Route templates
 
 **Component Tests**:
+
 - `tests/unit/components/ui/NumericInput.test.tsx` - UI components
 - `tests/unit/modeling-wizard-persistence.test.tsx` - React hooks
 - `tests/unit/capital-allocation-step.test.tsx` - Form steps
 
 **Utility Tests**:
+
 - `tests/unit/request-id.test.ts` - Express middleware
 - `tests/unit/redis-factory.test.ts` - Infrastructure
 - `tests/unit/reference-formulas.test.ts` - Calculations
 
 **Bug Fix Tests**:
+
 - `tests/unit/bug-fixes/phase3-critical-bugs.test.ts` - Regression tests
 
 ### Common Patterns from v8
 
 **Mock setup issues**:
+
 ```typescript
 // Database mocks return objects, not JSON strings
-const data = typeof result.field === 'string'
-  ? JSON.parse(result.field)
-  : result.field;
+const data =
+  typeof result.field === 'string' ? JSON.parse(result.field) : result.field;
 ```
 
 **Error message matching**:
+
 ```typescript
 // Use regex or partial match instead of exact string
 await expect(fn()).rejects.toThrow('partial message');
@@ -333,6 +365,7 @@ await expect(fn()).rejects.toThrow('partial message');
 ```
 
 **Skip with documentation**:
+
 ```typescript
 // FIXME: <specific issue description>
 // @group integration - <what's needed to fix>
@@ -366,16 +399,19 @@ it.skip('test name', () => {
 ### Patterns to Watch For
 
 **API Tests**:
+
 - Check if middleware exists before fixing test
 - Partial error message matching for validation
 - Mock request/response objects properly
 
 **Component Tests**:
+
 - Proper event simulation (fireEvent vs userEvent)
 - localStorage mock with error throwing
 - Provider context wrapping
 
 **Utility Tests**:
+
 - Factory function mocking and hoisting
 - Middleware req/res/next mocking
 - Redis/external service mocking
@@ -410,15 +446,16 @@ At session end:
 
 ## Git Status Expectations
 
-**Branch**: `test/reduce-failures-152-to-77`
-**Current HEAD**: 90574d18 (Phase 3B-3C from v8)
-**Upstream**: origin/test/reduce-failures-152-to-77
+**Branch**: `test/reduce-failures-152-to-77` **Current HEAD**: 90574d18 (Phase
+3B-3C from v8) **Upstream**: origin/test/reduce-failures-152-to-77
 
 **Expected uncommitted files**:
+
 - `.claude/prompts/*.md` - Session documentation (OK to leave)
 - No test files should be uncommitted
 
 **Clean working tree after commits**:
+
 ```bash
 git status
 # Should show: nothing to commit, working tree clean
@@ -430,17 +467,20 @@ git status
 ## Key Files & Paths
 
 **Documentation**:
+
 - `docs/INDEX.md` - Central routing
 - `CAPABILITIES.md` - **CHECK FIRST** for existing tools
 - `cheatsheets/pr-merge-verification.md` - PR baseline checks
 
 **Test Helpers**:
+
 - `tests/helpers/database-mock.ts` - Database mocking
 - `tests/utils/test-server.ts` - Server setup
 - `tests/setup/test-infrastructure.ts` - Test environment
 - `vitest.config.ts` - Test configuration
 
 **Related Code**:
+
 - `server/middleware/request-id.ts` - Request ID middleware
 - `server/middleware/security.ts` - Security validation
 - `client/src/components/ui/NumericInput.tsx` - Numeric input component
@@ -451,28 +491,33 @@ git status
 ## Notes for Claude
 
 **Repository**: Updog VC fund modeling platform
+
 - TypeScript/Node.js backend (Express, PostgreSQL, Redis)
 - React/Vite frontend (shadcn/ui, TanStack Query)
 - Vitest testing (separate server/client projects)
 
 **Key Patterns**:
+
 - Path aliases: `@/` = `client/src/`, `@shared/` = `shared/`
 - Strict TypeScript mode (no `any` allowed)
 - Emoji-free policy enforced (pre-commit hook blocks emojis)
 - Windows dev environment (PowerShell/CMD required for npm)
 
 **Quality Standards**:
+
 - Zero tolerance for silent failures
 - All mutations MUST have idempotency
 - All updates MUST use optimistic locking
 - See `cheatsheets/anti-pattern-prevention.md`
 
 **Session Goals**:
+
 - Primary: <10 failures (38% additional reduction)
 - Target: <5 failures (69% additional reduction)
 - Stretch: 0 failures (100% reduction, 100% from original 152)
 
 **Test Execution Context**:
+
 - Vitest project mode: `server` (Node.js) and `client` (jsdom)
 - Total tests: 2,153 (1,736 passing, 401 skipped, 16 failing)
 - Execution time: ~27 seconds (86% faster than original)
@@ -484,7 +529,8 @@ git status
 
 Before starting work:
 
-- [ ] On correct branch: `git branch --show-current` shows `test/reduce-failures-152-to-77`
+- [ ] On correct branch: `git branch --show-current` shows
+      `test/reduce-failures-152-to-77`
 - [ ] Latest code: `git pull origin test/reduce-failures-152-to-77`
 - [ ] Baseline verified: `npm test -- --run` shows 16 failures across 10 files
 - [ ] Read CAPABILITIES.md for existing tools/agents
@@ -519,9 +565,11 @@ git log --oneline -3  # Should show new commits
 
 ---
 
-**Ready to start? Begin with environment verification and baseline confirmation.**
+**Ready to start? Begin with environment verification and baseline
+confirmation.**
 
 **Remember**:
+
 - Read multiple files in parallel for efficiency
 - Categorize failures before fixing
 - Skip incomplete features with clear FIXME comments
@@ -530,6 +578,8 @@ git log --oneline -3  # Should show new commits
 - Use type guards for mock data parsing
 - Document all skips with @group integration tags
 
-**Current state**: 16 failures, 89% reduction achieved, final push to <10 (target) or <5 (stretch)
+**Current state**: 16 failures, 89% reduction achieved, final push to <10
+(target) or <5 (stretch)
 
-**Previous success**: v8 reduced 35→16 in ~2 hours, expect similar pace for final 16→<10
+**Previous success**: v8 reduced 35→16 in ~2 hours, expect similar pace for
+final 16→<10

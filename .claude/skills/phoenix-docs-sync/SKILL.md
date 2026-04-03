@@ -3,6 +3,7 @@ name: phoenix-docs-sync
 description:
   'Syncs calculations documentation and JSDoc with actual behavior. Use after
   non-trivial changes to calculation modules.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix Docs Sync

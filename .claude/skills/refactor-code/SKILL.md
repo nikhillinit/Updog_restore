@@ -4,6 +4,7 @@ description:
   Safely improve code quality through test-driven refactoring with automatic
   validation and rollback. Use during quality review to reduce technical debt
   while preserving behavior.
+last_updated: 2026-04-03
 ---
 
 # Refactor Code Skill

@@ -13,6 +13,7 @@ tags:
     noPropertyAccessFromIndexSignature,
   ]
 error_codes: [TS4111]
+last_updated: 2026-04-03
 ---
 
 # REFL-032: TS4111 Index Signature Access Conflicts with ESLint Dot Notation

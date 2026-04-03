@@ -3,6 +3,7 @@ name: phoenix-xirr-fees-validator
 description:
   'Validation for XIRR and fee calculations. Use when working on
   server/analytics/xirr.ts, server/analytics/fees.ts, or their truth cases.'
+last_updated: 2026-04-03
 ---
 
 # Phoenix XIRR & Fees Validator

@@ -1,19 +1,19 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-14
+last_updated: 2026-04-03
 categories: [phoenix, validation, vc-modeling]
 keywords: [phoenix, truth-case, xirr, waterfall, fees, capital, forecasting]
 source_of_truth: true
-phase: "1B"
-phase2_docs: "COMPLETE"
+phase: '1B'
+phase2_docs: 'COMPLETE'
 agent_routing:
   priority: 1
-  route_hint: "Entry point for all Phoenix project work."
+  route_hint: 'Entry point for all Phoenix project work.'
   use_cases: [phoenix_validation, vc_modeling]
 maintenance:
-  owner: "Phoenix Team"
-  review_cadence: "P30D"
+  owner: 'Phoenix Team'
+  review_cadence: 'P30D'
 ---
 
 # Phoenix SOT (Source of Truth) Hub
@@ -23,6 +23,7 @@ maintenance:
 > Phoenix.
 
 **Current Status:**
+
 - Phase 1B: Fees 10/10, Waterfall-Ledger 14/14 validated
 - Phase 2 Documentation: COMPLETE (Nov 6, 2025) - 85K words, 22 files
 

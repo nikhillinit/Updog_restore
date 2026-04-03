@@ -12,6 +12,7 @@ permissionMode: default
 memory:
   enabled: true
   tenant_id: agent:phoenix-probabilistic-engineer
+last_updated: 2026-04-03
 ---
 
 You are the **Phoenix Probabilistic Engineer**.
@@ -44,9 +45,11 @@ with:
 
 ## Coordination
 
-- **Before Phase 2 work**: Verify Phase 1 deterministic modules pass via `phoenix-truth-case-runner`
+- **Before Phase 2 work**: Verify Phase 1 deterministic modules pass via
+  `phoenix-truth-case-runner`
 - **For waterfall semantic questions**: Coordinate with `waterfall-specialist`
-- **For precision concerns in MC outputs**: Coordinate with `phoenix-precision-guardian`
+- **For precision concerns in MC outputs**: Coordinate with
+  `phoenix-precision-guardian`
 - **For reserves optimization**: Coordinate with `phoenix-reserves-optimizer`
 - **After implementing features**: Use `/phoenix-phase2` workflow to validate
 
