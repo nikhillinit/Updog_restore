@@ -390,19 +390,35 @@ router['post'](
         return res['status'](400)['json'](error);
       }
 
-      await varianceTrackingService.baselines.setDefaultBaseline(baselineId, fundId);
+      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : undefined;
+      const result = await varianceTrackingService.setDefaultBaselineAndCleanup({
+        fundId,
+        baselineId,
+        userId,
+      });
 
       res['json']({
         success: true,
         message: 'Default baseline updated successfully',
+        data: {
+          baselineId: result.baseline.id,
+          resolvedSupersededAlerts: result.resolvedSupersededAlerts,
+        },
       });
     } catch (error) {
       console.error('Set default baseline error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode =
+        message === 'Baseline not found for fund'
+          ? 404
+          : message === 'Cannot set an inactive baseline as default'
+            ? 400
+            : 500;
       const apiError: ApiError = {
         error: 'Failed to set default baseline',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message,
       };
-      res['status'](500)['json'](apiError);
+      res['status'](statusCode)['json'](apiError);
     }
   }
 );
@@ -865,6 +881,60 @@ router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Respons
       message: error instanceof Error ? error.message : 'Unknown error',
     };
     res['status'](500)['json'](apiError);
+  }
+});
+
+/**
+ * Resolve older open incidents that no longer match the fund's current default baseline
+ * POST /api/funds/:id/alerts/cleanup-superseded
+ */
+router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, res: Response) => {
+  try {
+    let fundId: number;
+    try {
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (err instanceof NumberParseError) {
+        const error: ApiError = {
+          error: 'Invalid fund ID',
+          message: err.message,
+        };
+        return res['status'](400)['json'](error);
+      }
+      throw err;
+    }
+
+    const userId = req.user?.id ? parseInt(String(req.user.id), 10) : 0;
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to clean up superseded alerts',
+      };
+      return res['status'](401)['json'](error);
+    }
+
+    const result = await varianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline({
+      fundId,
+      userId,
+    });
+
+    res['json']({
+      success: true,
+      data: {
+        baselineId: result.baseline.id,
+        resolvedSupersededAlerts: result.resolvedSupersededAlerts,
+      },
+      message: 'Superseded alerts cleaned up successfully',
+    });
+  } catch (error) {
+    console.error('Superseded alert cleanup error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const statusCode = message === 'No default baseline found for fund' ? 404 : 500;
+    const apiError: ApiError = {
+      error: 'Failed to clean up superseded alerts',
+      message,
+    };
+    res['status'](statusCode)['json'](apiError);
   }
 });
 
