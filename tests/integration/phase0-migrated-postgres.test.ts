@@ -57,6 +57,143 @@ async function loadPhase0Automation(connectionString: string): Promise<{
   return { modulePool, tracking, handlers };
 }
 
+async function seedPhase0CalcRunScenario(): Promise<{
+  fundId: number;
+  configId: number;
+  runId: number;
+}> {
+  const fundInsert = await adminPool.query<{ id: number }>(
+    `
+        INSERT INTO funds (
+          name, size, management_fee, carry_percentage, vintage_year, created_at, engine_results
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+      `,
+    [
+      'Phase 0 Integration Fund',
+      '1000000.00',
+      '0.0200',
+      '0.2000',
+      2024,
+      new Date('2024-01-01T00:00:00Z'),
+      {},
+    ]
+  );
+  const fundId = fundInsert.rows[0]!.id;
+
+  const configInsert = await adminPool.query<{ id: number }>(
+    `
+        INSERT INTO fundconfigs (fund_id, version, config, is_draft, is_published)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `,
+    [fundId, 1, { name: 'Phase 0 Config' }, false, true]
+  );
+  const configId = configInsert.rows[0]!.id;
+
+  const calcRunInsert = await adminPool.query<{ id: number }>(
+    `
+        INSERT INTO calc_runs (
+          fund_id,
+          config_id,
+          config_version,
+          correlation_id,
+          engines,
+          dispatch_state,
+          requested_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+      `,
+    [
+      fundId,
+      configId,
+      1,
+      '00000000-0000-0000-0000-000000000042',
+      ['reserve', 'pacing'],
+      'dispatched',
+      new Date('2026-03-31T12:00:00Z'),
+    ]
+  );
+  const runId = calcRunInsert.rows[0]!.id;
+
+  const companyInsert = await adminPool.query<{ id: number }>(
+    `
+        INSERT INTO portfoliocompanies (
+          fund_id,
+          name,
+          sector,
+          stage,
+          investment_amount,
+          current_valuation,
+          status,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `,
+    [
+      fundId,
+      'Alpha Systems',
+      'Software',
+      'Series A',
+      '100000.00',
+      '150000.00',
+      'active',
+      new Date('2025-01-15T00:00:00Z'),
+    ]
+  );
+  const companyId = companyInsert.rows[0]!.id;
+
+  await adminPool.query(
+    `
+        INSERT INTO investments (
+          fund_id,
+          company_id,
+          investment_date,
+          amount,
+          round
+        )
+        VALUES ($1, $2, $3, $4, $5)
+      `,
+    [fundId, companyId, new Date('2025-01-15T00:00:00Z'), '100000.00', 'Seed']
+  );
+
+  await adminPool.query(
+    `
+        INSERT INTO fund_snapshots (
+          fund_id,
+          type,
+          payload,
+          calc_version,
+          correlation_id,
+          snapshot_time,
+          run_id,
+          config_id,
+          config_version
+        )
+        VALUES
+          ($1, 'RESERVE', $2, 'v1', $3, $4, $5, $6, $7),
+          ($1, 'PACING', $8, 'v1', $9, $10, $5, $6, $7)
+      `,
+    [
+      fundId,
+      { reserveTarget: 250000, reservePct: 0.25 },
+      '00000000-0000-0000-0000-000000000043',
+      new Date('2026-03-31T12:05:00Z'),
+      runId,
+      configId,
+      1,
+      { annualDeploymentRate: 0.4, remainingMonths: 18 },
+      '00000000-0000-0000-0000-000000000044',
+      new Date('2026-03-31T12:06:00Z'),
+    ]
+  );
+
+  return { fundId, configId, runId };
+}
+
 function restorePhase0Env(env: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(env)) {
     if (value === undefined) {
@@ -98,134 +235,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
 
     expect(systemUserResult.rows).toEqual([{ id: 999999, username: 'system' }]);
 
-    const fundInsert = await adminPool.query<{ id: number }>(
-      `
-          INSERT INTO funds (
-            name, size, management_fee, carry_percentage, vintage_year, created_at, engine_results
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id
-        `,
-      [
-        'Phase 0 Integration Fund',
-        '1000000.00',
-        '0.0200',
-        '0.2000',
-        2024,
-        new Date('2024-01-01T00:00:00Z'),
-        {},
-      ]
-    );
-    const fundId = fundInsert.rows[0]!.id;
-
-    const configInsert = await adminPool.query<{ id: number }>(
-      `
-          INSERT INTO fundconfigs (fund_id, version, config, is_draft, is_published)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING id
-        `,
-      [fundId, 1, { name: 'Phase 0 Config' }, false, true]
-    );
-    const configId = configInsert.rows[0]!.id;
-
-    const calcRunInsert = await adminPool.query<{ id: number }>(
-      `
-          INSERT INTO calc_runs (
-            fund_id,
-            config_id,
-            config_version,
-            correlation_id,
-            engines,
-            dispatch_state,
-            requested_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id
-        `,
-      [
-        fundId,
-        configId,
-        1,
-        '00000000-0000-0000-0000-000000000042',
-        ['reserve', 'pacing'],
-        'dispatched',
-        new Date('2026-03-31T12:00:00Z'),
-      ]
-    );
-    const runId = calcRunInsert.rows[0]!.id;
-
-    const companyInsert = await adminPool.query<{ id: number }>(
-      `
-          INSERT INTO portfoliocompanies (
-            fund_id,
-            name,
-            sector,
-            stage,
-            investment_amount,
-            current_valuation,
-            status,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING id
-        `,
-      [
-        fundId,
-        'Alpha Systems',
-        'Software',
-        'Series A',
-        '100000.00',
-        '150000.00',
-        'active',
-        new Date('2025-01-15T00:00:00Z'),
-      ]
-    );
-    const companyId = companyInsert.rows[0]!.id;
-
-    await adminPool.query(
-      `
-          INSERT INTO investments (
-            fund_id,
-            company_id,
-            investment_date,
-            amount,
-            round
-          )
-          VALUES ($1, $2, $3, $4, $5)
-        `,
-      [fundId, companyId, new Date('2025-01-15T00:00:00Z'), '100000.00', 'Seed']
-    );
-
-    await adminPool.query(
-      `
-          INSERT INTO fund_snapshots (
-            fund_id,
-            type,
-            payload,
-            calc_version,
-            correlation_id,
-            snapshot_time,
-            run_id,
-            config_id,
-            config_version
-          )
-          VALUES
-            ($1, 'RESERVE', $2, 'v1', $3, $4, $5, $6, $7),
-            ($1, 'PACING', $8, 'v1', $9, $10, $5, $6, $7)
-        `,
-      [
-        fundId,
-        { reserveTarget: 250000, reservePct: 0.25 },
-        '00000000-0000-0000-0000-000000000043',
-        new Date('2026-03-31T12:05:00Z'),
-        runId,
-        configId,
-        1,
-        { annualDeploymentRate: 0.4, remainingMonths: 18 },
-        '00000000-0000-0000-0000-000000000044',
-        new Date('2026-03-31T12:06:00Z'),
-      ]
-    );
+    const { fundId, configId, runId } = await seedPhase0CalcRunScenario();
 
     const originalEnv = {
       DATABASE_URL: process.env.DATABASE_URL,
@@ -305,6 +315,148 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
         config_version: 1,
         totalvalue: '150000.00',
       });
+    } finally {
+      if (modulePool) {
+        await modulePool.end();
+      }
+      vi.doUnmock('../../server/db');
+      vi.resetModules();
+      restorePhase0Env(originalEnv);
+    }
+  }, 60_000);
+
+  it('re-drives calc-run completion without duplicating realtime alerts or execution records', async () => {
+    await runMigrationsToVersion(container);
+
+    const { fundId, runId } = await seedPhase0CalcRunScenario();
+
+    const ruleInsert = await adminPool.query<{ id: string }>(
+      `
+          INSERT INTO alert_rules (
+            fund_id,
+            name,
+            description,
+            rule_type,
+            metric_name,
+            operator,
+            threshold_value,
+            severity,
+            category,
+            is_enabled,
+            check_frequency,
+            suppression_period_minutes,
+            created_by
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          RETURNING id
+        `,
+      [
+        fundId,
+        'Zero IRR Drift',
+        'Ensure same-run baselines trigger once and replay safely',
+        'threshold',
+        'irrVariance',
+        'eq',
+        '0.0000',
+        'warning',
+        'performance',
+        true,
+        'realtime',
+        60,
+        999999,
+      ]
+    );
+    const ruleId = ruleInsert.rows[0]!.id;
+
+    const originalEnv = {
+      DATABASE_URL: process.env.DATABASE_URL,
+      NEON_DATABASE_URL: process.env.NEON_DATABASE_URL,
+      USE_REAL_DB_IN_VITEST: process.env.USE_REAL_DB_IN_VITEST,
+    };
+
+    let modulePool: Pool | null = null;
+
+    try {
+      const modules = await loadPhase0Automation(container.getConnectionUri());
+      modulePool = modules.modulePool;
+
+      modules.tracking.resetCompletionHandlers();
+      modules.handlers.resetCompletionHandlerRegistration();
+      modules.handlers.registerCompletionHandlers();
+
+      await expect(modules.tracking.markCalcRunCompletedIfReady(runId)).resolves.toBe(true);
+      await expect(modules.tracking.markCalcRunCompletedIfReady(runId)).resolves.toBe(true);
+
+      const baselineResult = await adminPool.query<{ id: string }>(
+        `
+            SELECT id
+            FROM fund_baselines
+            WHERE fund_id = $1 AND source_run_id = $2
+          `,
+        [fundId, runId]
+      );
+
+      expect(baselineResult.rows).toHaveLength(1);
+      const baselineId = baselineResult.rows[0]!.id;
+
+      const alertResult = await adminPool.query<{
+        id: string;
+        baseline_id: string | null;
+        rule_id: string | null;
+        occurrence_count: number | null;
+        variance_report_id: string | null;
+      }>(
+        `
+            SELECT id, baseline_id, rule_id, occurrence_count, variance_report_id
+            FROM performance_alerts
+            WHERE fund_id = $1 AND rule_id = $2
+          `,
+        [fundId, ruleId]
+      );
+
+      expect(alertResult.rows).toHaveLength(1);
+      expect(alertResult.rows[0]).toMatchObject({
+        baseline_id: baselineId,
+        rule_id: ruleId,
+        occurrence_count: 1,
+        variance_report_id: null,
+      });
+
+      const executionResult = await adminPool.query<{
+        execution_key: string;
+        run_id: number | null;
+        applied_alert_id: string | null;
+      }>(
+        `
+            SELECT execution_key, run_id, applied_alert_id
+            FROM alert_evaluation_executions
+            WHERE fund_id = $1 AND rule_id = $2
+          `,
+        [fundId, ruleId]
+      );
+
+      expect(executionResult.rows).toEqual([
+        {
+          execution_key: `calc:${runId}:${baselineId}:${ruleId}`,
+          run_id: runId,
+          applied_alert_id: alertResult.rows[0]!.id,
+        },
+      ]);
+
+      const ruleStateResult = await adminPool.query<{
+        trigger_count: number | null;
+        last_triggered: Date | null;
+      }>(
+        `
+            SELECT trigger_count, last_triggered
+            FROM alert_rules
+            WHERE id = $1
+          `,
+        [ruleId]
+      );
+
+      expect(ruleStateResult.rows[0]?.trigger_count).toBe(1);
+      expect(ruleStateResult.rows[0]?.last_triggered).not.toBeNull();
     } finally {
       if (modulePool) {
         await modulePool.end();
