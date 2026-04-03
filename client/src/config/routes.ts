@@ -20,16 +20,6 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
   ['/portfolio-analytics', '/portfolio'],
   ['/portfolio-constructor', '/portfolio'],
 
-  // Modeling/Planning → Model
-  ['/planning', '/model'],
-  ['/forecasting', '/model'],
-  ['/scenario-builder', '/model'],
-  ['/financial-modeling', '/model'],
-  ['/allocation-manager', '/model'],
-  ['/moic-analysis', '/model'],
-  ['/return-the-fund', '/model'],
-  ['/partial-sales', '/model'],
-
   // Operations/Management → Operate
   ['/kpi-manager', '/operate'],
   ['/cash-management', '/operate'],

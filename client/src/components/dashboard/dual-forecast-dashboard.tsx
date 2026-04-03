@@ -16,6 +16,7 @@ import { TrendingUp, DollarSign, Target, PieChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import type { DashboardSummary } from '@/types/fund';
+import { useFundContext } from '@/contexts/FundContext';
 
 const MILLION = 1_000_000;
 
@@ -66,15 +67,51 @@ function formatSeriesName(name: NameType | undefined): string {
 }
 
 export default function DualForecastDashboard() {
-  const { data: dashboardData, isLoading, error } = useQuery<DashboardSummary>({
-    queryKey: ['/api/dashboard-summary/1'],
+  const { currentFund, isLoading: isFundLoading, needsSetup } = useFundContext();
+  const fundId = currentFund?.id ?? null;
+
+  const {
+    data: dashboardData,
+    isLoading,
+    error,
+  } = useQuery<DashboardSummary>({
+    queryKey: [`/api/dashboard-summary/${fundId}`],
+    enabled: fundId != null,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const { data: _fundMetrics } = useQuery({
-    queryKey: ['/api/fund-metrics/1'],
+    queryKey: [`/api/fund-metrics/${fundId}`],
+    enabled: fundId != null,
     refetchInterval: 60000, // Refresh every minute
   });
+
+  if (isFundLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="font-medium">Loading active fund context…</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (needsSetup || fundId == null) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="font-medium">Select or create a fund to view forecasting data</p>
+            <p className="text-muted-foreground mt-2">
+              Forecasting stays unavailable until an active fund context exists.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -130,13 +167,13 @@ export default function DualForecastDashboard() {
       const growthFactor = Math.pow(1 + currentIRR / 12, index);
       const conservativeGrowth = Math.pow(1.15, index / 12); // 15% annual
       const aggressiveGrowth = Math.pow(1.35, index / 12); // 35% annual
-      
+
       return {
         month,
-        conservative: Math.round(baseValue * conservativeGrowth / MILLION), // In millions
-        realistic: Math.round(baseValue * growthFactor / MILLION),
-        aggressive: Math.round(baseValue * aggressiveGrowth / MILLION),
-        deployed: Math.round((deployedCapital + index * 2_000_000) / MILLION)
+        conservative: Math.round((baseValue * conservativeGrowth) / MILLION), // In millions
+        realistic: Math.round((baseValue * growthFactor) / MILLION),
+        aggressive: Math.round((baseValue * aggressiveGrowth) / MILLION),
+        deployed: Math.round((deployedCapital + index * 2_000_000) / MILLION),
       };
     });
   };
@@ -149,7 +186,7 @@ export default function DualForecastDashboard() {
     value: Math.round(parseNumericValue(company.currentValuation) / MILLION),
     investment: Math.round(parseNumericValue(company.investmentAmount) / MILLION),
     sector: company.sector,
-    stage: company.stage
+    stage: company.stage,
   }));
 
   return (
@@ -167,7 +204,7 @@ export default function DualForecastDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -197,7 +234,9 @@ export default function DualForecastDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Deployment</p>
-                <p className="text-2xl font-bold">{dashboardData.summary.deploymentRate.toFixed(0)}%</p>
+                <p className="text-2xl font-bold">
+                  {dashboardData.summary.deploymentRate.toFixed(0)}%
+                </p>
               </div>
               <Target className="h-8 w-8 text-orange-600" />
             </div>
@@ -212,7 +251,9 @@ export default function DualForecastDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Fund Value Forecast
-              <Badge variant="outline" className="text-xs">Live Data</Badge>
+              <Badge variant="outline" className="text-xs">
+                Live Data
+              </Badge>
             </CardTitle>
             <CardDescription>
               24-month value projection based on current {(currentIRR * 100).toFixed(1)}% IRR
@@ -224,7 +265,9 @@ export default function DualForecastDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip formatter={(value: ValueType | undefined) => [formatMillionValue(value), '']} />
+                <Tooltip
+                  formatter={(value: ValueType | undefined) => [formatMillionValue(value), '']}
+                />
                 <Legend />
                 <Area
                   type="monotone"
@@ -263,11 +306,11 @@ export default function DualForecastDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Live Portfolio Allocation
-              <Badge variant="outline" className="text-xs">Real-time</Badge>
+              <Badge variant="outline" className="text-xs">
+                Real-time
+              </Badge>
             </CardTitle>
-            <CardDescription>
-              Current valuation vs investment by company
-            </CardDescription>
+            <CardDescription>Current valuation vs investment by company</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -275,7 +318,7 @@ export default function DualForecastDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: ValueType | undefined, name: NameType | undefined) => [
                     formatMillionValue(value),
                     formatSeriesName(name),
@@ -294,20 +337,23 @@ export default function DualForecastDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Capital Deployment Forecast</CardTitle>
-          <CardDescription>
-            Projected deployment schedule based on current pipeline
-          </CardDescription>
+          <CardDescription>Projected deployment schedule based on current pipeline</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={forecastData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip formatter={(value: ValueType | undefined) => [formatMillionValue(value), 'Deployed Capital']} />
-                <Line
-                  type="monotone"
-                  dataKey="deployed"
+            <LineChart data={forecastData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
+              <Tooltip
+                formatter={(value: ValueType | undefined) => [
+                  formatMillionValue(value),
+                  'Deployed Capital',
+                ]}
+              />
+              <Line
+                type="monotone"
+                dataKey="deployed"
                 stroke="#ef4444"
                 strokeWidth={3}
                 dot={{ r: 4 }}
