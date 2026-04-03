@@ -151,6 +151,16 @@ export interface ScenarioComparison {
 }
 
 /**
+ * Structured outcome for historical scenario comparison execution.
+ * Stored with backtest results so history/detail views can disclose partial failure.
+ */
+export interface ScenarioComparisonSummary {
+  requestedScenarios: number;
+  scenariosCompared: number;
+  failedScenarios: HistoricalScenarioName[];
+}
+
+/**
  * Summary of simulation run
  */
 export interface SimulationSummary {
@@ -186,6 +196,7 @@ export interface BacktestResult {
   validationMetrics: ValidationMetrics;
   dataQuality: DataQualityResult;
   scenarioComparisons?: ScenarioComparison[];
+  scenarioComparisonSummary?: ScenarioComparisonSummary;
   recommendations: string[];
 }
 
@@ -225,10 +236,7 @@ export interface ScenarioCompareResponse {
   correlationId: string;
   fundId: number;
   comparisons: ScenarioComparison[];
-  summary: {
-    requestedScenarios: number;
-    scenariosCompared: number;
-    failedScenarios: HistoricalScenarioName[];
+  summary: ScenarioComparisonSummary & {
     timestamp: string;
   };
 }

@@ -2473,6 +2473,12 @@ export const backtestResults = pgTable(
       }>
     >(),
 
+    scenarioComparisonSummary: jsonb('scenario_comparison_summary').$type<{
+      requestedScenarios: number;
+      scenariosCompared: number;
+      failedScenarios: string[];
+    }>(),
+
     // Recommendations generated from analysis
     recommendations: text('recommendations').array().notNull().default([]),
 

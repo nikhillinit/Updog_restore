@@ -241,6 +241,11 @@ describe('BacktestingService', () => {
         result.scenarioComparisons?.find((s) => s.scenario === 'financial_crisis_2008')
       ).toBeDefined();
       expect(result.scenarioComparisons?.find((s) => s.scenario === 'covid_2020')).toBeDefined();
+      expect(result.scenarioComparisonSummary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 2,
+        failedScenarios: [],
+      });
     });
 
     it('adds a recommendation when historical scenario comparisons only partially complete', async () => {
@@ -251,6 +256,11 @@ describe('BacktestingService', () => {
       });
 
       expect(result.scenarioComparisons?.length).toBe(1);
+      expect(result.scenarioComparisonSummary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 1,
+        failedScenarios: ['custom'],
+      });
       expect(
         result.recommendations.some((recommendation) =>
           recommendation.includes('Scenario comparison incomplete')
@@ -456,6 +466,11 @@ describe('BacktestingService', () => {
           overallQuality: 'good',
         },
         scenarioComparisons: null,
+        scenarioComparisonSummary: {
+          requestedScenarios: 2,
+          scenariosCompared: 1,
+          failedScenarios: ['custom'],
+        },
         recommendations: ['Model performing within expected parameters'],
         executionTimeMs: 1500,
         status: 'completed',
@@ -475,6 +490,11 @@ describe('BacktestingService', () => {
       expect(history.length).toBe(1);
       expect(history[0].backtestId).toBe('bt-123');
       expect(history[0].config.fundId).toBe(1);
+      expect(history[0].scenarioComparisonSummary).toEqual({
+        requestedScenarios: 2,
+        scenariosCompared: 1,
+        failedScenarios: ['custom'],
+      });
     });
   });
 

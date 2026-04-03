@@ -159,10 +159,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.use(portfolioIntelligenceRoutes.default);
   }
 
-  // Scenario Comparison Tool routes (feature-flagged via ENABLE_SCENARIO_COMPARISON)
-  const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
-  app.use(scenarioComparisonRoutes.default);
-
   // Metrics & Observability routes (feature-flagged)
   if (FEATURES.metrics) {
     // Prometheus metrics endpoint (/metrics)
