@@ -1,7 +1,7 @@
 # Phase 2: Scenario Comparison Consolidation Plan
 
-Date: `2026-04-02` Owner: Codex Status: Draft implementation plan grounded in
-current codebase
+Date: `2026-04-02` Owner: Codex Status: Implemented through Slice `2` runtime
+cleanup; Slice `3` and Slice `4` remain
 
 ## Goal
 
@@ -27,6 +27,36 @@ non-functional placeholders for later phases.
 Do not expand the dormant `scenario_comparisons` path. Archive or delete the
 ephemeral comparison route, dead client hooks, and unused persisted comparison
 wrappers instead of building a second comparison system in parallel.
+
+## Sandbox Validation Update (`2026-04-03`)
+
+Validated against the current routed implementation and focused backtesting
+tests.
+
+Confirmed complete:
+
+- Slice `0`: `/sensitivity-analysis` is the mounted canonical surface, the stale
+  legacy map entry is gone, and route-governance/perimeter updates landed.
+- Slice `1a-routing`: `/sensitivity-analysis` is routed in `client/src/App.tsx`
+  and surfaced in current navigation.
+- Slice `1a-lifecycle`: `useBacktestLifecycle(fundId)` now fences resumed jobs
+  by fund and the async job-status contract exposes `fundId`.
+- Slice `1b`: the routed sensitivity surface now renders a shared
+  `BacktestingWorkspace`, with Monte Carlo as the live tab and the other tabs
+  clearly marked `Coming soon`.
+- Slice `2` runtime cleanup: the old mounted scenario-comparison route, page,
+  hook, service, shared type/schema bundle, and dead comparison-tool UI/test
+  files have been removed from the live runtime.
+- structured partial scenario-failure metadata now persists with
+  `BacktestResult` / history responses instead of only appearing as live-run
+  recommendation text.
+
+Confirmed still open:
+
+- Slice `3` must cover the full dormant saved-comparison schema family, not only
+  `scenario_comparisons`.
+- Slice `4` needs a deterministic rewrite of the backtesting integration suite,
+  not just an un-quarantine toggle.
 
 ## Audit Findings
 
@@ -65,20 +95,22 @@ Implication:
 - there is no active user-facing scenario comparison page today even though the
   route and hook code exist
 
-### 3. The sensitivity-analysis page is also not an active, fund-backed workflow
+### 3. The original sensitivity-analysis page was sample-only, but the routed surface now wraps the live Monte Carlo page
 
-- `client/src/pages/sensitivity-analysis.tsx` exists.
-- `client/src/App.tsx` does not route `/sensitivity-analysis`.
-- `client/src/components/sensitivity/sensitivity-analysis.tsx` is sample-only:
+- the old sample component at
+  `client/src/components/sensitivity/sensitivity-analysis.tsx` is still
+  sample-only:
   - hardcoded independent/dependent variable arrays
   - synthetic data generation
   - simulated `setTimeout` runs
   - no fund-backed API reads
+- but `client/src/pages/sensitivity-analysis.tsx` is now routed and currently
+  renders the live Monte Carlo page as a thin wrapper
 
 Implication:
 
-- the named Phase 2 surface in the roadmap currently has no real route and no
-  production data integration
+- the product surface is now live, and Slice `1b` has since replaced the thin
+  wrapper with a canonical shared workspace
 
 ### 4. The strongest live comparison backend already exists in backtesting
 
@@ -101,8 +133,9 @@ Implication:
 
 But:
 
-- `client/src/App.tsx` does not route `/monte-carlo`
-- this UI is effectively dormant even though its backend is active
+- `client/src/App.tsx` still does not route `/monte-carlo`
+- the Monte Carlo page is now active only through `/sensitivity-analysis`, not
+  as its own route
 
 Implication:
 
@@ -166,7 +199,7 @@ Implication:
 - stale scenario-comparison integration expectations should be archived or
   rewritten, not blindly un-quarantined
 
-### 8. Routing `/sensitivity-analysis` touches governance and perimeter controls, not just the page
+### 8. Routing `/sensitivity-analysis` touched governance and perimeter controls, not just the page
 
 - `client/src/App.tsx` is not the only source of truth for mounted surfaces.
 - `client/src/app/route-governance-registry.ts` derives governed routes from
@@ -181,23 +214,25 @@ Implication:
 
 Implication:
 
-- Slice 1a must include route-governance and navigation updates explicitly
-- Phase 2 should decide whether `/sensitivity-analysis` is a new core-live route
-  or an internal-live route before editing `APP_ROUTES`
+- Slice `1a` was correct to include route-governance and navigation updates
+- the remaining plan should treat that work as complete instead of restating it
+  as future scope
 
-### 9. The current async resume contract cannot safely fence jobs by fund
+### 9. The async resume contract needed a fund fence and now has one, but persisted result truth is still incomplete
 
-- `client/src/hooks/useBacktesting.ts` reads `?jobId=` globally from the URL.
-- `useBacktestLifecycle(fundId)` currently ignores the passed `fundId`.
-- the queue runtime tracks `fundId` in `server/queues/backtesting-queue.ts`, but
-  `BacktestJobStatusResponse` in `shared/types/backtesting.ts` does not expose
-  that `fundId` to the client.
+- `client/src/hooks/useBacktesting.ts` still reads `?jobId=` globally from the
+  URL, but now rejects resumed jobs whose `fundId` does not match the selected
+  fund.
+- `BacktestJobStatusResponse` now exposes `fundId` to the client.
+- `BacktestResult` still does not persist structured partial-failure metadata
+  for historical scenario comparison.
 
 Implication:
 
-- fixing Slice 1a is not just “reset state on fund change”
-- the job-status contract likely needs fund identity so the routed page can
-  reject or clear a resumed job that belongs to a different fund
+- Slice `1a-lifecycle` is complete for live-run fencing
+- if Phase 2 wants history and result fetches to be fully truthful about partial
+  scenario completion, Slice `4` or a small follow-on contract slice must
+  persist that metadata
 
 ## Phase 2 Decision
 
@@ -246,6 +281,8 @@ Phase 2 should not:
 
 ### Slice 0: Lock The Surface And Delete Ambiguity
 
+Status: completed in sandbox implementation on `2026-04-03`
+
 Goal:
 
 - make the routing and ownership decision explicit before touching UI
@@ -278,6 +315,8 @@ Acceptance:
 - the legacy route map no longer redirects `/sensitivity-analysis`
 
 ### Slice 1a-routing: Mount The Canonical `/sensitivity-analysis` Surface
+
+Status: completed in sandbox implementation on `2026-04-03`
 
 Goal:
 
@@ -339,6 +378,8 @@ Acceptance:
 
 ### Slice 1a-lifecycle: Fence Async Resume And Surface Partial Scenario Failure
 
+Status: completed for live-run/job-status behavior on `2026-04-03`
+
 Goal:
 
 - harden the routed workspace so fund changes and resumed async jobs do not leak
@@ -372,11 +413,19 @@ Acceptance:
 - the routed page discloses when requested historical scenarios only partially
   complete
 
+Open note:
+
+- this slice does not yet make historical result fetches or backtest history
+  rows structurally disclose partial scenario failure; that contract work
+  remains open even though live-run disclosure is in place
+
 ### Slice 1b: Extract A Shared Backtesting Workspace
+
+Status: completed in sandbox implementation on `2026-04-03`
 
 Goal:
 
-- reduce duplication only after the truthful routed page is working
+- reduce duplication now that the truthful routed page is already working
 
 Work:
 
@@ -411,6 +460,8 @@ Acceptance:
 - any remaining placeholder tabs are clearly non-functional and labeled as such
 
 ### Slice 2: Remove The Dead Scenario Comparison Product Shell
+
+Status: completed for runtime cleanup on `2026-04-03`
 
 Goal:
 
@@ -471,13 +522,19 @@ Goal:
 
 Recommendation:
 
-- delete/archive the dormant runtime layer rather than making it real in Phase 2
+- delete/archive the dormant saved-comparison runtime layer rather than making
+  it real in Phase 2
 
 Implementation sequence:
 
-1. confirm no active route or UI still depends on `scenario_comparisons`
+1. confirm no active route or UI still depends on:
+   - `scenario_comparisons`
+   - `comparison_configurations`
+   - `comparison_access_history`
 2. remove `portfolioIntelligenceService.comparisons` wrappers if unused
-3. decide migration timing
+3. decide whether the configuration/access-history tables are dropped with the
+   same migration set or placed on a short deprecation path
+4. decide migration timing
 
 Migration recommendation:
 
@@ -492,11 +549,15 @@ Files likely touched:
 - `shared/lib/data-boundaries.ts`
 - `tests/helpers/testcontainers-seeder.ts`
 - migration files if the table is dropped
+- any schema/type exports tied only to the retired saved-comparison tables
 
 Acceptance:
 
 - the repo no longer implies that saved comparison persistence is a near-live
   feature
+- the dormant schema family for saved comparison runtime debt is either:
+  - removed together, or
+  - placed on an explicit deprecation path together
 - the DB either:
   - has a clear deprecation path, or
   - has been cleaned up with a migration
@@ -509,18 +570,29 @@ Goal:
 
 Work:
 
-- un-quarantine and modernize `tests/integration/backtesting-api.test.ts`
-- remove the artificial env gating if the suite can run in the standard
-  integration harness
+- replace the current env-gated `tests/integration/backtesting-api.test.ts`
+  shape with a deterministic integration suite for the live contract
+- remove the artificial env gating instead of preserving
+  `ENABLE_BACKTESTING_TESTS=true` as a permanent escape hatch
+- remove assertions that treat `500` responses as acceptable success for live
+  backtesting routes
 - fix the stale pool/cleanup setup rather than keeping the suite off by default
 - archive or rewrite the scenario-comparison integration suites:
   - `tests/integration/scenario-comparison-mvp.test.ts`
   - `tests/integration/scenario-comparison.test.ts`
 
+Required contract extension in this slice:
+
+- persist structured partial scenario-failure metadata in `BacktestResult` /
+  history responses so the historical surface stays truthful after page reloads,
+  history selection, and direct result fetches
+
 Recommended direction:
 
 - keep one integration suite for the live backtesting scenario comparison flow
 - do not preserve stale tests for nonexistent comparison-config/export endpoints
+- prefer deterministic assertions over “validation passed if request returned
+  `200` or `500`”
 
 Acceptance:
 
@@ -569,6 +641,8 @@ Acceptance:
 ### Investigate Before Dropping
 
 - `shared/schema.ts` `scenario_comparisons` table
+- `shared/schema.ts` `comparison_configurations` table
+- `shared/schema.ts` `comparison_access_history` table
 - `server/services/portfolio-intelligence-service.ts` comparison wrappers
 
 ## Risks
@@ -582,13 +656,20 @@ Acceptance:
 4. Treating Monte Carlo backtesting as if it were full sensitivity analysis can
    create naming debt and false product expectations unless the UI labels the
    first shipped tab honestly.
-5. `useBacktestLifecycle` currently ignores its `fundId` parameter, which risks
-   stale lifecycle state surviving fund changes unless fixed in Slice 1a.
+5. Leaving the routed surface as a thin wrapper around `monte-carlo.tsx` for too
+   long preserves duplicate ownership and makes later sensitivity-workspace
+   expansion harder.
 6. Scenario comparison execution currently logs and skips individual scenario
    failures; the routed page should not hide that partial-failure mode.
-7. `?jobId=` resume is currently global and the shared job-status response lacks
-   fund identity, so cross-fund resume needs a contract-level fix, not only a
-   local React state reset.
+7. Live-run resume is now fund-fenced, but persisted result/history responses
+   still do not structurally encode partial scenario failure.
+8. The current backtesting integration suite is env-gated and still encodes
+   “`200` or `500` is acceptable” in multiple assertions, so Phase 2 cannot
+   claim truthful integration coverage until that suite is replaced or
+   rewritten.
+9. The dormant saved-comparison schema debt is larger than
+   `scenario_comparisons`; leaving `comparison_configurations` and
+   `comparison_access_history` behind would preserve a misleading partial model.
 
 ## Test Plan
 
@@ -602,8 +683,13 @@ Minimum:
 - update route-governance registry tests and route-perimeter tests to reflect
   the new mounted surface
 - run current backtesting unit suites
-- un-quarantine or replace the backtesting integration suite
+- replace the current backtesting integration suite with deterministic coverage
+  for the live contract
 - update/remove scenario-comparison unit tests as the retired runtime is deleted
+- add integration assertions for persisted partial scenario-failure metadata in
+  result/history responses
+- if partial scenario failure is meant to survive into history/result fetches,
+  add integration assertions for that persisted contract
 
 Do not count as success:
 
@@ -620,9 +706,12 @@ Phase 2 is complete when:
 - the old env-gated scenario-comparison runtime path is removed or archived
 - dead client comparison hooks and schemas are removed or narrowed to truthful
   contracts
-- the dormant `scenario_comparisons` persistence story is explicitly deleted or
-  put on a formal deprecation path
+- the dormant saved-comparison persistence story (`scenario_comparisons`,
+  `comparison_configurations`, `comparison_access_history`) is explicitly
+  deleted or put on a formal deprecation path
 - backtesting integration coverage is no longer quarantined for the live route
-  set
+  set and no longer treats `500` responses as acceptable success
+- persisted backtest result/history responses truthfully disclose partial
+  historical-scenario failure when not all requested comparisons succeed
 - the plan/UI do not claim full sensitivity-analysis parity beyond the shipped
   Monte Carlo slice

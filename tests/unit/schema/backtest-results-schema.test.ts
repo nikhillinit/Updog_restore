@@ -30,6 +30,7 @@ describe('backtestResults schema', () => {
       'validationMetrics',
       'dataQuality',
       'scenarioComparisons',
+      'scenarioComparisonSummary',
       'recommendations',
       'executionTimeMs',
       'status',
@@ -55,6 +56,7 @@ describe('backtestResults schema', () => {
     expect(backtestResults.validationMetrics).toBeDefined();
     expect(backtestResults.dataQuality).toBeDefined();
     expect(backtestResults.scenarioComparisons).toBeDefined();
+    expect(backtestResults.scenarioComparisonSummary).toBeDefined();
   });
 
   it('has foreign key references', () => {
@@ -123,6 +125,11 @@ describe('insertBacktestResultSchema', () => {
         isStale: false,
         warnings: [],
         overallQuality: 'good',
+      },
+      scenarioComparisonSummary: {
+        requestedScenarios: 2,
+        scenariosCompared: 2,
+        failedScenarios: [],
       },
       recommendations: ['Model is well-calibrated for IRR predictions'],
       executionTimeMs: 1500,
@@ -241,6 +248,7 @@ describe('BacktestResultRecord type', () => {
         overallQuality: 'good',
       },
       scenarioComparisons: null,
+      scenarioComparisonSummary: null,
       recommendations: ['Model is well-calibrated'],
       executionTimeMs: 1500,
       status: 'completed',

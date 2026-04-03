@@ -265,14 +265,17 @@ Detailed plan:
 Work:
 
 - keep one active comparison surface
-- decide whether the dormant `scenario_comparisons` layer becomes real or is
-  deleted
-- mount `/sensitivity-analysis` first as a truthful Monte Carlo workspace, then
-  harden async lifecycle fencing and extract shared backtesting UI in a
-  follow-on refactor
-- update route-governance/perimeter expectations alongside the new mounted
-  surface
-- un-quarantine backtesting tests
+- keep the shipped `/sensitivity-analysis` Monte Carlo surface as the canonical
+  routed comparison workspace
+- keep the shared backtesting workspace under `/sensitivity-analysis` as the
+  canonical UI shell for the live Monte Carlo tab
+- remove the dead scenario-comparison runtime path and narrow the repo to one
+  truthful comparison backend
+- decide whether the dormant saved-comparison schema family
+  (`scenario_comparisons`, `comparison_configurations`,
+  `comparison_access_history`) is deleted or placed on a formal deprecation path
+- replace the env-gated/quarantined backtesting integration story with
+  deterministic live-contract coverage
 
 ## Phase 0.5 / ADR Gate Before Phase 3
 

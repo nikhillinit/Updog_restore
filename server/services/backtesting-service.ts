@@ -46,6 +46,7 @@ import type {
   CalibrationStatus,
   MarketParameters,
   BacktestingJobStage,
+  ScenarioComparisonSummary,
 } from '@shared/types/backtesting';
 
 // ============================================================================
@@ -134,6 +135,7 @@ export class BacktestingService {
     // Run scenario comparisons if requested
     let scenarioComparisons: ScenarioComparison[] | undefined;
     let failedScenarioComparisons: HistoricalScenarioName[] = [];
+    let scenarioComparisonSummary: ScenarioComparisonSummary | undefined;
     if (config.includeHistoricalScenarios && config.historicalScenarios?.length) {
       this.throwIfAborted(signal);
       const scenarioOutcome = await this.compareScenariosDetailed(
@@ -143,6 +145,11 @@ export class BacktestingService {
       );
       scenarioComparisons = scenarioOutcome.comparisons;
       failedScenarioComparisons = scenarioOutcome.failedScenarios;
+      scenarioComparisonSummary = {
+        requestedScenarios: config.historicalScenarios.length,
+        scenariosCompared: scenarioOutcome.comparisons.length,
+        failedScenarios: scenarioOutcome.failedScenarios,
+      };
     }
 
     // Generate recommendations
@@ -171,6 +178,7 @@ export class BacktestingService {
       dataQuality,
       recommendations,
       ...(scenarioComparisons && scenarioComparisons.length > 0 ? { scenarioComparisons } : {}),
+      ...(scenarioComparisonSummary ? { scenarioComparisonSummary } : {}),
     };
 
     // Persist to database
@@ -897,6 +905,13 @@ export class BacktestingService {
         keyInsights: sc.keyInsights,
         marketParameters: sc.marketParameters as unknown as Record<string, unknown>,
       })),
+      scenarioComparisonSummary: result.scenarioComparisonSummary
+        ? {
+            requestedScenarios: result.scenarioComparisonSummary.requestedScenarios,
+            scenariosCompared: result.scenarioComparisonSummary.scenariosCompared,
+            failedScenarios: result.scenarioComparisonSummary.failedScenarios,
+          }
+        : undefined,
       recommendations: result.recommendations,
       executionTimeMs: result.executionTimeMs,
       status: 'completed',
@@ -920,6 +935,12 @@ export class BacktestingService {
       validationMetrics: record.validationMetrics as ValidationMetrics,
       dataQuality: record.dataQuality as DataQualityResult,
       recommendations: record.recommendations,
+      ...(record.scenarioComparisonSummary
+        ? {
+            scenarioComparisonSummary:
+              record.scenarioComparisonSummary as unknown as ScenarioComparisonSummary,
+          }
+        : {}),
     };
 
     // Only add scenarioComparisons if present

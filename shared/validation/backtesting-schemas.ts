@@ -207,6 +207,14 @@ export const ScenarioComparisonSchema = z
   })
   .strict();
 
+export const ScenarioComparisonSummarySchema = z
+  .object({
+    requestedScenarios: z.number().int().min(0),
+    scenariosCompared: z.number().int().min(0),
+    failedScenarios: z.array(HistoricalScenarioNameSchema).max(5),
+  })
+  .strict();
+
 // =============================================================================
 // SIMULATION SUMMARY SCHEMA
 // =============================================================================
@@ -251,6 +259,7 @@ export const BacktestResultSchema = z
     validationMetrics: ValidationMetricsSchema,
     dataQuality: DataQualityResultSchema,
     scenarioComparisons: z.array(ScenarioComparisonSchema).optional(),
+    scenarioComparisonSummary: ScenarioComparisonSummarySchema.optional(),
     recommendations: z.array(z.string().max(300)).max(10),
   })
   .strict();
@@ -387,6 +396,7 @@ export type DistributionSummary = z.infer<typeof DistributionSummarySchema>;
 export type ValidationMetrics = z.infer<typeof ValidationMetricsSchema>;
 export type ActualPerformance = z.infer<typeof ActualPerformanceSchema>;
 export type ScenarioComparison = z.infer<typeof ScenarioComparisonSchema>;
+export type ScenarioComparisonSummary = z.infer<typeof ScenarioComparisonSummarySchema>;
 export type SimulationSummary = z.infer<typeof SimulationSummarySchema>;
 export type DataQualityResult = z.infer<typeof DataQualityResultSchema>;
 export type MarketParameters = z.infer<typeof MarketParametersSchema>;

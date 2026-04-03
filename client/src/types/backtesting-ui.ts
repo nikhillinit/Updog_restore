@@ -16,6 +16,7 @@ import type {
   DataQualityResult,
   ScenarioComparison,
   BacktestingJobErrorCode,
+  ScenarioComparisonSummary,
 } from '@shared/types/backtesting';
 
 // ============================================================================
@@ -181,6 +182,7 @@ export interface BacktestResultViewModel {
 
   // Scenario comparisons
   scenarioComparisons: ScenarioComparison[];
+  scenarioComparisonSummary: ScenarioComparisonSummary | null;
 }
 
 const METRIC_LABELS: Record<BacktestMetric, string> = {
@@ -213,9 +215,9 @@ function createRenderableDistribution(
   ];
   if (values.some((v) => !Number.isFinite(v))) return null;
 
-  const actualValue = result.actualPerformance[
-    metric as keyof typeof result.actualPerformance
-  ] as number | null;
+  const actualValue = result.actualPerformance[metric as keyof typeof result.actualPerformance] as
+    | number
+    | null;
 
   return {
     metric,
@@ -246,6 +248,7 @@ export function toResultViewModel(result: BacktestResult): BacktestResultViewMod
     dataQuality: result.dataQuality,
     recommendations: result.recommendations,
     scenarioComparisons: result.scenarioComparisons ?? [],
+    scenarioComparisonSummary: result.scenarioComparisonSummary ?? null,
   };
 }
 

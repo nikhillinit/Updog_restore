@@ -264,6 +264,30 @@ describe('toResultViewModel: metric-state semantics', () => {
     const vm = toResultViewModel(result);
     expect(vm.scenarioComparisons).toEqual([]);
   });
+
+  it('preserves scenarioComparisonSummary when present', () => {
+    const result = makeBacktestResult('irr', makeDistribution());
+    result.scenarioComparisonSummary = {
+      requestedScenarios: 3,
+      scenariosCompared: 2,
+      failedScenarios: ['custom'],
+    };
+
+    const vm = toResultViewModel(result);
+    expect(vm.scenarioComparisonSummary).toEqual({
+      requestedScenarios: 3,
+      scenariosCompared: 2,
+      failedScenarios: ['custom'],
+    });
+  });
+
+  it('defaults scenarioComparisonSummary to null when absent', () => {
+    const result = makeBacktestResult('irr', makeDistribution());
+    delete result.scenarioComparisonSummary;
+
+    const vm = toResultViewModel(result);
+    expect(vm.scenarioComparisonSummary).toBeNull();
+  });
 });
 
 describe('toRenderableMetric', () => {
