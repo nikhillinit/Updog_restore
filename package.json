@@ -87,7 +87,7 @@
     "test:e2e:smoke": "playwright test --project=smoke",
     "test:security": "vitest run -c vitest.config.int.ts tests/integration/security",
     "ai": "node scripts/ai-tools/index.js",
-    "prepare": "husky install",
+    "prepare": "husky install && node scripts/normalize-husky-shims.mjs",
     "pre-push": "./scripts/validate-pr.sh",
     "validate:phase1": "node scripts/validate-phase1.js",
     "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1",
