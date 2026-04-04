@@ -5,6 +5,7 @@
  *
  * @module shared/schema/scenario
  */
+import { relations } from 'drizzle-orm';
 import {
   boolean,
   decimal,
@@ -100,6 +101,21 @@ export const scenarioAuditLogs = pgTable(
     entityTypeIdx: index('idx_audit_logs_entity_type')['on'](table.entityType),
   })
 );
+
+export const scenariosRelations = relations(scenarios, ({ one, many }) => ({
+  company: one(portfolioCompanies, {
+    fields: [scenarios.companyId],
+    references: [portfolioCompanies.id],
+  }),
+  cases: many(scenarioCases),
+}));
+
+export const scenarioCasesRelations = relations(scenarioCases, ({ one }) => ({
+  scenario: one(scenarios, {
+    fields: [scenarioCases.scenarioId],
+    references: [scenarios.id],
+  }),
+}));
 
 // ============================================================================
 // TYPES

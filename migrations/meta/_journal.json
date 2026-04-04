@@ -47,12 +47,19 @@
     {
       "idx": 6,
       "version": "7",
+      "when": 1775270400500,
+      "tag": "0005b_create_backtest_results",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
       "when": 1775270401000,
       "tag": "0006_phase2_backtest_scenario_comparison_summary",
       "breakpoints": true
     },
     {
-      "idx": 7,
+      "idx": 8,
       "version": "7",
       "when": 1775356800000,
       "tag": "0007_phase2_retire_dormant_saved_comparison_persistence",

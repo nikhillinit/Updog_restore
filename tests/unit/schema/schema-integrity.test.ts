@@ -5,6 +5,7 @@
  * Catches runtime issues that TypeScript compilation misses.
  */
 import { describe, it, expect } from 'vitest';
+import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm/relations';
 import * as schema from '@shared/schema';
 
 describe('Schema Module Integrity', () => {
@@ -79,6 +80,17 @@ describe('Schema Module Integrity', () => {
     it('scenarios table references portfolioCompanies correctly', () => {
       // Verify the FK relationship is intact
       expect(schema.scenarios).toHaveProperty('companyId');
+    });
+  });
+
+  describe('Relational Query Metadata', () => {
+    it('exports the relations needed by current with-queries', () => {
+      const { tables } = extractTablesRelationalConfig(schema, createTableRelationsHelpers);
+
+      expect(tables.portfolioCompanies?.relations).toHaveProperty('investments');
+      expect(tables.investments?.relations).toHaveProperty('company');
+      expect(tables.scenarios?.relations).toHaveProperty('cases');
+      expect(tables.scenarioCases?.relations).toHaveProperty('scenario');
     });
   });
 });

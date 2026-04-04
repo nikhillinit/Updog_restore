@@ -3,23 +3,10 @@
  * Uses HTTP driver on Vercel, WebSocket pool elsewhere
  */
 
-import * as schema from '@shared/schema';
-import * as lpSchema from '@shared/schema-lp-reporting';
-import * as lpSprint3Schema from '@shared/schema-lp-sprint3';
-import * as approvalSchema from '@shared/schemas/reserve-approvals';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createRequire } from 'node:module';
-import {
-  getStorageConfigurationError,
-  resolveStorageBootMode,
-} from './storage-runtime-policy';
-
-// Combined schema for LP reporting + reserve approval support + Sprint 3
-const combinedSchema = { ...schema, ...lpSchema, ...lpSprint3Schema, ...approvalSchema };
-type CombinedSchema = typeof schema &
-  typeof lpSchema &
-  typeof lpSprint3Schema &
-  typeof approvalSchema;
+import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
+import { combinedSchema, type CombinedSchema } from './db-schema';
 
 // ESM-safe require for conditional imports
 const require = createRequire(import.meta.url);

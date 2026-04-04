@@ -2,23 +2,28 @@
  * @group integration
  * @group testcontainers
  *
- * Opt-in Docker-backed integration test for Phase 0 variance automation.
- * Run explicitly with:
- *   RUN_DOCKER_PHASE0_TEST=1 npx vitest run tests/integration/phase0-migrated-postgres.test.ts --config vitest.config.int.ts
+ * Integration test for Phase 0 variance automation.
+ *
+ * Supports two modes:
+ *   1. Cloud DB: TEST_DATABASE_URL=postgres://... npx vitest run tests/integration/phase0-migrated-postgres.test.ts --config vitest.config.int.ts
+ *   2. Docker:   RUN_DOCKER_PHASE0_TEST=1 npx vitest run tests/integration/phase0-migrated-postgres.test.ts --config vitest.config.int.ts
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as sharedSchema from '../../shared/schema';
-import { runMigrationsToVersion } from '../helpers/testcontainers-migration';
+import { combinedSchema } from '../../server/db-schema';
+import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 60_000;
-const skipIfNoDocker = process.env.RUN_DOCKER_PHASE0_TEST !== '1';
+const cloudDbUrl = process.env.TEST_DATABASE_URL;
+const useCloudDb = Boolean(cloudDbUrl);
+const useDocker = process.env.RUN_DOCKER_PHASE0_TEST === '1';
+const skipTest = !useCloudDb && !useDocker;
 
-let container: StartedPostgreSqlContainer;
+let container: import('@testcontainers/postgresql').StartedPostgreSqlContainer | null = null;
 let adminPool: Pool;
+let connectionString: string;
 
 async function resetSchema(): Promise<void> {
   await adminPool.query('DROP EXTENSION IF EXISTS vector CASCADE');
@@ -27,24 +32,29 @@ async function resetSchema(): Promise<void> {
   await adminPool.query('CREATE SCHEMA public');
   await adminPool.query('GRANT ALL ON SCHEMA public TO public');
   await adminPool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public');
-  await adminPool.query('CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public');
+  // pgvector may not be available on cloud databases; skip if missing
+  try {
+    await adminPool.query('CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public');
+  } catch {
+    // vector extension not available on this host (e.g. Neon free tier) — skip
+  }
 }
 
-async function loadPhase0Automation(connectionString: string): Promise<{
+async function loadPhase0Automation(connStr: string): Promise<{
   modulePool: Pool;
   tracking: typeof import('../../server/services/calc-run-tracking');
   handlers: typeof import('../../server/services/calc-run-completion-handlers');
 }> {
   vi.resetModules();
   process.env.USE_REAL_DB_IN_VITEST = '1';
-  process.env.DATABASE_URL = connectionString;
+  process.env.DATABASE_URL = connStr;
   delete process.env.NEON_DATABASE_URL;
 
   const modulePool = new Pool({
-    connectionString,
+    connectionString: connStr,
     max: 2,
   });
-  const moduleDb = drizzle(modulePool, { schema: sharedSchema });
+  const moduleDb = drizzle(modulePool, { schema: combinedSchema });
 
   vi.doMock('../../server/db', () => ({
     db: moduleDb,
@@ -77,7 +87,7 @@ async function seedPhase0CalcRunScenario(): Promise<{
       '0.2000',
       2024,
       new Date('2024-01-01T00:00:00Z'),
-      {},
+      JSON.stringify({}),
     ]
   );
   const fundId = fundInsert.rows[0]!.id;
@@ -88,7 +98,7 @@ async function seedPhase0CalcRunScenario(): Promise<{
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `,
-    [fundId, 1, { name: 'Phase 0 Config' }, false, true]
+    [fundId, 1, JSON.stringify({ name: 'Phase 0 Config' }), false, true]
   );
   const configId = configInsert.rows[0]!.id;
 
@@ -111,7 +121,7 @@ async function seedPhase0CalcRunScenario(): Promise<{
       configId,
       1,
       '00000000-0000-0000-0000-000000000042',
-      ['reserve', 'pacing'],
+      JSON.stringify(['reserve', 'pacing']),
       'dispatched',
       new Date('2026-03-31T12:00:00Z'),
     ]
@@ -179,13 +189,13 @@ async function seedPhase0CalcRunScenario(): Promise<{
       `,
     [
       fundId,
-      { reserveTarget: 250000, reservePct: 0.25 },
+      JSON.stringify({ reserveTarget: 250000, reservePct: 0.25 }),
       '00000000-0000-0000-0000-000000000043',
       new Date('2026-03-31T12:05:00Z'),
       runId,
       configId,
       1,
-      { annualDeploymentRate: 0.4, remainingMonths: 18 },
+      JSON.stringify({ annualDeploymentRate: 0.4, remainingMonths: 18 }),
       '00000000-0000-0000-0000-000000000044',
       new Date('2026-03-31T12:06:00Z'),
     ]
@@ -205,20 +215,28 @@ function restorePhase0Env(env: Record<string, string | undefined>): void {
   }
 }
 
-describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
+describe.skipIf(skipTest)('Phase 0 migrated Postgres integration', () => {
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('pgvector/pgvector:pg16')
-      .withDatabase('test_db')
-      .withUsername('test_user')
-      .withPassword('test_password')
-      .start();
-
-    adminPool = new Pool({ connectionString: container.getConnectionUri(), max: 1 });
+    if (useCloudDb) {
+      connectionString = cloudDbUrl!;
+      adminPool = new Pool({ connectionString, max: 1 });
+    } else {
+      const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
+      container = await new PostgreSqlContainer('pgvector/pgvector:pg16')
+        .withDatabase('test_db')
+        .withUsername('test_user')
+        .withPassword('test_password')
+        .start();
+      connectionString = container.getConnectionUri();
+      adminPool = new Pool({ connectionString, max: 1 });
+    }
   }, STARTUP_TIMEOUT_MS);
 
   afterAll(async () => {
     await adminPool?.end();
-    await container?.stop();
+    if (container) {
+      await container.stop();
+    }
   });
 
   beforeEach(async () => {
@@ -226,7 +244,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
   });
 
   it('applies the root journal and creates exactly one automated baseline for a completed run', async () => {
-    await runMigrationsToVersion(container);
+    await runMigrationsWithConnectionString(connectionString);
 
     const systemUserResult = await adminPool.query<{
       id: number;
@@ -246,7 +264,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
     let modulePool: Pool | null = null;
 
     try {
-      const modules = await loadPhase0Automation(container.getConnectionUri());
+      const modules = await loadPhase0Automation(connectionString);
       modulePool = modules.modulePool;
 
       modules.tracking.resetCompletionHandlers();
@@ -326,7 +344,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
   }, 60_000);
 
   it('re-drives calc-run completion without duplicating realtime alerts or execution records', async () => {
-    await runMigrationsToVersion(container);
+    await runMigrationsWithConnectionString(connectionString);
 
     const { fundId, runId } = await seedPhase0CalcRunScenario();
 
@@ -377,7 +395,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
     let modulePool: Pool | null = null;
 
     try {
-      const modules = await loadPhase0Automation(container.getConnectionUri());
+      const modules = await loadPhase0Automation(connectionString);
       modulePool = modules.modulePool;
 
       modules.tracking.resetCompletionHandlers();
@@ -468,7 +486,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
   }, 60_000);
 
   it('fails with a clear error when the system actor row is missing', async () => {
-    await runMigrationsToVersion(container);
+    await runMigrationsWithConnectionString(connectionString);
 
     const { fundId, runId } = await seedPhase0CalcRunScenario();
     await adminPool.query('DELETE FROM users WHERE id = 999999');
@@ -482,7 +500,7 @@ describe.skipIf(skipIfNoDocker)('Phase 0 migrated Postgres integration', () => {
     let modulePool: Pool | null = null;
 
     try {
-      const modules = await loadPhase0Automation(container.getConnectionUri());
+      const modules = await loadPhase0Automation(connectionString);
       modulePool = modules.modulePool;
 
       modules.tracking.resetCompletionHandlers();
