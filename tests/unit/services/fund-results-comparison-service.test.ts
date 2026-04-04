@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { COMPARISON_METRIC_KEYS } from '@shared/contracts/fund-results-comparison-v1.contract';
 
 const findFundMock = vi.fn();
 const selectPublishedConfigsLimitMock = vi.fn();
@@ -211,6 +212,9 @@ describe('FundResultsComparisonService', () => {
     expect(result?.currentVersion?.version).toBe(4);
     expect(result?.previousVersion?.version).toBe(3);
     expect(result?.previousVersion?.calcRun?.status).toBe('calculating');
+    expect(result?.metricDeltas.map((delta) => delta.metric)).toEqual([
+      ...COMPARISON_METRIC_KEYS,
+    ]);
 
     expect(result?.metricDeltas[0]).toMatchObject({
       metric: 'fundSize',
@@ -218,11 +222,15 @@ describe('FundResultsComparisonService', () => {
       previousValue: 100000000,
       absoluteDelta: 25000000,
       percentageDelta: 25,
+      driftCapable: true,
+      driftReason: 'stable',
     });
     expect(result?.metricDeltas[1]).toMatchObject({
       metric: 'reserveRatio',
       currentValue: 0.5,
       previousValue: 0.4,
+      driftCapable: true,
+      driftReason: 'stable',
     });
     expect(result?.metricDeltas[1]?.absoluteDelta).toBeCloseTo(0.1);
     expect(result?.metricDeltas[1]?.percentageDelta).toBeCloseTo(25);
@@ -230,6 +238,8 @@ describe('FundResultsComparisonService', () => {
       metric: 'avgConfidence',
       currentValue: 0.7,
       previousValue: 0.55,
+      driftCapable: true,
+      driftReason: 'stable',
     });
     expect(result?.metricDeltas[2]?.absoluteDelta).toBeCloseTo(0.15);
     expect(result?.metricDeltas[3]).toMatchObject({
@@ -237,6 +247,8 @@ describe('FundResultsComparisonService', () => {
       currentValue: 4,
       previousValue: 3,
       absoluteDelta: 1,
+      driftCapable: true,
+      driftReason: 'stable',
     });
   });
 });

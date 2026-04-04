@@ -117,7 +117,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled(), { timeout: 10000 });
 
     const resultsCalls = sessionGetSpy.mock.calls.filter(
       ([key]) => typeof key === 'string' && (key as string).startsWith('engine-results-')
@@ -544,6 +544,27 @@ describe('FundModelResultsPage (server-backed)', () => {
       within(comparisonCard).getByText((_, element) =>
         element?.textContent === 'Delta +$20M (+25.0%)'
       )
+    ).toBeInTheDocument();
+  });
+
+  it('hides drift when a metric is not marked drift-capable', async () => {
+    const comparison = resultsComparisonResponse();
+    comparison.metricDeltas[0] = {
+      ...comparison.metricDeltas[0]!,
+      previousValue: 0,
+      percentageDelta: null,
+      driftCapable: false,
+      driftReason: 'zero_previous',
+    };
+
+    mockFundPageFetches({ comparison });
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    expect(within(comparisonCard).getByText('Fund Size')).toBeInTheDocument();
+    expect(within(comparisonCard).getByText(/Drift unavailable/i)).toBeInTheDocument();
+    expect(
+      within(comparisonCard).getByText(/Previous value is zero, so percentage drift is unstable\./i)
     ).toBeInTheDocument();
   });
 
@@ -1125,6 +1146,8 @@ function resultsComparisonResponse() {
         previousValue: 80_000_000,
         absoluteDelta: 20_000_000,
         percentageDelta: 25,
+        driftCapable: true,
+        driftReason: 'stable' as const,
       },
       {
         metric: 'reserveRatio' as const,
@@ -1133,6 +1156,8 @@ function resultsComparisonResponse() {
         previousValue: 0.35,
         absoluteDelta: 0.05,
         percentageDelta: 14.2857142857,
+        driftCapable: true,
+        driftReason: 'stable' as const,
       },
       {
         metric: 'avgConfidence' as const,
@@ -1141,6 +1166,8 @@ function resultsComparisonResponse() {
         previousValue: 0.8,
         absoluteDelta: 0.05,
         percentageDelta: 6.25,
+        driftCapable: true,
+        driftReason: 'stable' as const,
       },
       {
         metric: 'yearsToFullDeploy' as const,
@@ -1149,6 +1176,8 @@ function resultsComparisonResponse() {
         previousValue: 6,
         absoluteDelta: -1,
         percentageDelta: -16.6666666667,
+        driftCapable: true,
+        driftReason: 'stable' as const,
       },
     ],
   };

@@ -66,6 +66,9 @@ async function loadApp(flagOverrides: FlagOverrides = {}) {
   vi.doMock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
   vi.doMock('@/pages/fund-setup', () => ({ default: () => <div>Fund Setup Page</div> }));
   vi.doMock('@/pages/portfolio', () => ({ default: () => <div>Portfolio Page</div> }));
+  vi.doMock('@/pages/financial-modeling', () => ({
+    default: () => <div>Financial Modeling Page</div>,
+  }));
   vi.doMock('@/pages/pipeline', () => ({ default: () => <div>Pipeline Page</div> }));
   vi.doMock('@/pages/reports', () => ({ default: () => <div>Reports Page</div> }));
   vi.doMock('@/pages/sensitivity-analysis', () => ({
@@ -117,6 +120,7 @@ describe('route perimeter governance', () => {
     ['/dashboard', 'Dashboard Page'],
     ['/portfolio', 'Portfolio Page'],
     ['/pipeline', 'Pipeline Page'],
+    ['/financial-modeling', 'Financial Modeling Page'],
     ['/reports', 'Reports Page'],
     ['/sensitivity-analysis', 'Sensitivity Analysis Page'],
     ['/settings', 'Settings Page'],

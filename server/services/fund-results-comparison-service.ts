@@ -6,7 +6,8 @@
  *
  * Uses persisted fund configs, calc runs, and snapshots directly. This is a
  * targeted read model for the stabilized results page, not a generalized
- * arbitrary-version diff engine.
+ * arbitrary-version diff engine, a catch-all forecasting API, or implicit
+ * authorization for PR4 live-surface rollout.
  *
  * @module server/services/fund-results-comparison-service
  */
@@ -19,10 +20,12 @@ import type { ReserveSummary, PacingSummary } from '@shared/types';
 import type {
   ComparisonCalcRun,
   ComparisonMetrics,
+  DriftCapabilityReason,
   FundResultsComparisonV1,
   MetricDelta,
   PublishedVersionSummary,
 } from '@shared/contracts/fund-results-comparison-v1.contract';
+import { COMPARISON_METRIC_KEYS } from '@shared/contracts/fund-results-comparison-v1.contract';
 import type { CalculationStatus } from '@shared/contracts/fund-state-read-v1.contract';
 import type { DispatchState } from '@shared/schema/fund';
 
@@ -57,11 +60,22 @@ function toMetricDelta(
 ): MetricDelta {
   let absoluteDelta: number | null = null;
   let percentageDelta: number | null = null;
+  let driftCapable = false;
+  let driftReason: DriftCapabilityReason = 'stable';
 
-  if (currentValue != null && previousValue != null) {
+  if (currentValue == null && previousValue == null) {
+    driftReason = 'missing_both';
+  } else if (currentValue == null) {
+    driftReason = 'missing_current';
+  } else if (previousValue == null) {
+    driftReason = 'missing_previous';
+  } else {
     absoluteDelta = currentValue - previousValue;
     if (previousValue !== 0) {
+      driftCapable = true;
       percentageDelta = (absoluteDelta / Math.abs(previousValue)) * 100;
+    } else {
+      driftReason = 'zero_previous';
     }
   }
 
@@ -72,7 +86,18 @@ function toMetricDelta(
     previousValue,
     absoluteDelta,
     percentageDelta,
+    driftCapable,
+    driftReason,
   };
+}
+
+function buildMetricDeltas(
+  currentMetrics: ComparisonMetrics,
+  previousMetrics: ComparisonMetrics
+): MetricDelta[] {
+  return COMPARISON_METRIC_KEYS.map((metric) =>
+    toMetricDelta(metric, currentMetrics[metric], previousMetrics[metric])
+  );
 }
 
 export class FundResultsComparisonService {
@@ -140,28 +165,7 @@ export class FundResultsComparisonService {
       comparisonStatus: 'comparable',
       currentVersion,
       previousVersion,
-      metricDeltas: [
-        toMetricDelta(
-          'fundSize',
-          currentVersion.metrics.fundSize,
-          previousVersion.metrics.fundSize
-        ),
-        toMetricDelta(
-          'reserveRatio',
-          currentVersion.metrics.reserveRatio,
-          previousVersion.metrics.reserveRatio
-        ),
-        toMetricDelta(
-          'avgConfidence',
-          currentVersion.metrics.avgConfidence,
-          previousVersion.metrics.avgConfidence
-        ),
-        toMetricDelta(
-          'yearsToFullDeploy',
-          currentVersion.metrics.yearsToFullDeploy,
-          previousVersion.metrics.yearsToFullDeploy
-        ),
-      ],
+      metricDeltas: buildMetricDeltas(currentVersion.metrics, previousVersion.metrics),
     };
   }
 

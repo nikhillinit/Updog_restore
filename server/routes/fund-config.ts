@@ -526,6 +526,9 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // GET /api/funds/:id/results-comparison -- Post-stabilization results comparison read model
+  // Summary-level comparison only: this route is intentionally narrow and must
+  // not be treated as automatic authorization for broader PR4 live-surface
+  // rollout or generic forecasting API expansion.
   app['get']('/api/funds/:id/results-comparison', async (req: Request, res: Response) => {
     try {
       let fundId: number;

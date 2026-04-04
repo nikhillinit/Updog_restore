@@ -67,7 +67,7 @@ function formatSeriesName(name: NameType | undefined): string {
 }
 
 export default function DualForecastDashboard() {
-  const { currentFund, isLoading: isFundLoading, needsSetup } = useFundContext();
+  const { currentFund, isLoading: isFundLoading, needsSetup, isDemoMode } = useFundContext();
   const fundId = currentFund?.id ?? null;
 
   const {
@@ -76,13 +76,13 @@ export default function DualForecastDashboard() {
     error,
   } = useQuery<DashboardSummary>({
     queryKey: [`/api/dashboard-summary/${fundId}`],
-    enabled: fundId != null,
+    enabled: fundId != null && !isDemoMode,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const { data: _fundMetrics } = useQuery({
     queryKey: [`/api/fund-metrics/${fundId}`],
-    enabled: fundId != null,
+    enabled: fundId != null && !isDemoMode,
     refetchInterval: 60000, // Refresh every minute
   });
 
@@ -92,6 +92,21 @@ export default function DualForecastDashboard() {
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <p className="font-medium">Loading active fund context…</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isDemoMode) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="font-medium">Forecasting unavailable in demo mode</p>
+            <p className="text-muted-foreground mt-2">
+              Load live fund data before using the deterministic forecast surface.
+            </p>
           </div>
         </CardContent>
       </Card>

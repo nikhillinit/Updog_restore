@@ -67,6 +67,12 @@ const CORE_NAV: readonly NavigationItem[] = [
   },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, target: staticTarget('/portfolio') },
   { id: 'pipeline', label: 'Pipeline', icon: LineChart, target: staticTarget('/pipeline') },
+  {
+    id: 'financial-modeling',
+    label: 'Forecasting',
+    icon: Calculator,
+    target: staticTarget('/financial-modeling'),
+  },
   MODEL_RESULTS_ITEM,
   {
     id: 'sensitivity-analysis',

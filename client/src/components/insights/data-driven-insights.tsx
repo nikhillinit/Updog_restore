@@ -18,6 +18,19 @@ interface DataDrivenInsightsProps {
   className?: string;
 }
 
+type WorkflowInsight = {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  metrics: { label: string; value: string; trend: string }[];
+  lastUpdated: string;
+  icon: typeof TrendingUp;
+  color: string;
+  route?: string;
+  actionLabel?: string;
+};
+
 export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
   // Sample data for the six workflows
   const workflowInsights = {
@@ -60,7 +73,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
     },
   };
 
-  const workflows = [
+  const workflows: WorkflowInsight[] = [
     {
       id: 1,
       title: 'Current Fund Forecast',
@@ -83,7 +96,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: workflowInsights.currentForecast.lastUpdated,
       icon: TrendingUp,
       color: 'blue',
-      route: '/forecasting',
+      actionLabel: 'Tracked in queue',
     },
     {
       id: 2,
@@ -111,7 +124,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: 'Real-time',
       icon: Target,
       color: 'green',
-      route: '/forecasting',
+      actionLabel: 'Tracked in queue',
     },
     {
       id: 3,
@@ -138,7 +151,8 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: workflowInsights.scenarios.lastReview,
       icon: BarChart3,
       color: 'purple',
-      route: '/scenario-builder',
+      route: '/sensitivity-analysis',
+      actionLabel: 'View live surface',
     },
     {
       id: 4,
@@ -158,7 +172,8 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: 'Daily refresh',
       icon: Calculator,
       color: 'orange',
-      route: '/planning',
+      route: '/portfolio?tab=reserve-planning',
+      actionLabel: 'Open reserve planning',
     },
     {
       id: 5,
@@ -185,7 +200,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: 'Weekly analysis',
       icon: DollarSign,
       color: 'emerald',
-      route: '/partial-sales',
+      actionLabel: 'Tracked in queue',
     },
     {
       id: 6,
@@ -204,7 +219,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       lastUpdated: workflowInsights.kpis.lastSync,
       icon: Activity,
       color: 'indigo',
-      route: '/analytics',
+      actionLabel: 'Tracked in queue',
     },
   ];
 
@@ -290,9 +305,14 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
                     variant="ghost"
                     size="sm"
                     className="h-6 text-xs px-2"
-                    onClick={() => (window.location.href = workflow.route)}
+                    disabled={!workflow.route}
+                    onClick={() => {
+                      if (workflow.route) {
+                        window.location.href = workflow.route;
+                      }
+                    }}
                   >
-                    View →
+                    {workflow.actionLabel ?? 'View →'}
                   </Button>
                 </div>
               </CardContent>
