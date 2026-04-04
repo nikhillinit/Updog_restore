@@ -1,35 +1,65 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# Commit Message Linter
-# Enforces conventional commit format: type(scope): message
+# Commit message guard
+# Accepts either:
+# - Conventional commits: type(scope): message
+# - Lore protocol commits required by AGENTS.md:
+#   why-focused subject + blank line + body and/or trailers
 
 COMMIT_MSG_FILE=$1
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+SUBJECT=$(printf '%s\n' "$COMMIT_MSG" | sed -n '1p')
+SECOND_LINE=$(printf '%s\n' "$COMMIT_MSG" | sed -n '2p')
+REMAINDER=$(printf '%s\n' "$COMMIT_MSG" | sed '1,2d')
 
 # Skip merge commits and auto-generated commits
-if echo "$COMMIT_MSG" | grep -qE "^Merge|^Revert|^🤖 Generated"; then
+if printf '%s\n' "$SUBJECT" | grep -qE "^Merge|^Revert|^🤖 Generated"; then
   exit 0
 fi
 
-# Conventional commit regex
-# Format: type(scope): message
-# Examples: feat(api): add new endpoint, fix: resolve type error, docs: update README
-CONVENTIONAL_REGEX="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}"
+CONVENTIONAL_REGEX='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}$'
+LORE_TRAILER_REGEX='^(Constraint|Rejected|Confidence|Scope-risk|Reversibility|Directive|Tested|Not-tested|Related): .+'
 
-if ! echo "$COMMIT_MSG" | grep -qE "$CONVENTIONAL_REGEX"; then
-  echo "❌ Invalid commit message format"
-  echo ""
-  echo "Commit message must follow conventional commit format:"
-  echo "  type(scope): message"
-  echo ""
-  echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
-  echo ""
-  echo "Examples:"
-  echo "  feat(api): add reserve calculation endpoint"
-  echo "  fix(types): resolve 'any' type in workers"
-  echo "  docs: update code quality guidelines"
-  echo ""
-  exit 1
+if printf '%s\n' "$SUBJECT" | grep -qE "$CONVENTIONAL_REGEX"; then
+  echo "✅ Conventional commit message format valid"
+  exit 0
 fi
 
-echo "✅ Commit message format valid"
+if [ -n "$SUBJECT" ] && [ -z "$SECOND_LINE" ]; then
+  if printf '%s\n' "$REMAINDER" | grep -qE '[^[:space:]]'; then
+    echo "✅ Lore commit message format valid"
+    exit 0
+  fi
+
+  if printf '%s\n' "$COMMIT_MSG" | grep -qE "$LORE_TRAILER_REGEX"; then
+    echo "✅ Lore commit message format valid"
+    exit 0
+  fi
+fi
+
+echo "❌ Invalid commit message format"
+echo ""
+echo "Commit messages must follow one of these formats:"
+echo ""
+echo "  Conventional:"
+echo "    type(scope): message"
+echo ""
+echo "  Lore protocol (AGENTS.md):"
+echo "    Intent line explaining why"
+echo ""
+echo "    Narrative body and/or Lore trailers"
+echo "    Constraint: <external constraint>"
+echo "    Tested: <verification performed>"
+echo ""
+echo "Conventional examples:"
+echo "  feat(api): add reserve calculation endpoint"
+echo "  fix(types): resolve worker type regression"
+echo ""
+echo "Lore example:"
+echo "  Prevent silent session drops during long-running operations"
+echo ""
+echo "  The auth service returns inconsistent status codes on expiry..."
+echo "  Constraint: Auth service does not support token introspection"
+echo "  Tested: Targeted token refresh unit coverage"
+echo ""
+exit 1

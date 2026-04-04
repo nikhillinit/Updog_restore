@@ -274,3 +274,22 @@ uiux-skill/
 /dev/null
 /dev/null.css
 *.cpuprofile
+
+# OMX local session/runtime state
+# Existing tracked proof/signoff artifacts remain versioned; these rules only
+# suppress new local runtime files from cluttering the worktree.
+.omx/context/
+.omx/holding/
+.omx/interviews/
+.omx/logs/
+.omx/plans/
+.omx/specs/
+.omx/state/
+.omx/hud-config.json
+.omx/metrics.json
+.omx/notepad.md
+.omx/setup-scope.json
+.omx/tmux-hook.json
+
+# Local hook probes
+.tmp-git-hook-probe/
