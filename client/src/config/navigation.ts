@@ -45,8 +45,6 @@ export const LEGACY_NAV_ITEMS: NavItem[] = [
   { id: 'kpi-manager', label: 'KPI Manager', icon: Activity },
   { id: 'allocation-manager', label: 'Allocation Manager', icon: Calculator },
   { id: 'planning', label: 'Planning', icon: Briefcase },
-  { id: 'forecasting', label: 'Forecasting', icon: TrendingUp },
-  { id: 'scenario-builder', label: 'Scenario Builder', icon: Target },
   { id: 'moic-analysis', label: 'MOIC Analysis', icon: Calculator },
   { id: 'return-the-fund', label: 'Return the Fund', icon: TrendingUp },
   { id: 'partial-sales', label: 'Partial Sales', icon: Percent },

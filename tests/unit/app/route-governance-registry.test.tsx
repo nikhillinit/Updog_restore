@@ -123,9 +123,11 @@ describe('route governance registry', () => {
 
   it('does not govern routes that were removed from the default runtime perimeter', () => {
     expect(getRouteGovernanceEntry('/analytics')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/forecasting')).toBeUndefined();
     expect(getRouteGovernanceEntry('/monte-carlo')).toBeUndefined();
     expect(getRouteGovernanceEntry('/secondary-market')).toBeUndefined();
     expect(getRouteGovernanceEntry('/notion-integration')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/scenario-builder')).toBeUndefined();
     expect(getRouteGovernanceEntry('/dev-dashboard')).toBeUndefined();
   });
 });

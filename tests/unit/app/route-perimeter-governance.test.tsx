@@ -149,9 +149,11 @@ describe('route perimeter governance', () => {
 
   it.each([
     '/analytics',
+    '/forecasting',
     '/monte-carlo',
     '/secondary-market',
     '/notion-integration',
+    '/scenario-builder',
     '/dev-dashboard',
   ])('removes non-core internal route %s from the default runtime perimeter', async (path) => {
     await renderAt(path);
