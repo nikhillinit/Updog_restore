@@ -50,7 +50,7 @@ async function runCompletionHandlers(target: CompletionTarget): Promise<void> {
     )
   );
 
-  const failedHandlers: string[] = [];
+  const failedHandlers: Array<{ handlerName: string; reason: unknown }> = [];
 
   for (const [index, result] of results.entries()) {
     if (result.status === 'fulfilled') {
@@ -59,7 +59,7 @@ async function runCompletionHandlers(target: CompletionTarget): Promise<void> {
 
     const handler = handlers[index];
     const handlerName = handler?.name || 'anonymous';
-    failedHandlers.push(handlerName);
+    failedHandlers.push({ handlerName, reason: result.reason });
     log.error(
       { runId: target.id, handler: handlerName, err: result.reason },
       'Calc-run completion handler failed'
@@ -67,9 +67,16 @@ async function runCompletionHandlers(target: CompletionTarget): Promise<void> {
   }
 
   if (failedHandlers.length > 0) {
-    throw new Error(
-      `Calc-run completion handlers failed for run ${target.id}: ${failedHandlers.join(', ')}`
-    );
+    const failureSummary = failedHandlers
+      .map(({ handlerName, reason }) => {
+        const reasonMessage =
+          reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : null;
+
+        return reasonMessage ? `${handlerName}: ${reasonMessage}` : handlerName;
+      })
+      .join('; ');
+
+    throw new Error(`Calc-run completion handlers failed for run ${target.id}: ${failureSummary}`);
   }
 }
 

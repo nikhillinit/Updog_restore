@@ -171,10 +171,11 @@ async function getMigrationColumns(db: ReturnType<typeof drizzle>): Promise<Map<
 }
 
 /**
- * Run migrations up to a specific version (default: latest).
+ * Run migrations up to a specific version using a connection string directly.
+ * Works with both testcontainers and cloud-hosted databases (Neon, Supabase, etc.).
  */
-export async function runMigrationsToVersion(
-  container: StartedPostgreSqlContainer,
+export async function runMigrationsWithConnectionString(
+  connectionString: string,
   targetVersion?: string
 ): Promise<MigrationState> {
   const migrationsFolder = resolveMigrationsFolder();
@@ -200,7 +201,7 @@ export async function runMigrationsToVersion(
   }
 
   const pool = new Pool({
-    connectionString: container.getConnectionUri(),
+    connectionString,
     max: 1,
   });
 
@@ -218,7 +219,7 @@ export async function runMigrationsToVersion(
     await migrate(db, {
       migrationsFolder: folderToUse,
       migrationsTable: MIGRATIONS_TABLE,
-      migrationsSchema: 'public', // Use public schema (drizzle defaults to 'drizzle' schema)
+      migrationsSchema: 'public',
     });
   } catch (error) {
     console.error('[testcontainers-migration] Migration failed', error);
@@ -228,7 +229,17 @@ export async function runMigrationsToVersion(
     cleanupTempFolder(folderToUse, migrationsFolder);
   }
 
-  return getMigrationState(container);
+  return getMigrationStateFromConnectionString(connectionString);
+}
+
+/**
+ * Run migrations up to a specific version (default: latest).
+ */
+export async function runMigrationsToVersion(
+  container: StartedPostgreSqlContainer,
+  targetVersion?: string
+): Promise<MigrationState> {
+  return runMigrationsWithConnectionString(container.getConnectionUri(), targetVersion);
 }
 
 /**
@@ -255,16 +266,16 @@ export async function resetDatabase(container: StartedPostgreSqlContainer): Prom
 }
 
 /**
- * Query migration state from drizzle_migrations table.
+ * Query migration state using a connection string directly.
  */
-export async function getMigrationState(
-  container: StartedPostgreSqlContainer
+export async function getMigrationStateFromConnectionString(
+  connectionString: string
 ): Promise<MigrationState> {
   const migrationsFolder = resolveMigrationsFolder();
   const { ordered } = readMigrationOrder(migrationsFolder);
 
   const pool = new Pool({
-    connectionString: container.getConnectionUri(),
+    connectionString,
     max: 1,
   });
 
@@ -322,6 +333,15 @@ export async function getMigrationState(
   } finally {
     await pool.end();
   }
+}
+
+/**
+ * Query migration state from drizzle_migrations table (container variant).
+ */
+export async function getMigrationState(
+  container: StartedPostgreSqlContainer
+): Promise<MigrationState> {
+  return getMigrationStateFromConnectionString(container.getConnectionUri());
 }
 
 /**

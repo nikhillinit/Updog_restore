@@ -162,9 +162,10 @@ describe('calc run tracking helpers', () => {
     const handler = vi.fn().mockRejectedValue(new Error('retry me'));
     registerCalcRunCompletedHandler(handler);
 
-    await expect(markCalcRunCompletedIfReady(22)).rejects.toThrow(
-      'Calc-run completion handlers failed for run 1'
-    );
+    const completion = markCalcRunCompletedIfReady(22);
+
+    await expect(completion).rejects.toThrow('Calc-run completion handlers failed for run 1');
+    await expect(completion).rejects.toThrow('retry me');
   });
 
   it('treats the last BullMQ attempt as terminal', () => {

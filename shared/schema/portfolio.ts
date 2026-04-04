@@ -5,7 +5,7 @@
  *
  * @module shared/schema/portfolio
  */
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   check,
@@ -138,6 +138,25 @@ export const investmentLots = pgTable(
     ),
   })
 );
+
+export const portfolioCompaniesRelations = relations(portfolioCompanies, ({ many }) => ({
+  investments: many(investments),
+}));
+
+export const investmentsRelations = relations(investments, ({ one, many }) => ({
+  company: one(portfolioCompanies, {
+    fields: [investments.companyId],
+    references: [portfolioCompanies.id],
+  }),
+  lots: many(investmentLots),
+}));
+
+export const investmentLotsRelations = relations(investmentLots, ({ one }) => ({
+  investment: one(investments, {
+    fields: [investmentLots.investmentId],
+    references: [investments.id],
+  }),
+}));
 
 // ============================================================================
 // TYPES
