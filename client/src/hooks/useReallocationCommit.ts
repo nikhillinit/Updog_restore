@@ -36,7 +36,7 @@ export function useReallocationCommit(fundId: number) {
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/portfolio-companies'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-companies'] });
       queryClient.invalidateQueries({ queryKey: [`/api/funds/${fundId}`] });
     },
   });

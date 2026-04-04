@@ -19,6 +19,22 @@ describe('portfolio company and activity route extraction', () => {
       error: 'Invalid fund ID query',
     });
 
+    const invalidAsOf = await request(app)
+      .get('/api/portfolio-companies?fundId=1&asOf=not-a-date')
+      .expect(400);
+    expect(invalidAsOf.body).toMatchObject({
+      error: 'Invalid asOf query',
+    });
+
+    const liveRead = await request(app).get('/api/portfolio-companies?fundId=1').expect(200);
+    expect(liveRead.body).toMatchObject({
+      companies: expect.any(Array),
+      meta: expect.objectContaining({
+        mode: 'live',
+        source: 'live',
+      }),
+    });
+
     const created = await request(app)
       .post('/api/portfolio-companies')
       .send({

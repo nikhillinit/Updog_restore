@@ -204,38 +204,3 @@ export function useCreateSnapshot() {
     },
   });
 }
-
-/**
- * Hook to restore fund state from a snapshot
- */
-export function useRestoreSnapshot() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: {
-      fundId: number;
-      snapshotId: number;
-      confirmationCode?: string;
-    }) => {
-      // This would typically be a separate API endpoint for restoration
-      // For now, we'll just simulate the action
-      return apiRequest<{ success: boolean; message: string }>(
-        'POST',
-        `/api/timeline/${params.fundId}/restore`,
-        {
-          snapshotId: params.snapshotId,
-          confirmationCode: params.confirmationCode,
-        }
-      );
-    },
-    onSuccess: (_data, variables) => {
-      // Invalidate all fund-related queries after restoration
-      queryClient.invalidateQueries({
-        queryKey: ['/api/timeline', variables.fundId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/funds', variables.fundId],
-      });
-    },
-  });
-}

@@ -1,10 +1,6 @@
- 
- 
- 
- 
- 
 import { useQuery } from '@tanstack/react-query';
 import type { PortfolioCompany } from '@shared/schema';
+import { apiRequest } from '@/lib/queryClient';
 
 export function useFundData() {
   const { data: funds, isLoading } = useQuery<unknown[]>({
@@ -23,14 +19,61 @@ export function useFundData() {
   };
 }
 
-export function usePortfolioCompanies(fundId?: number) {
-  const { data: portfolioCompanies, isLoading } = useQuery<PortfolioCompany[]>({
-    queryKey: ['/api/portfolio-companies', fundId],
+export type PortfolioCompaniesMode = 'live' | 'historical';
+export type PortfolioCompaniesSource = 'live' | 'snapshot';
+export type PortfolioCompaniesEmptyReason =
+  | 'no_snapshot'
+  | 'unsupported_snapshot'
+  | 'no_companies_at_date';
+
+export interface PortfolioCompaniesMeta {
+  mode: PortfolioCompaniesMode;
+  requestedAsOf: string | null;
+  resolvedAsOf: string | null;
+  source: PortfolioCompaniesSource;
+  historicalAvailable: boolean;
+  emptyReason?: PortfolioCompaniesEmptyReason;
+}
+
+export interface PortfolioCompaniesResponse {
+  companies: PortfolioCompany[];
+  meta: PortfolioCompaniesMeta;
+}
+
+export function usePortfolioCompanies(
+  fundId?: number,
+  options: { asOf?: string } = {}
+) {
+  const { asOf } = options;
+  const { data, isLoading, error } = useQuery<PortfolioCompaniesResponse>({
+    queryKey: ['portfolio-companies', fundId ?? null, asOf ?? null],
     enabled: !!fundId,
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('fundId', String(fundId));
+      if (asOf) {
+        searchParams.set('asOf', asOf);
+      }
+
+      return apiRequest<PortfolioCompaniesResponse>(
+        'GET',
+        `/api/portfolio-companies?${searchParams.toString()}`
+      );
+    },
+    staleTime: 60_000,
   });
 
   return {
-    portfolioCompanies: portfolioCompanies || [],
+    portfolioCompanies: data?.companies || [],
+    meta:
+      data?.meta || {
+        mode: 'live',
+        requestedAsOf: null,
+        resolvedAsOf: null,
+        source: 'live',
+        historicalAvailable: false,
+      },
     isLoading,
+    error,
   };
 }
