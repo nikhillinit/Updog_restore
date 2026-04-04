@@ -7,13 +7,35 @@
  *
  * This is intentionally summary-level. It is designed to support KPI delta
  * cards and version context on the results page, not arbitrary config-body
- * diffing.
+ * diffing, broader analytics expansion, or automatic enablement of any future
+ * PR4 live-surface behavior.
  *
  * @module shared/contracts/fund-results-comparison-v1.contract
  */
 
 import { z } from 'zod';
 import { CalculationStatusSchema } from './fund-state-read-v1.contract';
+
+/**
+ * Fixed comparison metric surface for the mounted results-comparison route.
+ *
+ * Expanding this list is a deliberate contract change, not something the
+ * service should infer from broader reporting or future live-surface needs.
+ */
+export const COMPARISON_METRIC_KEYS = [
+  'fundSize',
+  'reserveRatio',
+  'avgConfidence',
+  'yearsToFullDeploy',
+] as const;
+
+export const DriftCapabilityReasonSchema = z.enum([
+  'stable',
+  'missing_current',
+  'missing_previous',
+  'missing_both',
+  'zero_previous',
+]);
 
 export const ComparisonCalcRunSchema = z
   .object({
@@ -45,12 +67,14 @@ export const PublishedVersionSummarySchema = z
 
 export const MetricDeltaSchema = z
   .object({
-    metric: z.enum(['fundSize', 'reserveRatio', 'avgConfidence', 'yearsToFullDeploy']),
+    metric: z.enum(COMPARISON_METRIC_KEYS),
     displayName: z.string(),
     currentValue: z.number().nullable(),
     previousValue: z.number().nullable(),
     absoluteDelta: z.number().nullable(),
     percentageDelta: z.number().nullable(),
+    driftCapable: z.boolean(),
+    driftReason: DriftCapabilityReasonSchema,
   })
   .strict();
 
@@ -67,5 +91,6 @@ export const FundResultsComparisonV1Schema = z
 export type ComparisonCalcRun = z.infer<typeof ComparisonCalcRunSchema>;
 export type ComparisonMetrics = z.infer<typeof ComparisonMetricsSchema>;
 export type PublishedVersionSummary = z.infer<typeof PublishedVersionSummarySchema>;
+export type DriftCapabilityReason = z.infer<typeof DriftCapabilityReasonSchema>;
 export type MetricDelta = z.infer<typeof MetricDeltaSchema>;
 export type FundResultsComparisonV1 = z.infer<typeof FundResultsComparisonV1Schema>;

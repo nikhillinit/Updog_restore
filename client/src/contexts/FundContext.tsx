@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
 import { extractFundResultsRouteId } from '@/lib/fund-routes';
+import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
 
 export interface Fund {
   id: number;
@@ -26,6 +27,7 @@ interface FundContextType {
   isLoading: boolean;
   needsSetup: boolean;
   fundId: number | null;
+  isDemoMode: boolean;
 }
 
 const FundContext = createContext<FundContextType | undefined>(undefined);
@@ -34,25 +36,10 @@ interface FundProviderProps {
   children: ReactNode;
 }
 
-// Demo fund used when API is unavailable
-const DEMO_FUND: Fund = {
-  id: 1,
-  name: 'Demo Fund I (VC Platform)',
-  size: 20000000, // $20M default
-  managementFee: 0.025, // 2.5%
-  carryPercentage: 0.2, // 20%
-  vintageYear: 2024,
-  deployedCapital: 0, // No deployed capital yet
-  status: 'active',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  termYears: 10,
-};
-
 export function FundProvider({ children }: FundProviderProps) {
   const [currentFund, setCurrentFund] = useState<Fund | null>(null);
   const [fundId, setFundId] = useState<number | null>(null);
-  const [demoModeInitialized, setDemoModeInitialized] = useState(false);
+  const isDemoMode = resolveDemoMode();
 
   const [location] = useLocation();
   const routeFundId = React.useMemo(() => extractFundResultsRouteId(location), [location]);
@@ -97,15 +84,11 @@ export function FundProvider({ children }: FundProviderProps) {
         setFundId(funds[0]!.id);
       }
     } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
-      // Demo mode: Create a fallback fund when API is unavailable
-      if (!demoModeInitialized) {
-        logger.info('API unavailable, entering demo mode', { context: 'FundContext' });
-        setCurrentFund(DEMO_FUND);
-        setFundId(DEMO_FUND.id);
-        setDemoModeInitialized(true);
-      }
+      logger.info('No fund context available; requiring setup', { context: 'FundContext' });
+      setCurrentFund(null);
+      setFundId(null);
     }
-  }, [funds, fundId, routeFundId, isLoading, error, demoModeInitialized]);
+  }, [funds, fundId, routeFundId, isLoading, error]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
     setCurrentFund(fund);
@@ -122,11 +105,8 @@ export function FundProvider({ children }: FundProviderProps) {
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
   // redirecting to /fund-setup during the fetch -> effect handoff.
-  const isInitializing =
-    isLoading ||
-    awaitingResolvedFundSelection ||
-    (!currentFund && !demoModeInitialized && (!!error || !funds));
-  const needsSetup = !isInitializing && !currentFund && routeFundId == null;
+  const isInitializing = isLoading || awaitingResolvedFundSelection;
+  const needsSetup = !isInitializing && !currentFund && routeFundId == null && !isDemoMode;
 
   const value: FundContextType = {
     currentFund,
@@ -134,6 +114,7 @@ export function FundProvider({ children }: FundProviderProps) {
     isLoading: isInitializing,
     needsSetup,
     fundId,
+    isDemoMode,
   };
 
   return <FundContext.Provider value={value}>{children}</FundContext.Provider>;

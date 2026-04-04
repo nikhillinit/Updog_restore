@@ -8,12 +8,14 @@ type MockFundContext = {
   currentFund: { id: number; name: string } | null;
   isLoading: boolean;
   needsSetup: boolean;
+  isDemoMode: boolean;
 };
 
 let mockFundContext: MockFundContext = {
   currentFund: null,
   isLoading: false,
   needsSetup: true,
+  isDemoMode: false,
 };
 
 vi.mock('@/contexts/FundContext', () => ({
@@ -51,6 +53,7 @@ describe('DualForecastDashboard', () => {
       currentFund: null,
       isLoading: false,
       needsSetup: true,
+      isDemoMode: false,
     };
   });
 
@@ -70,6 +73,7 @@ describe('DualForecastDashboard', () => {
       currentFund: { id: 42, name: 'Fund Forty Two' },
       isLoading: false,
       needsSetup: false,
+      isDemoMode: false,
     };
 
     const fetchSpy = vi
@@ -85,5 +89,21 @@ describe('DualForecastDashboard', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/fund-metrics/42', { credentials: 'include' });
+  });
+
+  it('does not fetch deterministic forecasting data when fund context is demo mode', () => {
+    mockFundContext = {
+      currentFund: null,
+      isLoading: false,
+      needsSetup: false,
+      isDemoMode: true,
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    renderWithQueryClient();
+
+    expect(screen.getByText(/forecasting unavailable in demo mode/i)).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

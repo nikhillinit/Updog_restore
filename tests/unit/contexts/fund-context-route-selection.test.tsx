@@ -38,7 +38,7 @@ const mockFunds = [
 ];
 
 function Consumer() {
-  const { currentFund, needsSetup, isLoading } = useFundContext();
+  const { currentFund, needsSetup, isLoading, isDemoMode } = useFundContext();
 
   if (isLoading) {
     return <div>loading</div>;
@@ -46,7 +46,7 @@ function Consumer() {
 
   return (
     <div>
-      {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}
+      {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}:{String(isDemoMode)}
     </div>
   );
 }
@@ -76,7 +76,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('2:Route Fund:false')).toBeInTheDocument();
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
     });
   });
 
@@ -92,7 +92,53 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('1:First Fund:false')).toBeInTheDocument();
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('requires setup instead of synthesizing a demo fund when funds cannot be loaded', async () => {
+    mockUseQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('API unavailable'),
+    });
+
+    const { Wrapper } = createWouterWrapper('/dashboard');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+    });
+  });
+
+  it('treats demo mode as non-setup state even when funds cannot be loaded', async () => {
+    mockUseQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('API unavailable'),
+    });
+
+    localStorage.setItem('DEMO_TOOLBAR', '1');
+
+    const { Wrapper } = createWouterWrapper('/dashboard');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:true')).toBeInTheDocument();
     });
   });
 });

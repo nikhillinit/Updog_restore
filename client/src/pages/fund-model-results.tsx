@@ -660,6 +660,22 @@ function formatComparisonDelta(delta: MetricDelta) {
   return `${sign}${magnitude} (${percentSign}${delta.percentageDelta.toFixed(1)}%)`;
 }
 
+function formatDriftCapabilityReason(delta: MetricDelta) {
+  switch (delta.driftReason) {
+    case 'missing_both':
+      return 'Current and previous values are unavailable.';
+    case 'missing_current':
+      return 'Current value is unavailable.';
+    case 'missing_previous':
+      return 'Previous value is unavailable.';
+    case 'zero_previous':
+      return 'Previous value is zero, so percentage drift is unstable.';
+    case 'stable':
+    default:
+      return 'Drift is stable.';
+  }
+}
+
 function renderRunSummary(summary: PublishedVersionSummary) {
   if (!summary.calcRun) {
     return (
@@ -976,9 +992,18 @@ function PublishComparisonCard({
                   <p className="text-sm text-charcoal-500 font-poppins">
                     Previous {formatComparisonMetricValue(delta.metric, delta.previousValue)}
                   </p>
-                  <p className="text-sm font-medium text-charcoal">
-                    Delta {formatComparisonDelta(delta)}
-                  </p>
+                  {delta.driftCapable ? (
+                    <p className="text-sm font-medium text-charcoal">
+                      Delta {formatComparisonDelta(delta)}
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-charcoal">Drift unavailable</p>
+                      <p className="text-xs text-charcoal-500 font-poppins">
+                        {formatDriftCapabilityReason(delta)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

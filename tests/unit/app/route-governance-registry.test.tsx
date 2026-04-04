@@ -59,6 +59,14 @@ describe('route governance registry', () => {
     });
   });
 
+  it('governs /financial-modeling as an intentionally mounted internal-live canonical surface', () => {
+    expect(getRouteGovernanceEntry('/financial-modeling')).toMatchObject({
+      exposure: 'internal-live',
+      surface: 'app-route',
+      isProtected: true,
+    });
+  });
+
   it('tracks archived placeholder routes as redirect-only entrypoints', () => {
     expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
       sorted(['/planning', '/kpi-manager', '/kpi-submission'])

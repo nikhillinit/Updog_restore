@@ -66,6 +66,8 @@ function validComparisonResponse(): FundResultsComparisonV1 {
         previousValue: 100000000,
         absoluteDelta: 25000000,
         percentageDelta: 25,
+        driftCapable: true,
+        driftReason: 'stable',
       },
     ],
   };
