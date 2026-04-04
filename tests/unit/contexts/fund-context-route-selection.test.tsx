@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { FundProvider, useFundContext } from '@/contexts/FundContext';
 import { createWouterWrapper } from '../../utils/withWouter';
 
@@ -46,7 +46,8 @@ function Consumer() {
 
   return (
     <div>
-      {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}:{String(isDemoMode)}
+      {currentFund?.id ?? 'none'}:{currentFund?.name ?? 'none'}:{String(needsSetup)}:
+      {String(isDemoMode)}
     </div>
   );
 }
@@ -93,6 +94,92 @@ describe('FundProvider route-aware selection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('does not silently inherit the first fund on /financial-modeling', async () => {
+    const { Wrapper } = createWouterWrapper('/financial-modeling');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('drops an implicit first-fund selection when navigating from /dashboard to /financial-modeling', async () => {
+    const { Wrapper, goto } = createWouterWrapper('/dashboard');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+    });
+
+    act(() => {
+      goto('/financial-modeling');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('preserves a route-addressed fund when navigating from results to /financial-modeling', async () => {
+    const { Wrapper, goto } = createWouterWrapper('/fund-model-results/2');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+
+    act(() => {
+      goto('/financial-modeling');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('still requires setup on /financial-modeling when no funds can be loaded', async () => {
+    mockUseQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('API unavailable'),
+    });
+
+    const { Wrapper } = createWouterWrapper('/financial-modeling');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
     });
   });
 
