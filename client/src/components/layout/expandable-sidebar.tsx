@@ -11,7 +11,6 @@ import {
   Activity,
   ChevronRight,
   TrendingUp,
-  Target,
   DollarSign,
   Settings,
   Clock,
@@ -66,7 +65,6 @@ const NAVIGATION_STRUCTURE = {
     icon: Settings,
     items: [
       { id: 'kpi-manager', label: 'KPI Manager', icon: Activity },
-      { id: 'scenario-builder', label: 'Scenario Builder', icon: Target },
       { id: 'what-if-analysis', label: 'What-If Analysis', icon: TrendingUp },
       { id: 'cap-tables', label: 'Cap Tables', icon: Calculator },
     ],
@@ -242,11 +240,6 @@ export default function ExpandableSidebar({
                           {isExpanded && (
                             <div className="flex items-center justify-between w-full ml-2">
                               <span className="text-sm">{item.label}</span>
-                              {item.id === 'scenario-builder' && isActive && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Active
-                                </Badge>
-                              )}
                             </div>
                           )}
                         </Button>
