@@ -106,9 +106,13 @@ Known current issues:
 - `DualForecastDashboard` no longer hardcodes fund `1` in the active proof
   slice, but provider/server-level fund-1 fallbacks still exist and must remain
   explicit queue caveats.
-- `/forecasting` still uses a default fund and synthetic forecast generation.
-- `ConstructionActualComparison` still renders sample data.
-- `financial-modeling` still contains placeholder KPI cards and charts.
+- `/forecasting` has been truthfully deferred and no longer presents sample
+  forecasting/comparison content as live product behavior.
+- `ConstructionActualComparison` no longer renders sample data on a live
+  surface; round/stage/valuation breakdowns remain deferred.
+- `financial-modeling` no longer presents placeholder KPI cards or charts as if
+  they were live data; the live forecasting tab is the truthful deterministic
+  surface.
 - `financial-modeling`, `forecasting`, and `scenario-builder` are not mounted in
   the current routed app shell, but stale route maps still point them to a dead
   `/model` target.
@@ -119,7 +123,13 @@ Known current issues:
 - the comparison read-model route already exists and is mounted at
   `/api/funds/:id/results-comparison`, so PR 3 is a validation/narrowing task,
   not a pure greenfield spike.
-- `analytics` remains visibly sample-heavy near adjacent forecasting surfaces.
+- the active sidebar and route-governance registry are already consolidated
+  around `/financial-modeling`, `/fund-model-results/:fundId`, and
+  `/sensitivity-analysis`; PR 6 should not assume visible nav debt that no
+  longer exists in the live shell.
+- `scenario-builder` remains a dormant sample-backed deterministic surface on
+  disk, so the real remaining PR 6 boundary is whether it stays explicitly
+  deferred or becomes a governed redirect/deprecation path later.
 
 ## PR Queue
 
@@ -421,7 +431,7 @@ Suggested PR title:
 
 ### PR 5: Fund-Level Construction-Vs-Actual Comparison And Drift V1
 
-Status: `[ ] Ready`
+Status: `[x] Done`
 
 Goal:
 
@@ -439,15 +449,26 @@ Primary write scope:
 
 Checklist:
 
-- [ ] remove all baked-in comparison arrays from the component
-- [ ] drive rows from canonical backend data
-- [ ] narrow the widget to fund-level metrics that the backend can truthfully
+- [x] remove all baked-in comparison arrays from the component
+- [x] drive rows from canonical backend data
+- [x] narrow the widget to fund-level metrics that the backend can truthfully
       provide in v1
-- [ ] define drift only for metrics marked drift-capable by the server
-- [ ] hide drift where the baseline or forecast source is not stable
-- [ ] render truthful unavailable states instead of zeros or placeholders
-- [ ] explicitly defer round-level, entry-stage, and valuation-tier comparison
+- [x] define drift only for metrics marked drift-capable by the server
+- [x] hide drift where the baseline or forecast source is not stable
+- [x] render truthful unavailable states instead of zeros or placeholders
+- [x] explicitly defer round-level, entry-stage, and valuation-tier comparison
       breakdowns to later analytics work
+
+Implementation note (2026-04-04 tranche execution):
+
+- the live comparison home remains `client/src/pages/fund-model-results.tsx`
+  on `/fund-model-results/:fundId`
+- drift capability now comes from the canonical comparison contract/service/route
+  and is hidden when the server marks a metric as unstable
+- the old sample-heavy `/forecasting` comparison surface is explicitly deferred
+  instead of being left live-looking
+- no additional route-harness migration is part of this tranche unless a PR5
+  verification path reproduces harness noise on a remaining route-level test
 
 Acceptance criteria:
 
@@ -465,6 +486,13 @@ Validation:
   - unavailable comparison data
   - drift hidden when capability flag is false
 - route/service tests for comparison payload shape
+
+Validation note (2026-04-04):
+
+- focused unit coverage passes for the comparison surface, service, and contract
+- the route-level integration test for `results-comparison` passes on the
+  dedicated in-process route harness path without reproducing the old
+  close-timeout warning
 
 Rollback notes:
 
@@ -486,55 +514,86 @@ Status: `[ ] Ready`
 
 Goal:
 
-- collapse legacy deterministic routes only after the canonical surface is
-  truthful
+- make dormant deterministic entry-point governance explicit without widening
+  the active runtime perimeter
 
 Primary write scope:
 
-- `client/src/pages/forecasting.tsx`
-- `client/src/pages/scenario-builder.tsx`
-- `client/src/config/navigation.ts`
-- `client/src/config/routes.ts`
 - `client/src/App.tsx`
+- `client/src/app/route-governance-registry.ts`
+- `tests/unit/app/route-perimeter-governance.test.tsx`
+- `tests/unit/app/route-governance-registry.test.tsx`
+- `client/src/pages/forecasting.tsx` only if its deprecation/deferred copy needs
+  tightening
+- `client/src/pages/scenario-builder.tsx` only if the route is intentionally
+  revived as a governed placeholder or redirect target
+- `client/src/components/layout/navigation-config.ts` only if the active shell
+  still advertises a zombie deterministic entry point
+- `client/src/config/navigation.ts` only if legacy IA metadata still needs to
+  stop implying a live forecasting/scenario-builder surface
+
+Reassessment note (2026-04-04):
+
+- `/financial-modeling` is already the only mounted deterministic forecasting
+  route in the active app shell.
+- `/forecasting` is currently off the mounted perimeter, so adding a redirect
+  there would be a deliberate perimeter change rather than a free cleanup.
+- the active sidebar no longer exposes `forecasting` or `scenario-builder`.
+- `scenario-builder` still contains a large sample-backed implementation on disk,
+  which makes it the only meaningful unresolved deterministic-route boundary in
+  this tranche.
 
 Checklist:
 
-- [ ] redirect `/forecasting` to `/financial-modeling` if parity is reached
-- [ ] decide whether `scenario-builder` redirects, stays mounted but deprecated,
-      or remains as a distinct deterministic authoring tool
-- [ ] update navigation to match the final surface story
-- [ ] preserve deep-link behavior intentionally
+- [ ] do not reintroduce `/forecasting` into the live perimeter accidentally
+- [ ] decide whether `/forecasting` stays absent or becomes an explicit archived
+      placeholder redirect to `/financial-modeling`
+- [ ] decide whether `scenario-builder` stays deferred/off-perimeter, becomes an
+      archived placeholder, or remains a distinct deterministic authoring tool
+      behind an explicit later product decision
+- [ ] update route-governance/docs/tests so the dormant deterministic perimeter
+      is explicit rather than implicit
+- [ ] update active navigation only if a real zombie entry point still exists
+- [ ] preserve deep-link behavior intentionally wherever support is retained
 
 Acceptance criteria:
 
-- one truthful deterministic entry path exists
-- one truthful Monte Carlo entry path exists
-- route behavior is explicit rather than accidental
-- no “zombie” nav entry points remain
+- `/financial-modeling` remains the only truthful deterministic entry path in
+  the active shell
+- `/sensitivity-analysis` remains the only truthful Monte Carlo/backtesting
+  entry path in the active shell
+- no new deterministic route is mounted just to preserve old semantics
+- if `/forecasting` or `scenario-builder` deep links are retained, their
+  behavior is explicit and test-covered
+- active navigation, route-governance metadata, and route tests agree on the
+  final surface story
 
 Validation:
 
 - `npm run check`
-- route tests for redirects or deprecation behavior
+- route-governance tests for any archived placeholder or redirect behavior
+- legacy-route-map coverage if deterministic dormant-path semantics change
 - manual smoke check of deep links
 
 Rollback notes:
 
-- restore prior route mounts and navigation entries
+- restore prior dormant-route governance only
 - keep the canonical financial-modeling improvements from earlier PRs
 
 Out of scope:
 
 - full Monte Carlo comparison expansion
 - analytics cleanup
+- reintroducing dormant deterministic routes as live product surfaces without a
+  separate product decision
 
 Suggested PR title:
 
-- `refactor(routes): consolidate deterministic forecasting entry points`
+- `chore(routes): make dormant deterministic entry-point governance explicit`
 
 ### PR 7: Adjacent Truthfulness Cleanup
 
-Status: `[ ] Ready`
+Status: `[x] Done`
 
 Goal:
 
@@ -544,14 +603,27 @@ Goal:
 Primary write scope:
 
 - `client/src/pages/financial-modeling.tsx`
-- `client/src/pages/analytics.tsx`
+- `client/src/pages/dashboard-modern.tsx`
+- `client/src/pages/analytics.tsx` only if it returns to the live perimeter
 
 Checklist:
 
-- [ ] remove or relabel placeholder charts on `financial-modeling`
-- [ ] remove or relabel hardcoded KPI cards adjacent to the shipped forecast tab
-- [ ] eliminate `currentFund?.id || 1` behavior on still-visible adjacent charts
-- [ ] do not expand into full `Phase 4` analytics replacement
+- [x] remove or relabel placeholder charts on `financial-modeling`
+- [x] remove or relabel hardcoded KPI cards adjacent to the shipped forecast tab
+- [x] eliminate live-looking hardcoded KPI/benchmark panels on the visible
+      dashboard surface
+- [x] keep redirected `/analytics` out of the active perimeter instead of
+      treating it as the primary adjacent cleanup target
+- [x] do not expand into full `Phase 4` analytics replacement
+
+Implementation note (2026-04-04 tranche execution):
+
+- `financial-modeling` already defers scenario-modeling placeholder content
+- `dashboard-modern.tsx` no longer presents hardcoded overview/performance KPI
+  cards or benchmark/attribution panels as live data
+- the cashflow tab remains live
+- `/analytics` is still redirected out of the default runtime perimeter, so the
+  adjacent truthfulness cleanup targeted the live dashboard surface instead
 
 Acceptance criteria:
 
@@ -565,6 +637,12 @@ Validation:
 - `npm run check`
 - light component tests where useful
 - manual smoke pass across `financial-modeling` and `analytics`
+
+Validation note (2026-04-04):
+
+- focused dashboard/financial-modeling truthfulness tests pass
+- route-governance/perimeter tests still show `/analytics` outside the default
+  runtime perimeter
 
 Rollback notes:
 
@@ -598,8 +676,8 @@ Recommended merge order:
 3. PR 3
 4. PR 4
 5. PR 5
-6. PR 6
-7. PR 7
+6. PR 7
+7. PR 6
 
 ## Validation Matrix
 
@@ -624,6 +702,8 @@ Targeted validation by PR:
   - `npm test`
 - PR 5:
   - component tests for comparison data and drift visibility
+- after PR 5:
+  - reassess PR 7 before PR 6
 - PR 6:
   - redirect/deprecation route tests
 - PR 7:
