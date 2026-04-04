@@ -231,10 +231,10 @@ Implementation note (2026-04-03 tranche execution):
 
 - `FundContext` demo fallback is being resolved now for the active deterministic
   path so the surface does not silently synthesize fund `1`.
-- `server/routes/performance-metrics.ts` and
-  `server/routes/engine-summaries.ts` still contain default-fund behavior, but
-  they are quarantined as non-production-only / out-of-scope for this PR2
-  tranche because the active deterministic surface does not consume them.
+- `server/routes/performance-metrics.ts` and `server/routes/engine-summaries.ts`
+  still contain default-fund behavior, but they are quarantined as
+  non-production-only / out-of-scope for this PR2 tranche because the active
+  deterministic surface does not consume them.
 
 Acceptance criteria:
 
