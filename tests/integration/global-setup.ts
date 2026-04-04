@@ -270,21 +270,43 @@ export async function teardown(): Promise<void> {
 
   if (!serverProcess?.pid) return;
 
+  const processToStop = serverProcess;
+  serverProcess = null;
+
   console.warn('[globalSetup] Shutting down test server...');
-  killProcessTree(serverProcess.pid);
+  killProcessTree(processToStop.pid);
 
   // Wait for graceful exit, then force-kill
   await new Promise<void>((resolve) => {
-    if (!serverProcess) {
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) {
+        globalThis.clearTimeout(timeoutId);
+      }
+      processToStop.off('close', onClose);
       resolve();
+    };
+
+    const onClose = () => {
+      finish();
+    };
+
+    if (processToStop.exitCode !== null) {
+      finish();
       return;
     }
-    serverProcess.on('exit', () => resolve());
-    globalThis.setTimeout(() => {
-      if (serverProcess?.pid) {
-        forceKillProcessTree(serverProcess.pid);
+
+    processToStop.once('close', onClose);
+
+    timeoutId = globalThis.setTimeout(() => {
+      if (processToStop.pid) {
+        forceKillProcessTree(processToStop.pid);
       }
-      resolve();
+      finish();
     }, 5000);
   });
 
