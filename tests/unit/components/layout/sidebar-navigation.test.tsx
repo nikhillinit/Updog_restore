@@ -60,13 +60,14 @@ describe('sidebar results navigation', () => {
     expect(getNavigationItems().some((item) => item.id === 'planning')).toBe(false);
   });
 
-  it('keeps the main navigation limited to the reduced core perimeter', async () => {
+  it('keeps the main navigation limited to the governed core perimeter', async () => {
     const { getNavigationItems } = await loadNavigationModules();
 
     expect(getNavigationItems().map((item) => item.id)).toEqual([
       'dashboard',
       'portfolio',
       'pipeline',
+      'financial-modeling',
       'model-results',
       'sensitivity-analysis',
       'reports',
