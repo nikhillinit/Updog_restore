@@ -3,14 +3,39 @@ import type { Request, Response } from 'express';
 import { insertPortfolioCompanySchema } from '@shared/schema';
 import type { ApiError } from '@shared/types';
 import { NumberParseError, toNumber } from '@shared/number';
+import { ValidationError } from '../errors';
+import { portfolioTimeMachineReadService } from '../services/portfolio-time-machine-read';
 import { storage } from '../storage';
 
 const router = Router();
 
+function parseAsOfQuery(asOfQuery: string): Date {
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(asOfQuery);
+  if (monthMatch) {
+    const year = Number.parseInt(monthMatch[1]!, 10);
+    const monthIndex = Number.parseInt(monthMatch[2]!, 10) - 1;
+
+    if (monthIndex < 0 || monthIndex > 11) {
+      throw new ValidationError(`Invalid asOf query: ${asOfQuery}`);
+    }
+
+    return new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+  }
+
+  const parsed = new Date(asOfQuery);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ValidationError(`Invalid asOf query: ${asOfQuery}`);
+  }
+
+  return parsed;
+}
+
 router['get']('/portfolio-companies', async (req: Request, res: Response) => {
   try {
     const fundIdQuery = req.query['fundId'];
+    const asOfQuery = req.query['asOf'];
     let fundId: number | undefined;
+    let asOf: Date | undefined;
 
     if (fundIdQuery) {
       const parsedId = toNumber(fundIdQuery as string, 'fund ID');
@@ -24,12 +49,35 @@ router['get']('/portfolio-companies', async (req: Request, res: Response) => {
       fundId = parsedId;
     }
 
-    const companies = await storage.getPortfolioCompanies(fundId);
-    return res['json'](companies);
+    if (typeof asOfQuery === 'string') {
+      if (!fundId) {
+        const error: ApiError = {
+          error: 'Invalid asOf query',
+          message: 'asOf requires a positive fundId query parameter',
+        };
+        return res['status'](400)['json'](error);
+      }
+
+      asOf = parseAsOfQuery(asOfQuery);
+    }
+
+    const response = await portfolioTimeMachineReadService.listCompanies(fundId, {
+      ...(asOf ? { asOf } : {}),
+      ...(typeof asOfQuery === 'string' ? { requestedAsOf: asOfQuery } : {}),
+    });
+    return res['json'](response);
   } catch (error) {
     if (error instanceof NumberParseError) {
       const apiError: ApiError = {
         error: 'Invalid fund ID query',
+        message: error.message,
+      };
+      return res['status'](400)['json'](apiError);
+    }
+
+    if (error instanceof ValidationError) {
+      const apiError: ApiError = {
+        error: 'Invalid asOf query',
         message: error.message,
       };
       return res['status'](400)['json'](apiError);
