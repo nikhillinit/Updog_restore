@@ -10,6 +10,7 @@ import express from 'express';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 import {
+  VarianceAnalysisResponseSchema,
   VarianceDashboardResponseSchema,
   VarianceReportClientResponseSchema,
 } from '../../../shared/variance-validation';
@@ -1188,11 +1189,57 @@ describe('Variance Tracking API', () => {
   describe('Comprehensive Variance Analysis', () => {
     describe('POST /api/funds/:id/variance-analysis', () => {
       it('should perform complete variance analysis', async () => {
+        const rawDbReport = {
+          id: '00000000-0000-0000-0000-000000000311',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'Complete Analysis Report',
+          reportType: 'ad_hoc',
+          asOfDate: new Date('2024-12-31T23:59:59Z'),
+          totalValueVariance: '150000.00',
+          totalValueVariancePct: '0.06',
+          irrVariance: '-0.013',
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [{ metric: 'irr', severity: 'medium' }],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
         const mockResult = {
-          report: { id: 'report-id', ...varianceTrackingFixtures.reports.periodicReport },
+          report: rawDbReport,
           alertsGenerated: [
-            { id: 'alert-1', severity: 'warning' },
-            { id: 'alert-2', severity: 'critical' },
+            {
+              id: '00000000-0000-0000-0000-000000000401',
+              fundId: 1,
+              baselineId: '00000000-0000-0000-0000-000000000123',
+              ruleId: '00000000-0000-0000-0000-000000000501',
+              title: 'IRR Warning',
+              description: 'IRR variance exceeded threshold.',
+              severity: 'warning',
+              category: 'performance',
+              status: 'active',
+              triggeredAt: '2024-12-31T12:05:00.000Z',
+              contextData: {
+                ruleName: 'IRR Alert',
+                baselineName: 'Default Baseline',
+              },
+            },
+            {
+              id: '00000000-0000-0000-0000-000000000402',
+              fundId: 1,
+              baselineId: '00000000-0000-0000-0000-000000000123',
+              ruleId: '00000000-0000-0000-0000-000000000502',
+              title: 'TVPI Critical',
+              description: 'TVPI variance breached the critical threshold.',
+              severity: 'critical',
+              category: 'performance',
+              status: 'active',
+              triggeredAt: '2024-12-31T12:06:00.000Z',
+              contextData: {
+                ruleName: 'TVPI Alert',
+                baselineName: 'Default Baseline',
+              },
+            },
           ],
         };
         mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue({
@@ -1211,8 +1258,59 @@ describe('Variance Tracking API', () => {
           .expect(201);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.report).toEqual(mockResult.report);
-        expect(response.body.data.alertsGenerated).toEqual(mockResult.alertsGenerated);
+        expect(VarianceAnalysisResponseSchema.parse(response.body.data).alertCount).toBe(2);
+        expect(VarianceReportClientResponseSchema.parse(response.body.data.report).id).toBe(
+          rawDbReport.id
+        );
+        expect(response.body.data.report.summary.totalVariances).toBe(2);
+        expect(response.body.data.report.summary.significantVariances).toBe(1);
+        expect(response.body.data.report.summary.criticalVariances).toBe(0);
+        expect(response.body.data.alertsGenerated).toEqual([
+          {
+            id: '00000000-0000-0000-0000-000000000401',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000123',
+            baselineName: 'Default Baseline',
+            ruleId: '00000000-0000-0000-0000-000000000501',
+            ruleName: 'IRR Alert',
+            severity: 'warning',
+            category: 'performance',
+            message: 'IRR variance exceeded threshold.',
+            details: {
+              ruleName: 'IRR Alert',
+              baselineName: 'Default Baseline',
+            },
+            status: 'active',
+            triggeredAt: '2024-12-31T12:05:00.000Z',
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            notes: null,
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000402',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000123',
+            baselineName: 'Default Baseline',
+            ruleId: '00000000-0000-0000-0000-000000000502',
+            ruleName: 'TVPI Alert',
+            severity: 'critical',
+            category: 'performance',
+            message: 'TVPI variance breached the critical threshold.',
+            details: {
+              ruleName: 'TVPI Alert',
+              baselineName: 'Default Baseline',
+            },
+            status: 'active',
+            triggeredAt: '2024-12-31T12:06:00.000Z',
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            notes: null,
+          },
+        ]);
         expect(response.body.data.alertCount).toBe(2);
         expect(response.body.message).toBe('Variance analysis completed successfully');
 
@@ -1226,8 +1324,24 @@ describe('Variance Tracking API', () => {
       });
 
       it('should perform analysis without baseline ID (use default)', async () => {
+        const rawDbReport = {
+          id: '00000000-0000-0000-0000-000000000312',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'Default Baseline Analysis',
+          reportType: 'ad_hoc',
+          asOfDate: new Date('2024-12-31T23:59:59Z'),
+          totalValueVariance: '0.00',
+          totalValueVariancePct: null,
+          irrVariance: null,
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
         const mockResult = {
-          report: { id: 'report-id' },
+          report: rawDbReport,
           alertsGenerated: [],
         };
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue(mockResult);
@@ -1242,6 +1356,9 @@ describe('Variance Tracking API', () => {
           .expect(201);
 
         expect(response.body.success).toBe(true);
+        expect(VarianceAnalysisResponseSchema.parse(response.body.data).report.id).toBe(
+          rawDbReport.id
+        );
 
         const callArgs =
           mockVarianceTrackingService.performCompleteVarianceAnalysis.mock.calls[0][0];
@@ -1265,12 +1382,28 @@ describe('Variance Tracking API', () => {
       });
 
       it('should respect includeAlertGeneration=false', async () => {
+        const rawDbReport = {
+          id: '00000000-0000-0000-0000-000000000313',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000123',
+          reportName: 'No Alerts Analysis',
+          reportType: 'ad_hoc',
+          asOfDate: new Date('2024-12-31T23:59:59Z'),
+          totalValueVariance: null,
+          totalValueVariancePct: null,
+          irrVariance: null,
+          multipleVariance: null,
+          dpiVariance: null,
+          tvpiVariance: null,
+          significantVariances: [],
+          createdAt: new Date('2024-12-31T12:00:00Z'),
+        };
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue({
-          report: { id: 'report-id' },
+          report: rawDbReport,
           alertsGenerated: [],
         });
 
-        await request(app)
+        const response = await request(app)
           .post('/api/funds/1/variance-analysis')
           .send({
             reportName: 'No Alerts Analysis',
@@ -1278,6 +1411,7 @@ describe('Variance Tracking API', () => {
           })
           .expect(201);
 
+        expect(VarianceAnalysisResponseSchema.parse(response.body.data).alertCount).toBe(0);
         expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).toHaveBeenCalledWith({
           fundId: 1,
           reportName: 'No Alerts Analysis',

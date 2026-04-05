@@ -509,38 +509,25 @@ describe('BaselineService', () => {
       );
     });
 
-    it('should honor ALLOW_METRIC_FALLBACK for calc-run baselines during rollout', async () => {
+    it('should reject missing attributed metrics even when ALLOW_METRIC_FALLBACK=1', async () => {
       vi.stubEnv('ALLOW_METRIC_FALLBACK', '1');
 
       mockDb.query.calcRuns.findFirst.mockResolvedValue({
         id: 42,
         fundId: 1,
+        configId: 17,
         configVersion: 7,
         requestedAt: new Date('2025-01-01T00:00:00Z'),
         completedAt: new Date('2025-01-15T00:00:00Z'),
       });
 
       mockDb.query.fundMetrics.findFirst.mockReset();
-      mockDb.query.fundMetrics.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
-        fundId: 1,
-        totalValue: '2600000.00',
-        irr: '0.1800',
-        multiple: '1.4000',
-        dpi: '0.9000',
-        tvpi: '1.3000',
-        metricDate: new Date(),
-      });
-
-      mockDb.query.portfolioCompanies.findMany.mockResolvedValue([]);
-      mockDb.query.fundSnapshots.findFirst.mockReset();
-      mockDb.query.fundSnapshots.findFirst.mockResolvedValue({ payload: {} });
-      mockDb.query.fundBaselines.findFirst.mockReset();
-      mockDb.query.fundBaselines.findFirst.mockResolvedValue(undefined);
+      mockDb.query.fundMetrics.findFirst.mockResolvedValue(null);
 
       try {
-        const result = await service.createBaselineFromCalcRun(42);
-        expect(result.id).toBe('test-id');
-        expect(mockDb.__getLastInsertData().totalValue).toBe('2600000.00');
+        await expect(service.createBaselineFromCalcRun(42)).rejects.toThrow(
+          'No attributed fund metrics for run 42'
+        );
       } finally {
         vi.unstubAllEnvs();
       }

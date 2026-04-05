@@ -666,8 +666,8 @@ export const VarianceAnalysisRequestSchema = z.object({
  * Variance analysis response schema
  */
 export const VarianceAnalysisResponseSchema = z.object({
-  report: VarianceReportResponseSchema,
-  alertsGenerated: z.array(PerformanceAlertResponseSchema),
+  report: VarianceReportClientResponseSchema,
+  alertsGenerated: z.array(ClientAlertResponseSchema),
   alertCount: z.number().int().min(0),
 });
 

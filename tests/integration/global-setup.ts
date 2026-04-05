@@ -27,6 +27,14 @@ const VALID_TEST_CORS_ORIGIN = 'http://localhost:5173,http://localhost:5174,http
 
 let serverProcess: ChildProcess | null = null;
 
+function getNpmCommand() {
+  return os.platform() === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm';
+}
+
+function getNpmCommandArgs() {
+  return os.platform() === 'win32' ? ['/d', '/s', '/c', 'npm run dev:api'] : ['run', 'dev:api'];
+}
+
 function applyIntegrationEnv(env: NodeJS.ProcessEnv): void {
   env.TZ = 'UTC';
   env.NODE_ENV = 'test';
@@ -160,6 +168,14 @@ function forceKillProcessTree(pid: number): void {
   }
 }
 
+function cleanupChildProcessStreams(processToStop: ChildProcess): void {
+  processToStop.stdout?.removeAllListeners('data');
+  processToStop.stderr?.removeAllListeners('data');
+  processToStop.stdout?.destroy();
+  processToStop.stderr?.destroy();
+  processToStop.stdin?.destroy();
+}
+
 export async function setup(): Promise<void> {
   // Check for externally-managed server
   const rawBaseUrl = (process.env.BASE_URL ?? '').trim();
@@ -209,11 +225,12 @@ export async function setup(): Promise<void> {
     // No stale file to remove
   }
 
-  serverProcess = spawn('npm', ['run', 'dev:api'], {
+  serverProcess = spawn(getNpmCommand(), getNpmCommandArgs(), {
     env: { ...serverEnv, TEST_READY_FILE: READY_FILE },
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
+    shell: false,
     detached: os.platform() !== 'win32', // process groups are POSIX-only
+    windowsHide: true,
   });
 
   serverProcess.stdout?.on('data', (data: Buffer) => {
@@ -288,6 +305,7 @@ export async function teardown(): Promise<void> {
         globalThis.clearTimeout(timeoutId);
       }
       processToStop.off('close', onClose);
+      cleanupChildProcessStreams(processToStop);
       resolve();
     };
 

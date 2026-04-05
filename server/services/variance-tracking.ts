@@ -49,7 +49,6 @@ import type {
 import {
   recordVarianceReportGenerated,
   recordBaselineOperation,
-  recordBaselineMetricFallback,
   recordAlertGenerated,
   recordAlertAction,
   updateFundVarianceScore,
@@ -540,25 +539,7 @@ export class BaselineService {
       }
 
       if (mode !== 'manual') {
-        if (process.env['ALLOW_METRIC_FALLBACK'] === '1') {
-          log.warn(
-            {
-              event: 'baseline.metric_fallback',
-              fundId,
-              sourceRunId,
-              mode,
-              reason: 'escape_hatch',
-            },
-            'Falling back to latest fund metrics because ALLOW_METRIC_FALLBACK=1'
-          );
-          recordBaselineMetricFallback(mode, 'escape_hatch');
-          return await reader.query.fundMetrics.findFirst({
-            where: eq(fundMetrics.fundId, fundId),
-            orderBy: desc(fundMetrics.metricDate),
-          });
-        } else {
-          throw new Error(`No attributed fund metrics for run ${sourceRunId}`);
-        }
+        throw new Error(`No attributed fund metrics for run ${sourceRunId}`);
       }
 
       log.warn(
