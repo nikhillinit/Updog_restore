@@ -36,7 +36,7 @@ export class PerformancePage extends BasePage {
   }
 
   get timeseriesTab(): Locator {
-    return this.page.locator('[role="tab"]:has-text("Timeseries"), button:has-text("Timeseries")').first();
+    return this.page.locator('[role="tab"]:has-text("Time Series"), button:has-text("Time Series")').first();
   }
 
   get breakdownTab(): Locator {
@@ -44,7 +44,11 @@ export class PerformancePage extends BasePage {
   }
 
   get comparisonTab(): Locator {
-    return this.page.locator('[role="tab"]:has-text("Comparison"), button:has-text("Comparison")').first();
+    return this.page.locator('[role="tab"]:has-text("Comparison"), button:has-text("Comparison")');
+  }
+
+  get sourceNote(): Locator {
+    return this.page.locator('[data-testid="timeseries-source-note"]').first();
   }
 
   // Time controls

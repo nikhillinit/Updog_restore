@@ -1,10 +1,9 @@
 /**
  * PerformanceDashboard Component
  *
- * Comprehensive portfolio performance dashboard with:
+ * Mounted portfolio performance dashboard with:
  * - Time-series charts (IRR, TVPI, DPI over time)
- * - Breakdown by sector/stage/company
- * - Point-in-time comparisons
+ * - Current-state breakdown by sector/stage/company
  *
  * @module client/components/performance/PerformanceDashboard
  */
@@ -34,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Download, RefreshCw, Calendar } from 'lucide-react';
 import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
-import type { Granularity, GroupByDimension } from '@shared/types/performance-api';
+import type { DataSource, Granularity, GroupByDimension } from '@shared/types/performance-api';
 
 // ============================================================================
 // HELPERS
@@ -162,13 +161,29 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
     return timeseriesData.timeseries.map((point) => ({
       date: point.date,
-      irr: point.actual.irr ? point.actual.irr * 100 : null,
-      tvpi: point.actual.tvpi || null,
-      dpi: point.actual.dpi || null,
-      totalValue: point.actual.totalValue || null,
+      irr: point.actual.irr != null ? point.actual.irr * 100 : null,
+      tvpi: point.actual.tvpi ?? null,
+      dpi: point.actual.dpi ?? null,
+      totalValue: point.actual.totalValue ?? null,
       source: point._source,
     }));
   }, [timeseriesData]);
+
+  const sourceSummary = useMemo(() => {
+    const counts: Record<DataSource, number> = {
+      database: 0,
+      interpolated: 0,
+      unavailable: 0,
+    };
+
+    for (const point of chartData) {
+      counts[point.source] += 1;
+    }
+
+    return counts;
+  }, [chartData]);
+
+  const hasDerivedPoints = sourceSummary.interpolated > 0 || sourceSummary.unavailable > 0;
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -203,7 +218,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                 <span>Portfolio Performance</span>
               </CardTitle>
               <CardDescription className="font-poppins text-[#292929]/70">
-                Track IRR, TVPI, and DPI metrics over time
+                Track persisted IRR, TVPI, and DPI metrics over time
               </CardDescription>
             </div>
 
@@ -261,6 +276,36 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
         {/* Time Series Tab */}
         <TabsContent value="timeseries" className="space-y-6">
+          {hasDerivedPoints && (
+            <Card
+              className="bg-amber-50 border border-amber-200 shadow-sm"
+              data-testid="timeseries-source-note"
+            >
+              <CardContent className="pt-4">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-amber-950">
+                  <Badge variant="secondary">Data quality note</Badge>
+                  {sourceSummary.interpolated > 0 && (
+                    <span>
+                      {sourceSummary.interpolated} point
+                      {sourceSummary.interpolated === 1 ? '' : 's'}{' '}
+                      {sourceSummary.interpolated === 1 ? 'is' : 'are'} interpolated between
+                      persisted metric snapshots.
+                    </span>
+                  )}
+                  {sourceSummary.unavailable > 0 && (
+                    <span>
+                      {sourceSummary.unavailable} date
+                      {sourceSummary.unavailable === 1 ? '' : 's'}{' '}
+                      {sourceSummary.unavailable === 1 ? 'has' : 'have'} no persisted metric
+                      snapshot yet and are shown as unavailable rather than inferred from
+                      mutable current state.
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* IRR Chart */}
           <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
             <CardHeader>
@@ -268,7 +313,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                 Internal Rate of Return (IRR)
               </CardTitle>
               <CardDescription className="font-poppins text-sm text-[#292929]/70">
-                Annualized return performance over time
+                Annualized return over persisted metric snapshots
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -306,7 +351,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                 Fund Multiples (TVPI & DPI)
               </CardTitle>
               <CardDescription className="font-poppins text-sm text-[#292929]/70">
-                Total Value and Distributions to Paid-In Capital
+                Total Value and Distributions to Paid-In Capital over persisted metric snapshots
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -358,7 +403,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                     Performance Breakdown
                   </CardTitle>
                   <CardDescription className="font-poppins text-sm text-[#292929]/70">
-                    Analyze returns by portfolio dimension
+                    Analyze current-state returns by portfolio dimension
                   </CardDescription>
                 </div>
                 <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupByDimension)}>

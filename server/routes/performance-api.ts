@@ -208,10 +208,10 @@ router.get(
 /**
  * GET /api/funds/:fundId/performance/breakdown
  *
- * Get metrics broken down by sector, stage, or company.
+ * Get current-state metrics broken down by sector, stage, or company.
  *
  * Query parameters:
- * - asOfDate: ISO date (optional, defaults to now)
+ * - asOfDate: ISO date (optional, current date only in mounted contract)
  * - groupBy: sector|stage|company (required)
  * - includeExited: boolean (optional, defaults to false)
  * - skipCache: boolean (optional)
@@ -243,8 +243,22 @@ router.get(
       // Validate query parameters
       const query = BreakdownQuerySchema.parse(req.query);
 
-      // Default asOfDate to today
-      const asOfDate: string = query.asOfDate ?? new Date().toISOString().split('T')[0] ?? '';
+      // Mounted `/performance` currently supports current-state breakdown only.
+      const today = new Date().toISOString().split('T')[0] ?? '';
+      const asOfDate: string = query.asOfDate ?? today;
+
+      if (query.asOfDate && query.asOfDate !== today) {
+        const durationMs = endTimer();
+        recordPerformanceRequest('breakdown', 'GET', 501, durationMs, fundId);
+        recordError('breakdown', 'unsupported_historical_as_of');
+        return res.status(501).json(
+          createErrorResponse(
+            'UNSUPPORTED_CAPABILITY',
+            'Historical breakdown as-of dates are not supported by the mounted performance flow',
+            'asOfDate'
+          )
+        );
+      }
 
       // Get fund name for response
       const fund = await storage.getFund(fundId);
@@ -330,7 +344,7 @@ router.get(
 /**
  * GET /api/funds/:fundId/performance/comparison
  *
- * Compare fund metrics across multiple dates.
+ * Compare persisted fund-metric snapshots across multiple dates.
  *
  * Query parameters:
  * - dates: comma-separated ISO dates (required, 1-5 dates)

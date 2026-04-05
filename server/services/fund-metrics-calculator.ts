@@ -3,6 +3,7 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { fundDistributions } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
+import { xirrNewtonBisection, type CashFlow } from '@shared/lib/finance/xirr';
 import { logger } from '../lib/logger';
 
 /**
@@ -26,7 +27,7 @@ export interface CalculatedFundMetrics {
   deploymentRate: number;
 
   /** Internal Rate of Return */
-  irr: number;
+  irr: number | null;
 
   /** Multiple on Invested Capital (MOIC) */
   moic: number;
@@ -50,28 +51,23 @@ export interface CalculatedFundMetrics {
   totalDistributions: number;
 }
 
-/**
- * Simple IRR approximation using modified Dietz method
- * This is a simplified calculation suitable for display purposes
- * For precise IRR, use the canonical shared xirrNewtonBisection implementation
- */
-function calculateSimpleIRR(
-  totalInvested: number,
-  totalValue: number,
-  totalDistributions: number,
-  yearsInvested: number
-): number {
-  if (totalInvested <= 0 || yearsInvested <= 0) return 0;
+function calculateCanonicalIrr(cashflows: CashFlow[]): number | null {
+  const meaningful = cashflows.filter((cashflow) =>
+    Number.isFinite(cashflow.amount) && cashflow.amount !== 0
+  );
 
-  // Total return = (Current Value + Distributions - Initial Investment) / Initial Investment
-  const totalReturn = (totalValue + totalDistributions - totalInvested) / totalInvested;
+  if (meaningful.length < 2) {
+    return null;
+  }
 
-  // Annualized return (compound annual growth rate approximation)
-  // IRR ≈ (1 + totalReturn)^(1/years) - 1
-  const annualizedReturn = Math.pow(1 + totalReturn, 1 / yearsInvested) - 1;
+  const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
+  const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
+  if (!hasContribution || !hasReturn) {
+    return null;
+  }
 
-  // Cap at reasonable bounds (-50% to 200%)
-  return Math.max(-0.5, Math.min(2.0, annualizedReturn));
+  const result = xirrNewtonBisection(meaningful);
+  return result.converged && result.irr !== null ? result.irr : null;
 }
 
 /**
@@ -184,15 +180,25 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
   // Calculate remaining capital
   const remainingCapital = totalCommitted - totalInvested;
 
-  // Calculate IRR (approximation)
-  // Get fund vintage year or creation date for time calculation
-  const fundStartDate = fund.createdAt || new Date();
-  const yearsInvested = Math.max(
-    0.5, // Minimum 6 months to avoid division issues
-    (Date.now() - new Date(fundStartDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  );
+  const cashflows: CashFlow[] = [
+    ...investments.map((investment) => ({
+      date: investment.investmentDate,
+      amount: -Math.abs(toDecimal(investment.amount || 0).toNumber()),
+    })),
+    ...distributions.map((distribution) => ({
+      date: distribution.distributionDate,
+      amount: Math.abs(toDecimal(distribution.amount || 0).toNumber()),
+    })),
+  ];
 
-  const irr = calculateSimpleIRR(totalInvested, totalValue, totalDistributions, yearsInvested);
+  if (totalValue > 0) {
+    cashflows.push({
+      date: new Date(),
+      amount: totalValue,
+    });
+  }
+
+  const irr = calculateCanonicalIrr(cashflows);
 
   return {
     totalCommitted,
