@@ -125,3 +125,9 @@ unit script (`npm test`), which intentionally excludes integration paths.
   quarantined”, “concentration analysis no code exists”, and restore-route
   mismatch phrasing.
 - Mark as governance item: canonical snapshot table decision/ADR.
+
+## Follow-through
+
+Execution has been translated into an updated-main implementation strategy in:
+
+- `docs/plans/2026-04-05-todo-report-remediation-strategy.md`
