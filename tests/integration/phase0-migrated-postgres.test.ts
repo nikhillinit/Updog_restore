@@ -5,8 +5,11 @@
  * Integration test for Phase 0 variance automation.
  *
  * Supports two modes:
- *   1. Cloud DB: TEST_DATABASE_URL=postgres://... npx vitest run tests/integration/phase0-migrated-postgres.test.ts --config vitest.config.int.ts
- *   2. Docker:   RUN_DOCKER_PHASE0_TEST=1 npx vitest run tests/integration/phase0-migrated-postgres.test.ts --config vitest.config.int.ts
+ *   1. Cloud DB: TEST_DATABASE_URL=postgres://... npm run test:integration:phase0-dbproof
+ *   2. Docker:   RUN_DOCKER_PHASE0_TEST=1 npm run test:integration:phase0-dbproof
+ *
+ * This DB/module proof intentionally avoids the spawned dev-server
+ * `globalSetup` path used by `vitest.config.int.ts`.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';

@@ -51,6 +51,7 @@
     "test:unit": "cross-env TZ=UTC vitest run --project=server --project=client",
     "test:integration": "cross-env TZ=UTC vitest run -c vitest.config.int.ts",
     "test:integration:routes": "cross-env TZ=UTC vitest run -c vitest.config.route-int.ts",
+    "test:integration:phase0-dbproof": "cross-env TZ=UTC vitest run -c vitest.config.phase0-dbproof.ts tests/integration/phase0-migrated-postgres.test.ts",
     "test:memory": "cross-env REDIS_URL=memory:// npm run test:unit",
     "verify:no-redis": "npx tsx scripts/verify-no-redis.ts",
     "test:smart": "node scripts/test-smart.mjs",

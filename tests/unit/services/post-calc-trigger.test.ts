@@ -51,6 +51,10 @@ import {
 
 const TRANSITION_ROW = { id: 42, fundId: 7, configId: 15, configVersion: 2 };
 
+async function flushAsyncTurns() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function mockFullCoverage() {
   mockDb.query.fundSnapshots.findMany.mockResolvedValue([{ type: 'RESERVE' }, { type: 'PACING' }]);
 }
@@ -191,6 +195,37 @@ describe('post calc-run trigger (Decision 0.1b)', () => {
       expect(handler1).toHaveBeenCalledTimes(1);
       expect(handler2).toHaveBeenCalledTimes(1);
       expect(handler3).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts multiple handlers in parallel at the outer registry', async () => {
+      mockFullCoverage();
+      mockTransitionUpdate();
+
+      let releaseFirstHandler: (() => void) | null = null;
+      const firstHandlerPending = new Promise<void>((resolve) => {
+        releaseFirstHandler = resolve;
+      });
+      let secondHandlerStarted = false;
+
+      const firstHandler = vi.fn(async () => {
+        await firstHandlerPending;
+      });
+      const secondHandler = vi.fn(async () => {
+        secondHandlerStarted = true;
+      });
+
+      registerCalcRunCompletedHandler(firstHandler);
+      registerCalcRunCompletedHandler(secondHandler);
+
+      const completion = markCalcRunCompletedIfReady(42);
+
+      await flushAsyncTurns();
+
+      expect(firstHandler).toHaveBeenCalledTimes(1);
+      expect(secondHandlerStarted).toBe(true);
+
+      releaseFirstHandler?.();
+      await completion;
     });
 
     it('passes correct arguments from .returning() row to each handler', async () => {

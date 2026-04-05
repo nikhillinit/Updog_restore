@@ -1005,13 +1005,14 @@ router['post'](
         userId,
         includeAlertGeneration: data.includeAlertGeneration,
       });
+      const clientAlerts = result.alertsGenerated.map((alert) => toClientAlert(alert, fundId));
 
       res['status'](201)['json']({
         success: true,
         data: {
-          report: result.report,
-          alertsGenerated: result.alertsGenerated,
-          alertCount: result.alertsGenerated.length,
+          report: toClientReport(result.report),
+          alertsGenerated: clientAlerts,
+          alertCount: clientAlerts.length,
         },
         message: 'Variance analysis completed successfully',
       });
