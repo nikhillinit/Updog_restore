@@ -13,6 +13,7 @@ import { db } from '../db';
 import { storage } from '../storage';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { fundMetrics, portfolioCompanies, fundDistributions } from '@shared/schema';
+import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import type {
   TimeseriesPoint,
   BreakdownGroup,
@@ -103,22 +104,84 @@ function determineTrend(metric: string, values: number[], change: number): Metri
   return isImproving ? 'improving' : 'declining';
 }
 
-/**
- * Calculate simple IRR approximation (CAGR)
- */
-function calculateSimpleIRR(
-  totalInvested: number,
-  totalValue: number,
-  totalDistributions: number,
-  years: number
-): number {
-  if (totalInvested <= 0 || years <= 0) return 0;
+function calculateCanonicalIrr(cashflows: XirrCashFlow[]): number | null {
+  const meaningful = cashflows.filter((cashflow) =>
+    Number.isFinite(cashflow.amount) && cashflow.amount !== 0
+  );
 
-  const totalReturn = (totalValue + totalDistributions - totalInvested) / totalInvested;
-  const annualized = Math.pow(1 + totalReturn, 1 / years) - 1;
+  if (meaningful.length < 2) {
+    return null;
+  }
 
-  // Cap at reasonable bounds
-  return Math.max(-0.5, Math.min(2.0, annualized));
+  const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
+  const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
+
+  if (!hasContribution || !hasReturn) {
+    return null;
+  }
+
+  const result = xirrNewtonBisection(meaningful);
+  return result.converged && result.irr !== null ? result.irr : null;
+}
+
+type PerformanceCompany = {
+  id: number;
+  name: string;
+  sector: string;
+  stage: string;
+  status: string;
+  currentValuation: unknown;
+  investmentAmount: unknown;
+  investmentDate: Date | null;
+  createdAt: Date | null;
+};
+
+type DistributionRecord = {
+  companyId: number | null;
+  amount: unknown;
+  distributionDate: Date;
+};
+
+function buildCompanyCashflows(
+  companies: PerformanceCompany[],
+  distributionsByCompany: Map<number, DistributionRecord[]>,
+  asOfDate: string
+): XirrCashFlow[] {
+  const terminalDate = new Date(asOfDate);
+  const cashflows: XirrCashFlow[] = [];
+
+  for (const company of companies) {
+    const investmentDate = company.investmentDate ?? company.createdAt;
+    const investmentAmount = Number(company.investmentAmount) || 0;
+    const currentValue = Number(company.currentValuation) || 0;
+
+    if (investmentDate && investmentAmount > 0) {
+      cashflows.push({
+        date: investmentDate,
+        amount: -Math.abs(investmentAmount),
+      });
+    }
+
+    const distributions = distributionsByCompany.get(company.id) ?? [];
+    for (const distribution of distributions) {
+      const amount = Number(distribution.amount) || 0;
+      if (amount > 0) {
+        cashflows.push({
+          date: distribution.distributionDate,
+          amount,
+        });
+      }
+    }
+
+    if (currentValue > 0 && (!investmentDate || terminalDate.getTime() >= investmentDate.getTime())) {
+      cashflows.push({
+        date: terminalDate,
+        amount: currentValue,
+      });
+    }
+  }
+
+  return cashflows.sort((left, right) => left.date.getTime() - right.date.getTime());
 }
 
 // ============================================================================
@@ -177,16 +240,34 @@ export class PerformanceCalculator {
       const dbMetric = metricsMap.get(date);
 
       if (dbMetric) {
+        const actual: Partial<ActualMetrics> = {
+          asOfDate: new Date(dbMetric.asOfDate).toISOString(),
+        };
+
+        const totalValue = dbMetric.totalValue === null ? undefined : Number(dbMetric.totalValue);
+        if (totalValue !== undefined) {
+          actual.totalValue = totalValue;
+        }
+
+        const irr = dbMetric.irr === null ? null : Number(dbMetric.irr);
+        if (irr !== null) {
+          actual.irr = irr;
+        }
+
+        const tvpi = dbMetric.tvpi === null ? undefined : Number(dbMetric.tvpi);
+        if (tvpi !== undefined) {
+          actual.tvpi = tvpi;
+        }
+
+        const dpi = dbMetric.dpi === null ? null : Number(dbMetric.dpi);
+        if (dpi !== null) {
+          actual.dpi = dpi;
+        }
+
         // Direct database value
         const point: TimeseriesPoint = {
           date,
-          actual: {
-            asOfDate: new Date(dbMetric.asOfDate).toISOString(),
-            totalValue: Number(dbMetric.totalValue) || 0,
-            irr: Number(dbMetric.irr) || 0,
-            tvpi: Number(dbMetric.tvpi) || 0,
-            dpi: Number(dbMetric.dpi) || null,
-          } as Partial<ActualMetrics>,
+          actual,
           _source: 'database',
         };
         result.push(point);
@@ -212,19 +293,36 @@ export class PerformanceCalculator {
           const nextDate = new Date(nextPoint.metricDate).getTime();
           const t = (currDate - prevDate) / (nextDate - prevDate);
 
+          const interpolatedActual: Partial<ActualMetrics> = { asOfDate: date };
+
+          const previousTotalValue = prevPoint.actual.totalValue;
+          const nextTotalValue =
+            nextPoint.totalValue === null ? undefined : Number(nextPoint.totalValue);
+          if (previousTotalValue != null && nextTotalValue !== undefined) {
+            interpolatedActual.totalValue = lerp(previousTotalValue, nextTotalValue, t);
+          }
+
+          const previousIrr = prevPoint.actual.irr;
+          const nextIrr = nextPoint.irr === null ? undefined : Number(nextPoint.irr);
+          if (previousIrr != null && nextIrr !== undefined) {
+            interpolatedActual.irr = lerp(previousIrr, nextIrr, t);
+          }
+
+          const previousTvpi = prevPoint.actual.tvpi;
+          const nextTvpi = nextPoint.tvpi === null ? undefined : Number(nextPoint.tvpi);
+          if (previousTvpi != null && nextTvpi !== undefined) {
+            interpolatedActual.tvpi = lerp(previousTvpi, nextTvpi, t);
+          }
+
+          const previousDpi = prevPoint.actual.dpi;
+          const nextDpi = nextPoint.dpi === null ? undefined : Number(nextPoint.dpi);
+          if (previousDpi != null && nextDpi !== undefined) {
+            interpolatedActual.dpi = lerp(previousDpi, nextDpi, t);
+          }
+
           const interpolated: TimeseriesPoint = {
             date,
-            actual: {
-              asOfDate: date,
-              totalValue: lerp(
-                prevPoint.actual.totalValue || 0,
-                Number(nextPoint.totalValue) || 0,
-                t
-              ),
-              irr: lerp(prevPoint.actual.irr || 0, Number(nextPoint.irr) || 0, t),
-              tvpi: lerp(prevPoint.actual.tvpi || 0, Number(nextPoint.tvpi) || 0, t),
-              dpi: lerp(prevPoint.actual.dpi || 0, Number(nextPoint.dpi) || 0, t),
-            } as Partial<ActualMetrics>,
+            actual: interpolatedActual,
             _source: 'interpolated',
           };
           result.push(interpolated);
@@ -246,7 +344,7 @@ export class PerformanceCalculator {
         result.push({
           date,
           actual: placeholderActual,
-          _source: 'calculated',
+          _source: 'unavailable',
         });
       }
     }
@@ -292,13 +390,6 @@ export class PerformanceCalculator {
       throw new Error(`Fund ${fundId} not found`);
     }
 
-    const fundStartDate = fund.createdAt || new Date();
-    const yearsInvested = Math.max(
-      0.5,
-      (new Date(asOfDate).getTime() - new Date(fundStartDate).getTime()) /
-        (365.25 * 24 * 60 * 60 * 1000)
-    );
-
     // Fetch portfolio companies with investments
     const companies = await db
       .select({
@@ -309,6 +400,8 @@ export class PerformanceCalculator {
         status: portfolioCompanies.status,
         currentValuation: portfolioCompanies.currentValuation,
         investmentAmount: portfolioCompanies.investmentAmount,
+        investmentDate: portfolioCompanies.investmentDate,
+        createdAt: portfolioCompanies.createdAt,
       })
       .from(portfolioCompanies)
       .where(eq(portfolioCompanies.fundId, fundId));
@@ -366,17 +459,17 @@ export class PerformanceCalculator {
       .select({
         companyId: fundDistributions.companyId,
         amount: fundDistributions.amount,
+        distributionDate: fundDistributions.distributionDate,
       })
       .from(fundDistributions)
       .where(eq(fundDistributions.fundId, fundId));
 
-    const distributionsByCompany = new Map<number, number>();
+    const distributionsByCompany = new Map<number, DistributionRecord[]>();
     for (const dist of distributions) {
       if (dist.companyId) {
-        distributionsByCompany.set(
-          dist.companyId,
-          (distributionsByCompany.get(dist.companyId) || 0) + Number(dist.amount)
-        );
+        const companyDistributions = distributionsByCompany.get(dist.companyId) ?? [];
+        companyDistributions.push(dist);
+        distributionsByCompany.set(dist.companyId, companyDistributions);
       }
     }
 
@@ -387,16 +480,8 @@ export class PerformanceCalculator {
       const moic = group.totalDeployed > 0 ? group.currentValue / group.totalDeployed : 0;
 
       // Sum distributions for this group
-      let groupDistributions = 0;
-      for (const c of group.companies) {
-        groupDistributions += distributionsByCompany.get(c.id) || 0;
-      }
-
-      const irr = calculateSimpleIRR(
-        group.totalDeployed,
-        group.currentValue,
-        groupDistributions,
-        yearsInvested
+      const irr = calculateCanonicalIrr(
+        buildCompanyCashflows(group.companies, distributionsByCompany, asOfDate)
       );
 
       breakdown.push({
@@ -416,12 +501,8 @@ export class PerformanceCalculator {
     breakdown.sort((a, b) => b.moic - a.moic);
 
     // Calculate portfolio-level IRR
-    const totalDistributions = distributions.reduce((sum, d) => sum + Number(d.amount), 0);
-    const portfolioIRR = calculateSimpleIRR(
-      totalDeployedSum,
-      totalCurrentValue,
-      totalDistributions,
-      yearsInvested
+    const portfolioIRR = calculateCanonicalIrr(
+      buildCompanyCashflows(filteredCompanies, distributionsByCompany, asOfDate)
     );
 
     const totals: BreakdownTotals = {
@@ -469,15 +550,33 @@ export class PerformanceCalculator {
       if (snapshot.length > 0) {
         const s = snapshot[0];
         if (s) {
+          const actual: Partial<ActualMetrics> = {
+            asOfDate: new Date(s.asOfDate).toISOString(),
+          };
+
+          const totalValue = s.totalValue === null ? undefined : Number(s.totalValue);
+          if (totalValue !== undefined) {
+            actual.totalValue = totalValue;
+          }
+
+          const irr = s.irr === null ? null : Number(s.irr);
+          if (irr !== null) {
+            actual.irr = irr;
+          }
+
+          const tvpi = s.tvpi === null ? undefined : Number(s.tvpi);
+          if (tvpi !== undefined) {
+            actual.tvpi = tvpi;
+          }
+
+          const dpi = s.dpi === null ? null : Number(s.dpi);
+          if (dpi !== null) {
+            actual.dpi = dpi;
+          }
+
           comparisons.push({
             date,
-            actual: {
-              asOfDate: new Date(s.asOfDate).toISOString(),
-              totalValue: Number(s.totalValue) || 0,
-              irr: Number(s.irr) || 0,
-              tvpi: Number(s.tvpi) || 0,
-              dpi: Number(s.dpi) || null,
-            } as Partial<ActualMetrics>,
+            actual,
           });
         }
       } else {
@@ -499,7 +598,11 @@ export class PerformanceCalculator {
       const values: number[] = [];
       for (const c of comparisons) {
         const val = (c.actual as Record<string, unknown>)[metricKey];
-        values.push(typeof val === 'number' ? val : 0);
+        if (typeof val !== 'number' || Number.isNaN(val)) {
+          values.length = 0;
+          break;
+        }
+        values.push(val);
       }
 
       if (values.length >= 2) {

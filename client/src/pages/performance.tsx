@@ -1,10 +1,9 @@
 /**
  * Performance Page
  *
- * Comprehensive portfolio performance analysis with:
+ * Current portfolio performance analysis with:
  * - Time-series IRR, TVPI, DPI charts
- * - Breakdown by sector/stage/company
- * - Point-in-time comparisons
+ * - Current-state breakdown by sector/stage/company
  *
  * @module client/pages/performance
  */
@@ -21,7 +20,7 @@ export default function Performance() {
       <div className="min-h-screen bg-slate-100">
         <POVBrandHeader
           title="Fund Performance"
-          subtitle="Comprehensive performance analysis"
+          subtitle="Current trends and portfolio breakdowns"
           variant="light"
         />
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -39,7 +38,7 @@ export default function Performance() {
       <div className="min-h-screen bg-slate-100">
         <POVBrandHeader
           title="Fund Performance"
-          subtitle="Comprehensive performance analysis"
+          subtitle="Current trends and portfolio breakdowns"
           variant="light"
         />
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -55,7 +54,7 @@ export default function Performance() {
     <div className="min-h-screen bg-slate-100">
       <POVBrandHeader
         title="Fund Performance"
-        subtitle={`Performance analysis for ${currentFund.name}`}
+        subtitle={`Current performance trends and breakdowns for ${currentFund.name}`}
         variant="light"
       />
 

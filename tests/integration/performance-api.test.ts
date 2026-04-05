@@ -188,6 +188,10 @@ describe('Performance Dashboard API', () => {
         expect(response.body.meta).toHaveProperty('endDate');
         expect(response.body.meta).toHaveProperty('dataPoints');
         expect(response.body.meta).toHaveProperty('computeTimeMs');
+        const sources = response.body.timeseries.map((point: { _source: string }) => point._source);
+        expect(sources.every((source: string) =>
+          ['database', 'interpolated', 'unavailable'].includes(source)
+        )).toBe(true);
       } else {
         // May return 404 (fund not found) or 500 (database/calculation error in test env)
         expect([404, 500]).toContain(response.status);
@@ -229,6 +233,17 @@ describe('Performance Dashboard API', () => {
         // May return 404 (fund not found) or 500 (database/calculation error in test env)
         expect([404, 500]).toContain(response.status);
       }
+    });
+
+    it('should reject historical asOfDate requests for mounted breakdown semantics', async () => {
+      const response = await authGet('/api/funds/1/performance/breakdown').query({
+        groupBy: 'sector',
+        asOfDate: '2024-01-01',
+      });
+
+      expect(response.status).toBe(501);
+      expect(response.body.error).toBe('UNSUPPORTED_CAPABILITY');
+      expect(response.body.field).toBe('asOfDate');
     });
 
     it('should return 403 for fund user does not have access to', async () => {

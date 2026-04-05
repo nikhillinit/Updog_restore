@@ -1,7 +1,7 @@
 /**
  * Performance API Type Definitions
  *
- * Types for the Portfolio Performance Dashboard API endpoints:
+ * Types for the mounted Portfolio Performance API endpoints:
  * - GET /api/funds/:fundId/performance/timeseries
  * - GET /api/funds/:fundId/performance/breakdown
  * - GET /api/funds/:fundId/performance/comparison
@@ -17,7 +17,7 @@ import type { ActualMetrics, ProjectedMetrics, VarianceMetrics } from './metrics
 
 export type Granularity = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 
-export type DataSource = 'database' | 'interpolated' | 'calculated';
+export type DataSource = 'database' | 'interpolated' | 'unavailable';
 
 export interface TimeseriesPoint {
   /** ISO date string */
@@ -26,7 +26,7 @@ export interface TimeseriesPoint {
   actual: Partial<ActualMetrics>;
   /** Projected metrics (optional) */
   projected?: Partial<ProjectedMetrics>;
-  /** Data source indicator */
+  /** Data source indicator for mounted truth semantics */
   _source: DataSource;
 }
 
@@ -69,8 +69,8 @@ export interface BreakdownGroup {
   currentValue: number;
   /** Multiple on Invested Capital */
   moic: number;
-  /** Internal Rate of Return */
-  irr: number;
+  /** Internal Rate of Return (null when truthful IRR is unavailable) */
+  irr: number | null;
   /** Unrealized gain (currentValue - totalDeployed) */
   unrealizedGain: number;
   /** Percentage of total portfolio deployment */
@@ -82,7 +82,7 @@ export interface BreakdownTotals {
   totalDeployed: number;
   currentValue: number;
   averageMOIC: number;
-  portfolioIRR: number;
+  portfolioIRR: number | null;
 }
 
 export interface BreakdownQuery {
@@ -140,6 +140,7 @@ export interface ComparisonQuery {
 export interface ComparisonResponse {
   fundId: number;
   fundName: string;
+  /** Persisted metric snapshots aligned to the requested dates */
   comparisons: MetricComparison[];
   deltas: MetricDelta[];
   meta: {
