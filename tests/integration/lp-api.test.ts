@@ -431,15 +431,20 @@ describe('LP Reporting Dashboard API', () => {
         expect(response.body).toHaveProperty('benchmarks');
         expect(Array.isArray(response.body.benchmarks)).toBe(true);
         expect(response.body).toHaveProperty('note');
+        expect(String(response.body.note)).not.toMatch(/placeholder/i);
 
         if (response.body.benchmarks.length > 0) {
           const benchmark = response.body.benchmarks[0];
           expect(benchmark).toHaveProperty('name');
-          expect(benchmark).toHaveProperty('irr');
-          expect(benchmark).toHaveProperty('moic');
+          expect(benchmark).toHaveProperty('source');
+          expect(benchmark).toHaveProperty('category');
+          expect(benchmark).toHaveProperty('timeseries');
+          expect(Array.isArray(benchmark.timeseries)).toBe(true);
+        } else {
+          expect(String(response.body.note)).toMatch(/no benchmark dataset is configured/i);
         }
       } else {
-        expect([404, 500]).toContain(response.status);
+        expect([400, 404, 500]).toContain(response.status);
       }
     });
   });

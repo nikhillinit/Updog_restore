@@ -26,6 +26,9 @@ describe('SensitivityAnalysisPage', () => {
     render(<SensitivityAnalysisPage />);
 
     expect(screen.getByText('Sensitivity Analysis')).toBeInTheDocument();
+    expect(
+      screen.getByText(/fund-backed backend contracts and persisted comparison model are ready/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Monte Carlo Backtesting' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'One-Way Analysis' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Two-Way Sensitivity' })).toBeDisabled();

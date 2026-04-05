@@ -180,7 +180,7 @@ export default function TimeTravelPage() {
           <h1 className="text-3xl font-bold text-gray-900">Time-Travel Analytics</h1>
           <p className="text-gray-600 mt-2">
             Explore historical fund states and create snapshots. Restore remains unavailable on
-            this surface until the server workflow is wired.
+            this surface until the versioned restore workflow is connected end-to-end.
           </p>
         </div>
 
@@ -415,7 +415,7 @@ export default function TimeTravelPage() {
               <CardTitle>Snapshot Management</CardTitle>
               <CardDescription>
                 Create and inspect fund snapshots. Restore is intentionally disabled here until
-                the server route is available.
+                the versioned restore workflow is connected to this surface end-to-end.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -471,7 +471,7 @@ export default function TimeTravelPage() {
                           size="sm"
                           className="cursor-not-allowed border-orange-200 text-orange-600 opacity-50 hover:bg-transparent"
                           disabled={true}
-                          title="Restore remains unavailable until the server route is wired"
+                          title="Restore remains unavailable until the versioned restore workflow is connected end-to-end"
                         >
                           Restore Unavailable
                         </Button>
