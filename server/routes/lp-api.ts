@@ -35,6 +35,7 @@ import { db } from '../db';
 import { eq, desc, and } from 'drizzle-orm';
 import { enqueueReportGeneration, isReportQueueAvailable } from '../queues/report-generation-queue';
 import { lpReports, lpFundCommitments } from '@shared/schema-lp-reporting';
+import { storage } from '../storage';
 import { v4 as uuidv4 } from 'uuid';
 import {
   recordLPRequest,
@@ -686,27 +687,78 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const lpId = req.lpProfile?.id;
-
-      // SECURITY: Log LP data access for compliance (SOC2, GDPR)
-      if (lpId) {
-        await lpAuditLogger.logBenchmarkView(lpId, req.user?.id, req);
+      if (!lpId) {
+        return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
-      // Placeholder for benchmark comparison logic
-      // In production, this would fetch actual benchmark data
+      const query = PerformanceQuerySchema.parse(req.query);
+
+      const commitments = await db
+        .select()
+        .from(lpFundCommitments)
+        .where(eq(lpFundCommitments.lpId, lpId));
+
+      const filteredCommitments = query.fundId
+        ? commitments.filter((commitment) => commitment.fundId === query.fundId)
+        : commitments;
+
+      const startDate =
+        query.startDate ||
+        new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] ||
+        '';
+      const endDate = query.endDate || new Date().toISOString().split('T')[0] || '';
+
+      const benchmarks = [];
+      for (const commitment of filteredCommitments) {
+        const fund = await storage.getFund(commitment.fundId);
+        const performance = await lpCalculator.calculatePerformance(
+          commitment.id,
+          startDate,
+          endDate
+        );
+        const benchmarkTimeseries = performance
+          .filter((point) => point.benchmarkIRR !== null)
+          .map((point) => ({
+            date: point.date,
+            value: point.benchmarkIRR as number,
+          }));
+
+        if (benchmarkTimeseries.length > 0) {
+          benchmarks.push({
+            name: `${fund?.name || `Fund ${commitment.fundId}`} Benchmark IRR`,
+            source: 'custom',
+            category: 'IRR',
+            timeseries: benchmarkTimeseries,
+          });
+        }
+      }
+
+      // SECURITY: Log LP data access for compliance (SOC2, GDPR)
+      await lpAuditLogger.logBenchmarkView(lpId, req.user?.id, req);
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=3600');
       return res.json({
-        benchmarks: [
-          {
-            name: 'Cambridge Associates VC Index',
-            irr: 0.15,
-            moic: 2.5,
-          },
-        ],
-        note: 'Benchmark data placeholder - implement actual benchmark logic',
+        benchmarks,
+        note:
+          benchmarks.length > 0
+            ? 'Benchmark comparison derived from persisted LP performance snapshots.'
+            : 'No benchmark dataset is configured for the selected LP commitments.',
       });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid benchmark query parameters',
+              firstError?.path.join('.')
+            )
+          );
+      }
+
       console.error('Benchmark API error:', sanitizeForLogging(error));
       return res
         .status(500)

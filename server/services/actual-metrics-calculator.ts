@@ -15,16 +15,10 @@
  */
 
 import { storage } from '../storage';
-import { logger } from '../lib/logger';
 import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
-
-interface CashFlow {
-  date: Date;
-  amount: number;
-  type: 'investment' | 'distribution';
-}
+import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 
 export class ActualMetricsCalculator {
   /**
@@ -137,109 +131,46 @@ export class ActualMetricsCalculator {
     distributions: Array<{ date: Date; amount: number }>,
     currentNAV: Decimal
   ): Promise<Decimal | null> {
-    // Build cashflow series
-    const cashflows: CashFlow[] = [
+    // Build cashflow series and defer convergence rules to the shared canonical XIRR.
+    const cashflows: XirrCashFlow[] = [
       ...investments.map((inv) => ({
         date: inv.date,
-        amount: -Math.abs(inv.amount), // Investments are negative cashflows
-        type: 'investment' as const,
+        amount: -Math.abs(inv.amount),
       })),
       ...distributions.map((dist) => ({
         date: dist.date,
-        amount: Math.abs(dist.amount), // Distributions are positive cashflows
-        type: 'distribution' as const,
+        amount: Math.abs(dist.amount),
       })),
     ];
 
-    // Add terminal value (current NAV) as final cashflow
     if (currentNAV.gt(0)) {
       cashflows.push({
         date: new Date(),
         amount: currentNAV.toNumber(),
-        type: 'distribution',
       });
     }
 
-    // Sort by date
     cashflows.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    // Calculate IRR using XIRR
-    return this.xirr(cashflows);
-  }
-
-  /**
-   * XIRR (Extended Internal Rate of Return) calculation
-   *
-   * @deprecated TODO: Migrate to shared XIRR implementation.
-   * The canonical implementation at 'client/src/lib/finance/xirr.ts' provides:
-   * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
-   * - Proper null return on non-convergence (this version returns last estimate)
-   *
-   * Migration requires:
-   * 1. Create shared/lib/xirr.ts with canonical algorithm
-   * 2. Add Decimal.js precision mode support
-   * 3. Update both client and server imports
-   *
-   * Uses Newton-Raphson method to find the rate that makes NPV = 0
-   * Returns null when calculation cannot converge (insufficient data, divergence)
-   */
-  private xirr(cashflows: CashFlow[]): Decimal | null {
-    if (cashflows.length < 2) {
-      logger.debug(
-        { cashflowCount: cashflows.length },
-        '[XIRR] Insufficient cashflows for calculation'
-      );
-      return null; // Cannot calculate with < 2 cashflows
-    }
-
-    const baseDate = cashflows[0]!.date;
-    const maxIterations = 100;
-    const tolerance = new Decimal(0.0000001);
-
-    // Initial guess: 10% annual return
-    let rate = new Decimal(0.1);
-
-    for (let i = 0; i < maxIterations; i++) {
-      let npv = new Decimal(0);
-      let dnpv = new Decimal(0);
-
-      for (const cf of cashflows) {
-        const years = this.yearsBetween(baseDate, cf.date);
-        const factor = rate.plus(1).pow(years);
-
-        npv = npv.plus(new Decimal(cf.amount).div(factor));
-        dnpv = dnpv.minus(new Decimal(cf.amount).mul(years).div(factor.mul(rate.plus(1))));
-      }
-
-      const newRate = rate.minus(npv.div(dnpv));
-
-      if (newRate.minus(rate).abs().lt(tolerance)) {
-        return newRate;
-      }
-
-      rate = newRate;
-
-      // Prevent infinite loops with unrealistic rates
-      if (rate.lt(-0.99) || rate.gt(10)) {
-        logger.debug({ rate: rate.toString() }, '[XIRR] Rate diverged to unrealistic value');
-        return null; // Cannot converge - rate is unrealistic
-      }
-    }
-
-    // Did not converge within max iterations - return last estimate with warning
-    logger.debug(
-      { rate: rate.toString() },
-      '[XIRR] Did not converge within max iterations, returning estimate'
+    const meaningful = cashflows.filter((cashflow) =>
+      Number.isFinite(cashflow.amount) && cashflow.amount !== 0
     );
-    return rate;
-  }
+    if (meaningful.length < 2) {
+      return null;
+    }
 
-  /**
-   * Calculate years between two dates (fractional)
-   */
-  private yearsBetween(start: Date, end: Date): number {
-    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
-    return (end.getTime() - start.getTime()) / msPerYear;
+    const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
+    const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
+    if (!hasContribution || !hasReturn) {
+      return null;
+    }
+
+    const result = xirrNewtonBisection(meaningful);
+    if (!result.converged || result.irr == null || !Number.isFinite(result.irr)) {
+      return null;
+    }
+
+    return new Decimal(result.irr);
   }
 
   /**
