@@ -26,6 +26,7 @@ import allocationsRouter from './routes/allocations.js';
 import allocationScenariosRouter from './routes/allocation-scenarios.js';
 import { dealPipelineRouter } from './routes/deal-pipeline.js';
 import cohortAnalysisRouter from './routes/cohort-analysis.js';
+import sensitivityRouter from './routes/sensitivity.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, securityHeaders } from './config/csp.js';
 
@@ -178,6 +179,9 @@ export function makeApp() {
 
   // Cohort Analysis API (Advanced cohort analysis with sector/vintage normalization)
   app.use('/api/cohorts', cohortAnalysisRouter);
+
+  // Sensitivity Analysis API (Phase 1A - one-way sweeps; fund-scoped)
+  app.use('/api', sensitivityRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
