@@ -5,7 +5,9 @@ import {
   fundMetrics,
   activities,
   users,
+  fundConfigs,
   type Fund,
+  type FundConfig as StoredFundConfig,
   type PortfolioCompany,
   type Investment,
   type FundMetrics,
@@ -19,7 +21,7 @@ import {
   type InsertUser,
 } from '../schema/src/index.js';
 import { db } from './db';
-import { eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 
 // Round and performance case types (simplified versions without schema definition)
@@ -82,6 +84,7 @@ export interface IStorage {
   // Fund methods
   getAllFunds(): Promise<Fund[]>;
   getFund(_id: number): Promise<Fund | undefined>;
+  getFundConfig(_fundId: number): Promise<StoredFundConfig | undefined>;
   createFund(_fund: InsertFund): Promise<Fund>;
 
   // Portfolio methods
@@ -313,6 +316,10 @@ export class MemStorage implements IStorage {
     return this.funds.get(id);
   }
 
+  async getFundConfig(_fundId: number): Promise<StoredFundConfig | undefined> {
+    return undefined;
+  }
+
   async createFund(insertFund: InsertFund): Promise<Fund> {
     const id = this.currentFundId++;
     const fund: Fund = {
@@ -492,6 +499,15 @@ export class DatabaseStorage implements IStorage {
   async getFund(id: number): Promise<Fund | undefined> {
     const [fund] = await db.select().from(funds).where(eq(funds.id, id));
     return fund || undefined;
+  }
+
+  async getFundConfig(fundId: number): Promise<StoredFundConfig | undefined> {
+    const config = await db.query.fundConfigs.findFirst({
+      where: and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)),
+      orderBy: desc(fundConfigs.version),
+    });
+
+    return config || undefined;
   }
 
   async createFund(insertFund: InsertFund): Promise<Fund> {

@@ -93,6 +93,7 @@ export const FundFinalizeV1Schema = z
     // Capital Plan
     capitalStageAllocations: draftConfigFields.shape.capitalStageAllocations,
     capitalPlanAllocations: draftConfigFields.shape.capitalPlanAllocations,
+    targetMetrics: draftConfigFields.shape.targetMetrics,
 
     // Investment Pipeline
     pipelineProfiles: draftConfigFields.shape.pipelineProfiles,

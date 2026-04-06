@@ -310,6 +310,10 @@ export class FundPersistenceService {
     // Build config object matching FundDraftWriteV1 shape for persistence
     const configInput: Record<string, unknown> = {
       fundName: input.name.trim(),
+      fundSize: input.size,
+      vintageYear: input.vintageYear ?? currentYear,
+      managementFeeRate: (input.managementFee ?? 0.02) * 100,
+      carriedInterest: (input.carryPercentage ?? 0.2) * 100,
       ...draftConfig,
     };
 

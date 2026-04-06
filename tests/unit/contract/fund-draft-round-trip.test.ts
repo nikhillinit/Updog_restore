@@ -57,6 +57,12 @@ describe('PUT /api/funds/:id/draft validation', () => {
     // Status should be 200 (success) or 500 (if db mock doesn't support the table)
     // We primarily verify the validation passes (not 400)
     expect(putRes.status).not.toBe(400);
+
+    if (putRes.status === 200) {
+      const getRes = await request(app).get('/api/funds/1/draft');
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.config?.targetMetrics).toMatchObject(validDraftPayload.targetMetrics!);
+    }
   });
 
   it('accepts minimal draft payload (fundName only)', async () => {
@@ -74,6 +80,19 @@ describe('PUT /api/funds/:id/draft validation', () => {
           { id: 'dup', name: 'Seed', graduate: 30, exit: 10, months: 18 },
           { id: 'dup', name: 'Series A', graduate: 50, exit: 20, months: 24 },
         ],
+      });
+
+    expect(putRes.status).toBe(400);
+    expect(putRes.body).toHaveProperty('code', 'DRAFT_VALIDATION_ERROR');
+  });
+
+  it('rejects nonpositive period values', async () => {
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .send({
+        fundName: 'Invalid Period Fund',
+        fundLife: 0,
+        investmentPeriod: 0,
       });
 
     expect(putRes.status).toBe(400);

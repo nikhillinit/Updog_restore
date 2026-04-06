@@ -124,6 +124,13 @@ export const validDraftPayload: FundDraftWriteV1 = {
       investmentHorizonMonths: 60,
     },
   ],
+  targetMetrics: {
+    targetIRR: 0.25,
+    targetTVPI: 2.5,
+    targetDPI: 1.5,
+    targetCompanyCount: 25,
+    targetReserveRatio: 0.5,
+  },
   pipelineProfiles: [
     {
       id: 'pp-1',
