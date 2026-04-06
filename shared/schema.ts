@@ -59,6 +59,43 @@ export const fundEvents = pgTable(
 );
 
 // ============================================================================
+// SENSITIVITY RUNS - Persists one-way / two-way / stress sensitivity analyses.
+// kind/status enums mirror the CHECK constraints in the migration and the Zod
+// contract at shared/contracts/sensitivity-run-v1.contract.ts. Update all three
+// in lockstep when adding new variants.
+// ============================================================================
+export const sensitivityRuns = pgTable(
+  'sensitivity_runs',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    kind: text('kind').notNull(), // 'one_way' | 'two_way' | 'stress'
+    status: text('status').notNull(), // 'pending' | 'running' | 'completed' | 'failed'
+    params: jsonb('params').notNull(),
+    results: jsonb('results'),
+    createdBy: integer('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    durationMs: integer('duration_ms'),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+  },
+  (table) => ({
+    fundCreatedIdx: index('sensitivity_runs_fund_created_idx').on(table.fundId, table.createdAt),
+    fundKindCreatedIdx: index('sensitivity_runs_fund_kind_created_idx').on(
+      table.fundId,
+      table.kind,
+      table.createdAt
+    ),
+  })
+);
+
+export type SensitivityRun = typeof sensitivityRuns.$inferSelect;
+export type InsertSensitivityRun = typeof sensitivityRuns.$inferInsert;
+
+// ============================================================================
 // FORECAST SNAPSHOTS - Point-in-time snapshots with async calculation
 // ============================================================================
 export const forecastSnapshots = pgTable(
