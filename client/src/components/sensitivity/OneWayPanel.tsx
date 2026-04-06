@@ -7,7 +7,7 @@
  * sensitivity tab feels native to the existing analytics surfaces.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LineChart } from 'recharts/es6/chart/LineChart';
 import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -39,8 +39,6 @@ import {
   SUPPORTED_METRICS,
   getVariableDefinition,
   getMetricDefinition,
-  type SensitivityVariableDefinition,
-  type SensitivityMetricDefinition,
   type SensitivityVariableId,
   type SensitivityMetricId,
 } from '@shared/contracts/sensitivity-variables-v1';
@@ -50,78 +48,7 @@ import {
   type OneWayAnalysisResultV1,
   type SensitivityRunV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
-
-// =====================
-// FORMATTING HELPERS
-// =====================
-
-function formatRatio(value: number): string {
-  return value.toFixed(3);
-}
-
-function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function formatDecimal(value: number): string {
-  return value.toFixed(2);
-}
-
-function formatYears(value: number): string {
-  return `${value.toFixed(0)} yrs`;
-}
-
-function formatMetricValue(value: number, metric: SensitivityMetricDefinition): string {
-  switch (metric.formatter) {
-    case 'percent':
-      return formatPercent(value);
-    case 'ratio':
-      return formatDecimal(value);
-    case 'currency':
-      return `$${value.toLocaleString()}`;
-    case 'decimal':
-    default:
-      return formatDecimal(value);
-  }
-}
-
-function formatVariableValue(value: number, variable: SensitivityVariableDefinition): string {
-  switch (variable.unit) {
-    case 'ratio':
-      return formatPercent(value);
-    case 'years':
-      return formatYears(value);
-    case 'dollars':
-      return `$${value.toLocaleString()}`;
-    case 'count':
-    default:
-      return formatRatio(value);
-  }
-}
-
-// =====================
-// ELAPSED CLOCK
-// =====================
-
-function useElapsedSeconds(isActive: boolean): number {
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(Date.now());
-
-  useEffect(() => {
-    if (isActive) {
-      startRef.current = Date.now();
-      setElapsed(0);
-      const timer = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-    setElapsed(0);
-    return undefined;
-  }, [isActive]);
-
-  return elapsed;
-}
+import { formatMetricValue, formatVariableValue, useElapsedSeconds, SummaryCard } from './_shared';
 
 // =====================
 // VALIDATION
@@ -171,19 +98,6 @@ function defaultFormFor(variableId: SensitivityVariableId): FormState {
     steps: def.defaultSteps,
     metricId: 'tvpi',
   };
-}
-
-// =====================
-// SUMMARY TILE
-// =====================
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-lg font-semibold text-gray-800">{value}</p>
-    </div>
-  );
 }
 
 // =====================

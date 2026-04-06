@@ -19,6 +19,23 @@ import {
   SensitivityRunKindSchema,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
+/**
+ * Maps SensitivityEngineError codes to HTTP status codes.
+ * Unknown codes (including ENGINE_FAILURE catch-all) fall back to 500.
+ *
+ * When adding a new SensitivityEngineError code, add an entry HERE
+ * AND a row to tests/unit/routes/sensitivity-routes-error-mapping.test.ts.
+ * Codes without an entry silently fall through to 500.
+ */
+const STATUS_BY_CODE: Readonly<Record<string, number>> = {
+  NO_PUBLISHED_CONFIG: 409, // resource not in publishable form
+  INVALID_PUBLISHED_CONFIG: 422, // resource exists but unprocessable
+  UNSUPPORTED_VARIABLE_PATH: 400, // client requested unmappable path
+  METRIC_PATH_NOT_FOUND: 500, // engine output mismatch (server bug)
+  METRIC_NOT_NUMBER: 500, // engine output mismatch (server bug)
+  ENGINE_FAILURE: 500, // catch-all
+};
+
 const router = Router();
 
 router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response) => {
@@ -58,7 +75,7 @@ router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response
     const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
     const message = err instanceof Error ? err.message : 'Unknown engine failure';
     await sensitivityRunService.markFailed(run.id, code, message, durationMs);
-    const status = code === 'NO_PUBLISHED_CONFIG' ? 409 : 500;
+    const status = STATUS_BY_CODE[code] ?? 500;
     return res.status(status).json({ code, message });
   }
 });
