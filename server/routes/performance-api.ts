@@ -31,12 +31,12 @@ import type {
 import {
   startTimer,
   recordPerformanceRequest,
-  recordCacheHit,
   recordCacheMiss,
   recordCalculation,
   recordDataPoints,
   recordError,
 } from '../observability/performance-metrics';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -102,7 +102,6 @@ router.get(
   performanceLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
-    const cacheHit = false;
     let fundId = 0;
 
     try {
@@ -114,9 +113,11 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('timeseries', 'GET', 400, durationMs, fundId);
         recordError('timeseries', 'invalid_fund_id');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
+          );
       }
 
       // Validate query parameters
@@ -128,9 +129,9 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('timeseries', 'GET', 404, durationMs, fundId);
         recordError('timeseries', 'fund_not_found');
-        return res.status(404).json(
-          createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`));
       }
 
       // Calculate timeseries metrics
@@ -144,12 +145,8 @@ router.get(
       );
       recordCalculation('timeseries', query.granularity, calcTimer());
 
-      // Record cache status
-      if (cacheHit) {
-        recordCacheHit('timeseries');
-      } else {
-        recordCacheMiss('timeseries');
-      }
+      // No cache layer is wired for this route today, so every request is a truthful miss.
+      recordCacheMiss('timeseries');
       recordDataPoints('timeseries', timeseries.length);
 
       const durationMs = endTimer();
@@ -162,7 +159,7 @@ router.get(
           startDate: query.startDate,
           endDate: query.endDate,
           dataPoints: timeseries.length,
-          cacheHit,
+          cacheHit: false,
           computeTimeMs: Math.round(durationMs),
         },
       };
@@ -177,30 +174,30 @@ router.get(
       if (error instanceof NumberParseError) {
         recordPerformanceRequest('timeseries', 'GET', 400, durationMs, fundId);
         recordError('timeseries', 'number_parse_error');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', error.message)
-        );
+        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
       }
 
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('timeseries', 'GET', 400, durationMs, fundId);
         recordError('timeseries', 'validation_error');
         const firstError = error.errors[0];
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       recordPerformanceRequest('timeseries', 'GET', 500, durationMs, fundId);
       recordError('timeseries', 'internal_error');
-      console.error('Performance timeseries API error:', error);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance timeseries')
-      );
+      logger.error({ error }, 'Performance timeseries API error');
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance timeseries'));
     }
   }
 );
@@ -223,7 +220,6 @@ router.get(
   performanceLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
-    const cacheHit = false;
     let fundId = 0;
 
     try {
@@ -235,9 +231,11 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('breakdown', 'GET', 400, durationMs, fundId);
         recordError('breakdown', 'invalid_fund_id');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
+          );
       }
 
       // Validate query parameters
@@ -251,13 +249,15 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('breakdown', 'GET', 501, durationMs, fundId);
         recordError('breakdown', 'unsupported_historical_as_of');
-        return res.status(501).json(
-          createErrorResponse(
-            'UNSUPPORTED_CAPABILITY',
-            'Historical breakdown as-of dates are not supported by the mounted performance flow',
-            'asOfDate'
-          )
-        );
+        return res
+          .status(501)
+          .json(
+            createErrorResponse(
+              'UNSUPPORTED_CAPABILITY',
+              'Historical breakdown as-of dates are not supported by the mounted performance flow',
+              'asOfDate'
+            )
+          );
       }
 
       // Get fund name for response
@@ -266,9 +266,9 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('breakdown', 'GET', 404, durationMs, fundId);
         recordError('breakdown', 'fund_not_found');
-        return res.status(404).json(
-          createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`));
       }
 
       // Calculate breakdown
@@ -281,12 +281,8 @@ router.get(
       );
       recordCalculation('breakdown', query.groupBy, calcTimer());
 
-      // Record cache status
-      if (cacheHit) {
-        recordCacheHit('breakdown');
-      } else {
-        recordCacheMiss('breakdown');
-      }
+      // No cache layer is wired for this route today, so every request is a truthful miss.
+      recordCacheMiss('breakdown');
       recordDataPoints('breakdown', breakdown.length);
 
       const durationMs = endTimer();
@@ -298,7 +294,7 @@ router.get(
         breakdown,
         totals,
         meta: {
-          cacheHit,
+          cacheHit: false,
           computeTimeMs: Math.round(durationMs),
         },
       };
@@ -313,30 +309,30 @@ router.get(
       if (error instanceof NumberParseError) {
         recordPerformanceRequest('breakdown', 'GET', 400, durationMs, fundId);
         recordError('breakdown', 'number_parse_error');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', error.message)
-        );
+        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
       }
 
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('breakdown', 'GET', 400, durationMs, fundId);
         recordError('breakdown', 'validation_error');
         const firstError = error.errors[0];
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       recordPerformanceRequest('breakdown', 'GET', 500, durationMs, fundId);
       recordError('breakdown', 'internal_error');
-      console.error('Performance breakdown API error:', error);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance breakdown')
-      );
+      logger.error({ error }, 'Performance breakdown API error');
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance breakdown'));
     }
   }
 );
@@ -358,7 +354,6 @@ router.get(
   performanceLimiter,
   async (req: Request, res: Response) => {
     const endTimer = startTimer();
-    const cacheHit = false;
     let fundId = 0;
 
     try {
@@ -370,9 +365,11 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('comparison', 'GET', 400, durationMs, fundId);
         recordError('comparison', 'invalid_fund_id');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse('INVALID_PARAMETER', `Fund ID must be a positive integer`, 'fundId')
+          );
       }
 
       // Validate query parameters
@@ -384,9 +381,9 @@ router.get(
         const durationMs = endTimer();
         recordPerformanceRequest('comparison', 'GET', 404, durationMs, fundId);
         recordError('comparison', 'fund_not_found');
-        return res.status(404).json(
-          createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse('FUND_NOT_FOUND', `Fund ${fundId} not found`));
       }
 
       // Calculate comparison
@@ -398,12 +395,8 @@ router.get(
       );
       recordCalculation('comparison', 'multi-date', calcTimer());
 
-      // Record cache status
-      if (cacheHit) {
-        recordCacheHit('comparison');
-      } else {
-        recordCacheMiss('comparison');
-      }
+      // No cache layer is wired for this route today, so every request is a truthful miss.
+      recordCacheMiss('comparison');
       recordDataPoints('comparison', comparisons.length);
 
       const durationMs = endTimer();
@@ -414,7 +407,7 @@ router.get(
         deltas,
         meta: {
           dates: query.dates,
-          cacheHit,
+          cacheHit: false,
           computeTimeMs: Math.round(durationMs),
         },
       };
@@ -429,30 +422,30 @@ router.get(
       if (error instanceof NumberParseError) {
         recordPerformanceRequest('comparison', 'GET', 400, durationMs, fundId);
         recordError('comparison', 'number_parse_error');
-        return res.status(400).json(
-          createErrorResponse('INVALID_PARAMETER', error.message)
-        );
+        return res.status(400).json(createErrorResponse('INVALID_PARAMETER', error.message));
       }
 
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('comparison', 'GET', 400, durationMs, fundId);
         recordError('comparison', 'validation_error');
         const firstError = error.errors[0];
-        return res.status(400).json(
-          createErrorResponse(
-            'VALIDATION_ERROR',
-            firstError?.message || 'Invalid query parameters',
-            firstError?.path.join('.')
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              firstError?.message || 'Invalid query parameters',
+              firstError?.path.join('.')
+            )
+          );
       }
 
       recordPerformanceRequest('comparison', 'GET', 500, durationMs, fundId);
       recordError('comparison', 'internal_error');
-      console.error('Performance comparison API error:', error);
-      return res.status(500).json(
-        createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance comparison')
-      );
+      logger.error({ error }, 'Performance comparison API error');
+      return res
+        .status(500)
+        .json(createErrorResponse('INTERNAL_ERROR', 'Failed to calculate performance comparison'));
     }
   }
 );

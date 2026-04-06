@@ -13,7 +13,7 @@ import { db } from '../db';
 import { storage } from '../storage';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { fundMetrics, portfolioCompanies, fundDistributions } from '@shared/schema';
-import { xirrNewtonBisection, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
+import { calculateCanonicalIrr, type CashFlow as XirrCashFlow } from '@shared/lib/finance/xirr';
 import type {
   TimeseriesPoint,
   BreakdownGroup,
@@ -104,26 +104,6 @@ function determineTrend(metric: string, values: number[], change: number): Metri
   return isImproving ? 'improving' : 'declining';
 }
 
-function calculateCanonicalIrr(cashflows: XirrCashFlow[]): number | null {
-  const meaningful = cashflows.filter((cashflow) =>
-    Number.isFinite(cashflow.amount) && cashflow.amount !== 0
-  );
-
-  if (meaningful.length < 2) {
-    return null;
-  }
-
-  const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
-  const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
-
-  if (!hasContribution || !hasReturn) {
-    return null;
-  }
-
-  const result = xirrNewtonBisection(meaningful);
-  return result.converged && result.irr !== null ? result.irr : null;
-}
-
 type PerformanceCompany = {
   id: number;
   name: string;
@@ -173,7 +153,10 @@ function buildCompanyCashflows(
       }
     }
 
-    if (currentValue > 0 && (!investmentDate || terminalDate.getTime() >= investmentDate.getTime())) {
+    if (
+      currentValue > 0 &&
+      (!investmentDate || terminalDate.getTime() >= investmentDate.getTime())
+    ) {
       cashflows.push({
         date: terminalDate,
         amount: currentValue,

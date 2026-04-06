@@ -3,7 +3,7 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { fundDistributions } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
-import { xirrNewtonBisection, type CashFlow } from '@shared/lib/finance/xirr';
+import { calculateCanonicalIrr, type CashFlow } from '@shared/lib/finance/xirr';
 import { logger } from '../lib/logger';
 
 /**
@@ -49,25 +49,6 @@ export interface CalculatedFundMetrics {
 
   /** Total distributions returned to LPs */
   totalDistributions: number;
-}
-
-function calculateCanonicalIrr(cashflows: CashFlow[]): number | null {
-  const meaningful = cashflows.filter((cashflow) =>
-    Number.isFinite(cashflow.amount) && cashflow.amount !== 0
-  );
-
-  if (meaningful.length < 2) {
-    return null;
-  }
-
-  const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
-  const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
-  if (!hasContribution || !hasReturn) {
-    return null;
-  }
-
-  const result = xirrNewtonBisection(meaningful);
-  return result.converged && result.irr !== null ? result.irr : null;
 }
 
 /**
