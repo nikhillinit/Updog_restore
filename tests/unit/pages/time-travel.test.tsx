@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,7 +42,9 @@ vi.mock('@/hooks/useTimelineData', () => ({
 vi.mock('@/components/analytics', () => ({
   ErrorState: () => <div data-testid="error-state" />,
   StatCard: ({ title, value }: { title: string; value: unknown }) => (
-    <div>{title}:{String(value)}</div>
+    <div>
+      {title}:{String(value)}
+    </div>
   ),
   StatCardGrid: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   TimelineChart: () => <div data-testid="timeline-chart" />,
@@ -55,13 +58,21 @@ describe('TimeTravelPage', () => {
     vi.clearAllMocks();
   });
 
-  it('keeps restore disabled with versioned workflow wording', async () => {
+  it('keeps restore disabled with versioned workflow copy', async () => {
     render(<TimeTravelPage />);
+    const user = userEvent.setup();
 
     expect(screen.getByText('Time-Travel Analytics')).toBeInTheDocument();
     expect(
-      screen.getByText(/versioned restore workflow is connected end-to-end/i)
+      screen.getByText(
+        /server-side versioned restore workflow exists, but restore remains unavailable on this page/i
+      )
     ).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Snapshot Manager' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Snapshot Manager' }));
+    expect(
+      screen.getByText(
+        /restore stays intentionally disabled on this page until the existing server-side versioned restore workflow is wired to this surface end-to-end/i
+      )
+    ).toBeInTheDocument();
   });
 });
