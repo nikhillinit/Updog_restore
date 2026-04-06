@@ -153,6 +153,7 @@ describe('route perimeter governance', () => {
     '/analytics',
     '/forecasting',
     '/monte-carlo',
+    '/time-travel',
     '/secondary-market',
     '/notion-integration',
     '/scenario-builder',

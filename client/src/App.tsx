@@ -59,96 +59,9 @@ const DeferredDemoBannerView = React.lazy(() => import('@/components/demo/DemoBa
 
 const ONBOARDING_TOUR_STORAGE_KEY = 'onboarding_seen_gp_v1';
 
-const _moduleConfig = {
-  dashboard: {
-    title: 'Fund Dashboard',
-    description: 'Comprehensive overview of fund performance and metrics',
-  },
-  'fund-setup': {
-    title: 'Fund Setup',
-    description: 'Configure fund parameters and investment strategy',
-  },
-  portfolio: {
-    title: 'Portfolio Management',
-    description: 'Manage portfolio companies and track performance',
-  },
-  investments: {
-    title: 'Investment Tracking',
-    description: 'Add and manage individual investments with performance modeling',
-  },
-  'kpi-manager': {
-    title: 'KPI Manager',
-    description: 'Monitor and track portfolio company performance metrics',
-  },
-  'allocation-manager': {
-    title: 'Allocation Manager',
-    description: 'Configure fund allocations with automatic reserve calculation',
-  },
-  'financial-modeling': {
-    title: 'Financial Modeling',
-    description: 'Cohort analysis and financial projections',
-  },
-  performance: {
-    title: 'Performance Analysis',
-    description: 'IRR analysis and realized returns tracking',
-  },
-  analytics: {
-    title: 'Analytics & Insights',
-    description: 'Advanced analytics and performance insights',
-  },
-  'portfolio-analytics': {
-    title: 'Portfolio Analytics',
-    description: 'Drag-and-drop data visualization with saved views',
-  },
-  reports: {
-    title: 'Reports & Documentation',
-    description: 'Generate comprehensive fund reports',
-  },
-  'tear-sheets': {
-    title: 'Tear Sheets',
-    description: 'Mobile-optimized portfolio company tear sheets with versioned commentary',
-  },
-  'time-travel': {
-    title: 'Time-Travel Analytics',
-    description: 'Historical fund state analysis, snapshots, and restoration capabilities',
-  },
-  'variance-tracking': {
-    title: 'Variance Tracking',
-    description: 'Performance variance monitoring, baseline management, and automated alerts',
-  },
-  'portfolio-constructor': {
-    title: 'Portfolio Constructor',
-    description:
-      'Build and optimize fund portfolio strategies with scenario modeling and real-time calculations',
-  },
-  'monte-carlo': {
-    title: 'Monte Carlo Backtesting',
-    description:
-      'Run calibrated simulations with historical validation and async progress tracking',
-  },
-  'dev-dashboard': {
-    title: 'Development Dashboard',
-    description: 'Real-time visibility into system health for solo developer productivity',
-  },
-  'mobile-executive-dashboard': {
-    title: 'Mobile Executive Dashboard',
-    description: 'Mobile-first executive dashboard with AI insights and touch-optimized navigation',
-  },
-  'secondary-market': {
-    title: 'Secondary Market Analysis',
-    description: 'Liquidity analysis, secondary valuations, and market opportunity assessment',
-  },
-  'notion-integration': {
-    title: 'Notion Integration',
-    description: 'Connect Notion workspaces to sync fund data and portfolio company updates',
-  },
-};
-
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const activeModule = getActiveNavigationId(location);
-
-  // const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">

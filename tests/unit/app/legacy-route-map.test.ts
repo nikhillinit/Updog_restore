@@ -13,6 +13,7 @@ describe('legacy route map', () => {
       '/moic-analysis',
       '/return-the-fund',
       '/partial-sales',
+      '/time-travel',
     ];
 
     for (const pathname of removedModelMappings) {

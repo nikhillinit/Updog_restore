@@ -32,7 +32,6 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
   ['/analytics', '/report'],
   ['/reports', '/report'],
   ['/secondary-market', '/report'],
-  ['/time-travel', '/report'],
 ]);
 
 /**

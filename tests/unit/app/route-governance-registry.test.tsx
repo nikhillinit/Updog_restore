@@ -125,6 +125,7 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/analytics')).toBeUndefined();
     expect(getRouteGovernanceEntry('/forecasting')).toBeUndefined();
     expect(getRouteGovernanceEntry('/monte-carlo')).toBeUndefined();
+    expect(getRouteGovernanceEntry('/time-travel')).toBeUndefined();
     expect(getRouteGovernanceEntry('/secondary-market')).toBeUndefined();
     expect(getRouteGovernanceEntry('/notion-integration')).toBeUndefined();
     expect(getRouteGovernanceEntry('/scenario-builder')).toBeUndefined();
