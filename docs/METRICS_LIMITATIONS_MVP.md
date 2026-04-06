@@ -77,10 +77,13 @@ IRR calculations are **moderately accurate** but **understated**:
 
 ## 🟡 Limitation: Generic Fund Targets
 
-### Issue: All Funds Use Same Default Targets
+### Issue: Legacy Configs May Still Use Generic Default Targets
 
 **Current Behavior**:
-- All funds show identical target metrics:
+- Published configs that include explicit target metrics can drive custom
+  targets.
+- Older drafts/published configs that do not yet carry those target fields
+  still fall back to generic defaults:
   - **Target IRR**: 25%
   - **Target TVPI**: 2.5x
   - **Investment Period**: 3 years
@@ -90,26 +93,27 @@ IRR calculations are **moderately accurate** but **understated**:
 **Root Cause**:
 - Fund-specific configuration is stored in `fund_configs` table
 - MVP uses hardcoded defaults instead of custom targets
-- See: `server/services/metrics-aggregator.ts:151-171`
+- See: `server/services/metrics-aggregator.ts`
 
 **Impact**:
-- ✅ Variance metrics still show actual vs target
-- ⚠️ Variance is against industry standard, not fund-specific goals
-- ⚠️ Users cannot customize targets per fund
+- ✅ Config-backed funds can show fund-specific targets
+- ⚠️ Legacy configs still compare against industry-standard defaults
+- ⚠️ Until old configs are updated, variance may still reflect fallback targets
 
 **Workaround**:
-- Interpret variance metrics as "vs industry standard"
-- For fund-specific targets, calculate manually
+- Update the published fund config to include explicit target metrics
+- Until then, interpret variance metrics as "vs industry standard"
 
 **Example**:
 - Your fund's actual target IRR: 30%
 - Platform shows target: 25%
 - Variance will compare against 25%, not 30%
 
-**Planned Fix**: Phase 2 (Q1 2026)
-- Implement `storage.getFundConfig(fundId)`
-- Allow users to set custom targets in Fund Setup
-- Update variance calculations to use custom targets
+**Current Fix Direction**:
+- Read target metrics from canonical published `fundConfigs.config` when
+  present
+- Keep legacy fallback explicit when target fields are absent
+- Continue allowing fund setup to evolve toward fully setting those targets
 
 ---
 
@@ -185,7 +189,8 @@ IRR calculations are **moderately accurate** but **understated**:
 | Pacing Analysis | ✅ 95% | From PacingEngine |
 | Expected Performance | ⚠️ 80% | Model-based estimates |
 | **Target Metrics** | | |
-| All Targets | ⚠️ Generic | Uses industry defaults |
+| Config-backed targets | ✅ When present | From published `fundConfigs.config` |
+| Legacy configs without target fields | ⚠️ Fallback | Uses explicit generic defaults |
 
 ---
 
@@ -216,7 +221,7 @@ IRR calculations are **moderately accurate** but **understated**:
 - ✅ Projected metrics from engines
 - ✅ Variance analysis
 - ⚠️ DPI = 0 (known limitation)
-- ⚠️ Generic targets
+- ⚠️ Legacy configs may still use generic targets
 
 ### Phase 2 (Q1 2026)
 - 🎯 Add distributions table

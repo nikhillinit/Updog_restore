@@ -165,6 +165,16 @@ const CapitalPlanAllocationSchema = z
   })
   .strict();
 
+const TargetMetricsSchema = z
+  .object({
+    targetIRR: z.number().min(-0.999999).max(10),
+    targetTVPI: z.number().min(0),
+    targetDPI: z.number().min(0).optional(),
+    targetCompanyCount: z.number().int().min(1),
+    targetReserveRatio: z.number().min(0).max(1).optional(),
+  })
+  .strict();
+
 // ---------------------------------------------------------------------------
 // Uniqueness refinement helper
 // ---------------------------------------------------------------------------
@@ -188,14 +198,14 @@ export const FundDraftWriteV1Schema = z
     fundName: z.string().min(1, 'Fund name is required'),
 
     // Fund Basics (all optional -- missing = "not set")
-    fundSize: z.number().optional(),
+    fundSize: z.number().nonnegative().optional(),
     vintageYear: z.number().int().optional(),
     managementFeeRate: z.number().optional(),
     carriedInterest: z.number().optional(),
     establishmentDate: z.string().optional(),
     isEvergreen: z.boolean().optional(),
-    fundLife: z.number().optional(),
-    investmentPeriod: z.number().optional(),
+    fundLife: z.number().positive().optional(),
+    investmentPeriod: z.number().positive().optional(),
     gpCommitment: z.number().optional(),
 
     // Capital Structure
@@ -217,6 +227,7 @@ export const FundDraftWriteV1Schema = z
       z.array(CapitalPlanAllocationSchema),
       'capitalPlanAllocations'
     ).optional(),
+    targetMetrics: TargetMetricsSchema.optional(),
 
     // Investment Pipeline
     pipelineProfiles: uniqueIds(z.array(PipelineProfileSchema), 'pipelineProfiles').optional(),

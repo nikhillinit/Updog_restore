@@ -25,6 +25,13 @@ const validFinalizePayload = {
   managementFee: 0.02,
   carryPercentage: 0.2,
   vintageYear: 2026,
+  targetMetrics: {
+    targetIRR: 0.25,
+    targetTVPI: 2.5,
+    targetDPI: 1.5,
+    targetCompanyCount: 25,
+    targetReserveRatio: 0.5,
+  },
   stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
 };
 
@@ -44,6 +51,7 @@ describe('FundFinalizeV1Schema', () => {
     if (result.success) {
       expect(result.data.name).toBe('Press On Fund V');
       expect(result.data.size).toBe(50_000_000);
+      expect(result.data.targetMetrics?.targetIRR).toBe(0.25);
       expect(result.data.stages).toHaveLength(1);
     }
   });
@@ -91,6 +99,7 @@ describe('FundFinalizeV1Schema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).toBe('Press On Fund V');
+      expect(result.data.targetMetrics?.targetTVPI).toBe(2.5);
       expect(result.data.waterfallType).toBe('american');
       expect(result.data.recyclingEnabled).toBe(true);
     }
@@ -379,6 +388,11 @@ describe('FundPersistenceService.finalize behavior', () => {
     const payload = {
       name: 'Config Fund',
       size: 10_000_000,
+      targetMetrics: {
+        targetIRR: 0.28,
+        targetTVPI: 2.8,
+        targetCompanyCount: 22,
+      },
       stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
     };
     await service.finalize(payload, nullQueues);
@@ -390,6 +404,15 @@ describe('FundPersistenceService.finalize behavior', () => {
     expect(configInsertCall).toBeDefined();
     const configValues = configInsertCall.value.values.mock.calls[0]?.[0];
     expect(configValues.config).toMatchObject({
+      fundSize: 10_000_000,
+      vintageYear: 2026,
+      managementFeeRate: 2,
+      carriedInterest: 20,
+      targetMetrics: {
+        targetIRR: 0.28,
+        targetTVPI: 2.8,
+        targetCompanyCount: 22,
+      },
       stages: [{ id: 'stg-1', name: 'Seed' }],
     });
   });

@@ -56,9 +56,11 @@ interface CohortResults {
 interface FundConfig {
   targetIRR?: number;
   targetTVPI?: number;
+  targetDPI?: number;
   investmentPeriodYears?: number;
   fundTermYears?: number;
   reserveRatio?: number;
+  targetCompanyCount?: number;
   graduationMatrix?: unknown;
 }
 
@@ -111,9 +113,9 @@ export class ProjectedMetricsCalculator {
     const projectedNAV = this.buildNAVProjection(cohortResults);
 
     // Extract expected performance
-    const expectedTVPI = cohortResults?.expectedTVPI || config.targetTVPI || 2.5;
-    const expectedIRR = cohortResults?.expectedIRR || config.targetIRR || 0.25;
-    const expectedDPI = cohortResults?.expectedDPI || 1.0;
+    const expectedTVPI = cohortResults?.expectedTVPI ?? config.targetTVPI ?? 2.5;
+    const expectedIRR = cohortResults?.expectedIRR ?? config.targetIRR ?? 0.25;
+    const expectedDPI = cohortResults?.expectedDPI ?? config.targetDPI ?? 1.0;
 
     // Extract reserve calculations
     const totalReserveNeeds = reserveResults?.totalReserves || 0;
@@ -197,7 +199,7 @@ export class ProjectedMetricsCalculator {
     config: FundConfig
   ): Promise<PacingResults | null> {
     try {
-      const investmentPeriodYears = config.investmentPeriodYears || 3;
+      const investmentPeriodYears = config.investmentPeriodYears ?? 3;
       const fundSize = toDecimal(fund.size.toString());
       const deployed = toDecimal(fund.deployedCapital?.toString() || '0');
       const fundAgeMonths = fund.establishmentDate
@@ -270,13 +272,13 @@ export class ProjectedMetricsCalculator {
       const summary: CohortSummary = generateCohortSummary(cohortInput);
 
       // Map engine output to expected format
-      const fundTermYears = config.fundTermYears || 10;
+      const fundTermYears = config.fundTermYears ?? 10;
       const quarters = fundTermYears * 4;
 
       return {
-        expectedTVPI: summary.performance.multiple || config.targetTVPI || 2.5,
-        expectedIRR: summary.performance.irr || config.targetIRR || 0.25,
-        expectedDPI: summary.performance.dpi || 1.0,
+        expectedTVPI: summary.performance.multiple ?? config.targetTVPI ?? 2.5,
+        expectedIRR: summary.performance.irr ?? config.targetIRR ?? 0.25,
+        expectedDPI: summary.performance.dpi ?? config.targetDPI ?? 1.0,
         // Generate synthetic schedules based on performance data
         distributionSchedule: this.generateDistributionSchedule(summary, quarters),
         navProgression: this.generateNAVProgression(summary, quarters),
@@ -410,9 +412,9 @@ export class ProjectedMetricsCalculator {
     asOfDate: string
   ): Promise<ProjectedMetrics> {
     const fundSize = toDecimal(fund.size.toString());
-    const targetTVPI = config.targetTVPI || 2.5;
-    const investmentPeriodYears = config.investmentPeriodYears || 5;
-    const fundLifeYears = config.fundTermYears || 10;
+    const targetTVPI = config.targetTVPI ?? 2.5;
+    const investmentPeriodYears = config.investmentPeriodYears ?? 5;
+    const fundLifeYears = config.fundTermYears ?? 10;
 
     // Ensure we have a valid establishment date
     const establishmentDate = fund.establishmentDate ?? fund.createdAt ?? new Date();
@@ -462,8 +464,8 @@ export class ProjectedMetricsCalculator {
       projectedDistributions,
       projectedNAV,
       expectedTVPI: forecast.projected.tvpi,
-      expectedIRR: config.targetIRR || 0.25, // J-curve doesn't calculate IRR
-      expectedDPI: forecast.projected.dpi,
+      expectedIRR: config.targetIRR ?? 0.25, // J-curve doesn't calculate IRR
+      expectedDPI: forecast.projected.dpi ?? config.targetDPI ?? 1.0,
       totalReserveNeeds: 0, // No reserves needed in construction phase
       allocatedReserves: 0,
       unallocatedReserves: 0,

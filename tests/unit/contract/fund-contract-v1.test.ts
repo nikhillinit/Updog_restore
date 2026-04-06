@@ -103,6 +103,19 @@ describe('FundDraftWriteV1Schema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts payload with target metrics block', () => {
+    const payload = {
+      ...validDraftPayload,
+      targetMetrics: {
+        targetIRR: 0.3,
+        targetTVPI: 3.0,
+        targetCompanyCount: 30,
+      },
+    };
+    const result = FundDraftWriteV1Schema.safeParse(payload);
+    expect(result.success).toBe(true);
+  });
+
   it('rejects missing fundName', () => {
     const result = FundDraftWriteV1Schema.safeParse(invalidDraftPayloads.missingFundName);
     expect(result.success).toBe(false);
@@ -110,6 +123,23 @@ describe('FundDraftWriteV1Schema', () => {
 
   it('rejects empty fundName', () => {
     const result = FundDraftWriteV1Schema.safeParse(invalidDraftPayloads.emptyFundName);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects negative fundSize', () => {
+    const result = FundDraftWriteV1Schema.safeParse({
+      fundName: 'Bad Size Fund',
+      fundSize: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects nonpositive fundLife and investmentPeriod', () => {
+    const result = FundDraftWriteV1Schema.safeParse({
+      fundName: 'Bad Period Fund',
+      fundLife: 0,
+      investmentPeriod: 0,
+    });
     expect(result.success).toBe(false);
   });
 
@@ -137,6 +167,7 @@ describe('FundDraftWriteV1Schema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.fundName).toBe(validDraftPayload.fundName);
+      expect(result.data.targetMetrics).toEqual(validDraftPayload.targetMetrics);
       expect(result.data.stages).toHaveLength(2);
       expect(result.data.waterfallTiers).toHaveLength(2);
       expect(result.data.feeProfiles).toHaveLength(1);

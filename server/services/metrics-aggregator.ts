@@ -21,6 +21,8 @@ import { VarianceCalculator } from './variance-calculator';
 import { getFundAge, isConstructionPhase, type FundAge } from '@shared/lib/lifecycle-rules';
 import type { Fund, PortfolioCompany } from '@shared/schema';
 import { toDecimal } from '@shared/lib/decimal-utils';
+import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { z } from 'zod';
 
 interface CacheClient {
   get<T>(key: string): Promise<T | null>;
@@ -28,6 +30,35 @@ interface CacheClient {
   del(key: string): Promise<void>;
   setnx?(key: string, value: string, ttlSeconds?: number): Promise<boolean>;
 }
+
+interface MetricsFundConfig {
+  fundSizeOverride?: number;
+  targetIRR: number;
+  targetTVPI: number;
+  targetDPI?: number;
+  investmentPeriodYears: number;
+  fundTermYears: number;
+  reserveRatio?: number;
+  targetCompanyCount: number;
+}
+
+const LEGACY_DEFAULT_TARGETS: MetricsFundConfig = {
+  targetIRR: 0.25,
+  targetTVPI: 2.5,
+  investmentPeriodYears: 3,
+  fundTermYears: 10,
+  reserveRatio: 0.5,
+  targetCompanyCount: 20,
+};
+
+const MetricsTargetExtractionSchema = z
+  .object({
+    fundSize: FundDraftWriteV1Schema.shape.fundSize,
+    fundLife: FundDraftWriteV1Schema.shape.fundLife,
+    investmentPeriod: FundDraftWriteV1Schema.shape.investmentPeriod,
+    targetMetrics: FundDraftWriteV1Schema.shape.targetMetrics,
+  })
+  .passthrough();
 
 // Simple in-memory cache fallback
 class InMemoryCache implements CacheClient {
@@ -175,7 +206,10 @@ export class MetricsAggregator {
       }>;
 
       // Fetch fund configuration
-      const config = await this.getFundConfig(fundId);
+      const { config, warnings: configWarnings } = await this.resolveFundConfig(fundId);
+      warnings.push(...configWarnings);
+      const effectiveFund =
+        config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
 
       // Calculate all metric components in parallel with error handling
       let actual, projected;
@@ -189,7 +223,7 @@ export class MetricsAggregator {
       }
 
       if (options.skipProjections) {
-        projected = this.getDefaultProjectedMetrics();
+        projected = this.getDefaultProjectedMetrics(config);
         projectedStatus = 'skipped';
         warnings.push('Projections skipped for performance');
       } else {
@@ -205,24 +239,24 @@ export class MetricsAggregator {
           if (isConstruction) {
             // Route to J-curve construction forecast
             warnings.push('Using J-curve construction forecast (no investments yet)');
-            projected = await this.projectedCalculator.calculate(fund, companies, config, {
+            projected = await this.projectedCalculator.calculate(effectiveFund, companies, config, {
               useConstructionForecast: true
             });
           } else {
             // Use standard projection engines
-            projected = await this.projectedCalculator.calculate(fund, companies, config);
+            projected = await this.projectedCalculator.calculate(effectiveFund, companies, config);
           }
         } catch (error) {
           projectedStatus = 'failed';
           warnings.push(`Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          projected = this.getDefaultProjectedMetrics(); // Use fallback
+          projected = this.getDefaultProjectedMetrics(config); // Use fallback
         }
       }
 
       // Extract target metrics from config
       let target;
       try {
-        target = this.extractTargetMetrics(fund, config);
+        target = this.extractTargetMetrics(effectiveFund, config);
       } catch (error) {
         targetStatus = 'failed';
         warnings.push(`Target metrics extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -316,25 +350,67 @@ export class MetricsAggregator {
   }
 
   /**
-   * Get fund configuration with defaults
+   * Resolve published config into the metrics-target shape, with explicit
+   * legacy fallback warnings when target fields are unavailable.
    */
-  private async getFundConfig(_fundId: number): Promise<{
-    targetIRR: number;
-    targetTVPI: number;
-    targetDPI?: number;
-    investmentPeriodYears: number;
-    fundTermYears: number;
-    reserveRatio: number;
-    graduationMatrix?: unknown;
+  private async resolveFundConfig(fundId: number): Promise<{
+    config: MetricsFundConfig;
+    warnings: string[];
   }> {
-    // TODO: Fetch from fund_configs table when available
-    // For now, use reasonable defaults
+    const publishedConfig = await storage.getFundConfig(fundId);
+    if (!publishedConfig) {
+      return {
+        config: { ...LEGACY_DEFAULT_TARGETS },
+        warnings: [
+          'Using legacy generic targets because no published fund config is available.'
+        ],
+      };
+    }
+
+    const parsedConfig = MetricsTargetExtractionSchema.safeParse(publishedConfig.config);
+    if (!parsedConfig.success) {
+      return {
+        config: { ...LEGACY_DEFAULT_TARGETS },
+        warnings: [
+          `Using legacy generic targets because published config version ${publishedConfig.version} is invalid for target extraction.`
+        ],
+      };
+    }
+
+    const draftConfig = parsedConfig.data;
+    if (!draftConfig.targetMetrics) {
+      return {
+        config: {
+          ...LEGACY_DEFAULT_TARGETS,
+          ...(draftConfig.fundSize != null && { fundSizeOverride: draftConfig.fundSize }),
+          ...(draftConfig.investmentPeriod != null && {
+            investmentPeriodYears: draftConfig.investmentPeriod,
+          }),
+          ...(draftConfig.fundLife != null && { fundTermYears: draftConfig.fundLife }),
+        },
+        warnings: [
+          `Using legacy generic targets because published config version ${publishedConfig.version} has no targetMetrics block.`
+        ],
+      };
+    }
+
     return {
-      targetIRR: 0.25, // 25%
-      targetTVPI: 2.5, // 2.5x
-      investmentPeriodYears: 3,
-      fundTermYears: 10,
-      reserveRatio: 0.5, // 50% reserves
+      config: {
+        ...(draftConfig.fundSize != null && { fundSizeOverride: draftConfig.fundSize }),
+        targetIRR: draftConfig.targetMetrics.targetIRR,
+        targetTVPI: draftConfig.targetMetrics.targetTVPI,
+        ...(draftConfig.targetMetrics.targetDPI != null && {
+          targetDPI: draftConfig.targetMetrics.targetDPI,
+        }),
+        investmentPeriodYears:
+          draftConfig.investmentPeriod ?? LEGACY_DEFAULT_TARGETS.investmentPeriodYears,
+        fundTermYears: draftConfig.fundLife ?? LEGACY_DEFAULT_TARGETS.fundTermYears,
+        ...(draftConfig.targetMetrics.targetReserveRatio != null && {
+          reserveRatio: draftConfig.targetMetrics.targetReserveRatio,
+        }),
+        targetCompanyCount: draftConfig.targetMetrics.targetCompanyCount,
+      },
+      warnings: [],
     };
   }
 
@@ -350,10 +426,10 @@ export class MetricsAggregator {
       investmentPeriodYears: number;
       fundTermYears: number;
       reserveRatio?: number;
+      targetCompanyCount: number;
     }
   ) {
     const targetFundSize = toDecimal(fund.size.toString()).toNumber();
-    const targetCompanyCount = 20; // TODO: Get from config
 
     return {
       targetFundSize,
@@ -361,8 +437,8 @@ export class MetricsAggregator {
       targetTVPI: config.targetTVPI,
       ...(config.targetDPI != null && { targetDPI: config.targetDPI }),
       targetDeploymentYears: config.investmentPeriodYears,
-      targetCompanyCount,
-      targetAverageCheckSize: targetFundSize / targetCompanyCount,
+      targetCompanyCount: config.targetCompanyCount,
+      targetAverageCheckSize: targetFundSize / config.targetCompanyCount,
       ...(config.reserveRatio != null && { targetReserveRatio: config.reserveRatio }),
     };
   }
@@ -370,16 +446,16 @@ export class MetricsAggregator {
   /**
    * Get default projected metrics (fallback when engines fail)
    */
-  private getDefaultProjectedMetrics() {
+  private getDefaultProjectedMetrics(config?: Pick<MetricsFundConfig, 'targetIRR' | 'targetTVPI' | 'targetDPI'>) {
     return {
       asOfDate: new Date().toISOString(),
       projectionDate: new Date().toISOString(),
       projectedDeployment: Array(12).fill(0),
       projectedDistributions: Array(12).fill(0),
       projectedNAV: Array(12).fill(0),
-      expectedTVPI: 2.5,
-      expectedIRR: 0.25,
-      expectedDPI: 1.0,
+      expectedTVPI: config?.targetTVPI ?? 2.5,
+      expectedIRR: config?.targetIRR ?? 0.25,
+      expectedDPI: config?.targetDPI ?? 1.0,
       totalReserveNeeds: 0,
       allocatedReserves: 0,
       unallocatedReserves: 0,
