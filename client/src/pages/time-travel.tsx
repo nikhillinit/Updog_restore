@@ -63,6 +63,8 @@ export default function TimeTravelPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentViewTime, setCurrentViewTime] = useState<string>('');
   const [createSnapshotDialogOpen, setCreateSnapshotDialogOpen] = useState(false);
+  const [snapshotType, setSnapshotType] = useState<'manual' | 'scheduled' | 'auto'>('manual');
+  const [snapshotDescription, setSnapshotDescription] = useState('');
 
   // Hooks
   const {
@@ -132,16 +134,18 @@ export default function TimeTravelPage() {
       });
 
       toast({
-        title: 'Snapshot Created',
-        description: 'A new snapshot has been queued for creation.',
+        title: 'Snapshot Requested',
+        description: 'A snapshot job has been queued for this dormant page.',
       });
 
+      setSnapshotType('manual');
+      setSnapshotDescription('');
       setCreateSnapshotDialogOpen(false);
       refetchTimeline();
     } catch {
       toast({
         title: 'Error',
-        description: 'Failed to create snapshot. Please try again.',
+        description: 'Failed to request the snapshot job. Please try again.',
         variant: 'destructive',
       });
     }
@@ -179,9 +183,9 @@ export default function TimeTravelPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Time-Travel Analytics</h1>
           <p className="text-gray-600 mt-2">
-            Explore historical fund states and create snapshots. A server-side versioned restore
-            workflow exists, but restore remains unavailable on this page until that workflow is
-            wired to the active UI end-to-end.
+            Inspect legacy timeline reads and queue snapshot jobs on this dormant page. Restore
+            remains unavailable because the visible timeline snapshots do not expose the UUID
+            snapshot/version identities required by the server-side restore flow.
           </p>
         </div>
 
@@ -190,20 +194,26 @@ export default function TimeTravelPage() {
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
                 <Camera className="w-4 h-4" />
-                <span>Create Snapshot</span>
+                <span>Request Snapshot</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Snapshot</DialogTitle>
+                <DialogTitle>Request Snapshot Job</DialogTitle>
                 <DialogDescription>
-                  Create a snapshot of the current fund state for future reference or restoration.
+                  Queue a snapshot job for the current fund state. In this environment the page
+                  receives only the queued acknowledgment, not a restoreable snapshot payload.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Snapshot Type</label>
-                  <Select defaultValue="manual">
+                  <Select
+                    value={snapshotType}
+                    onValueChange={(value) =>
+                      setSnapshotType(value as 'manual' | 'scheduled' | 'auto')
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -216,7 +226,11 @@ export default function TimeTravelPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Description (Optional)</label>
-                  <Input placeholder="Enter snapshot description..." />
+                  <Input
+                    value={snapshotDescription}
+                    onChange={(e) => setSnapshotDescription(e.target.value)}
+                    placeholder="Enter snapshot description..."
+                  />
                 </div>
               </div>
               <DialogFooter>
@@ -224,10 +238,15 @@ export default function TimeTravelPage() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleCreateSnapshot('manual')}
+                  onClick={() =>
+                    handleCreateSnapshot(
+                      snapshotType,
+                      snapshotDescription.trim() || undefined
+                    )
+                  }
                   disabled={createSnapshotMutation.isPending}
                 >
-                  {createSnapshotMutation.isPending ? 'Creating...' : 'Create Snapshot'}
+                  {createSnapshotMutation.isPending ? 'Queueing...' : 'Queue Snapshot'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -415,9 +434,9 @@ export default function TimeTravelPage() {
             <CardHeader>
               <CardTitle>Snapshot Management</CardTitle>
               <CardDescription>
-                Create and inspect fund snapshots. Restore stays intentionally disabled on this page
-                until the existing server-side versioned restore workflow is wired to this surface
-                end-to-end.
+                Inspect legacy fund snapshots on this dormant page. Restore stays disabled because
+                these timeline snapshot IDs do not map to the UUID snapshot/version identities used
+                by the server-side restore workflow.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -473,9 +492,9 @@ export default function TimeTravelPage() {
                           size="sm"
                           className="cursor-not-allowed border-orange-200 text-orange-600 opacity-50 hover:bg-transparent"
                           disabled={true}
-                          title="Restore remains unavailable on this page until the existing server-side versioned restore workflow is wired end-to-end"
+                          title="Restore remains unavailable on this dormant page because the visible timeline snapshot IDs do not map to the server-side restore/version identities"
                         >
-                          Restore Unavailable
+                          Restore Not Available
                         </Button>
                       </div>
                     </div>
@@ -486,10 +505,11 @@ export default function TimeTravelPage() {
                   <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Snapshots</h3>
                   <p className="text-gray-600 mb-4">
-                    Create your first snapshot to save the current fund state.
+                    Queue your first snapshot job to inspect whether this dormant page receives new
+                    timeline entries.
                   </p>
                   <Button onClick={() => setCreateSnapshotDialogOpen(true)}>
-                    Create First Snapshot
+                    Request First Snapshot
                   </Button>
                 </div>
               )}

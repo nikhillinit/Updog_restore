@@ -31,6 +31,13 @@ export interface RestoreSnapshotVersionResponse {
   message: string;
 }
 
+export interface SnapshotRequestQueuedResponse {
+  message: string;
+  fundId: number;
+  type: 'manual' | 'scheduled' | 'auto';
+  estimatedCompletion: string;
+}
+
 export interface TimelineData {
   fundId: number;
   timeRange: {
@@ -200,7 +207,7 @@ export function useCreateSnapshot() {
       type?: 'manual' | 'scheduled' | 'auto';
       description?: string;
     }) => {
-      return apiRequest<{ success: boolean; snapshot: Snapshot }>(
+      return apiRequest<SnapshotRequestQueuedResponse>(
         'POST',
         `/api/timeline/${params.fundId}/snapshot`,
         {
@@ -210,7 +217,7 @@ export function useCreateSnapshot() {
       );
     },
     onSuccess: (_data, variables) => {
-      // Invalidate timeline queries for this fund
+      // Refresh timeline state after the queue request is accepted.
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
       });
