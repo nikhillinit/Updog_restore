@@ -16,6 +16,7 @@
 import { Router, type Request, type Response } from 'express';
 import {
   OneWayAnalysisRequestV1Schema,
+  TwoWayAnalysisRequestV1Schema,
   SensitivityRunKindSchema,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
@@ -67,6 +68,48 @@ router.post('/funds/:id/sensitivity/one-way', async (req: Request, res: Response
 
   try {
     const result = await oneWaySensitivityEngine.runOneWaySensitivity(fundId, parsed.data);
+    const durationMs = Date.now() - startedAt;
+    const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+    return res.status(200).json({ run: completedRun, result });
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+    const message = err instanceof Error ? err.message : 'Unknown engine failure';
+    await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+    const status = STATUS_BY_CODE[code] ?? 500;
+    return res.status(status).json({ code, message });
+  }
+});
+
+router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response) => {
+  const fundId = parseInt(String(req.params['id'] ?? ''), 10);
+  if (!Number.isInteger(fundId) || fundId <= 0) {
+    return res.status(400).json({
+      code: 'INVALID_FUND_ID',
+      message: 'fund id must be a positive integer',
+    });
+  }
+
+  const parsed = TwoWayAnalysisRequestV1Schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      code: 'INVALID_PARAMS',
+      message: 'request body failed validation',
+      issues: parsed.error.issues,
+    });
+  }
+
+  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+  const { twoWaySensitivityEngine, SensitivityEngineError } =
+    await import('../services/two-way-sensitivity-engine');
+
+  const userId = (req as Request & { user?: { id?: number } }).user?.id ?? 0;
+  const startedAt = Date.now();
+
+  const run = await sensitivityRunService.createPending(fundId, 'two_way', parsed.data, userId);
+
+  try {
+    const result = await twoWaySensitivityEngine.runTwoWaySensitivity(fundId, parsed.data);
     const durationMs = Date.now() - startedAt;
     const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
     return res.status(200).json({ run: completedRun, result });

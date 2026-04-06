@@ -3,11 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useOneWayRun, useSensitivityHistory } from '@/hooks/useSensitivityRuns';
+import { useOneWayRun, useSensitivityHistory, useTwoWayRun } from '@/hooks/useSensitivityRuns';
 import type {
   OneWayAnalysisRequestV1,
   OneWayAnalysisResultV1,
   SensitivityRunV1,
+  TwoWayAnalysisRequestV1,
+  TwoWayAnalysisResultV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
 function makeWrapper() {
@@ -71,14 +73,12 @@ describe('useOneWayRun', () => {
   });
 
   it('POSTs to /api/funds/:id/sensitivity/one-way with the request body', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ run: makeRunRecord(), result: makeResult() }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ run: makeRunRecord(), result: makeResult() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
 
     const { Wrapper } = makeWrapper();
     const { result } = renderHook(() => useOneWayRun(7), { wrapper: Wrapper });
@@ -159,6 +159,158 @@ describe('useOneWayRun', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['sensitivity-runs', 7, 'one_way'],
+    });
+  });
+});
+
+function makeTwoWayResult(): TwoWayAnalysisResultV1 {
+  return {
+    variableXId: 'reserve_pool_pct',
+    variableYId: 'management_fee_rate',
+    metricId: 'tvpi',
+    baselineValue: 2.4,
+    datapoints: [
+      { variableXValue: 0, variableYValue: 0, metricValue: 1.5 },
+      { variableXValue: 0, variableYValue: 0.05, metricValue: 1.9 },
+      { variableXValue: 0.5, variableYValue: 0, metricValue: 2.7 },
+      { variableXValue: 0.5, variableYValue: 0.05, metricValue: 3.1 },
+    ],
+    summary: { minMetric: 1.5, maxMetric: 3.1, range: 1.6 },
+    computedAt: '2026-04-06T00:00:01.000Z',
+  };
+}
+
+function makeTwoWayRunRecord(): SensitivityRunV1 {
+  return {
+    id: 88,
+    fundId: 7,
+    kind: 'two_way',
+    status: 'completed',
+    params: {
+      variableXId: 'reserve_pool_pct',
+      rangeX: { min: 0, max: 0.5 },
+      stepsX: 7,
+      variableYId: 'management_fee_rate',
+      rangeY: { min: 0, max: 0.05 },
+      stepsY: 7,
+      metricId: 'tvpi',
+    },
+    results: makeTwoWayResult(),
+    createdBy: 1,
+    createdAt: '2026-04-06T00:00:00.000Z',
+    completedAt: '2026-04-06T00:00:02.000Z',
+    durationMs: 2000,
+    errorCode: null,
+    errorMessage: null,
+  };
+}
+
+const baseTwoWayRequest: TwoWayAnalysisRequestV1 = {
+  variableXId: 'reserve_pool_pct',
+  rangeX: { min: 0, max: 0.5 },
+  stepsX: 7,
+  variableYId: 'management_fee_rate',
+  rangeY: { min: 0, max: 0.05 },
+  stepsY: 7,
+  metricId: 'tvpi',
+};
+
+describe('useTwoWayRun', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs to /api/funds/:id/sensitivity/two-way with the request body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ run: makeTwoWayRunRecord(), result: makeTwoWayResult() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useTwoWayRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseTwoWayRequest);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/sensitivity/two-way');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init?.body as string)).toEqual(baseTwoWayRequest);
+    expect(result.current.data?.result.baselineValue).toBe(2.4);
+    expect(result.current.data?.result.datapoints).toHaveLength(4);
+  });
+
+  it('parses { code, message } off non-OK responses and exposes status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'INVALID_REQUEST',
+          message: 'variableXId must differ from variableYId',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useTwoWayRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseTwoWayRequest);
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    const err = result.current.error;
+    expect(err).toBeTruthy();
+    expect(err?.code).toBe('INVALID_REQUEST');
+    expect(err?.status).toBe(422);
+    expect(err?.message).toBe('variableXId must differ from variableYId');
+  });
+
+  it('throws synchronously when fundId is null', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useTwoWayRun(null), { wrapper: Wrapper });
+
+    result.current.mutate(baseTwoWayRequest);
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.message).toMatch(/fundId is required/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('invalidates the two_way history query on success', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ run: makeTwoWayRunRecord(), result: makeTwoWayResult() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useTwoWayRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseTwoWayRequest);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['sensitivity-runs', 7, 'two_way'],
     });
   });
 });

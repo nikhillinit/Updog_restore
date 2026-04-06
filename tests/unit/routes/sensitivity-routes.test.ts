@@ -24,6 +24,7 @@ const {
   getHistoryByFundMock,
   getByIdMock,
   runOneWaySensitivityMock,
+  runTwoWaySensitivityMock,
 } = vi.hoisted(() => ({
   createPendingMock: vi.fn(),
   markCompletedMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   getHistoryByFundMock: vi.fn(),
   getByIdMock: vi.fn(),
   runOneWaySensitivityMock: vi.fn(),
+  runTwoWaySensitivityMock: vi.fn(),
 }));
 
 vi.mock('../../../server/services/sensitivity-run-service', () => ({
@@ -55,6 +57,27 @@ vi.mock('../../../server/services/one-way-sensitivity-engine', () => {
   return {
     oneWaySensitivityEngine: {
       runOneWaySensitivity: runOneWaySensitivityMock,
+    },
+    SensitivityEngineError,
+  };
+});
+
+vi.mock('../../../server/services/two-way-sensitivity-engine', () => {
+  // Re-declare the error class so the route's `instanceof` check resolves
+  // against the mocked specifier without dragging the real one-way module
+  // into the graph. The route imports SensitivityEngineError from the
+  // two-way engine module (which re-exports it), so we mirror that shape.
+  class SensitivityEngineError extends Error {
+    public readonly code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.name = 'SensitivityEngineError';
+      this.code = code;
+    }
+  }
+  return {
+    twoWaySensitivityEngine: {
+      runTwoWaySensitivity: runTwoWaySensitivityMock,
     },
     SensitivityEngineError,
   };
@@ -106,6 +129,50 @@ const fakeEngineResult = {
   computedAt: '2026-04-06T12:00:00.500Z',
 };
 
+const validTwoWayBody = {
+  variableXId: 'reserve_pool_pct',
+  rangeX: { min: 0.1, max: 0.3 },
+  stepsX: 3,
+  variableYId: 'management_fee_rate',
+  rangeY: { min: 0.01, max: 0.03 },
+  stepsY: 3,
+  metricId: 'tvpi',
+};
+
+const fakeTwoWayRun = {
+  ...fakeRun,
+  kind: 'two_way' as const,
+  params: validTwoWayBody,
+};
+
+const fakeTwoWayCompletedRun = {
+  ...fakeTwoWayRun,
+  status: 'completed' as const,
+  completedAt: new Date('2026-04-06T12:00:01.000Z'),
+  durationMs: 1000,
+  results: { ok: true },
+};
+
+const fakeTwoWayEngineResult = {
+  variableXId: 'reserve_pool_pct' as const,
+  variableYId: 'management_fee_rate' as const,
+  metricId: 'tvpi' as const,
+  baselineValue: 1.85,
+  datapoints: [
+    { variableXValue: 0.1, variableYValue: 0.01, metricValue: 1.8 },
+    { variableXValue: 0.1, variableYValue: 0.02, metricValue: 1.82 },
+    { variableXValue: 0.1, variableYValue: 0.03, metricValue: 1.83 },
+    { variableXValue: 0.2, variableYValue: 0.01, metricValue: 1.85 },
+    { variableXValue: 0.2, variableYValue: 0.02, metricValue: 1.86 },
+    { variableXValue: 0.2, variableYValue: 0.03, metricValue: 1.87 },
+    { variableXValue: 0.3, variableYValue: 0.01, metricValue: 1.9 },
+    { variableXValue: 0.3, variableYValue: 0.02, metricValue: 1.92 },
+    { variableXValue: 0.3, variableYValue: 0.03, metricValue: 1.95 },
+  ],
+  summary: { minMetric: 1.8, maxMetric: 1.95, range: 0.15 },
+  computedAt: '2026-04-06T12:00:00.500Z',
+};
+
 describe('Sensitivity routes', () => {
   let app: express.Express;
 
@@ -120,6 +187,7 @@ describe('Sensitivity routes', () => {
     markCompletedMock.mockResolvedValue(fakeCompletedRun);
     markFailedMock.mockResolvedValue({ ...fakeRun, status: 'failed' });
     runOneWaySensitivityMock.mockResolvedValue(fakeEngineResult);
+    runTwoWaySensitivityMock.mockResolvedValue(fakeTwoWayEngineResult);
     getHistoryByFundMock.mockResolvedValue([fakeCompletedRun]);
     getByIdMock.mockResolvedValue(fakeCompletedRun);
   });
@@ -238,5 +306,83 @@ describe('Sensitivity routes', () => {
     const res = await request(app).get('/api/funds/1/sensitivity/runs/99').expect(200);
     expect(res.body.run).toBeDefined();
     expect(getByIdMock).toHaveBeenCalledWith(1, 99);
+  });
+
+  // ----- POST /funds/:id/sensitivity/two-way -------------------------------
+
+  it('POST /two-way returns 200 with run + result on engine success', async () => {
+    createPendingMock.mockResolvedValueOnce(fakeTwoWayRun);
+    markCompletedMock.mockResolvedValueOnce(fakeTwoWayCompletedRun);
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/two-way')
+      .send(validTwoWayBody)
+      .expect(200);
+
+    expect(res.body.run).toBeDefined();
+    expect(res.body.result).toEqual(fakeTwoWayEngineResult);
+
+    expect(createPendingMock).toHaveBeenCalledTimes(1);
+    const createCall = createPendingMock.mock.calls[0]!;
+    expect(createCall[0]).toBe(1);
+    expect(createCall[1]).toBe('two_way');
+
+    expect(runTwoWaySensitivityMock).toHaveBeenCalledTimes(1);
+    expect(markCompletedMock).toHaveBeenCalledTimes(1);
+    const completedCall = markCompletedMock.mock.calls[0]!;
+    expect(completedCall[0]).toBe(fakeTwoWayRun.id);
+    expect(completedCall[1]).toEqual(fakeTwoWayEngineResult);
+    expect(typeof completedCall[2]).toBe('number');
+
+    expect(markFailedMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /two-way returns 400 on body missing variableYId', async () => {
+    const { variableYId: _y, ...bad } = validTwoWayBody;
+    const res = await request(app).post('/api/funds/1/sensitivity/two-way').send(bad).expect(400);
+    expect(res.body.code).toBe('INVALID_PARAMS');
+    expect(createPendingMock).not.toHaveBeenCalled();
+    expect(runTwoWaySensitivityMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /two-way returns 400 when variableXId === variableYId', async () => {
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/two-way')
+      .send({ ...validTwoWayBody, variableYId: validTwoWayBody.variableXId })
+      .expect(400);
+    expect(res.body.code).toBe('INVALID_PARAMS');
+    expect(createPendingMock).not.toHaveBeenCalled();
+    expect(runTwoWaySensitivityMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /two-way returns 409 with NO_PUBLISHED_CONFIG (regression for STATUS_BY_CODE reuse)', async () => {
+    const { SensitivityEngineError } =
+      await import('../../../server/services/two-way-sensitivity-engine');
+    runTwoWaySensitivityMock.mockRejectedValueOnce(
+      new SensitivityEngineError('NO_PUBLISHED_CONFIG', 'no published config')
+    );
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/two-way')
+      .send(validTwoWayBody)
+      .expect(409);
+
+    expect(res.body.code).toBe('NO_PUBLISHED_CONFIG');
+    expect(markFailedMock).toHaveBeenCalledTimes(1);
+    expect(markFailedMock.mock.calls[0]![1]).toBe('NO_PUBLISHED_CONFIG');
+    expect(markCompletedMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /two-way returns 500 with ENGINE_FAILURE on a generic engine error', async () => {
+    runTwoWaySensitivityMock.mockRejectedValueOnce(new Error('boom'));
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/two-way')
+      .send(validTwoWayBody)
+      .expect(500);
+
+    expect(res.body.code).toBe('ENGINE_FAILURE');
+    expect(markFailedMock).toHaveBeenCalledTimes(1);
+    expect(markFailedMock.mock.calls[0]![1]).toBe('ENGINE_FAILURE');
   });
 });
