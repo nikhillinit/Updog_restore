@@ -37,7 +37,7 @@ export interface PerformanceExportData {
     nav: number;
     tvpi: number;
     dpi: number;
-    irr: number;
+    irr: number | null;
   }>;
 }
 
@@ -59,6 +59,14 @@ function formatPercent(value: number | null | undefined): string {
     return 'N/A';
   }
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function isFiniteNumber(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value);
+}
+
+function toPercentCellValue(value: number | null | undefined): number | string {
+  return isFiniteNumber(value) ? value : 'N/A';
 }
 
 function formatMultiple(value: number): string {
@@ -283,7 +291,7 @@ export async function generatePerformanceSummaryXLSX(data: PerformanceExportData
     f.nav,
     f.tvpi,
     f.dpi,
-    f.irr,
+    toPercentCellValue(f.irr),
   ]);
 
   // Totals
@@ -299,7 +307,19 @@ export async function generatePerformanceSummaryXLSX(data: PerformanceExportData
 
   const avgTVPI = totals.called > 0 ? (totals.nav + totals.distributed) / totals.called : 1;
   const avgDPI = totals.called > 0 ? totals.distributed / totals.called : 0;
-  const avgIRR = data.funds.reduce((sum, f) => sum + f.irr * f.commitment, 0) / totals.commitment;
+  const positiveCommitmentFunds = data.funds.filter((f) => f.commitment > 0);
+  const validPositiveCommitmentFunds = positiveCommitmentFunds.filter(
+    (f): typeof f & { irr: number } => Number.isFinite(f.commitment) && isFiniteNumber(f.irr)
+  );
+  const positiveCommitmentTotal = positiveCommitmentFunds.reduce((sum, f) => sum + f.commitment, 0);
+  const weightedAverageIrr =
+    Number.isFinite(positiveCommitmentTotal) &&
+    positiveCommitmentTotal > 0 &&
+    validPositiveCommitmentFunds.length === positiveCommitmentFunds.length
+      ? validPositiveCommitmentFunds.reduce((sum, f) => sum + f.irr * f.commitment, 0) /
+        positiveCommitmentTotal
+      : null;
+  const avgIRR = isFiniteNumber(weightedAverageIrr) ? weightedAverageIrr : 'N/A';
 
   perfRows.push([
     'Total / Weighted Average',
@@ -335,7 +355,10 @@ export async function generatePerformanceSummaryXLSX(data: PerformanceExportData
     }
     row.getCell(6).numFmt = '0.00x';
     row.getCell(7).numFmt = '0.00x';
-    row.getCell(8).numFmt = '0.00%';
+    const irrCell = row.getCell(8);
+    if (typeof irrCell.value === 'number' && Number.isFinite(irrCell.value)) {
+      irrCell.numFmt = '0.00%';
+    }
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
