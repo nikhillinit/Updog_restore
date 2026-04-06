@@ -13,6 +13,8 @@ import type {
   OneWayAnalysisResultV1,
   SensitivityRunV1,
   SensitivityRunKind,
+  TwoWayAnalysisRequestV1,
+  TwoWayAnalysisResultV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
 // =====================
@@ -22,6 +24,11 @@ import type {
 export interface OneWayRunResponse {
   run: SensitivityRunV1;
   result: OneWayAnalysisResultV1;
+}
+
+export interface TwoWayRunResponse {
+  run: SensitivityRunV1;
+  result: TwoWayAnalysisResultV1;
 }
 
 export interface SensitivityErrorBody {
@@ -61,6 +68,27 @@ async function postOneWayRun(
   }
 
   return (await res.json()) as OneWayRunResponse;
+}
+
+async function postTwoWayRun(
+  fundId: number,
+  body: TwoWayAnalysisRequestV1
+): Promise<TwoWayRunResponse> {
+  const res = await fetch(`/api/funds/${fundId}/sensitivity/two-way`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as Partial<SensitivityErrorBody>;
+    const error = new Error(errorBody.message ?? `HTTP ${res.status}`) as SensitivityHookError;
+    error.code = errorBody.code ?? 'UNKNOWN';
+    error.status = res.status;
+    throw error;
+  }
+
+  return (await res.json()) as TwoWayRunResponse;
 }
 
 async function fetchSensitivityHistory(
@@ -111,6 +139,31 @@ export function useOneWayRun(fundId: number | null) {
       if (fundId !== null) {
         queryClient.invalidateQueries({
           queryKey: ['sensitivity-runs', fundId, 'one_way'],
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Mutation to POST a two-way sensitivity request. Mirrors useOneWayRun's
+ * error-shape contract: thrown errors carry the server's `code` and HTTP
+ * status so callers can branch on tier-2 codes without re-parsing the body.
+ */
+export function useTwoWayRun(fundId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<TwoWayRunResponse, SensitivityHookError, TwoWayAnalysisRequestV1>({
+    mutationFn: async (body) => {
+      if (fundId === null) {
+        throw new Error('fundId is required');
+      }
+      return postTwoWayRun(fundId, body);
+    },
+    onSuccess: () => {
+      if (fundId !== null) {
+        queryClient.invalidateQueries({
+          queryKey: ['sensitivity-runs', fundId, 'two_way'],
         });
       }
     },

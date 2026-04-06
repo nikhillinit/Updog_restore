@@ -102,3 +102,77 @@ export type OneWayAnalysisRequestV1 = z.infer<typeof OneWayAnalysisRequestV1Sche
 export type OneWayAnalysisResultV1 = z.infer<typeof OneWayAnalysisResultV1Schema>;
 export type OneWayAnalysisDatapoint = z.infer<typeof OneWayAnalysisDatapointSchema>;
 export type OneWayAnalysisSummary = z.infer<typeof OneWayAnalysisSummarySchema>;
+
+// =====================
+// TWO-WAY ANALYSIS (Phase 2)
+// =====================
+
+/**
+ * Inclusive sweep range for one axis of a two-way grid. Refined to require
+ * min < max so the linspace math can never produce a degenerate single-point
+ * axis. Mirrors OneWayAnalysisRangeSchema but kept as a distinct symbol so
+ * the two phases can evolve independently.
+ */
+export const TwoWayAnalysisRangeSchema = z
+  .object({
+    min: z.number(),
+    max: z.number(),
+  })
+  .strict()
+  .refine((r) => r.min < r.max, { message: 'min must be less than max' });
+
+/**
+ * Caller-supplied parameters for a two-way sensitivity request. The X and Y
+ * variable ids are constrained to the supported library and MUST differ; the
+ * stepsX/stepsY bounds (2..50) keep the worst-case grid below the engine
+ * budget (50 * 50 = 2500 fund-model invocations).
+ */
+export const TwoWayAnalysisRequestV1Schema = z
+  .object({
+    variableXId: SensitivityVariableIdSchema,
+    rangeX: TwoWayAnalysisRangeSchema,
+    stepsX: z.number().int().min(2).max(50),
+    variableYId: SensitivityVariableIdSchema,
+    rangeY: TwoWayAnalysisRangeSchema,
+    stepsY: z.number().int().min(2).max(50),
+    metricId: SensitivityMetricIdSchema,
+  })
+  .strict()
+  .refine((r) => r.variableXId !== r.variableYId, {
+    message: 'variableXId must differ from variableYId',
+    path: ['variableYId'],
+  });
+
+export const TwoWayAnalysisDatapointSchema = z
+  .object({
+    variableXValue: z.number(),
+    variableYValue: z.number(),
+    metricValue: z.number(),
+  })
+  .strict();
+
+export const TwoWayAnalysisSummarySchema = z
+  .object({
+    minMetric: z.number(),
+    maxMetric: z.number(),
+    range: z.number(),
+  })
+  .strict();
+
+export const TwoWayAnalysisResultV1Schema = z
+  .object({
+    variableXId: SensitivityVariableIdSchema,
+    variableYId: SensitivityVariableIdSchema,
+    metricId: SensitivityMetricIdSchema,
+    /** Metric value computed from the unmodified base config. */
+    baselineValue: z.number(),
+    datapoints: z.array(TwoWayAnalysisDatapointSchema),
+    summary: TwoWayAnalysisSummarySchema,
+    computedAt: z.string().datetime(),
+  })
+  .strict();
+
+export type TwoWayAnalysisRequestV1 = z.infer<typeof TwoWayAnalysisRequestV1Schema>;
+export type TwoWayAnalysisResultV1 = z.infer<typeof TwoWayAnalysisResultV1Schema>;
+export type TwoWayAnalysisDatapoint = z.infer<typeof TwoWayAnalysisDatapointSchema>;
+export type TwoWayAnalysisSummary = z.infer<typeof TwoWayAnalysisSummarySchema>;
