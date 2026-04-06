@@ -7,16 +7,22 @@ const {
   getAllocationScenarioMock,
   getAllocationScenarioApplyPreviewMock,
   createAllocationScenarioMock,
+  createReserveIcDecisionMock,
+  listReserveIcDecisionsMock,
   syncAllocationScenarioMock,
   applyAllocationScenarioMock,
+  updateReserveIcDecisionMock,
   updateAllocationScenarioMock,
 } = vi.hoisted(() => ({
   listAllocationScenariosMock: vi.fn(),
   getAllocationScenarioMock: vi.fn(),
   getAllocationScenarioApplyPreviewMock: vi.fn(),
   createAllocationScenarioMock: vi.fn(),
+  createReserveIcDecisionMock: vi.fn(),
+  listReserveIcDecisionsMock: vi.fn(),
   syncAllocationScenarioMock: vi.fn(),
   applyAllocationScenarioMock: vi.fn(),
+  updateReserveIcDecisionMock: vi.fn(),
   updateAllocationScenarioMock: vi.fn(),
 }));
 
@@ -25,8 +31,11 @@ vi.mock('../../../server/services/allocation-scenario-service.js', () => ({
   getAllocationScenario: getAllocationScenarioMock,
   getAllocationScenarioApplyPreview: getAllocationScenarioApplyPreviewMock,
   createAllocationScenario: createAllocationScenarioMock,
+  createReserveIcDecision: createReserveIcDecisionMock,
+  listReserveIcDecisions: listReserveIcDecisionsMock,
   syncAllocationScenario: syncAllocationScenarioMock,
   applyAllocationScenario: applyAllocationScenarioMock,
+  updateReserveIcDecision: updateReserveIcDecisionMock,
   updateAllocationScenario: updateAllocationScenarioMock,
 }));
 
@@ -211,6 +220,27 @@ const scenarioApplyResult = {
   },
 };
 
+const reserveIcDecision = {
+  id: '00000000-0000-0000-0000-000000000301',
+  fundId: 1,
+  companyId: 1,
+  decisionType: 'follow_on',
+  decisionStatus: 'proposed',
+  rationale: 'Reserve for a larger Series B check',
+  proposedPlannedReservesCents: 200000000,
+  finalPlannedReservesCents: null,
+  decidedByUserId: null,
+  decidedByLabel: null,
+  decidedAt: null,
+  provenance: {
+    sourceScenarioId: scenarioId,
+    sourceAllocationVersion: 3,
+    liveAllocationVersion: 3,
+  },
+  createdAt: '2026-03-30T18:45:00.000Z',
+  updatedAt: '2026-03-30T18:45:00.000Z',
+};
+
 describe('Allocation scenarios API', () => {
   let app: express.Express;
 
@@ -265,6 +295,17 @@ describe('Allocation scenarios API', () => {
     expect(getAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId);
   });
 
+  it('lists reserve IC decisions for a scenario', async () => {
+    listReserveIcDecisionsMock.mockResolvedValue([reserveIcDecision]);
+
+    const response = await request(app)
+      .get(`/funds/1/allocation-scenarios/${scenarioId}/decisions`)
+      .expect(200);
+
+    expect(response.body).toEqual({ decisions: [reserveIcDecision] });
+    expect(listReserveIcDecisionsMock).toHaveBeenCalledWith(1, scenarioId);
+  });
+
   it('fetches scenario apply preview', async () => {
     getAllocationScenarioApplyPreviewMock.mockResolvedValue(scenarioApplyPreview);
 
@@ -295,6 +336,39 @@ describe('Allocation scenarios API', () => {
     expect(createAllocationScenarioMock).toHaveBeenCalledWith(1, payload);
   });
 
+  it('creates a reserve IC decision scoped to the scenario route', async () => {
+    createReserveIcDecisionMock.mockResolvedValue(reserveIcDecision);
+
+    const payload = {
+      fundId: 1,
+      companyId: 1,
+      decisionType: 'follow_on',
+      decisionStatus: 'proposed',
+      rationale: 'Reserve for a larger Series B check',
+      proposedPlannedReservesCents: 200000000,
+      finalPlannedReservesCents: null,
+      provenance: {
+        sourceScenarioId: scenarioId,
+        sourceAllocationVersion: 3,
+        liveAllocationVersion: 3,
+      },
+    };
+
+    const response = await request(app)
+      .post(`/funds/1/allocation-scenarios/${scenarioId}/decisions`)
+      .send(payload)
+      .expect(201);
+
+    expect(response.body).toEqual(reserveIcDecision);
+    expect(createReserveIcDecisionMock).toHaveBeenCalledWith(
+      1,
+      scenarioId,
+      expect.objectContaining({
+        ...payload,
+      })
+    );
+  });
+
   it('patches scenario metadata and snapshots', async () => {
     updateAllocationScenarioMock.mockResolvedValue({
       ...scenarioDetail,
@@ -318,6 +392,46 @@ describe('Allocation scenarios API', () => {
       })
     );
     expect(updateAllocationScenarioMock).toHaveBeenCalledWith(1, scenarioId, payload);
+  });
+
+  it('updates a reserve IC decision', async () => {
+    updateReserveIcDecisionMock.mockResolvedValue({
+      ...reserveIcDecision,
+      decisionStatus: 'approved',
+      decidedByUserId: 17,
+      decidedByLabel: 'analyst@example.com',
+      decidedAt: '2026-03-30T19:00:00.000Z',
+      updatedAt: '2026-03-30T19:00:00.000Z',
+    });
+
+    const payload = {
+      decisionStatus: 'approved',
+      rationale: 'Approved after committee review',
+      finalPlannedReservesCents: 190000000,
+      provenance: {
+        sourceScenarioId: scenarioId,
+        sourceAllocationVersion: 3,
+        liveAllocationVersion: 3,
+      },
+    };
+
+    const response = await request(app)
+      .patch(`/funds/1/allocation-scenarios/${scenarioId}/decisions/${reserveIcDecision.id}`)
+      .send(payload)
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: reserveIcDecision.id,
+        decisionStatus: 'approved',
+      })
+    );
+    expect(updateReserveIcDecisionMock).toHaveBeenCalledWith(
+      1,
+      scenarioId,
+      reserveIcDecision.id,
+      expect.objectContaining(payload)
+    );
   });
 
   it('syncs a scenario from live allocations', async () => {
@@ -385,6 +499,20 @@ describe('Allocation scenarios API', () => {
       })
     );
     expect(getAllocationScenarioMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid decision ids before touching the service', async () => {
+    const response = await request(app)
+      .patch(`/funds/1/allocation-scenarios/${scenarioId}/decisions/not-a-uuid`)
+      .send({ decisionStatus: 'approved' })
+      .expect(400);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: 'invalid_decision_id',
+      })
+    );
+    expect(updateReserveIcDecisionMock).not.toHaveBeenCalled();
   });
 
   it('rejects empty patch payloads', async () => {

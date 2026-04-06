@@ -20,6 +20,7 @@ export interface ReserveIcPacketCompanyRow {
   deltaPlannedReservesCents: number | null;
   liveAllocationVersion: number | null;
   rationale: string | null;
+  decisionRationale: string | null;
   recordedDecisionType: ReserveIcDecisionRecordV1['decisionType'] | null;
   recordedDecisionStatus: ReserveIcDecisionRecordV1['decisionStatus'] | null;
 }
@@ -171,6 +172,7 @@ export function buildReserveIcPacket({
           : null,
       liveAllocationVersion: live?.allocation_version ?? null,
       rationale: item.allocation_reason,
+      decisionRationale: decision?.rationale ?? null,
       recordedDecisionType: decision?.decisionType ?? null,
       recordedDecisionStatus: decision?.decisionStatus ?? null,
     };

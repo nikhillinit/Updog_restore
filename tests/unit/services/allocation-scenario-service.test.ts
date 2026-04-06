@@ -17,13 +17,17 @@ vi.mock('../../../server/services/allocation-write-service.js', () => ({
 
 import {
   applyAllocationScenario,
+  createReserveIcDecision,
   getAllocationScenario,
   getAllocationScenarioApplyPreview,
+  listReserveIcDecisions,
   listAllocationScenarios,
   syncAllocationScenario,
+  updateReserveIcDecision,
 } from '../../../server/services/allocation-scenario-service';
 
 const scenarioId = '00000000-0000-0000-0000-000000000101';
+const reserveIcDecisionId = '00000000-0000-0000-0000-000000000301';
 
 function buildScenarioHeader(options: {
   sourceAllocationVersion: number | null;
@@ -88,6 +92,39 @@ function queuePreviewQueries(options: {
     })
     .mockResolvedValueOnce({ rows: options.scenarioItems })
     .mockResolvedValueOnce({ rows: options.liveRows });
+}
+
+function buildReserveIcDecisionRow(options?: Partial<{
+  decision_type: 'follow_on' | 'defer' | 'cut_reserve' | 'no_action';
+  decision_status: 'draft' | 'proposed' | 'approved' | 'rejected';
+  rationale: string;
+  proposed_planned_reserves_cents: string | null;
+  final_planned_reserves_cents: string | null;
+  decided_by_user_id: number | null;
+  decided_by_label: string | null;
+  decided_at: Date | null;
+  source_allocation_version: number | null;
+  live_allocation_version: number | null;
+  updated_at: Date;
+}>) {
+  return {
+    id: reserveIcDecisionId,
+    fund_id: 1,
+    scenario_id: scenarioId,
+    company_id: 1,
+    decision_type: options?.decision_type ?? 'follow_on',
+    decision_status: options?.decision_status ?? 'proposed',
+    rationale: options?.rationale ?? 'Reserve for a larger Series B check',
+    proposed_planned_reserves_cents: options?.proposed_planned_reserves_cents ?? '200000000',
+    final_planned_reserves_cents: options?.final_planned_reserves_cents ?? null,
+    decided_by_user_id: options?.decided_by_user_id ?? null,
+    decided_by_label: options?.decided_by_label ?? null,
+    decided_at: options?.decided_at ?? null,
+    source_allocation_version: options?.source_allocation_version ?? 3,
+    live_allocation_version: options?.live_allocation_version ?? 3,
+    created_at: new Date('2026-03-30T18:45:00.000Z'),
+    updated_at: options?.updated_at ?? new Date('2026-03-30T18:45:00.000Z'),
+  };
 }
 
 describe('allocation scenario apply preview', () => {
@@ -262,6 +299,144 @@ describe('allocation scenario apply preview', () => {
         total_planned_delta_cents: -25000000,
       },
     });
+  });
+});
+
+describe('reserve IC decisions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(
+      async (callback: (client: { query: typeof queryMock }) => unknown) =>
+        callback({ query: queryMock })
+    );
+  });
+
+  it('lists scenario-scoped reserve IC decisions from the canonical table', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          buildScenarioHeader({
+            sourceAllocationVersion: 3,
+            companyCount: 2,
+            totalPlannedCents: '350000000',
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [buildReserveIcDecisionRow()],
+      });
+
+    const result = await listReserveIcDecisions(1, scenarioId);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: reserveIcDecisionId,
+        fundId: 1,
+        companyId: 1,
+        decisionType: 'follow_on',
+        decisionStatus: 'proposed',
+        provenance: {
+          sourceScenarioId: scenarioId,
+          sourceAllocationVersion: 3,
+          liveAllocationVersion: 3,
+        },
+      }),
+    ]);
+    expect(queryMock.mock.calls[2]?.[0]).toContain('FROM allocation_scenario_ic_decisions');
+  });
+
+  it('creates a reserve IC decision scoped to a scenario company', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          buildScenarioHeader({
+            sourceAllocationVersion: 3,
+            companyCount: 2,
+            totalPlannedCents: '350000000',
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ company_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [buildReserveIcDecisionRow()],
+      });
+
+    const result = await createReserveIcDecision(1, scenarioId, {
+      fundId: 1,
+      companyId: 1,
+      decisionType: 'follow_on',
+      decisionStatus: 'proposed',
+      rationale: 'Reserve for a larger Series B check',
+      proposedPlannedReservesCents: 200000000,
+      finalPlannedReservesCents: null,
+      provenance: {
+        sourceScenarioId: scenarioId,
+        sourceAllocationVersion: 3,
+        liveAllocationVersion: 3,
+      },
+    });
+
+    expect(result).toMatchObject({
+      id: reserveIcDecisionId,
+      companyId: 1,
+      decisionStatus: 'proposed',
+    });
+    expect(queryMock.mock.calls[5]?.[0]).toContain('INSERT INTO allocation_scenario_ic_decisions');
+  });
+
+  it('updates a reserve IC decision without changing scenario apply/sync state', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          buildScenarioHeader({
+            sourceAllocationVersion: 3,
+            companyCount: 2,
+            totalPlannedCents: '350000000',
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [buildReserveIcDecisionRow()],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          buildReserveIcDecisionRow({
+            decision_status: 'approved',
+            rationale: 'Approved after committee review',
+            final_planned_reserves_cents: '190000000',
+            decided_by_user_id: 17,
+            decided_by_label: 'analyst@example.com',
+            decided_at: new Date('2026-03-30T19:00:00.000Z'),
+            updated_at: new Date('2026-03-30T19:00:00.000Z'),
+          }),
+        ],
+      });
+
+    const result = await updateReserveIcDecision(1, scenarioId, reserveIcDecisionId, {
+      decisionStatus: 'approved',
+      rationale: 'Approved after committee review',
+      finalPlannedReservesCents: 190000000,
+      provenance: {
+        sourceScenarioId: scenarioId,
+        sourceAllocationVersion: 3,
+        liveAllocationVersion: 3,
+      },
+    });
+
+    expect(result).toMatchObject({
+      id: reserveIcDecisionId,
+      decisionStatus: 'approved',
+      finalPlannedReservesCents: 190000000,
+      provenance: {
+        sourceScenarioId: scenarioId,
+      },
+    });
+    expect(queryMock.mock.calls[3]?.[0]).toContain('UPDATE allocation_scenario_ic_decisions');
   });
 });
 

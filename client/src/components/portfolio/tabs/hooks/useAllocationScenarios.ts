@@ -5,10 +5,13 @@ import type {
   AllocationScenarioApplyPreview,
   AllocationScenarioApplyResult,
   AllocationScenarioDetail,
+  CreateReserveIcDecisionPayload,
   AllocationScenarioListResponse,
   AllocationScenarioSyncResult,
   ApplyAllocationScenarioPayload,
   CreateAllocationScenarioPayload,
+  ReserveIcDecisionListResponse,
+  UpdateReserveIcDecisionPayload,
   UpdateAllocationScenarioPayload,
 } from '../types';
 
@@ -30,6 +33,13 @@ function getScenarioListQueryKey(fundId: number | null | undefined) {
 
 function getLatestAllocationsQueryKey(fundId: number | null | undefined) {
   return ['allocations', 'latest', fundId] as const;
+}
+
+function getScenarioDecisionListQueryKey(
+  fundId: number | null | undefined,
+  scenarioId: string | null
+) {
+  return ['allocations', 'scenarios', fundId, scenarioId, 'decisions'] as const;
 }
 
 export function useAllocationScenarioList() {
@@ -83,6 +93,33 @@ export function useAllocationScenarioDetail(
   });
 }
 
+export function useAllocationScenarioDecisions(
+  scenarioId: string | null,
+  options?: { enabled?: boolean }
+) {
+  const { fundId } = useFundContext();
+
+  return useQuery<ReserveIcDecisionListResponse>({
+    queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId),
+    queryFn: async () => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`);
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(buildErrorMessage(errorData, 'Failed to fetch Reserve IC decisions'));
+      }
+
+      return response.json() as Promise<ReserveIcDecisionListResponse>;
+    },
+    enabled: !!fundId && !!scenarioId && (options?.enabled ?? true),
+    staleTime: 0,
+  });
+}
+
 export function useCreateAllocationScenario() {
   const { fundId } = useFundContext();
   const queryClient = useQueryClient();
@@ -113,6 +150,38 @@ export function useCreateAllocationScenario() {
   });
 }
 
+export function useCreateReserveIcDecision(scenarioId: string | null) {
+  const { fundId } = useFundContext();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreateReserveIcDecisionPayload) => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(`/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(buildErrorMessage(errorData, 'Failed to create Reserve IC decision'));
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId) }),
+        queryClient.invalidateQueries({ queryKey: getScenarioDetailQueryKey(fundId, scenarioId) }),
+      ]);
+    },
+  });
+}
+
 export function useUpdateAllocationScenario(scenarioId: string | null) {
   const { fundId } = useFundContext();
   const queryClient = useQueryClient();
@@ -139,6 +208,47 @@ export function useUpdateAllocationScenario(scenarioId: string | null) {
     onSuccess: async (scenario) => {
       await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
       queryClient.setQueryData(getScenarioDetailQueryKey(fundId, scenario.id), scenario);
+    },
+  });
+}
+
+export function useUpdateReserveIcDecision(scenarioId: string | null) {
+  const { fundId } = useFundContext();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      decisionId,
+      payload,
+    }: {
+      decisionId: string;
+      payload: UpdateReserveIcDecisionPayload;
+    }) => {
+      if (!fundId || !scenarioId) {
+        throw new Error('Fund ID and scenario ID are required');
+      }
+
+      const response = await fetch(
+        `/api/funds/${fundId}/allocation-scenarios/${scenarioId}/decisions/${decisionId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as ApiErrorBody;
+        throw new Error(buildErrorMessage(errorData, 'Failed to update Reserve IC decision'));
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getScenarioDecisionListQueryKey(fundId, scenarioId) }),
+        queryClient.invalidateQueries({ queryKey: getScenarioDetailQueryKey(fundId, scenarioId) }),
+      ]);
     },
   });
 }

@@ -1,3 +1,9 @@
+import type {
+  CreateReserveIcDecisionV1,
+  ReserveIcDecisionRecordV1,
+  UpdateReserveIcDecisionV1,
+} from '@shared/contracts/reserve-ic-decision-v1.contract';
+
 /**
  * TypeScript types for Fund Allocation Management
  */
@@ -163,3 +169,11 @@ export interface AllocationScenarioApplyResult extends AllocationScenarioSyncRes
     current_live_token: string;
   };
 }
+
+export interface ReserveIcDecisionListResponse {
+  decisions: ReserveIcDecisionRecordV1[];
+}
+
+export type ReserveIcDecision = ReserveIcDecisionRecordV1;
+export type CreateReserveIcDecisionPayload = CreateReserveIcDecisionV1;
+export type UpdateReserveIcDecisionPayload = UpdateReserveIcDecisionV1;

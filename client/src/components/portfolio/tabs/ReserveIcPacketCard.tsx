@@ -40,6 +40,24 @@ function formatSignedCompactCents(value: number | null) {
   return `${value > 0 ? '+' : '-'}${absoluteValue}`;
 }
 
+function formatDecisionLabel(value: ReserveIcPacket['companyRows'][number]['recordedDecisionType']) {
+  if (!value) {
+    return 'No decision';
+  }
+
+  return value.replace('_', ' ');
+}
+
+function formatDecisionStatusLabel(
+  value: ReserveIcPacket['companyRows'][number]['recordedDecisionStatus']
+) {
+  if (!value) {
+    return 'No status';
+  }
+
+  return value.replace('_', ' ');
+}
+
 export function ReserveIcPacketCard({
   packet,
   isLoading,
@@ -165,6 +183,8 @@ export function ReserveIcPacketCard({
                 <th className="px-3 py-2 text-right font-medium text-slate-700">Live</th>
                 <th className="px-3 py-2 text-right font-medium text-slate-700">Scenario</th>
                 <th className="px-3 py-2 text-right font-medium text-slate-700">Delta</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Decision</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-700">Status</th>
                 <th className="px-3 py-2 text-left font-medium text-slate-700">Rationale</th>
               </tr>
             </thead>
@@ -183,8 +203,12 @@ export function ReserveIcPacketCard({
                   <td className="px-3 py-2 text-right text-slate-700">
                     {formatSignedCompactCents(row.deltaPlannedReservesCents)}
                   </td>
+                  <td className="px-3 py-2 text-slate-700">{formatDecisionLabel(row.recordedDecisionType)}</td>
                   <td className="px-3 py-2 text-slate-700">
-                    {row.rationale?.trim() || 'No rationale recorded'}
+                    {formatDecisionStatusLabel(row.recordedDecisionStatus)}
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">
+                    {row.decisionRationale?.trim() || row.rationale?.trim() || 'No rationale recorded'}
                   </td>
                 </tr>
               ))}

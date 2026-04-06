@@ -19,6 +19,7 @@ async function ensureScenarioSchema() {
   for (const filename of [
     '20260330_allocation_scenarios_v1.up.sql',
     '20260330_allocation_scenario_events_v1.up.sql',
+    '20260406_allocation_scenario_ic_decisions_v1.up.sql',
   ]) {
     const sql = fs.readFileSync(path.resolve('server/migrations', filename), 'utf8');
     await pool.query(sql);
@@ -289,5 +290,93 @@ describe('allocation scenario sync/apply integration', () => {
       expect.objectContaining({ id: companyOneId, planned_reserves_cents: '500000', allocation_version: 1 }),
       expect.objectContaining({ id: companyTwoId, planned_reserves_cents: '800000', allocation_version: 1 }),
     ]);
+  });
+
+  it('persists Reserve IC decisions under the scenario boundary and returns them to the client', async () => {
+    const createScenarioResponse = await request(app)
+      .post(`/api/funds/${testFundId}/allocation-scenarios`)
+      .send({
+        name: 'IC decision scenario',
+        notes: 'Committee packet ready',
+        source_allocation_version: 1,
+        snapshot_items: [
+          {
+            company_id: companyOneId,
+            planned_reserves_cents: 750000,
+            allocation_cap_cents: 900000,
+            allocation_reason: 'Lead Series A extension',
+          },
+          {
+            company_id: companyTwoId,
+            planned_reserves_cents: 800000,
+            allocation_cap_cents: null,
+            allocation_reason: null,
+          },
+        ],
+      })
+      .expect(201);
+
+    const scenarioId = createScenarioResponse.body.id as string;
+
+    const createDecisionResponse = await request(app)
+      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+      .send({
+        fundId: testFundId,
+        companyId: companyOneId,
+        decisionType: 'follow_on',
+        decisionStatus: 'proposed',
+        rationale: 'Reserve for a larger Series B check',
+        proposedPlannedReservesCents: 750000,
+        finalPlannedReservesCents: null,
+        provenance: {
+          sourceScenarioId: scenarioId,
+          sourceAllocationVersion: 1,
+          liveAllocationVersion: 1,
+        },
+      })
+      .expect(201);
+
+    expect(createDecisionResponse.body).toMatchObject({
+      fundId: testFundId,
+      companyId: companyOneId,
+      decisionType: 'follow_on',
+      decisionStatus: 'proposed',
+    });
+
+    const updateDecisionResponse = await request(app)
+      .patch(
+        `/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions/${createDecisionResponse.body.id}`
+      )
+      .send({
+        decisionStatus: 'approved',
+        rationale: 'Approved for follow-on',
+        finalPlannedReservesCents: 700000,
+        provenance: {
+          sourceScenarioId: scenarioId,
+          sourceAllocationVersion: 1,
+          liveAllocationVersion: 1,
+        },
+      })
+      .expect(200);
+
+    expect(updateDecisionResponse.body).toMatchObject({
+      id: createDecisionResponse.body.id,
+      decisionStatus: 'approved',
+      finalPlannedReservesCents: 700000,
+    });
+
+    const listResponse = await request(app)
+      .get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+      .expect(200);
+
+    expect(listResponse.body).toEqual({
+      decisions: [
+        expect.objectContaining({
+          id: createDecisionResponse.body.id,
+          companyId: companyOneId,
+          decisionStatus: 'approved',
+        }),
+      ],
+    });
   });
 });
