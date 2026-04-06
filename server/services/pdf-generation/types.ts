@@ -68,7 +68,7 @@ export interface QuarterlyReportData {
     nav: number;
     tvpi: number;
     dpi: number;
-    irr: number;
+    irr: number | null;
     totalCommitted: number;
     totalCalled: number;
     totalDistributed: number;
@@ -92,7 +92,7 @@ export interface QuarterlyReportData {
 
 /** Pre-fetched fund metrics for report builders (DI pattern) */
 export interface ReportMetrics {
-  irr: number;
+  irr: number | null;
   tvpi: number;
   dpi: number;
   portfolioCompanies: Array<{ name: string; invested: number; value: number; moic: number }>;
