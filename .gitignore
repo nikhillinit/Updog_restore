@@ -275,6 +275,16 @@ uiux-skill/
 /dev/null.css
 *.cpuprofile
 
+# Generated root-level report artifacts (historically committed 2025-10; now
+# ignored to prevent regression. Removed in the 2026-04-06 cruft cleanup.)
+/BASELINE_METRICS.json
+/bench-result.json
+/perf-local.json
+/phase0-audit-report.json
+/progress.json
+/test.json
+/validation-report.json
+
 # OMX local session/runtime state
 # Existing tracked proof/signoff artifacts remain versioned; these rules only
 # suppress new local runtime files from cluttering the worktree.
