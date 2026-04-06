@@ -637,6 +637,32 @@ describe('portfolio reserve planning workspace', () => {
     expect(syncScenarioMutateAsyncMock).not.toHaveBeenCalled();
   });
 
+  it('disables reserve IC decision persistence while the scenario workspace is dirty', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(editButtons[0]!);
+
+    const plannedReservesInput = await screen.findByLabelText(/planned reserves/i);
+    await user.clear(plannedReservesInput);
+    await user.type(plannedReservesInput, '2600000');
+    await user.click(screen.getByRole('button', { name: /save to scenario/i }));
+
+    const updateDecisionButton = screen.getByRole('button', { name: /update decision/i });
+    expect(updateDecisionButton).toBeDisabled();
+
+    await user.click(updateDecisionButton);
+
+    expect(reserveIcDecisionUpdateMutateAsyncMock).not.toHaveBeenCalled();
+    expect(reserveIcDecisionCreateMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
   it('shows allocation version and last-updated context in the edit dialog', () => {
     renderWithQuery(
       <EditAllocationDialog company={mockCompany} open={true} onOpenChange={vi.fn()} />

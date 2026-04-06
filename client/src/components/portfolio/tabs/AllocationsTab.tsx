@@ -55,6 +55,8 @@ import type {
   UpdateAllocationPayload,
 } from './types';
 
+const EMPTY_RESERVE_IC_DECISIONS: ReserveIcDecision[] = [];
+
 const RESERVE_IC_DECISION_TYPE_OPTIONS = [
   { value: 'follow_on', label: 'follow on' },
   { value: 'defer', label: 'defer' },
@@ -369,7 +371,8 @@ export function AllocationsTab() {
     null;
   const activeScenarioContext: AllocationScenarioCollaborationContext | null =
     activeScenarioDetail.data?.context ?? null;
-  const reserveIcDecisions = reserveIcDecisionsQuery.data?.decisions ?? [];
+  const reserveIcDecisions =
+    reserveIcDecisionsQuery.data?.decisions ?? EMPTY_RESERVE_IC_DECISIONS;
   const isScenarioPending =
     createScenarioMutation.isPending ||
     createReserveIcDecisionMutation.isPending ||
@@ -752,6 +755,15 @@ export function AllocationsTab() {
       return;
     }
 
+    if (workspaceDirty) {
+      toast({
+        title: 'Save scenario changes first',
+        description: 'Save or discard local edits before saving Reserve IC decisions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const trimmedRationale = decisionRationale.trim();
     if (!trimmedRationale) {
       toast({
@@ -830,6 +842,7 @@ export function AllocationsTab() {
     selectedDecisionRecord,
     toast,
     updateReserveIcDecisionMutation,
+    workspaceDirty,
   ]);
 
   const handleLoadApplyPreview = useCallback(async () => {
@@ -1462,7 +1475,10 @@ export function AllocationsTab() {
                       </div>
 
                       <div className="flex justify-end">
-                        <Button onClick={handleSaveReserveDecision} disabled={isScenarioPending}>
+                        <Button
+                          onClick={handleSaveReserveDecision}
+                          disabled={workspaceDirty || isScenarioPending}
+                        >
                           <Save className="h-4 w-4 mr-2" />
                           {selectedDecisionRecord ? 'Update Decision' : 'Save Decision'}
                         </Button>

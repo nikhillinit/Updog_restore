@@ -23,6 +23,7 @@ import {
   listReserveIcDecisions,
   listAllocationScenarios,
   syncAllocationScenario,
+  updateAllocationScenario,
   updateReserveIcDecision,
 } from '../../../server/services/allocation-scenario-service';
 
@@ -438,6 +439,259 @@ describe('reserve IC decisions', () => {
     });
     expect(queryMock.mock.calls[3]?.[0]).toContain('UPDATE allocation_scenario_ic_decisions');
   });
+
+  it('removes only decisions for companies dropped during scenario update', async () => {
+    let scenarioHeaderReads = 0;
+    let scenarioDetailItemReads = 0;
+
+    queryMock.mockImplementation(async (sql: string) => {
+      if (sql.includes('SELECT id FROM funds')) {
+        return { rows: [{ id: 1 }] };
+      }
+
+      if (sql.includes('FROM allocation_scenarios')) {
+        scenarioHeaderReads += 1;
+        return {
+          rows: [
+            buildScenarioHeader({
+              sourceAllocationVersion: 3,
+              companyCount: scenarioHeaderReads === 1 ? 2 : 1,
+              totalPlannedCents: scenarioHeaderReads === 1 ? '350000000' : '200000000',
+            }),
+          ],
+        };
+      }
+
+      if (sql.includes('FROM portfoliocompanies') && sql.includes('ANY($2::int[])')) {
+        return { rows: [{ id: 1 }] };
+      }
+
+      if (
+        sql.includes('FROM allocation_scenario_items') &&
+        !sql.includes('planned_reserves_cents')
+      ) {
+        return { rows: [{ company_id: 1 }, { company_id: 2 }] };
+      }
+
+      if (
+        sql.includes('FROM allocation_scenario_items') &&
+        sql.includes('planned_reserves_cents')
+      ) {
+        scenarioDetailItemReads += 1;
+        return {
+          rows:
+            scenarioDetailItemReads === 1
+              ? [
+                  {
+                    company_id: 1,
+                    planned_reserves_cents: '200000000',
+                    allocation_cap_cents: null,
+                    allocation_reason: null,
+                  },
+                ]
+              : [
+                  {
+                    company_id: 1,
+                    planned_reserves_cents: '200000000',
+                    allocation_cap_cents: null,
+                    allocation_reason: null,
+                  },
+                ],
+        };
+      }
+
+      if (sql.includes('DELETE FROM allocation_scenario_ic_decisions')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('UPDATE allocation_scenarios')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('DELETE FROM allocation_scenario_items')) {
+        return { rows: [], rowCount: 2 };
+      }
+
+      if (sql.includes('INSERT INTO allocation_scenario_items')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('FROM allocation_scenario_events')) {
+        return { rows: [] };
+      }
+
+      throw new Error(`Unhandled SQL in test: ${sql}`);
+    });
+
+    const result = await updateAllocationScenario(1, scenarioId, {
+      snapshot_items: [
+        {
+          company_id: 1,
+          planned_reserves_cents: 200000000,
+          allocation_cap_cents: null,
+          allocation_reason: null,
+        },
+      ],
+    });
+
+    expect(result.snapshot_items).toEqual([
+      expect.objectContaining({
+        company_id: 1,
+        planned_reserves_cents: 200000000,
+      }),
+    ]);
+    const cleanupCall = queryMock.mock.calls.find(([sql]) =>
+      (sql as string).includes('DELETE FROM allocation_scenario_ic_decisions')
+    );
+    expect(cleanupCall?.[1]).toEqual([1, scenarioId, [2]]);
+  });
+
+  it('removes only decisions for companies dropped during scenario sync', async () => {
+    let scenarioHeaderReads = 0;
+    let scenarioDetailItemReads = 0;
+
+    queryMock.mockImplementation(async (sql: string) => {
+      if (sql.includes('SELECT id FROM funds')) {
+        return { rows: [{ id: 1 }] };
+      }
+
+      if (sql.includes('FROM allocation_scenarios')) {
+        scenarioHeaderReads += 1;
+        return {
+          rows: [
+            buildScenarioHeader({
+              sourceAllocationVersion: 1,
+              companyCount: scenarioHeaderReads === 1 ? 2 : 1,
+              totalPlannedCents: scenarioHeaderReads === 1 ? '1300000' : '500000',
+              lastSyncedAt:
+                scenarioHeaderReads === 1 ? null : new Date('2026-03-30T18:15:00.000Z'),
+              lastSyncedBy: scenarioHeaderReads === 1 ? null : 'analyst@example.com',
+            }),
+          ],
+        };
+      }
+
+      if (
+        sql.includes('FROM allocation_scenario_items') &&
+        !sql.includes('planned_reserves_cents')
+      ) {
+        return { rows: [{ company_id: 1 }, { company_id: 2 }] };
+      }
+
+      if (
+        sql.includes('FROM allocation_scenario_items') &&
+        sql.includes('planned_reserves_cents')
+      ) {
+        scenarioDetailItemReads += 1;
+        return {
+          rows:
+            scenarioDetailItemReads === 1
+              ? [
+                  {
+                    company_id: 1,
+                    planned_reserves_cents: '500000',
+                    allocation_cap_cents: null,
+                    allocation_reason: null,
+                  },
+                  {
+                    company_id: 2,
+                    planned_reserves_cents: '800000',
+                    allocation_cap_cents: null,
+                    allocation_reason: null,
+                  },
+                ]
+              : [
+                  {
+                    company_id: 1,
+                    planned_reserves_cents: '500000',
+                    allocation_cap_cents: null,
+                    allocation_reason: null,
+                  },
+                ],
+        };
+      }
+
+      if (sql.includes('FROM portfoliocompanies') && sql.includes('ORDER BY id ASC')) {
+        return {
+          rows: [
+            {
+              company_id: 1,
+              company_name: 'Alpha',
+              planned_reserves_cents: '500000',
+              deployed_reserves_cents: '100000',
+              allocation_cap_cents: null,
+              allocation_reason: null,
+              allocation_version: 1,
+              last_allocation_at: new Date('2026-03-30T18:00:00.000Z'),
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('DELETE FROM allocation_scenario_ic_decisions')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('DELETE FROM allocation_scenario_items')) {
+        return { rows: [], rowCount: 2 };
+      }
+
+      if (sql.includes('INSERT INTO allocation_scenario_items')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('UPDATE allocation_scenarios')) {
+        return { rows: [], rowCount: 1 };
+      }
+
+      if (sql.includes('INSERT INTO allocation_scenario_events')) {
+        return {
+          rows: [
+            {
+              id: '00000000-0000-0000-0000-000000000202',
+              event_type: 'synced',
+              actor_user_id: null,
+              actor_label: 'analyst@example.com',
+              note: 'Refresh from live',
+              source_allocation_version: 1,
+              resulting_allocation_version: 1,
+              change_summary_json: {
+                companies_changed: 0,
+                companies_unchanged: 1,
+                scenario_only_count: 1,
+                live_only_count: 0,
+                total_planned_delta_cents: -800000,
+                headline: 'Synced 1 company',
+              },
+              created_at: new Date('2026-03-30T18:15:00.000Z'),
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM allocation_scenario_events')) {
+        return { rows: [] };
+      }
+
+      throw new Error(`Unhandled SQL in test: ${sql}`);
+    });
+
+    const result = await syncAllocationScenario(1, scenarioId, {
+      note: 'Refresh from live',
+      actor: { label: 'analyst@example.com' },
+    });
+
+    expect(result.scenario.snapshot_items).toEqual([
+      expect.objectContaining({
+        company_id: 1,
+        planned_reserves_cents: 500000,
+      }),
+    ]);
+    const cleanupCall = queryMock.mock.calls.find(([sql]) =>
+      (sql as string).includes('DELETE FROM allocation_scenario_ic_decisions')
+    );
+    expect(cleanupCall?.[1]).toEqual([1, scenarioId, [2]]);
+  });
 });
 
 describe('allocation scenario read model metadata', () => {
@@ -659,6 +913,7 @@ describe('allocation scenario sync and apply semantics', () => {
 
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 17 }] })
+      .mockResolvedValueOnce({ rows: [{ company_id: 1 }, { company_id: 2 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })

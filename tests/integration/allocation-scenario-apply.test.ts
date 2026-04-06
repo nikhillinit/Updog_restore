@@ -15,6 +15,59 @@ let companyTwoId: number;
 
 async function ensureScenarioSchema() {
   await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS funds (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      size DECIMAL(15,2) NOT NULL,
+      management_fee DECIMAL(5,4) NOT NULL,
+      carry_percentage DECIMAL(5,4) NOT NULL,
+      vintage_year INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS portfoliocompanies (
+      id SERIAL PRIMARY KEY,
+      fund_id INTEGER NOT NULL REFERENCES funds(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      sector TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      investment_amount DECIMAL(15,2) NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      planned_reserves_cents BIGINT NOT NULL DEFAULT 0,
+      deployed_reserves_cents BIGINT NOT NULL DEFAULT 0,
+      allocation_cap_cents BIGINT,
+      allocation_reason TEXT,
+      allocation_version INTEGER NOT NULL DEFAULT 1,
+      last_allocation_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS fund_events (
+      id SERIAL PRIMARY KEY,
+      fund_id INTEGER NOT NULL REFERENCES funds(id) ON DELETE CASCADE,
+      event_type VARCHAR(50) NOT NULL,
+      payload JSONB,
+      user_id INTEGER,
+      correlation_id VARCHAR(36),
+      event_time TIMESTAMPTZ NOT NULL,
+      operation VARCHAR(50),
+      entity_type VARCHAR(50),
+      metadata JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 
   for (const filename of [
     '20260330_allocation_scenarios_v1.up.sql',
@@ -343,6 +396,24 @@ describe('allocation scenario sync/apply integration', () => {
       decisionStatus: 'proposed',
     });
 
+    const createRemovedCompanyDecisionResponse = await request(app)
+      .post(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
+      .send({
+        fundId: testFundId,
+        companyId: companyTwoId,
+        decisionType: 'defer',
+        decisionStatus: 'draft',
+        rationale: 'Wait for the next milestone before increasing reserves',
+        proposedPlannedReservesCents: 800000,
+        finalPlannedReservesCents: null,
+        provenance: {
+          sourceScenarioId: scenarioId,
+          sourceAllocationVersion: 1,
+          liveAllocationVersion: 1,
+        },
+      })
+      .expect(201);
+
     const updateDecisionResponse = await request(app)
       .patch(
         `/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions/${createDecisionResponse.body.id}`
@@ -365,6 +436,25 @@ describe('allocation scenario sync/apply integration', () => {
       finalPlannedReservesCents: 700000,
     });
 
+    const updateScenarioResponse = await request(app)
+      .patch(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}`)
+      .send({
+        snapshot_items: [
+          {
+            company_id: companyOneId,
+            planned_reserves_cents: 700000,
+            allocation_cap_cents: 900000,
+            allocation_reason: 'Approved follow-on reserve',
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(updateScenarioResponse.body).toMatchObject({
+      id: scenarioId,
+      company_count: 1,
+    });
+
     const listResponse = await request(app)
       .get(`/api/funds/${testFundId}/allocation-scenarios/${scenarioId}/decisions`)
       .expect(200);
@@ -378,5 +468,12 @@ describe('allocation scenario sync/apply integration', () => {
         }),
       ],
     });
+    expect(listResponse.body.decisions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: createRemovedCompanyDecisionResponse.body.id,
+        }),
+      ])
+    );
   });
 });

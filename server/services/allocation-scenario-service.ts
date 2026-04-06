@@ -717,6 +717,40 @@ async function ensureDecisionCompanyUnused(
   }
 }
 
+async function getScenarioCompanyIds(client: PoolClient, scenarioId: string): Promise<number[]> {
+  const result = await client.query<{ company_id: number }>(
+    `SELECT company_id
+       FROM allocation_scenario_items
+      WHERE scenario_id = $1`,
+    [scenarioId]
+  );
+
+  return result.rows.map((row) => row.company_id);
+}
+
+async function deleteRemovedScenarioDecisionRows(
+  client: PoolClient,
+  fundId: number,
+  scenarioId: string,
+  items: AllocationScenarioSnapshotItem[]
+): Promise<void> {
+  const currentCompanyIds = await getScenarioCompanyIds(client, scenarioId);
+  const nextCompanyIds = new Set(items.map((item) => item.company_id));
+  const removedCompanyIds = currentCompanyIds.filter((companyId) => !nextCompanyIds.has(companyId));
+
+  if (removedCompanyIds.length === 0) {
+    return;
+  }
+
+  await client.query(
+    `DELETE FROM allocation_scenario_ic_decisions
+      WHERE fund_id = $1
+        AND scenario_id = $2
+        AND company_id = ANY($3::int[])`,
+    [fundId, scenarioId, removedCompanyIds]
+  );
+}
+
 async function insertScenarioItems(
   client: PoolClient,
   scenarioId: string,
@@ -745,9 +779,11 @@ async function insertScenarioItems(
 
 async function replaceScenarioItems(
   client: PoolClient,
+  fundId: number,
   scenarioId: string,
   items: AllocationScenarioSnapshotItem[]
 ): Promise<void> {
+  await deleteRemovedScenarioDecisionRows(client, fundId, scenarioId, items);
   await client.query('DELETE FROM allocation_scenario_items WHERE scenario_id = $1', [scenarioId]);
   await insertScenarioItems(client, scenarioId, items);
 }
@@ -1295,7 +1331,7 @@ export async function updateAllocationScenario(
     );
 
     if (snapshotItems) {
-      await replaceScenarioItems(client, scenarioId, snapshotItems);
+      await replaceScenarioItems(client, fundId, scenarioId, snapshotItems);
     }
 
     return fetchScenarioDetail(client, fundId, scenarioId);
@@ -1318,7 +1354,7 @@ export async function syncAllocationScenario(
     const nextStats = calculateScenarioStats(syncedItems);
     const resultingVersion = context.preview.live.max_allocation_version;
 
-    await replaceScenarioItems(client, scenarioId, syncedItems);
+    await replaceScenarioItems(client, fundId, scenarioId, syncedItems);
     await client.query(
       `UPDATE allocation_scenarios
           SET source_allocation_version = $1,
