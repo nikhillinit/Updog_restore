@@ -3,26 +3,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { installRadixSelectShim } from '../../../helpers/radix-select-shim';
 
-// Radix Select uses Pointer Events APIs that jsdom does not implement.
-// Stub the missing methods on Element so the listbox can open under userEvent.
-beforeAll(() => {
-  if (typeof Element !== 'undefined') {
-    if (!Element.prototype.hasPointerCapture) {
-      Element.prototype.hasPointerCapture = () => false;
-    }
-    if (!Element.prototype.setPointerCapture) {
-      Element.prototype.setPointerCapture = () => undefined;
-    }
-    if (!Element.prototype.releasePointerCapture) {
-      Element.prototype.releasePointerCapture = () => undefined;
-    }
-    // jsdom does not implement scrollIntoView; Radix calls it on focused options.
-    if (!Element.prototype.scrollIntoView) {
-      Element.prototype.scrollIntoView = () => undefined;
-    }
-  }
-});
+beforeAll(installRadixSelectShim);
 
 import { OneWayPanel } from '@/components/sensitivity/OneWayPanel';
 import { SUPPORTED_VARIABLES, SUPPORTED_METRICS } from '@shared/contracts/sensitivity-variables-v1';
