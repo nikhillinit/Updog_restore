@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-03-26
+last_updated: 2026-04-05
 owner: Core Team
 review_cadence: P7D
 ---
@@ -13,7 +13,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Freshness note (2026-04-05)**: This changelog is selective — the recent
+> burst of dated plan documents in `docs/plans/` (2026-03-30 through 2026-04-05)
+> is not individually enumerated here. Check `git log` and the `docs/plans/`
+> index for the current execution record. Entries below capture
+> governance/infrastructure changes only.
+
 ## [Unreleased]
+
+### Reconciliation Notes (2026-04-05 / corrected 2026-04-06)
+
+- **Integration Test Server Lifecycle migration is MOSTLY complete; one file
+  still excluded.** The 2026-03-26 entry below correctly describes the
+  globalSetup migration — `vitest.config.int.ts:28` has
+  `globalSetup: ['tests/integration/global-setup.ts']` wired in, and
+  `tests/integration/setup.ts` has been properly scoped to worker hygiene.
+  However, `tests/integration/fund-idempotency.spec.ts` remains in the exclude
+  list at line 48 with the original "cascade resource exhaustion" comment. It is
+  unclear whether the exclusion is still needed post- migration or was left
+  defensively. Next step: un-exclude fund-idempotency.spec.ts, run the
+  integration suite locally, confirm no regression. (An earlier version of this
+  note claimed the entire migration was incomplete; that claim was based on
+  reading an incomplete window of the config file and has been corrected.)
+- **Phoenix truth case count is in drift.** Both
+  `docs/phase0-validation-report.md` (118/118 from 2026-01-21) and
+  `docs/PHOENIX-SOT/evidence-ledger.md` (107/107 from 2026-02-24) are historical
+  snapshots with disagreeing totals. Use `npm run phoenix:truth` for the
+  authoritative current count; do not quote either number as current.
+- **`cheatsheets/pr-merge-verification.md` baseline snapshot is ~5 months
+  stale.** It still references the 2025-11-17 baseline (74.7% pass rate,
+  998/1337 tests, 450 TypeScript errors). Current state post-stabilization is
+  ~97.8% pass rate (3886/3972 passing, 86 skipped) with a 0-error TypeScript
+  baseline. Any PR compared against the stale baseline will appear to "improve"
+  for the wrong reason. Fix that cheatsheet before using it for a real PR merge
+  decision.
 
 ### Added
 

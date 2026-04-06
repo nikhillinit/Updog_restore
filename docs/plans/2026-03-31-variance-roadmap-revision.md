@@ -1,6 +1,14 @@
 ---
-status: ACTIVE
-last_updated: 2026-04-02
+status: HISTORICAL-FRAMEWORK
+last_updated: 2026-04-05
+supersedes: []
+superseded_in_part_by:
+  - docs/plans/2026-04-03-phase-1a2-baseline-automation-hardening-validated.md
+  - docs/plans/2026-04-01-variance-phase1a1c-implementation-plan.md
+  - docs/plans/2026-04-02-phase-1c1-alert-evaluation-implementation-strategy.md
+  - docs/plans/2026-04-02-phase-1c2-alert-scheduling-and-remaining-capital-plan.md
+  - docs/plans/2026-04-02-phase-2-scenario-comparison-consolidation-plan.md
+  - docs/plans/2026-04-03-phase-1b-single-owner-pr-queue.md
 depends_on:
   - docs/plans/2026-03-26-development-spec-set.md
   - docs/plans/2026-03-27-secondary-surface-decisions.md
@@ -12,6 +20,32 @@ validated_by:
 ---
 
 # Revised Production Order: Variance, Baselines, Alerts, Scenario Consolidation, Time Machine, And Analytics
+
+## Current Status (2026-04-05 reconciliation)
+
+**This document is retained as the sequencing framework. Individual phase
+statuses below are out of date:**
+
+- **Phase 0 Foundation Decisions**: COMPLETE. The calc-run completion pipeline,
+  attributed `fund_metrics`, baseline idempotency, and system actor seeding are
+  shipped. See `2026-04-03-phase-1a2-baseline-automation-hardening-validated.md`
+  for the active hardening work that sits on top.
+- **Phase 0.P Cleanup**: partially shipped per line 27-37 below; remaining items
+  (wire `_reportsData`, remove `mockVarianceData`, gate restore UI) overlap with
+  Worktrack A/B of `2026-04-05-todo-report-remediation-strategy.md`.
+- **Phase 1A.1**: implementation recorded in
+  `2026-04-01-variance-phase1a1c-implementation-plan.md`.
+- **Phase 1A.2**: hardening in
+  `2026-04-03-phase-1a2-baseline-automation-hardening-validated.md`.
+- **Phase 1B**: PR queue in `2026-04-03-phase-1b-single-owner-pr-queue.md`.
+- **Phase 1C.1 / 1C.2**: detailed plans in `2026-04-02-phase-1c1-*` and
+  `2026-04-02-phase-1c2-*`.
+- **Phase 2 Scenario Consolidation**: plan in
+  `2026-04-02-phase-2-scenario-comparison-consolidation-plan.md` with slice 3/4
+  in the `2026-04-03-phase-2-slice-*` docs.
+
+Read this document for sequencing rules, planning principles, and exit criteria.
+Read the per-phase dated plans above for current execution state.
 
 ## Purpose
 

@@ -304,7 +304,9 @@ Consult OpenAI Codex (GPT-5.3, xhigh reasoning) for complex tasks:
 
 ### Project Conventions (Babysitter-Enforced)
 
-- Phoenix truth cases (107/107) must pass before merging calculation changes
+- Phoenix truth cases must pass before merging calculation changes. Run
+  `npm run phoenix:truth` for current count; do not trust hardcoded numbers in
+  docs (they drift as cases are added/revised).
 - Pre-push baseline check compiles client/server/shared separately
 - TZ=UTC required for all test runs
 - No emoji in code, docs, or logs
