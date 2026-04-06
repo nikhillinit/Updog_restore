@@ -56,6 +56,12 @@
       "completedAt": "2026-03-20T11:39:37.413Z",
       "commit": "6cbf5c766a71654c84a7abb873b8fb7d1b2d87b2",
       "message": "fix: complete Phase 0B /api/funds owner cutover\n\n- Fix idempotency import in funds.ts (named→default, factory→pre-called middleware)\n- Fix calculate mount prefix (/api/funds/calculate→/funds/calculate) to eliminate double /api/api/ prefix\n- Remove shadowed inline POST /api/funds handler from routes.ts\n- Update contract tests for post-cutover state (16 assertions, no mocks)\n- Add registerRoutes() boot-path smoke proof\n- Update endpoint-ownership.md and ADR with Phase 0B achieved state\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "id": "Phase 4",
+      "completedAt": "2026-04-06T10:03:29.611Z",
+      "commit": "8c15257f2c79f1529974643b5dfaa761743a9cda",
+      "message": "Close the mounted Phase 4 truthfulness findings without widening the product surface\n\nThis finishes the non-blocking follow-up from the approved Phase 4 performance truthfulness slice. The duplicated canonical IRR wrapper is now centralized in the shared XIRR module, performance API observability/logging now reflect the real no-cache state, and the dead export affordance has been removed from the mounted dashboard and its tests. The closeout note records the slice as complete without reopening time-travel or broader analytics work.\n\nConstraint: Must stay inside the already-shipped /performance perimeter with no new routes, schemas, or fake export behavior\nRejected: Leave the duplicate/helper and observability placeholders in place | approved slice would still carry known truthfulness debt\nConfidence: high\nScope-risk: narrow\nReversibility: clean\nDirective: Do not reintroduce mounted performance affordances or cache-hit semantics without owned backend behavior behind them\nTested: npm run validate:core; focused unit suite for xirr/performance API/dashboard; tests/integration/performance-api.test.ts; npx playwright test tests/e2e/performance-dashboard.spec.ts --project=performance --no-deps; scoped eslint; npm run build\nNot-tested: Full e2e suite outside the mounted performance path"
     }
   ],
   "lastUpdated": "2025-12-26T18:00:00.000Z",
