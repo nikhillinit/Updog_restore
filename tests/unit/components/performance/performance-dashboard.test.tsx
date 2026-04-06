@@ -151,4 +151,10 @@ describe('PerformanceDashboard', () => {
       screen.getByText(/track persisted irr, tvpi, and dpi metrics over time/i)
     ).toBeInTheDocument();
   });
+
+  it('does not render a dead export button without an owned backend action', () => {
+    render(<PerformanceDashboard />);
+
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+  });
 });

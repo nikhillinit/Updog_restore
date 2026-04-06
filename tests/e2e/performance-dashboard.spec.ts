@@ -161,7 +161,9 @@ test.describe('Performance Dashboard', () => {
     await expect(page.getByRole('tab', { name: /comparison/i })).toHaveCount(0);
   });
 
-  test('shows source-quality messaging when derived timeseries points remain visible', async ({ page }) => {
+  test('shows source-quality messaging when derived timeseries points remain visible', async ({
+    page,
+  }) => {
     await expect(page.getByTestId('timeseries-source-note')).toBeVisible();
     await expect(page.getByText(/interpolated between persisted metric snapshots/i)).toBeVisible();
     await expect(
@@ -172,7 +174,7 @@ test.describe('Performance Dashboard', () => {
   test('keeps mounted controls usable without surfacing unsupported comparison affordances', async ({
     page,
   }) => {
-    await expect(page.getByRole('button', { name: 'Export' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export' })).toHaveCount(0);
     await expect(page.locator('[role="combobox"]').first()).toBeVisible();
     await expect(page.getByRole('tab', { name: /comparison/i })).toHaveCount(0);
   });

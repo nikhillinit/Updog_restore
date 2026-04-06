@@ -393,6 +393,33 @@ export function xirrNewtonBisection(
   return newtonResult;
 }
 
+/**
+ * Canonical truth-guard wrapper around `xirrNewtonBisection`.
+ *
+ * Returns `null` when IRR is mathematically undefined or the solver does not
+ * converge. Callers should treat `null` as unavailable rather than inventing a
+ * fallback rate.
+ */
+export function calculateCanonicalIrr(cashflows: CashFlow[]): number | null {
+  const meaningful = cashflows.filter(
+    (cashflow) => Number.isFinite(cashflow.amount) && cashflow.amount !== 0
+  );
+
+  if (meaningful.length < 2) {
+    return null;
+  }
+
+  const hasContribution = meaningful.some((cashflow) => cashflow.amount < 0);
+  const hasReturn = meaningful.some((cashflow) => cashflow.amount > 0);
+
+  if (!hasContribution || !hasReturn) {
+    return null;
+  }
+
+  const result = xirrNewtonBisection(meaningful);
+  return result.converged && result.irr !== null ? result.irr : null;
+}
+
 // ============================================================================
 // SAFE WRAPPERS (for UI use - never throw, return null on failure)
 // ============================================================================
