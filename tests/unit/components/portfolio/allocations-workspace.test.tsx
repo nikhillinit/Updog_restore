@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AllocationsTab } from '../../../../client/src/components/portfolio/tabs/AllocationsTab';
 import { EditAllocationDialog } from '../../../../client/src/components/portfolio/tabs/EditAllocationDialog';
+import type { ReserveIcDecisionRecordV1 } from '@shared/contracts/reserve-ic-decision-v1.contract';
 import type {
   AllocationCompany,
   AllocationScenarioApplyPreview,
@@ -22,6 +23,9 @@ const {
   reserveIcPublishedResultsHookMock,
   reserveIcComparisonHookMock,
   previewScenarioMutateAsyncMock,
+  reserveIcDecisionCreateMutateAsyncMock,
+  reserveIcDecisionListHookMock,
+  reserveIcDecisionUpdateMutateAsyncMock,
   syncScenarioMutateAsyncMock,
   applyScenarioMutateAsyncMock,
   createScenarioMutateAsyncMock,
@@ -36,6 +40,9 @@ const {
   reserveIcPublishedResultsHookMock: vi.fn(),
   reserveIcComparisonHookMock: vi.fn(),
   previewScenarioMutateAsyncMock: vi.fn(),
+  reserveIcDecisionCreateMutateAsyncMock: vi.fn(),
+  reserveIcDecisionListHookMock: vi.fn(),
+  reserveIcDecisionUpdateMutateAsyncMock: vi.fn(),
   syncScenarioMutateAsyncMock: vi.fn(),
   applyScenarioMutateAsyncMock: vi.fn(),
   createScenarioMutateAsyncMock: vi.fn(),
@@ -62,12 +69,21 @@ vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useLatestAllocat
 vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useAllocationScenarios', () => ({
   useAllocationScenarioList: () => scenarioListHookMock(),
   useAllocationScenarioDetail: (scenarioId: string | null) => scenarioDetailHookMock(scenarioId),
+  useAllocationScenarioDecisions: () => reserveIcDecisionListHookMock(),
   useCreateAllocationScenario: () => ({
     mutateAsync: createScenarioMutateAsyncMock,
     isPending: false,
   }),
+  useCreateReserveIcDecision: () => ({
+    mutateAsync: reserveIcDecisionCreateMutateAsyncMock,
+    isPending: false,
+  }),
   useUpdateAllocationScenario: () => ({
     mutateAsync: updateScenarioMutateAsyncMock,
+    isPending: false,
+  }),
+  useUpdateReserveIcDecision: () => ({
+    mutateAsync: reserveIcDecisionUpdateMutateAsyncMock,
     isPending: false,
   }),
   useAllocationScenarioApplyPreview: () => ({
@@ -351,6 +367,27 @@ const mockApplyResult: AllocationScenarioApplyResult = {
   },
 };
 
+const mockReserveIcDecision: ReserveIcDecisionRecordV1 = {
+  id: '00000000-0000-0000-0000-000000000301',
+  fundId: 1,
+  companyId: 1,
+  decisionType: 'follow_on',
+  decisionStatus: 'proposed',
+  rationale: 'Reserve for a larger Series B check',
+  proposedPlannedReservesCents: 250000000,
+  finalPlannedReservesCents: null,
+  decidedByUserId: null,
+  decidedByLabel: null,
+  decidedAt: null,
+  provenance: {
+    sourceScenarioId: mockScenarioDetail.id,
+    sourceAllocationVersion: 2,
+    liveAllocationVersion: 2,
+  },
+  createdAt: '2026-03-30T18:45:00.000Z',
+  updatedAt: '2026-03-30T18:45:00.000Z',
+};
+
 const mockCompany: AllocationCompany = mockAllocationsData.companies[0]!;
 
 function renderWithQuery(ui: React.ReactElement) {
@@ -388,10 +425,17 @@ describe('portfolio reserve planning workspace', () => {
     }));
 
     createScenarioMutateAsyncMock.mockResolvedValue(mockScenarioDetail);
+    reserveIcDecisionCreateMutateAsyncMock.mockResolvedValue(mockReserveIcDecision);
+    reserveIcDecisionUpdateMutateAsyncMock.mockResolvedValue(mockReserveIcDecision);
     updateScenarioMutateAsyncMock.mockResolvedValue(mockScenarioDetail);
     previewScenarioMutateAsyncMock.mockResolvedValue(mockApplyPreview);
     syncScenarioMutateAsyncMock.mockResolvedValue(mockSyncResult);
     applyScenarioMutateAsyncMock.mockResolvedValue(mockApplyResult);
+    reserveIcDecisionListHookMock.mockReturnValue({
+      data: { decisions: [mockReserveIcDecision] },
+      isLoading: false,
+      error: null,
+    });
     reserveIcPublishedResultsHookMock.mockReturnValue({
       data: null,
       isLoading: false,
@@ -413,6 +457,7 @@ describe('portfolio reserve planning workspace', () => {
     expect(screen.getByText('Saved Scenarios')).toBeInTheDocument();
     expect(screen.getByText('Upside reserve plan')).toBeInTheDocument();
     expect(screen.getByText('Strong growth trajectory')).toBeInTheDocument();
+    expect(screen.getByText('Reserve IC Decisions')).toBeInTheDocument();
     expect(screen.getByText('Last synced Feb 15, 2024')).toBeInTheDocument();
     expect(screen.getByText('Synced Mar 29, 2026 by system')).toBeInTheDocument();
     expect(screen.getByText('Applied Mar 27, 2026 by analyst@example.com (v7)')).toBeInTheDocument();
@@ -461,6 +506,8 @@ describe('portfolio reserve planning workspace', () => {
       screen.getAllByText(/Applied Mar 27, 2026 by analyst@example.com \(v7\)/).length
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('IC Reserve Packet')).toBeInTheDocument();
+    expect(screen.getAllByText('follow on').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('proposed').length).toBeGreaterThanOrEqual(1);
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
@@ -597,5 +644,63 @@ describe('portfolio reserve planning workspace', () => {
 
     expect(screen.getByText('v1')).toBeInTheDocument();
     expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
+  });
+
+  it('creates a reserve IC decision for the active scenario company', async () => {
+    const user = userEvent.setup();
+    reserveIcDecisionListHookMock.mockReturnValue({
+      data: { decisions: [] },
+      isLoading: false,
+      error: null,
+    });
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    await user.clear(screen.getByLabelText(/decision rationale/i));
+    await user.type(
+      screen.getByLabelText(/decision rationale/i),
+      'Reserve for a larger Series B check'
+    );
+    await user.click(screen.getByRole('button', { name: /save decision/i }));
+
+    await waitFor(() => {
+      expect(reserveIcDecisionCreateMutateAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fundId: 1,
+          companyId: 1,
+          decisionType: 'follow_on',
+          decisionStatus: 'draft',
+          rationale: 'Reserve for a larger Series B check',
+        })
+      );
+    });
+  });
+
+  it('updates an existing reserve IC decision for the active scenario company', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<AllocationsTab />);
+
+    await user.click(screen.getByRole('button', { name: /resume/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Scenario: Upside reserve plan')).toBeInTheDocument();
+    });
+
+    await user.selectOptions(screen.getByLabelText(/decision status/i), 'approved');
+    await user.click(screen.getByRole('button', { name: /update decision/i }));
+
+    await waitFor(() => {
+      expect(reserveIcDecisionUpdateMutateAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decisionId: mockReserveIcDecision.id,
+          payload: expect.objectContaining({
+            decisionStatus: 'approved',
+          }),
+        })
+      );
+    });
   });
 });

@@ -5,6 +5,11 @@ import {
   applyAllocationUpdates,
   type AllocationWriteConflict,
 } from './allocation-write-service.js';
+import type {
+  CreateReserveIcDecisionV1,
+  ReserveIcDecisionRecordV1,
+  UpdateReserveIcDecisionV1,
+} from '@shared/contracts/reserve-ic-decision-v1.contract';
 
 interface HttpError extends Error {
   statusCode: number;
@@ -58,6 +63,25 @@ interface AllocationScenarioEventRow {
   resulting_allocation_version: number | null;
   change_summary_json: unknown;
   created_at: Date;
+}
+
+interface ReserveIcDecisionRow {
+  id: string;
+  fund_id: number;
+  scenario_id: string;
+  company_id: number;
+  decision_type: ReserveIcDecisionRecordV1['decisionType'];
+  decision_status: ReserveIcDecisionRecordV1['decisionStatus'];
+  rationale: string;
+  proposed_planned_reserves_cents: string | null;
+  final_planned_reserves_cents: string | null;
+  decided_by_user_id: number | null;
+  decided_by_label: string | null;
+  decided_at: Date | null;
+  source_allocation_version: number | null;
+  live_allocation_version: number | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 interface LiveAllocationSnapshotItem {
@@ -214,6 +238,10 @@ export interface AllocationScenarioApplyResult extends AllocationScenarioSyncRes
     current_live_token: string;
   };
 }
+
+export interface CreateReserveIcDecisionInput extends CreateReserveIcDecisionV1 {}
+
+export interface UpdateReserveIcDecisionInput extends UpdateReserveIcDecisionV1 {}
 
 function createHttpError(
   statusCode: number,
@@ -403,6 +431,33 @@ function mapEventRow(row: AllocationScenarioEventRow): AllocationScenarioEventSu
   };
 }
 
+function mapReserveIcDecisionRow(row: ReserveIcDecisionRow): ReserveIcDecisionRecordV1 {
+  return {
+    id: row.id,
+    fundId: row.fund_id,
+    companyId: row.company_id,
+    decisionType: row.decision_type,
+    decisionStatus: row.decision_status,
+    rationale: row.rationale,
+    proposedPlannedReservesCents: row.proposed_planned_reserves_cents
+      ? parseInt(row.proposed_planned_reserves_cents, 10)
+      : null,
+    finalPlannedReservesCents: row.final_planned_reserves_cents
+      ? parseInt(row.final_planned_reserves_cents, 10)
+      : null,
+    decidedByUserId: row.decided_by_user_id,
+    decidedByLabel: row.decided_by_label,
+    decidedAt: row.decided_at ? row.decided_at.toISOString() : null,
+    provenance: {
+      sourceScenarioId: row.scenario_id,
+      sourceAllocationVersion: row.source_allocation_version,
+      liveAllocationVersion: row.live_allocation_version,
+    },
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
 function mapContextEventRow(
   row: AllocationScenarioEventRow
 ): AllocationScenarioCollaborationContextEvent {
@@ -472,6 +527,31 @@ async function verifyCompaniesInFund(
   }
 }
 
+async function verifyCompaniesInScenario(
+  client: PoolClient,
+  scenarioId: string,
+  companyIds: number[]
+): Promise<void> {
+  const uniqueCompanyIds = [...new Set(companyIds)];
+  const result = await client.query<{ company_id: number }>(
+    `SELECT company_id
+       FROM allocation_scenario_items
+      WHERE scenario_id = $1
+        AND company_id = ANY($2::int[])`,
+    [scenarioId, uniqueCompanyIds]
+  );
+
+  if (result.rows.length !== uniqueCompanyIds.length) {
+    const foundIds = new Set(result.rows.map((row) => row.company_id));
+    const missingIds = uniqueCompanyIds.filter((companyId) => !foundIds.has(companyId));
+    throw createHttpError(
+      404,
+      `Companies not found in allocation scenario ${scenarioId}: ${missingIds.join(', ')}`,
+      { code: 'scenario_company_not_found' }
+    );
+  }
+}
+
 async function resolveActorUserId(client: PoolClient, userId: number | null | undefined) {
   if (!userId) {
     return null;
@@ -536,6 +616,105 @@ async function getScenarioItems(
   );
 
   return result.rows.map(mapSnapshotItem);
+}
+
+async function getReserveIcDecisionRows(
+  client: PoolClient,
+  fundId: number,
+  scenarioId: string
+): Promise<ReserveIcDecisionRecordV1[]> {
+  const result = await client.query<ReserveIcDecisionRow>(
+    `SELECT
+       id,
+       fund_id,
+       scenario_id,
+       company_id,
+       decision_type,
+       decision_status,
+       rationale,
+       proposed_planned_reserves_cents,
+       final_planned_reserves_cents,
+       decided_by_user_id,
+       decided_by_label,
+       decided_at,
+       source_allocation_version,
+       live_allocation_version,
+       created_at,
+       updated_at
+     FROM allocation_scenario_ic_decisions
+     WHERE fund_id = $1
+       AND scenario_id = $2
+     ORDER BY company_id ASC, updated_at DESC, id ASC`,
+    [fundId, scenarioId]
+  );
+
+  return result.rows.map(mapReserveIcDecisionRow);
+}
+
+async function getReserveIcDecisionRowOrThrow(
+  client: PoolClient,
+  fundId: number,
+  scenarioId: string,
+  decisionId: string,
+  options: { forUpdate?: boolean } = {}
+): Promise<ReserveIcDecisionRow> {
+  const result = await client.query<ReserveIcDecisionRow>(
+    `SELECT
+       id,
+       fund_id,
+       scenario_id,
+       company_id,
+       decision_type,
+       decision_status,
+       rationale,
+       proposed_planned_reserves_cents,
+       final_planned_reserves_cents,
+       decided_by_user_id,
+       decided_by_label,
+       decided_at,
+       source_allocation_version,
+       live_allocation_version,
+       created_at,
+       updated_at
+     FROM allocation_scenario_ic_decisions
+     WHERE fund_id = $1
+       AND scenario_id = $2
+       AND id = $3
+     ${options.forUpdate ? 'FOR UPDATE' : ''}`,
+    [fundId, scenarioId, decisionId]
+  );
+
+  if (result.rows.length === 0) {
+    throw createHttpError(404, `Reserve IC decision ${decisionId} not found`, {
+      code: 'decision_not_found',
+    });
+  }
+
+  return result.rows[0]!;
+}
+
+async function ensureDecisionCompanyUnused(
+  client: PoolClient,
+  fundId: number,
+  scenarioId: string,
+  companyId: number
+): Promise<void> {
+  const result = await client.query<{ id: string }>(
+    `SELECT id
+     FROM allocation_scenario_ic_decisions
+     WHERE fund_id = $1
+       AND scenario_id = $2
+       AND company_id = $3`,
+    [fundId, scenarioId, companyId]
+  );
+
+  if (result.rows.length > 0) {
+    throw createHttpError(
+      409,
+      `Reserve IC decision already exists for company ${companyId} in scenario ${scenarioId}`,
+      { code: 'decision_exists' }
+    );
+  }
 }
 
 async function insertScenarioItems(
@@ -857,6 +1036,167 @@ export async function getAllocationScenario(
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     return fetchScenarioDetail(client, fundId, scenarioId);
+  });
+}
+
+export async function listReserveIcDecisions(
+  fundId: number,
+  scenarioId: string
+): Promise<ReserveIcDecisionRecordV1[]> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    await getScenarioHeaderOrThrow(client, fundId, scenarioId);
+    return getReserveIcDecisionRows(client, fundId, scenarioId);
+  });
+}
+
+export async function createReserveIcDecision(
+  fundId: number,
+  scenarioId: string,
+  input: CreateReserveIcDecisionInput
+): Promise<ReserveIcDecisionRecordV1> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    await getScenarioHeaderOrThrow(client, fundId, scenarioId);
+    await verifyCompaniesInFund(client, fundId, [input.companyId]);
+    await verifyCompaniesInScenario(client, scenarioId, [input.companyId]);
+    await ensureDecisionCompanyUnused(client, fundId, scenarioId, input.companyId);
+
+    const result = await client.query<ReserveIcDecisionRow>(
+      `INSERT INTO allocation_scenario_ic_decisions (
+         fund_id,
+         scenario_id,
+         company_id,
+         decision_type,
+         decision_status,
+         rationale,
+         proposed_planned_reserves_cents,
+         final_planned_reserves_cents,
+         decided_by_user_id,
+         decided_by_label,
+         decided_at,
+         source_allocation_version,
+         live_allocation_version
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING
+         id,
+         fund_id,
+         scenario_id,
+         company_id,
+         decision_type,
+         decision_status,
+         rationale,
+         proposed_planned_reserves_cents,
+         final_planned_reserves_cents,
+         decided_by_user_id,
+         decided_by_label,
+         decided_at,
+         source_allocation_version,
+         live_allocation_version,
+         created_at,
+         updated_at`,
+      [
+        fundId,
+        scenarioId,
+        input.companyId,
+        input.decisionType,
+        input.decisionStatus,
+        input.rationale.trim(),
+        input.proposedPlannedReservesCents ?? null,
+        input.finalPlannedReservesCents ?? null,
+        input.decidedByUserId ?? null,
+        normalizeNotes(input.decidedByLabel),
+        input.decidedAt ?? null,
+        input.provenance.sourceAllocationVersion ?? null,
+        input.provenance.liveAllocationVersion ?? null,
+      ]
+    );
+
+    return mapReserveIcDecisionRow(result.rows[0]!);
+  });
+}
+
+export async function updateReserveIcDecision(
+  fundId: number,
+  scenarioId: string,
+  decisionId: string,
+  input: UpdateReserveIcDecisionInput
+): Promise<ReserveIcDecisionRecordV1> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    await getScenarioHeaderOrThrow(client, fundId, scenarioId);
+    const existing = await getReserveIcDecisionRowOrThrow(client, fundId, scenarioId, decisionId, {
+      forUpdate: true,
+    });
+
+    if (input.provenance?.sourceScenarioId && input.provenance.sourceScenarioId !== scenarioId) {
+      throw createHttpError(400, 'Decision provenance sourceScenarioId must match the route scenario', {
+        code: 'invalid_decision_provenance',
+      });
+    }
+
+    const result = await client.query<ReserveIcDecisionRow>(
+      `UPDATE allocation_scenario_ic_decisions
+          SET decision_type = $1,
+              decision_status = $2,
+              rationale = $3,
+              proposed_planned_reserves_cents = $4,
+              final_planned_reserves_cents = $5,
+              decided_by_user_id = $6,
+              decided_by_label = $7,
+              decided_at = $8,
+              source_allocation_version = $9,
+              live_allocation_version = $10,
+              updated_at = NOW()
+        WHERE fund_id = $11
+          AND scenario_id = $12
+          AND id = $13
+        RETURNING
+          id,
+          fund_id,
+          scenario_id,
+          company_id,
+          decision_type,
+          decision_status,
+          rationale,
+          proposed_planned_reserves_cents,
+          final_planned_reserves_cents,
+          decided_by_user_id,
+          decided_by_label,
+          decided_at,
+          source_allocation_version,
+          live_allocation_version,
+          created_at,
+          updated_at`,
+      [
+        input.decisionType ?? existing.decision_type,
+        input.decisionStatus ?? existing.decision_status,
+        input.rationale !== undefined ? input.rationale.trim() : existing.rationale,
+        input.proposedPlannedReservesCents !== undefined
+          ? input.proposedPlannedReservesCents
+          : existing.proposed_planned_reserves_cents,
+        input.finalPlannedReservesCents !== undefined
+          ? input.finalPlannedReservesCents
+          : existing.final_planned_reserves_cents,
+        input.decidedByUserId !== undefined ? input.decidedByUserId : existing.decided_by_user_id,
+        input.decidedByLabel !== undefined
+          ? normalizeNotes(input.decidedByLabel)
+          : existing.decided_by_label,
+        input.decidedAt !== undefined ? input.decidedAt : existing.decided_at,
+        input.provenance?.sourceAllocationVersion !== undefined
+          ? input.provenance.sourceAllocationVersion
+          : existing.source_allocation_version,
+        input.provenance?.liveAllocationVersion !== undefined
+          ? input.provenance.liveAllocationVersion
+          : existing.live_allocation_version,
+        fundId,
+        scenarioId,
+        decisionId,
+      ]
+    );
+
+    return mapReserveIcDecisionRow(result.rows[0]!);
   });
 }
 

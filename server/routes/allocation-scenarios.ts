@@ -5,12 +5,19 @@ import type { NextFunction } from 'express';
 import {
   applyAllocationScenario,
   createAllocationScenario,
+  createReserveIcDecision,
   getAllocationScenario,
   getAllocationScenarioApplyPreview,
   listAllocationScenarios,
+  listReserveIcDecisions,
   syncAllocationScenario,
+  updateReserveIcDecision,
   updateAllocationScenario,
 } from '../services/allocation-scenario-service.js';
+import {
+  CreateReserveIcDecisionV1Schema,
+  UpdateReserveIcDecisionV1Schema,
+} from '@shared/contracts/reserve-ic-decision-v1.contract';
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -35,6 +42,10 @@ const FundIdParamSchema = z.object({
 
 const ScenarioIdParamSchema = z.object({
   scenarioId: z.string().uuid(),
+});
+
+const DecisionIdParamSchema = z.object({
+  decisionId: z.string().uuid(),
 });
 
 const AllocationScenarioSnapshotItemSchema = z.object({
@@ -128,6 +139,20 @@ function parseScenarioId(req: Request, res: Response): string | null {
   return result.data.scenarioId;
 }
 
+function parseDecisionId(req: Request, res: Response): string | null {
+  const result = DecisionIdParamSchema.safeParse(req.params);
+  if (!result.success) {
+    res.status(400).json({
+      error: 'invalid_decision_id',
+      message: 'Decision ID must be a UUID',
+      details: result.error.format(),
+    });
+    return null;
+  }
+
+  return result.data.decisionId;
+}
+
 function parseActor(req: Request) {
   const rawUserId = req.user?.id as string | number | undefined;
   let user_id: number | null = null;
@@ -151,6 +176,83 @@ function parseActor(req: Request) {
   return {
     user_id,
     label,
+  };
+}
+
+function normalizeReserveIcCreatePayload(
+  fundId: number,
+  scenarioId: string,
+  payload: z.infer<typeof CreateReserveIcDecisionV1Schema>,
+  actor: ReturnType<typeof parseActor>
+) {
+  if (payload.fundId !== fundId) {
+    throw Object.assign(new Error('Decision fundId must match the route fundId'), {
+      statusCode: 400,
+      code: 'invalid_decision_fund',
+    });
+  }
+
+  if (
+    payload.provenance.sourceScenarioId !== null &&
+    payload.provenance.sourceScenarioId !== scenarioId
+  ) {
+    throw Object.assign(new Error('Decision provenance sourceScenarioId must match the route scenario'), {
+      statusCode: 400,
+      code: 'invalid_decision_provenance',
+    });
+  }
+
+  const needsDecisionAudit =
+    payload.decisionStatus === 'approved' || payload.decisionStatus === 'rejected';
+
+  return {
+    ...payload,
+    decidedByUserId:
+      payload.decidedByUserId ?? (needsDecisionAudit ? actor.user_id ?? null : null),
+    decidedByLabel:
+      payload.decidedByLabel ?? (needsDecisionAudit ? actor.label ?? null : null),
+    decidedAt: payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : null),
+    provenance: {
+      ...payload.provenance,
+      sourceScenarioId: scenarioId,
+    },
+  };
+}
+
+function normalizeReserveIcUpdatePayload(
+  scenarioId: string,
+  payload: z.infer<typeof UpdateReserveIcDecisionV1Schema>,
+  actor: ReturnType<typeof parseActor>
+) {
+  if (
+    payload.provenance?.sourceScenarioId !== undefined &&
+    payload.provenance.sourceScenarioId !== null &&
+    payload.provenance.sourceScenarioId !== scenarioId
+  ) {
+    throw Object.assign(new Error('Decision provenance sourceScenarioId must match the route scenario'), {
+      statusCode: 400,
+      code: 'invalid_decision_provenance',
+    });
+  }
+
+  const nextStatus = payload.decisionStatus;
+  const needsDecisionAudit = nextStatus === 'approved' || nextStatus === 'rejected';
+
+  return {
+    ...payload,
+    decidedByUserId:
+      payload.decidedByUserId ?? (needsDecisionAudit ? actor.user_id ?? null : undefined),
+    decidedByLabel:
+      payload.decidedByLabel ?? (needsDecisionAudit ? actor.label ?? null : undefined),
+    decidedAt:
+      payload.decidedAt ?? (needsDecisionAudit ? new Date().toISOString() : undefined),
+    provenance:
+      payload.provenance !== undefined
+        ? {
+            ...payload.provenance,
+            sourceScenarioId: scenarioId,
+          }
+        : payload.provenance,
   };
 }
 
@@ -182,6 +284,24 @@ router.get(
 
     const scenario = await getAllocationScenario(fundId, scenarioId);
     res.status(200).json(scenario);
+  })
+);
+
+router.get(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const decisions = await listReserveIcDecisions(fundId, scenarioId);
+    res.status(200).json({ decisions });
   })
 );
 
@@ -225,6 +345,37 @@ router.post(
   })
 );
 
+router.post(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const body = CreateReserveIcDecisionV1Schema.safeParse(req.body);
+    if (!body.success) {
+      return res.status(400).json({
+        error: 'invalid_request_body',
+        message: 'Invalid Reserve IC decision payload',
+        details: body.error.format(),
+      });
+    }
+
+    const decision = await createReserveIcDecision(
+      fundId,
+      scenarioId,
+      normalizeReserveIcCreatePayload(fundId, scenarioId, body.data, parseActor(req))
+    );
+    return res.status(201).json(decision);
+  })
+);
+
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
   routeHandler(async (req: Request, res: Response) => {
@@ -249,6 +400,43 @@ router.patch(
 
     const scenario = await updateAllocationScenario(fundId, scenarioId, body.data);
     return res.status(200).json(scenario);
+  })
+);
+
+router.patch(
+  '/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId',
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const scenarioId = parseScenarioId(req, res);
+    if (scenarioId === null) {
+      return;
+    }
+
+    const decisionId = parseDecisionId(req, res);
+    if (decisionId === null) {
+      return;
+    }
+
+    const body = UpdateReserveIcDecisionV1Schema.safeParse(req.body);
+    if (!body.success) {
+      return res.status(400).json({
+        error: 'invalid_request_body',
+        message: 'Invalid Reserve IC decision payload',
+        details: body.error.format(),
+      });
+    }
+
+    const decision = await updateReserveIcDecision(
+      fundId,
+      scenarioId,
+      decisionId,
+      normalizeReserveIcUpdatePayload(scenarioId, body.data, parseActor(req))
+    );
+    return res.status(200).json(decision);
   })
 );
 

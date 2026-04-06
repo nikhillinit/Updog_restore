@@ -20,16 +20,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useFundContext } from '@/contexts/FundContext';
 import { format } from 'date-fns';
 import { AlertCircle, ArrowLeft, RefreshCw, Save, Search } from 'lucide-react';
 import { useLatestAllocations } from './hooks/useLatestAllocations';
 import {
   useAllocationScenarioApplyPreview,
+  useAllocationScenarioDecisions,
   useAllocationScenarioDetail,
   useAllocationScenarioList,
   useApplyAllocationScenario,
+  useCreateReserveIcDecision,
   useCreateAllocationScenario,
   useSyncAllocationScenario,
+  useUpdateReserveIcDecision,
   useUpdateAllocationScenario,
 } from './hooks/useAllocationScenarios';
 import { useReserveIcPacketEvidence } from './hooks/useReserveIcPacketEvidence';
@@ -46,9 +50,24 @@ import type {
   AllocationScenarioApplyPreview,
   AllocationScenarioDetail,
   AllocationScenarioSnapshotItem,
+  ReserveIcDecision,
   CreateAllocationScenarioPayload,
   UpdateAllocationPayload,
 } from './types';
+
+const RESERVE_IC_DECISION_TYPE_OPTIONS = [
+  { value: 'follow_on', label: 'follow on' },
+  { value: 'defer', label: 'defer' },
+  { value: 'cut_reserve', label: 'cut reserve' },
+  { value: 'no_action', label: 'no action' },
+] as const;
+
+const RESERVE_IC_DECISION_STATUS_OPTIONS = [
+  { value: 'draft', label: 'draft' },
+  { value: 'proposed', label: 'proposed' },
+  { value: 'approved', label: 'approved' },
+  { value: 'rejected', label: 'rejected' },
+] as const;
 
 function buildScenarioSnapshotItems(
   companies: AllocationCompany[]
@@ -173,6 +192,37 @@ function formatContextTimestamp(value: string | null | undefined) {
   return value ? format(new Date(value), 'MMM d, yyyy h:mm a') : 'Not available';
 }
 
+function formatDecisionTypeLabel(value: ReserveIcDecision['decisionType']) {
+  return RESERVE_IC_DECISION_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+function formatDecisionStatusLabel(value: ReserveIcDecision['decisionStatus']) {
+  return (
+    RESERVE_IC_DECISION_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? value
+  );
+}
+
+function toOptionalIntegerInput(value: number | null | undefined) {
+  return value != null ? String(value) : '';
+}
+
+function parseOptionalNonNegativeInt(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error('Reserve values must be whole cents');
+  }
+
+  return Number(trimmed);
+}
+
+function formatOptionalDecisionCents(value: string) {
+  return /^\d+$/.test(value.trim()) ? formatCents(Number(value), { compact: true }) : 'Not set';
+}
+
 function formatContextSummaryBadgeLabel(
   count: number,
   singularLabel: string,
@@ -264,6 +314,7 @@ function CollaborationContextEventCard({
 
 export function AllocationsTab() {
   const { toast } = useToast();
+  const { fundId } = useFundContext();
   const { data, isLoading, error, refetch } = useLatestAllocations();
   const {
     data: scenarioListData,
@@ -282,6 +333,12 @@ export function AllocationsTab() {
   const [scenarioName, setScenarioName] = useState('');
   const [scenarioNotes, setScenarioNotes] = useState('');
   const [scenarioActionNote, setScenarioActionNote] = useState('');
+  const [selectedDecisionCompanyId, setSelectedDecisionCompanyId] = useState<number | null>(null);
+  const [decisionType, setDecisionType] = useState<ReserveIcDecision['decisionType']>('follow_on');
+  const [decisionStatus, setDecisionStatus] = useState<ReserveIcDecision['decisionStatus']>('draft');
+  const [decisionRationale, setDecisionRationale] = useState('');
+  const [decisionProposedCents, setDecisionProposedCents] = useState('');
+  const [decisionFinalCents, setDecisionFinalCents] = useState('');
   const [applyPreview, setApplyPreview] = useState<AllocationScenarioApplyPreview | null>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof AllocationCompany;
@@ -292,8 +349,13 @@ export function AllocationsTab() {
   const activeScenarioDetail = useAllocationScenarioDetail(activeScenarioId, {
     enabled: !!activeScenarioId && !workspaceDirty,
   });
+  const reserveIcDecisionsQuery = useAllocationScenarioDecisions(activeScenarioId, {
+    enabled: !!activeScenarioId,
+  });
   const createScenarioMutation = useCreateAllocationScenario();
+  const createReserveIcDecisionMutation = useCreateReserveIcDecision(activeScenarioId);
   const updateScenarioMutation = useUpdateAllocationScenario(activeScenarioId);
+  const updateReserveIcDecisionMutation = useUpdateReserveIcDecision(activeScenarioId);
   const previewApplyMutation = useAllocationScenarioApplyPreview(activeScenarioId);
   const syncScenarioMutation = useSyncAllocationScenario(activeScenarioId);
   const applyScenarioMutation = useApplyAllocationScenario(activeScenarioId);
@@ -307,9 +369,12 @@ export function AllocationsTab() {
     null;
   const activeScenarioContext: AllocationScenarioCollaborationContext | null =
     activeScenarioDetail.data?.context ?? null;
+  const reserveIcDecisions = reserveIcDecisionsQuery.data?.decisions ?? [];
   const isScenarioPending =
     createScenarioMutation.isPending ||
+    createReserveIcDecisionMutation.isPending ||
     updateScenarioMutation.isPending ||
+    updateReserveIcDecisionMutation.isPending ||
     previewApplyMutation.isPending ||
     syncScenarioMutation.isPending ||
     applyScenarioMutation.isPending;
@@ -351,10 +416,62 @@ export function AllocationsTab() {
     setApplyPreview(null);
   }, [activeScenarioDetail.data?.updated_at]);
 
+  useEffect(() => {
+    if (!activeScenarioId || displayedCompanies.length === 0) {
+      setSelectedDecisionCompanyId(null);
+      return;
+    }
+
+    setSelectedDecisionCompanyId((current) => {
+      if (current && displayedCompanies.some((company) => company.company_id === current)) {
+        return current;
+      }
+
+      return displayedCompanies[0]!.company_id;
+    });
+  }, [activeScenarioId, displayedCompanies]);
+
   const selectedCompany = useMemo(
     () => displayedCompanies.find((company) => company.company_id === selectedCompanyId) ?? null,
     [displayedCompanies, selectedCompanyId]
   );
+
+  const selectedDecisionCompany = useMemo(
+    () =>
+      displayedCompanies.find((company) => company.company_id === selectedDecisionCompanyId) ?? null,
+    [displayedCompanies, selectedDecisionCompanyId]
+  );
+
+  const selectedDecisionRecord = useMemo(
+    () => reserveIcDecisions.find((decision) => decision.companyId === selectedDecisionCompanyId) ?? null,
+    [reserveIcDecisions, selectedDecisionCompanyId]
+  );
+
+  useEffect(() => {
+    if (!activeScenarioId || !selectedDecisionCompany) {
+      setDecisionType('follow_on');
+      setDecisionStatus('draft');
+      setDecisionRationale('');
+      setDecisionProposedCents('');
+      setDecisionFinalCents('');
+      return;
+    }
+
+    setDecisionType(selectedDecisionRecord?.decisionType ?? 'follow_on');
+    setDecisionStatus(selectedDecisionRecord?.decisionStatus ?? 'draft');
+    setDecisionRationale(
+      selectedDecisionRecord?.rationale ?? selectedDecisionCompany.allocation_reason ?? ''
+    );
+    setDecisionProposedCents(
+      toOptionalIntegerInput(
+        selectedDecisionRecord?.proposedPlannedReservesCents ??
+          selectedDecisionCompany.planned_reserves_cents
+      )
+    );
+    setDecisionFinalCents(
+      toOptionalIntegerInput(selectedDecisionRecord?.finalPlannedReservesCents ?? null)
+    );
+  }, [activeScenarioId, selectedDecisionCompany, selectedDecisionRecord]);
 
   const handleEdit = useCallback((company: AllocationCompany) => {
     setSelectedCompanyId(company.company_id);
@@ -630,6 +747,91 @@ export function AllocationsTab() {
     }
   }, [activeScenarioId, scenarioName, scenarioNotes, toast, updateScenarioMutation]);
 
+  const handleSaveReserveDecision = useCallback(async () => {
+    if (!activeScenarioId || !fundId || !selectedDecisionCompany) {
+      return;
+    }
+
+    const trimmedRationale = decisionRationale.trim();
+    if (!trimmedRationale) {
+      toast({
+        title: 'Decision rationale required',
+        description: 'Add a rationale before saving the Reserve IC decision.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const proposedPlannedReservesCents = parseOptionalNonNegativeInt(decisionProposedCents);
+      const finalPlannedReservesCents = parseOptionalNonNegativeInt(decisionFinalCents);
+      const provenance = {
+        sourceScenarioId: activeScenarioId,
+        sourceAllocationVersion: activeScenarioSummary?.source_allocation_version ?? null,
+        liveAllocationVersion: selectedDecisionCompany.allocation_version ?? null,
+      };
+
+      if (selectedDecisionRecord) {
+        await updateReserveIcDecisionMutation.mutateAsync({
+          decisionId: selectedDecisionRecord.id,
+          payload: {
+            decisionType,
+            decisionStatus,
+            rationale: trimmedRationale,
+            proposedPlannedReservesCents,
+            finalPlannedReservesCents,
+            provenance,
+          },
+        });
+
+        toast({
+          title: 'Decision updated',
+          description: `${selectedDecisionCompany.company_name} now reflects the latest IC decision.`,
+        });
+        return;
+      }
+
+      await createReserveIcDecisionMutation.mutateAsync({
+        fundId,
+        companyId: selectedDecisionCompany.company_id,
+        decisionType,
+        decisionStatus,
+        rationale: trimmedRationale,
+        proposedPlannedReservesCents,
+        finalPlannedReservesCents,
+        provenance,
+      });
+
+      toast({
+        title: 'Decision recorded',
+        description: `${selectedDecisionCompany.company_name} now has a saved Reserve IC decision.`,
+      });
+    } catch (mutationError) {
+      toast({
+        title: 'Decision save failed',
+        description:
+          mutationError instanceof Error
+            ? mutationError.message
+            : 'Failed to save Reserve IC decision',
+        variant: 'destructive',
+      });
+    }
+  }, [
+    activeScenarioId,
+    activeScenarioSummary?.source_allocation_version,
+    createReserveIcDecisionMutation,
+    decisionFinalCents,
+    decisionProposedCents,
+    decisionRationale,
+    decisionStatus,
+    decisionType,
+    fundId,
+    selectedDecisionCompany,
+    selectedDecisionRecord,
+    toast,
+    updateReserveIcDecisionMutation,
+  ]);
+
   const handleLoadApplyPreview = useCallback(async () => {
     if (!activeScenarioId) {
       return;
@@ -788,9 +990,15 @@ export function AllocationsTab() {
       scenario: activeScenarioDetail.data,
       publishedResults: publishedResultsQuery.data ?? null,
       comparison: comparisonQuery.data ?? null,
-      decisions: [],
+      decisions: reserveIcDecisions,
     });
-  }, [activeScenarioDetail.data, comparisonQuery.data, data, publishedResultsQuery.data]);
+  }, [
+    activeScenarioDetail.data,
+    comparisonQuery.data,
+    data,
+    publishedResultsQuery.data,
+    reserveIcDecisions,
+  ]);
 
   const reserveIcPacketError = useMemo(() => {
     if (publishedResultsQuery.error instanceof Error) {
@@ -799,8 +1007,11 @@ export function AllocationsTab() {
     if (comparisonQuery.error instanceof Error) {
       return comparisonQuery.error;
     }
+    if (reserveIcDecisionsQuery.error instanceof Error) {
+      return reserveIcDecisionsQuery.error;
+    }
     return null;
-  }, [comparisonQuery.error, publishedResultsQuery.error]);
+  }, [comparisonQuery.error, publishedResultsQuery.error, reserveIcDecisionsQuery.error]);
 
   if (isLoading) {
     return (
@@ -1133,11 +1344,176 @@ export function AllocationsTab() {
                 )}
               </div>
 
+              <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-slate-950">Reserve IC Decisions</div>
+                    <div className="text-xs text-slate-700/70">
+                      Capture company-level follow-on, defer, cut-reserve, and no-action decisions
+                      for the active scenario without changing live allocations.
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-slate-300 text-slate-700">
+                    {activeScenarioId ? `${reserveIcDecisions.length} saved` : 'Select a scenario'}
+                  </Badge>
+                </div>
+
+                {activeScenarioId && selectedDecisionCompany ? (
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+                    <div className="space-y-3 rounded-md border border-slate-200 bg-white/90 p-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="reserve-ic-company">Company</Label>
+                        <select
+                          id="reserve-ic-company"
+                          value={selectedDecisionCompanyId ?? ''}
+                          onChange={(event) => setSelectedDecisionCompanyId(Number(event.target.value))}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {displayedCompanies.map((company) => (
+                            <option key={company.company_id} value={company.company_id}>
+                              {company.company_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label htmlFor="reserve-ic-type">Decision Type</Label>
+                          <select
+                            id="reserve-ic-type"
+                            value={decisionType}
+                            onChange={(event) =>
+                              setDecisionType(event.target.value as ReserveIcDecision['decisionType'])
+                            }
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {RESERVE_IC_DECISION_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="reserve-ic-status">Decision Status</Label>
+                          <select
+                            id="reserve-ic-status"
+                            value={decisionStatus}
+                            onChange={(event) =>
+                              setDecisionStatus(event.target.value as ReserveIcDecision['decisionStatus'])
+                            }
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {RESERVE_IC_DECISION_STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label htmlFor="reserve-ic-proposed">Proposed Reserve Cents</Label>
+                          <Input
+                            id="reserve-ic-proposed"
+                            value={decisionProposedCents}
+                            onChange={(event) => setDecisionProposedCents(event.target.value)}
+                            inputMode="numeric"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="reserve-ic-final">Final Reserve Cents</Label>
+                          <Input
+                            id="reserve-ic-final"
+                            value={decisionFinalCents}
+                            onChange={(event) => setDecisionFinalCents(event.target.value)}
+                            inputMode="numeric"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="reserve-ic-rationale">Decision Rationale</Label>
+                        <Textarea
+                          id="reserve-ic-rationale"
+                          value={decisionRationale}
+                          onChange={(event) => setDecisionRationale(event.target.value)}
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                        <Badge variant="outline" className="border-slate-300 text-slate-700">
+                          Live planned {formatCents(selectedDecisionCompany.planned_reserves_cents, { compact: true })}
+                        </Badge>
+                        {selectedDecisionRecord ? (
+                          <Badge variant="outline" className="border-slate-300 text-slate-700">
+                            Existing {formatDecisionStatusLabel(selectedDecisionRecord.decisionStatus)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-slate-300 text-slate-700">
+                            New decision
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveReserveDecision} disabled={isScenarioPending}>
+                          <Save className="h-4 w-4 mr-2" />
+                          {selectedDecisionRecord ? 'Update Decision' : 'Save Decision'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-slate-200 bg-white/90 p-4">
+                      <div className="text-sm font-medium text-slate-950">Decision Snapshot</div>
+                      <div className="mt-3 space-y-3 text-sm text-slate-700">
+                        <div>
+                          <span className="font-medium text-slate-950">Company:</span>{' '}
+                          {selectedDecisionCompany.company_name}
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-950">Type:</span>{' '}
+                          {formatDecisionTypeLabel(decisionType)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-950">Status:</span>{' '}
+                          {formatDecisionStatusLabel(decisionStatus)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-950">Proposed:</span>{' '}
+                          {formatOptionalDecisionCents(decisionProposedCents)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-950">Final:</span>{' '}
+                          {formatOptionalDecisionCents(decisionFinalCents)}
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2">
+                          {decisionRationale.trim() || 'No decision rationale recorded yet.'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    Resume a saved scenario to capture or review Reserve IC decisions.
+                  </p>
+                )}
+              </div>
+
               <ReserveIcPacketCard
                 packet={reserveIcPacket}
                 isLoading={
                   !!activeScenarioId &&
-                  (publishedResultsQuery.isLoading || comparisonQuery.isLoading)
+                  (
+                    publishedResultsQuery.isLoading ||
+                    comparisonQuery.isLoading ||
+                    reserveIcDecisionsQuery.isLoading
+                  )
                 }
                 error={reserveIcPacketError}
               />

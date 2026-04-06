@@ -288,6 +288,7 @@ describe('buildReserveIcPacket', () => {
       livePlannedReservesCents: 150_000_000,
       scenarioPlannedReservesCents: 175_000_000,
       deltaPlannedReservesCents: 25_000_000,
+      decisionRationale: 'Propose larger reserve due to strong growth trajectory.',
       recordedDecisionType: 'follow_on',
       recordedDecisionStatus: 'proposed',
     });
