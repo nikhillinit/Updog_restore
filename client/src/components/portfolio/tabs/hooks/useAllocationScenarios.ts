@@ -10,6 +10,7 @@ import type {
   AllocationScenarioSyncResult,
   ApplyAllocationScenarioPayload,
   CreateAllocationScenarioPayload,
+  ReserveIcDecision,
   ReserveIcDecisionListResponse,
   UpdateReserveIcDecisionPayload,
   UpdateAllocationScenarioPayload,
@@ -171,7 +172,7 @@ export function useCreateReserveIcDecision(scenarioId: string | null) {
         throw new Error(buildErrorMessage(errorData, 'Failed to create Reserve IC decision'));
       }
 
-      return response.json();
+      return response.json() as Promise<ReserveIcDecision>;
     },
     onSuccess: async () => {
       await Promise.all([
@@ -206,7 +207,12 @@ export function useUpdateAllocationScenario(scenarioId: string | null) {
       return response.json() as Promise<AllocationScenarioDetail>;
     },
     onSuccess: async (scenario) => {
-      await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) }),
+        queryClient.invalidateQueries({
+          queryKey: getScenarioDecisionListQueryKey(fundId, scenario.id),
+        }),
+      ]);
       queryClient.setQueryData(getScenarioDetailQueryKey(fundId, scenario.id), scenario);
     },
   });
@@ -242,7 +248,7 @@ export function useUpdateReserveIcDecision(scenarioId: string | null) {
         throw new Error(buildErrorMessage(errorData, 'Failed to update Reserve IC decision'));
       }
 
-      return response.json();
+      return response.json() as Promise<ReserveIcDecision>;
     },
     onSuccess: async () => {
       await Promise.all([
@@ -302,7 +308,12 @@ export function useSyncAllocationScenario(scenarioId: string | null) {
       return response.json() as Promise<AllocationScenarioSyncResult>;
     },
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) }),
+        queryClient.invalidateQueries({
+          queryKey: getScenarioDecisionListQueryKey(fundId, result.scenario.id),
+        }),
+      ]);
       queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
     },
   });
@@ -335,6 +346,9 @@ export function useApplyAllocationScenario(scenarioId: string | null) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getScenarioListQueryKey(fundId) }),
         queryClient.invalidateQueries({ queryKey: getLatestAllocationsQueryKey(fundId) }),
+        queryClient.invalidateQueries({
+          queryKey: getScenarioDecisionListQueryKey(fundId, result.scenario.id),
+        }),
       ]);
       queryClient.setQueryData(getScenarioDetailQueryKey(fundId, result.scenario.id), result.scenario);
     },
