@@ -17,9 +17,9 @@ export default function SensitivityAnalysisPage() {
       <div className="mb-6 space-y-2">
         <h1 className="text-2xl font-semibold text-gray-900">Sensitivity Analysis</h1>
         <p className="max-w-3xl text-sm text-gray-600">
-          Monte Carlo backtesting is the first live workspace in this surface. One-way, two-way, and
-          stress-test tools remain planned and are intentionally marked as coming soon until their
-          fund-backed backend contracts and persisted comparison model are ready.
+          Monte Carlo backtesting is the only live workspace on this page today. One-way, two-way,
+          and stress-test tools remain intentionally disabled until each mode has a fund-scoped
+          backend endpoint, a stable comparison contract, and persisted scenario data behind it.
         </p>
       </div>
 
@@ -55,8 +55,8 @@ export default function SensitivityAnalysisPage() {
           <TabsContent key={tab.value} value={tab.value}>
             <Card className="border-dashed border-slate-300 bg-slate-50">
               <CardContent className="px-6 py-8 text-center text-sm text-slate-600">
-                {tab.label} is planned but not yet wired to a fund-backed backend, comparison API
-                contract, and persisted scenario model.
+                {tab.label} stays disabled until this surface has a fund-scoped backend endpoint, a
+                comparison contract, and persisted scenario data for that mode.
               </CardContent>
             </Card>
           </TabsContent>
