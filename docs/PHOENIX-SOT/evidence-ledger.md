@@ -1,5 +1,6 @@
 ---
-last_updated: 2026-04-03
+last_updated: 2026-04-05
+status: STALE-VALIDATION
 ---
 
 # Phoenix Evidence Ledger
@@ -9,6 +10,17 @@ last_updated: 2026-04-03
 >
 > **Last validated**: 2026-02-24 (post-remediation) **Branch**:
 > fix/server-infra-remediation
+
+## Reconciliation Notice (2026-04-05)
+
+The validation in this document is ~6 weeks old and the totals below disagree
+with `docs/phase0-validation-report.md` (which reports XIRR 51, Waterfall-Tier
+16, Waterfall-Ledger 15, Fees 11 against this ledger's XIRR 14, WT 15, WL 14,
+Fees 10). Both are historical snapshots from different runner configurations.
+
+**Do not trust hardcoded totals in this ledger without re-running
+`npm run phoenix:truth` first.** The test runner output is the authoritative
+count; update this ledger alongside any release validation.
 
 ---
 
@@ -188,7 +200,11 @@ system. This section tracks their skip state for completeness.
 
 ## Release Gate Checklist
 
-- [x] All deterministic truth cases pass (107/107)
+- [x] All deterministic truth cases pass — historical total 107/107 as of
+      2026-02-24 validation run; re-run `npm run phoenix:truth` to get the
+      current total (it has drifted as cases were added/removed, and
+      `phase0-validation-report.md` records a larger 118/118 count from a
+      different runner configuration)
 - [x] MOIC oracle cases landed and passing (10/10)
 - [x] Graduation rate oracle cases landed and passing (4/4)
 - [x] CA runner 20/20 with no overrides (CA-001 contract resolved)

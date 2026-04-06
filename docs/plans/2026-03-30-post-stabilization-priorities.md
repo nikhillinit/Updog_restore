@@ -1,12 +1,22 @@
 ---
-status: DRAFT
-last_updated: 2026-03-30
+status: SUPERSEDED
+last_updated: 2026-04-05
+superseded_by:
+  - docs/plans/2026-03-31-variance-roadmap-revision.md
+  - docs/plans/2026-04-03-phase-1a2-baseline-automation-hardening-validated.md
+  - docs/plans/2026-04-03-phase-1b-single-owner-pr-queue.md
 depends_on:
   - docs/STABILIZATION-ROADMAP.md
   - docs/plans/2026-03-27-secondary-surface-decisions.md
 ---
 
-# Post-Stabilization Priorities
+# Post-Stabilization Priorities (Superseded Draft)
+
+> **Status (2026-04-05)**: This DRAFT was written before the 2026-03-31 variance
+> roadmap revision, which became the operational sequencing doc for
+> post-stabilization work. The priorities below (Results Intelligence, Portfolio
+> Planning Persistence) overlap with and were absorbed by the variance/1A/1B/1C
+> stream. Retained as historical context; do not execute from this document.
 
 ## Purpose
 
@@ -65,11 +75,13 @@ Add a server read model that compares the current published results to one prior
 published version using existing persisted config and calc-run data.
 
 Scope:
+
 - version selector or "compare to previous" default
 - summary-level diffs only
 - no arbitrary config-body diffing in the first slice
 
 Acceptance criteria:
+
 - compare current published version to previous published version
 - expose enough metadata to explain which runs are being compared
 - keep the source of truth server-side
@@ -79,11 +91,13 @@ Acceptance criteria:
 Render comparison data in `fund-model-results` using the read model from 1A.
 
 Scope:
+
 - KPI-level delta cards
 - compact section-level "up/down/no change" summaries
 - visible context about which versions are being compared
 
 Non-goals:
+
 - spreadsheet-like deep diff
 - multi-version matrix explorer
 
@@ -92,6 +106,7 @@ Non-goals:
 Add lightweight run diagnostics to the results experience.
 
 Scope:
+
 - last run timestamp
 - correlation/run identifiers
 - terminal failure messaging that distinguishes "publish exists but calc failed"
@@ -118,6 +133,7 @@ without leaving the truthful portfolio surface.
 Persist named planning scenarios inside the live portfolio surface.
 
 Scope:
+
 - save scenario
 - rename scenario
 - resume scenario
@@ -128,6 +144,7 @@ Scope:
 Support explicit apply/sync behavior with traceability.
 
 Scope:
+
 - apply scenario to current planning state
 - record last applied timestamp and actor context where available
 - preserve a minimal audit trail of sync/apply actions
@@ -137,6 +154,7 @@ Scope:
 Expand the current notes/workspace summary into a durable planning context.
 
 Scope:
+
 - scenario notes
 - last sync note
 - simple change summary
@@ -155,6 +173,7 @@ resumes.
 Ensure the supported command path and archived-doc boundaries stay current.
 
 Scope:
+
 - update `docs/script-classification.json` when supported scripts change
 - keep README / BUILD_READINESS / CLAUDE command docs aligned
 - archive new stale planning artifacts instead of letting them accumulate
@@ -164,6 +183,7 @@ Scope:
 Keep feature slices narrow and validate against the stabilized gates.
 
 Scope:
+
 - one branch per slice
 - no mixed feature + infrastructure PRs unless the feature depends on it
 - `validate:core` remains mandatory before merge
@@ -184,9 +204,9 @@ Scope:
 
 ## Detailed Follow-Through Specs
 
-- `docs/plans/2026-03-30-priority-2b-2c-3a-3b-execution-spec.md`
-  expands Priority `2B`, Priority `2C`, and continuous Priority `3A`/`3B`
-  into owned files, batch order, validation, and rollback criteria.
+- `docs/plans/2026-03-30-priority-2b-2c-3a-3b-execution-spec.md` expands
+  Priority `2B`, Priority `2C`, and continuous Priority `3A`/`3B` into owned
+  files, batch order, validation, and rollback criteria.
 
 ## Out Of Scope
 

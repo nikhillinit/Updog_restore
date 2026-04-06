@@ -1,7 +1,8 @@
 ---
-description: "Guided ADR (Architecture Decision Record) entry for DECISIONS.md"
-argument-hint: "[title]"
+description: 'Guided ADR (Architecture Decision Record) entry for DECISIONS.md'
+argument-hint: '[title]'
 allowed-tools: Read, Write, Edit, Grep
+last_updated: 2026-04-06
 ---
 
 # Log Decision - ADR Entry
@@ -11,6 +12,7 @@ Add a structured Architecture Decision Record (ADR) to DECISIONS.md.
 ## When to Use
 
 Use this command when:
+
 - Making architectural choices (framework, library, pattern)
 - Choosing between competing approaches
 - Establishing new conventions or standards
@@ -22,13 +24,13 @@ Use this command when:
 ```markdown
 ### ADR-XXX: [Title]
 
-**Date**: YYYY-MM-DD
-**Status**: [Proposed | Accepted | Deprecated | Superseded by ADR-YYY]
+**Date**: YYYY-MM-DD **Status**: [Proposed | Accepted | Deprecated | Superseded
+by ADR-YYY]
 
 #### Context
 
-[What is the issue that motivated this decision?]
-[What constraints or requirements exist?]
+[What is the issue that motivated this decision?] [What constraints or
+requirements exist?]
 
 #### Decision
 
@@ -37,14 +39,17 @@ Use this command when:
 #### Consequences
 
 **Positive:**
+
 - [Benefit 1]
 - [Benefit 2]
 
 **Negative:**
+
 - [Trade-off 1]
 - [Trade-off 2]
 
 **Neutral:**
+
 - [Side effect that's neither good nor bad]
 ```
 
@@ -61,8 +66,7 @@ Use this command when:
 ```markdown
 ### ADR-014: Use Decimal.js for Financial Calculations
 
-**Date**: 2025-12-29
-**Status**: Accepted
+**Date**: 2025-12-29 **Status**: Accepted
 
 #### Context
 
@@ -78,16 +82,19 @@ number operations where precision matters.
 #### Consequences
 
 **Positive:**
+
 - Eliminates floating-point precision errors
 - Achieves consistent Excel parity (1e-10 tolerance possible)
 - Industry-standard approach for financial software
 
 **Negative:**
+
 - Performance overhead (~3x slower than native numbers)
 - Additional dependency (18KB gzipped)
 - Learning curve for team
 
 **Neutral:**
+
 - Requires migration of existing calculations
 ```
 
@@ -104,6 +111,7 @@ Use the next sequential number. Current highest should be ADR-013.
 ## Quality Checklist
 
 Before completing:
+
 - [ ] ADR number is sequential (no gaps or conflicts)
 - [ ] Context clearly explains the problem
 - [ ] Decision is specific and actionable
@@ -120,6 +128,6 @@ Before completing:
 
 ## Warning: ADR Number Conflicts
 
-Per DISCOVERY-MAP.md, ADR-010 through ADR-012 exist in BOTH `DECISIONS.md`
-and `docs/adr/` with different content. When referencing these ADRs,
-specify the file path explicitly until resolved.
+Per DISCOVERY-MAP.md, ADR-010 through ADR-012 exist in BOTH `DECISIONS.md` and
+`docs/adr/` with different content. When referencing these ADRs, specify the
+file path explicitly until resolved.

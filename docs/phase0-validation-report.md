@@ -1,12 +1,26 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-21
+status: HISTORICAL-SNAPSHOT
+last_updated: 2026-04-05
+validation_as_of: 2026-01-21
 ---
 
-# Phoenix Validation Report
+# Phoenix Validation Report (2026-01-21 snapshot)
 
-**Last Updated:** 2026-01-21 **Phase:** Phase 2 Complete
-**Status:** All modules validated (118 tests, 100% pass rate) + Phase 2 components production-ready
+**Validation Date:** 2026-01-21 **Phase at time of validation:** Phase 2
+Complete **Status at time of validation:** All modules validated (118 tests,
+100% pass rate)
+
+## Reconciliation Notice (2026-04-05)
+
+This report is a **2.5-month-old snapshot** kept as historical evidence for the
+Phase 2 validation run. The 118-test total below was accurate on 2026-01-21 but
+has drifted as truth cases were added/revised; the Phoenix evidence ledger at
+`docs/PHOENIX-SOT/evidence-ledger.md` records a different 107/107 total from a
+2026-02-24 run. Neither number should be quoted as current without first running
+`npm run phoenix:truth` to regenerate.
+
+Do not treat this document as an ongoing status report. Use it only for
+historical audit of the 2026-01-21 validation outcome.
 
 ---
 
@@ -16,24 +30,24 @@ Fresh validation run following Phase -1 completion (PR #474 merged).
 
 ### Module-Level Pass Rates (Live Run)
 
-| Module                       | Tests | Passed | Pass Rate | Status                        |
-| ---------------------------- | ----- | ------ | --------- | ----------------------------- |
-| **XIRR**                     | 51    | 51     | **100%**  | [PASS] **PRODUCTION READY**   |
-| **Waterfall (Tier)**         | 16    | 16     | **100%**  | [PASS] **VALIDATED**          |
-| **Waterfall (Ledger)**       | 15    | 15     | **100%**  | [PASS] **VALIDATED**          |
-| **Fees**                     | 11    | 11     | **100%**  | [PASS] **VALIDATED**          |
-| **Capital Allocation**       | 1     | 1      | **100%**  | [PASS] **LOAD VERIFIED** (see detailed below) |
-| **Exit Recycling**           | 21    | 21     | **100%**  | [PASS] **VALIDATED**          |
-| **Coverage Summary**         | 3     | 3      | **100%**  | [PASS] **META**               |
-| **TOTAL**                    | **118** | **118** | **100%** | [PASS] **ALL VALIDATED**    |
+| Module                 | Tests   | Passed  | Pass Rate | Status                                        |
+| ---------------------- | ------- | ------- | --------- | --------------------------------------------- |
+| **XIRR**               | 51      | 51      | **100%**  | [PASS] **PRODUCTION READY**                   |
+| **Waterfall (Tier)**   | 16      | 16      | **100%**  | [PASS] **VALIDATED**                          |
+| **Waterfall (Ledger)** | 15      | 15      | **100%**  | [PASS] **VALIDATED**                          |
+| **Fees**               | 11      | 11      | **100%**  | [PASS] **VALIDATED**                          |
+| **Capital Allocation** | 1       | 1       | **100%**  | [PASS] **LOAD VERIFIED** (see detailed below) |
+| **Exit Recycling**     | 21      | 21      | **100%**  | [PASS] **VALIDATED**                          |
+| **Coverage Summary**   | 3       | 3       | **100%**  | [PASS] **META**                               |
+| **TOTAL**              | **118** | **118** | **100%**  | [PASS] **ALL VALIDATED**                      |
 
 ### Routing Decision
 
-| Criteria                          | Required | Actual  | Status      |
-| --------------------------------- | -------- | ------- | ----------- |
-| Core tests pass rate              | >= 70%   | 100%    | [PASS] PASS |
-| Module gates met                  | All      | 6/6     | [PASS] PASS |
-| No regressions from prior Phase 1 | Zero     | Zero    | [PASS] PASS |
+| Criteria                          | Required | Actual | Status      |
+| --------------------------------- | -------- | ------ | ----------- |
+| Core tests pass rate              | >= 70%   | 100%   | [PASS] PASS |
+| Module gates met                  | All      | 6/6    | [PASS] PASS |
+| No regressions from prior Phase 1 | Zero     | Zero   | [PASS] PASS |
 
 **Chosen Path:** [PASS] **Phase 1A (Cleanup + Hardening)**
 
@@ -50,14 +64,17 @@ npm run phoenix:truth
 
 Separate detailed run of `capital-allocation.test.ts`:
 
-| Test Count | Passed | Skipped | Notes |
-|------------|--------|---------|-------|
+| Test Count | Passed | Skipped | Notes                                       |
+| ---------- | ------ | ------- | ------------------------------------------- |
 | 24         | 21     | 3       | CA-005 implemented; 3 pacing cases deferred |
 
 Skipped cases (pacing model semantic inconsistencies):
-- CA-009, CA-010, CA-012: Truth cases mix gross/net pacing semantics (per Codex analysis 2026-01-21)
+
+- CA-009, CA-010, CA-012: Truth cases mix gross/net pacing semantics (per Codex
+  analysis 2026-01-21)
 
 Implemented (2026-01-21):
+
 - CA-005: Dynamic ratio reserve policy with NAV-based calculation
 
 ---
@@ -66,17 +83,17 @@ Implemented (2026-01-21):
 
 ### Steps Completed
 
-| Step | Description | Status |
-|------|-------------|--------|
-| 1A.0 | JSDoc Hotfix - Clawback Semantics | [PASS] COMPLETE |
-| 1A.1 | ESLint Configuration Tightening | [PASS] COMPLETE (14 parseFloat occurrences documented) |
-| 1A.2 | TypeScript Strict Mode Ratchet | [PASS] COMPLETE (strict mode already enabled) |
-| 1A.3 | Dependency Precision Audit | [PASS] COMPLETE (Decimal.js precision=28, ROUND_HALF_UP) |
-| 1A.4 | Truth Case Coverage Expansion | [PASS] COMPLETE (CA: 21/24 pass, CA-005 implemented) |
-| 1A.5 | Calculation Path Isolation | [PASS] COMPLETE (ESLint boundaries enforce) |
-| 1A.6 | parseFloat Eradication (P0) | [PASS] COMPLETE (parseFloat at boundaries, Decimal in engines) |
-| 1A.7 | Documentation Sync | [PASS] COMPLETE |
-| 1A.8 | Final Validation | [PASS] COMPLETE (118/118 tests, 100%) |
+| Step | Description                       | Status                                                         |
+| ---- | --------------------------------- | -------------------------------------------------------------- |
+| 1A.0 | JSDoc Hotfix - Clawback Semantics | [PASS] COMPLETE                                                |
+| 1A.1 | ESLint Configuration Tightening   | [PASS] COMPLETE (14 parseFloat occurrences documented)         |
+| 1A.2 | TypeScript Strict Mode Ratchet    | [PASS] COMPLETE (strict mode already enabled)                  |
+| 1A.3 | Dependency Precision Audit        | [PASS] COMPLETE (Decimal.js precision=28, ROUND_HALF_UP)       |
+| 1A.4 | Truth Case Coverage Expansion     | [PASS] COMPLETE (CA: 21/24 pass, CA-005 implemented)           |
+| 1A.5 | Calculation Path Isolation        | [PASS] COMPLETE (ESLint boundaries enforce)                    |
+| 1A.6 | parseFloat Eradication (P0)       | [PASS] COMPLETE (parseFloat at boundaries, Decimal in engines) |
+| 1A.7 | Documentation Sync                | [PASS] COMPLETE                                                |
+| 1A.8 | Final Validation                  | [PASS] COMPLETE (118/118 tests, 100%)                          |
 
 **Phase 1A Status:** [PASS] COMPLETE (2026-01-21)
 
@@ -86,22 +103,22 @@ Implemented (2026-01-21):
 
 ### Gate Criteria Assessment
 
-| Criteria | Required | Status | Notes |
-|----------|----------|--------|-------|
-| Phase 1 truth case pass rate | >= 95% | [PASS] 100% | Baseline maintained |
-| Graduation engine deterministic mode | Required | [PASS] COMPLETE | `expectationMode: true` supported |
-| All 7 MOIC variants implemented | Required | [PASS] COMPLETE | MOICCalculator.ts (522 lines) |
-| Reserves ranking respects budget | Required | [PASS] COMPLETE | DeterministicReserveEngine |
-| Monte Carlo preserves Phase 1 accuracy | Required | [PASS] COMPLETE | MonteCarloOrchestrator |
+| Criteria                               | Required | Status          | Notes                             |
+| -------------------------------------- | -------- | --------------- | --------------------------------- |
+| Phase 1 truth case pass rate           | >= 95%   | [PASS] 100%     | Baseline maintained               |
+| Graduation engine deterministic mode   | Required | [PASS] COMPLETE | `expectationMode: true` supported |
+| All 7 MOIC variants implemented        | Required | [PASS] COMPLETE | MOICCalculator.ts (522 lines)     |
+| Reserves ranking respects budget       | Required | [PASS] COMPLETE | DeterministicReserveEngine        |
+| Monte Carlo preserves Phase 1 accuracy | Required | [PASS] COMPLETE | MonteCarloOrchestrator            |
 
 ### Implemented Components
 
-| Component | Location | Lines | Status |
-|-----------|----------|-------|--------|
-| GraduationRateEngine | `client/src/core/graduation/` | 493 | [PASS] PRODUCTION |
-| MOICCalculator (7 variants) | `client/src/core/moic/` | 522 | [PASS] PRODUCTION |
-| DeterministicReserveEngine | `client/src/core/reserves/` | 400+ | [PASS] PRODUCTION |
-| MonteCarloOrchestrator | `server/services/` | 200+ | [PASS] PRODUCTION |
+| Component                   | Location                      | Lines | Status            |
+| --------------------------- | ----------------------------- | ----- | ----------------- |
+| GraduationRateEngine        | `client/src/core/graduation/` | 493   | [PASS] PRODUCTION |
+| MOICCalculator (7 variants) | `client/src/core/moic/`       | 522   | [PASS] PRODUCTION |
+| DeterministicReserveEngine  | `client/src/core/reserves/`   | 400+  | [PASS] PRODUCTION |
+| MonteCarloOrchestrator      | `server/services/`            | 200+  | [PASS] PRODUCTION |
 
 ### MOIC Variants Implemented
 
@@ -115,10 +132,13 @@ Implemented (2026-01-21):
 
 ### Key Features
 
-- **Graduation Engine**: Expectation mode (deterministic) + Stochastic mode (seeded PRNG)
+- **Graduation Engine**: Expectation mode (deterministic) + Stochastic mode
+  (seeded PRNG)
 - **MOIC Calculator**: `rankByReservesMOIC()` for reserve allocation decisions
-- **Reserve Engine**: Exit MOIC on Planned Reserves algorithm with risk adjustments
-- **Monte Carlo**: Wraps Phase 1 deterministic core, preserves truth case accuracy
+- **Reserve Engine**: Exit MOIC on Planned Reserves algorithm with risk
+  adjustments
+- **Monte Carlo**: Wraps Phase 1 deterministic core, preserves truth case
+  accuracy
 
 **Phase 2 Status:** [PASS] COMPLETE (2026-01-21)
 

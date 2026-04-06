@@ -6,8 +6,7 @@ last_updated: 2026-01-19
 # Baseline Governance Guide
 
 **Purpose**: How to manage quality metric baselines and request changes
-**Audience**: Developers, Agents
-**Last Updated**: 2025-12-16
+**Audience**: Developers, Agents **Last Updated**: 2025-12-16
 
 ---
 
@@ -16,13 +15,12 @@ last_updated: 2026-01-19
 Baselines are quality metric thresholds that enforce the "ratchet" principle:
 metrics can improve but cannot regress without explicit approval.
 
-**Tracked Metrics**:
-| Metric | Location | Ratchet Direction |
-|--------|----------|-------------------|
-| Test pass count | .baselines/tests.json | Can only increase |
-| TypeScript errors | .baselines/typescript.json | Can only decrease |
-| ESLint violations | .baselines/eslint.json | Can only decrease |
-| Bundle size (KB) | .baselines/bundle.json | Can only decrease |
+**Tracked Metrics**: | Metric | Location | Ratchet Direction |
+|--------|----------|-------------------| | Test pass count |
+.baselines/tests.json | Can only increase | | TypeScript errors |
+.baselines/typescript.json | Can only decrease | | ESLint violations |
+.baselines/eslint.json | Can only decrease | | Bundle size (KB) |
+.baselines/bundle.json | Can only decrease |
 
 ---
 
@@ -67,10 +65,8 @@ Create a comment block in your PR description:
 ```markdown
 ## Baseline Change Request
 
-**Metric**: Test pass count
-**Current**: 998
-**Proposed**: 990
-**Direction**: Decrease (loosening)
+**Metric**: Test pass count **Current**: 3886 **Proposed**: 3878 **Direction**:
+Decrease (loosening)
 
 ### Justification
 
@@ -88,6 +84,10 @@ Create a comment block in your PR description:
 - [ ] Stakeholder approval obtained
 ```
 
+> Example numbers above reflect the ~2026-04-05 post-stabilization test count
+> (3886). Run `npm test` for the authoritative current total before filing a
+> baseline change request — the number drifts as suites evolve.
+
 ### Step 2: Add Label
 
 Add the `baseline-change` label to your PR.
@@ -95,6 +95,7 @@ Add the `baseline-change` label to your PR.
 ### Step 3: Get Approval
 
 Baseline changes require explicit approval from:
+
 - Code owner for affected area
 - Quality gate maintainer
 
@@ -115,12 +116,12 @@ This regenerates `.baselines/` files with new thresholds.
 ```json
 {
   "metric": "test_pass_count",
-  "value": 998,
-  "updated_at": "2025-12-16T10:00:00Z",
+  "value": 3886,
+  "updated_at": "2026-04-05T10:00:00Z",
   "updated_by": "PR #123",
   "history": [
-    { "value": 990, "date": "2025-12-01", "pr": "#100" },
-    { "value": 998, "date": "2025-12-15", "pr": "#120" }
+    { "value": 3878, "date": "2026-04-01", "pr": "#100" },
+    { "value": 3886, "date": "2026-04-05", "pr": "#120" }
   ]
 }
 ```
@@ -151,7 +152,8 @@ delta: -3
 
 ## Agent Delegation
 
-When `baseline-check.sh` fails, `code-reviewer` delegates to `baseline-regression-explainer`:
+When `baseline-check.sh` fails, `code-reviewer` delegates to
+`baseline-regression-explainer`:
 
 ```
 code-reviewer sees baseline-check failure

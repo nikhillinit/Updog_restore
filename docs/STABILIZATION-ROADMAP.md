@@ -309,11 +309,32 @@ implicit storage mode.
 - Log cleanup in fund routes moved out of Milestone 0 and into lifecycle/backend
   cleanup, where it belongs.
 
-## Immediate Next Actions
+## Program Status (2026-04-05)
 
-1. Start Milestone 6 with the highest-leverage internal workflow feature:
-   reserve-planning persistence inside the live portfolio surface.
-2. Keep future route or nav changes flowing through the exported governance
-   registry and the generated route-control adapter.
-3. Keep shared math authoritative; do not introduce new client-side engine forks
-   outside explicitly deferred milestones.
+Milestones 0A through 7 are all complete. The stabilization program has landed.
+Active product and hardening work now lives in `docs/plans/` as dated plan
+documents; this roadmap remains the **governance** source of truth for the rules
+below, not a backlog.
+
+**Post-stabilization active streams** (see `docs/plans/` for details):
+
+- Variance / baseline automation hardening —
+  `2026-04-03-phase-1a2-baseline-automation-hardening-validated.md`
+- Alert evaluation and scheduling —
+  `2026-04-02-phase-1c1-alert-evaluation-implementation-strategy.md`,
+  `2026-04-02-phase-1c2-alert-scheduling-and-remaining-capital-plan.md`
+- Scenario comparison consolidation —
+  `2026-04-02-phase-2-scenario-comparison-consolidation-plan.md` and the
+  2026-04-03 slice 3 / slice 4 follow-ups
+- Dual-forecast PR queue — `2026-04-03-phase-1b-single-owner-pr-queue.md`
+- Doc truthfulness remediation —
+  `2026-04-05-todo-report-remediation-strategy.md`
+
+**Standing rules that outlast the program:**
+
+1. Route or nav changes must flow through the exported governance registry and
+   the generated route-control adapter.
+2. Shared math stays authoritative; no new client-side engine forks.
+3. `npm run validate:core` remains the hard delivery gate.
+4. LP / KPI / Compass expansion remains off-limits until their gate decisions
+   reopen (see `DECISIONS.md` ADR-020 for Phase 3C Track B).

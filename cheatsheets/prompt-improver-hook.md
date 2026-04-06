@@ -5,16 +5,20 @@ last_updated: 2026-01-19
 
 # Prompt Improver Hook
 
-**Status:** ✅ Active
-**Location:** `~/.claude/hooks/improve-prompt.py`
-**Source:** Internalized from [severity1/claude-code-prompt-improver](https://github.com/severity1/claude-code-prompt-improver)
+**Status:** ✅ Active **Location:** `~/.claude/hooks/improve-prompt.py`
+**Source:** Internalized from
+[severity1/claude-code-prompt-improver](https://github.com/severity1/claude-code-prompt-improver)
 **License:** MIT
 
 ## Overview
 
-The Prompt Improver Hook intercepts user prompts and evaluates if they need enrichment before execution. It uses Claude's `AskUserQuestion` tool to ask targeted clarifying questions for vague prompts, reducing back-and-forth and improving first-attempt outcomes.
+The Prompt Improver Hook intercepts user prompts and evaluates if they need
+enrichment before execution. It uses Claude's `AskUserQuestion` tool to ask
+targeted clarifying questions for vague prompts, reducing back-and-forth and
+improving first-attempt outcomes.
 
-**Key principle:** Trust user intent by default. Only intervene when genuinely unclear.
+**Key principle:** Trust user intent by default. Only intervene when genuinely
+unclear.
 
 ## How It Works
 
@@ -79,21 +83,25 @@ claude "docker ps"
 Our internalized version includes custom context about:
 
 ### Architecture Layers
+
 - Frontend: `/client` (React, TypeScript, Vite)
 - Backend: `/server` (Express, Node.js, BullMQ)
 - Shared: `/shared` (Types, Drizzle schemas, Zod validation)
 
 ### Key Engines
+
 - **ReserveEngine** - Reserve allocation calculations
 - **PacingEngine** - Investment pacing analysis
 - **CohortEngine** - Cohort-based portfolio analytics
 
 ### Domain-Specific Patterns
+
 - **Waterfall types:** AMERICAN vs EUROPEAN
 - **Waterfall helpers:** `applyWaterfallChange()`, `changeWaterfallType()`
 - **Location:** `client/src/lib/waterfall.ts`
 
 ### Custom Commands
+
 - `/test-smart`, `/fix-auto`, `/deploy-check`, `/perf-guard`, `/dev-start`
 - `/log-change`, `/log-decision`, `/create-cheatsheet`
 
@@ -102,11 +110,13 @@ Our internalized version includes custom context about:
 ### Example 1: Vague Domain Prompt
 
 **Input:**
+
 ```bash
 claude "fix the waterfall bug"
 ```
 
 **Hook Behavior:**
+
 ```
 Prompt Improver Hook seeking clarification:
 
@@ -121,6 +131,7 @@ Which waterfall implementation needs fixing?
 ### Example 2: Clear Technical Prompt
 
 **Input:**
+
 ```bash
 claude "Fix hurdle clamping in applyWaterfallChange at line 42 to ensure [0,1] range"
 ```
@@ -130,11 +141,13 @@ claude "Fix hurdle clamping in applyWaterfallChange at line 42 to ensure [0,1] r
 ### Example 3: Engine Disambiguation
 
 **Input:**
+
 ```bash
 claude "optimize the calculation"
 ```
 
 **Hook Behavior:**
+
 ```
 Prompt Improver Hook seeking clarification:
 
@@ -148,11 +161,13 @@ Which engine's calculations need optimization?
 ### Example 4: Test Scope Clarification
 
 **Input:**
+
 ```bash
 claude "run the tests"
 ```
 
 **Hook Behavior:**
+
 ```
 Prompt Improver Hook seeking clarification:
 
@@ -160,7 +175,6 @@ Which test suite should run?
   ○ npm test (full suite with Vitest)
   ○ npm run test:quick (skip API tests)
   ○ npm run test:ui (interactive dashboard)
-  ○ npm run test:run (CI mode, single run)
   ○ /test-smart (intelligent selection based on changes)
 ```
 
@@ -170,7 +184,8 @@ Which test suite should run?
 
 **30-message session:** ~10.5k tokens (~5.25% of 200k context window)
 
-**Trade-off:** Small overhead for significantly better first-attempt results and fewer clarification rounds.
+**Trade-off:** Small overhead for significantly better first-attempt results and
+fewer clarification rounds.
 
 ## Analytics & Logging
 
@@ -206,7 +221,9 @@ LOG_ENABLED = False  # Change to False
 
 ### Customize Project Context
 
-Edit the `PROJECT_CONTEXT` section in `~/.claude/hooks/improve-prompt.py` to add:
+Edit the `PROJECT_CONTEXT` section in `~/.claude/hooks/improve-prompt.py` to
+add:
+
 - New engines or modules
 - Additional slash commands
 - Domain-specific terminology
@@ -226,13 +243,13 @@ COMMAND_PATTERNS = [
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Hook not running | Check `~/.claude/settings.json` has correct path |
-| Python errors | Ensure Python 3 installed: `python3 --version` |
-| Over-questioning | Review logs, adjust `PROJECT_CONTEXT` for more specificity |
-| Under-questioning | Reduce bypass patterns, verify hook is active |
-| Can't find log file | Check `~/.claude/logs/` directory exists |
+| Issue               | Solution                                                   |
+| ------------------- | ---------------------------------------------------------- |
+| Hook not running    | Check `~/.claude/settings.json` has correct path           |
+| Python errors       | Ensure Python 3 installed: `python3 --version`             |
+| Over-questioning    | Review logs, adjust `PROJECT_CONTEXT` for more specificity |
+| Under-questioning   | Reduce bypass patterns, verify hook is active              |
+| Can't find log file | Check `~/.claude/logs/` directory exists                   |
 
 ### Verify Hook is Active
 
@@ -258,16 +275,19 @@ echo '{"prompt":"fix the bug"}' | python3 ~/.claude/hooks/improve-prompt.py
 ## Benefits
 
 **Time saved:**
+
 - Eliminates 5-10 clarification rounds per week
 - Faster first-attempt success rate
 - Less context-switching
 
 **Quality improvement:**
+
 - Better initial context for complex domain tasks
 - Fewer misunderstood requirements
 - More precise file/function targeting
 
 **Documentation insights:**
+
 - Logs reveal where CLAUDE.md needs expansion
 - Identifies common ambiguous patterns
 - Guides cheatsheet creation priorities
@@ -275,8 +295,9 @@ echo '{"prompt":"fix the bug"}' | python3 ~/.claude/hooks/improve-prompt.py
 ## When to Bypass
 
 Use bypass prefixes when:
-- **Exploratory work:** "* explore different approaches to validation"
-- **Iterative refinement:** "* try that again with a different approach"
+
+- **Exploratory work:** "\* explore different approaches to validation"
+- **Iterative refinement:** "\* try that again with a different approach"
 - **Quick commands:** `/test-smart` (already specific)
 - **Shell commands:** `npm run build` (no evaluation needed)
 
@@ -287,18 +308,22 @@ Potential improvements tracked in logs:
 1. **Dynamic context loading** - Read CLAUDE.md automatically
 2. **Pattern learning** - Train on historical prompt→clarification pairs
 3. **Multi-language support** - Shell script version for non-Python environments
-4. **Integration with /log-decision** - Auto-suggest when to document new patterns
+4. **Integration with /log-decision** - Auto-suggest when to document new
+   patterns
 
 ## Related Documentation
 
 - [CLAUDE.md](../CLAUDE.md) - Core architecture & conventions
 - [claude-commands.md](./claude-commands.md) - Custom slash commands
 - [memory-patterns.md](./memory-patterns.md) - Memory management strategies
-- [DECISIONS.md](../DECISIONS.md#ai-orchestrator-for-multi-model-code-review) - Internalization rationale
+- [DECISIONS.md](../DECISIONS.md#ai-orchestrator-for-multi-model-code-review) -
+  Internalization rationale
 
 ## References
 
-- **Original project:** [severity1/claude-code-prompt-improver](https://github.com/severity1/claude-code-prompt-improver)
+- **Original project:**
+  [severity1/claude-code-prompt-improver](https://github.com/severity1/claude-code-prompt-improver)
 - **License:** MIT
 - **Internalized:** 2025-10-18
-- **Reason:** Security & control (see [DECISIONS.md](../DECISIONS.md) - AI Orchestrator decision)
+- **Reason:** Security & control (see [DECISIONS.md](../DECISIONS.md) - AI
+  Orchestrator decision)
