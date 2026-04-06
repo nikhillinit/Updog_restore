@@ -18,7 +18,10 @@ export function formatCurrency(value: number, compact = false): string {
   }).format(value);
 }
 
-export function formatPercent(value: number, decimals = 1): string {
+export function formatPercent(value: number | null | undefined, decimals = 1): string {
+  if (value == null || !Number.isFinite(value)) {
+    return 'N/A';
+  }
   return `${(value * 100).toFixed(decimals)}%`;
 }
 

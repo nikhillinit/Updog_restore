@@ -309,7 +309,7 @@ export async function generatePerformanceSummaryXLSX(data: PerformanceExportData
   const avgDPI = totals.called > 0 ? totals.distributed / totals.called : 0;
   const positiveCommitmentFunds = data.funds.filter((f) => f.commitment > 0);
   const validPositiveCommitmentFunds = positiveCommitmentFunds.filter(
-    (f): typeof f & { irr: number } => Number.isFinite(f.commitment) && isFiniteNumber(f.irr)
+    (f): f is typeof f & { irr: number } => Number.isFinite(f.commitment) && isFiniteNumber(f.irr)
   );
   const positiveCommitmentTotal = positiveCommitmentFunds.reduce((sum, f) => sum + f.commitment, 0);
   const weightedAverageIrr =

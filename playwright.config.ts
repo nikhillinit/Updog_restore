@@ -91,7 +91,7 @@ export default defineConfig({
     // Performance tests
     {
       name: 'performance',
-      testMatch: '**/performance.spec.ts',
+      testMatch: ['**/performance.spec.ts', '**/performance-dashboard.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['smoke'],
     },
