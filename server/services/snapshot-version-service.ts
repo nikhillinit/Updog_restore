@@ -75,6 +75,13 @@ export class SnapshotNotFoundError extends Error {
   }
 }
 
+export class RestoreConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RestoreConflictError';
+  }
+}
+
 // ============================================================================
 // SERVICE CLASS
 // ============================================================================
@@ -293,7 +300,8 @@ export class SnapshotVersionService {
   async restore(
     snapshotId: string,
     targetVersionId: string,
-    description?: string
+    description?: string,
+    expectedCurrentVersionId?: string
   ): Promise<SnapshotVersion> {
     // Get the target version
     const targetVersion = await this.getVersion(targetVersionId);
@@ -301,6 +309,20 @@ export class SnapshotVersionService {
     // Verify it belongs to the same snapshot
     if (targetVersion.snapshotId !== snapshotId) {
       throw new Error('Target version does not belong to this snapshot');
+    }
+
+    const currentVersion = await this.getCurrent(snapshotId);
+    if (currentVersion.id === targetVersionId) {
+      throw new RestoreConflictError('Target version is already the current version');
+    }
+
+    if (
+      expectedCurrentVersionId !== undefined &&
+      currentVersion.id !== expectedCurrentVersionId
+    ) {
+      throw new RestoreConflictError(
+        'Restore precondition failed because the current version changed'
+      );
     }
 
     // Create new version with restored state

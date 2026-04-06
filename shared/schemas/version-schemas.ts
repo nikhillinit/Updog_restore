@@ -49,6 +49,10 @@ export const RestoreVersionRequestSchema = z.object({
     .string()
     .max(500, 'Description must be 500 characters or less')
     .optional(),
+  expectedCurrentVersionId: z
+    .string()
+    .uuid('Invalid current version ID format')
+    .optional(),
 });
 
 export const CompareVersionsRequestSchema = z.object({

@@ -19,6 +19,8 @@ const {
   latestAllocationsHookMock,
   scenarioListHookMock,
   scenarioDetailHookMock,
+  reserveIcPublishedResultsHookMock,
+  reserveIcComparisonHookMock,
   previewScenarioMutateAsyncMock,
   syncScenarioMutateAsyncMock,
   applyScenarioMutateAsyncMock,
@@ -31,6 +33,8 @@ const {
   latestAllocationsHookMock: vi.fn(),
   scenarioListHookMock: vi.fn(),
   scenarioDetailHookMock: vi.fn(),
+  reserveIcPublishedResultsHookMock: vi.fn(),
+  reserveIcComparisonHookMock: vi.fn(),
   previewScenarioMutateAsyncMock: vi.fn(),
   syncScenarioMutateAsyncMock: vi.fn(),
   applyScenarioMutateAsyncMock: vi.fn(),
@@ -77,6 +81,13 @@ vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useAllocationSce
   useApplyAllocationScenario: () => ({
     mutateAsync: applyScenarioMutateAsyncMock,
     isPending: false,
+  }),
+}));
+
+vi.mock('../../../../client/src/components/portfolio/tabs/hooks/useReserveIcPacketEvidence', () => ({
+  useReserveIcPacketEvidence: () => ({
+    publishedResultsQuery: reserveIcPublishedResultsHookMock(),
+    comparisonQuery: reserveIcComparisonHookMock(),
   }),
 }));
 
@@ -381,6 +392,16 @@ describe('portfolio reserve planning workspace', () => {
     previewScenarioMutateAsyncMock.mockResolvedValue(mockApplyPreview);
     syncScenarioMutateAsyncMock.mockResolvedValue(mockSyncResult);
     applyScenarioMutateAsyncMock.mockResolvedValue(mockApplyResult);
+    reserveIcPublishedResultsHookMock.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+    });
+    reserveIcComparisonHookMock.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+    });
   });
 
   it('renders the live reserve-planning workspace summary and saved scenario controls', () => {
@@ -439,6 +460,7 @@ describe('portfolio reserve planning workspace', () => {
     expect(
       screen.getAllByText(/Applied Mar 27, 2026 by analyst@example.com \(v7\)/).length
     ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('IC Reserve Packet')).toBeInTheDocument();
 
     const editButtons = screen.getAllByRole('button', { name: /edit/i });
     await user.click(editButtons[0]!);
