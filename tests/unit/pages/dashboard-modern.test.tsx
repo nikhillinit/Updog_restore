@@ -23,6 +23,10 @@ vi.mock('@/components/dashboard/CashflowDashboard', () => ({
   default: ({ fundId }: { fundId: string }) => <div>Cashflow Dashboard {fundId}</div>,
 }));
 
+vi.mock('@/components/metrics/TargetMetricsSnapshot', () => ({
+  TargetMetricsSnapshot: ({ title }: { title: string }) => <div>{title}</div>,
+}));
+
 vi.mock('@/components/sharing/ShareConfigModal', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -38,6 +42,7 @@ describe('ModernDashboard', () => {
   it('defers overview analytics instead of showing sample KPIs and charts', () => {
     render(<ModernDashboard />);
 
+    expect(screen.getByText('Target-Aware Snapshot')).toBeInTheDocument();
     expect(screen.getByText(/overview remains deferred/i)).toBeInTheDocument();
     expect(
       screen.getByText(/this dashboard no longer presents hardcoded portfolio value, irr, moic, or sector-allocation visuals as live data/i)

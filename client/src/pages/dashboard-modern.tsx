@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Filter, Download, Activity, Share2 } from 'lucide-react';
 import CashflowDashboard from '@/components/dashboard/CashflowDashboard';
+import { TargetMetricsSnapshot } from '@/components/metrics/TargetMetricsSnapshot';
 import ShareConfigModal from '@/components/sharing/ShareConfigModal';
 import type { CreateShareLinkRequest } from '@shared/sharing-schema';
 
@@ -69,8 +70,13 @@ export default function ModernDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <TargetMetricsSnapshot
+          title="Target-Aware Snapshot"
+          subtitle="Truthful live metrics sourced from the unified metrics layer."
+        />
+
         {/* Top Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="mt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center space-x-4">
             <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
               <TabsList className="bg-pov-white border border-pov-gray">

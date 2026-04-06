@@ -32,9 +32,12 @@ import {
   useSyncAllocationScenario,
   useUpdateAllocationScenario,
 } from './hooks/useAllocationScenarios';
+import { useReserveIcPacketEvidence } from './hooks/useReserveIcPacketEvidence';
 import { EditAllocationDialog } from './EditAllocationDialog';
+import { ReserveIcPacketCard } from './ReserveIcPacketCard';
 import { createAllocationsColumns } from './allocations-table-columns';
 import { formatCents } from '@/lib/units';
+import { buildReserveIcPacket } from './reserve-ic-packet';
 import type {
   AllocationCompany,
   AllocationScenarioCollaborationContext,
@@ -294,6 +297,7 @@ export function AllocationsTab() {
   const previewApplyMutation = useAllocationScenarioApplyPreview(activeScenarioId);
   const syncScenarioMutation = useSyncAllocationScenario(activeScenarioId);
   const applyScenarioMutation = useApplyAllocationScenario(activeScenarioId);
+  const { publishedResultsQuery, comparisonQuery } = useReserveIcPacketEvidence(!!activeScenarioId);
 
   const liveCompanies = useMemo(() => data?.companies ?? [], [data?.companies]);
   const displayedCompanies = workspaceCompanies.length > 0 ? workspaceCompanies : liveCompanies;
@@ -774,6 +778,30 @@ export function AllocationsTab() {
     workspaceDirty,
   ]);
 
+  const reserveIcPacket = useMemo(() => {
+    if (!activeScenarioDetail.data || !data) {
+      return null;
+    }
+
+    return buildReserveIcPacket({
+      liveAllocations: data,
+      scenario: activeScenarioDetail.data,
+      publishedResults: publishedResultsQuery.data ?? null,
+      comparison: comparisonQuery.data ?? null,
+      decisions: [],
+    });
+  }, [activeScenarioDetail.data, comparisonQuery.data, data, publishedResultsQuery.data]);
+
+  const reserveIcPacketError = useMemo(() => {
+    if (publishedResultsQuery.error instanceof Error) {
+      return publishedResultsQuery.error;
+    }
+    if (comparisonQuery.error instanceof Error) {
+      return comparisonQuery.error;
+    }
+    return null;
+  }, [comparisonQuery.error, publishedResultsQuery.error]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -1104,6 +1132,15 @@ export function AllocationsTab() {
                   </p>
                 )}
               </div>
+
+              <ReserveIcPacketCard
+                packet={reserveIcPacket}
+                isLoading={
+                  !!activeScenarioId &&
+                  (publishedResultsQuery.isLoading || comparisonQuery.isLoading)
+                }
+                error={reserveIcPacketError}
+              />
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>

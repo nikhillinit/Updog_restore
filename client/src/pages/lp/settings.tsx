@@ -6,7 +6,7 @@
  * @module client/pages/lp/settings
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLPContext } from '@/contexts/LPContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,13 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Bell, Monitor, User, Save } from 'lucide-react';
+import { AlertCircle, Bell, Monitor, User, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DEFAULT_LP_NOTIFICATION_PREFERENCES,
+  useLpNotificationPreferences,
+  useUpdateLpNotificationPreferences,
+} from '@/hooks/useLpNotificationPreferences';
 
 // ============================================================================
 // COMPONENT
@@ -24,6 +29,12 @@ import { useToast } from '@/hooks/use-toast';
 export default function LPSettings() {
   const { lpProfile } = useLPContext();
   const { toast } = useToast();
+  const {
+    data: notificationPreferences,
+    isLoading: notificationPreferencesLoading,
+    error: notificationPreferencesError,
+  } = useLpNotificationPreferences();
+  const updateNotificationPreferencesMutation = useUpdateLpNotificationPreferences();
 
   // Notification preferences
   const [emailCapitalCalls, setEmailCapitalCalls] = useState(true);
@@ -37,12 +48,38 @@ export default function LPSettings() {
   const [numberFormat, setNumberFormat] = useState('US');
   const [timezone, setTimezone] = useState('America/New_York');
 
-  const handleSave = () => {
-    // In a real app, this would save to the backend
-    toast({
-      title: 'Settings Saved',
-      description: 'Your preferences have been updated successfully.',
-    });
+  useEffect(() => {
+    const preferences = notificationPreferences ?? DEFAULT_LP_NOTIFICATION_PREFERENCES;
+    setEmailCapitalCalls(preferences.emailCapitalCalls);
+    setEmailDistributions(preferences.emailDistributions);
+    setEmailQuarterlyReports(preferences.emailQuarterlyReports);
+    setEmailAnnualReports(preferences.emailAnnualReports);
+    setEmailMarketUpdates(preferences.emailMarketUpdates);
+  }, [notificationPreferences]);
+
+  const handleSave = async () => {
+    try {
+      await updateNotificationPreferencesMutation.mutateAsync({
+        emailCapitalCalls,
+        emailDistributions,
+        emailQuarterlyReports,
+        emailAnnualReports,
+        emailMarketUpdates,
+      });
+      toast({
+        title: 'Notification Settings Saved',
+        description: 'Your notification preferences have been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Save Failed',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update notification preferences.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -103,6 +140,18 @@ export default function LPSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {notificationPreferencesError ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="h-4 w-4" />
+                Unable to load persisted notification preferences.
+              </div>
+              <p className="mt-1">
+                The form is showing safe defaults. Saving will retry the backend request.
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between">
             <div>
               <Label htmlFor="email-capital-calls" className="font-medium">Capital Calls</Label>
@@ -187,6 +236,10 @@ export default function LPSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            Display preferences remain local-only in this tranche. This page only persists
+            notification settings to the backend today.
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
@@ -236,9 +289,13 @@ export default function LPSettings() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="px-8">
+        <Button
+          onClick={handleSave}
+          className="px-8"
+          disabled={notificationPreferencesLoading || updateNotificationPreferencesMutation.isPending}
+        >
           <Save className="h-4 w-4 mr-2" />
-          Save Changes
+          {updateNotificationPreferencesMutation.isPending ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>
     </div>

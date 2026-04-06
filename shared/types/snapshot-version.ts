@@ -132,6 +132,7 @@ export interface ListVersionsQuery {
  */
 export interface RestoreVersionRequest {
   description?: string;
+  expectedCurrentVersionId?: string;
 }
 
 /**

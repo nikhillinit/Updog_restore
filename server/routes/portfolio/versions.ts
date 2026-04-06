@@ -12,6 +12,7 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/async.js';
 import {
   SnapshotVersionService,
+  RestoreConflictError,
   VersionNotFoundError,
   SnapshotNotFoundError,
 } from '../../services/snapshot-version-service';
@@ -364,10 +365,15 @@ router.post(
     }
 
     const { snapshotId, versionId } = paramsResult.data;
-    const { description } = bodyResult.data;
+    const { description, expectedCurrentVersionId } = bodyResult.data;
 
     try {
-      const version = await versionService.restore(snapshotId, versionId, description);
+      const version = await versionService.restore(
+        snapshotId,
+        versionId,
+        description,
+        expectedCurrentVersionId
+      );
 
       return res.status(201).json({
         success: true,
@@ -385,6 +391,12 @@ router.post(
       if (error instanceof VersionNotFoundError) {
         return res.status(404).json({
           error: 'version_not_found',
+          message: error.message,
+        });
+      }
+      if (error instanceof RestoreConflictError) {
+        return res.status(409).json({
+          error: 'restore_conflict',
           message: error.message,
         });
       }
