@@ -53,7 +53,7 @@ Source: `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
       `.a5c/processes/sensitivity-stress-panel.inputs.json` from `informational`
       to its proper P1 tier so the finding can no longer be triaged into the
       wrong queue.
-- [ ] **REQ-BCK-03**: Document the rewrite outcome in a new
+- [x] **REQ-BCK-03**: Document the rewrite outcome in a new
       `docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md` plan
       doc, with before/after percentile comparisons against historical regimes.
 
