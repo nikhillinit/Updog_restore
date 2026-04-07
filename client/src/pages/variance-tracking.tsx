@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
+import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
 import {
   useVarianceDashboard,
   useBaselines,
@@ -539,18 +540,8 @@ export default function VarianceTrackingPage() {
   const actualCommitted = unifiedMetrics?.actual?.totalCommitted ?? null;
   const actualDeployed = unifiedMetrics?.actual?.totalDeployed ?? null;
   const targetDeployed = unifiedMetrics?.variance?.deploymentVariance?.target ?? null;
-  const remainingDeployableCapital =
-    actualCommitted != null && actualDeployed != null
-      ? Math.max(actualCommitted - actualDeployed, 0)
-      : null;
-  const plannedRemainingDeployableCapital =
-    actualCommitted != null && targetDeployed != null
-      ? Math.max(actualCommitted - targetDeployed, 0)
-      : null;
-  const remainingDeployableGap =
-    remainingDeployableCapital != null && plannedRemainingDeployableCapital != null
-      ? remainingDeployableCapital - plannedRemainingDeployableCapital
-      : null;
+  const { remainingDeployableCapital, plannedRemainingDeployableCapital, remainingDeployableGap } =
+    computeRemainingCapital({ actualCommitted, actualDeployed, targetDeployed });
   const deploymentPlanStatus =
     unifiedMetrics?._status?.engines?.target === 'success' &&
     unifiedMetrics?._status?.engines?.variance === 'success';
