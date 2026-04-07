@@ -481,4 +481,4 @@ After completion, create `.planning/phases/02-backtesting-scenario-comparison-re
 - Confirmation that `npm test -- backtesting-service` without the env var still
   passes
 - Note: Plan 02-06 will read this JSON file to populate the before/after
-  comparison table </output> </content> </invoke>
+  comparison table </output>
