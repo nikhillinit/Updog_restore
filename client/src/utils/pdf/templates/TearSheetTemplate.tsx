@@ -10,7 +10,8 @@ import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PdfDocument } from '../components/PdfDocument';
 import { PdfTable, type TableColumn } from '../components/PdfTable';
 import { PdfMetricCard } from '../components/PdfMetricCard';
-import { pdfTheme, formatCurrency, formatPercent, formatMultiple, formatDate } from '../index';
+import { pdfTheme } from '../theme';
+import { formatCurrency, formatPercent, formatMultiple, formatDate } from '../index';
 import { PDF_FONTS } from '../fonts';
 import type { TearSheetData } from '../index';
 

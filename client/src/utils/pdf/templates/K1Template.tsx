@@ -9,7 +9,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PdfDocument } from '../components/PdfDocument';
 import { PdfTable, type TableColumn } from '../components/PdfTable';
-import { pdfTheme, formatCurrency, formatDate } from '../index';
+import { pdfTheme } from '../theme';
+import { formatCurrency, formatDate } from '../index';
 import { PDF_FONTS } from '../fonts';
 
 export interface K1Data {
@@ -267,12 +268,8 @@ export const K1Template: React.FC<K1TemplateProps> = ({
           <View style={styles.infoBox}>
             <Text style={styles.infoLabel}>Partner Information</Text>
             <Text style={styles.infoValue}>{partnerName}</Text>
-            {data.partnerAddress && (
-              <Text style={styles.infoValue}>{data.partnerAddress}</Text>
-            )}
-            {data.partnerTaxId && (
-              <Text style={styles.infoValue}>TIN: {data.partnerTaxId}</Text>
-            )}
+            {data.partnerAddress && <Text style={styles.infoValue}>{data.partnerAddress}</Text>}
+            {data.partnerTaxId && <Text style={styles.infoValue}>TIN: {data.partnerTaxId}</Text>}
           </View>
         </View>
         <View style={styles.column}>
@@ -308,9 +305,7 @@ export const K1Template: React.FC<K1TemplateProps> = ({
         </View>
         <View style={styles.allocationRow}>
           <Text style={styles.allocationLabel}>Net section 1231 gain (loss)</Text>
-          <Text style={styles.allocationValue}>
-            {formatCurrency(allocations.section1231Gains)}
-          </Text>
+          <Text style={styles.allocationValue}>{formatCurrency(allocations.section1231Gains)}</Text>
         </View>
         <View style={styles.allocationRow}>
           <Text style={styles.allocationLabel}>Interest income</Text>
@@ -333,9 +328,7 @@ export const K1Template: React.FC<K1TemplateProps> = ({
           <Text style={styles.allocationValue}>{formatCurrency(allocations.otherIncome)}</Text>
         </View>
         <View style={[styles.allocationRow, { borderBottomWidth: 2 }]}>
-          <Text style={[styles.allocationLabel, styles.allocationTotal]}>
-            Total Allocations
-          </Text>
+          <Text style={[styles.allocationLabel, styles.allocationTotal]}>Total Allocations</Text>
           <Text style={[styles.allocationValue, styles.allocationTotal]}>
             {formatCurrency(totalAllocations)}
           </Text>
@@ -348,9 +341,7 @@ export const K1Template: React.FC<K1TemplateProps> = ({
 
         <View style={styles.capitalRow}>
           <Text style={styles.capitalLabel}>Beginning capital account</Text>
-          <Text style={styles.capitalValue}>
-            {formatCurrency(capitalAccount.beginningBalance)}
-          </Text>
+          <Text style={styles.capitalValue}>{formatCurrency(capitalAccount.beginningBalance)}</Text>
         </View>
         <View style={styles.capitalRow}>
           <Text style={styles.capitalLabel}>Capital contributions during year</Text>
@@ -398,9 +389,9 @@ export const K1Template: React.FC<K1TemplateProps> = ({
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
           This document is provided for informational purposes only and is not intended to
-          constitute tax advice. Please consult with your tax advisor regarding the proper
-          reporting of these items on your tax return. The official Schedule K-1 (Form 1065) will
-          be provided separately.
+          constitute tax advice. Please consult with your tax advisor regarding the proper reporting
+          of these items on your tax return. The official Schedule K-1 (Form 1065) will be provided
+          separately.
         </Text>
       </View>
     </PdfDocument>

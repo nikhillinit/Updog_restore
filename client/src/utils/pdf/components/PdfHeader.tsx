@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, Image, StyleSheet } from '@react-pdf/renderer';
-import { pdfTheme } from '../index';
+import { pdfTheme } from '../theme';
 import { PDF_FONTS } from '../fonts';
 
 export interface PdfHeaderProps {
@@ -65,7 +65,8 @@ const styles = StyleSheet.create({
 });
 
 // POV Logo as base64 data URL (placeholder - replace with actual logo)
-const POV_LOGO_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTIwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiIGZpbGw9IiMyOTI5MjkiLz48dGV4dCB4PSI2MCIgeT0iMjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlByZXNzIE9uIFZlbnR1cmVzPC90ZXh0Pjwvc3ZnPg==';
+const POV_LOGO_PLACEHOLDER =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTIwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiIGZpbGw9IiMyOTI5MjkiLz48dGV4dCB4PSI2MCIgeT0iMjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlByZXNzIE9uIFZlbnR1cmVzPC90ZXh0Pjwvc3ZnPg==';
 
 export const PdfHeader: React.FC<PdfHeaderProps> = ({
   title,
@@ -86,12 +87,7 @@ export const PdfHeader: React.FC<PdfHeaderProps> = ({
   return (
     <View style={styles.header}>
       <View style={styles.leftSection}>
-        {showLogo && (
-          <Image
-            src={logoSrc || POV_LOGO_PLACEHOLDER}
-            style={styles.logo}
-          />
-        )}
+        {showLogo && <Image src={logoSrc || POV_LOGO_PLACEHOLDER} style={styles.logo} />}
         {(title || subtitle) && (
           <View style={styles.titleSection}>
             {title && <Text style={styles.title}>{title}</Text>}

@@ -10,7 +10,8 @@ import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PdfDocument } from '../components/PdfDocument';
 import { PdfTable, type TableColumn } from '../components/PdfTable';
 import { PdfMetricCard } from '../components/PdfMetricCard';
-import { pdfTheme, formatCurrency, formatPercent, formatMultiple, formatDate } from '../index';
+import { pdfTheme } from '../theme';
+import { formatCurrency, formatPercent, formatMultiple, formatDate } from '../index';
 import { PDF_FONTS } from '../fonts';
 import type { QuarterlyReportData } from '../index';
 
@@ -246,8 +247,8 @@ export const QuarterlyTemplate: React.FC<QuarterlyTemplateProps> = ({
           <Text style={styles.summaryTitle}>Executive Summary</Text>
           <Text style={styles.summaryText}>
             As of {quarter} {year}, {fundName} has deployed{' '}
-            {formatCurrency(totalInvested, { compact: true })} across{' '}
-            {portfolioCompanies.length} portfolio companies with a current fair market value of{' '}
+            {formatCurrency(totalInvested, { compact: true })} across {portfolioCompanies.length}{' '}
+            portfolio companies with a current fair market value of{' '}
             {formatCurrency(totalValue, { compact: true })}. The fund has generated a gross TVPI of{' '}
             {formatMultiple(summary.tvpi)} and net IRR of {formatPercent(summary.irr)}.
           </Text>

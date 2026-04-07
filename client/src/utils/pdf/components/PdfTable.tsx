@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 import type { Style } from '@react-pdf/types';
-import { pdfTheme } from '../index';
+import { pdfTheme } from '../theme';
 import { PDF_FONTS } from '../fonts';
 
 export interface TableColumn<T> {
@@ -84,10 +84,7 @@ export function PdfTable<T extends Record<string, unknown>>({
 }: PdfTableProps<T>): React.ReactElement {
   const styles = createStyles(compact);
 
-  const getCellStyle = (
-    column: TableColumn<T>,
-    isHeader: boolean
-  ): Style[] => {
+  const getCellStyle = (column: TableColumn<T>, isHeader: boolean): Style[] => {
     const baseStyle = isHeader ? styles.headerCell : styles.cell;
     const alignStyle =
       column.align === 'center'
@@ -128,16 +125,13 @@ export function PdfTable<T extends Record<string, unknown>>({
         if (striped && rowIndex % 2 === 1) rowStyles.push(styles.rowStriped);
         if (rowIndex === data.length - 1) rowStyles.push(styles.lastRow);
         return (
-        <View
-          key={rowIndex}
-          style={rowStyles}
-        >
-          {columns.map((column) => (
-            <Text key={String(column.key)} style={getCellStyle(column, false)}>
-              {getCellValue(row, column, rowIndex)}
-            </Text>
-          ))}
-        </View>
+          <View key={rowIndex} style={rowStyles}>
+            {columns.map((column) => (
+              <Text key={String(column.key)} style={getCellStyle(column, false)}>
+                {getCellValue(row, column, rowIndex)}
+              </Text>
+            ))}
+          </View>
         );
       })}
     </View>
