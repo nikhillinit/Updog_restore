@@ -77,6 +77,21 @@ already starting to be visible in the operational signal.
 
 **UI hint:** no
 
+**Plans:** 5 plans
+
+Plans:
+
+- [x] 01-01-leader-table-schema-PLAN.md — Drizzle table, hand-written migration,
+      and db:push for variance_planner_leader
+- [x] 01-02-leader-lease-manager-PLAN.md — Lease manager, planner gate, renewal
+      timer, release-on-stop, getHealth extension, Pino events
+- [x] 01-03-leader-unit-tests-PLAN.md — Unit tests for acquisition, renewal,
+      takeover, demotion, release, D-04 processor regression guard
+- [ ] 01-04-leader-integration-test-PLAN.md — Crash-takeover integration test
+      against real Postgres (no child process)
+- [ ] 01-05-backlog-doc-and-verification-PLAN.md — Update 1C.3 backlog doc per
+      D-05/D-06/D-07 and run validate:core + phoenix:truth
+
 ---
 
 ### Phase 2: Backtesting Scenario Comparison Rewrite (P1)
