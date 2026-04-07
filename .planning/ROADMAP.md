@@ -163,7 +163,7 @@ re-render automatically with corrected data)
 
 Plans:
 
-- [ ] 02-01-baseline-capture-PLAN.md — Capture analytic-rescale baseline
+- [x] 02-01-baseline-capture-PLAN.md — Capture analytic-rescale baseline
       percentiles for the GFC scenario before the rewrite removes the analytic
       code path
 - [ ] 02-02-engine-market-params-override-PLAN.md — Add
