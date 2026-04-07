@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { clampPct, clampInt, toUSD } from '../coerce';
+import { clampPct, clampInt, toUSD } from '@/lib/coerce';
 
 describe('coerce utilities', () => {
   describe('clampPct', () => {

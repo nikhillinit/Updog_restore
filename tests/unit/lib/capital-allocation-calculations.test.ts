@@ -14,12 +14,9 @@ import {
   generateDefaultPacingPeriods,
   calculateCapitalAllocation,
   validateCapitalAllocation,
-  type CapitalAllocationCalculations
-} from '../capital-allocation-calculations';
-import type {
-  SectorProfile,
-  CapitalAllocationInput
-} from '@/schemas/modeling-wizard.schemas';
+  type CapitalAllocationCalculations,
+} from '@/lib/capital-allocation-calculations';
+import type { SectorProfile, CapitalAllocationInput } from '@/schemas/modeling-wizard.schemas';
 
 // ============================================================================
 // TEST FIXTURES
@@ -42,7 +39,7 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 30,
         exitValuation: 50,
         monthsToGraduate: 18,
-        monthsToExit: 36
+        monthsToExit: 36,
       },
       {
         id: 'stage-2',
@@ -55,9 +52,9 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 30,
         exitValuation: 150,
         monthsToGraduate: 24,
-        monthsToExit: 48
-      }
-    ]
+        monthsToExit: 48,
+      },
+    ],
   },
   {
     id: 'sector-2',
@@ -75,10 +72,10 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 30,
         exitValuation: 45,
         monthsToGraduate: 20,
-        monthsToExit: 40
-      }
-    ]
-  }
+        monthsToExit: 40,
+      },
+    ],
+  },
 ];
 
 const mockCapitalAllocation: CapitalAllocationInput = {
@@ -91,40 +88,40 @@ const mockCapitalAllocation: CapitalAllocationInput = {
         stageId: 'seed',
         stageName: 'Seed',
         maintainOwnership: 15,
-        participationRate: 70
+        participationRate: 70,
       },
       {
         stageId: 'series-a',
         stageName: 'Series A',
         maintainOwnership: 12,
-        participationRate: 60
-      }
-    ]
+        participationRate: 60,
+      },
+    ],
   },
   pacingModel: {
     investmentsPerYear: 10,
-    deploymentCurve: 'linear'
+    deploymentCurve: 'linear',
   },
   pacingHorizon: [
     {
       id: 'period-1',
       startMonth: 0,
       endMonth: 12,
-      allocationPercent: 40
+      allocationPercent: 40,
     },
     {
       id: 'period-2',
       startMonth: 12,
       endMonth: 24,
-      allocationPercent: 35
+      allocationPercent: 35,
     },
     {
       id: 'period-3',
       startMonth: 24,
       endMonth: 36,
-      allocationPercent: 25
-    }
-  ]
+      allocationPercent: 25,
+    },
+  ],
 };
 
 // ============================================================================
@@ -159,10 +156,10 @@ describe('calculateWeightedAvgRoundSize', () => {
             exitRate: 20,
             exitValuation: 50,
             monthsToGraduate: 18,
-            monthsToExit: 36
-          }
-        ]
-      }
+            monthsToExit: 36,
+          },
+        ],
+      },
     ];
     expect(calculateWeightedAvgRoundSize(singleSector)).toBe(5);
   });
@@ -218,11 +215,11 @@ describe('calculateFollowOnCheckForOwnership', () => {
     // New round raises $15M at $60M post-money
     // To maintain 20%: need (0.20 * 60) - 4 = 12 - 4 = $8M
     const checkSize = calculateFollowOnCheckForOwnership(
-      20,      // current ownership %
-      20,      // target ownership %
-      15,      // new round size
-      45,      // pre-money valuation (60 - 15)
-      0        // no ESOP
+      20, // current ownership %
+      20, // target ownership %
+      15, // new round size
+      45, // pre-money valuation (60 - 15)
+      0 // no ESOP
     );
 
     expect(checkSize).toBeGreaterThan(0);
@@ -231,10 +228,10 @@ describe('calculateFollowOnCheckForOwnership', () => {
 
   it('should handle no follow-on needed when already above target', () => {
     const checkSize = calculateFollowOnCheckForOwnership(
-      25,      // current ownership % (already high)
-      20,      // target ownership %
-      10,      // new round size
-      40,      // pre-money valuation
+      25, // current ownership % (already high)
+      20, // target ownership %
+      10, // new round size
+      40, // pre-money valuation
       0
     );
 
@@ -242,12 +239,14 @@ describe('calculateFollowOnCheckForOwnership', () => {
   });
 
   it('should account for ESOP dilution', () => {
-    const withoutEsop = calculateFollowOnCheckForOwnership(
-      15, 15, 10, 40, 0
-    );
+    const withoutEsop = calculateFollowOnCheckForOwnership(15, 15, 10, 40, 0);
 
     const withEsop = calculateFollowOnCheckForOwnership(
-      15, 15, 10, 40, 10 // 10% ESOP
+      15,
+      15,
+      10,
+      40,
+      10 // 10% ESOP
     );
 
     expect(withEsop).toBeGreaterThan(withoutEsop);
@@ -305,19 +304,12 @@ describe('calculateFollowOnCascade', () => {
     );
 
     for (const stage of cascade) {
-      expect(stage.capitalAllocated).toBe(
-        stage.followOnInvestments * stage.impliedCheckSize
-      );
+      expect(stage.capitalAllocated).toBe(stage.followOnInvestments * stage.impliedCheckSize);
     }
   });
 
   it('should handle empty sector profiles', () => {
-    const cascade = calculateFollowOnCascade(
-      [],
-      mockCapitalAllocation.followOnStrategy,
-      1.0,
-      30
-    );
+    const cascade = calculateFollowOnCascade([], mockCapitalAllocation.followOnStrategy, 1.0, 30);
 
     expect(cascade).toHaveLength(0);
   });
@@ -342,8 +334,8 @@ describe('calculatePacingSchedule', () => {
   it('should generate schedule with date ranges', () => {
     const schedule = calculatePacingSchedule(
       mockCapitalAllocation.pacingHorizon,
-      50,  // initial capital
-      30,  // follow-on capital
+      50, // initial capital
+      30, // follow-on capital
       2024 // vintage year
     );
 
@@ -354,12 +346,7 @@ describe('calculatePacingSchedule', () => {
   });
 
   it('should allocate capital by percentage', () => {
-    const schedule = calculatePacingSchedule(
-      mockCapitalAllocation.pacingHorizon,
-      50,
-      30,
-      2024
-    );
+    const schedule = calculatePacingSchedule(mockCapitalAllocation.pacingHorizon, 50, 30, 2024);
 
     const totalCapital = 50 + 30; // 80M
     const period1 = schedule[0];
@@ -368,12 +355,7 @@ describe('calculatePacingSchedule', () => {
   });
 
   it('should split capital between initial and follow-on', () => {
-    const schedule = calculatePacingSchedule(
-      mockCapitalAllocation.pacingHorizon,
-      50,
-      30,
-      2024
-    );
+    const schedule = calculatePacingSchedule(mockCapitalAllocation.pacingHorizon, 50, 30, 2024);
 
     for (const period of schedule) {
       const total = period.initialCapitalDeployed + period.followOnCapitalDeployed;
@@ -392,7 +374,7 @@ describe('generateDefaultPacingPeriods', () => {
     expect(total).toBeCloseTo(100, 1);
 
     // Linear should have roughly equal allocations
-    const allocations = periods.map(p => p.allocationPercent);
+    const allocations = periods.map((p) => p.allocationPercent);
     const avg = total / periods.length;
     for (const alloc of allocations) {
       expect(alloc).toBeCloseTo(avg, 1);
@@ -408,7 +390,7 @@ describe('generateDefaultPacingPeriods', () => {
     expect(total).toBeCloseTo(100, 1);
 
     // First period should have highest allocation
-    const allocations = periods.map(p => p.allocationPercent);
+    const allocations = periods.map((p) => p.allocationPercent);
     expect(allocations[0]).toBeGreaterThan(allocations[1]!);
     expect(allocations[1]).toBeGreaterThan(allocations[2]!);
   });
@@ -422,7 +404,7 @@ describe('generateDefaultPacingPeriods', () => {
     expect(total).toBeCloseTo(100, 1);
 
     // Last period should have highest allocation
-    const allocations = periods.map(p => p.allocationPercent);
+    const allocations = periods.map((p) => p.allocationPercent);
     expect(allocations[0]).toBeLessThan(allocations[1]!);
     expect(allocations[1]).toBeLessThan(allocations[2]!);
   });
@@ -452,7 +434,7 @@ describe('calculateCapitalAllocation', () => {
       mockCapitalAllocation,
       mockSectorProfiles,
       100, // fund size
-      3,   // investment period
+      3, // investment period
       2024 // vintage year
     );
 
@@ -516,7 +498,7 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 50,
       availableReserves: 50,
       remainingCapital: 50,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
@@ -536,7 +518,7 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 120, // Exceeds fund size!
       availableReserves: 50,
       remainingCapital: -20,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
@@ -557,13 +539,13 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 90,
       availableReserves: 50,
       remainingCapital: 10,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
 
     expect(validation.isValid).toBe(false);
-    expect(validation.errors.some(e => e.field === 'totalFollowOnCapital')).toBe(true);
+    expect(validation.errors.some((e) => e.field === 'totalFollowOnCapital')).toBe(true);
   });
 
   it('should warn when deploying >95% of fund', () => {
@@ -577,7 +559,7 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 97, // 97% of fund
       availableReserves: 50,
       remainingCapital: 3,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
@@ -597,12 +579,12 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 50,
       availableReserves: 50,
       remainingCapital: 50,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
 
-    expect(validation.warnings.some(w => w.field === 'impliedOwnership')).toBe(true);
+    expect(validation.warnings.some((w) => w.field === 'impliedOwnership')).toBe(true);
   });
 
   it('should warn about very low implied ownership', () => {
@@ -616,11 +598,11 @@ describe('validateCapitalAllocation', () => {
       totalCapitalAllocated: 50,
       availableReserves: 50,
       remainingCapital: 50,
-      pacingSchedule: []
+      pacingSchedule: [],
     };
 
     const validation = validateCapitalAllocation(calculations, 100);
 
-    expect(validation.warnings.some(w => w.field === 'impliedOwnership')).toBe(true);
+    expect(validation.warnings.some((w) => w.field === 'impliedOwnership')).toBe(true);
   });
 });

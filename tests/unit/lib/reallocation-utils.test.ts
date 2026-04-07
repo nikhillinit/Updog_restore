@@ -16,7 +16,7 @@ import {
   groupWarningsBySeverity,
   calculateTotalDelta,
   canCommit,
-} from '../reallocation-utils';
+} from '@/lib/reallocation-utils';
 import type {
   ReallocationPreviewResponse,
   ReallocationDelta,

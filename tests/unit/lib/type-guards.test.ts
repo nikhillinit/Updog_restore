@@ -23,8 +23,8 @@ import {
   filterDefined,
   mapDefined,
   safeObjectAccess,
-  getValidProperty
-} from '../type-guards';
+  getValidProperty,
+} from '@/lib/type-guards';
 
 describe('Type Guards', () => {
   describe('isDefined', () => {
@@ -67,15 +67,17 @@ describe('Type Guards', () => {
   });
 
   describe('isNonEmptyString', () => {
-    it('returns true for non-empty strings', () => {
+    it('returns true for non-empty non-whitespace strings', () => {
       expect(isNonEmptyString('hello')).toBe(true);
-      expect(isNonEmptyString(' ')).toBe(true);
+      expect(isNonEmptyString('  hello  ')).toBe(true);
       expect(isNonEmptyString('0')).toBe(true);
     });
 
-    it('returns false for empty or non-string values', () => {
+    it('returns false for empty or whitespace-only strings and non-string values', () => {
       expect(isNonEmptyString('')).toBe(false);
+      expect(isNonEmptyString(' ')).toBe(false);
       expect(isNonEmptyString('   ')).toBe(false);
+      expect(isNonEmptyString('\t\n')).toBe(false);
       expect(isNonEmptyString(null)).toBe(false);
       expect(isNonEmptyString(undefined)).toBe(false);
       expect(isNonEmptyString(0 as any)).toBe(false);
@@ -236,7 +238,7 @@ describe('Type Guards', () => {
   describe('mapDefined', () => {
     it('maps and filters undefined results', () => {
       const input = [1, 2, 3, 4];
-      const result = mapDefined(input, (x) => x % 2 === 0 ? x * 2 : undefined);
+      const result = mapDefined(input, (x) => (x % 2 === 0 ? x * 2 : undefined));
       expect(result).toEqual([4, 8]);
     });
 
@@ -275,7 +277,11 @@ describe('Type Guards', () => {
     });
 
     it('returns undefined when object is null/undefined', () => {
-      const result = getValidProperty(null as any, 'name', (v): v is string => typeof v === 'string');
+      const result = getValidProperty(
+        null as any,
+        'name',
+        (v): v is string => typeof v === 'string'
+      );
       expect(result).toBeUndefined();
     });
   });
