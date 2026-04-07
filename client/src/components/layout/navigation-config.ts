@@ -76,7 +76,7 @@ const CORE_NAV: readonly NavigationItem[] = [
   MODEL_RESULTS_ITEM,
   {
     id: 'sensitivity-analysis',
-    label: 'Backtesting',
+    label: 'Sensitivity Analysis',
     icon: Target,
     target: staticTarget('/sensitivity-analysis'),
   },

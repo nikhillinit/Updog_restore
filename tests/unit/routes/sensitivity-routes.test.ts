@@ -25,6 +25,7 @@ const {
   getByIdMock,
   runOneWaySensitivityMock,
   runTwoWaySensitivityMock,
+  runStressTestMock,
 } = vi.hoisted(() => ({
   createPendingMock: vi.fn(),
   markCompletedMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   getByIdMock: vi.fn(),
   runOneWaySensitivityMock: vi.fn(),
   runTwoWaySensitivityMock: vi.fn(),
+  runStressTestMock: vi.fn(),
 }));
 
 vi.mock('../../../server/services/sensitivity-run-service', () => ({
@@ -78,6 +80,27 @@ vi.mock('../../../server/services/two-way-sensitivity-engine', () => {
   return {
     twoWaySensitivityEngine: {
       runTwoWaySensitivity: runTwoWaySensitivityMock,
+    },
+    SensitivityEngineError,
+  };
+});
+
+vi.mock('../../../server/services/stress-test-engine', () => {
+  // Mirror the two-way mock pattern: re-declare the error class so the
+  // route's instanceof check resolves against the mocked specifier. The
+  // route imports SensitivityEngineError from the stress engine module
+  // (which re-exports it), so we mirror that shape.
+  class SensitivityEngineError extends Error {
+    public readonly code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.name = 'SensitivityEngineError';
+      this.code = code;
+    }
+  }
+  return {
+    stressTestEngine: {
+      runStressTest: runStressTestMock,
     },
     SensitivityEngineError,
   };
@@ -173,6 +196,59 @@ const fakeTwoWayEngineResult = {
   computedAt: '2026-04-06T12:00:00.500Z',
 };
 
+const validStressBody = {
+  scenarioIds: ['mild_downside', 'best_case', 'worst_case'],
+  metricId: 'tvpi',
+};
+
+const fakeStressRun = {
+  ...fakeRun,
+  kind: 'stress' as const,
+  params: validStressBody,
+};
+
+const fakeStressCompletedRun = {
+  ...fakeStressRun,
+  status: 'completed' as const,
+  completedAt: new Date('2026-04-06T12:00:01.000Z'),
+  durationMs: 1000,
+  results: { ok: true },
+};
+
+const fakeStressEngineResult = {
+  scenarioIds: ['mild_downside', 'best_case', 'worst_case'] as const,
+  metricId: 'tvpi' as const,
+  baselineValue: 1.85,
+  datapoints: [
+    {
+      scenarioId: 'mild_downside' as const,
+      scenarioLabel: 'Mild Downside',
+      metricValue: 1.7,
+      baselineDelta: -0.15,
+    },
+    {
+      scenarioId: 'worst_case' as const,
+      scenarioLabel: 'Worst Case',
+      metricValue: 1.5,
+      baselineDelta: -0.35,
+    },
+    {
+      scenarioId: 'best_case' as const,
+      scenarioLabel: 'Best Case',
+      metricValue: 2.2,
+      baselineDelta: 0.35,
+    },
+  ],
+  summary: {
+    worstCase: 1.5,
+    bestCase: 2.2,
+    range: 0.7,
+    worstScenarioId: 'worst_case' as const,
+    bestScenarioId: 'best_case' as const,
+  },
+  computedAt: '2026-04-06T12:00:00.500Z',
+};
+
 describe('Sensitivity routes', () => {
   let app: express.Express;
 
@@ -188,6 +264,7 @@ describe('Sensitivity routes', () => {
     markFailedMock.mockResolvedValue({ ...fakeRun, status: 'failed' });
     runOneWaySensitivityMock.mockResolvedValue(fakeEngineResult);
     runTwoWaySensitivityMock.mockResolvedValue(fakeTwoWayEngineResult);
+    runStressTestMock.mockResolvedValue(fakeStressEngineResult);
     getHistoryByFundMock.mockResolvedValue([fakeCompletedRun]);
     getByIdMock.mockResolvedValue(fakeCompletedRun);
   });
@@ -379,6 +456,93 @@ describe('Sensitivity routes', () => {
     const res = await request(app)
       .post('/api/funds/1/sensitivity/two-way')
       .send(validTwoWayBody)
+      .expect(500);
+
+    expect(res.body.code).toBe('ENGINE_FAILURE');
+    expect(markFailedMock).toHaveBeenCalledTimes(1);
+    expect(markFailedMock.mock.calls[0]![1]).toBe('ENGINE_FAILURE');
+  });
+
+  // ----- POST /funds/:id/sensitivity/stress --------------------------------
+
+  it('POST /stress returns 200 with run + result on engine success', async () => {
+    createPendingMock.mockResolvedValueOnce(fakeStressRun);
+    markCompletedMock.mockResolvedValueOnce(fakeStressCompletedRun);
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/stress')
+      .send(validStressBody)
+      .expect(200);
+
+    expect(res.body.run).toBeDefined();
+    expect(res.body.result).toEqual(fakeStressEngineResult);
+
+    expect(createPendingMock).toHaveBeenCalledTimes(1);
+    const createCall = createPendingMock.mock.calls[0]!;
+    expect(createCall[0]).toBe(1);
+    expect(createCall[1]).toBe('stress');
+
+    expect(runStressTestMock).toHaveBeenCalledTimes(1);
+    expect(markCompletedMock).toHaveBeenCalledTimes(1);
+    const completedCall = markCompletedMock.mock.calls[0]!;
+    expect(completedCall[0]).toBe(fakeStressRun.id);
+    expect(completedCall[1]).toEqual(fakeStressEngineResult);
+    expect(typeof completedCall[2]).toBe('number');
+
+    expect(markFailedMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /stress returns 400 on body missing scenarioIds', async () => {
+    const { scenarioIds: _s, ...bad } = validStressBody;
+    const res = await request(app).post('/api/funds/1/sensitivity/stress').send(bad).expect(400);
+    expect(res.body.code).toBe('INVALID_PARAMS');
+    expect(createPendingMock).not.toHaveBeenCalled();
+    expect(runStressTestMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /stress returns 400 on empty scenarioIds array', async () => {
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/stress')
+      .send({ ...validStressBody, scenarioIds: [] })
+      .expect(400);
+    expect(res.body.code).toBe('INVALID_PARAMS');
+    expect(createPendingMock).not.toHaveBeenCalled();
+    expect(runStressTestMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /stress returns 400 on unknown scenarioId value', async () => {
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/stress')
+      .send({ ...validStressBody, scenarioIds: ['totally_made_up_scenario'] })
+      .expect(400);
+    expect(res.body.code).toBe('INVALID_PARAMS');
+    expect(createPendingMock).not.toHaveBeenCalled();
+    expect(runStressTestMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /stress returns 409 with NO_PUBLISHED_CONFIG (regression for STATUS_BY_CODE reuse)', async () => {
+    const { SensitivityEngineError } = await import('../../../server/services/stress-test-engine');
+    runStressTestMock.mockRejectedValueOnce(
+      new SensitivityEngineError('NO_PUBLISHED_CONFIG', 'no published config')
+    );
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/stress')
+      .send(validStressBody)
+      .expect(409);
+
+    expect(res.body.code).toBe('NO_PUBLISHED_CONFIG');
+    expect(markFailedMock).toHaveBeenCalledTimes(1);
+    expect(markFailedMock.mock.calls[0]![1]).toBe('NO_PUBLISHED_CONFIG');
+    expect(markCompletedMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /stress returns 500 with ENGINE_FAILURE on a generic engine error', async () => {
+    runStressTestMock.mockRejectedValueOnce(new Error('boom'));
+
+    const res = await request(app)
+      .post('/api/funds/1/sensitivity/stress')
+      .send(validStressBody)
       .expect(500);
 
     expect(res.body.code).toBe('ENGINE_FAILURE');

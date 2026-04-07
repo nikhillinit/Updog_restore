@@ -146,3 +146,125 @@ export function getMetricDefinition(id: SensitivityMetricId): SensitivityMetricD
   }
   return def;
 }
+
+// =====================
+// STRESS SCENARIOS (Phase 4: 6 entries, multi-variable shocks over the 3 scalars)
+// =====================
+
+/**
+ * A single override applied to a fund-config scalar by a stress scenario. The
+ * variableId references the existing SUPPORTED_VARIABLES library; the value is
+ * the absolute (not delta) value to set for that variable.
+ */
+export const StressScenarioOverrideSchema = z
+  .object({
+    variableId: SensitivityVariableIdSchema,
+    value: z.number(),
+  })
+  .strict();
+
+/**
+ * A named stress scenario: 1..3 multi-variable overrides applied to the
+ * deterministic fund config to model a coordinated shock. Stress scenarios
+ * are pre-defined library entries (not user-constructed in v1).
+ */
+export const StressScenarioSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    description: z.string(),
+    overrides: z.array(StressScenarioOverrideSchema).min(1).max(3),
+  })
+  .strict();
+
+export type StressScenarioOverride = z.infer<typeof StressScenarioOverrideSchema>;
+export type StressScenario = z.infer<typeof StressScenarioSchema>;
+
+/**
+ * The 6 predefined stress scenarios. Each bundles 1..3 absolute-value
+ * overrides applied to the existing 3 scalar variables. Severity is monotonic
+ * within each direction (mild_downside is less severe than severe_downside,
+ * etc.) so the worst_case / best_case scenarios act as bounds for the surface.
+ */
+export const SUPPORTED_STRESS_SCENARIOS: readonly StressScenario[] = [
+  {
+    id: 'mild_downside',
+    label: 'Mild Downside',
+    description: 'Compress reserves and bump management fees modestly.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.1 },
+      { variableId: 'management_fee_rate', value: 0.025 },
+    ],
+  },
+  {
+    id: 'severe_downside',
+    label: 'Severe Downside',
+    description:
+      'Heavy reserve compression, elevated management fees, and an extended fee horizon.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.05 },
+      { variableId: 'management_fee_rate', value: 0.035 },
+      { variableId: 'management_fee_years', value: 12 },
+    ],
+  },
+  {
+    id: 'mild_upside',
+    label: 'Mild Upside',
+    description: 'Modestly larger reserve pool and slightly reduced management fees.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.2 },
+      { variableId: 'management_fee_rate', value: 0.018 },
+    ],
+  },
+  {
+    id: 'severe_upside',
+    label: 'Severe Upside',
+    description: 'Aggressive reserve allocation, low management fees, and a shortened fee horizon.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.3 },
+      { variableId: 'management_fee_rate', value: 0.012 },
+      { variableId: 'management_fee_years', value: 8 },
+    ],
+  },
+  {
+    id: 'worst_case',
+    label: 'Worst Case',
+    description: 'Boundary-pinned downside: minimal reserves, maximum fees, longest fee horizon.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.05 },
+      { variableId: 'management_fee_rate', value: 0.04 },
+      { variableId: 'management_fee_years', value: 15 },
+    ],
+  },
+  {
+    id: 'best_case',
+    label: 'Best Case',
+    description: 'Boundary-pinned upside: large reserves, minimal fees, shortest fee horizon.',
+    overrides: [
+      { variableId: 'reserve_pool_pct', value: 0.35 },
+      { variableId: 'management_fee_rate', value: 0.01 },
+      { variableId: 'management_fee_years', value: 7 },
+    ],
+  },
+] as const;
+
+export const SUPPORTED_STRESS_SCENARIO_IDS = [
+  'mild_downside',
+  'severe_downside',
+  'mild_upside',
+  'severe_upside',
+  'worst_case',
+  'best_case',
+] as const;
+
+export const SensitivityStressScenarioIdSchema = z.enum(SUPPORTED_STRESS_SCENARIO_IDS);
+export type SensitivityStressScenarioId = z.infer<typeof SensitivityStressScenarioIdSchema>;
+
+/**
+ * Resolve a stress scenario by id. Mirrors getVariableDefinition: returns
+ * undefined on unknown id rather than throwing, so callers (which have
+ * already validated against the Zod enum) can dispatch on absence.
+ */
+export function getStressScenarioById(id: SensitivityStressScenarioId): StressScenario | undefined {
+  return SUPPORTED_STRESS_SCENARIOS.find((s) => s.id === id);
+}

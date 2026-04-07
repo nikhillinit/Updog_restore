@@ -3,13 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useOneWayRun, useSensitivityHistory, useTwoWayRun } from '@/hooks/useSensitivityRuns';
+import {
+  useOneWayRun,
+  useSensitivityHistory,
+  useTwoWayRun,
+  useStressRun,
+} from '@/hooks/useSensitivityRuns';
 import type {
   OneWayAnalysisRequestV1,
   OneWayAnalysisResultV1,
   SensitivityRunV1,
   TwoWayAnalysisRequestV1,
   TwoWayAnalysisResultV1,
+  StressAnalysisRequestV1,
+  StressAnalysisResultV1,
 } from '@shared/contracts/sensitivity-run-v1.contract';
 
 function makeWrapper() {
@@ -374,5 +381,166 @@ describe('useSensitivityHistory', () => {
 
     expect(result.current.fetchStatus).toBe('idle');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+function makeStressResult(): StressAnalysisResultV1 {
+  return {
+    scenarioIds: ['mild_downside', 'best_case', 'worst_case'],
+    metricId: 'tvpi',
+    baselineValue: 2.0,
+    datapoints: [
+      {
+        scenarioId: 'mild_downside',
+        scenarioLabel: 'Mild Downside',
+        metricValue: 1.7,
+        baselineDelta: -0.3,
+      },
+      {
+        scenarioId: 'worst_case',
+        scenarioLabel: 'Worst Case',
+        metricValue: 1.5,
+        baselineDelta: -0.5,
+      },
+      {
+        scenarioId: 'best_case',
+        scenarioLabel: 'Best Case',
+        metricValue: 2.8,
+        baselineDelta: 0.8,
+      },
+    ],
+    summary: {
+      worstCase: 1.5,
+      bestCase: 2.8,
+      range: 1.3,
+      worstScenarioId: 'worst_case',
+      bestScenarioId: 'best_case',
+    },
+    computedAt: '2026-04-07T00:00:01.000Z',
+  };
+}
+
+function makeStressRunRecord(): SensitivityRunV1 {
+  return {
+    id: 99,
+    fundId: 7,
+    kind: 'stress',
+    status: 'completed',
+    params: {
+      scenarioIds: ['mild_downside', 'best_case', 'worst_case'],
+      metricId: 'tvpi',
+    },
+    results: makeStressResult(),
+    createdBy: 1,
+    createdAt: '2026-04-07T00:00:00.000Z',
+    completedAt: '2026-04-07T00:00:02.000Z',
+    durationMs: 2000,
+    errorCode: null,
+    errorMessage: null,
+  };
+}
+
+const baseStressRequest: StressAnalysisRequestV1 = {
+  scenarioIds: ['mild_downside', 'best_case', 'worst_case'],
+  metricId: 'tvpi',
+};
+
+describe('useStressRun', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs to /api/funds/:id/sensitivity/stress with the request body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ run: makeStressRunRecord(), result: makeStressResult() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useStressRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseStressRequest);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('/api/funds/7/sensitivity/stress');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init?.body as string)).toEqual(baseStressRequest);
+    expect(result.current.data?.result.baselineValue).toBe(2.0);
+    expect(result.current.data?.result.datapoints).toHaveLength(3);
+  });
+
+  it('parses { code, message } off non-OK responses and exposes status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'NO_PUBLISHED_CONFIG',
+          message: 'no published config',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useStressRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseStressRequest);
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    const err = result.current.error;
+    expect(err).toBeTruthy();
+    expect(err?.code).toBe('NO_PUBLISHED_CONFIG');
+    expect(err?.status).toBe(409);
+    expect(err?.message).toBe('no published config');
+  });
+
+  it('throws synchronously when fundId is null', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useStressRun(null), { wrapper: Wrapper });
+
+    result.current.mutate(baseStressRequest);
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+
+    expect(result.current.error?.message).toMatch(/fundId is required/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('invalidates the stress history query on success', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ run: makeStressRunRecord(), result: makeStressResult() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const { Wrapper, queryClient } = makeWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useStressRun(7), { wrapper: Wrapper });
+
+    result.current.mutate(baseStressRequest);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['sensitivity-runs', 7, 'stress'],
+    });
   });
 });
