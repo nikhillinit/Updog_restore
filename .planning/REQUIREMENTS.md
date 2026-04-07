@@ -26,11 +26,11 @@ Source:
       Acceptance: a single elected leader runs the planner loop per window;
       correctness is preserved across leader crashes; observable
       health/transitions.
-- [ ] **REQ-VAR-02**: Resolve 1C.2 deferred Item B from the variance automation
+- [x] **REQ-VAR-02**: Resolve 1C.2 deferred Item B from the variance automation
       follow-ons backlog (specific scope to be confirmed during
       `/gsd-discuss-phase` for Phase 1 — read parent doc Items B/C before
       planning).
-- [ ] **REQ-VAR-03**: Resolve 1C.2 deferred Item C from the variance automation
+- [x] **REQ-VAR-03**: Resolve 1C.2 deferred Item C from the variance automation
       follow-ons backlog (same — confirm during phase discuss).
 
 ### Backtesting Correctness (P1 debt)
