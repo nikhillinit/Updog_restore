@@ -153,7 +153,8 @@ and `docs/plans/2026-03-30-post-stabilization-priorities.md` planning rules. Do
   behavior (per CLAUDE.md memory)
 - **Direct `decimal.js` imports in runtime code** — must go through
   `@shared/lib/decimal-config`
-- **Floating-point math in `core/reserves/**`\*\* — banned by ESLint
+- Floating-point math anywhere under `core/reserves/` — banned by ESLint
+  (`povc-security/no-floating-point-in-core`, error severity)
 - **`parseFloat` in P0 calculation paths** — warned by ESLint, treat as error in
   new code
 - **`any` types in new code** — baselined warns exist; do not increase the count
