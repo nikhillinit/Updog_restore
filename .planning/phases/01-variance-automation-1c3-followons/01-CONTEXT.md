@@ -112,9 +112,9 @@ The following decisions are left to the researcher/planner. They do not require
 the user to weigh in before planning.
 
 - **Instance identity** — how a process identifies itself in the `leader_id` /
-  `instance_id` column (UUID at boot, HOSTNAME env, process.pid
-  - hostname, etc.). Any stable-per-process identifier works; planner should
-    recommend.
+  `instance_id` column. Candidates: a UUID generated at boot, the `HOSTNAME` env
+  var, or `${hostname}:${process.pid}`. Any stable-per-process identifier works;
+  planner should pick one and document.
 - **Migration shape** — column types, indexes, whether there is one row
   pre-seeded or rows are inserted on first acquisition, constraint names. Follow
   existing `server/db/migrations/**` conventions.
