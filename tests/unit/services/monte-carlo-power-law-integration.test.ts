@@ -404,7 +404,10 @@ describe('Monte Carlo Power Law Integration', () => {
   });
 
   describe('Performance and Consistency', () => {
-    it('should generate large simulations efficiently', async () => {
+    // 25k-scenario simulation has an embedded <10s perf assertion (line below).
+    // The vitest test-level timeout must exceed that, otherwise vitest kills the
+    // test at the default 5s before the assertion can run. Bump to 30s.
+    it('should generate large simulations efficiently', { timeout: 30000 }, async () => {
       const params: SimulationParameters = {
         fundId: 1,
         scenarios: 25000, // Large simulation

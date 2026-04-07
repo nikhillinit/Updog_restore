@@ -302,7 +302,10 @@ describe('Monte Carlo Power Law Validation', () => {
   });
 
   describe('Integration with Monte Carlo Parameters', () => {
-    it('should handle typical VC portfolio composition', () => {
+    // 25-company * 1000-scenario simulation runs ~4.5-4.7s in isolation; under
+    // cold full-suite CPU contention it routinely brushes the default 5s timeout.
+    // Bumping to 30s eliminates the flake without masking real regressions.
+    it('should handle typical VC portfolio composition', { timeout: 30000 }, () => {
       const portfolioSize = 25;
       const stageDistribution = {
         seed: 0.6, // 60% seed companies
