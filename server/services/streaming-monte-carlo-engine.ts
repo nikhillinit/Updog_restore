@@ -32,6 +32,7 @@ import type {
   ActionableInsights,
   PerformanceDistribution,
 } from './monte-carlo-engine';
+import { applyMarketParametersOverride } from './lib/distribution-overrides';
 
 // ============================================================================
 // STREAMING TYPES & INTERFACES
@@ -369,7 +370,11 @@ export class StreamingMonteCarloEngine {
         streamingConfig.baselineId
       );
       const portfolioInputs = await this.getPortfolioInputs(streamingConfig.fundId, baseline);
-      const distributions = await this.calibrateDistributions(streamingConfig.fundId, baseline);
+      const distributions = await this.calibrateDistributions(
+        streamingConfig.fundId,
+        baseline,
+        streamingConfig
+      );
 
       // Set random seed for reproducibility
       if (streamingConfig.randomSeed) {
@@ -920,7 +925,8 @@ export class StreamingMonteCarloEngine {
 
   private async calibrateDistributions(
     fundId: number,
-    baseline: FundBaseline
+    baseline: FundBaseline,
+    config?: SimulationConfig
   ): Promise<DistributionParameters> {
     /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
     // Implementation same as original engine
@@ -935,40 +941,54 @@ export class StreamingMonteCarloEngine {
       limit: 30,
     });
 
+    let distributions: DistributionParameters;
+
     if (reports.length < 3) {
-      return this.getDefaultDistributions();
+      distributions = this.getDefaultDistributions();
+    } else {
+      const irrVariances = this.extractVariances(reports, 'irrVariance');
+      const multipleVariances = this.extractVariances(reports, 'multipleVariance');
+      const dpiVariances = this.extractVariances(reports, 'dpiVariance');
+
+      const irrMean = toDecimal(baseline.irr?.toString() ?? '0.15');
+      const multipleMean = toDecimal(baseline.multiple?.toString() ?? '2.5');
+      const dpiMean = toDecimal(baseline.dpi?.toString() ?? '0.8');
+
+      distributions = {
+        irr: {
+          mean: irrMean.toNumber(),
+          volatility: this.calculateVolatility(irrVariances) || 0.08,
+        },
+        multiple: {
+          mean: multipleMean.toNumber(),
+          volatility: this.calculateVolatility(multipleVariances) || 0.6,
+        },
+        dpi: {
+          mean: dpiMean.toNumber(),
+          volatility: this.calculateVolatility(dpiVariances) || 0.3,
+        },
+        exitTiming: {
+          mean: 5.5,
+          volatility: 2.0,
+        },
+        followOnSize: {
+          mean: 0.5,
+          volatility: 0.3,
+        },
+      };
     }
 
-    const irrVariances = this.extractVariances(reports, 'irrVariance');
-    const multipleVariances = this.extractVariances(reports, 'multipleVariance');
-    const dpiVariances = this.extractVariances(reports, 'dpiVariance');
+    // Phase 2 Plan 02-02 (REQ-BCK-01, D-01): scenario-aware override. The
+    // streaming engine honors the same SimulationConfig.marketParameters
+    // override as the traditional engine via the shared helper so engine
+    // selection (see UnifiedMonteCarloService.selectEngine) cannot silently
+    // change scenario semantics. When marketParameters is absent, this
+    // branch is skipped — byte-identical to prior behavior.
+    if (config?.marketParameters) {
+      distributions = applyMarketParametersOverride(distributions, config.marketParameters);
+    }
 
-    const irrMean = toDecimal(baseline.irr?.toString() ?? '0.15');
-    const multipleMean = toDecimal(baseline.multiple?.toString() ?? '2.5');
-    const dpiMean = toDecimal(baseline.dpi?.toString() ?? '0.8');
-
-    return {
-      irr: {
-        mean: irrMean.toNumber(),
-        volatility: this.calculateVolatility(irrVariances) || 0.08,
-      },
-      multiple: {
-        mean: multipleMean.toNumber(),
-        volatility: this.calculateVolatility(multipleVariances) || 0.6,
-      },
-      dpi: {
-        mean: dpiMean.toNumber(),
-        volatility: this.calculateVolatility(dpiVariances) || 0.3,
-      },
-      exitTiming: {
-        mean: 5.5,
-        volatility: 2.0,
-      },
-      followOnSize: {
-        mean: 0.5,
-        volatility: 0.3,
-      },
-    };
+    return distributions;
     /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
