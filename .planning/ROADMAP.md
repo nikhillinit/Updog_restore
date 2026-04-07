@@ -159,6 +159,28 @@ re-render automatically with corrected data)
 `phoenix-precision-guardian` for review of the rewrite. Spawn
 `phoenix-truth-case-runner` to validate.
 
+**Plans:** 6 plans
+
+Plans:
+
+- [ ] 02-01-baseline-capture-PLAN.md — Capture analytic-rescale baseline
+      percentiles for the GFC scenario before the rewrite removes the analytic
+      code path
+- [ ] 02-02-engine-market-params-override-PLAN.md — Add
+      SimulationConfig.marketParameters override and wire calibrateDistributions
+      consumption in both Monte Carlo engines
+- [ ] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
+      runScenarioComparisons to inject per-scenario marketParameters, delete
+      applyMarketAdjustment, replace console.error with Pino structured logs
+- [ ] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
+      from informational to P1 in
+      .a5c/processes/sensitivity-stress-panel.inputs.json
+- [ ] 02-05-phoenix-truth-case-PLAN.md — Add Phoenix truth case for 2008 GFC
+      scenario with fixed randomSeed and snapshot-locked sample percentiles
+- [ ] 02-06-plan-doc-and-verification-PLAN.md — Author
+      docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md with
+      before/after table and live verification gate counts
+
 ---
 
 ### Phase 3: TODO Report Remediation
