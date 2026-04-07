@@ -42,7 +42,9 @@
 ## Queues / Background Jobs
 
 - **Engine:** BullMQ `5.69.3`
-- **Dashboard:** `@bull-board/express` 6.20.5 (mounted in `server/app.ts`)
+- **Dashboard:** `@bull-board/express` 6.20.5 mounted at
+  `server/routes/admin/queue-dashboard.ts` (gated by `ENABLE_QUEUE_DASHBOARD`
+  env var; uses `BullMQAdapter` + `ExpressAdapter`)
 - **Queue files:**
   `server/queues/{backtesting-queue,report-generation-queue,simulation-queue,redis-connection,registry}.ts`
 - **Workers:**
@@ -57,18 +59,29 @@
 
 ## AI / LLM Providers
 
-| Provider         | SDK                     | Version   | Server entrypoint                    |
-| ---------------- | ----------------------- | --------- | ------------------------------------ |
-| Anthropic Claude | `@anthropic-ai/sdk`     | `^0.71.2` | `server/services/ai-orchestrator.ts` |
-| OpenAI           | `openai`                | `6.22.0`  | `server/services/ai-orchestrator.ts` |
-| Google Gemini    | `@google/generative-ai` | `^0.24.1` | `server/services/ai-orchestrator.ts` |
-| Ollama (local)   | `ollama`                | `0.6.3`   | `server/services/ai-orchestrator.ts` |
+`server/services/ai-orchestrator.ts` is the unified entry point.
+`ModelName = 'claude' | 'gpt' | 'gemini' | 'deepseek'`. Cost per model is read
+from `*_INPUT_COST` / `*_OUTPUT_COST` env vars.
 
-- **Routes:** `server/routes/ai.ts`, `server/routes/interleaved-thinking.ts`
+| Provider         | SDK                     | Version   | Auth env var        | Notes                                                                                      |
+| ---------------- | ----------------------- | --------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| Anthropic Claude | `@anthropic-ai/sdk`     | `^0.71.2` | `ANTHROPIC_API_KEY` | Primary                                                                                    |
+| OpenAI GPT       | `openai`                | `6.22.0`  | `OPENAI_API_KEY`    | Secondary                                                                                  |
+| Google Gemini    | `@google/generative-ai` | `^0.24.1` | `GOOGLE_API_KEY`    | Tertiary                                                                                   |
+| DeepSeek         | `openai` (compat)       | `6.22.0`  | `DEEPSEEK_API_KEY`  | `baseURL: https://api.deepseek.com`, model `deepseek-chat` (override via `DEEPSEEK_MODEL`) |
+| Ollama (local)   | `ollama`                | `0.6.3`   | (none)              | Local fallback                                                                             |
+
+**Orchestrator config (`server/services/ai-orchestrator.ts:26-29`):**
+
+- Daily call budget: `AI_DAILY_CALL_LIMIT` (default `200`); persisted to
+  `logs/ai-budget.json`
+- Audit log: `logs/multi-ai.jsonl`
+- Per-call timeout: `AI_TIMEOUT_MS` (default `90000` — 90s)
+- Routes: `server/routes/ai.ts`, `server/routes/interleaved-thinking.ts`
 - **Internal AI tooling CLI:** `npm run ai` → `node scripts/ai-tools/index.js`
 - **AI agent packages:**
   `packages/{agent-core,codex-review-agent,test-repair-agent,bundle-optimization-agent,memory-manager}/`
-- **Codex CLI:** External dependency (OpenAI's `codex` binary), invoked via
+- **Codex CLI:** external (OpenAI's `codex` binary), invoked via
   `codex exec "..." --sandbox read-only` per memory reference; project-level
   wrapper at `packages/codex-review-agent/`
 
@@ -135,7 +148,11 @@
   likely uses HTTP webhook or external relay; verify provider before extending)
 - **Slack:** `@slack/webhook` `7.0.7` — used for ops alerts; routes in
   `server/routes/operations.ts`
-- **Notion:** `@notionhq/client` `^4.0.1` — `server/services/notion-service.ts`
+- **Notion:** `@notionhq/client` `^4.0.1` — `server/services/notion-service.ts`.
+  Persisted state lives in three Drizzle tables in
+  `shared/schema.ts:1990,2016,2047`: `notionConnections`, `notionSyncJobs`,
+  `notionPortfolioConfigs` (with `createInsertSchema` exports for Zod
+  validation).
 
 ## WebSocket / Realtime
 
@@ -211,10 +228,17 @@
   `.env.{development,production,staging,preact,react,rls,vercel}.example`,
   `.env.local.example`
 - **Critical vars:** `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` (≥32 chars),
-  `JWT_ISSUER`, `JWT_AUDIENCE`, `ALERTMANAGER_WEBHOOK_SECRET`,
-  `VITE_SENTRY_DSN`, `ALLOWED_ORIGINS`, `RATE_LIMIT_WINDOW_MS`,
-  `RATE_LIMIT_MAX`, `BUILD_WITH_PREACT`, `VITE_USE_PREACT`, `TEST_READY_FILE`,
-  `CRON_SECRET`, `DISABLE_AUTH`, `CSP_REPORT_ONLY`, `ENABLE_QUEUES`
+  `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_JWKS_URL` (RS256),
+  `ALERTMANAGER_WEBHOOK_SECRET`, `VITE_SENTRY_DSN`, `ALLOWED_ORIGINS`,
+  `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `BUILD_WITH_PREACT`,
+  `VITE_USE_PREACT`, `TEST_READY_FILE`, `CRON_SECRET`, `DISABLE_AUTH`,
+  `CSP_REPORT_ONLY`, `ENABLE_QUEUES`, `ENABLE_QUEUE_DASHBOARD`
+- **AI vars:** `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`,
+  `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `AI_DAILY_CALL_LIMIT`, `AI_TIMEOUT_MS`,
+  `{CLAUDE,GPT,GEMINI,DEEPSEEK}_{INPUT,OUTPUT}_COST`
+- **Chaos/test vars:** `ENGINE_FAULT_RATE` (0.0-1.0) — fault injection rate
+  consumed by `server/engine/fault-injector.ts` and exposed via
+  `server/routes/admin/engine.ts`; referenced in `tests/chaos/`
 - **Validation:** `server/config/index.ts` (`loadEnv()`) — runs at bootstrap
   phase 1
 - **Pre-deploy gate:** `npm run db:validate` (per CLAUDE.md and `db-validate`
