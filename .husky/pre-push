@@ -56,6 +56,16 @@ npm run baseline:check || {
   exit 1
 }
 
+# Orphan test discovery gate (REFL-036)
+# --no-renames decomposes renames into add+delete pairs so --diff-filter=ACM
+# inspects only the destination path (the new file) plus real adds/modifications.
+# Pure deletions are ignored - removing an orphaned test should never block a push.
+echo "Checking for orphan tests in __tests__ directories..."
+ORPHAN_CHECK_FILES=$(git diff --no-renames --name-only --diff-filter=ACM "$BASE_BRANCH"...HEAD 2>/dev/null | tr '\n' ' ')
+if [ -n "$ORPHAN_CHECK_FILES" ]; then
+  node scripts/check-orphan-tests.mjs $ORPHAN_CHECK_FILES || exit 1
+fi
+
 # If core configuration files changed, run the full test suite
 if echo "$CHANGED" | grep -qE "$FULL_RUN_PATTERN"; then
   echo "⚠️  Core configuration changed, running full validation..."
