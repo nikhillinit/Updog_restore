@@ -1,0 +1,156 @@
+{
+  "slice": "sensitivity-stress-panel",
+  "branch": "main",
+  "scope": "narrow-bundled",
+  "interpretation": "beta",
+  "interpretationNote": "User locked beta = parameter shocks (Q2 of /babysitter:babysit interview, 2026-04-06). Alpha = historical-scenario replay is OUT OF SCOPE for this slice. The existing alpha infrastructure (BacktestingService.compareScenarios + runScenarioComparisons) was found to be a post-hoc ratio scaling rather than a real per-scenario MC run -- recorded as a finding only, NOT in scope to fix here.",
+  "predecessors": [
+    {
+      "process": "sensitivity-foundation-one-way",
+      "commit": "3a6fe301",
+      "completedAt": "2026-04-05"
+    },
+    {
+      "process": "sensitivity-refactor-and-polish",
+      "commit": "2772dce9",
+      "completedAt": "2026-04-06"
+    },
+    {
+      "process": "sensitivity-two-way-panel",
+      "commit": "bc592b38",
+      "completedAt": "2026-04-06"
+    }
+  ],
+  "design": {
+    "stressShape": "named-multi-variable-scenarios",
+    "scenarioSource": "predefined-in-contract (SUPPORTED_STRESS_SCENARIOS const, parallel to SUPPORTED_VARIABLES + SUPPORTED_METRICS)",
+    "scenarioCount": 6,
+    "scenarioIds": [
+      "mild_downside",
+      "severe_downside",
+      "mild_upside",
+      "severe_upside",
+      "worst_case",
+      "best_case"
+    ],
+    "scenarioOverridesShape": "Each scenario bundles 1..3 (variableId, value) overrides applied to a single base config via the same scalar-only applyOverride pattern as one-way/two-way",
+    "engineLifecycle": "sync (deterministic, in-process) -- mirrors one-way/two-way, NOT the async BacktestingService pipeline",
+    "newDeps": [],
+    "applyOverride": "scalar-only (unchanged)",
+    "supportedVariables": "existing 3 scalars (reserve_pool_pct, management_fee_rate, management_fee_years)",
+    "iaCleanupBundled": true
+  },
+  "backend": {
+    "newContractTypes": [
+      "StressScenarioOverrideSchema (in sensitivity-variables-v1.ts) -- { variableId, value }",
+      "StressScenarioSchema (in sensitivity-variables-v1.ts) -- { id, label, description, overrides: array }",
+      "SUPPORTED_STRESS_SCENARIOS const (in sensitivity-variables-v1.ts) -- 6 predefined scenarios",
+      "getStressScenarioById helper (in sensitivity-variables-v1.ts) -- mirror getVariableDefinition",
+      "StressAnalysisRequestV1Schema (in sensitivity-run-v1.contract.ts) -- { scenarioIds: array, metricId }",
+      "StressAnalysisDatapointSchema (in sensitivity-run-v1.contract.ts) -- { scenarioId, scenarioLabel, metricValue, baselineDelta }",
+      "StressAnalysisSummarySchema (in sensitivity-run-v1.contract.ts) -- { worstCase, bestCase, range, worstScenarioId, bestScenarioId }",
+      "StressAnalysisResultV1Schema (in sensitivity-run-v1.contract.ts) -- { scenarioIds, metricId, baselineValue, datapoints, summary, computedAt }"
+    ],
+    "newEngineFile": "server/services/stress-test-engine.ts",
+    "engineReuses": [
+      "ConfigLoader interface from one-way-sensitivity-engine.ts",
+      "FundStateConfigLoader from one-way-sensitivity-engine.ts",
+      "SensitivityEngineError class from one-way-sensitivity-engine.ts",
+      "applyOverride pattern (called N times per scenario for multi-override application)"
+    ],
+    "newRouteHandler": "POST /api/funds/:id/sensitivity/stress (added to server/routes/sensitivity.ts, NOT a new file)",
+    "serviceChanges": "none (sensitivityRunService is already kind-aware via the 'stress' enum value -- already in CHECK constraint since Phase 0)"
+  },
+  "frontend": {
+    "newHookFunction": "useStressRun in client/src/hooks/useSensitivityRuns.ts",
+    "newComponentFile": "client/src/components/sensitivity/StressPanel.tsx",
+    "componentReuses": [
+      "formatMetricValue from _shared/",
+      "useElapsedSeconds from _shared/",
+      "SummaryCard from _shared/",
+      "tests/helpers/radix-select-shim.ts via installRadixSelectShim()"
+    ],
+    "vizApproach": "List-style scenario rows: scenario label + description + computed metric value + a delta-bar showing baselineDelta sign and magnitude (red for negative, emerald for positive). NOT a chart -- HTML/CSS only. Sorted by scenarioId order from SUPPORTED_STRESS_SCENARIOS for stable rendering.",
+    "pageWiring": "client/src/pages/sensitivity-analysis.tsx -- remove 'stress' from COMING_SOON_TABS (which becomes empty array), add a TabsContent block for value='stress', mount StressPanel"
+  },
+  "iaCleanup": {
+    "sidebarLabelChange": {
+      "file": "client/src/components/layout/navigation-config.ts",
+      "currentLabel": "Backtesting",
+      "newLabel": "Sensitivity Analysis",
+      "lineNumber": 79,
+      "navItemId": "sensitivity-analysis"
+    },
+    "tabLabelNormalization": {
+      "file": "client/src/pages/sensitivity-analysis.tsx",
+      "current": [
+        "Monte Carlo Backtesting",
+        "One-Way Analysis",
+        "Two-Way Sensitivity",
+        "Stress Testing"
+      ],
+      "new": [
+        "Monte Carlo",
+        "One-Way",
+        "Two-Way",
+        "Stress"
+      ]
+    },
+    "gateTextRemoval": {
+      "file": "client/src/pages/sensitivity-analysis.tsx",
+      "currentLines": "18-21",
+      "currentText": "Monte Carlo backtesting, one-way parameter sensitivity, and two-way parameter sensitivity are live. Stress-testing remains intentionally disabled until it has a fund-scoped backend endpoint, a stable comparison contract, and persisted scenario data behind it.",
+      "newText": "Sensitivity analysis surface: Monte Carlo backtesting, one-way and two-way parameter sweeps, and named stress scenarios -- all fund-scoped and persisted."
+    },
+    "perTabLiveNowCardsRemoval": {
+      "file": "client/src/pages/sensitivity-analysis.tsx",
+      "rationale": "Each of the 3 currently-live tabs has a 'Live now' Card with a description. After 4 live tabs the redundancy is significant. Drop them all in IA cleanup.",
+      "affectedTabs": ["monte-carlo", "one-way", "two-way", "stress (do NOT add a Live now card on stress in the first place)"]
+    }
+  },
+  "tests": {
+    "backend": [
+      "tests/unit/services/stress-test-engine.test.ts (NEW: baseline, scenario application correctness, multi-override semantics, baselineDelta sign, summary worst/best/range, error paths for unknown scenarioIds, NO_PUBLISHED_CONFIG path, SensitivityEngineError instanceof check)",
+      "tests/unit/routes/sensitivity-routes.test.ts (EXTEND: add stress happy-path, validation failure for unknown scenarioIds, validation failure for empty scenarios array, kind dispatch for service createPending with kind='stress', error mapping reuses STATUS_BY_CODE)"
+    ],
+    "frontend": [
+      "tests/unit/hooks/useSensitivityRuns.test.tsx (EXTEND: add useStressRun cases mirroring useOneWayRun + useTwoWayRun)",
+      "tests/unit/components/sensitivity/StressPanel.test.tsx (NEW: idle, loading, error, results states; multi-select scenario picker; default scenario selection; results render delta-bar with sign-aware coloring; uses installRadixSelectShim)",
+      "tests/unit/pages/sensitivity-analysis.test.tsx (EXTEND: stress tab is NOT disabled, mounts StressPanel, normalized tab labels, new gate text, no Live now cards)",
+      "tests/unit/components/layout/navigation.test.tsx OR navigation-config.test.ts (EXTEND or NEW: sidebar label is 'Sensitivity Analysis', not 'Backtesting')"
+    ]
+  },
+  "constraints": {
+    "noNewPages": true,
+    "noNavStructureChanges": true,
+    "noNewDeps": true,
+    "noBehaviorChangeOneWayPanel": true,
+    "noBehaviorChangeTwoWayPanel": true,
+    "noBehaviorChangeMonteCarloBacktesting": true,
+    "noBehaviorChangeSharedHelpers": true,
+    "phoenixTruthUnaffected": true,
+    "lintRatchetMustImproveOrHold": "<= 28",
+    "tsBaselineMustHold": "0 errors",
+    "fullSuiteMustPass": "4040 passing minimum",
+    "noNestedPathSupport": "applyOverride stays scalar-only",
+    "noAlphaInfrastructureFix": "post-hoc scaling smell in runScenarioComparisons is recorded as a finding only, do NOT fix in this slice",
+    "stressKindEnumAlreadySupported": "sensitivity_runs CHECK constraint already includes 'stress', no migration needed"
+  },
+  "outOfScope": [
+    "Alpha (historical scenario) interpretation -- explicitly rejected by user in Q2",
+    "Custom scenario builder UI (only predefined SUPPORTED_STRESS_SCENARIOS for v1)",
+    "Fix for runScenarioComparisons post-hoc scaling smell (recorded as finding, not fixed)",
+    "Nested-path support in applyOverride() (still scalar-only)",
+    "New SUPPORTED_VARIABLES (only adds SUPPORTED_STRESS_SCENARIOS)",
+    "Async/queued lifecycle for stress (sync only -- different from BacktestingWorkspace)",
+    "REFL-034 documenting the alpha-infrastructure smell (user did not pick option 4 in Q1)",
+    "Planning-doc frontmatter reconciliation",
+    "Dependabot triage"
+  ],
+  "alphaFinding": {
+    "summary": "runScenarioComparisons in backtesting-service.ts exists but does NOT pass marketParams to unifiedMonteCarloService.runSimulation. Instead it runs the default simulation and applies post-hoc ratio scaling via applyMarketAdjustment. This is a fixed-function approximation, not a real per-scenario MC run.",
+    "location": "server/services/backtesting-service.ts:645-738",
+    "severity": "P1",
+    "actionRequired": "FIXED in Phase 2 (.planning/phases/02-backtesting-scenario-comparison-rewrite-p1) -- runScenarioComparisons now injects scenario-specific marketParameters per scenario via Plan 02-03, applyMarketAdjustment is deleted, and a Phoenix truth case under tests/unit/truth-cases/ validates the rewrite end-to-end. See docs/plans/2026-04-XX-backtesting-scenario-comparison-rewrite.md for the before/after comparison."
+  }
+}
