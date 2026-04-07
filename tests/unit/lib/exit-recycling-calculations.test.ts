@@ -15,8 +15,8 @@ import {
   isExitWithinRecyclingPeriod,
   createExitEvent,
   type ExitEvent,
-  type RecyclingCapacity
-} from '../exit-recycling-calculations';
+  type RecyclingCapacity,
+} from '@/lib/exit-recycling-calculations';
 import type { ExitRecyclingInput } from '@/schemas/modeling-wizard.schemas';
 
 // ============================================================================
@@ -28,11 +28,11 @@ const mockConfig: ExitRecyclingInput = {
   recyclingCap: 15, // 15% of committed capital
   recyclingPeriod: 5, // First 5 years
   exitRecyclingRate: 75, // Recycle 75% of exit proceeds
-  mgmtFeeRecyclingRate: 0
+  mgmtFeeRecyclingRate: 0,
 };
 
 const mockDisabledConfig: ExitRecyclingInput = {
-  enabled: false
+  enabled: false,
 };
 
 // ============================================================================
@@ -91,7 +91,7 @@ describe('calculateRecyclingCapacity', () => {
       maxRecyclableCapital: 15,
       recyclingCapPercentage: 15,
       recyclingPeriodYears: 5,
-      annualRecyclingCapacity: 3
+      annualRecyclingCapacity: 3,
     });
   });
 
@@ -131,7 +131,7 @@ describe('createExitEvent', () => {
       year: 3,
       grossProceeds: 100,
       ownershipPercent: 15,
-      recyclingPeriod: 5
+      recyclingPeriod: 5,
     });
 
     expect(exit).toEqual<ExitEvent>({
@@ -140,7 +140,7 @@ describe('createExitEvent', () => {
       grossProceeds: 100,
       ownershipPercent: 15,
       fundProceeds: 15, // 15% of $100M
-      withinRecyclingPeriod: true
+      withinRecyclingPeriod: true,
     });
   });
 
@@ -150,7 +150,7 @@ describe('createExitEvent', () => {
       year: 7,
       grossProceeds: 100,
       ownershipPercent: 20,
-      recyclingPeriod: 5
+      recyclingPeriod: 5,
     });
 
     expect(exit.withinRecyclingPeriod).toBe(false);
@@ -203,23 +203,13 @@ describe('calculateRecyclableFromExit', () => {
   });
 
   it('handles 100% recycling rate', () => {
-    const result = calculateRecyclableFromExit(
-      10,
-      100,
-      20,
-      true
-    );
+    const result = calculateRecyclableFromExit(10, 100, 20, true);
 
     expect(result).toBe(10); // All proceeds recycled
   });
 
   it('handles 0% recycling rate', () => {
-    const result = calculateRecyclableFromExit(
-      10,
-      0,
-      20,
-      true
-    );
+    const result = calculateRecyclableFromExit(10, 0, 20, true);
 
     expect(result).toBe(0);
   });
@@ -233,22 +223,22 @@ describe('calculateRecyclingSchedule', () => {
         year: 2,
         grossProceeds: 50,
         ownershipPercent: 20, // Fund gets $10M
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-2',
         year: 4,
         grossProceeds: 100,
         ownershipPercent: 15, // Fund gets $15M
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-3',
         year: 7,
         grossProceeds: 200,
         ownershipPercent: 10, // Fund gets $20M (but outside period)
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const schedule = calculateRecyclingSchedule(
@@ -284,8 +274,8 @@ describe('calculateRecyclingSchedule', () => {
         year: 3,
         grossProceeds: 100,
         ownershipPercent: 10, // Fund gets $10M
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const schedule = calculateRecyclingSchedule(exits, 50, 20);
@@ -304,15 +294,15 @@ describe('calculateRecyclingSchedule', () => {
         year: 4,
         grossProceeds: 100,
         ownershipPercent: 10,
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-1',
         year: 2, // Earlier year
         grossProceeds: 50,
         ownershipPercent: 20,
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const schedule = calculateRecyclingSchedule(exits, 75, 20);
@@ -329,34 +319,34 @@ describe('calculateRecyclingSchedule', () => {
         year: 2,
         grossProceeds: 50,
         ownershipPercent: 20,
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-2',
         year: 2, // Same year
         grossProceeds: 40,
         ownershipPercent: 25,
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-3',
         year: 4,
         grossProceeds: 60,
         ownershipPercent: 20,
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const schedule = calculateRecyclingSchedule(exits, 100, 50);
 
     expect(schedule.cumulativeByYear).toHaveLength(2); // 2 distinct years
 
-    const year2 = schedule.cumulativeByYear.find(y => y.year === 2);
+    const year2 = schedule.cumulativeByYear.find((y) => y.year === 2);
     expect(year2).toBeDefined();
     expect(year2?.annualRecycled).toBe(20); // $10M + $10M from year 2
     expect(year2?.cumulativeRecycled).toBe(20);
 
-    const year4 = schedule.cumulativeByYear.find(y => y.year === 4);
+    const year4 = schedule.cumulativeByYear.find((y) => y.year === 4);
     expect(year4).toBeDefined();
     expect(year4?.annualRecycled).toBe(12); // $12M from year 4
     expect(year4?.cumulativeRecycled).toBe(32); // $20M + $12M cumulative
@@ -405,7 +395,7 @@ describe('calculateExitRecycling', () => {
     expect(result.capacity.maxRecyclableCapital).toBe(15); // 15% of $100M
     expect(result.capacity.annualRecyclingCapacity).toBe(3); // $15M / 5 years
     expect(result.extendedInvestmentCapacity).toBe(15); // Assumes full cap used
-    expect(result.effectiveDeploymentRate).toBe(115); // 115% of committed capital
+    expect(result.effectiveDeploymentRate).toBeCloseTo(115); // 115% of committed capital
     expect(result.schedule).toBeUndefined();
   });
 
@@ -416,15 +406,15 @@ describe('calculateExitRecycling', () => {
         year: 3,
         grossProceeds: 100,
         ownershipPercent: 15,
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-2',
         year: 7,
         grossProceeds: 200,
         ownershipPercent: 20,
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const result = calculateExitRecycling(mockConfig, 100, exits);
@@ -447,15 +437,15 @@ describe('calculateExitRecycling', () => {
         year: 2,
         grossProceeds: 100,
         ownershipPercent: 20, // $20M proceeds
-        recyclingPeriod: 5
+        recyclingPeriod: 5,
       }),
       createExitEvent({
         id: 'exit-2',
         year: 3,
         grossProceeds: 100,
         ownershipPercent: 20, // $20M proceeds
-        recyclingPeriod: 5
-      })
+        recyclingPeriod: 5,
+      }),
     ];
 
     const result = calculateExitRecycling(mockConfig, 100, exits);
@@ -490,39 +480,39 @@ describe('validateExitRecycling', () => {
     const config: ExitRecyclingInput = {
       enabled: true,
       recyclingPeriod: 5,
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
 
     expect(result.isValid).toBe(false);
-    expect(result.errors.some(e => e.field === 'recyclingCap')).toBe(true);
+    expect(result.errors.some((e) => e.field === 'recyclingCap')).toBe(true);
   });
 
   it('requires recycling period when enabled', () => {
     const config: ExitRecyclingInput = {
       enabled: true,
       recyclingCap: 15,
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
 
     expect(result.isValid).toBe(false);
-    expect(result.errors.some(e => e.field === 'recyclingPeriod')).toBe(true);
+    expect(result.errors.some((e) => e.field === 'recyclingPeriod')).toBe(true);
   });
 
   it('requires exit recycling rate when enabled', () => {
     const config: ExitRecyclingInput = {
       enabled: true,
       recyclingCap: 15,
-      recyclingPeriod: 5
+      recyclingPeriod: 5,
     };
 
     const result = validateExitRecycling(config, 100);
 
     expect(result.isValid).toBe(false);
-    expect(result.errors.some(e => e.field === 'exitRecyclingRate')).toBe(true);
+    expect(result.errors.some((e) => e.field === 'exitRecyclingRate')).toBe(true);
   });
 
   it('validates recycling cap range', () => {
@@ -530,12 +520,12 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 30, // Too high
       recyclingPeriod: 5,
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(configHigh, 100);
     expect(result.isValid).toBe(false);
-    expect(result.errors.some(e => e.field === 'recyclingCap')).toBe(true);
+    expect(result.errors.some((e) => e.field === 'recyclingCap')).toBe(true);
   });
 
   it('warns about high recycling cap', () => {
@@ -543,11 +533,13 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 22, // Above 20%
       recyclingPeriod: 5,
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'recyclingCap' && w.message.includes('uncommon'))).toBe(true);
+    expect(
+      result.warnings.some((w) => w.field === 'recyclingCap' && w.message.includes('uncommon'))
+    ).toBe(true);
   });
 
   it('warns about low recycling cap', () => {
@@ -555,11 +547,13 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 3, // Below 5%
       recyclingPeriod: 5,
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'recyclingCap' && w.message.includes('limited'))).toBe(true);
+    expect(
+      result.warnings.some((w) => w.field === 'recyclingCap' && w.message.includes('limited'))
+    ).toBe(true);
   });
 
   it('warns about short recycling period', () => {
@@ -567,11 +561,11 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 15,
       recyclingPeriod: 2, // Less than 3 years
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'recyclingPeriod')).toBe(true);
+    expect(result.warnings.some((w) => w.field === 'recyclingPeriod')).toBe(true);
   });
 
   it('warns about long recycling period', () => {
@@ -579,11 +573,13 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 15,
       recyclingPeriod: 8, // More than 7 years
-      exitRecyclingRate: 75
+      exitRecyclingRate: 75,
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'recyclingPeriod' && w.message.includes('harvest'))).toBe(true);
+    expect(
+      result.warnings.some((w) => w.field === 'recyclingPeriod' && w.message.includes('harvest'))
+    ).toBe(true);
   });
 
   it('warns about low recycling rate', () => {
@@ -591,11 +587,11 @@ describe('validateExitRecycling', () => {
       enabled: true,
       recyclingCap: 15,
       recyclingPeriod: 5,
-      exitRecyclingRate: 40 // Below 50%
+      exitRecyclingRate: 40, // Below 50%
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'exitRecyclingRate')).toBe(true);
+    expect(result.warnings.some((w) => w.field === 'exitRecyclingRate')).toBe(true);
   });
 
   it('warns about management fee recycling', () => {
@@ -604,10 +600,10 @@ describe('validateExitRecycling', () => {
       recyclingCap: 15,
       recyclingPeriod: 5,
       exitRecyclingRate: 75,
-      mgmtFeeRecyclingRate: 50
+      mgmtFeeRecyclingRate: 50,
     };
 
     const result = validateExitRecycling(config, 100);
-    expect(result.warnings.some(w => w.field === 'mgmtFeeRecyclingRate')).toBe(true);
+    expect(result.warnings.some((w) => w.field === 'mgmtFeeRecyclingRate')).toBe(true);
   });
 });

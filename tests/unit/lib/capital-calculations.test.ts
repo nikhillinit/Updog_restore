@@ -7,8 +7,8 @@ import {
   getSchedulePattern,
   calculateProjections,
   calculateNetInvestableCapital,
-  validateCapitalAllocation
-} from '../capital-calculations';
+  validateCapitalAllocation,
+} from '@/lib/capital-calculations';
 
 describe('getSchedulePattern', () => {
   describe('even distribution', () => {
@@ -19,7 +19,9 @@ describe('getSchedulePattern', () => {
     });
 
     it('should handle different investment periods', () => {
-      expect(getSchedulePattern('even', 3)).toEqual([33.333333333333336, 33.333333333333336, 33.333333333333336]);
+      expect(getSchedulePattern('even', 3)).toEqual([
+        33.333333333333336, 33.333333333333336, 33.333333333333336,
+      ]);
       expect(getSchedulePattern('even', 4)).toEqual([25, 25, 25, 25]);
     });
   });
@@ -71,20 +73,22 @@ describe('getSchedulePattern', () => {
       const customSchedule = [
         { year: 1, percentage: 50 },
         { year: 2, percentage: 30 },
-        { year: 3, percentage: 20 }
+        { year: 3, percentage: 20 },
       ];
       const pattern = getSchedulePattern('custom', 3, customSchedule);
       expect(pattern).toEqual([50, 30, 20]);
     });
 
     it('should throw error if custom schedule not provided', () => {
-      expect(() => getSchedulePattern('custom', 3)).toThrow('Custom schedule requires customSchedule parameter');
+      expect(() => getSchedulePattern('custom', 3)).toThrow(
+        'Custom schedule requires customSchedule parameter'
+      );
     });
 
     it('should handle gaps in custom schedule', () => {
       const customSchedule = [
         { year: 1, percentage: 60 },
-        { year: 3, percentage: 40 }
+        { year: 3, percentage: 40 },
       ];
       const pattern = getSchedulePattern('custom', 3, customSchedule);
       expect(pattern).toEqual([60, 0, 40]);
@@ -99,7 +103,7 @@ describe('calculateProjections', () => {
     gpCommitment: 2.0,
     cashlessSplit: 50,
     managementFeeRate: 2.0,
-    stepDownEnabled: false
+    stepDownEnabled: false,
   };
 
   describe('with even schedule', () => {
@@ -124,7 +128,7 @@ describe('calculateProjections', () => {
       const projections = calculateProjections({
         ...baseData,
         investmentPeriod: 4,
-        scheduleType: 'front-loaded'
+        scheduleType: 'front-loaded',
       });
 
       expect(projections[0].calledCapital).toBeCloseTo(40); // 100 * 0.4
@@ -139,7 +143,7 @@ describe('calculateProjections', () => {
       const projections = calculateProjections({
         ...baseData,
         investmentPeriod: 4,
-        scheduleType: 'back-loaded'
+        scheduleType: 'back-loaded',
       });
 
       expect(projections[0].calledCapital).toBeCloseTo(10); // 100 * 0.1
@@ -153,14 +157,14 @@ describe('calculateProjections', () => {
     it('should follow custom deployment pattern', () => {
       const customSchedule = [
         { year: 1, percentage: 60 },
-        { year: 2, percentage: 40 }
+        { year: 2, percentage: 40 },
       ];
 
       const projections = calculateProjections({
         ...baseData,
         investmentPeriod: 2,
         scheduleType: 'custom',
-        customSchedule
+        customSchedule,
       });
 
       expect(projections[0].calledCapital).toBeCloseTo(60); // 100 * 0.6
@@ -184,7 +188,7 @@ describe('calculateProjections', () => {
       const projections = calculateProjections({
         ...baseData,
         cashlessSplit: 0,
-        scheduleType: 'even'
+        scheduleType: 'even',
       });
 
       const yearOne = projections[0];
@@ -211,7 +215,7 @@ describe('calculateProjections', () => {
         stepDownEnabled: true,
         stepDownYear: 6,
         stepDownRate: 1.5,
-        scheduleType: 'even'
+        scheduleType: 'even',
       });
 
       // Years 1-5 should use initial rate
@@ -230,8 +234,22 @@ describe('calculateNetInvestableCapital', () => {
     const fundSize = 100;
     const orgExpenses = 0.5;
     const projections = [
-      { year: 1, calledCapital: 20, gpCashCommitment: 0.2, gpCashlessCommitment: 0.2, managementFeeRate: 2, managementFeeAfterCashless: 0.4 },
-      { year: 2, calledCapital: 20, gpCashCommitment: 0.2, gpCashlessCommitment: 0.2, managementFeeRate: 2, managementFeeAfterCashless: 0.4 }
+      {
+        year: 1,
+        calledCapital: 20,
+        gpCashCommitment: 0.2,
+        gpCashlessCommitment: 0.2,
+        managementFeeRate: 2,
+        managementFeeAfterCashless: 0.4,
+      },
+      {
+        year: 2,
+        calledCapital: 20,
+        gpCashCommitment: 0.2,
+        gpCashlessCommitment: 0.2,
+        managementFeeRate: 2,
+        managementFeeAfterCashless: 0.4,
+      },
     ];
 
     const netCapital = calculateNetInvestableCapital(fundSize, orgExpenses, projections);
