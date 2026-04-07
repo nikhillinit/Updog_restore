@@ -22,6 +22,8 @@ import { logger } from '../lib/logger';
 import { logMonteCarloOperation, logMonteCarloError } from '../utils/logger.js';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 import { PRNG } from '@shared/utils/prng';
+import type { MarketParameters } from '@shared/types/backtesting';
+import { applyMarketParametersOverride } from './lib/distribution-overrides';
 
 // ============================================================================
 // DEMO MODE CONFIGURATION
@@ -52,6 +54,18 @@ export interface SimulationConfig {
   portfolioSize?: number; // Target portfolio size
   deploymentScheduleMonths?: number; // Deployment period
   randomSeed?: number; // For reproducible results
+  /**
+   * Optional market parameter overrides for scenario-aware Monte Carlo runs.
+   * When present, calibrateDistributions applies the override via
+   * applyMarketParametersOverride — overriding multiple.{mean,volatility},
+   * exitTiming.mean, and scaling irr.mean by (1 - failureRate). When absent,
+   * calibration falls through to varianceReports / getDefaultDistributions
+   * (current default behavior — backward compatible).
+   *
+   * See .planning/phases/02-backtesting-scenario-comparison-rewrite-p1/02-CONTEXT.md
+   * D-01 (Phase 2 Plan 02-02).
+   */
+  marketParameters?: MarketParameters;
 }
 
 export interface MarketEnvironment {
@@ -282,7 +296,7 @@ export class MonteCarloEngine {
       // Get baseline data and historical patterns
       const baseline = await this.getBaselineData(config.fundId, config.baselineId);
       const portfolioInputs = await this.getPortfolioInputs(config.fundId, baseline);
-      const distributions = await this.calibrateDistributions(config.fundId, baseline);
+      const distributions = await this.calibrateDistributions(config.fundId, baseline, config);
 
       // Set random seed for reproducibility using local PRNG
       if (config.randomSeed) {
@@ -635,7 +649,8 @@ export class MonteCarloEngine {
 
   private async calibrateDistributions(
     fundId: number,
-    baseline: FundBaseline
+    baseline: FundBaseline,
+    config?: SimulationConfig
   ): Promise<DistributionParameters> {
     // Get historical variance data
     const reports = await this.dataSource.query.varianceReports.findMany({
@@ -644,47 +659,61 @@ export class MonteCarloEngine {
       limit: 30, // Last 30 reports for calibration
     });
 
+    let distributions: DistributionParameters;
+
     if (reports.length < 3) {
       // Use default industry parameters if insufficient data
-      return this.getDefaultDistributions();
+      distributions = this.getDefaultDistributions();
+    } else {
+      // Extract variance patterns
+      const irrVariances = this.extractVariances(reports, 'irrVariance');
+      const multipleVariances = this.extractVariances(reports, 'multipleVariance');
+      const dpiVariances = this.extractVariances(reports, 'dpiVariance');
+
+      const irrMean = toDecimal(baseline.irr?.toString() || '0.15');
+      const multipleMean = toDecimal(baseline.multiple?.toString() || '2.5');
+      const dpiMean = toDecimal(baseline.dpi?.toString() || '0.8');
+
+      // FIXED: Preserve 0 volatility, only fallback for NaN/Infinity/negative
+      // Bug fix: || operator treats 0 as falsy, overwriting intentional zero
+      const safeVolatility = (val: number, fallback: number): number =>
+        Number.isFinite(val) && val >= 0 ? val : fallback;
+
+      distributions = {
+        irr: {
+          mean: irrMean.toNumber(),
+          volatility: safeVolatility(this.calculateVolatility(irrVariances), 0.08),
+        },
+        multiple: {
+          mean: multipleMean.toNumber(),
+          volatility: safeVolatility(this.calculateVolatility(multipleVariances), 0.6),
+        },
+        dpi: {
+          mean: dpiMean.toNumber(),
+          volatility: safeVolatility(this.calculateVolatility(dpiVariances), 0.3),
+        },
+        exitTiming: {
+          mean: 5.5, // Average 5.5 years to exit
+          volatility: 2.0,
+        },
+        followOnSize: {
+          mean: 0.5, // 50% of initial investment
+          volatility: 0.3,
+        },
+      };
     }
 
-    // Extract variance patterns
-    const irrVariances = this.extractVariances(reports, 'irrVariance');
-    const multipleVariances = this.extractVariances(reports, 'multipleVariance');
-    const dpiVariances = this.extractVariances(reports, 'dpiVariance');
+    // Phase 2 Plan 02-02 (REQ-BCK-01, D-01): scenario-aware override. When the
+    // caller passes SimulationConfig.marketParameters (e.g. from Plan 02-03's
+    // per-scenario runScenarioComparisons rewrite), translate the market
+    // parameters into DistributionParameters via the shared helper. When
+    // absent, this branch is skipped and the default behavior is preserved
+    // byte-for-byte — existing tests and the Phoenix truth gate stay green.
+    if (config?.marketParameters) {
+      distributions = applyMarketParametersOverride(distributions, config.marketParameters);
+    }
 
-    const irrMean = toDecimal(baseline.irr?.toString() || '0.15');
-    const multipleMean = toDecimal(baseline.multiple?.toString() || '2.5');
-    const dpiMean = toDecimal(baseline.dpi?.toString() || '0.8');
-
-    // FIXED: Preserve 0 volatility, only fallback for NaN/Infinity/negative
-    // Bug fix: || operator treats 0 as falsy, overwriting intentional zero
-    const safeVolatility = (val: number, fallback: number): number =>
-      Number.isFinite(val) && val >= 0 ? val : fallback;
-
-    return {
-      irr: {
-        mean: irrMean.toNumber(),
-        volatility: safeVolatility(this.calculateVolatility(irrVariances), 0.08),
-      },
-      multiple: {
-        mean: multipleMean.toNumber(),
-        volatility: safeVolatility(this.calculateVolatility(multipleVariances), 0.6),
-      },
-      dpi: {
-        mean: dpiMean.toNumber(),
-        volatility: safeVolatility(this.calculateVolatility(dpiVariances), 0.3),
-      },
-      exitTiming: {
-        mean: 5.5, // Average 5.5 years to exit
-        volatility: 2.0,
-      },
-      followOnSize: {
-        mean: 0.5, // 50% of initial investment
-        volatility: 0.3,
-      },
-    };
+    return distributions;
   }
 
   private getDefaultDistributions(): DistributionParameters {
