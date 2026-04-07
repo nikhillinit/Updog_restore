@@ -49,7 +49,7 @@ Source: `docs/plans/2026-04-07-backtesting-scenario-comparison-correctness.md`
       `docs/archive/plans/2026-01-04-monte-carlo-backtesting-integration.md:69`
       is satisfied; truth case for at least one historical market regime passes;
       persisted output is statistically defensible.
-- [ ] **REQ-BCK-02**: Reclassify the `alphaFinding` severity in
+- [x] **REQ-BCK-02**: Reclassify the `alphaFinding` severity in
       `.a5c/processes/sensitivity-stress-panel.inputs.json` from `informational`
       to its proper P1 tier so the finding can no longer be triaged into the
       wrong queue.

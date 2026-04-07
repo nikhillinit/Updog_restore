@@ -172,7 +172,7 @@ Plans:
 - [ ] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
       runScenarioComparisons to inject per-scenario marketParameters, delete
       applyMarketAdjustment, replace console.error with Pino structured logs
-- [ ] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
+- [x] 02-04-severity-reclassification-PLAN.md — Reclassify alphaFinding severity
       from informational to P1 in
       .a5c/processes/sensitivity-stress-panel.inputs.json
 - [ ] 02-05-phoenix-truth-case-PLAN.md — Add Phoenix truth case for 2008 GFC
