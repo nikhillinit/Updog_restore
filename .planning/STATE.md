@@ -53,7 +53,11 @@ quality workflow (research + plan-check + verifier all enabled),
 
 ## Active Phase
 
-**Phase 1 — Variance Automation 1C.3 Follow-Ons** (not started)
+**Phase 1 — Variance Automation 1C.3 Follow-Ons** (context gathered 2026-04-07,
+ready for `/gsd-plan-phase 1`)
+
+Context file:
+`.planning/phases/01-variance-automation-1c3-followons/01-CONTEXT.md`
 
 Source plan:
 `docs/plans/2026-04-07-phase-1c3-variance-automation-followons-backlog.md`
@@ -61,6 +65,19 @@ Source plan:
 Read first: parent plan
 `docs/plans/2026-04-02-phase-1c2-alert-scheduling-and-remaining-capital-plan.md`
 (Known Tradeoffs section), to understand why each item was deferred from 1C.2.
+
+**Key decisions from `/gsd-discuss-phase 1` (2026-04-07):**
+
+- Item A (leader election) ships; Items B and C re-deferred with updated
+  triggers
+- Heartbeat table row (`variance_planner_leader`), not advisory locks (Neon
+  PgBouncer transaction-mode incompatible) and not Redis (split-brain risk)
+- Lease 10 min / renewal 2.5 min, env-tunable
+- Single global leader across hourly/daily/weekly
+- Leader gates `runPlannerCycle()` only; processor and recovery sweep keep
+  running on every instance for resilience
+- Crash test uses lease-expiry simulation, not child-process spawning (REFL-024
+  cascade-failure lesson)
 
 ## Authoritative Documents
 
