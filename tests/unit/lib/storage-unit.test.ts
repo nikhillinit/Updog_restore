@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Storage Layer Tests
  * Comprehensive test suite for production-grade localStorage wrapper
@@ -10,15 +11,15 @@ import {
   saveToStorage,
   removeFromStorage,
   clearExpiredData,
-  getStorageStats
-} from '../storage';
+  getStorageStats,
+} from '@/lib/storage';
 
 // Mock localStorage
 const mockStorage: Record<string, string> = {};
 
 beforeEach(() => {
   // Clear mock storage
-  Object.keys(mockStorage).forEach(key => delete mockStorage[key]);
+  Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
 
   // Mock localStorage API
   Object.defineProperty(global, 'localStorage', {
@@ -31,14 +32,14 @@ beforeEach(() => {
         delete mockStorage[key];
       },
       clear: () => {
-        Object.keys(mockStorage).forEach(key => delete mockStorage[key]);
+        Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
       },
       get length() {
         return Object.keys(mockStorage).length;
       },
-      key: (index: number) => Object.keys(mockStorage)[index] || null
+      key: (index: number) => Object.keys(mockStorage)[index] || null,
     },
-    writable: true
+    writable: true,
   });
 });
 
@@ -107,7 +108,7 @@ describe('loadFromStorage', () => {
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: Date.now(),
-      data: { value: 'not-a-number' }
+      data: { value: 'not-a-number' },
     });
 
     const result = loadFromStorage('modeling-wizard-progress', TestSchema);
@@ -118,7 +119,7 @@ describe('loadFromStorage', () => {
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: Date.now(),
-      data: { value: 'invalid' }
+      data: { value: 'invalid' },
     });
 
     loadFromStorage('modeling-wizard-progress', TestSchema);
@@ -139,7 +140,7 @@ describe('TTL (Time-To-Live)', () => {
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: sevenDaysAgo,
-      data: { value: 42 }
+      data: { value: 42 },
     });
 
     const result = loadFromStorage('modeling-wizard-progress', TestSchema);
@@ -148,11 +149,11 @@ describe('TTL (Time-To-Live)', () => {
 
   it('should load non-expired data', () => {
     // Save data with recent timestamp
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: oneHourAgo,
-      data: { value: 42 }
+      data: { value: 42 },
     });
 
     const result = loadFromStorage('modeling-wizard-progress', TestSchema);
@@ -164,7 +165,7 @@ describe('TTL (Time-To-Live)', () => {
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: sevenDaysAgo,
-      data: { value: 42 }
+      data: { value: 42 },
     });
 
     loadFromStorage('modeling-wizard-progress', TestSchema);
@@ -182,7 +183,7 @@ describe('Namespace isolation', () => {
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
       at: Date.now(),
-      data: { value: 42 }
+      data: { value: 42 },
     });
 
     clearExpiredData();
@@ -195,8 +196,8 @@ describe('Namespace isolation', () => {
     mockStorage['povcXevil'] = 'should-not-be-touched';
     mockStorage['povc:modeling-wizard-progress'] = JSON.stringify({
       v: 1,
-      at: Date.now() - (8 * 24 * 60 * 60 * 1000), // Expired
-      data: { value: 42 }
+      at: Date.now() - 8 * 24 * 60 * 60 * 1000, // Expired
+      data: { value: 42 },
     });
 
     clearExpiredData();
@@ -217,13 +218,13 @@ describe('clearExpiredData', () => {
     mockStorage['povc:item1'] = JSON.stringify({
       v: 1,
       at: sevenDaysAgo,
-      data: { value: 1 }
+      data: { value: 1 },
     });
 
     mockStorage['povc:item2'] = JSON.stringify({
       v: 1,
       at: Date.now(),
-      data: { value: 2 }
+      data: { value: 2 },
     });
 
     clearExpiredData();
@@ -237,7 +238,7 @@ describe('clearExpiredData', () => {
     mockStorage['povc:valid'] = JSON.stringify({
       v: 1,
       at: Date.now(),
-      data: { value: 42 }
+      data: { value: 42 },
     });
 
     clearExpiredData();
@@ -254,7 +255,7 @@ describe('clearExpiredData', () => {
       mockStorage[`povc:item${i}`] = JSON.stringify({
         v: 1,
         at: sevenDaysAgo,
-        data: { value: i }
+        data: { value: i },
       });
     }
 
