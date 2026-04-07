@@ -87,7 +87,7 @@ Plans:
       timer, release-on-stop, getHealth extension, Pino events
 - [x] 01-03-leader-unit-tests-PLAN.md — Unit tests for acquisition, renewal,
       takeover, demotion, release, D-04 processor regression guard
-- [ ] 01-04-leader-integration-test-PLAN.md — Crash-takeover integration test
+- [x] 01-04-leader-integration-test-PLAN.md — Crash-takeover integration test
       against real Postgres (no child process)
 - [ ] 01-05-backlog-doc-and-verification-PLAN.md — Update 1C.3 backlog doc per
       D-05/D-06/D-07 and run validate:core + phoenix:truth
