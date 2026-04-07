@@ -6,7 +6,8 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { pdfTheme, getCopyrightText } from '../index';
+import { pdfTheme } from '../theme';
+import { getCopyrightText } from '../index';
 import { PDF_FONTS } from '../fonts';
 
 export interface PdfFooterProps {
@@ -72,12 +73,8 @@ export const PdfFooter: React.FC<PdfFooterProps> = ({
   return (
     <View style={styles.footer} fixed>
       <View style={styles.leftSection}>
-        {confidential && (
-          <Text style={styles.confidential}>Confidential</Text>
-        )}
-        {showCopyright && (
-          <Text style={styles.text}>{getCopyrightText(copyrightYear)}</Text>
-        )}
+        {confidential && <Text style={styles.confidential}>Confidential</Text>}
+        {showCopyright && <Text style={styles.text}>{getCopyrightText(copyrightYear)}</Text>}
       </View>
       <View style={styles.centerSection}>
         {customText && <Text style={styles.text}>{customText}</Text>}
@@ -86,9 +83,7 @@ export const PdfFooter: React.FC<PdfFooterProps> = ({
         {showPageNumbers && (
           <Text
             style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
-            }
+            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
           />
         )}
       </View>

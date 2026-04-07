@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
-import { pdfTheme } from '../index';
+import { pdfTheme } from '../theme';
 import { PDF_FONTS } from '../fonts';
 
 export interface PdfMetricCardProps {
@@ -70,13 +70,9 @@ export const PdfMetricCard: React.FC<PdfMetricCardProps> = ({
     return {};
   };
 
-  const cardStyle = highlighted
-    ? [styles.card, styles.cardHighlighted]
-    : [styles.card];
+  const cardStyle = highlighted ? [styles.card, styles.cardHighlighted] : [styles.card];
 
-  const valueStyle = trend
-    ? [styles.value, getTrendStyle()]
-    : [styles.value];
+  const valueStyle = trend ? [styles.value, getTrendStyle()] : [styles.value];
 
   return (
     <View style={cardStyle}>

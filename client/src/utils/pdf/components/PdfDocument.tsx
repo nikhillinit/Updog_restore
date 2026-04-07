@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Document, Page, View, StyleSheet } from '@react-pdf/renderer';
-import { pdfTheme } from '../index';
+import { pdfTheme } from '../theme';
 import { registerFonts, PDF_FONTS } from '../fonts';
 import { PdfHeader, type PdfHeaderProps } from './PdfHeader';
 import { PdfFooter, type PdfFooterProps } from './PdfFooter';
@@ -78,13 +78,9 @@ export const PdfDocument: React.FC<PdfDocumentProps> = ({
   return (
     <Document {...documentProps}>
       <Page size="LETTER" orientation={orientation} style={styles.page}>
-        {header !== false && (
-          <PdfHeader {...(header || defaultHeader)} />
-        )}
+        {header !== false && <PdfHeader {...(header || defaultHeader)} />}
         <View style={styles.content}>{children}</View>
-        {footer !== false && (
-          <PdfFooter {...(footer || defaultFooter)} />
-        )}
+        {footer !== false && <PdfFooter {...(footer || defaultFooter)} />}
       </Page>
     </Document>
   );
