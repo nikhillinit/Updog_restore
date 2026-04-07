@@ -55,8 +55,10 @@
 
 ## Module Boundaries (ESLint enforced)
 
-- **`server/**`** cannot import `client/src/_`(or`../client/_`, `../../client/\*`)
-- **`client/**`** cannot import `server/_`(or`../server/_`, `../../server/\*`)
+- Code under `server/` cannot import from `client/src/*` (or relative
+  `../client/*`, `../../client/*`)
+- Code under `client/` cannot import from `server/*` (or relative `../server/*`,
+  `../../server/*`)
 - Both can import `shared/*` and `@shared/*`
 - Path-aliased imports (`@/*`, `@shared/*`) are preferred over relative paths
 

@@ -296,11 +296,13 @@ tests/
   env)
 - **Integration:** `tests/integration/**/*.test.ts` (separate config:
   `vitest.config.int.ts`)
-- **Co-located tests in
-  `client/src/**/**tests**/`are NOT picked up** by client vitest project — they must be moved to`tests/unit/\*\*`(per memory note "Client Test File Placement"). Recently`lib/**tests**/`files were moved to`tests/unit/lib/`(commit`01b87889`).
-- **Server tests under
-  `server/**/**tests**/`are also not auto-discovered** by the unit project — server`**tests**/`
-  folders exist but rely on the integration runner or are vestigial.
+- Co-located tests in `client/src/<dir>/__tests__/` are **NOT picked up** by the
+  client vitest project — they must be moved to `tests/unit/**` (per memory note
+  "Client Test File Placement"). Recently `lib/__tests__/` files were moved to
+  `tests/unit/lib/` (commit `01b87889`).
+- Server tests under `server/<dir>/__tests__/` are also **not auto-discovered**
+  by the unit project — those `__tests__/` folders exist but rely on the
+  integration runner or are vestigial.
 
 ## Lint-Ignored Directories
 
