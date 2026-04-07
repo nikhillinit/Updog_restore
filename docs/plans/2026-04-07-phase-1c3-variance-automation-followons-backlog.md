@@ -58,6 +58,21 @@ complaints). Until then, accepted as cost.
 - add health/observability for leader transitions
 - prove correctness when the leader process crashes mid-window
 
+**Status (2026-04-07, Phase 1):** SHIPPED. Phase 1 of Milestone M8 implemented
+Item A as described above. Leader election primitive is a single-row
+`variance_planner_leader` heartbeat table (D-01 rejected advisory locks because
+Neon PgBouncer in transaction mode does not preserve session-scoped locks across
+queries, and rejected Redis to avoid split-brain risk + `memory://` fallback
+drift in dev/test). Lease is 10 minutes with 2.5-minute renewal cadence, both
+tunable via `VARIANCE_PLANNER_LEASE_MS` and `VARIANCE_PLANNER_RENEWAL_MS`.
+Single global leader across all frequencies (D-03). Leader gate is scoped to
+`runPlannerCycle` only — `runProcessorCycle` and `recoverStaleProcessingJobs`
+continue to run on every instance for resilience (D-04). Crash-takeover is
+verified by an in-process integration test (lease fast-forward, no child process
+per REFL-024). See phase directory
+`.planning/phases/01-variance-automation-1c3-followons/` for the full decision
+trail.
+
 ### Item B: Auto-Resolve Superseded Baseline-Scoped Incidents
 
 **Source:** `1C.2` plan, Known Tradeoffs §2
@@ -69,8 +84,13 @@ complaints). Until then, accepted as cost.
   baseline by default)
 - no automatic resolution of the older-baseline incidents themselves
 
-**Trigger to act:** operators report stale-incident clutter, or LP-facing
-reports surface the older baselines, or the alert filter UX proves insufficient.
+**Trigger to act (restated 2026-04-07, Phase 1 decision trail — see D-05):**
+operator reports stale-incident clutter, OR LP-facing reports surface incidents
+against retired baselines, OR the alert filter UX proves insufficient in
+practice. No signal observed in the 2026-03/2026-04 commit stream; the read-side
+filter shipped in `b8d3bd60` is holding. Re-deferred from Phase 1 (M8 1C.3
+follow-ons) on 2026-04-07 per the Phase 1 context file — auto-resolution remains
+in backlog until one of the above triggers fires.
 
 **Approximate scope when acted on:**
 
@@ -92,9 +112,14 @@ reports surface the older baselines, or the alert filter UX proves insufficient.
 - `job_outbox` is the durable boundary, so this is acceptable today
 - bounded by current workload and deployment topology
 
-**Trigger to act:** background workload grows materially, deployment topology
-gains a worker tier for other reasons, or web-app restarts become a scheduler
-correctness liability.
+**Trigger to act (restated 2026-04-07, Phase 1 decision trail — see D-06):**
+background workload materially grows beyond current variance/baseline cadence,
+OR deployment topology gains a worker tier for other reasons, OR web-app restart
+rate becomes a scheduler correctness liability. No scale pressure, no topology
+change, no web-app restart correctness issue observed in 2026-03/2026-04. The
+Phase 1 leader election (Item A, SHIPPED) is the scaffolding this item will
+build on when a trigger fires. Re-deferred from Phase 1 (M8 1C.3 follow-ons) on
+2026-04-07 per the Phase 1 context file.
 
 **Approximate scope when acted on:**
 
