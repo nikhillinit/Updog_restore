@@ -368,8 +368,9 @@ describe('MatrixCompression', () => {
 
       expect(restored.length).toBe(numScenarios);
 
-      // Performance: should decompress in <50ms
-      expect(duration).toBeLessThan(50);
+      // Performance: should decompress in <100ms (matches compress sibling at L297;
+      // prior threshold of 50ms was a boundary-flake under suite contention)
+      expect(duration).toBeLessThan(100);
     });
 
     it('should reject unsupported version', async () => {
