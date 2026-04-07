@@ -2586,6 +2586,25 @@ export const jobOutbox = pgTable(
   })
 );
 
+// Variance Planner Leader Table - Single-row heartbeat lease for planner loop
+// leader election. See .planning/phases/01-variance-automation-1c3-followons/01-CONTEXT.md
+// D-01 (heartbeat table chosen over advisory locks and Redis).
+export const variancePlannerLeader = pgTable(
+  'variance_planner_leader',
+  {
+    id: varchar('id', { length: 64 }).primaryKey(),
+    instanceId: varchar('instance_id', { length: 255 }).notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }).notNull(),
+    lastRenewedAt: timestamp('last_renewed_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    leaseExpiresIdx: index('idx_variance_planner_leader_lease_expires').on(table.leaseExpiresAt),
+  })
+);
+
 // Scenario Matrices Table - Stores Monte Carlo MOIC matrices with metadata
 export const scenarioMatrices = pgTable(
   'scenario_matrices',
@@ -2709,6 +2728,11 @@ export const insertJobOutboxSchema = createInsertSchema(jobOutbox).omit({
   updatedAt: true,
 });
 
+export const insertVariancePlannerLeaderSchema = createInsertSchema(variancePlannerLeader).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertScenarioMatrixSchema = createInsertSchema(scenarioMatrices).omit({
   id: true,
   createdAt: true,
@@ -2724,6 +2748,8 @@ export const insertOptimizationSessionSchema = createInsertSchema(optimizationSe
 // Type exports
 export type JobOutbox = typeof jobOutbox.$inferSelect;
 export type InsertJobOutbox = typeof jobOutbox.$inferInsert;
+export type VariancePlannerLeader = typeof variancePlannerLeader.$inferSelect;
+export type InsertVariancePlannerLeader = typeof variancePlannerLeader.$inferInsert;
 export type AlertEvaluationExecution = typeof alertEvaluationExecutions.$inferSelect;
 export type InsertAlertEvaluationExecution = typeof alertEvaluationExecutions.$inferInsert;
 export type ScenarioMatrix = typeof scenarioMatrices.$inferSelect;
