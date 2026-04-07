@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: '2026-04-07T23:19:40.429Z'
+last_updated: '2026-04-07T23:40:08.659Z'
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
-  percent: 55
+  completed_plans: 7
+  percent: 64
 ---
 
 # GSD State — Updog
@@ -25,7 +25,10 @@ defensible and traceable to the inputs that produced them.
 **Current focus:** Phase 02 — backtesting-scenario-comparison-rewrite-p1
 (BacktestingService.runScenarioComparisons rewrite). Phase 01 (variance
 automation 1C.3 follow-ons) is COMPLETE. Plan 02-01 (baseline capture) landed
-2026-04-07; next plans 02-02..02-06 are written and ready to execute.
+2026-04-07 followed by Plan 02-02 (engine marketParameters override) —
+SimulationConfig.marketParameters is now wired through BOTH MC engines'
+calibrateDistributions via a shared distribution-overrides helper. Next up: Plan
+02-03 (runScenarioComparisons rewrite) to consume the seam.
 
 ## Codebase Reference
 

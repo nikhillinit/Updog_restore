@@ -166,7 +166,7 @@ Plans:
 - [x] 02-01-baseline-capture-PLAN.md — Capture analytic-rescale baseline
       percentiles for the GFC scenario before the rewrite removes the analytic
       code path
-- [ ] 02-02-engine-market-params-override-PLAN.md — Add
+- [x] 02-02-engine-market-params-override-PLAN.md — Add
       SimulationConfig.marketParameters override and wire calibrateDistributions
       consumption in both Monte Carlo engines
 - [ ] 02-03-runscenariocomparisons-rewrite-PLAN.md — Rewrite
