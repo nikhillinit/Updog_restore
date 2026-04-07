@@ -305,3 +305,4 @@ uiux-skill/
 
 # Local hook probes
 .tmp-git-hook-probe/
+.gstack/
